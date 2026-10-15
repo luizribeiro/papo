@@ -2476,6 +2476,40 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn message_reply_sends_an_allowed_reply_tag() {
+        let (mut server, _client, mut events, driver) =
+            scripted(config().wanted_caps(["message-tags"]));
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
+        client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
+        server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test 005 papo-driver CLIENTTAGDENY=*,-reply :are supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        server_line(
+            &mut server,
+            b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG #papo :!ping\r\n",
+        )
+        .await;
+        let Some(Event::Message(message)) = events.next().await else {
+            panic!("expected message event")
+        };
+        message.reply("pong").await.unwrap();
+        client_line(
+            &mut server,
+            b"@+reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
+        )
+        .await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn client_send_rejects_an_invalid_message() {
         let (mut server, client, _events, driver) = scripted(config());
         let task = tokio::spawn(driver);

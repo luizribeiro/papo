@@ -7,7 +7,7 @@ use std::{
 use papo_proto::{Ctcp, Isupport, Message, MessageRef, Source, strip_formatting};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-use crate::Client;
+use crate::{Client, Error};
 
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -214,6 +214,34 @@ impl MessageEvent {
         self.origin == Origin::Live
     }
 
+    /// Sends a private message to [`Self::reply_target`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message is invalid or the driver has stopped.
+    pub async fn reply(&self, text: &str) -> Result<(), Error> {
+        let mut reply = Message::privmsg(self.reply_target(), text);
+        if self.caps.contains_key("message-tags") {
+            let denied = self.isupport.clienttagdeny();
+            if let Some(msgid) = self.msgid()
+                && let Some(tag) = allowed_alias(&denied, "+reply", "+draft/reply")
+            {
+                reply = reply.with_tag(tag, msgid);
+            }
+            if self.is_private()
+                && let Some(context) = tag_owned(
+                    &self.as_ref(),
+                    &["+channel-context", "+draft/channel-context"],
+                )
+                && let Some(tag) =
+                    allowed_alias(&denied, "+channel-context", "+draft/channel-context")
+            {
+                reply = reply.with_tag(tag, context);
+            }
+        }
+        self.client.send(reply).await
+    }
+
     /// Borrows the underlying IRC message.
     #[must_use]
     pub fn as_ref(&self) -> papo_proto::MessageRef<'_> {
@@ -248,6 +276,16 @@ impl PartialEq for MessageEvent {
 }
 
 impl Eq for MessageEvent {}
+
+fn allowed_alias<'a>(
+    denied: &papo_proto::ClientTagDeny<'_>,
+    preferred: &'a str,
+    fallback: &'a str,
+) -> Option<&'a str> {
+    (!denied.denies(preferred))
+        .then_some(preferred)
+        .or_else(|| (!denied.denies(fallback)).then_some(fallback))
+}
 
 fn tag_owned(message: &MessageRef<'_>, keys: &[&str]) -> Option<String> {
     keys.iter()
