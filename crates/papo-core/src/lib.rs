@@ -1,6 +1,7 @@
 //! Sans-I/O IRC session state and protocol behavior.
 //! Time and randomness enter through explicit inputs.
 
+mod account_registration;
 mod batch;
 mod caps;
 mod framing;
@@ -29,6 +30,7 @@ use papo_proto::{
     StandardReplyKind,
 };
 
+use account_registration::AccountRegistration;
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 use framing::Framer;
@@ -885,6 +887,13 @@ pub enum Event {
     },
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
+    /// Account creation completed and the session is authenticated.
+    AccountRegistered {
+        /// The registered account name.
+        account: String,
+        /// Whether the server authenticated the session to the account.
+        logged_in: bool,
+    },
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -1171,6 +1180,7 @@ pub enum StateLimit {
 
 /// Sans-I/O state for one IRC client session.
 pub struct Session {
+    account_registration: AccountRegistration,
     batches: Batches,
     config: Config,
     connection: Connection,
@@ -1195,6 +1205,7 @@ impl std::fmt::Debug for Session {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("Session")
+            .field("account_registration", &self.account_registration)
             .field("batches", &self.batches)
             .field("config", &self.config)
             .field("connection", &self.connection)
@@ -1324,6 +1335,7 @@ impl Session {
         let state = State::new(&config);
         let batches = Batches::new(&config);
         Self {
+            account_registration: AccountRegistration::default(),
             batches,
             config,
             connection,
@@ -1364,6 +1376,7 @@ impl Session {
         self.requests.clear();
         self.unlabelled_requests.clear();
         self.rate_limit.reset(now);
+        self.account_registration.handle_disconnected();
         self.caps.handle_connected(now);
         self.isupport.handle_connected();
         self.sasl.handle_connected();
@@ -1500,6 +1513,7 @@ impl Session {
             self.outbox.event(Event::RequestAborted { id: request.id });
         }
         self.registration.handle_disconnected();
+        self.account_registration.handle_disconnected();
         self.sasl.handle_disconnected();
         self.keepalive.handle_disconnected();
         self.monitor.handle_disconnected();
@@ -1858,7 +1872,51 @@ impl Session {
     /// Returns the account name reported by the server, when authenticated.
     #[must_use]
     pub fn account(&self) -> Option<&str> {
-        self.sasl.account()
+        self.account_registration
+            .account()
+            .or_else(|| self.sasl.account())
+    }
+
+    /// Requests creation of an account through `draft/account-registration`.
+    ///
+    /// An omitted account or email address is encoded as `*`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::Unsupported`] before connection registration or when the
+    /// capability was not negotiated. Other failures are the same as [`Session::request`].
+    pub fn register(
+        &mut self,
+        now: Instant,
+        account: Option<&str>,
+        email: Option<&str>,
+        password: impl Into<Secret>,
+    ) -> Result<(), RequestError> {
+        if !self.registration.is_registered() {
+            return Err(RequestError::Unsupported(
+                "account registration before connection",
+            ));
+        }
+        if !self
+            .caps
+            .enabled()
+            .contains_key("draft/account-registration")
+        {
+            return Err(RequestError::Unsupported("account-registration"));
+        }
+        let password = password.into();
+        self.request(
+            now,
+            Message::new(
+                "REGISTER",
+                [
+                    account.unwrap_or("*"),
+                    email.unwrap_or("*"),
+                    password.expose(),
+                ],
+            ),
+        )?;
+        Ok(())
     }
 
     /// Returns the most recently measured keepalive round-trip time.
@@ -1905,7 +1963,7 @@ impl Session {
             self.state.clone(),
             self.caps.enabled().clone(),
             self.isupport.value().clone(),
-            self.sasl.account().map(str::to_owned),
+            self.account().map(str::to_owned),
         )
     }
 
@@ -1935,6 +1993,10 @@ impl Session {
             &mut self.outbox,
         ) == Handled::Yes;
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
+        let account_registration_handled = self
+            .account_registration
+            .handle_message(message, &mut self.outbox)
+            == Handled::Yes;
         let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
         if !was_registered && self.registration.is_registered() {
             self.monitor
@@ -1956,6 +2018,7 @@ impl Session {
         let handled = registration_handled
             || caps_handled
             || sasl_handled
+            || account_registration_handled
             || monitor_handled
             || state_handled
             || isupport_handled
