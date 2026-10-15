@@ -127,6 +127,7 @@ async fn retries_without_subprotocols_when_a_legacy_server_rejects_them() {
         .await
         .unwrap();
     assert_eq!(stream.websocket_subprotocol(), None);
+    assert_invalid_utf8_rejected(&mut stream).await;
     stream.write_all(b"PING :legacy\r\n").await.unwrap();
     assert_eq!(
         read_line(&mut stream).await.unwrap(),
@@ -369,6 +370,7 @@ async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
         .await
         .unwrap();
     assert_eq!(stream.websocket_subprotocol(), Some("text.ircv3.net"));
+    assert_invalid_utf8_rejected(&mut stream).await;
     stream.write_all(b"PING :split\r").await.unwrap();
     stream.write_all(b"\n").await.unwrap();
     stream.write_all(b"PING :extra-cr\r\r\n").await.unwrap();
@@ -379,6 +381,14 @@ async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
     assert_eq!(stream.read(&mut [0; 1]).await.unwrap(), 0);
     assert_eq!(stream.read(&mut [0; 1]).await.unwrap(), 0);
     server.await.unwrap();
+}
+
+async fn assert_invalid_utf8_rejected(stream: &mut Stream) {
+    let error = stream
+        .write_all(b"PRIVMSG #papo :\xff\r\n")
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::InvalidData);
 }
 
 async fn read_line(stream: &mut Stream) -> io::Result<String> {
