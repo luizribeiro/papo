@@ -116,8 +116,8 @@
           wasi-checks = cargoHook {
             name = "wasi-checks-hook";
             text = ''
-              cargo check -p papo-proto -p papo-core --target wasm32-wasip1 --locked
-              cargo check -p papo-proto -p papo-core --target wasm32-wasip2 --locked
+              cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip1 --locked
+              cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip2 --locked
               cargo check -p papo-proto -p papo-core --target wasm32-unknown-unknown --locked
               cargo check -p papo --target wasm32-wasip2 --locked
             '';
@@ -125,7 +125,7 @@
           wasip3-checks = cargoHook {
             name = "wasip3-checks-hook";
             text = ''
-              ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto -p papo-core --locked
+              ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto -p papo-core --all-targets --locked
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo --locked
             '';
           };
