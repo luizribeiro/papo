@@ -782,6 +782,48 @@ pub struct StandardReply {
     pub description: String,
 }
 
+/// An account's configured persistence preference.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum PersistenceSetting {
+    /// Keep the account's client active while disconnected.
+    On,
+    /// Disconnect the account's client normally.
+    Off,
+    /// Use the server's default persistence policy.
+    Default,
+}
+
+impl PersistenceSetting {
+    /// Returns the wire token for this setting.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::On => "ON",
+            Self::Off => "OFF",
+            Self::Default => "DEFAULT",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value.to_ascii_uppercase().as_str() {
+            "ON" => Some(Self::On),
+            "OFF" => Some(Self::Off),
+            "DEFAULT" => Some(Self::Default),
+            _ => None,
+        }
+    }
+}
+
+/// Server-reported account persistence state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PersistenceStatus {
+    /// The account's configured preference.
+    pub setting: PersistenceSetting,
+    /// Whether persistence is currently effective.
+    pub effective: bool,
+}
+
 impl StandardReply {
     /// Returns the typed account-registration code when this is a matching failure.
     #[must_use]
@@ -991,6 +1033,13 @@ pub enum Event {
         account: String,
         /// Human-readable instructions from the server.
         message: String,
+    },
+    /// The server reported the account's persistence state.
+    PersistenceStatus {
+        /// The configured persistence preference.
+        setting: PersistenceSetting,
+        /// Whether persistence is currently effective.
+        effective: bool,
     },
     /// A completed history or playback batch.
     History {
@@ -1955,6 +2004,14 @@ impl Session {
     #[must_use]
     pub const fn state(&self) -> &State {
         &self.state
+    }
+
+    /// Reports whether the server will restore joined channels for this account.
+    #[must_use]
+    pub fn server_rejoins_channels(&self) -> bool {
+        self.state
+            .persistence()
+            .is_some_and(|status| status.effective)
     }
 
     /// Returns a counter that changes when snapshot-visible state changes.

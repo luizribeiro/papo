@@ -10,8 +10,8 @@ use papo_proto::{
 };
 
 use crate::{
-    Config, Event, Handled, LastSeen, Outbox, OwnedModeChange, ReadMarker, StateLimit,
-    monitor::Monitor,
+    Config, Event, Handled, LastSeen, Outbox, OwnedModeChange, PersistenceSetting,
+    PersistenceStatus, ReadMarker, StateLimit, monitor::Monitor,
 };
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
@@ -38,6 +38,7 @@ pub struct State {
     max_members_per_channel: usize,
     channel_limit_warned: bool,
     member_limit_warned: bool,
+    persistence: Option<PersistenceStatus>,
 }
 
 /// State known about a joined channel.
@@ -117,6 +118,7 @@ impl State {
             max_members_per_channel: config.max_members_per_channel,
             channel_limit_warned: false,
             member_limit_warned: false,
+            persistence: None,
         }
     }
 
@@ -157,6 +159,9 @@ impl State {
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = self.prepare_message(message, own_nick, isupport, outbox);
+        if self.handle_persistence(message, outbox) {
+            return Handled::Yes;
+        }
         self.remember_last_seen(message, own_nick);
         if self.handle_read_marker(message, outbox) {
             return Handled::Yes;
@@ -259,6 +264,34 @@ impl State {
             return Handled::Yes;
         }
         Handled::No
+    }
+
+    fn handle_persistence(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
+        if !message.command_is("PERSISTENCE") || message.param(0) != Some("STATUS") {
+            return false;
+        }
+        let (Some(setting), Some(effective)) = (message.param(1), message.param(2)) else {
+            return false;
+        };
+        let (Some(setting), Some(effective)) = (
+            PersistenceSetting::parse(setting),
+            match effective.to_ascii_uppercase().as_str() {
+                "ON" => Some(true),
+                "OFF" => Some(false),
+                _ => None,
+            },
+        ) else {
+            return false;
+        };
+        self.persistence = Some(PersistenceStatus { setting, effective });
+        outbox.event(Event::PersistenceStatus { setting, effective });
+        true
+    }
+
+    /// Returns the server-reported account persistence status.
+    #[must_use]
+    pub const fn persistence(&self) -> Option<PersistenceStatus> {
+        self.persistence
     }
 
     fn handle_read_marker(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
