@@ -469,27 +469,17 @@ async fn run_plan(
                 return finish_connection_failure(events, &mut registration, error);
             }
         };
-        let security = if plan.address.is_secure() {
-            ConnectionSecurity::Secure
-        } else {
-            ConnectionSecurity::Plaintext
-        };
-        let mut end = run_connection(
+        let mut end = run_planned_connection(
             stream,
             &mut session,
             &mut commands,
-            &events.regular,
+            &events,
             &mut registration,
             &defaults,
             &mut queued,
             &mut registered,
-            Some(Connection {
-                host: plan.address.host.clone(),
-                security,
-            }),
-            Some(sts_store),
-            plan.address.port,
-            &events.connected,
+            &plan,
+            sts_store,
         )
         .await;
         sts_store = end
@@ -572,6 +562,44 @@ async fn run_plan(
             return Ok(());
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_planned_connection(
+    stream: BoxConnection,
+    session: &mut Session,
+    commands: &mut mpsc::Receiver<Command>,
+    events: &EventSink,
+    registration: &mut RegistrationWait,
+    defaults: &PostRegistration,
+    queued: &mut VecDeque<Message>,
+    registered: &mut bool,
+    plan: &ConnectionPlan,
+    sts_store: Box<dyn StsStore + Send>,
+) -> ConnectionEnd {
+    let security = if plan.address.is_secure() {
+        ConnectionSecurity::Secure
+    } else {
+        ConnectionSecurity::Plaintext
+    };
+    run_connection(
+        stream,
+        session,
+        commands,
+        &events.regular,
+        registration,
+        defaults,
+        queued,
+        registered,
+        Some(Connection {
+            host: plan.address.host.clone(),
+            security,
+        }),
+        Some(sts_store),
+        plan.address.port,
+        &events.connected,
+    )
+    .await
 }
 
 enum ConnectionAttempt {
