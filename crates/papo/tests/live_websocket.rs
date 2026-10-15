@@ -346,6 +346,14 @@ async fn bounds_outgoing_complete_and_partial_lines() {
     accepted.extend_from_slice(b"\r\n");
     complete.write_all(&accepted).await.unwrap();
 
+    let mut split_terminator = connect_websocket(server.websocket_url(), None)
+        .await
+        .unwrap();
+    let mut accepted = vec![b'x'; 8191 + 510];
+    accepted.push(b'\r');
+    split_terminator.write_all(&accepted).await.unwrap();
+    split_terminator.write_all(b"\n").await.unwrap();
+
     let mut complete = connect_websocket(server.websocket_url(), None)
         .await
         .unwrap();
