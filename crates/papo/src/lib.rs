@@ -8,6 +8,7 @@ mod driver;
 mod entropy;
 mod error;
 mod event;
+mod reconnect;
 
 pub use address::AddressError;
 pub use builder::Builder;
@@ -16,6 +17,7 @@ pub use entropy::OsEntropy;
 pub use error::Error;
 pub use event::Event;
 pub use papo_core::{RateLimit, Sasl};
+pub use reconnect::Reconnect;
 
 /// Strict Transport Security policy stores.
 pub mod sts;
