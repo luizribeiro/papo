@@ -43,6 +43,22 @@
         nightlyToolchain = pkgs.rust-bin.nightly."2026-10-01".minimal.override {
           targets = [ "wasm32-wasip3" ];
         };
+        wasiSdk = pkgs.stdenvNoCC.mkDerivation {
+          pname = "wasi-sdk";
+          version = "34.0";
+          src = pkgs.fetchurl {
+            url = "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz";
+            hash = "sha256-t2HjoHIduunAmgBZ5f2yv5F9G0qKe0MPs7Wq+wmEssQ=";
+          };
+          nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+          buildInputs = [
+            pkgs.stdenv.cc.cc.lib
+            pkgs.zlib
+            pkgs.libxml2
+            pkgs.ncurses
+          ];
+          installPhase = "cp -R . $out";
+        };
         craneLib = (crane.mkLib pkgs).overrideToolchain stableToolchain;
         cargoSource = craneLib.cleanCargoSource ./.;
         craneArgs = {
@@ -237,6 +253,7 @@
             pkgs.cargo-mutants
             pkgs.cargo-fuzz
             pkgs.cargo-llvm-cov
+            wasiSdk
             pkgs.taplo
             pkgs.git-absorb
             ergochat
@@ -244,6 +261,10 @@
           ]
           ++ gitHooks.enabledPackages;
           ERGO_BIN = pkgs.lib.getExe ergochat;
+          CC_wasm32_wasip1 = "${wasiSdk}/bin/wasm32-wasip1-clang";
+          CC_wasm32_wasip2 = "${wasiSdk}/bin/wasm32-wasip2-clang";
+          CC_wasm32_wasip3 = "${wasiSdk}/bin/wasm32-wasip3-clang";
+          WASI_SDK_PATH = wasiSdk;
           CARGO_TARGET_WASM32_WASIP1_RUNNER = "wasmtime run --dir=.";
           CARGO_TARGET_WASM32_WASIP2_RUNNER = "wasmtime run --dir=. -S inherit-network -S allow-ip-name-lookup";
           CARGO_TARGET_WASM32_WASIP3_RUNNER = "wasmtime run --dir=. -S inherit-network -S allow-ip-name-lookup -S p3";
