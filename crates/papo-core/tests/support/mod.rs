@@ -15,6 +15,7 @@ pub struct Transcript {
     session: Session,
     now: Instant,
     sent: Vec<String>,
+    ignore_rest: bool,
 }
 
 impl Transcript {
@@ -24,6 +25,7 @@ impl Transcript {
             session: Session::new(config),
             now: Instant::now(),
             sent: Vec::new(),
+            ignore_rest: false,
         }
     }
 
@@ -130,6 +132,11 @@ impl Transcript {
         self
     }
 
+    /// Discards any output that remains when this transcript ends.
+    pub fn ignore_rest(mut self) {
+        self.ignore_rest = true;
+    }
+
     fn fail_client(&self, expected: &str, actual: Option<&str>) -> ! {
         panic!(
             "client output mismatch\nclient lines sent so far:\n{}\nexpected next:\n  C: {expected}\nactual next:\n  {}",
@@ -147,6 +154,24 @@ impl Transcript {
                 .map(|line| format!("  C: {line}"))
                 .collect::<Vec<_>>()
                 .join("\n")
+        }
+    }
+}
+
+impl Drop for Transcript {
+    fn drop(&mut self) {
+        if self.ignore_rest || std::thread::panicking() {
+            return;
+        }
+        let transmit = self.session.poll_transmit();
+        let event = self.session.poll_event();
+        if transmit.is_some() || event.is_some() {
+            let transmit = transmit.as_deref().map_or("<none>".to_owned(), |line| {
+                String::from_utf8_lossy(line).trim_end().to_owned()
+            });
+            panic!(
+                "transcript ended with unexamined output\nnext client line: {transmit}\nnext event: {event:?}"
+            );
         }
     }
 }

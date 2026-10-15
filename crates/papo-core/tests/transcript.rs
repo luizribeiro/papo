@@ -47,9 +47,12 @@ fn plays_trace_file_contents() {
 fn loads_trace_files() {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/harness.irc");
     Transcript::new(Config::default())
+        .connect()
         .send(Message::new("NICK", ["tester"]))
         .load(path)
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")));
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")))
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("JOIN")))
+        .no_client();
 }
 
 #[test]
@@ -57,6 +60,7 @@ fn loads_trace_files() {
 fn reports_unexpected_client_output_with_a_readable_diff() {
     let panic = panic::catch_unwind(|| {
         Transcript::new(Config::default())
+            .connect()
             .send(Message::new("NICK", ["tester"]))
             .client("NICK someone-else");
     })
@@ -71,10 +75,36 @@ fn reports_unexpected_client_output_with_a_readable_diff() {
 #[cfg(panic = "unwind")]
 fn reports_a_missing_expected_client_line() {
     let panic = panic::catch_unwind(|| {
-        Transcript::new(Config::default()).client("CAP LS 302");
+        Transcript::new(Config::default())
+            .connect()
+            .client("CAP LS 302");
     })
     .expect_err("missing output must fail");
     let text = panic_text(panic.as_ref());
     assert!(text.contains("expected next:\n  C: CAP LS 302"));
     assert!(text.contains("actual next:\n  <nothing>"));
+}
+
+#[test]
+#[cfg(panic = "unwind")]
+fn drop_reports_unexamined_output() {
+    let panic = panic::catch_unwind(|| {
+        Transcript::new(Config::default())
+            .connect()
+            .send(Message::new("NICK", ["tester"]))
+            .server(":ergo.test NOTICE tester :Connection established");
+    })
+    .expect_err("unexamined output must fail");
+    let text = panic_text(panic.as_ref());
+    assert!(text.contains("next client line: NICK tester"));
+    assert!(text.contains("next event: Some(Message"));
+}
+
+#[test]
+fn can_explicitly_ignore_remaining_output() {
+    Transcript::new(Config::default())
+        .connect()
+        .send(Message::new("NICK", ["tester"]))
+        .server(":ergo.test NOTICE tester :Connection established")
+        .ignore_rest();
 }

@@ -40,6 +40,7 @@ fn closes_on_a_parameterless_error() {
 #[test]
 fn does_not_answer_invalid_pings() {
     Transcript::new(Config::default())
+        .connect()
         .server(":ergo.test PING")
         .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("PING")))
         .server("PING :bad\rtoken")
