@@ -272,9 +272,93 @@ fn list_entries(lines: impl IntoIterator<Item = Message>) -> Vec<ListEntry> {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::Message;
+    use std::time::Instant;
 
-    use super::list_entries;
+    use papo_core::{Config, Event, ResponseMatcher, ServerError, Session};
+    use papo_proto::{Isupport, Message, Numeric};
+
+    use super::{ListFilter, empty, list_entries, plain_who};
+    use crate::Error;
+
+    #[test]
+    fn list_filter_encodes_empty_and_comma_separated_parameters() {
+        assert_eq!(ListFilter::default().parameter(), None);
+        assert_eq!(
+            ListFilter::default()
+                .channels(["#papo", "#rust-*", "##chat"])
+                .parameter()
+                .as_deref(),
+            Some("#papo,#rust-*,##chat")
+        );
+    }
+
+    #[test]
+    fn plain_who_filters_placeholder_channels_and_non_prefix_flags() {
+        let isupport = Isupport::default();
+        let hidden = Message::new(
+            "352",
+            [
+                "papo",
+                "*",
+                "~alice",
+                "staff.example",
+                "ergo.test",
+                "alice",
+                "H@!",
+                "0 Alice Example",
+            ],
+        );
+        let visible = Message::new(
+            "352",
+            [
+                "papo",
+                "#rust",
+                "~bob",
+                "users.example",
+                "ergo.test",
+                "bob",
+                "G+?",
+                "0 Bob Example",
+            ],
+        );
+
+        let hidden = plain_who(&hidden.as_ref(), &isupport).unwrap();
+        let visible = plain_who(&visible.as_ref(), &isupport).unwrap();
+        assert_eq!((hidden.channel, hidden.prefixes), (None, vec!['@']));
+        assert_eq!(
+            (visible.channel.as_deref(), visible.prefixes),
+            (Some("#rust"), vec!['+'])
+        );
+    }
+
+    #[test]
+    fn empty_propagates_a_numeric_server_error() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        session
+            .request_with_matcher(
+                now,
+                Message::new("MODE", ["#papo", "+t"]),
+                ResponseMatcher::Mode("#papo".into()),
+            )
+            .unwrap();
+        session.handle_line(
+            now,
+            b":ergo.test 482 papo #papo :You're not a channel operator",
+        );
+        let response = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Response(response) => Some(response),
+                _ => None,
+            })
+            .unwrap();
+
+        assert!(matches!(
+            empty(&response),
+            Err(Error::Server(ServerError::Numeric { numeric, .. }))
+                if numeric == Numeric::ERR_CHANOPRIVSNEEDED
+        ));
+    }
 
     #[test]
     fn list_retains_at_most_the_literal_entry_limit() {
