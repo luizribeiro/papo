@@ -246,14 +246,6 @@ async fn bounds_incoming_messages_at_the_extended_line_limit() {
         .await
         .unwrap();
         socket
-            .send(Message::Ping(b"fixture-healthcheck".to_vec().into()))
-            .await
-            .unwrap();
-        assert!(matches!(
-            socket.next().await.unwrap().unwrap(),
-            Message::Pong(payload) if payload.as_ref() == b"fixture-healthcheck"
-        ));
-        socket
             .send(Message::binary(vec![b'x'; 8191 + 510]))
             .await
             .unwrap();
@@ -272,6 +264,51 @@ async fn bounds_incoming_messages_at_the_extended_line_limit() {
     assert_eq!(&accepted[8191 + 510..], b"\r\n");
     let error = stream.read_u8().await.unwrap_err();
     assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    server.await.unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[allow(clippy::result_large_err)]
+async fn answers_ping_frames_with_pong() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (connection, _) = listener.accept().await.unwrap();
+        let mut socket = accept_hdr_async(
+            connection,
+            |_request: &Request, mut response: Response| -> Result<Response, ErrorResponse> {
+                response.headers_mut().insert(
+                    SEC_WEBSOCKET_PROTOCOL,
+                    HeaderValue::from_static("binary.ircv3.net"),
+                );
+                Ok(response)
+            },
+        )
+        .await
+        .unwrap();
+        socket
+            .send(Message::Ping(b"fixture-healthcheck".to_vec().into()))
+            .await
+            .unwrap();
+        assert!(matches!(
+            socket.next().await.unwrap().unwrap(),
+            Message::Pong(payload) if payload.as_ref() == b"fixture-healthcheck"
+        ));
+        socket
+            .send(Message::binary(
+                b":ping.example NOTICE * :pong observed".to_vec(),
+            ))
+            .await
+            .unwrap();
+    });
+
+    let mut stream = connect_websocket(&format!("ws://{address}/ping"), None)
+        .await
+        .unwrap();
+    assert_eq!(
+        read_line(&mut stream).await.unwrap(),
+        ":ping.example NOTICE * :pong observed\r\n"
+    );
     server.await.unwrap();
 }
 
