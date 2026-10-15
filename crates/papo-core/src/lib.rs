@@ -27,6 +27,7 @@ pub use sasl::{Entropy, Sasl};
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
 const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
 const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(60);
+const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Capabilities requested by a default session when the server advertises them.
 pub const DEFAULT_WANTED_CAPS: &[&str] = &[
@@ -91,6 +92,8 @@ pub struct Config {
     pub registration_timeout: Duration,
     /// Idle time after which the client probes the server with `PING`.
     pub ping_interval: Duration,
+    /// Maximum silence before the session closes the connection.
+    pub ping_timeout: Duration,
     /// Capability names to request when advertised by the server.
     pub wanted_caps: Vec<String>,
     /// Alternative nicknames to try when registration collides.
@@ -114,6 +117,7 @@ impl std::fmt::Debug for Config {
             .field("password", &self.password.as_ref().map(|_| Redacted))
             .field("registration_timeout", &self.registration_timeout)
             .field("ping_interval", &self.ping_interval)
+            .field("ping_timeout", &self.ping_timeout)
             .field("wanted_caps", &self.wanted_caps)
             .field("alt_nicks", &self.alt_nicks)
             .field("sasl", &self.sasl)
@@ -142,6 +146,7 @@ impl Default for Config {
             password: None,
             registration_timeout: DEFAULT_REGISTRATION_TIMEOUT,
             ping_interval: DEFAULT_PING_INTERVAL,
+            ping_timeout: DEFAULT_PING_TIMEOUT,
             wanted_caps: DEFAULT_WANTED_CAPS
                 .iter()
                 .map(|name| (*name).to_owned())
@@ -201,6 +206,13 @@ impl Config {
     #[must_use]
     pub const fn ping_interval(mut self, interval: Duration) -> Self {
         self.ping_interval = interval;
+        self
+    }
+
+    /// Sets the maximum time allowed without an incoming line.
+    #[must_use]
+    pub const fn ping_timeout(mut self, timeout: Duration) -> Self {
+        self.ping_timeout = timeout;
         self
     }
 
@@ -385,7 +397,7 @@ impl Session {
         self.isupport.handle_connected();
         self.sasl.handle_connected();
         self.keepalive
-            .handle_connected(now, self.config.ping_interval);
+            .handle_connected(now, self.config.ping_interval, self.config.ping_timeout);
         self.registration
             .handle_connected(now, &self.config, &mut self.outbox);
     }

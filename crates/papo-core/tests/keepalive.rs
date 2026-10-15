@@ -71,3 +71,28 @@ fn pings_after_sixty_idle_seconds_and_measures_matching_pongs() {
         .advance(Duration::from_secs(60))
         .client("PING :papo-1");
 }
+
+#[test]
+fn closes_at_120_seconds_of_silence_but_any_pong_resets_the_timeout() {
+    let config = Config::default().registration_timeout(Duration::from_secs(300));
+    Transcript::new(config.clone())
+        .connect_default()
+        .advance(Duration::from_secs(60))
+        .client("PING :papo-0")
+        .advance(Duration::from_secs(59))
+        .no_event()
+        .advance(Duration::from_secs(1))
+        .event(|event| matches!(event, Event::Close { reason } if reason == "IRC connection timed out"))
+        .no_client();
+
+    Transcript::new(config)
+        .connect_default()
+        .advance(Duration::from_secs(60))
+        .client("PING :papo-0")
+        .advance(Duration::from_secs(59))
+        .server(":ergo.test PONG ergo.test :papo-0")
+        .inspect(|session| assert_eq!(session.lag(), Some(Duration::from_secs(59))))
+        .advance(Duration::from_secs(60))
+        .client("PING :papo-1")
+        .no_event();
+}

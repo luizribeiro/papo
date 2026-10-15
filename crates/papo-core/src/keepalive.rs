@@ -7,16 +7,20 @@ use crate::{Handled, Outbox};
 #[derive(Debug, Default)]
 pub(super) struct Keepalive {
     interval: Duration,
+    timeout: Duration,
     next_ping: Option<Instant>,
+    silence_deadline: Option<Instant>,
     pending_ping: Option<(u64, Instant)>,
     counter: u64,
     lag: Option<Duration>,
 }
 
 impl Keepalive {
-    pub(super) fn handle_connected(&mut self, now: Instant, interval: Duration) {
+    pub(super) fn handle_connected(&mut self, now: Instant, interval: Duration, timeout: Duration) {
         self.interval = interval;
+        self.timeout = timeout;
         self.next_ping = Some(now + interval);
+        self.silence_deadline = Some(now + timeout);
         self.pending_ping = None;
         self.counter = 0;
         self.lag = None;
@@ -24,6 +28,7 @@ impl Keepalive {
 
     pub(super) fn handle_incoming(&mut self, now: Instant) {
         self.next_ping = Some(now + self.interval);
+        self.silence_deadline = Some(now + self.timeout);
     }
 
     pub(super) fn handle_message(
@@ -60,6 +65,13 @@ impl Keepalive {
     }
 
     pub(super) fn handle_timeout(&mut self, now: Instant, outbox: &mut Outbox) {
+        if self
+            .silence_deadline
+            .is_some_and(|deadline| now >= deadline)
+        {
+            outbox.close("IRC connection timed out".to_owned());
+            return;
+        }
         if self.next_ping.is_some_and(|deadline| now >= deadline) {
             let token = format!("papo-{}", self.counter);
             outbox.transmit_raw(format!("PING :{token}\r\n").into_bytes());
@@ -69,8 +81,11 @@ impl Keepalive {
         }
     }
 
-    pub(super) const fn next_deadline(&self) -> Option<Instant> {
-        self.next_ping
+    pub(super) fn next_deadline(&self) -> Option<Instant> {
+        match (self.next_ping, self.silence_deadline) {
+            (Some(ping), Some(silence)) => Some(if ping < silence { ping } else { silence }),
+            (ping, silence) => ping.or(silence),
+        }
     }
 
     pub(super) const fn lag(&self) -> Option<Duration> {
@@ -79,6 +94,7 @@ impl Keepalive {
 
     pub(super) fn handle_disconnected(&mut self) {
         self.next_ping = None;
+        self.silence_deadline = None;
         self.pending_ping = None;
     }
 }
