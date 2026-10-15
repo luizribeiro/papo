@@ -858,7 +858,7 @@ impl Session {
             return;
         }
         match MessageRef::parse(&decoded) {
-            Ok(message) => match self.batches.handle(&message) {
+            Ok(message) => match self.batches.handle(now, &message) {
                 BatchAction::Consumed => {}
                 BatchAction::Complete(events) => {
                     for event in events {
@@ -880,6 +880,9 @@ impl Session {
     /// Notifies the session that its current deadline was reached.
     pub fn handle_timeout(&mut self, now: Instant) {
         self.rate_limit.advance(now);
+        for event in self.batches.handle_timeout(now) {
+            self.dispatch_batch_event(event);
+        }
         let was_registered = self.registration.is_registered();
         self.registration.handle_timeout(
             now,
@@ -997,6 +1000,7 @@ impl Session {
             self.keepalive.next_deadline(),
             self.rate_limit
                 .next_deadline(!self.outbox.transmits.is_empty()),
+            self.batches.next_deadline(),
         ]
         .into_iter()
         .flatten()

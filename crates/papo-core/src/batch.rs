@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use papo_proto::{Message, MessageRef};
 
@@ -9,6 +12,7 @@ pub(crate) struct Batches {
     open: HashMap<String, OpenBatch>,
     max_open: usize,
     max_lines: usize,
+    timeout: Duration,
 }
 
 #[derive(Debug)]
@@ -20,6 +24,7 @@ struct OpenBatch {
     messages: Vec<Message>,
     completed: Vec<BatchEvent>,
     lines: usize,
+    opened: Instant,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -71,6 +76,7 @@ impl Batches {
             open: HashMap::new(),
             max_open: config.max_open_batches,
             max_lines: config.max_batch_lines,
+            timeout: config.batch_timeout,
         }
     }
 
@@ -78,7 +84,7 @@ impl Batches {
         self.open.clear();
     }
 
-    pub(crate) fn handle(&mut self, message: &MessageRef<'_>) -> BatchAction {
+    pub(crate) fn handle(&mut self, now: Instant, message: &MessageRef<'_>) -> BatchAction {
         if !message.command_is("BATCH") {
             return self.member(message);
         }
@@ -86,7 +92,7 @@ impl Batches {
             return BatchAction::Dispatch(self.context(message));
         };
         if let Some(reference) = reference.strip_prefix('+') {
-            return self.open(message, reference);
+            return self.open(now, message, reference);
         }
         if let Some(reference) = reference.strip_prefix('-') {
             return self.close(message, reference);
@@ -94,7 +100,7 @@ impl Batches {
         BatchAction::Dispatch(self.context(message))
     }
 
-    fn open(&mut self, message: &MessageRef<'_>, reference: &str) -> BatchAction {
+    fn open(&mut self, now: Instant, message: &MessageRef<'_>, reference: &str) -> BatchAction {
         let Some(kind) = message.param(1) else {
             return BatchAction::Dispatch(self.context(message));
         };
@@ -126,6 +132,7 @@ impl Batches {
                 messages: Vec::new(),
                 completed: Vec::new(),
                 lines: 0,
+                opened: now,
             },
         );
         BatchAction::Consumed
@@ -216,6 +223,41 @@ impl Batches {
             current = batch.parent.as_deref();
         }
         result
+    }
+
+    pub(crate) fn handle_timeout(&mut self, now: Instant) -> Vec<BatchEvent> {
+        let expired: Vec<_> = self
+            .open
+            .iter()
+            .filter(|(_, batch)| {
+                batch
+                    .opened
+                    .checked_add(self.timeout)
+                    .is_some_and(|deadline| now >= deadline)
+            })
+            .map(|(reference, _)| reference.clone())
+            .collect();
+        let roots: Vec<_> = expired
+            .iter()
+            .filter(|reference| {
+                self.open[*reference]
+                    .parent
+                    .as_ref()
+                    .is_none_or(|parent| !expired.contains(parent))
+            })
+            .cloned()
+            .collect();
+        roots
+            .into_iter()
+            .flat_map(|reference| self.abandon(&reference, BatchAbandonReason::Timeout))
+            .collect()
+    }
+
+    pub(crate) fn next_deadline(&self) -> Option<Instant> {
+        self.open
+            .values()
+            .filter_map(|batch| batch.opened.checked_add(self.timeout))
+            .min()
     }
 
     fn abandon(&mut self, reference: &str, reason: BatchAbandonReason) -> Vec<BatchEvent> {
@@ -361,10 +403,11 @@ mod tests {
     use super::{BatchAction, BatchEvent, Batches};
     use crate::Config;
     use papo_proto::MessageRef;
+    use std::time::Instant;
 
     fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
         let message = MessageRef::parse(line).unwrap();
-        match batches.handle(&message) {
+        match batches.handle(Instant::now(), &message) {
             BatchAction::Consumed | BatchAction::Complete(_) => (false, None),
             BatchAction::Dispatch(context) => (true, context.batch_type().map(str::to_owned)),
         }
@@ -414,7 +457,7 @@ mod tests {
             (false, None)
         );
         let close = MessageRef::parse("BATCH -h").unwrap();
-        let BatchAction::Complete(events) = batches.handle(&close) else {
+        let BatchAction::Complete(events) = batches.handle(Instant::now(), &close) else {
             panic!("history did not complete")
         };
         let BatchEvent::History {

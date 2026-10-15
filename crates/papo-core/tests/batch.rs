@@ -1,8 +1,8 @@
 //! Transcript coverage for `IRCv3` batch routing.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use papo_core::{BatchAbandonReason, Config, Event, Session};
+use papo_core::{BatchAbandonReason, Config, Event, RateLimit, Session};
 
 fn message(session: &mut Session) -> papo_core::ReceivedMessage {
     let Some(Event::Message(message)) = session.poll_event() else {
@@ -240,4 +240,31 @@ fn abandons_history_on_the_first_line_beyond_its_limit() {
                 && reason == BatchAbandonReason::LineLimit
     ));
     assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn abandons_an_unclosed_batch_at_its_deadline() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .batch_timeout(Duration::from_secs(2)),
+    );
+    session.handle_connected(now);
+    session.handle_line(now, b"BATCH +h chathistory #papo");
+    session.handle_line(now, b"@batch=h :alice PRIVMSG #papo :remembered");
+    assert_eq!(session.poll_timeout(), Some(now + Duration::from_secs(2)));
+    session.handle_timeout(now + Duration::from_secs(1));
+    assert_eq!(session.poll_event(), None);
+    session.handle_timeout(now + Duration::from_secs(2));
+
+    let fallback = message(&mut session);
+    assert_eq!(fallback.as_ref().param(1), Some("remembered"));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reference, batch_type, reason })
+            if reference == "h"
+                && batch_type == "chathistory"
+                && reason == BatchAbandonReason::Timeout
+    ));
 }
