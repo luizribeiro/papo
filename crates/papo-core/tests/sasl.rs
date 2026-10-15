@@ -29,6 +29,19 @@ fn configures_mechanisms_policy_and_entropy() {
 }
 
 #[test]
+fn debug_output_redacts_server_and_sasl_passwords() {
+    let config = Config::default()
+        .password("server-password-7391")
+        .sasl(Sasl::any("alice", "correct horse battery staple"));
+
+    for debug in [format!("{config:?}"), format!("{:?}", Session::new(config))] {
+        assert!(!debug.contains("server-password-7391"));
+        assert!(!debug.contains("correct horse battery staple"));
+        assert!(debug.contains("[REDACTED]"));
+    }
+}
+
+#[test]
 fn external_accepts_an_authorization_identity() {
     assert_ne!(Sasl::external(), Sasl::external().authzid("alice"));
 }

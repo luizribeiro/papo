@@ -8,7 +8,7 @@ use std::{
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::MessageRef;
 
-use crate::{Config, Handled, Outbox};
+use crate::{Config, Handled, Outbox, Redacted};
 use scram::ScramClient;
 
 const SASL_CHUNK_LEN: usize = 400;
@@ -20,11 +20,32 @@ pub struct Sasl {
     pub(crate) mechanisms: Vec<Mechanism>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) enum Mechanism {
     Plain { username: String, password: String },
     External { authzid: Option<String> },
     ScramSha256 { username: String, password: String },
+}
+
+impl std::fmt::Debug for Mechanism {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Plain { username, .. } => formatter
+                .debug_struct("Plain")
+                .field("username", username)
+                .field("password", &Redacted)
+                .finish(),
+            Self::External { authzid } => formatter
+                .debug_struct("External")
+                .field("authzid", authzid)
+                .finish(),
+            Self::ScramSha256 { username, .. } => formatter
+                .debug_struct("ScramSha256")
+                .field("username", username)
+                .field("password", &Redacted)
+                .finish(),
+        }
+    }
 }
 
 impl Sasl {

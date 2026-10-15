@@ -73,7 +73,7 @@ pub enum Decoding {
 }
 
 /// Configuration for an IRC session.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Config {
     /// The policy used to decode incoming lines.
@@ -98,6 +98,34 @@ pub struct Config {
     pub require_sasl: bool,
     /// Ergo multiclient device identifier appended to the authentication identity.
     pub device: Option<String>,
+}
+
+impl std::fmt::Debug for Config {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Config")
+            .field("decoding", &self.decoding)
+            .field("nick", &self.nick)
+            .field("username", &self.username)
+            .field("realname", &self.realname)
+            .field("password", &self.password.as_ref().map(|_| Redacted))
+            .field("registration_timeout", &self.registration_timeout)
+            .field("wanted_caps", &self.wanted_caps)
+            .field("alt_nicks", &self.alt_nicks)
+            .field("sasl", &self.sasl)
+            .field("require_sasl", &self.require_sasl)
+            .field("device", &self.device)
+            .finish()
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Redacted;
+
+impl std::fmt::Debug for Redacted {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("[REDACTED]")
+    }
 }
 
 impl Default for Config {
