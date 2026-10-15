@@ -27,6 +27,12 @@ use crate::{
 pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
+pub(crate) trait ConnectionIo: AsyncRead + AsyncWrite + Unpin + Send {}
+impl<T: AsyncRead + AsyncWrite + Unpin + Send> ConnectionIo for T {}
+type BoxConnection = Box<dyn ConnectionIo>;
+type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>> + Send>>;
+pub(crate) type Connector = Arc<dyn Fn(ConnectionPlan) -> ConnectFuture + Send + Sync>;
+
 enum Command {
     Send {
         message: Message,
@@ -75,6 +81,7 @@ impl RegistrationWait {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct ConnectionPlan {
     pub(crate) address: ServerAddress,
     pub(crate) tls: TlsConfig,
@@ -238,11 +245,35 @@ impl Driver {
         registration: Option<RegistrationSender>,
         defaults: PostRegistration,
     ) -> (Client, Events, Self) {
+        Self::with_connector(
+            plan,
+            session,
+            capacity,
+            registration,
+            defaults,
+            Arc::new(|plan| {
+                Box::pin(async move {
+                    open_connection(plan)
+                        .await
+                        .map(|stream| Box::new(stream) as BoxConnection)
+                })
+            }),
+        )
+    }
+
+    pub(crate) fn with_connector(
+        plan: Result<ConnectionPlan, AddressError>,
+        session: Session,
+        capacity: usize,
+        registration: Option<RegistrationSender>,
+        defaults: PostRegistration,
+        connector: Connector,
+    ) -> (Client, Events, Self) {
         let channels = channels(capacity);
         let inner = Box::pin(async move {
             let mut registration = RegistrationWait(registration);
             let stream = match plan.map_err(Error::Address) {
-                Ok(plan) => match open_connection(plan).await {
+                Ok(plan) => match connector(plan).await {
                     Ok(stream) => stream,
                     Err(error) => {
                         if registration.0.is_some() {
