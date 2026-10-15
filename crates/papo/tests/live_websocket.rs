@@ -23,7 +23,7 @@ use tokio_tungstenite::{
     tungstenite::{
         Message,
         handshake::server::{ErrorResponse, Request, Response},
-        http::StatusCode,
+        http::{HeaderValue, StatusCode, header::SEC_WEBSOCKET_PROTOCOL},
     },
 };
 
@@ -133,6 +133,70 @@ async fn retries_without_subprotocols_when_a_legacy_server_rejects_them() {
         ":legacy.example PONG legacy\r\n"
     );
     server.await.unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[allow(clippy::result_large_err)]
+async fn bounds_incoming_messages_at_the_extended_line_limit() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (connection, _) = listener.accept().await.unwrap();
+        let mut socket = accept_hdr_async(
+            connection,
+            |request: &Request, mut response: Response| -> Result<Response, ErrorResponse> {
+                assert_eq!(
+                    request.headers()[SEC_WEBSOCKET_PROTOCOL],
+                    "binary.ircv3.net, text.ircv3.net"
+                );
+                response.headers_mut().insert(
+                    SEC_WEBSOCKET_PROTOCOL,
+                    HeaderValue::from_static("binary.ircv3.net"),
+                );
+                Ok(response)
+            },
+        )
+        .await
+        .unwrap();
+        socket
+            .send(Message::Ping(b"fixture-healthcheck".to_vec().into()))
+            .await
+            .unwrap();
+        assert!(matches!(
+            socket.next().await.unwrap().unwrap(),
+            Message::Pong(payload) if payload.as_ref() == b"fixture-healthcheck"
+        ));
+        socket
+            .send(Message::binary(vec![b'x'; 8191 + 512]))
+            .await
+            .unwrap();
+        socket
+            .send(Message::binary(vec![b'x'; 8191 + 512 + 1]))
+            .await
+            .unwrap();
+    });
+
+    let mut stream = connect_websocket(&format!("ws://{address}/limits"), None)
+        .await
+        .unwrap();
+    let mut accepted = vec![0; 8191 + 512 + 2];
+    stream.read_exact(&mut accepted).await.unwrap();
+    assert!(accepted[..8191 + 512].iter().all(|byte| *byte == b'x'));
+    assert_eq!(&accepted[8191 + 512..], b"\r\n");
+    let error = stream.read_u8().await.unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    server.await.unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn rejects_a_partial_line_at_shutdown() {
+    let server = from_env();
+    let mut stream = connect_websocket(server.websocket_url(), None)
+        .await
+        .unwrap();
+    stream.write_all(b"PING :unfinished").await.unwrap();
+    let error = stream.shutdown().await.unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::InvalidData);
 }
 
 async fn read_line(stream: &mut Stream) -> io::Result<String> {
