@@ -1,4 +1,57 @@
-use crate::Capabilities;
+use std::time::Instant;
+
+use papo_proto::Message;
+
+use crate::{Capabilities, RequestError, RequestId, Session};
+
+/// A `METADATA` operation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum MetadataCommand {
+    /// Gets selected keys for a target.
+    Get {
+        /// Nickname or channel to query.
+        target: String,
+        /// Keys to query.
+        keys: Vec<String>,
+    },
+    /// Lists all visible keys for a target.
+    List {
+        /// Nickname or channel to query.
+        target: String,
+    },
+    /// Sets or removes one key for a target.
+    Set {
+        /// Nickname or channel to change.
+        target: String,
+        /// Key to change.
+        key: String,
+        /// New value, or `None` to remove the key.
+        value: Option<String>,
+    },
+    /// Removes every metadata key from a target.
+    Clear {
+        /// Nickname or channel to clear.
+        target: String,
+    },
+    /// Subscribes to metadata keys.
+    Sub {
+        /// Keys to add to the subscription list.
+        keys: Vec<String>,
+    },
+    /// Unsubscribes from metadata keys.
+    Unsub {
+        /// Keys to remove from the subscription list.
+        keys: Vec<String>,
+    },
+    /// Lists current metadata subscriptions.
+    Subs,
+    /// Synchronizes metadata for a target.
+    Sync {
+        /// Nickname or channel to synchronize.
+        target: String,
+    },
+}
 
 /// Server-advertised limits for `draft/metadata-2` or `draft/metadata-3`.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -36,5 +89,46 @@ impl MetadataLimits {
             }
         }
         limits
+    }
+}
+
+impl Session {
+    /// Queues a labelled metadata request.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::Unsupported`] when metadata was not negotiated, or an error
+    /// documented by [`Session::request`].
+    pub fn metadata(
+        &mut self,
+        now: Instant,
+        command: MetadataCommand,
+    ) -> Result<RequestId, RequestError> {
+        self.metadata_limits()
+            .ok_or(RequestError::Unsupported("metadata"))?;
+        let mut params = Vec::new();
+        match command {
+            MetadataCommand::Get { target, keys } => {
+                params.extend([target, "GET".into()]);
+                params.extend(keys);
+            }
+            MetadataCommand::List { target } => params.extend([target, "LIST".into()]),
+            MetadataCommand::Set { target, key, value } => {
+                params.extend([target, "SET".into(), key]);
+                params.extend(value);
+            }
+            MetadataCommand::Clear { target } => params.extend([target, "CLEAR".into()]),
+            MetadataCommand::Sub { keys } => {
+                params.extend(["*".into(), "SUB".into()]);
+                params.extend(keys);
+            }
+            MetadataCommand::Unsub { keys } => {
+                params.extend(["*".into(), "UNSUB".into()]);
+                params.extend(keys);
+            }
+            MetadataCommand::Subs => params.extend(["*".into(), "SUBS".into()]),
+            MetadataCommand::Sync { target } => params.extend([target, "SYNC".into()]),
+        }
+        self.request(now, Message::new("METADATA", params))
     }
 }

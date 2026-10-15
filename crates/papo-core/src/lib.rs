@@ -39,7 +39,7 @@ use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
 use keepalive::Keepalive;
-pub use metadata::MetadataLimits;
+pub use metadata::{MetadataCommand, MetadataLimits};
 use monitor::Monitor;
 pub use outgoing::TextKind;
 pub use ratelimit::RateLimit;
