@@ -137,8 +137,7 @@
           cargo-nextest = cargoHook {
             name = "cargo-nextest-hook";
             runtimeInputs = [ pkgs.cargo-nextest ];
-            # Once the workspace has tests, an empty test suite should fail.
-            text = "cargo nextest run --workspace --locked --no-tests pass";
+            text = "cargo nextest run --workspace --locked";
             stages = [ "pre-push" ];
           };
           wasip2-tests = cargoHook {
