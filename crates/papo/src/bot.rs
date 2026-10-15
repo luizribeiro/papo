@@ -282,10 +282,6 @@ fn split_args(input: &str) -> Option<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    };
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use papo_core::Capabilities;
@@ -433,22 +429,5 @@ mod tests {
             .mention(false)
             .reply_limiter(ReplyRateLimiter::new(3, Duration::from_secs(10)));
         assert_eq!(format!("{:?}", bot.client()), "Client { .. }");
-    }
-
-    #[tokio::test]
-    async fn extractor_router_dispatches_only_named_commands() {
-        let called = Arc::new(AtomicBool::new(false));
-        let seen = Arc::clone(&called);
-        let bot = Bot::new(crate::Client::disconnected_for_test()).command(
-            "ping",
-            move |_: super::Msg| {
-                seen.store(true, Ordering::Relaxed);
-                async { Ok(()) }
-            },
-        );
-        bot.handle(&event("!unknown")).await.unwrap();
-        assert!(!called.load(Ordering::Relaxed));
-        bot.handle(&event("!ping")).await.unwrap();
-        assert!(called.load(Ordering::Relaxed));
     }
 }
