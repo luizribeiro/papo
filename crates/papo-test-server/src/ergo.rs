@@ -7,7 +7,6 @@ use crate::directory::TemporaryDirectory;
 pub(crate) struct Configuration {
     pub(crate) plaintext: std::net::SocketAddr,
     pub(crate) tls: std::net::SocketAddr,
-    pub(crate) api: std::net::SocketAddr,
     pub(crate) overrides: Vec<(&'static str, String)>,
 }
 
@@ -15,10 +14,8 @@ impl Configuration {
     pub(crate) fn new(directory: &TemporaryDirectory) -> io::Result<Self> {
         let plaintext = TcpListener::bind(("127.0.0.1", 0))?;
         let tls = TcpListener::bind(("127.0.0.1", 0))?;
-        let api = TcpListener::bind(("127.0.0.1", 0))?;
         let plaintext = plaintext.local_addr()?;
         let tls = tls.local_addr()?;
-        let api = api.local_addr()?;
         let listeners = json!({
             plaintext.to_string(): {},
             tls.to_string(): {"tls": {
@@ -34,17 +31,10 @@ impl Configuration {
             ),
             ("ERGO__LANGUAGES__ENABLED", "false".into()),
             ("ERGO__ACCOUNTS__REGISTRATION__ENABLED", "true".into()),
-            ("ERGO__API__ENABLED", "true".into()),
-            ("ERGO__API__LISTENER", api.to_string()),
-            (
-                "ERGO__API__BEARER_TOKENS",
-                json!(["papo-test-token"]).to_string(),
-            ),
         ];
         Ok(Self {
             plaintext,
             tls,
-            api,
             overrides,
         })
     }
@@ -79,8 +69,6 @@ mod tests {
         let directory = TemporaryDirectory::create().unwrap();
         let config = Configuration::new(&directory).unwrap();
         assert_ne!(config.plaintext, config.tls);
-        assert_ne!(config.plaintext, config.api);
-        assert_ne!(config.tls, config.api);
         assert!(config.plaintext.ip().is_loopback());
         assert!(config.tls.ip().is_loopback());
     }
