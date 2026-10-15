@@ -288,6 +288,39 @@ fn tracks_user_mode_snapshot_and_live_changes() {
 }
 
 #[test]
+fn only_our_nickname_changes_our_user_modes() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 221 emily +Z")
+        .server(":ergo.test MODE dan +i")
+        .inspect(|session| assert_eq!(session.state().user_modes().collect::<Vec<_>>(), ['Z']))
+        .server(":ergo.test MODE emily +w")
+        .inspect(|session| {
+            let mut modes = session.state().user_modes().collect::<Vec<_>>();
+            modes.sort_unstable();
+            assert_eq!(modes, ['Z', 'w']);
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn distinguishes_prefix_rank_and_channel_mode_argument_branches() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":ergo.test 353 emily = #papo :+dan!dan@cloak.example")
+        .server(":alice!alice@staff.example MODE #papo +o dan")
+        .server(":alice!alice@staff.example MODE #papo +l")
+        .server(":alice!alice@staff.example MODE #papo +m")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.member("dan").unwrap().prefixes(), ['@', '+']);
+            assert_eq!(channel.mode('l'), None);
+            assert_eq!(channel.mode('m'), Some(None));
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn bounds_channel_modes_at_literal_sixty_four() {
     let modes = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnpqrstuwxyzαβγδεζηθικλμνξο";
     let support = format!(":ergo.test 005 emily CHANMODES=,,,{modes} :are supported");
