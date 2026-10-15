@@ -43,7 +43,10 @@ impl Casemapping {
     pub fn fold(self, name: &str) -> Cow<'_, str> {
         #[cfg(feature = "precis")]
         if matches!(self, Self::Precis) {
-            return UsernameCaseMapped::enforce(name).unwrap_or(Cow::Borrowed(name));
+            return UsernameCaseMapped::enforce(name).unwrap_or_else(|_| {
+                // Ergo rejects these names, but map keys still need one deterministic fold.
+                Self::Ascii.fold(name)
+            });
         }
 
         let changed = name
@@ -198,5 +201,12 @@ mod tests {
             Casemapping::Precis.fold("ünïcode"),
             Cow::Borrowed(_)
         ));
+    }
+
+    #[cfg(feature = "precis")]
+    #[test]
+    fn folds_precis_rejections_as_ascii() {
+        assert_eq!(Casemapping::Precis.fold("Bad Nick"), "bad nick");
+        assert_eq!(Casemapping::Precis.fold("Bad\u{7}Nick"), "bad\u{7}nick");
     }
 }
