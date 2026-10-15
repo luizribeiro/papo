@@ -320,6 +320,7 @@ mod tests {
         assert!(store.get("irc.example.net").is_none());
     }
 
+    #[cfg(all(unix, not(target_os = "wasi")))]
     #[test]
     fn a_failed_write_leaves_the_previous_file_intact() {
         use std::os::unix::fs::PermissionsExt;
