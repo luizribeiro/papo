@@ -60,6 +60,34 @@ fn starts_sasl_after_ack_and_holds_cap_end() {
 }
 
 #[test]
+fn inactive_authenticate_messages_are_surfaced_unchanged() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("AUTHENTICATE +")
+        .event(|event| {
+            matches!(event, Event::Message(message)
+                if message.as_ref().command_is("AUTHENTICATE"))
+        })
+        .no_client()
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+        .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
+        .server(":ergo.test 903 alice :SASL authentication successful")
+        .client("CAP END")
+        .server("AUTHENTICATE +")
+        .event(|event| {
+            matches!(event, Event::Message(message)
+                if message.as_ref().command_is("AUTHENTICATE"))
+        })
+        .inspect(|session| assert_eq!(session.account(), Some("alice")))
+        .no_client();
+}
+
+#[test]
 fn authenticates_with_plain_and_records_the_account() {
     Transcript::new(
         Config::default()
