@@ -294,6 +294,43 @@ impl Client {
         })
     }
 
+    /// Leaves a channel, optionally supplying a reason.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the server rejects the part or it cannot complete.
+    pub async fn part(&self, channel: &str, reason: Option<&str>) -> Result<(), Error> {
+        let mut params = vec![channel];
+        params.extend(reason);
+        crate::requests::empty(&self.raw(Message::new("PART", params)).await?)
+    }
+
+    /// Applies a mode string and its arguments to a channel or user.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the server rejects the change or it cannot complete.
+    pub async fn mode<I, S>(&self, target: &str, modes: &str, args: I) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut params = vec![target.to_owned(), modes.to_owned()];
+        params.extend(args.into_iter().map(|arg| arg.as_ref().to_owned()));
+        crate::requests::empty(&self.raw(Message::new("MODE", params)).await?)
+    }
+
+    /// Sets a channel topic, or queries it when `text` is `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the server rejects the request or it cannot complete.
+    pub async fn topic(&self, channel: &str, text: Option<&str>) -> Result<Option<String>, Error> {
+        let mut params = vec![channel];
+        params.extend(text);
+        crate::requests::topic(&self.raw(Message::new("TOPIC", params)).await?)
+    }
+
     /// Requests a clean disconnect and waits for the peer to close.
     ///
     /// The wait is limited to ten seconds. The driver still completes cleanly
@@ -1648,6 +1685,62 @@ mod tests {
         client_line(server, b"WHO #papo %tcuhnfar,152\r\n").await;
     }
 
+    async fn assert_channel_requests(server: &mut DuplexStream, client: &super::Client) {
+        let mode = tokio::spawn({
+            let client = client.clone();
+            async move { client.mode("#papo", "+t", [] as [&str; 0]).await }
+        });
+        client_line(server, b"@label=3 MODE #papo +t\r\n").await;
+        server_line(
+            server,
+            b"@label=3 :papo-driver!papo@localhost MODE #papo +t\r\n",
+        )
+        .await;
+        mode.await.unwrap().unwrap();
+
+        let set = tokio::spawn({
+            let client = client.clone();
+            async move { client.topic("#papo", Some("Requests in Rust")).await }
+        });
+        client_line(server, b"@label=4 TOPIC #papo :Requests in Rust\r\n").await;
+        server_line(
+            server,
+            b"@label=4 :papo-driver!papo@localhost TOPIC #papo :Requests in Rust\r\n",
+        )
+        .await;
+        assert_eq!(
+            set.await.unwrap().unwrap().as_deref(),
+            Some("Requests in Rust")
+        );
+
+        let query = tokio::spawn({
+            let client = client.clone();
+            async move { client.topic("#papo", None).await }
+        });
+        client_line(server, b"@label=5 TOPIC #papo\r\n").await;
+        server_line(
+            server,
+            b"@label=5 :ergo.test 332 papo-driver #papo :Requests in Rust\r\n",
+        )
+        .await;
+        assert_eq!(
+            query.await.unwrap().unwrap().as_deref(),
+            Some("Requests in Rust")
+        );
+
+        let part = tokio::spawn({
+            let client = client.clone();
+            async move { client.part("#papo", Some("tests complete")).await }
+        });
+        client_line(server, b"@label=6 PART #papo :tests complete\r\n").await;
+        server_line(
+            server,
+            b"@label=6 :papo-driver!papo@localhost PART #papo :tests complete\r\n",
+        )
+        .await;
+        part.await.unwrap().unwrap();
+    }
+
     async fn complete_extended_monitor_registration(
         server: &mut DuplexStream,
         events: &mut super::Events,
@@ -2958,15 +3051,16 @@ mod tests {
         );
 
         assert_join_waits_for_sync(&mut server, &client).await;
+        assert_channel_requests(&mut server, &client).await;
 
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.whois("missing-nick").await }
         });
-        client_line(&mut server, b"@label=3 WHOIS missing-nick\r\n").await;
+        client_line(&mut server, b"@label=7 WHOIS missing-nick\r\n").await;
         server_line(
             &mut server,
-            b"@label=3 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
+            b"@label=7 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
         )
         .await;
         assert!(matches!(
@@ -2978,13 +3072,13 @@ mod tests {
             let client = client.clone();
             async move { client.raw(Message::new("WHOIS", ["alice"])).await }
         });
-        client_line(&mut server, b"@label=4 WHOIS alice\r\n").await;
+        client_line(&mut server, b"@label=8 WHOIS alice\r\n").await;
         tokio::time::advance(Duration::from_secs(1)).await;
         assert!(matches!(timed_out.await.unwrap(), Err(Error::Timeout)));
 
         let aborted =
             tokio::spawn(async move { client.raw(Message::new("WHOIS", ["emily"])).await });
-        client_line(&mut server, b"@label=5 WHOIS emily\r\n").await;
+        client_line(&mut server, b"@label=9 WHOIS emily\r\n").await;
         server.shutdown().await.unwrap();
         assert!(matches!(aborted.await.unwrap(), Err(Error::Disconnected)));
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
