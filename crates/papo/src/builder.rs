@@ -247,12 +247,7 @@ impl Builder {
         registration: Option<crate::driver::RegistrationSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
         let plan = self.address.map(|address| {
-            self.config.host.clone_from(&address.host);
-            self.config.connection_security = if address.is_secure() {
-                ConnectionSecurity::Secure
-            } else {
-                ConnectionSecurity::Plaintext
-            };
+            apply_address(&mut self.config, &address);
             ConnectionPlan {
                 address,
                 tls: self.tls,
@@ -277,13 +272,22 @@ impl Builder {
     }
 }
 
+fn apply_address(config: &mut Config, address: &ServerAddress) {
+    config.host.clone_from(&address.host);
+    config.connection_security = if address.is_secure() {
+        ConnectionSecurity::Secure
+    } else {
+        ConnectionSecurity::Plaintext
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
 
-    use papo_core::{RateLimit, Sasl};
+    use papo_core::{RateLimit, Sasl, sts::ConnectionSecurity};
 
-    use super::Builder;
+    use super::{Builder, apply_address};
     use crate::{Error, address::Protocol, transport::TlsRoots};
 
     #[test]
@@ -363,6 +367,31 @@ mod tests {
             .address
             .unwrap();
         assert_eq!(explicit.port, 7000);
+    }
+
+    #[test]
+    fn address_security_reaches_the_session_configuration() {
+        for (input, plaintext, expected) in [
+            ("ircs://irc.example.net", false, ConnectionSecurity::Secure),
+            ("irc.example.net", false, ConnectionSecurity::Secure),
+            (
+                "irc://irc.example.net",
+                false,
+                ConnectionSecurity::Plaintext,
+            ),
+            ("irc.example.net", true, ConnectionSecurity::Plaintext),
+            ("wss://irc.example.net", false, ConnectionSecurity::Secure),
+            ("ws://irc.example.net", false, ConnectionSecurity::Plaintext),
+        ] {
+            let mut builder = Builder::new(input);
+            if plaintext {
+                builder = builder.plaintext();
+            }
+            let address = builder.address.as_ref().unwrap();
+            assert_eq!(address.is_secure(), expected == ConnectionSecurity::Secure);
+            apply_address(&mut builder.config, address);
+            assert_eq!(builder.config.connection_security, expected);
+        }
     }
 
     #[test]
