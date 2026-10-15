@@ -1,6 +1,6 @@
 use std::{borrow::Cow, error::Error, fmt, iter::FusedIterator, slice, str::Utf8Error};
 
-use crate::Source;
+use crate::{Command, Source};
 
 /// Maximum byte length of an IRC message excluding its tag section but including CRLF.
 ///
@@ -215,9 +215,15 @@ impl<'a> MessageRef<'a> {
         self.source
     }
 
+    /// Returns the parsed command.
+    #[must_use]
+    pub fn command(&self) -> Command<'a> {
+        Command::parse(self.command)
+    }
+
     /// Returns the command with its original spelling.
     #[must_use]
-    pub const fn command(&self) -> &'a str {
+    pub const fn raw_command(&self) -> &'a str {
         self.command
     }
 

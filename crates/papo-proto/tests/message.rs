@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, collections::BTreeMap};
 
-use papo_proto::{BuildError, Message, MessageRef, ParseError, Source};
+use papo_proto::{BuildError, Command, Message, MessageRef, Numeric, ParseError, Source};
 use proptest::{collection::vec, option, prelude::*};
 use serde_json::Value;
 
@@ -58,7 +58,7 @@ fn passes_ircdocs_message_split_corpus() {
             "{input:?}"
         );
         assert_eq!(
-            message.command(),
+            message.raw_command(),
             expected["verb"].as_str().unwrap(),
             "{input:?}"
         );
@@ -179,7 +179,7 @@ fn parses_realistic_ergo_lines() {
     )
     .unwrap();
     assert_eq!(message.raw_source(), Some("alice!~u@example.test"));
-    assert_eq!(message.command(), "PRIVMSG");
+    assert_eq!(message.command(), Command::Privmsg);
     assert!(message.command_is("privmsg"));
     assert!(!message.command_is("NOTICE"));
     assert_eq!(message.tag("msgid"), Some(Cow::Borrowed("abcDEF123")));
@@ -208,6 +208,7 @@ fn parses_realistic_ergo_lines() {
     assert!(ping.is_empty());
 
     let forced_trailing = MessageRef::parse(":ergo.test 323 papo-test :").unwrap();
+    assert_eq!(forced_trailing.command(), Command::Numeric(Numeric(323)));
     assert_eq!(forced_trailing.param(1), Some(""));
 }
 
@@ -223,7 +224,7 @@ fn parses_tags_and_source_with_irregular_spacing() {
         Some(Cow::Borrowed("2026-10-14T20:15:42.123Z"))
     );
     assert_eq!(message.raw_source(), Some("alice!~u@example.test"));
-    assert_eq!(message.command(), "PRIVMSG");
+    assert_eq!(message.command(), Command::Privmsg);
 }
 
 #[test]
@@ -365,7 +366,7 @@ fn owns_parsed_messages_without_reparsing() {
     let borrowed = message.as_ref();
 
     assert_eq!(borrowed.raw_source(), Some("papo-test!~papo@example.test"));
-    assert_eq!(borrowed.command(), "PRIVMSG");
+    assert_eq!(borrowed.command(), Command::Privmsg);
     assert_eq!(
         borrowed.params().collect::<Vec<_>>(),
         ["#papo", "hello there"]
@@ -407,7 +408,7 @@ fn builds_common_client_commands() {
         (Message::new("CAP", ["REQ", "message-tags"]), "CAP", 2),
     ];
     for (message, command, param_count) in cases {
-        assert_eq!(message.as_ref().command(), command);
+        assert_eq!(message.as_ref().raw_command(), command);
         assert_eq!(message.as_ref().len(), param_count);
     }
 }
