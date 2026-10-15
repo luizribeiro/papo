@@ -7,7 +7,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use papo_proto::{Ctcp, Isupport, Message, MessageRef, Source, strip_formatting};
+use papo_proto::{Ctcp, Isupport, Message, MessageRef, Reaction, Source, Typing, strip_formatting};
 
 use crate::{Client, Error};
 
@@ -458,6 +458,71 @@ fn decimal(bytes: &[u8]) -> Option<i64> {
     })
 }
 
+/// A tag-only message. Known tags have typed accessors; unknown tags remain available.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TagMsg {
+    source: Option<String>,
+    target: String,
+    tags: Vec<(String, Option<String>)>,
+}
+
+impl TagMsg {
+    /// Returns the source prefix without its leading colon.
+    #[must_use]
+    pub fn source(&self) -> Option<&str> {
+        self.source.as_deref()
+    }
+
+    /// Returns the message target.
+    #[must_use]
+    pub fn target(&self) -> &str {
+        &self.target
+    }
+
+    /// Returns all tags in wire order.
+    #[must_use]
+    pub fn tags(&self) -> &[(String, Option<String>)] {
+        &self.tags
+    }
+
+    /// Returns a recognized typing state.
+    #[must_use]
+    pub fn typing(&self) -> Option<Typing> {
+        match self.tag("+typing")? {
+            "active" => Some(Typing::Active),
+            "paused" => Some(Typing::Paused),
+            "done" => Some(Typing::Done),
+            _ => None,
+        }
+    }
+
+    /// Returns a reaction linked to a message identifier.
+    #[must_use]
+    pub fn reaction(&self) -> Option<Reaction> {
+        let react = self.tag("+draft/react").map(str::to_owned);
+        let unreact = self.tag("+draft/unreact").map(str::to_owned);
+        if react.is_none() && unreact.is_none() {
+            return None;
+        }
+        Some(Reaction {
+            react,
+            unreact,
+            reply_to: self
+                .tag("+reply")
+                .or_else(|| self.tag("+draft/reply"))?
+                .to_owned(),
+        })
+    }
+
+    fn tag(&self, key: &str) -> Option<&str> {
+        self.tags
+            .iter()
+            .rev()
+            .find(|(candidate, _)| candidate == key)
+            .and_then(|(_, value)| value.as_deref())
+    }
+}
+
 /// An event emitted by an IRC client.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
@@ -472,6 +537,10 @@ pub enum Event {
     Message(MessageEvent),
     /// A parsed message without a typed event variant.
     Raw(Message),
+    /// A tag-only message with typed accessors for known client tags.
+    TagMsg(TagMsg),
+    /// A message was redacted from a target's history.
+    Redacted(papo_core::Redacted),
     /// A labelled request received its complete logical response.
     Response(Response),
     /// A request was sent without protocol-level response correlation.
@@ -695,10 +764,19 @@ pub(crate) enum CoreEvent {
     Unknown,
 }
 
+// Keeping the exhaustive forwarding table together makes omissions visible when core grows.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Registered(welcome) => Event::Registered(welcome),
         papo_core::Event::Message(message) => return CoreEvent::Message(message),
+        papo_core::Event::MultilineMessage(message) => Event::Raw(message.message),
+        papo_core::Event::TagMessage(message) => Event::TagMsg(TagMsg {
+            source: message.source,
+            target: message.target,
+            tags: message.tags,
+        }),
+        papo_core::Event::Redacted(redacted) => Event::Redacted(redacted),
         papo_core::Event::Response(response) => Event::Response(response),
         papo_core::Event::RequestUntracked { id } => Event::RequestUntracked { id },
         papo_core::Event::RequestTimedOut { id } => Event::RequestTimedOut { id },
@@ -808,7 +886,7 @@ mod tests {
         Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session, StandardReply,
         StateLimit,
     };
-    use papo_proto::{Isupport, Message, ModeKind, Source, StandardReplyKind};
+    use papo_proto::{Isupport, Message, ModeKind, Source, StandardReplyKind, Typing};
 
     fn event(
         message: Message,
@@ -1082,6 +1160,50 @@ mod tests {
         assert!(
             matches!(forwarded(session.poll_event().unwrap()), Event::Response(response) if response.id == id)
         );
+    }
+
+    #[test]
+    fn maps_multiline_as_a_normal_message() {
+        let multiline = papo_core::MultilineMessage {
+            message: Message::privmsg("#papo", "first\nsecond"),
+        };
+        assert!(matches!(
+            forwarded(papo_core::Event::MultilineMessage(multiline)),
+            Event::Raw(message) if message.as_ref().param(1) == Some("first\nsecond")
+        ));
+    }
+
+    #[test]
+    fn maps_tag_messages_with_typed_accessors() {
+        let tag = papo_core::TagMessage {
+            source: Some("alice!~a@cloak".into()),
+            target: "#papo".into(),
+            tags: vec![
+                ("+typing".into(), Some("paused".into())),
+                ("+draft/react".into(), Some("👍".into())),
+                ("+reply".into(), Some("RKi9Cw".into())),
+            ],
+        };
+        assert!(matches!(
+            forwarded(papo_core::Event::TagMessage(tag)),
+            Event::TagMsg(tag) if tag.source() == Some("alice!~a@cloak")
+                && tag.target() == "#papo" && tag.typing() == Some(Typing::Paused)
+                && tag.reaction().is_some_and(|reaction| reaction.reply_to == "RKi9Cw")
+        ));
+    }
+
+    #[test]
+    fn maps_redactions() {
+        let redacted = papo_core::Redacted {
+            source: Some("alice!~a@cloak".into()),
+            target: "#papo".into(),
+            msgid: "RKi9Cw".into(),
+            reason: None,
+        };
+        assert!(matches!(
+            forwarded(papo_core::Event::Redacted(redacted.clone())),
+            Event::Redacted(mapped) if mapped == redacted
+        ));
     }
 
     #[test]
