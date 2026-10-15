@@ -338,7 +338,7 @@ impl MessageEvent {
     /// # Errors
     ///
     /// Returns an error if the message is invalid or the driver has stopped.
-    pub async fn reply(&self, text: &str) -> Result<(), Error> {
+    pub async fn reply(&self, text: &str) -> Result<crate::Sent, Error> {
         let mut reply = Message::privmsg(self.reply_target(), text);
         if self.caps.contains_key("message-tags") {
             let denied = self.isupport.clienttagdeny();
@@ -406,7 +406,7 @@ fn tag_owned(message: &MessageRef<'_>, keys: &[&str]) -> Option<String> {
         .find_map(|key| message.tag(key).map(std::borrow::Cow::into_owned))
 }
 
-fn parse_server_time(value: &str) -> Option<SystemTime> {
+pub(crate) fn parse_server_time(value: &str) -> Option<SystemTime> {
     let bytes = value.as_bytes();
     if !value.is_ascii()
         || !(bytes.len() == 20 || (22..=30).contains(&bytes.len()))

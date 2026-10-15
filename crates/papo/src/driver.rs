@@ -56,7 +56,7 @@ enum Command {
         target: String,
         text: String,
         tags: Vec<(String, String)>,
-        result: oneshot::Sender<Result<(), Error>>,
+        result: oneshot::Sender<Result<Sent, Error>>,
     },
     WaitChannelSync {
         channel: String,
@@ -66,6 +66,27 @@ enum Command {
         reason: Option<String>,
         result: oneshot::Sender<Result<(), Error>>,
     },
+}
+
+enum PendingRequest {
+    Response(oneshot::Sender<Result<Response, Error>>),
+    Text(oneshot::Sender<Result<Sent, Error>>),
+}
+
+impl PendingRequest {
+    fn respond(self, response: Response) {
+        match self {
+            Self::Response(result) => _ = result.send(Ok(response)),
+            Self::Text(result) => _ = result.send(Ok(Sent::from_response(&response))),
+        }
+    }
+
+    fn fail(self, error: Error) {
+        match self {
+            Self::Response(result) => _ = result.send(Err(error)),
+            Self::Text(result) => _ = result.send(Err(error)),
+        }
+    }
 }
 
 struct Quit {
@@ -128,6 +149,24 @@ pub struct Client {
     commands: mpsc::Sender<Command>,
     connected: Arc<AtomicBool>,
     state: Arc<RwLock<Arc<State>>>,
+}
+
+/// Server-assigned metadata for a sent chat message.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Sent {
+    /// Network-unique identifier from a labelled echo.
+    pub msgid: Option<String>,
+    /// Server time from a labelled echo.
+    pub time: Option<SystemTime>,
+}
+
+impl Sent {
+    fn from_response(response: &Response) -> Self {
+        response.sent().map_or_else(Self::default, |sent| Self {
+            msgid: Some(sent.msgid),
+            time: sent.time.and_then(|time| event::parse_server_time(&time)),
+        })
+    }
 }
 
 impl Client {
@@ -249,20 +288,26 @@ impl Client {
 
     /// Sends a private message to a user or channel.
     ///
+    /// A labelled echo supplies its message identifier and optional server time. Both fields are
+    /// `None` unless `echo-message` and `labeled-response` are enabled.
+    ///
     /// # Errors
     ///
     /// Returns an error if the message is invalid or the driver has stopped.
-    pub async fn privmsg(&self, target: &str, text: &str) -> Result<(), Error> {
+    pub async fn privmsg(&self, target: &str, text: &str) -> Result<Sent, Error> {
         self.send_text(TextKind::Privmsg, target, text, Vec::new())
             .await
     }
 
     /// Sends a notice to a user or channel.
     ///
+    /// A labelled echo supplies its message identifier and optional server time. Both fields are
+    /// `None` unless `echo-message` and `labeled-response` are enabled.
+    ///
     /// # Errors
     ///
     /// Returns an error if the text is empty or invalid, or the driver has stopped.
-    pub async fn notice(&self, target: &str, text: &str) -> Result<(), Error> {
+    pub async fn notice(&self, target: &str, text: &str) -> Result<Sent, Error> {
         self.send_text(TextKind::Notice, target, text, Vec::new())
             .await
     }
@@ -273,7 +318,7 @@ impl Client {
         target: &str,
         text: &str,
         tags: Vec<(String, String)>,
-    ) -> Result<(), Error> {
+    ) -> Result<Sent, Error> {
         if !self.is_connected() {
             let mut message = match kind {
                 TextKind::Privmsg => Message::privmsg(target, text),
@@ -282,7 +327,8 @@ impl Client {
             for (key, value) in tags {
                 message = message.with_tag(key, value);
             }
-            return self.send(message).await;
+            self.send(message).await?;
+            return Ok(Sent::default());
         }
         let (result, receiver) = oneshot::channel();
         self.commands
@@ -1148,7 +1194,11 @@ fn handle_disconnected_command(
             _ = result.send(Err(Error::Disconnected));
             true
         }
-        Some(Command::SendText { result, .. } | Command::WaitChannelSync { result, .. }) => {
+        Some(Command::SendText { result, .. }) => {
+            _ = result.send(Err(Error::Disconnected));
+            true
+        }
+        Some(Command::WaitChannelSync { result, .. }) => {
             _ = result.send(Err(Error::Disconnected));
             true
         }
@@ -1312,7 +1362,7 @@ where
                     };
                     match requested {
                         Ok(id) => {
-                            requests.insert(id, result);
+                            requests.insert(id, PendingRequest::Response(result));
                         }
                         Err(error) => {
                             let error = match error {
@@ -1326,7 +1376,10 @@ where
                 Some(Command::SendText { kind, target, text, tags, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
                     match session.send_text(now(), kind, &target, &text, &tags) {
-                        Ok(_) => _ = result.send(Ok(())),
+                        Ok(Some(id)) => {
+                            requests.insert(id, PendingRequest::Text(result));
+                        }
+                        Ok(None) => _ = result.send(Ok(Sent::default())),
                         Err(error) => {
                             let error = match error {
                                 RequestError::Build(error) => Error::Build(error),
@@ -1371,7 +1424,7 @@ where
     };
     session.handle_disconnected(now());
     for (_, result) in requests {
-        _ = result.send(Err(Error::Disconnected));
+        result.fail(Error::Disconnected);
     }
     for (_, result) in sync_waiters {
         _ = result.send(Err(Error::Disconnected));
@@ -1441,7 +1494,7 @@ async fn drain<S>(
     session: &mut Session,
     events: &EventSink,
     pending_event: &mut Option<Event>,
-    requests: &mut BTreeMap<RequestId, oneshot::Sender<Result<Response, Error>>>,
+    requests: &mut BTreeMap<RequestId, PendingRequest>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
@@ -1466,21 +1519,21 @@ where
                 event = match event {
                     Event::Response(response) => {
                         if let Some(result) = requests.remove(&response.id) {
-                            _ = result.send(Ok(response));
+                            result.respond(response);
                             continue;
                         }
                         Event::Response(response)
                     }
                     Event::RequestTimedOut { id } => {
                         if let Some(result) = requests.remove(&id) {
-                            _ = result.send(Err(Error::Timeout));
+                            result.fail(Error::Timeout);
                             continue;
                         }
                         Event::RequestTimedOut { id }
                     }
                     Event::RequestAborted { id } => {
                         if let Some(result) = requests.remove(&id) {
-                            _ = result.send(Err(Error::Disconnected));
+                            result.fail(Error::Disconnected);
                             continue;
                         }
                         Event::RequestAborted { id }
@@ -3376,9 +3429,13 @@ mod tests {
             panic!("expected message event")
         };
         match kind {
-            ReplyKind::Reply => message.reply("pong").await.unwrap(),
+            ReplyKind::Reply => {
+                message.reply("pong").await.unwrap();
+            }
             #[cfg(feature = "bot")]
-            ReplyKind::PrivateNotice => message.private_notice("denied").await.unwrap(),
+            ReplyKind::PrivateNotice => {
+                message.private_notice("denied").await.unwrap();
+            }
         }
         client_line(&mut server, expected).await;
         server.shutdown().await.unwrap();
@@ -3443,7 +3500,10 @@ mod tests {
         let (mut server, client, _events, driver) = scripted(config());
         let task = tokio::spawn(driver);
         registration_burst(&mut server).await;
-        client.privmsg("#papo", &"a".repeat(600)).await.unwrap();
+        assert_eq!(
+            client.privmsg("#papo", &"a".repeat(600)).await.unwrap(),
+            super::Sent::default()
+        );
         let lines = format!(
             "PRIVMSG #papo {}\r\nPRIVMSG #papo {}\r\n",
             "a".repeat(413),
@@ -3488,6 +3548,44 @@ mod tests {
             "a".repeat(187)
         );
         client_line(&mut server, batch.as_bytes()).await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn chat_text_returns_metadata_from_a_labelled_echo() {
+        let config = config().wanted_caps(["echo-message", "labeled-response"]);
+        let (mut server, client, _events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :echo-message labeled-response\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP REQ :echo-message labeled-response\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * ACK :echo-message labeled-response\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+
+        let sender = client.clone();
+        let sent = tokio::spawn(async move { sender.privmsg("#papo", "hello everyone").await });
+        client_line(&mut server, b"@label=0 PRIVMSG #papo :hello everyone\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=0;msgid=RfcBTzyxY120004;time=2026-02-03T04:05:06.789Z :papo-driver!papo@localhost PRIVMSG #papo :hello everyone\r\n",
+        )
+        .await;
+        let sent = sent.await.unwrap().unwrap();
+        assert_eq!(sent.msgid.as_deref(), Some("RfcBTzyxY120004"));
+        assert_eq!(
+            sent.time,
+            Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
+        );
+
         server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
     }
