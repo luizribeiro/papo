@@ -9,7 +9,7 @@ use tokio::{
 
 use crate::{Error, Event, event, transport};
 
-const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
+pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 enum Command {

@@ -1,4 +1,6 @@
-use papo_core::{Config, Sasl};
+use std::time::Duration;
+
+use papo_core::{Config, RateLimit, Sasl};
 
 use crate::{AddressError, address::ServerAddress};
 
@@ -7,6 +9,7 @@ use crate::{AddressError, address::ServerAddress};
 pub struct Builder {
     pub(crate) _address: Result<ServerAddress, AddressError>,
     pub(crate) config: Config,
+    pub(crate) event_capacity: usize,
     username_set: bool,
     realname_set: bool,
 }
@@ -16,6 +19,7 @@ impl Builder {
         Self {
             _address: address.parse(),
             config: Config::default(),
+            event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
             username_set: false,
             realname_set: false,
         }
@@ -91,11 +95,42 @@ impl Builder {
         self.config.wanted_caps = caps.into_iter().map(Into::into).collect();
         self
     }
+
+    /// Sets the outbound line rate limit.
+    pub fn rate_limit(mut self, rate_limit: RateLimit) -> Self {
+        self.config.rate_limit = rate_limit;
+        self
+    }
+
+    /// Sets the idle interval before sending a keepalive probe.
+    pub fn ping_interval(mut self, interval: Duration) -> Self {
+        self.config.ping_interval = interval;
+        self
+    }
+
+    /// Sets the maximum time allowed without an incoming line.
+    pub fn ping_timeout(mut self, timeout: Duration) -> Self {
+        self.config.ping_timeout = timeout;
+        self
+    }
+
+    /// Sets the bounded event queue capacity.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `capacity` is zero.
+    pub fn event_capacity(mut self, capacity: usize) -> Self {
+        assert!(capacity > 0, "event capacity must be positive");
+        self.event_capacity = capacity;
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use papo_core::Sasl;
+    use std::time::Duration;
+
+    use papo_core::{RateLimit, Sasl};
 
     use super::Builder;
 
@@ -139,5 +174,24 @@ mod tests {
             (explicit.username.as_str(), explicit.realname.as_str()),
             ("service", "Papo service")
         );
+    }
+
+    #[test]
+    fn configures_timing_rate_and_event_capacity() {
+        let builder = Builder::new("irc.example.net")
+            .rate_limit(RateLimit::unlimited())
+            .ping_interval(Duration::from_secs(31))
+            .ping_timeout(Duration::from_secs(93))
+            .event_capacity(17);
+        assert_eq!(builder.config.rate_limit, RateLimit::unlimited());
+        assert_eq!(builder.config.ping_interval, Duration::from_secs(31));
+        assert_eq!(builder.config.ping_timeout, Duration::from_secs(93));
+        assert_eq!(builder.event_capacity, 17);
+    }
+
+    #[test]
+    #[should_panic(expected = "event capacity must be positive")]
+    fn rejects_an_empty_event_queue() {
+        _ = Builder::new("irc.example.net").event_capacity(0);
     }
 }
