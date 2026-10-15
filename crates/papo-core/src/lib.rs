@@ -1,17 +1,19 @@
 //! Sans-I/O IRC session state and protocol behavior.
 //! Time and randomness enter through explicit inputs.
 
+mod caps;
 mod framing;
 mod keepalive;
 mod registration;
 
 use std::{
-    collections::VecDeque,
+    collections::{BTreeMap, VecDeque},
     time::{Duration, Instant},
 };
 
 use papo_proto::{BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef};
 
+use caps::Caps;
 use framing::Framer;
 use keepalive::Keepalive;
 use registration::Registration;
@@ -38,6 +40,9 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "standard-replies",
     "labeled-response",
 ];
+
+/// Enabled `IRCv3` capability names and their advertised values.
+pub type Capabilities = BTreeMap<String, Option<String>>;
 
 /// Policy for decoding incoming IRC lines.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -164,6 +169,7 @@ pub enum Event {
 #[derive(Debug)]
 pub struct Session {
     config: Config,
+    caps: Caps,
     framer: Framer,
     keepalive: Keepalive,
     registration: Registration,
@@ -217,6 +223,7 @@ impl Session {
         let registration = Registration::new(&config);
         Self {
             config,
+            caps: Caps::default(),
             framer: Framer::default(),
             keepalive: Keepalive,
             registration,
@@ -228,6 +235,7 @@ impl Session {
     pub fn handle_connected(&mut self, now: Instant) {
         self.framer.reset();
         self.outbox.reset_connection();
+        self.caps.handle_connected();
         self.registration
             .handle_connected(now, &self.config, &mut self.outbox);
     }
@@ -332,6 +340,12 @@ impl Session {
         self.registration.nick()
     }
 
+    /// Returns the `IRCv3` capabilities enabled on this connection.
+    #[must_use]
+    pub fn caps(&self) -> &Capabilities {
+        self.caps.enabled()
+    }
+
     fn malformed(&mut self, line: &[u8]) {
         self.outbox.event(Event::Malformed {
             line: line.to_vec(),
@@ -340,6 +354,16 @@ impl Session {
 
     fn dispatch_message(&mut self, now: Instant, message: &MessageRef<'_>) {
         let handled = self.registration.handle_message(message);
+        let handled = if handled == Handled::No {
+            self.caps.handle_message(
+                message,
+                &self.config,
+                self.registration.authentication_finished(),
+                &mut self.outbox,
+            )
+        } else {
+            handled
+        };
         let handled = if handled == Handled::No {
             self.keepalive
                 .handle_message(now, message, &mut self.outbox)

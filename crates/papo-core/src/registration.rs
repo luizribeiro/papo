@@ -58,4 +58,9 @@ impl Registration {
     pub(super) fn nick(&self) -> &str {
         &self.nick
     }
+
+    #[allow(clippy::unused_self)]
+    pub(super) const fn authentication_finished(&self) -> bool {
+        true
+    }
 }
