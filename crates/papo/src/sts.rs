@@ -269,6 +269,38 @@ mod tests {
         assert!(reopened.get("irc.libera.chat").is_none());
     }
 
+    #[test]
+    fn creates_missing_parent_directories() {
+        let path = test_dir("missing-parent").join("nested/papo/sts.json");
+        let mut store = FileStsStore::open(&path);
+        store.put(policy("irc.example.net", 4_000_000_000));
+
+        assert!(store.last_error().is_none());
+        assert_eq!(
+            FileStsStore::open(path).get("irc.example.net"),
+            Some(policy("irc.example.net", 4_000_000_000))
+        );
+    }
+
+    #[test]
+    fn a_missing_file_loads_empty_without_an_error() {
+        let path = test_dir("missing-file").join("sts.json");
+        let store = FileStsStore::open(path);
+
+        assert!(store.last_error().is_none());
+        assert!(store.get("irc.example.net").is_none());
+    }
+
+    #[test]
+    fn a_directory_at_the_file_path_loads_empty_with_an_error() {
+        let path = test_dir("directory-path").join("sts.json");
+        fs::create_dir(&path).unwrap();
+        let store = FileStsStore::open(path);
+
+        assert!(store.last_error().is_some());
+        assert!(store.get("irc.example.net").is_none());
+    }
+
     // WASI hosts do not reliably enforce directory mode bits for preopened directories.
     #[cfg(all(unix, not(target_os = "wasi")))]
     #[test]
