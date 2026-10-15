@@ -386,6 +386,29 @@ impl Client {
         receiver.await.map_err(|_| Error::Disconnected)?
     }
 
+    /// Redacts a message from a target's history.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unsupported`] when message redaction is unavailable, and
+    /// [`Error::Server`] when the server rejects the labelled request.
+    pub async fn redact(
+        &self,
+        target: &str,
+        msgid: &str,
+        reason: Option<&str>,
+    ) -> Result<(), Error> {
+        if !self.has_cap("draft/message-redaction") {
+            return Err(Error::Unsupported("draft/message-redaction"));
+        }
+        let mut params = vec![target, msgid];
+        params.extend(reason);
+        let response = self
+            .correlated(Message::new("REDACT", params), None)
+            .await?;
+        crate::requests::empty(&response)
+    }
+
     pub(crate) async fn send_text(
         &self,
         kind: TextKind,
@@ -3802,6 +3825,79 @@ mod tests {
                 .await
                 .is_err()
         );
+
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn redaction_requires_its_capability_and_propagates_fail() {
+        let caps = ["draft/message-redaction", "labeled-response"];
+        let (mut server, client, _events, driver) = scripted(config().wanted_caps(caps));
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :draft/message-redaction labeled-response\r\n",
+        )
+        .await;
+        client_line(
+            &mut server,
+            b"CAP REQ :draft/message-redaction labeled-response\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * ACK :draft/message-redaction labeled-response\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+
+        let sender = client.clone();
+        let redacted = tokio::spawn(async move {
+            sender
+                .redact("#papo", "RfcBTzyxY120004", Some("duplicate message"))
+                .await
+        });
+        client_line(
+            &mut server,
+            b"@label=0 REDACT #papo RfcBTzyxY120004 :duplicate message\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=0 :papo-driver!papo@localhost REDACT #papo RfcBTzyxY120004 :duplicate message\r\n",
+        )
+        .await;
+        assert!(redacted.await.unwrap().is_ok());
+
+        let sender = client.clone();
+        let rejected =
+            tokio::spawn(async move { sender.redact("#papo", "RfcBTzyxY120005", None).await });
+        client_line(&mut server, b"@label=1 REDACT #papo RfcBTzyxY120005\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=1 :ergo.test FAIL REDACT FORBIDDEN #papo :Insufficient privileges\r\n",
+        )
+        .await;
+        assert!(matches!(
+            rejected.await.unwrap(),
+            Err(Error::Server(papo_core::ServerError::Standard { command, code, .. }))
+                if command == "REDACT" && code == "FORBIDDEN"
+        ));
+
+        server_line(
+            &mut server,
+            b":ergo.test CAP * DEL :draft/message-redaction\r\n",
+        )
+        .await;
+        while client.has_cap("draft/message-redaction") {
+            tokio::task::yield_now().await;
+        }
+        assert!(matches!(
+            client.redact("#papo", "RfcBTzyxY120006", None).await,
+            Err(Error::Unsupported("draft/message-redaction"))
+        ));
 
         server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
