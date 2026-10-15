@@ -20,7 +20,7 @@ use std::{
 
 use papo_proto::{
     BuildError, Casemapping, Command, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef,
-    ModeChange, ModeKind, Numeric, StandardReply as StandardReplyView, StandardReplyKind,
+    ModeChange, ModeKind, Numeric, Source, StandardReply as StandardReplyView, StandardReplyKind,
 };
 
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
@@ -412,15 +412,43 @@ pub struct RequestId(u64);
 pub enum ResponseMatcher {
     /// A `WHOIS` reply ending at `318` or an error naming this nickname.
     Whois(String),
+    /// A channel join ending when initial channel state is synchronized.
+    Join(String),
 }
 
 impl ResponseMatcher {
-    fn matches(&self, message: &MessageRef<'_>, mapping: Casemapping) -> Option<bool> {
+    fn standard_failure(message: &MessageRef<'_>, command: &str) -> bool {
+        StandardReplyView::parse(message).is_some_and(|reply| {
+            reply.kind == StandardReplyKind::Fail && reply.command.eq_ignore_ascii_case(command)
+        })
+    }
+
+    fn target_is(
+        message: &MessageRef<'_>,
+        index: usize,
+        target: &str,
+        mapping: Casemapping,
+    ) -> bool {
+        message
+            .param(index)
+            .is_some_and(|value| mapping.eq(value, target))
+    }
+
+    fn matches(
+        &self,
+        message: &MessageRef<'_>,
+        mapping: Casemapping,
+        own_nick: &str,
+        state: &State,
+    ) -> Option<bool> {
+        let numeric = match message.command() {
+            Command::Numeric(numeric) => Some(numeric),
+            _ => None,
+        };
+        let own_source = matches!(message.source(), Some(Source::User { nick, .. }) if mapping.eq(nick, own_nick));
         match self {
             Self::Whois(nick) => {
-                if StandardReplyView::parse(message)
-                    .is_some_and(|reply| reply.command.eq_ignore_ascii_case("WHOIS"))
-                {
+                if Self::standard_failure(message, "WHOIS") {
                     return Some(true);
                 }
                 let Command::Numeric(numeric) = message.command() else {
@@ -438,11 +466,21 @@ impl ResponseMatcher {
                         | Numeric::RPL_WHOISBOT
                         | Numeric::RPL_WHOISSECURE
                 ) || numeric.is_error();
-                (relevant
-                    && message
-                        .param(1)
-                        .is_some_and(|reply| mapping.eq(reply, nick)))
-                .then_some(numeric == Numeric::RPL_ENDOFWHOIS || numeric.is_error())
+                (relevant && Self::target_is(message, 1, nick, mapping))
+                    .then_some(numeric == Numeric::RPL_ENDOFWHOIS || numeric.is_error())
+            }
+            Self::Join(channel) => {
+                if Self::standard_failure(message, "JOIN") {
+                    return Some(true);
+                }
+                let named = |index| Self::target_is(message, index, channel, mapping);
+                if message.command() == Command::Join && own_source && named(0) {
+                    return Some(state.channel(channel).is_some_and(Channel::is_synced));
+                }
+                numeric.and_then(|numeric| {
+                    (named(1) && (numeric == Numeric::RPL_ENDOFNAMES || numeric.is_error()))
+                        .then_some(true)
+                })
             }
         }
     }
@@ -1512,7 +1550,7 @@ impl Session {
                 .find_map(|(index, request)| {
                     request
                         .matcher
-                        .matches(message, mapping)
+                        .matches(message, mapping, self.registration.nick(), &self.state)
                         .map(|done| (index, done))
                 })
         else {

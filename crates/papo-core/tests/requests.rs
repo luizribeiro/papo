@@ -44,6 +44,34 @@ fn matches_an_unlabelled_whois_through_its_end_numeric() {
 }
 
 #[test]
+fn unlabelled_join_waits_for_channel_sync() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let id = session
+        .request_with_matcher(
+            now,
+            Message::join("#papo"),
+            ResponseMatcher::Join("#papo".into()),
+        )
+        .unwrap();
+    for line in [
+        ":papo!papo@localhost JOIN #papo * :Papo Client",
+        ":ergo.test 353 papo = #papo :@papo alice",
+        ":ergo.test 366 papo #papo :End of /NAMES list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(response) if response.id == id))
+    );
+}
+
+#[test]
 fn resolves_a_labelled_echo_and_an_ack() {
     let now = Instant::now();
     let mut session = labelled_session(now);
