@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, collections::BTreeMap};
 
-use papo_proto::{BuildError, Message, MessageRef, ParseError};
+use papo_proto::{BuildError, Message, MessageRef, ParseError, Source};
 use proptest::{collection::vec, option, prelude::*};
 use serde_json::Value;
 
@@ -52,7 +52,11 @@ fn passes_ircdocs_message_split_corpus() {
         let expected = &case["atoms"];
         let message = MessageRef::parse(input).unwrap_or_else(|error| panic!("{input:?}: {error}"));
 
-        assert_eq!(message.source(), expected["source"].as_str(), "{input:?}");
+        assert_eq!(
+            message.raw_source(),
+            expected["source"].as_str(),
+            "{input:?}"
+        );
         assert_eq!(
             message.command(),
             expected["verb"].as_str().unwrap(),
@@ -83,6 +87,67 @@ fn passes_ircdocs_message_split_corpus() {
 }
 
 #[test]
+fn passes_ircdocs_userhost_split_corpus() {
+    let corpus: Value =
+        serde_json::from_str(include_str!("data/parser-tests/userhost-split.json")).unwrap();
+
+    for case in corpus["tests"].as_array().unwrap() {
+        let raw = case["source"].as_str().unwrap();
+        let expected = &case["atoms"];
+        let line = format!(":{raw} NOTICE papo-test :maintenance");
+        let message = MessageRef::parse(&line).unwrap();
+
+        assert_eq!(
+            message.source(),
+            Some(Source::User {
+                nick: expected["nick"].as_str().unwrap(),
+                user: expected["user"].as_str(),
+                host: expected["host"].as_str(),
+            }),
+            "{raw:?}"
+        );
+    }
+}
+
+#[test]
+fn parses_ergo_user_sources_and_server_names() {
+    let cases = [
+        (
+            "nick!~u@abc123.irc",
+            Source::User {
+                nick: "nick",
+                user: Some("~u"),
+                host: Some("abc123.irc"),
+            },
+        ),
+        (
+            "*name*!realnick@npc.fakeuser.invalid",
+            Source::User {
+                nick: "*name*",
+                user: Some("realnick"),
+                host: Some("npc.fakeuser.invalid"),
+            },
+        ),
+        (
+            "nick/x!~u@cloak",
+            Source::User {
+                nick: "nick/x",
+                user: Some("~u"),
+                host: Some("cloak"),
+            },
+        ),
+        ("irc.example.net", Source::Server("irc.example.net")),
+    ];
+
+    for (raw, expected) in cases {
+        let line = format!(":{raw} PRIVMSG #papo :hello");
+        let message = MessageRef::parse(&line).unwrap();
+        assert_eq!(message.raw_source(), Some(raw));
+        assert_eq!(message.source(), Some(expected));
+    }
+}
+
+#[test]
 fn source_free_ircdocs_lines_round_trip_through_serialization() {
     let corpus: Value =
         serde_json::from_str(include_str!("data/parser-tests/msg-split.json")).unwrap();
@@ -91,7 +156,7 @@ fn source_free_ircdocs_lines_round_trip_through_serialization() {
     for case in corpus["tests"].as_array().unwrap() {
         let input = case["input"].as_str().unwrap();
         let parsed = MessageRef::parse(input).unwrap();
-        if parsed.source().is_some() {
+        if parsed.raw_source().is_some() {
             continue;
         }
         let message = parsed.to_owned();
@@ -113,7 +178,7 @@ fn parses_realistic_ergo_lines() {
         "@time=2026-10-14T20:15:42.123Z;msgid=abcDEF123 :alice!~u@example.test PRIVMSG #papo :hello there\r\n",
     )
     .unwrap();
-    assert_eq!(message.source(), Some("alice!~u@example.test"));
+    assert_eq!(message.raw_source(), Some("alice!~u@example.test"));
     assert_eq!(message.command(), "PRIVMSG");
     assert!(message.command_is("privmsg"));
     assert!(!message.command_is("NOTICE"));
@@ -136,7 +201,7 @@ fn parses_realistic_ergo_lines() {
     );
 
     let authenticate = MessageRef::parse("AUTHENTICATE +\n").unwrap();
-    assert_eq!(authenticate.source(), None);
+    assert_eq!(authenticate.raw_source(), None);
     assert_eq!(authenticate.param(0), Some("+"));
 
     let ping = MessageRef::parse("PING").unwrap();
@@ -157,7 +222,7 @@ fn parses_tags_and_source_with_irregular_spacing() {
         message.tag("time"),
         Some(Cow::Borrowed("2026-10-14T20:15:42.123Z"))
     );
-    assert_eq!(message.source(), Some("alice!~u@example.test"));
+    assert_eq!(message.raw_source(), Some("alice!~u@example.test"));
     assert_eq!(message.command(), "PRIVMSG");
 }
 
@@ -299,7 +364,7 @@ fn owns_parsed_messages_without_reparsing() {
     let message = parsed.to_owned();
     let borrowed = message.as_ref();
 
-    assert_eq!(borrowed.source(), Some("papo-test!~papo@example.test"));
+    assert_eq!(borrowed.raw_source(), Some("papo-test!~papo@example.test"));
     assert_eq!(borrowed.command(), "PRIVMSG");
     assert_eq!(
         borrowed.params().collect::<Vec<_>>(),

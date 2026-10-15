@@ -1,5 +1,7 @@
 use std::{borrow::Cow, error::Error, fmt, iter::FusedIterator, slice, str::Utf8Error};
 
+use crate::Source;
+
 /// Maximum byte length of an IRC message excluding its tag section but including CRLF.
 ///
 /// This limit is defined by the [Modern IRC client protocol].
@@ -198,9 +200,18 @@ impl<'a> MessageRef<'a> {
             .flatten()
     }
 
+    /// Returns the parsed message source, when present.
+    ///
+    /// Nicknames never contain `.`, so a bare name containing `.` and no `!` or `@` is
+    /// classified as a server name. All other sources are classified as users.
+    #[must_use]
+    pub fn source(&self) -> Option<Source<'a>> {
+        self.source.map(Source::parse)
+    }
+
     /// Returns the source without its leading colon, when present.
     #[must_use]
-    pub const fn source(&self) -> Option<&'a str> {
+    pub const fn raw_source(&self) -> Option<&'a str> {
         self.source
     }
 
