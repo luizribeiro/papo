@@ -36,7 +36,8 @@ pub(crate) struct ServerAddress {
     pub(crate) protocol: Protocol,
     pub(crate) host: String,
     pub(crate) port: u16,
-    pub(crate) websocket_url: Option<String>,
+    explicit_port: bool,
+    websocket_path: Option<String>,
 }
 
 impl FromStr for ServerAddress {
@@ -72,8 +73,34 @@ impl FromStr for ServerAddress {
             protocol,
             host,
             port,
-            websocket_url: websocket.then(|| input.to_owned()),
+            explicit_port: port != default_port || authority.ends_with(&format!(":{port}")),
+            websocket_path: websocket.then(|| format!("/{path}")),
         })
+    }
+}
+
+impl ServerAddress {
+    pub(crate) fn set_port(&mut self, port: u16) {
+        assert!(port > 0, "server port must be positive");
+        self.port = port;
+        self.explicit_port = true;
+    }
+
+    pub(crate) fn set_tls(&mut self, enabled: bool) {
+        self.protocol = match (self.websocket_path.is_some(), enabled) {
+            (false, false) => Protocol::Irc,
+            (false, true) => Protocol::Ircs,
+            (true, false) => Protocol::Ws,
+            (true, true) => Protocol::Wss,
+        };
+        if !self.explicit_port {
+            self.port = match self.protocol {
+                Protocol::Irc => 6667,
+                Protocol::Ircs => 6697,
+                Protocol::Ws => 80,
+                Protocol::Wss => 443,
+            };
+        }
     }
 }
 
@@ -152,7 +179,7 @@ mod tests {
                 (protocol, host, port)
             );
             assert_eq!(
-                address.websocket_url.is_some(),
+                address.websocket_path.is_some(),
                 matches!(protocol, Protocol::Ws | Protocol::Wss)
             );
         }

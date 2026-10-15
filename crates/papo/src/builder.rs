@@ -7,7 +7,7 @@ use crate::{AddressError, address::ServerAddress};
 /// Configures an IRC client before it is built or connected.
 #[must_use]
 pub struct Builder {
-    pub(crate) _address: Result<ServerAddress, AddressError>,
+    pub(crate) address: Result<ServerAddress, AddressError>,
     pub(crate) config: Config,
     pub(crate) event_capacity: usize,
     username_set: bool,
@@ -17,7 +17,7 @@ pub struct Builder {
 impl Builder {
     pub(crate) fn new(address: &str) -> Self {
         Self {
-            _address: address.parse(),
+            address: address.parse(),
             config: Config::default(),
             event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
             username_set: false,
@@ -124,6 +124,27 @@ impl Builder {
         self.event_capacity = capacity;
         self
     }
+
+    /// Overrides the service port.
+    pub fn port(mut self, port: u16) -> Self {
+        if let Ok(address) = &mut self.address {
+            address.set_port(port);
+        }
+        self
+    }
+
+    /// Selects whether the connection is protected by TLS.
+    pub fn tls(mut self, enabled: bool) -> Self {
+        if let Ok(address) = &mut self.address {
+            address.set_tls(enabled);
+        }
+        self
+    }
+
+    /// Selects an explicitly unencrypted connection.
+    pub fn plaintext(self) -> Self {
+        self.tls(false)
+    }
 }
 
 #[cfg(test)]
@@ -133,6 +154,7 @@ mod tests {
     use papo_core::{RateLimit, Sasl};
 
     use super::Builder;
+    use crate::address::Protocol;
 
     #[test]
     fn fills_every_session_configuration_field() {
@@ -193,5 +215,23 @@ mod tests {
     #[should_panic(expected = "event capacity must be positive")]
     fn rejects_an_empty_event_queue() {
         _ = Builder::new("irc.example.net").event_capacity(0);
+    }
+
+    #[test]
+    fn configures_ports_and_security() {
+        let plain = Builder::new("irc.example.net").plaintext();
+        let address = plain.address.unwrap();
+        assert_eq!((address.protocol, address.port), (Protocol::Irc, 6667));
+
+        let websocket = Builder::new("ws://[2001:db8::1]/webirc")
+            .port(8443)
+            .tls(true);
+        let address = websocket.address.unwrap();
+        assert_eq!((address.protocol, address.port), (Protocol::Wss, 8443));
+        let explicit = Builder::new("irc.example.net:7000")
+            .plaintext()
+            .address
+            .unwrap();
+        assert_eq!(explicit.port, 7000);
     }
 }

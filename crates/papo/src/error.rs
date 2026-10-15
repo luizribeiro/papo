@@ -3,12 +3,15 @@ use std::io;
 use papo_proto::BuildError;
 use thiserror::Error;
 
-use crate::transport::ConnectError;
+use crate::{AddressError, transport::ConnectError};
 
 /// An error produced by the asynchronous IRC client.
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum Error {
+    /// The configured server address is invalid.
+    #[error("invalid server address: {0}")]
+    Address(#[from] AddressError),
     /// Reading from or writing to the connection failed.
     #[error("connection I/O failed: {0}")]
     Io(#[from] io::Error),
