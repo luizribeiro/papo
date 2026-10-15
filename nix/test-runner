@@ -3,42 +3,90 @@ set -euo pipefail
 
 invocation_dir=$PWD
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-cargo build --quiet --manifest-path "$repo_root/Cargo.toml" \
-  -p papo-test-server --bin papo-test-server
-
-coproc PAPO_ERGO { "$repo_root/target/debug/papo-test-server"; }
-server_output=${PAPO_ERGO[0]}
-server_input=${PAPO_ERGO[1]}
-server_pid=$PAPO_ERGO_PID
+artifact=${1:?a test binary is required}
+binary_name=${artifact##*/}
+binary_name=${binary_name%.wasm}
+binary_name=${binary_name%-*}
+server_pid=
+server_input=
 ca_file=
 
+# The EXIT trap is the only caller.
+# shellcheck disable=SC2329
 cleanup() {
   status=$?
-  trap - EXIT INT TERM
-  exec {server_input}>&-
-  wait "$server_pid" || true
-  if [[ -n "$ca_file" ]]; then
+  trap - EXIT
+  if [[ -n $server_input ]]; then
+    exec {server_input}>&-
+    wait "$server_pid" || true
+  fi
+  if [[ -n $ca_file ]]; then
     rm -f "$invocation_dir/$ca_file"
   fi
   exit "$status"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-IFS= read -r PAPO_TEST_PLAINTEXT <&"$server_output"
-IFS= read -r PAPO_TEST_TLS <&"$server_output"
-IFS= read -r host_ca <&"$server_output"
-mkdir -p "$invocation_dir/target/papo-test-server"
-host_ca_copy=$(mktemp "$invocation_dir/target/papo-test-server/ca.XXXXXX.pem")
-cp "$host_ca" "$host_ca_copy"
-ca_file=${host_ca_copy#"$invocation_dir/"}
-export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS
-export PAPO_TEST_CA=$ca_file
+start_server() {
+  if [[ -v PAPO_TEST_PLAINTEXT && -v PAPO_TEST_TLS && -v PAPO_TEST_CA ]]; then
+    export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS PAPO_TEST_CA
+    return
+  fi
+  if [[ -v PAPO_TEST_PLAINTEXT || -v PAPO_TEST_TLS || -v PAPO_TEST_CA ]]; then
+    echo "PAPO_TEST_PLAINTEXT, PAPO_TEST_TLS, and PAPO_TEST_CA must be set together" >&2
+    exit 2
+  fi
 
-permissions=(-S inherit-network -S allow-ip-name-lookup)
-if [[ ${1-} == *wasm32-wasip3* ]]; then
-  permissions+=(-S p3)
+  if [[ -n ${PAPO_TEST_SERVER_BIN-} ]]; then
+    helper=$PAPO_TEST_SERVER_BIN
+  else
+    cargo build --quiet --manifest-path "$repo_root/Cargo.toml" \
+      -p papo-test-server --bin papo-test-server
+    helper=$repo_root/target/debug/papo-test-server
+  fi
+  coproc PAPO_ERGO { "$helper"; }
+  server_output=${PAPO_ERGO[0]}
+  server_input=${PAPO_ERGO[1]}
+  server_pid=$PAPO_ERGO_PID
+  IFS= read -r PAPO_TEST_PLAINTEXT <&"$server_output"
+  IFS= read -r PAPO_TEST_TLS <&"$server_output"
+  IFS= read -r host_ca <&"$server_output"
+  PAPO_TEST_CA=$host_ca
+  if [[ $artifact == *.wasm ]]; then
+    mkdir -p "$invocation_dir/target/papo-test-server"
+    host_ca_copy=$(mktemp "$invocation_dir/target/papo-test-server/ca.XXXXXX.pem")
+    cp "$host_ca" "$host_ca_copy"
+    ca_file=${host_ca_copy#"$invocation_dir/"}
+    PAPO_TEST_CA=$ca_file
+  fi
+  export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS PAPO_TEST_CA
+}
+
+if [[ $binary_name == live_* ]]; then
+  start_server
 fi
-cd "$invocation_dir"
-wasmtime run --dir=. \
-  --env PAPO_TEST_PLAINTEXT --env PAPO_TEST_TLS --env PAPO_TEST_CA \
-  "${permissions[@]}" "$@"
+
+set +e
+if [[ $artifact == *.wasm ]]; then
+  wasmtime_args=(run --dir=.)
+  if [[ $binary_name == live_* ]]; then
+    wasmtime_args+=(
+      --env PAPO_TEST_PLAINTEXT
+      --env PAPO_TEST_TLS
+      --env PAPO_TEST_CA
+    )
+  fi
+  wasmtime_args+=(-S inherit-network -S allow-ip-name-lookup)
+  if [[ $artifact == *wasm32-wasip3* ]]; then
+    wasmtime_args+=(-S p3)
+  fi
+  (cd "$invocation_dir" && wasmtime "${wasmtime_args[@]}" "$@")
+  status=$?
+else
+  "$@"
+  status=$?
+fi
+set -e
+exit "$status"
