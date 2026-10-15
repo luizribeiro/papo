@@ -101,19 +101,130 @@ fn sends_six_hundred_bytes_as_one_labelled_multiline_batch() {
 }
 
 #[test]
-fn max_lines_sends_several_bounded_batches() {
+fn max_bytes_counts_text_and_joining_newlines() {
     let now = Instant::now();
-    let mut session = multiline_session(now, "max-bytes=4096,max-lines=1", false);
+    let mut exact = multiline_session(now, "max-bytes=40,max-lines=3", false);
+    exact
+        .send_text(
+            now,
+            TextKind::Notice,
+            "#papo",
+            "1234567890123456789\nabcdefghijklmnopqrst",
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        drain(&mut exact),
+        [
+            "BATCH +b0-0 draft/multiline #papo\r\n",
+            "@batch=b0-0 NOTICE #papo 1234567890123456789\r\n",
+            "@batch=b0-0 NOTICE #papo abcdefghijklmnopqrst\r\n",
+            "BATCH -b0-0\r\n",
+        ]
+    );
+
+    let mut over = multiline_session(now, "max-bytes=40,max-lines=3", false);
+    over.send_text(
+        now,
+        TextKind::Notice,
+        "#papo",
+        "1234567890123456789\nabcdefghijklmnopqrstu",
+        &[],
+    )
+    .unwrap();
+    let lines = drain(&mut over);
+    assert_eq!(lines.len(), 6);
+    assert_eq!(lines[2], "BATCH -b0-0\r\n");
+    assert_eq!(lines[3], "BATCH +b0-1 draft/multiline #papo\r\n");
+}
+
+#[test]
+fn concat_omits_the_joining_newline_from_max_bytes() {
+    let now = Instant::now();
+    let mut concat = multiline_session(now, "max-bytes=800,max-lines=3", false);
+    concat
+        .send_text(now, TextKind::Privmsg, "#papo", &"a".repeat(800), &[])
+        .unwrap();
+    let lines = drain(&mut concat);
+    assert_eq!(lines.len(), 4);
+    assert!(lines[1].contains("draft/multiline-concat"));
+
+    let mut joined = multiline_session(now, "max-bytes=800,max-lines=3", false);
+    let text = format!("{}\n{}", "a".repeat(420), "b".repeat(380));
+    joined
+        .send_text(now, TextKind::Privmsg, "#papo", &text, &[])
+        .unwrap();
+    assert_eq!(
+        drain(&mut joined)
+            .iter()
+            .filter(|line| line.starts_with("BATCH +"))
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn max_lines_accepts_three_lines_and_splits_the_fourth() {
+    let now = Instant::now();
+    let mut exact = multiline_session(now, "max-bytes=40,max-lines=3", false);
+    exact
+        .send_text(now, TextKind::Notice, "#papo", "one\ntwo\nthree", &[])
+        .unwrap();
+    let lines = drain(&mut exact);
+    assert_eq!(lines.len(), 5);
+    assert_eq!(lines[4], "BATCH -b0-0\r\n");
+
+    let mut over = multiline_session(now, "max-bytes=40,max-lines=3", false);
+    over.send_text(now, TextKind::Notice, "#papo", "one\ntwo\nthree\nfour", &[])
+        .unwrap();
+    let lines = drain(&mut over);
+    assert_eq!(lines.len(), 8);
+    assert_eq!(lines[4], "BATCH -b0-0\r\n");
+    assert_eq!(lines[5], "BATCH +b0-1 draft/multiline #papo\r\n");
+    assert_eq!(lines[7], "BATCH -b0-1\r\n");
+}
+
+#[test]
+fn max_bytes_without_max_lines_accepts_all_lines() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=40", false);
     session
-        .send_text(now, TextKind::Notice, "#papo", &"a".repeat(600), &[])
+        .send_text(now, TextKind::Notice, "#papo", "one\ntwo\nthree\nfour", &[])
         .unwrap();
     let lines = drain(&mut session);
     assert_eq!(lines.len(), 6);
     assert_eq!(lines[0], "BATCH +b0-0 draft/multiline #papo\r\n");
-    assert_eq!(lines[2], "BATCH -b0-0\r\n");
-    assert_eq!(lines[3], "BATCH +b0-1 draft/multiline #papo\r\n");
-    assert_eq!(lines[5], "BATCH -b0-1\r\n");
-    assert!(!lines[1].contains("multiline-concat"));
+    assert_eq!(lines[5], "BATCH -b0-0\r\n");
+}
+
+#[test]
+fn invalid_multiline_limits_fall_back_to_plain_lines() {
+    let now = Instant::now();
+    for value in [
+        "max-bytes=0,max-lines=3",
+        "max-bytes=many,max-lines=3",
+        "max-lines=3",
+        "max-bytes=40,max-lines=0",
+    ] {
+        let mut session = multiline_session(now, value, false);
+        session
+            .send_text(
+                now,
+                TextKind::Privmsg,
+                "#papo",
+                "hello everyone\nwelcome back",
+                &[],
+            )
+            .unwrap();
+        assert_eq!(
+            drain(&mut session),
+            [
+                "PRIVMSG #papo :hello everyone\r\n",
+                "PRIVMSG #papo :welcome back\r\n",
+            ],
+            "capability value: {value}"
+        );
+    }
 }
 
 #[test]

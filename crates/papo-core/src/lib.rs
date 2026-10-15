@@ -1339,6 +1339,8 @@ impl Session {
     /// Context tags (`+reply`, `+draft/reply`, `+channel-context`, and its draft alias) apply
     /// only to the first fallback line. Other supplied tags are copied to every line.
     /// Each client batch is one atomic queue entry, so no other line is transmitted inside it.
+    /// A missing, non-numeric, or zero `max-bytes` value disables multiline; a missing
+    /// `max-lines` value permits any number of lines, while a zero value disables multiline.
     /// A `FAIL BATCH MULTILINE_*` is surfaced as an error or reply without automatic retry.
     ///
     /// # Errors
