@@ -4,7 +4,7 @@ use std::{
 };
 
 use papo_proto::{
-    Account as AccountNotify, CaseKey, Casemapping, Command, Isupport, Join, MessageRef,
+    Account as AccountNotify, Away, CaseKey, Casemapping, Command, Isupport, Join, MessageRef,
     ModeChanges, ModeKind, NamesEntry, Numeric, Source, parse_353,
 };
 
@@ -16,6 +16,7 @@ pub struct State {
     nick: String,
     user: String,
     host: Option<String>,
+    away: bool,
     user_modes: HashSet<char>,
     casemapping: Casemapping,
     channels: HashMap<CaseKey, Channel>,
@@ -56,6 +57,7 @@ pub struct User {
     username: Option<String>,
     host: Option<String>,
     account: Account,
+    away: Option<String>,
     channels: HashSet<CaseKey>,
 }
 
@@ -76,6 +78,7 @@ impl State {
             nick: config.nick.clone(),
             user: config.username.clone(),
             host: None,
+            away: false,
             user_modes: HashSet::new(),
             casemapping: Casemapping::default(),
             channels: HashMap::new(),
@@ -103,7 +106,7 @@ impl State {
         if let Some(join) = Join::parse(message) {
             return self.handle_join(message, join, isupport, no_implicit_names, outbox);
         }
-        if let Some(handled) = self.handle_account(message) {
+        if let Some(handled) = self.handle_user_update(message) {
             return handled;
         }
         if message.command() == Command::Part {
@@ -563,6 +566,37 @@ impl State {
         Some(Handled::Yes)
     }
 
+    fn handle_away(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
+        if let Some(away) = Away::parse(message) {
+            let Source::User { nick, .. } = message.source()? else {
+                return Some(Handled::No);
+            };
+            if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
+                user.away = away.message.map(str::to_owned);
+            }
+            return Some(Handled::Yes);
+        }
+        match message.command() {
+            Command::Numeric(Numeric::RPL_AWAY) => {
+                let (Some(nick), Some(away)) = (message.param(1), message.param(2)) else {
+                    return Some(Handled::No);
+                };
+                if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
+                    user.away = Some(away.to_owned());
+                }
+            }
+            Command::Numeric(Numeric::RPL_UNAWAY) => self.away = false,
+            Command::Numeric(Numeric::RPL_NOWAWAY) => self.away = true,
+            _ => return None,
+        }
+        Some(Handled::Yes)
+    }
+
+    fn handle_user_update(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
+        self.handle_account(message)
+            .or_else(|| self.handle_away(message))
+    }
+
     fn remove_channel(&mut self, name: &str) {
         let key = CaseKey::new(name, self.casemapping);
         let Some(channel) = self.channels.remove(&key) else {
@@ -636,6 +670,12 @@ impl State {
     #[must_use]
     pub fn host(&self) -> Option<&str> {
         self.host.as_deref()
+    }
+
+    /// Returns whether the session is marked away.
+    #[must_use]
+    pub const fn away(&self) -> bool {
+        self.away
     }
 
     /// Returns a joined channel using the server's current casemapping.
@@ -840,6 +880,7 @@ impl User {
             username: user.map(str::to_owned),
             host: host.map(str::to_owned),
             account: Account::Unknown,
+            away: None,
             channels: HashSet::new(),
         }
     }
@@ -875,6 +916,12 @@ impl User {
     #[must_use]
     pub const fn account(&self) -> &Account {
         &self.account
+    }
+
+    /// Returns the user's away message when they are marked away.
+    #[must_use]
+    pub fn away(&self) -> Option<&str> {
+        self.away.as_deref()
     }
 
     /// Iterates over shared channel names in unspecified order.

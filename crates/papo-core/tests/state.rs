@@ -133,6 +133,64 @@ fn account_tag_fills_an_unknown_account() {
 }
 
 #[test]
+fn away_notify_sets_and_clears_a_joined_users_message() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
+        .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().away(),
+                Some("Gone to lunch")
+            );
+        })
+        .server(":dan!~dan@cloak.example AWAY")
+        .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), None))
+        .ignore_rest();
+}
+
+#[test]
+fn away_notify_immediately_after_join_records_initial_state() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":alice!alice@staff.example JOIN #papo alice :Alice Smith")
+        .server(":alice!alice@staff.example AWAY :Working")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("alice").unwrap().away(),
+                Some("Working")
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn whois_away_reply_records_the_message() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":dan!~dan@cloak.example JOIN #papo")
+        .server(":ergo.test 301 emily dan :Gone to lunch")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().away(),
+                Some("Gone to lunch")
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn away_numerics_track_our_own_state() {
+    Transcript::new(Config::default().nick("emily"))
+        .inspect(|session| assert!(!session.state().away()))
+        .server(":ergo.test 306 emily :You have been marked as being away")
+        .inspect(|session| assert!(session.state().away()))
+        .server(":ergo.test 305 emily :You are no longer marked as being away")
+        .inspect(|session| assert!(!session.state().away()))
+        .no_event();
+}
+
+#[test]
 fn a_later_join_fills_a_bare_names_userhost() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
