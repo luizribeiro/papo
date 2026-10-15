@@ -5,8 +5,8 @@ use std::{
 
 use papo_proto::{
     Account as AccountNotify, Away, CaseKey, Casemapping, Chghost, Command, Isupport, Join,
-    MessageRef, ModeChanges, ModeKind, NamesEntry, Numeric, Setname, Source, WhoxPresence,
-    WhoxReply, parse_353,
+    MessageRef, ModeChanges, ModeKind, NamesEntry, Numeric, Setname, Source, WhoxFlags,
+    WhoxPresence, WhoxReply, parse_353,
 };
 
 use crate::{Config, Event, Handled, Outbox, OwnedModeChange, StateLimit};
@@ -78,6 +78,15 @@ pub enum Account {
     LoggedOut,
     /// The user is logged in to the named account.
     LoggedIn(String),
+}
+
+#[derive(Clone, Copy)]
+struct WhoUser<'a> {
+    channel: &'a str,
+    nick: &'a str,
+    username: Option<&'a str>,
+    host: Option<&'a str>,
+    realname: Option<&'a str>,
 }
 
 impl State {
@@ -674,6 +683,15 @@ impl State {
             return self.who_sweeps.remove(&channel).then_some(Handled::Yes);
         }
         let reply = WhoxReply::parse(message, WHOX_FIELDS)?;
+        self.handle_whox_reply(&reply, isupport, outbox)
+    }
+
+    fn handle_whox_reply(
+        &mut self,
+        reply: &WhoxReply<'_>,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> Option<Handled> {
         let (Some(channel), Some(nick)) = (reply.channel, reply.nick) else {
             return Some(Handled::No);
         };
@@ -685,16 +703,36 @@ impl State {
             return None;
         }
         let flags = reply.flags(isupport)?;
-        self.add_member(
-            channel,
-            nick,
-            reply.user,
-            reply.host,
-            flags.prefixes,
+        self.apply_who_user(
+            WhoUser {
+                channel,
+                nick,
+                username: reply.user,
+                host: reply.host,
+                realname: reply.realname,
+            },
+            flags,
             outbox,
         );
         if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
             user.account = Account::from_notify(reply.account);
+        }
+        Some(Handled::Yes)
+    }
+
+    fn apply_who_user(&mut self, reply: WhoUser<'_>, flags: WhoxFlags, outbox: &mut Outbox) {
+        self.add_member(
+            reply.channel,
+            reply.nick,
+            reply.username,
+            reply.host,
+            flags.prefixes,
+            outbox,
+        );
+        if let Some(user) = self
+            .users
+            .get_mut(&CaseKey::new(reply.nick, self.casemapping))
+        {
             user.realname = reply.realname.map(str::to_owned);
             user.away = match flags.presence {
                 Some(WhoxPresence::Gone) => Some(String::new()),
@@ -703,7 +741,6 @@ impl State {
             };
             user.is_bot = flags.bot;
         }
-        Some(Handled::Yes)
     }
 
     fn start_whox(&mut self, channel: &str, isupport: &Isupport, outbox: &mut Outbox) {
