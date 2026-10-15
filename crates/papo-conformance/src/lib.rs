@@ -50,8 +50,8 @@ struct CapRequirement {
 }
 
 #[derive(Clone)]
-struct Scenario {
-    server: ServerInfo,
+struct Scenario<S = ServerInfo> {
+    server: S,
     name: &'static str,
 }
 
@@ -148,11 +148,13 @@ fn trial(
     .with_kind(spec.doc)
 }
 
-impl Scenario {
+impl<S> Scenario<S> {
     fn unique(&self) -> String {
         papo_test_server::unique(self.name)
     }
+}
 
+impl Scenario {
     async fn client(&self, nick: &str) -> Result<RegisteredClient, Failed> {
         self.client_with(nick, None).await
     }
@@ -429,8 +431,9 @@ mod tests {
     use libtest_mimic::{Arguments, Completion, Failed, Trial};
 
     use super::{
-        CapRequirement, Event, EventSource, Requirements, expect_event, known_failure_verdict,
-        load_known_failures_from, required_environment_from, run_trials, runtime,
+        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event,
+        known_failure_verdict, load_known_failures_from, required_environment_from, run_trials,
+        runtime,
     };
 
     struct TestDirectory(PathBuf);
@@ -654,5 +657,18 @@ mod tests {
             }) => assert_eq!(reason, "PAPO_TEST_OPER is not set up"),
             _ => panic!("an unset setup variable must ignore the scenario with a reason"),
         }
+    }
+
+    #[test]
+    fn scenario_unique_names_keep_the_prefix_and_differ() {
+        let scenario = Scenario {
+            server: (),
+            name: "registration",
+        };
+        let first = scenario.unique();
+        let second = scenario.unique();
+        assert!(first.starts_with("registration-"), "{first:?}");
+        assert!(second.starts_with("registration-"), "{second:?}");
+        assert_ne!(first, second);
     }
 }
