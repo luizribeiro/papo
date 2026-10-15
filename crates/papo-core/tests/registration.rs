@@ -66,3 +66,65 @@ fn registration_timeout_is_the_first_deadline_and_closes_once() {
     session.handle_timeout(now + timeout);
     assert_eq!(session.poll_event(), None);
 }
+
+#[test]
+fn tries_alternative_nicks_then_appends_bounded_underscores() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("emily")
+            .alt_nicks(["emily-away", "emily-work"]),
+    );
+    session.handle_connected(now);
+    for _ in 0..3 {
+        session.poll_transmit();
+    }
+
+    session.handle_line(now, b":ergo.test 433 * emily :Nickname is already in use");
+    assert_eq!(line(&mut session), "NICK emily-away");
+    session.handle_line(
+        now,
+        b":ergo.test 437 * emily-away :Nick/channel is temporarily unavailable",
+    );
+    assert_eq!(line(&mut session), "NICK emily-work");
+    session.handle_line(now, b":ergo.test 432 * emily-work :Erroneous nickname");
+    assert_eq!(line(&mut session), "NICK emily-work_");
+    session.handle_line(now, b":ergo.test 436 * emily-work_ :Nickname collision");
+    assert_eq!(line(&mut session), "NICK emily-work__");
+
+    session.handle_line(now, b":ergo.test 001 emily-work__ :Welcome");
+    session.handle_line(
+        now,
+        b":ergo.test 433 emily-work__ someone :Nickname is already in use",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Message(message)) if message.as_ref().command_is("433")
+    ));
+}
+
+#[test]
+fn generated_nicks_stay_within_the_default_30_byte_limit() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("a-realistically-long-client-nick"));
+    session.handle_connected(now);
+    for _ in 0..3 {
+        session.poll_transmit();
+    }
+
+    session.handle_line(
+        now,
+        b":solanum.example 433 * nick :Nickname is already in use",
+    );
+    let first = line(&mut session);
+    assert_eq!(first.len(), "NICK ".len() + 30);
+    assert!(first.ends_with('_'));
+    session.handle_line(
+        now,
+        b":solanum.example 433 * nick :Nickname is already in use",
+    );
+    let second = line(&mut session);
+    assert_eq!(second.len(), "NICK ".len() + 30);
+    assert!(second.ends_with("__"));
+    assert_ne!(first, second);
+}

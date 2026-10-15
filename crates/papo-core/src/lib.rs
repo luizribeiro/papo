@@ -73,6 +73,8 @@ pub struct Config {
     pub registration_timeout: Duration,
     /// Capability names to request when advertised by the server.
     pub wanted_caps: Vec<String>,
+    /// Alternative nicknames to try when registration collides.
+    pub alt_nicks: Vec<String>,
 }
 
 impl Default for Config {
@@ -88,6 +90,7 @@ impl Default for Config {
                 .iter()
                 .map(|name| (*name).to_owned())
                 .collect(),
+            alt_nicks: Vec::new(),
         }
     }
 }
@@ -143,6 +146,17 @@ impl Config {
         S: Into<String>,
     {
         self.wanted_caps = caps.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Sets the alternative nicknames tried during registration.
+    #[must_use]
+    pub fn alt_nicks<I, S>(mut self, nicks: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.alt_nicks = nicks.into_iter().map(Into::into).collect();
         self
     }
 }
@@ -353,7 +367,9 @@ impl Session {
     }
 
     fn dispatch_message(&mut self, now: Instant, message: &MessageRef<'_>) {
-        let handled = self.registration.handle_message(message);
+        let handled = self
+            .registration
+            .handle_message(message, &self.config, &mut self.outbox);
         let handled = if handled == Handled::No {
             self.caps.handle_message(
                 message,

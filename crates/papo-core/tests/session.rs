@@ -32,6 +32,9 @@ fn config_builders_set_registration_identity_and_timeout() {
 
     let config = Config::default().wanted_caps(["server-time", "batch"]);
     assert_eq!(config.wanted_caps, ["server-time", "batch"]);
+
+    let config = Config::default().alt_nicks(["emily_", "emily__"]);
+    assert_eq!(config.alt_nicks, ["emily_", "emily__"]);
 }
 
 #[test]
