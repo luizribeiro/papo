@@ -2,6 +2,7 @@ use std::{
     collections::VecDeque,
     future::Future,
     io,
+    ops::ControlFlow,
     pin::Pin,
     sync::{
         Arc,
@@ -410,7 +411,7 @@ impl Future for Driver {
     }
 }
 
-#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+#[allow(clippy::too_many_arguments)]
 async fn run_plan(
     plan: Result<ConnectionPlan, AddressError>,
     mut session: Session,
@@ -425,15 +426,8 @@ async fn run_plan(
     connector: Connector,
     mut entropy: BackoffEntropy,
 ) -> Result<(), Error> {
-    let mut base_plan = match plan {
-        Ok(plan) => plan,
-        Err(error) => {
-            if registration.0.is_some() {
-                registration.failed(Error::Address(error));
-                return Ok(());
-            }
-            return Err(Error::Address(error));
-        }
+    let Some(mut base_plan) = initial_connection_plan(plan, &mut registration)? else {
+        return Ok(());
     };
     let mut attempts = 0_usize;
     let mut registered = false;
@@ -444,9 +438,7 @@ async fn run_plan(
         attempts = attempts.saturating_add(1);
         let plan = match plan_with_stored_sts(&base_plan, sts_store.as_mut(), force_plaintext) {
             Ok(plan) => plan,
-            Err(error) => {
-                return finish_connection_failure(events, &mut registration, error);
-            }
+            Err(error) => return finish_connection_failure(events, &mut registration, error),
         };
         sts_required |= !base_plan.address.is_secure() && plan.address.is_secure();
         let stream = match connect_or_wait(
@@ -487,60 +479,26 @@ async fn run_plan(
             .take()
             .expect("planned connections retain their STS store");
         reschedule_stored_policy(sts_store.as_mut(), &plan.address.host);
-        if end.quit.is_some() {
-            return finish(events, end, false);
-        }
-        if end.registered_at.is_some() {
-            last_sts_upgrade = None;
-        }
-        if let Some(port) = end.sts.upgrade {
-            if force_plaintext {
-                end.reason = Error::StsRequiresTls {
-                    host: plan.address.host.clone(),
+        let (end, upgrade_port) = match triage_connection_end(
+            end,
+            &plan,
+            force_plaintext,
+            reconnect,
+            &mut attempts,
+            &mut last_sts_upgrade,
+        ) {
+            ControlFlow::Break((end, registration_failed)) => {
+                if registration_failed {
+                    registration.failed(end.registration_error());
                 }
-                .to_string();
-                end.error = Error::StsRequiresTls {
-                    host: plan.address.host.clone(),
-                };
-                registration.failed(end.registration_error());
                 return finish(events, end, false);
             }
-            if let Err(error) = record_sts_upgrade(&mut last_sts_upgrade, &plan.address.host) {
-                end.reason = error.to_string();
-                end.error = error;
-                registration.failed(end.registration_error());
-                return finish(events, end, false);
-            }
-            if !reconnect.permits(attempts) {
-                registration.failed(end.registration_error());
-                return finish(events, end, false);
-            }
+            ControlFlow::Continue(retry) => retry,
+        };
+        if let Some(port) = upgrade_port {
             base_plan.address.set_tls(true);
             base_plan.address.set_port(port);
             sts_required = true;
-            _ = events
-                .regular
-                .send(Event::Disconnected {
-                    reason: end.reason,
-                    will_retry: true,
-                })
-                .await;
-            continue;
-        }
-        last_sts_upgrade = None;
-        if is_fatal_failure(&end.error, &end.reason) {
-            registration.failed(end.registration_error());
-            return finish(events, end, false);
-        }
-        if end
-            .registered_at
-            .is_some_and(|at| now().saturating_duration_since(at) >= STABLE_CONNECTION)
-        {
-            attempts = 0;
-        }
-        if !reconnect.permits(attempts) {
-            registration.failed(end.registration_error());
-            return finish(events, end, false);
         }
         _ = events
             .regular
@@ -549,6 +507,9 @@ async fn run_plan(
                 will_retry: true,
             })
             .await;
+        if upgrade_port.is_some() {
+            continue;
+        }
         if !wait_before_retry(
             reconnect,
             attempts,
@@ -561,6 +522,20 @@ async fn run_plan(
         {
             return Ok(());
         }
+    }
+}
+
+fn initial_connection_plan(
+    plan: Result<ConnectionPlan, AddressError>,
+    registration: &mut RegistrationWait,
+) -> Result<Option<ConnectionPlan>, Error> {
+    match plan {
+        Ok(plan) => Ok(Some(plan)),
+        Err(error) if registration.0.is_some() => {
+            registration.failed(Error::Address(error));
+            Ok(None)
+        }
+        Err(error) => Err(Error::Address(error)),
     }
 }
 
@@ -600,6 +575,51 @@ async fn run_planned_connection(
         &events.connected,
     )
     .await
+}
+
+fn triage_connection_end(
+    mut end: ConnectionEnd,
+    plan: &ConnectionPlan,
+    force_plaintext: bool,
+    reconnect: Reconnect,
+    attempts: &mut usize,
+    last_sts_upgrade: &mut Option<String>,
+) -> ControlFlow<(ConnectionEnd, bool), (ConnectionEnd, Option<u16>)> {
+    if end.quit.is_some() {
+        return ControlFlow::Break((end, false));
+    }
+    if end.registered_at.is_some() {
+        *last_sts_upgrade = None;
+    }
+    if let Some(port) = end.sts.upgrade {
+        if force_plaintext {
+            let error = Error::StsRequiresTls {
+                host: plan.address.host.clone(),
+            };
+            end.reason = error.to_string();
+            end.error = error;
+        } else if let Err(error) = record_sts_upgrade(last_sts_upgrade, &plan.address.host) {
+            end.reason = error.to_string();
+            end.error = error;
+        } else if reconnect.permits(*attempts) {
+            return ControlFlow::Continue((end, Some(port)));
+        }
+        return ControlFlow::Break((end, true));
+    }
+    *last_sts_upgrade = None;
+    if is_fatal_failure(&end.error, &end.reason) {
+        return ControlFlow::Break((end, true));
+    }
+    if end
+        .registered_at
+        .is_some_and(|at| now().saturating_duration_since(at) >= STABLE_CONNECTION)
+    {
+        *attempts = 0;
+    }
+    if !reconnect.permits(*attempts) {
+        return ControlFlow::Break((end, true));
+    }
+    ControlFlow::Continue((end, None))
 }
 
 enum ConnectionAttempt {
