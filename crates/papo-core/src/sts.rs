@@ -1,6 +1,6 @@
 //! Strict Transport Security policy parsing and storage.
 
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 /// Stateless operations for `IRCv3` Strict Transport Security policies.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -58,6 +58,70 @@ impl StsPolicy {
     }
 }
 
+/// Whether the current connection is protected by TLS.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ConnectionSecurity {
+    /// A connection whose peer and confidentiality were verified with TLS.
+    Secure,
+    /// A connection without TLS protection.
+    Plaintext,
+}
+
+/// The action selected from an STS directive and the current connection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum StsAction {
+    /// Reconnect to the same hostname using TLS on this port.
+    UpgradeTo {
+        /// The advertised TLS port.
+        port: u16,
+    },
+    /// Persist a secure-only policy for a hostname.
+    Persist {
+        /// The hostname used to establish the connection.
+        host: String,
+        /// The wall-clock time at which the policy expires.
+        expires_at: SystemTime,
+    },
+    /// Remove the stored policy for a hostname.
+    Remove {
+        /// The hostname used to establish the connection.
+        host: String,
+    },
+    /// Take no action because the applicable directive is absent or invalid.
+    Ignore,
+}
+
+/// Selects the action for an STS directive received on `connection`.
+///
+/// `now` is supplied by the caller so policy logic never reads a clock.
+#[must_use]
+pub fn decide(
+    directive: StsDirective,
+    connection: ConnectionSecurity,
+    host: &str,
+    now: SystemTime,
+) -> StsAction {
+    match connection {
+        ConnectionSecurity::Plaintext => directive
+            .port
+            .map_or(StsAction::Ignore, |port| StsAction::UpgradeTo { port }),
+        ConnectionSecurity::Secure => match directive.duration {
+            Some(duration) if duration.is_zero() => StsAction::Remove {
+                host: host.to_owned(),
+            },
+            Some(duration) => now
+                .checked_add(duration)
+                .map_or(StsAction::Ignore, |expires_at| StsAction::Persist {
+                    host: host.to_owned(),
+                    expires_at,
+                }),
+            None => StsAction::Ignore,
+        },
+    }
+}
+
 /// The recognized parts of an `IRCv3` STS policy.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
@@ -84,7 +148,9 @@ pub enum StsParseError {
 
 #[cfg(test)]
 mod tests {
-    use super::{StsDirective, StsParseError, StsPolicy};
+    use std::time::{Duration, UNIX_EPOCH};
+
+    use super::{ConnectionSecurity, StsAction, StsDirective, StsParseError, StsPolicy, decide};
 
     #[test]
     fn parses_every_policy_part() {
@@ -131,5 +197,67 @@ mod tests {
         ] {
             assert_eq!(StsPolicy::parse(value), Err(error));
         }
+    }
+
+    #[test]
+    fn upgrades_plaintext_only_when_a_port_is_present() {
+        let now = UNIX_EPOCH + Duration::from_secs(1_000_000);
+        let with_port = StsPolicy::parse("port=6697,duration=31536000").unwrap();
+        assert_eq!(
+            decide(
+                with_port,
+                ConnectionSecurity::Plaintext,
+                "irc.example.net",
+                now
+            ),
+            StsAction::UpgradeTo { port: 6697 }
+        );
+        let duration_only = StsPolicy::parse("duration=31536000").unwrap();
+        assert_eq!(
+            decide(
+                duration_only,
+                ConnectionSecurity::Plaintext,
+                "irc.example.net",
+                now
+            ),
+            StsAction::Ignore
+        );
+    }
+
+    #[test]
+    fn persists_or_removes_only_from_a_secure_connection() {
+        let now = UNIX_EPOCH + Duration::from_secs(1_000_000);
+        let duration = StsPolicy::parse("duration=15552000,preload=consent").unwrap();
+        let StsAction::Persist { host, expires_at } =
+            decide(duration, ConnectionSecurity::Secure, "irc.example.net", now)
+        else {
+            panic!("duration did not produce a persistent policy");
+        };
+        assert_eq!(host, "irc.example.net");
+        assert_eq!(
+            expires_at.duration_since(now).unwrap().as_secs(),
+            15_552_000
+        );
+        let remove = StsPolicy::parse("duration=0").unwrap();
+        assert_eq!(
+            decide(remove, ConnectionSecurity::Secure, "irc.example.net", now),
+            StsAction::Remove {
+                host: "irc.example.net".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn ignores_a_secure_policy_with_only_a_port() {
+        let directive = StsPolicy::parse("port=6697").unwrap();
+        assert_eq!(
+            decide(
+                directive,
+                ConnectionSecurity::Secure,
+                "irc.example.net",
+                UNIX_EPOCH
+            ),
+            StsAction::Ignore
+        );
     }
 }
