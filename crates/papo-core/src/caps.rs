@@ -265,6 +265,14 @@ impl Caps {
         &self.enabled
     }
 
+    pub(super) fn advertised_value(&self, name: &str) -> Option<&Option<String>> {
+        self.advertised.get(name)
+    }
+
+    pub(super) fn is_pending(&self, name: &str) -> bool {
+        self.pending.iter().flatten().any(|pending| pending == name)
+    }
+
     fn handle_sts(&self, connection: &Connection, outbox: &mut Outbox) -> bool {
         let Some(value) = self.advertised.get("sts").and_then(Option::as_deref) else {
             return false;

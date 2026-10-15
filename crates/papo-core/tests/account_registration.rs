@@ -164,3 +164,31 @@ fn enforces_account_registration_capability_values_locally() {
         })
         .no_client();
 }
+
+#[test]
+fn registers_before_connect_and_holds_cap_end_until_success() {
+    Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect,email-required")
+        .client("CAP REQ :draft/account-registration")
+        .update(|session| {
+            session
+                .register(
+                    std::time::Instant::now(),
+                    None,
+                    Some("alice@example.org"),
+                    "correct horse battery staple",
+                )
+                .unwrap();
+            assert!(!format!("{session:?}").contains("correct horse battery staple"));
+        })
+        .server("CAP * ACK :draft/account-registration")
+        .client("REGISTER * alice@example.org :correct horse battery staple")
+        .no_client()
+        .server(":ergo.test REGISTER SUCCESS alice :Account successfully registered")
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .event(
+            |event| matches!(event, Event::AccountRegistered { account, .. } if account == "alice"),
+        )
+        .client("CAP END");
+}

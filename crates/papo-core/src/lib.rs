@@ -30,7 +30,7 @@ use papo_proto::{
     StandardReplyKind,
 };
 
-use account_registration::{AccountRegistration, RegistrationPolicy};
+use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 use framing::Framer;
@@ -1593,8 +1593,10 @@ impl Session {
                 .restore(self.isupport.value(), &mut self.outbox);
         }
         self.sasl.handle_timeout(now, &mut self.outbox);
-        self.caps
-            .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
+        self.caps.maybe_finish(
+            self.sasl.is_finished() && self.account_registration.authentication_finished(),
+            &mut self.outbox,
+        );
         self.keepalive.handle_timeout(now, &mut self.outbox);
         self.apply_close_request();
     }
@@ -1990,20 +1992,26 @@ impl Session {
         email: Option<&str>,
         password: impl Into<Secret>,
     ) -> Result<(), RequestError> {
-        if !self.registration.is_registered() {
-            return Err(RequestError::Unsupported(
-                "account registration before connection",
-            ));
-        }
-        let value = self
-            .caps
-            .enabled()
-            .get("draft/account-registration")
-            .map(Option::as_deref);
+        let registered = self.registration.is_registered();
+        let value = if registered {
+            self.caps
+                .enabled()
+                .get("draft/account-registration")
+                .map(Option::as_deref)
+        } else {
+            self.caps
+                .advertised_value("draft/account-registration")
+                .map(Option::as_deref)
+        };
         let Some(value) = value else {
             return Err(RequestError::Unsupported("account-registration"));
         };
         let policy = RegistrationPolicy::parse(value);
+        if !registered && !policy.before_connect {
+            return Err(RequestError::Unsupported(
+                "account registration before connection",
+            ));
+        }
         if email.is_none() && policy.email_required {
             return Err(RequestError::EmailRequired);
         }
@@ -2014,6 +2022,17 @@ impl Session {
             return Err(RequestError::CustomAccountNameUnsupported);
         }
         let password = password.into();
+        if !registered {
+            if !self.caps.is_pending("draft/account-registration") {
+                return Err(RequestError::Unsupported("account-registration"));
+            }
+            self.account_registration.begin(PendingRegistration {
+                account: account.map(str::to_owned),
+                email: email.map(str::to_owned),
+                password,
+            });
+            return Ok(());
+        }
         self.send_register(now, account, email, &password)
     }
 
@@ -2143,6 +2162,22 @@ impl Session {
             self.monitor
                 .handle_message(message, self.isupport.value(), &mut self.outbox)
                 == Handled::Yes;
+        if self
+            .caps
+            .enabled()
+            .contains_key("draft/account-registration")
+        {
+            if let Some(pending) = self.account_registration.take_pending() {
+                _ = self.send_register(
+                    now,
+                    pending.account.as_deref(),
+                    pending.email.as_deref(),
+                    &pending.password,
+                );
+            }
+        } else if !self.caps.is_pending("draft/account-registration") {
+            self.account_registration.cancel_pending();
+        }
         self.sync_monitored_state();
         let state_handled = self.state.handle_message(
             message,
@@ -2183,8 +2218,10 @@ impl Session {
             && !redacted
             && emit_unhandled
             && self.report_standard_reply(message);
-        self.caps
-            .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
+        self.caps.maybe_finish(
+            self.sasl.is_finished() && self.account_registration.authentication_finished(),
+            &mut self.outbox,
+        );
         if !handled && !response && !tag_message && !redacted && !standard_reply && emit_unhandled {
             let received = self.received_message(
                 message.to_owned(),
