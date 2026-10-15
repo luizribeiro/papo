@@ -47,6 +47,33 @@ fn external_accepts_an_authorization_identity() {
 }
 
 #[test]
+fn reauthentication_without_credentials_is_a_no_op() {
+    Transcript::new(Config::default())
+        .reauthenticate()
+        .no_event()
+        .no_client();
+}
+
+#[test]
+fn reauthentication_does_not_interrupt_an_active_exchange() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .reauthenticate()
+        .no_event()
+        .no_client()
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+        .server(":ergo.test 900 papo papo!u@host alice :logged in")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .client("CAP END")
+        .inspect(|session| assert_eq!(session.account(), Some("alice")));
+}
+
+#[test]
 fn starts_sasl_after_ack_and_holds_cap_end() {
     Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
         .connect_default()
