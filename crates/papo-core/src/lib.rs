@@ -4,6 +4,7 @@
 mod batch;
 mod caps;
 mod framing;
+mod history;
 mod isupport;
 mod keepalive;
 mod monitor;
@@ -28,6 +29,7 @@ use papo_proto::{
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 use framing::Framer;
+pub use history::{HistoryQuery, MsgRef};
 use isupport::IsupportState;
 use keepalive::Keepalive;
 use monitor::Monitor;
