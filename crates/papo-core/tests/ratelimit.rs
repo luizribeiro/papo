@@ -145,6 +145,18 @@ fn unlimited_rate_limit_never_schedules_a_token_deadline() {
 }
 
 #[test]
+fn queued_len_sums_regular_and_bypass_lines() {
+    Transcript::rate_limited(Config::default())
+        .send(Message::privmsg("#papo", "first"))
+        .send(Message::privmsg("#papo", "second"))
+        .send(Message::privmsg("#papo", "third"))
+        .send(Message::new("PONG", ["ergo.test-4917"]))
+        .send(Message::new("CAP", ["END"]))
+        .inspect(|session| assert_eq!(session.queued_len(), 5))
+        .ignore_rest();
+}
+
+#[test]
 fn protocol_critical_commands_bypass_an_exhausted_bucket() {
     let mut transcript = Transcript::rate_limited(Config::default());
     for index in 1..=5 {
