@@ -94,6 +94,45 @@ impl State {
             self.add_member(join.channel, nick, user, host, Vec::new());
             return Handled::Yes;
         }
+        if message.command() == Command::Part {
+            let Some(Source::User { nick, .. }) = message.source() else {
+                return Handled::No;
+            };
+            let Some(channels) = message.param(0) else {
+                return Handled::No;
+            };
+            for channel in channels.split(',') {
+                if mapping.eq(nick, own_nick) {
+                    self.remove_channel(channel);
+                } else {
+                    self.remove_member(channel, nick);
+                }
+            }
+            return Handled::Yes;
+        }
+        if message.command() == Command::Kick {
+            let (Some(channel), Some(nick)) = (message.param(0), message.param(1)) else {
+                return Handled::No;
+            };
+            if mapping.eq(nick, own_nick) {
+                self.remove_channel(channel);
+            } else {
+                self.remove_member(channel, nick);
+            }
+            return Handled::Yes;
+        }
+        if message.command() == Command::Quit {
+            let Some(Source::User { nick, .. }) = message.source() else {
+                return Handled::No;
+            };
+            if mapping.eq(nick, own_nick) {
+                self.channels.clear();
+                self.users.clear();
+            } else {
+                self.remove_user(nick);
+            }
+            return Handled::Yes;
+        }
         if let Some((_, channel, entries)) = parse_353(message) {
             for raw in entries {
                 let entry = NamesEntry::parse(raw, isupport);
@@ -141,6 +180,45 @@ impl State {
                 .or_insert_with(|| User::new(nick, user, host));
             shared.update_userhost(user, host);
             shared.channels.insert(CaseKey::new(channel_name, mapping));
+        }
+    }
+
+    fn remove_channel(&mut self, name: &str) {
+        let key = CaseKey::new(name, self.casemapping);
+        let Some(channel) = self.channels.remove(&key) else {
+            return;
+        };
+        for member in channel.members.keys() {
+            if let Some(user) = self.users.get_mut(member) {
+                user.channels.remove(&key);
+            }
+        }
+        self.users.retain(|_, user| !user.channels.is_empty());
+    }
+
+    fn remove_member(&mut self, channel: &str, nick: &str) {
+        let channel = CaseKey::new(channel, self.casemapping);
+        let nick = CaseKey::new(nick, self.casemapping);
+        if let Some(joined) = self.channels.get_mut(&channel) {
+            joined.members.remove(&nick);
+        }
+        if let Some(user) = self.users.get_mut(&nick) {
+            user.channels.remove(&channel);
+            if user.channels.is_empty() {
+                self.users.remove(&nick);
+            }
+        }
+    }
+
+    fn remove_user(&mut self, nick: &str) {
+        let key = CaseKey::new(nick, self.casemapping);
+        let Some(user) = self.users.remove(&key) else {
+            return;
+        };
+        for channel in user.channels {
+            if let Some(joined) = self.channels.get_mut(&channel) {
+                joined.members.remove(&key);
+            }
         }
     }
 

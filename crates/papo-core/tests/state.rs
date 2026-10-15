@@ -79,3 +79,55 @@ fn no_implicit_names_marks_our_join_synced_without_366() {
         .server(":papo!papo@127.0.0.1 JOIN #papo")
         .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()));
 }
+
+#[test]
+fn removes_other_members_on_part_kick_and_multi_channel_quit() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":emily!em@127.0.0.1 JOIN #rust")
+        .server(":dan!dan@cloak.example JOIN #papo")
+        .server(":dan!dan@cloak.example JOIN #rust")
+        .server(":alice!alice@staff.example JOIN #papo")
+        .server(":bob!bob@users.example JOIN #papo")
+        .server(":alice!alice@staff.example PART #papo :Leaving")
+        .server(":chanop!op@staff.example KICK #papo bob :Rule violation")
+        .inspect(|session| {
+            assert!(session.state().user("alice").is_none());
+            assert!(session.state().user("bob").is_none());
+            assert_eq!(session.state().user("dan").unwrap().channels().count(), 2);
+        })
+        .server(":dan!dan@cloak.example QUIT :Client exited")
+        .inspect(|session| {
+            assert!(session.state().user("dan").is_none());
+            assert!(
+                session
+                    .state()
+                    .channel("#papo")
+                    .unwrap()
+                    .member("dan")
+                    .is_none()
+            );
+            assert!(
+                session
+                    .state()
+                    .channel("#rust")
+                    .unwrap()
+                    .member("dan")
+                    .is_none()
+            );
+        });
+}
+
+#[test]
+fn our_part_and_kick_remove_channels_and_orphaned_users() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":dan!dan@cloak.example JOIN #papo")
+        .server(":emily!em@127.0.0.1 PART #papo :Leaving")
+        .server(":emily!em@127.0.0.1 JOIN #rust")
+        .server(":chanop!op@staff.example KICK #rust emily :Requested")
+        .inspect(|session| {
+            assert_eq!(session.state().channels().count(), 0);
+            assert!(session.state().user("dan").is_none());
+        });
+}
