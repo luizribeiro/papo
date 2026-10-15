@@ -288,6 +288,26 @@ fn recorded_ergo_latest_batch_becomes_history() {
 }
 
 #[test]
+fn history_targets_require_the_command_and_subcommand_independently() {
+    for member in [
+        "@batch=targets :ergo.test NOTICE TARGETS #papo 2026-10-15T12:00:01.000Z",
+        "@batch=targets :ergo.test CHATHISTORY LATEST #papo 2026-10-15T12:00:01.000Z",
+    ] {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        session.handle_line(now, b":ergo.test BATCH +targets draft/chathistory-targets");
+        session.handle_line(now, member.as_bytes());
+        session.handle_line(now, b":ergo.test BATCH -targets");
+
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::HistoryTargets(targets)) if targets.is_empty()
+        ));
+        assert_eq!(session.poll_event(), None);
+    }
+}
+
+#[test]
 fn empty_and_draft_history_types_complete() {
     for kind in ["chathistory", "draft/chathistory", "draft/event-playback"] {
         let now = Instant::now();
