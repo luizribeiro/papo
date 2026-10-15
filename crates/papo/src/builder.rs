@@ -462,7 +462,9 @@ mod tests {
     #[cfg(not(feature = "websocket"))]
     #[tokio::test(flavor = "current_thread")]
     async fn websocket_without_feature_is_typed_as_unsupported() {
-        let (_client, _events, driver) = Builder::new("ws://irc.example.net/webirc").build();
+        let (_client, _events, driver) = Builder::new("ws://irc.example.net/webirc")
+            .reconnect(crate::Reconnect::never())
+            .build();
         assert!(matches!(driver.await, Err(Error::Unsupported("websocket"))));
     }
 }

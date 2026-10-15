@@ -383,68 +383,82 @@ async fn run_plan(
         }
     };
     let mut attempts = 0_usize;
-    let stream = loop {
+    let mut registered = false;
+    loop {
         attempts = attempts.saturating_add(1);
-        match connector(plan.clone()).await {
-            Ok(stream) => break stream,
-            Err(error) if !reconnect.permits(attempts) => {
-                let reason = error.to_string();
-                if registration.0.is_some() {
-                    registration.failed(error);
-                    drop(events.regular);
-                    _ = events.disconnected.send(Event::Disconnected {
-                        reason,
-                        will_retry: false,
-                    });
-                    return Ok(());
-                }
-                return finish(
-                    events,
-                    ConnectionEnd {
-                        reason,
-                        error,
-                        quit: None,
-                        quit_timed_out: false,
-                        registered_at: None,
-                    },
-                    false,
-                );
-            }
+        let stream = match connector(plan.clone()).await {
+            Ok(stream) => stream,
             Err(error) => {
+                let reason = error.to_string();
+                if !reconnect.permits(attempts) {
+                    if registration.0.is_some() {
+                        registration.failed(error);
+                        drop(events.regular);
+                        _ = events.disconnected.send(Event::Disconnected {
+                            reason,
+                            will_retry: false,
+                        });
+                        return Ok(());
+                    }
+                    return finish(
+                        events,
+                        ConnectionEnd {
+                            reason,
+                            error,
+                            quit: None,
+                            quit_timed_out: false,
+                            registered_at: None,
+                        },
+                        false,
+                    );
+                }
                 _ = events
                     .regular
                     .send(Event::Disconnected {
-                        reason: error.to_string(),
+                        reason,
                         will_retry: true,
                     })
                     .await;
                 sleep_before_retry(reconnect, attempts).await;
+                continue;
             }
+        };
+        let security = if plan.address.is_secure() {
+            ConnectionSecurity::Secure
+        } else {
+            ConnectionSecurity::Plaintext
+        };
+        let end = run_connection(
+            stream,
+            &mut session,
+            &mut commands,
+            &events.regular,
+            &mut registration,
+            &defaults,
+            &mut registered,
+            Some(Connection {
+                host: plan.address.host.clone(),
+                security,
+            }),
+            &events.connected,
+        )
+        .await;
+        if end.quit.is_some() {
+            return finish(events, end, false);
         }
-    };
-    let security = if plan.address.is_secure() {
-        ConnectionSecurity::Secure
-    } else {
-        ConnectionSecurity::Plaintext
-    };
-    let mut registered = false;
-    let end = run_connection(
-        stream,
-        &mut session,
-        &mut commands,
-        &events.regular,
-        &mut registration,
-        &defaults,
-        &mut registered,
-        Some(Connection {
-            host: plan.address.host,
-            security,
-        }),
-        &events.connected,
-    )
-    .await;
-    registration.failed(end.registration_error());
-    finish(events, end, false)
+        if !reconnect.permits(attempts) {
+            registration.failed(end.registration_error());
+            return finish(events, end, false);
+        }
+        _ = events
+            .regular
+            .send(Event::Disconnected {
+                reason: end.reason,
+                will_retry: true,
+            })
+            .await;
+        sleep_before_retry(reconnect, attempts).await;
+    }
 }
 
 async fn sleep_before_retry(reconnect: Reconnect, attempts: usize) {
@@ -729,10 +743,11 @@ fn now() -> Instant {
 #[cfg(test)]
 mod tests {
     use std::{
+        collections::VecDeque,
         io,
         pin::Pin,
         sync::{
-            Arc,
+            Arc, Mutex,
             atomic::{AtomicBool, AtomicUsize, Ordering},
         },
         task::{Context, Poll},
@@ -746,7 +761,7 @@ mod tests {
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf};
 
     use super::{ConnectionPlan, Driver, Error, Event, Session};
-    use crate::transport::TlsConfig;
+    use crate::{Reconnect, transport::TlsConfig};
 
     struct FailingStream {
         inner: DuplexStream,
@@ -943,6 +958,63 @@ mod tests {
         ));
         assert!(matches!(driver.await.unwrap(), Err(Error::Unsupported(_))));
         assert_eq!(calls.load(Ordering::Relaxed), 2);
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn eof_reconnects_and_emits_reconnected() {
+        let (first_stream, mut first_server) = tokio::io::duplex(4096);
+        let (second_stream, mut second_server) = tokio::io::duplex(4096);
+        let streams = Arc::new(Mutex::new(VecDeque::from([
+            Box::new(first_stream) as super::BoxConnection,
+            Box::new(second_stream) as super::BoxConnection,
+        ])));
+        let connector: super::Connector = Arc::new(move |_| {
+            let stream = streams.lock().unwrap().pop_front().unwrap();
+            Box::pin(async move { Ok(stream) })
+        });
+        let (client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential(),
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+
+        complete_registration(&mut first_server, &mut events).await;
+        assert!(client.is_connected());
+        first_server.shutdown().await.unwrap();
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected {
+                will_retry: true,
+                ..
+            })
+        ));
+        assert!(!client.is_connected());
+
+        tokio::time::advance(Duration::from_secs(2)).await;
+        registration_burst(&mut second_server).await;
+        server_line(&mut second_server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(&mut second_server, b"CAP END\r\n").await;
+        server_line(
+            &mut second_server,
+            b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
+        assert!(client.is_connected());
+
+        let quit = tokio::spawn(async move { client.quit(None).await });
+        client_line(&mut second_server, b"QUIT\r\n").await;
+        second_server.shutdown().await.unwrap();
+        assert!(quit.await.unwrap().is_ok());
+        assert!(driver.await.unwrap().is_ok());
     }
 
     #[tokio::test(flavor = "current_thread")]

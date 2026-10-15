@@ -7,7 +7,7 @@ use papo_proto::Message;
 pub enum Event {
     /// Connection registration completed.
     Registered(Welcome),
-    /// Connection registration completed after a retry.
+    /// A replacement connection completed registration.
     Reconnected(Welcome),
     /// A parsed message not consumed by protocol behavior.
     Message(Message),
@@ -39,7 +39,7 @@ pub enum Event {
     Disconnected {
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
-        /// Whether another connection attempt is planned.
+        /// Whether another connection attempt is planned, possibly immediately.
         will_retry: bool,
     },
 }
