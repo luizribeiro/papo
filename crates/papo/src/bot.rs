@@ -47,14 +47,14 @@ impl ReplyRateLimiter {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         targets.retain(|_, replies| {
-            replies.retain(|sent| now.duration_since(*sent) < self.window);
+            replies.retain(|sent| now.saturating_duration_since(*sent) < self.window);
             !replies.is_empty()
         });
         if !targets.contains_key(target) && targets.len() == MAX_RATE_TARGETS {
             return false;
         }
         let replies = targets.entry(target.to_owned()).or_default();
-        if replies.len() == self.max {
+        if replies.len() >= self.max {
             return false;
         }
         replies.push_back(now);
@@ -389,6 +389,26 @@ mod tests {
         assert!(!limiter.check_at("#papo", start + Duration::from_millis(4_999)));
         assert!(limiter.check_at("#elsewhere", start + Duration::from_millis(4_999)));
         assert!(limiter.check_at("#papo", start + Duration::from_secs(5)));
+    }
+
+    #[test]
+    fn concurrent_timestamp_order_cannot_panic() {
+        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5));
+        let start = Instant::now();
+        assert!(limiter.check_at("#papo", start + Duration::from_secs(1)));
+        assert!(limiter.check_at("#papo", start));
+    }
+
+    #[test]
+    #[should_panic(expected = "reply limit must be positive")]
+    fn rejects_an_empty_reply_budget() {
+        let _ = ReplyRateLimiter::new(0, Duration::from_secs(5));
+    }
+
+    #[test]
+    #[should_panic(expected = "reply window must be positive")]
+    fn rejects_an_empty_reply_window() {
+        let _ = ReplyRateLimiter::new(2, Duration::ZERO);
     }
 
     #[test]
