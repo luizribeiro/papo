@@ -47,6 +47,26 @@ pub enum Event {
         /// The synchronized channel.
         channel: String,
     },
+    /// A user left a shared channel with `PART`.
+    Parted {
+        /// The departed channel.
+        channel: String,
+        /// The departing user's nickname.
+        nick: String,
+        /// The optional part reason.
+        reason: Option<String>,
+    },
+    /// A user was removed from a shared channel with `KICK`.
+    Kicked {
+        /// The affected channel.
+        channel: String,
+        /// The removed user's nickname.
+        nick: String,
+        /// The user or server that issued the kick.
+        by: String,
+        /// The optional kick reason.
+        reason: Option<String>,
+    },
     /// Server input exceeded a configured state-retention bound.
     StateLimitReached {
         /// The state collection that rejected another entry.
@@ -79,6 +99,26 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::StsPolicy(action) => Event::StsPolicy(action),
         papo_core::Event::Joined { channel, nick } => Event::Joined { channel, nick },
         papo_core::Event::ChannelSynced { channel } => Event::ChannelSynced { channel },
+        papo_core::Event::Parted {
+            channel,
+            nick,
+            reason,
+        } => Event::Parted {
+            channel,
+            nick,
+            reason,
+        },
+        papo_core::Event::Kicked {
+            channel,
+            nick,
+            by,
+            reason,
+        } => Event::Kicked {
+            channel,
+            nick,
+            by,
+            reason,
+        },
         papo_core::Event::StateLimitReached { limit } => Event::StateLimitReached { limit },
         _ => return CoreEvent::Unknown,
     })
@@ -118,6 +158,40 @@ mod tests {
             }),
             Event::ChannelSynced {
                 channel: "#papo".into()
+            }
+        );
+    }
+
+    #[test]
+    fn maps_parted() {
+        assert_eq!(
+            forwarded(papo_core::Event::Parted {
+                channel: "#papo".into(),
+                nick: "emily".into(),
+                reason: Some("Leaving for lunch".into()),
+            }),
+            Event::Parted {
+                channel: "#papo".into(),
+                nick: "emily".into(),
+                reason: Some("Leaving for lunch".into()),
+            }
+        );
+    }
+
+    #[test]
+    fn maps_kicked() {
+        assert_eq!(
+            forwarded(papo_core::Event::Kicked {
+                channel: "#papo".into(),
+                nick: "emily".into(),
+                by: "alice".into(),
+                reason: Some("Flooding".into()),
+            }),
+            Event::Kicked {
+                channel: "#papo".into(),
+                nick: "emily".into(),
+                by: "alice".into(),
+                reason: Some("Flooding".into()),
             }
         );
     }
