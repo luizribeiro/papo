@@ -1,3 +1,7 @@
+[alias]
+test-live = ["nextest", "run", "--workspace", "--all-features", "--locked", "-E", "binary(/^live_/)"]
+test-plain = ["nextest", "run", "--workspace", "--all-features", "--locked", "-E", "not binary(/^live_/)"]
+
 [target.'cfg(target_os = "wasi")']
 # Tokio gates WASI networking behind this cfg.
 rustflags = ["--cfg", "tokio_unstable"]

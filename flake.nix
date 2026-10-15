@@ -174,6 +174,13 @@
             runtimeInputs = [ pkgs.cargo-deny ];
             text = "cargo deny check bans licenses sources";
           };
+          plain-tests = cargoHook {
+            name = "plain-tests-hook";
+            runtimeInputs = [ pkgs.cargo-nextest ];
+            text = ''
+              cargo nextest run --workspace --all-features --locked -E 'not binary(/^live_/)'
+            '';
+          };
           cargo-nextest = cargoHook {
             name = "cargo-nextest-hook";
             runtimeInputs = [ pkgs.cargo-nextest ];
