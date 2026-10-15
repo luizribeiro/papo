@@ -15,7 +15,21 @@ pub const MAX_MESSAGE_LEN: usize = 512;
 pub const MAX_TAG_SECTION_LEN: usize = 8191;
 
 /// A failure to parse an IRC message.
+///
+/// New variants may be added as more protocol validation is introduced.
+///
+/// ```compile_fail
+/// use papo_proto::ParseError;
+///
+/// match ParseError::EmptyLine {
+///     ParseError::EmptyLine => {}
+///     ParseError::MissingCommand => {}
+///     ParseError::InvalidUtf8 => {}
+///     ParseError::TooLong => {}
+/// }
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum ParseError {
     /// The line has no content before its line ending.
     EmptyLine,
