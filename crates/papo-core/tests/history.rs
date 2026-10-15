@@ -384,3 +384,31 @@ fn remembers_live_messages_but_not_history_pages() {
     );
     assert_eq!(session.state().last_seen("Alice").unwrap().msgid, "8sKY2A");
 }
+
+#[test]
+fn bounds_last_seen_to_one_thousand_recent_targets() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let mut deliver = |target: usize, msgid: &str| {
+        session.handle_line(
+            now,
+            format!(
+                "@time=2025-10-15T11:55:42.123Z;msgid={msgid} :alice!~a@cloak PRIVMSG #room{target:04} :live"
+            )
+            .as_bytes(),
+        );
+        let _ = session.poll_event();
+    };
+    for target in 0..1_000 {
+        deliver(target, &format!("ErgoMessage{target:04}"));
+    }
+    deliver(0, "ErgoMessageRefresh");
+    deliver(1_000, "ErgoMessage1000");
+
+    assert_eq!(
+        session.state().last_seen("#room0000").unwrap().msgid,
+        "ErgoMessageRefresh"
+    );
+    assert!(session.state().last_seen("#room0001").is_none());
+    assert!(session.state().last_seen("#room1000").is_some());
+}
