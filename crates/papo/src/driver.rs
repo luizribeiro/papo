@@ -273,37 +273,15 @@ impl Driver {
         connector: Connector,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity);
-        let inner = Box::pin(async move {
-            let mut registration = RegistrationWait(registration);
-            let stream = match plan.map_err(Error::Address) {
-                Ok(plan) => match connector(plan).await {
-                    Ok(stream) => stream,
-                    Err(error) => {
-                        if registration.0.is_some() {
-                            registration.failed(error);
-                            return Ok(());
-                        }
-                        return Err(error);
-                    }
-                },
-                Err(error) => {
-                    if registration.0.is_some() {
-                        registration.failed(error);
-                        return Ok(());
-                    }
-                    return Err(error);
-                }
-            };
-            run(
-                stream,
-                session,
-                channels.commands,
-                channels.event_sink,
-                registration,
-                defaults,
-            )
-            .await
-        });
+        let inner = Box::pin(run_plan(
+            plan,
+            session,
+            channels.commands,
+            channels.event_sink,
+            RegistrationWait(registration),
+            defaults,
+            connector,
+        ));
         (channels.client, channels.events, Self { inner })
     }
 }
@@ -380,6 +358,38 @@ impl Future for Driver {
     fn poll(mut self: Pin<&mut Self>, context: &mut task::Context<'_>) -> task::Poll<Self::Output> {
         self.inner.as_mut().poll(context)
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_plan(
+    plan: Result<ConnectionPlan, AddressError>,
+    session: Session,
+    commands: mpsc::Receiver<Command>,
+    events: EventSink,
+    mut registration: RegistrationWait,
+    defaults: PostRegistration,
+    connector: Connector,
+) -> Result<(), Error> {
+    let stream = match plan.map_err(Error::Address) {
+        Ok(plan) => match connector(plan).await {
+            Ok(stream) => stream,
+            Err(error) => {
+                if registration.0.is_some() {
+                    registration.failed(error);
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        },
+        Err(error) => {
+            if registration.0.is_some() {
+                registration.failed(error);
+                return Ok(());
+            }
+            return Err(error);
+        }
+    };
+    run(stream, session, commands, events, registration, defaults).await
 }
 
 async fn run<S>(
