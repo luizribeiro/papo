@@ -248,7 +248,7 @@ mod tests {
         StoredPolicy {
             host: host.to_owned(),
             expires_at: std::time::UNIX_EPOCH + Duration::from_secs(expires_at_unix),
-            duration: Duration::from_secs(15_552_000),
+            duration: Duration::from_hours(4_320),
         }
     }
 
