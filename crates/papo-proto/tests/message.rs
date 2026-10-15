@@ -184,6 +184,18 @@ fn enforces_message_length_at_the_byte_boundary() {
 }
 
 #[test]
+fn counts_canonical_crlf_for_a_bare_lf_line() {
+    let prefix = "NOTICE papo-test :";
+    let line = format!(
+        "{prefix}{}\n",
+        "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len())
+    );
+
+    assert_eq!(line.len() + 1, MAX_MESSAGE_LEN);
+    assert!(MessageRef::parse(&line).is_ok());
+}
+
+#[test]
 fn enforces_both_limits_after_leading_spaces() {
     let maximum_tags = format!("  @{} PING", "a".repeat(MAX_TAG_SECTION_LEN - 2));
     assert!(MessageRef::parse(&maximum_tags).is_ok());
