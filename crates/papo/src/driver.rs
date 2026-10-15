@@ -2907,6 +2907,63 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn public_state_accessors_report_the_registered_session() {
+        let config = config()
+            .wanted_caps(["extended-monitor"])
+            .sasl(Sasl::plain("alice", "hunter2"));
+        let (mut server, client, mut events, driver) = scripted(config);
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :extended-monitor sasl=PLAIN\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP REQ :extended-monitor sasl\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP papo-driver ACK :extended-monitor sasl\r\n",
+        )
+        .await;
+        client_line(&mut server, b"AUTHENTICATE PLAIN\r\n").await;
+        server_line(&mut server, b"AUTHENTICATE +\r\n").await;
+        client_line(&mut server, b"AUTHENTICATE AGFsaWNlAGh1bnRlcjI=\r\n").await;
+        server_line(&mut server, b":ergo.test 900 papo-driver papo-driver!papo@localhost emily :You are now logged in as emily\r\n:ergo.test 903 papo-driver :SASL authentication successful\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(&mut server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+
+        server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 :are supported\r\n:ergo.test 306 papo-driver :You have been marked as being away\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
+        while !matches!(events.next().await, Some(Event::MonitorOnline { .. })) {}
+
+        assert_eq!(client.nick(), "papo-driver");
+        client.state(|state| {
+            assert_eq!(state.nick(), "papo-driver");
+            assert_eq!(state.account(), Some("emily"));
+            assert!(state.away());
+            let mut modes: Vec<_> = state.user_modes().collect();
+            modes.sort_unstable();
+            assert_eq!(modes, ['i', 'w']);
+            assert_eq!(
+                state
+                    .channels()
+                    .map(papo_core::Channel::name)
+                    .collect::<Vec<_>>(),
+                ["#Papo"]
+            );
+            assert_eq!(state.user("ALICE").unwrap().user(), Some("~alice"));
+            assert_eq!(state.monitor_online().next().unwrap().nick(), "bob");
+            assert_eq!(state.isupport().nicklen(), Some(27));
+        });
+        let snapshot = client.snapshot();
+        assert_eq!(snapshot.nick(), "papo-driver");
+        assert_eq!(snapshot.account(), Some("emily"));
+
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn client_exposes_capability_aliases_and_casemapping() {
         let config = config().wanted_caps(["draft/no-implicit-names"]);
         let (mut server, client, mut events, driver) = scripted(config);
