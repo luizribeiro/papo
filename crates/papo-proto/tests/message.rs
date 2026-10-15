@@ -243,7 +243,10 @@ fn parses_realistic_ergo_lines() {
     assert!(ping.is_empty());
 
     let forced_trailing = MessageRef::parse(":ergo.test 323 papo-test :").unwrap();
-    assert_eq!(forced_trailing.command(), Command::Numeric(Numeric(323)));
+    assert_eq!(
+        forced_trailing.command(),
+        Command::Numeric(Numeric::RPL_LISTEND)
+    );
     assert_eq!(forced_trailing.param(1), Some(""));
 }
 
@@ -361,7 +364,7 @@ fn parses_literal_wire_numeric_codes_and_names() {
             panic!("{line:?} did not parse as a numeric");
         };
         assert_eq!(numeric, expected, "{line:?}");
-        assert_eq!(numeric.0, code, "{line:?}");
+        assert_eq!(numeric.code(), code, "{line:?}");
         assert_eq!(numeric.name(), Some(name), "{line:?}");
     }
 }

@@ -23,7 +23,8 @@ macro_rules! commands {
                     return Self::$variant;
                 })+
                 if command.len() == 3 && command.bytes().all(|byte| byte.is_ascii_digit()) {
-                    return Self::Numeric(Numeric(command.parse().expect("three ASCII digits")));
+                    let code = command.parse().expect("three ASCII digits fit in u16");
+                    return Self::Numeric(Numeric::new(code).expect("three ASCII digits are valid"));
                 }
                 Self::Other(command)
             }
@@ -191,7 +192,10 @@ mod tests {
 
     #[test]
     fn parses_numerics_and_preserves_unknown_commands() {
-        assert_eq!(Command::parse("005"), Command::Numeric(Numeric(5)));
+        assert_eq!(
+            Command::parse("005"),
+            Command::Numeric(Numeric::new(5).unwrap())
+        );
         assert_eq!(Command::parse("42"), Command::Other("42"));
         assert_eq!(Command::parse("1000"), Command::Other("1000"));
         assert_eq!(Command::parse("future").to_string(), "FUTURE");

@@ -2,7 +2,21 @@ use std::fmt;
 
 /// A three-digit IRC numeric reply or error.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Numeric(pub u16);
+pub struct Numeric(u16);
+
+impl Numeric {
+    /// Creates a numeric from a value in the three-digit range.
+    #[must_use]
+    pub const fn new(code: u16) -> Option<Self> {
+        if code <= 999 { Some(Self(code)) } else { None }
+    }
+
+    /// Returns the numeric code without leading zeroes.
+    #[must_use]
+    pub const fn code(self) -> u16 {
+        self.0
+    }
+}
 
 macro_rules! numerics {
     ($($name:ident = $value:literal),+ $(,)?) => {
@@ -203,6 +217,10 @@ mod tests {
 
     use super::{NAMED_NUMERICS, Numeric};
 
+    fn numeric(code: u16) -> Numeric {
+        Numeric::new(code).unwrap()
+    }
+
     #[test]
     fn every_named_numeric_round_trips() {
         for &(numeric, name) in NAMED_NUMERICS {
@@ -212,27 +230,35 @@ mod tests {
                 Command::Numeric(numeric)
             );
         }
-        assert_eq!(Numeric(999).name(), None);
+        assert_eq!(numeric(999).name(), None);
+    }
+
+    #[test]
+    fn validates_the_three_digit_range() {
+        assert_eq!(Numeric::new(0).map(Numeric::code), Some(0));
+        assert_eq!(Numeric::new(999).map(Numeric::code), Some(999));
+        assert_eq!(Numeric::new(1000), None);
+        assert_eq!(Numeric::new(u16::MAX), None);
     }
 
     #[test]
     fn classifies_error_range_boundaries() {
-        assert!(!Numeric(399).is_error());
-        assert!(Numeric(400).is_error());
-        assert!(Numeric(599).is_error());
-        assert!(!Numeric(600).is_error());
+        assert!(!numeric(399).is_error());
+        assert!(numeric(400).is_error());
+        assert!(numeric(599).is_error());
+        assert!(!numeric(600).is_error());
     }
 
     #[test]
     fn classifies_documented_errors_outside_the_error_ranges() {
         let errors = [696, 723, 734, 902, 904, 905, 906, 907];
         for value in errors {
-            assert!(Numeric(value).is_error(), "{value}");
+            assert!(numeric(value).is_error(), "{value}");
         }
 
         let replies = [695, 697, 722, 724, 733, 735, 901, 903, 908];
         for value in replies {
-            assert!(!Numeric(value).is_error(), "{value}");
+            assert!(!numeric(value).is_error(), "{value}");
         }
     }
 }
