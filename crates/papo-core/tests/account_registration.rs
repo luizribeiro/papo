@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event};
+use papo_core::{AccountRegistrationError, Config, Event};
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -74,4 +74,63 @@ fn verifies_an_account_after_the_server_requires_it() {
             matches!(event, Event::AccountRegistered { account, logged_in: true } if account == "alice")
         })
         .event(|event| matches!(event, Event::Response(_)));
+}
+
+#[test]
+fn types_every_registered_account_failure_code() {
+    use AccountRegistrationError as E;
+
+    let cases = [
+        ("REGISTER", "ACCOUNT_EXISTS", E::AccountExists),
+        ("REGISTER", "BAD_ACCOUNT_NAME", E::BadAccountName),
+        (
+            "REGISTER",
+            "ACCOUNT_NAME_MUST_BE_NICK",
+            E::AccountNameMustBeNick,
+        ),
+        ("REGISTER", "NEED_NICK", E::NeedNick),
+        ("VERIFY", "ALREADY_AUTHENTICATED", E::AlreadyAuthenticated),
+        ("REGISTER", "WEAK_PASSWORD", E::WeakPassword),
+        ("REGISTER", "UNACCEPTABLE_PASSWORD", E::UnacceptablePassword),
+        ("REGISTER", "INVALID_EMAIL", E::InvalidEmail),
+        ("REGISTER", "UNACCEPTABLE_EMAIL", E::UnacceptableEmail),
+        (
+            "VERIFY",
+            "COMPLETE_CONNECTION_REQUIRED",
+            E::CompleteConnectionRequired,
+        ),
+        ("VERIFY", "INVALID_CODE", E::InvalidCode),
+        (
+            "VERIFY",
+            "TEMPORARILY_UNAVAILABLE",
+            E::TemporarilyUnavailable,
+        ),
+    ];
+    for (command, code, expected) in cases {
+        registered()
+            .server(&format!(
+                ":ergo.test FAIL {command} {code} alice :Account request rejected"
+            ))
+            .event(|event| {
+                matches!(event, Event::StandardReply(reply)
+                    if reply.account_registration_error() == Some(expected))
+            });
+    }
+}
+
+#[test]
+fn types_a_labelled_verification_failure() {
+    registered()
+        .update(|session| {
+            session
+                .verify(std::time::Instant::now(), "alice", "expired-code")
+                .unwrap();
+        })
+        .client("@label=0 VERIFY alice expired-code")
+        .server("@label=0 :ergo.test FAIL VERIFY INVALID_CODE alice :Invalid verification code")
+        .event(|event| {
+            matches!(event, Event::Response(response)
+                if response.account_registration_error()
+                    == Some(AccountRegistrationError::InvalidCode))
+        });
 }
