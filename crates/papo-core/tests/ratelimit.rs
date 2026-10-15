@@ -157,11 +157,33 @@ fn protocol_critical_commands_bypass_an_exhausted_bucket() {
         (Message::new("CAP", ["END"]), "CAP END"),
         (Message::new("AUTHENTICATE", ["+"]), "AUTHENTICATE +"),
         (Message::new("PONG", ["ergo.test"]), "PONG ergo.test"),
-        (
-            Message::new("QUIT", ["shutting down"]),
-            "QUIT :shutting down",
-        ),
     ] {
         transcript = transcript.send(message).client(expected);
     }
+}
+
+#[test]
+fn quit_keeps_its_place_behind_queued_messages() {
+    let mut transcript = Transcript::rate_limited(Config::default());
+    for index in 1..=5 {
+        transcript = transcript.send(Message::privmsg("#papo", format!("drain {index}")));
+    }
+    for index in 1..=5 {
+        transcript = transcript.client(&format!("PRIVMSG #papo :drain {index}"));
+    }
+    transcript
+        .send(Message::privmsg("#papo", "first"))
+        .send(Message::privmsg("#papo", "second"))
+        .send(Message::privmsg("#papo", "third"))
+        .send(Message::new("QUIT", ["shutting down"]))
+        .no_client()
+        .advance(Duration::from_millis(500))
+        .client("PRIVMSG #papo first")
+        .advance(Duration::from_millis(500))
+        .client("PRIVMSG #papo second")
+        .advance(Duration::from_millis(500))
+        .client("PRIVMSG #papo third")
+        .advance(Duration::from_millis(500))
+        .client("QUIT :shutting down")
+        .no_client();
 }

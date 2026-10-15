@@ -709,8 +709,8 @@ fn bypasses_rate_limit(line: &[u8]) -> bool {
     } else {
         first
     };
-    // Ergo exempts handshake traffic, while delayed PONG or QUIT lines
-    // can leave a connection alive after it should have closed or get it disconnected.
+    // Ergo exempts handshake traffic, and a delayed PONG risks disconnection.
+    // These commands can safely overtake queued application traffic; QUIT cannot.
     [
         b"WEBIRC".as_slice(),
         b"PASS",
@@ -719,7 +719,6 @@ fn bypasses_rate_limit(line: &[u8]) -> bool {
         b"CAP",
         b"AUTHENTICATE",
         b"PONG",
-        b"QUIT",
     ]
     .iter()
     .any(|exempt| command.eq_ignore_ascii_case(exempt))
