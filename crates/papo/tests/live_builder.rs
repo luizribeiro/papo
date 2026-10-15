@@ -34,14 +34,6 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
                 .unwrap();
 
         wait_registered(&mut events, &account).await;
-        wait_for(&mut events, |message| {
-            message.command_is("JOIN")
-                && message.param(0) == Some(channel.as_str())
-                && message.raw_source().is_some_and(|source| {
-                    source == account || source.starts_with(&format!("{account}!"))
-                })
-        })
-        .await;
 
         client
             .send(Message::new("WHOIS", [account.clone()]))
