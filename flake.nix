@@ -60,7 +60,16 @@
           installPhase = "cp -R . $out";
         };
         craneLib = (crane.mkLib pkgs).overrideToolchain stableToolchain;
-        cargoSource = craneLib.cleanCargoSource ./.;
+        cargoSource = pkgs.lib.cleanSourceWith {
+          src = ./.;
+          filter =
+            path: type:
+            (craneLib.filterCargoSources path type)
+            || pkgs.lib.hasInfix "/tests/data/" path
+            || pkgs.lib.hasSuffix "/nix" path
+            || pkgs.lib.hasSuffix "/nix/test-runner" path;
+        };
+        nixTestRunner = "${pkgs.lib.getExe pkgs.bash} ${cargoSource}/nix/test-runner";
         craneArgs = {
           src = cargoSource;
           strictDeps = true;
@@ -249,10 +258,10 @@
               ERGO_BIN = pkgs.lib.getExe ergochat;
               ERGO_CONFIG = ergoConfig;
               ERGO_LANGUAGES = "${ergochat.src}/languages";
-              CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = "./nix/test-runner";
-              CARGO_TARGET_WASM32_WASIP1_RUNNER = "./nix/test-runner";
-              CARGO_TARGET_WASM32_WASIP2_RUNNER = "./nix/test-runner";
-              CARGO_TARGET_WASM32_WASIP3_RUNNER = "./nix/test-runner";
+              CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
+              CARGO_TARGET_WASM32_WASIP1_RUNNER = nixTestRunner;
+              CARGO_TARGET_WASM32_WASIP2_RUNNER = nixTestRunner;
+              CARGO_TARGET_WASM32_WASIP3_RUNNER = nixTestRunner;
             }
           );
         };

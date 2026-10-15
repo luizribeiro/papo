@@ -58,9 +58,9 @@ fn plain_binary_does_not_start_a_server() {
 }
 
 fn runner(binary: &Path) -> Command {
-    let mut command =
-        Command::new(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../nix/test-runner"));
+    let mut command = Command::new("bash");
     command
+        .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../nix/test-runner"))
         .arg(binary)
         .env_remove("PAPO_TEST_PLAINTEXT")
         .env_remove("PAPO_TEST_TLS")
@@ -70,9 +70,15 @@ fn runner(binary: &Path) -> Command {
 
 fn executable(directory: &Path, name: &str, body: &str) -> PathBuf {
     let path = directory.join(name);
+    let output = Command::new("bash")
+        .args(["-c", "command -v bash"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let bash = String::from_utf8(output.stdout).unwrap();
     fs::write(
         &path,
-        format!("#!/usr/bin/env bash\nset -euo pipefail\n{body}\n"),
+        format!("#!{}\nset -euo pipefail\n{body}\n", bash.trim()),
     )
     .unwrap();
     let mut permissions = fs::metadata(&path).unwrap().permissions();
