@@ -8,10 +8,6 @@ use std::{
 
 use crate::{Client, Error, Event, MessageEvent, MessageKind};
 
-mod extractors;
-
-pub use extractors::{Admins, Args, Handler, Msg, RequireAccount};
-
 const MAX_RATE_TARGETS: usize = 1024;
 
 /// A shared sliding-window reply limiter keyed by message target.
