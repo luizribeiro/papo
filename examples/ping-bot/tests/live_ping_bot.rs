@@ -13,14 +13,14 @@ use tokio::time::{sleep, timeout};
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
 #[tokio::test(flavor = "current_thread")]
-async fn answers_channel_and_private_pings() {
+async fn answers_channel_and_private_pings_then_shuts_down() {
     timeout(Duration::from_secs(20), async {
         let server = from_env();
         let bot_nick = unique("papo-ping-bot");
         let user_nick = unique("papo-ping-user");
         let channel = format!("#{}", unique("papo-ping"));
         register_account(&server, &bot_nick, PASSWORD).unwrap();
-        let bot = Bot::start(&server, &bot_nick, &channel).await;
+        let mut bot = Bot::start(&server, &bot_nick, &channel).await;
         sleep(Duration::from_millis(500)).await;
 
         let address = format!("irc://{}", server.plaintext_addr());
@@ -45,8 +45,8 @@ async fn answers_channel_and_private_pings() {
         assert!(response.is_private());
         assert_eq!(response.reply_to(), Some(message_id.as_str()));
 
+        bot.shutdown().await;
         user.quit(Some("ping bot test complete")).await.unwrap();
-        drop(bot);
     })
     .await
     .expect("live ping bot test did not finish within 20 seconds");
@@ -56,7 +56,7 @@ struct Bot {
     #[cfg(not(target_os = "wasi"))]
     process: (std::process::Child, std::path::PathBuf),
     #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
-    _session: (Client, tokio::task::JoinHandle<()>),
+    session: (Client, tokio::task::JoinHandle<()>),
 }
 
 impl Bot {
@@ -104,7 +104,38 @@ impl Bot {
             }
         });
         Self {
-            _session: (client, task),
+            session: (client, task),
+        }
+    }
+
+    async fn shutdown(&mut self) {
+        #[cfg(not(target_os = "wasi"))]
+        {
+            let status = std::process::Command::new("kill")
+                .args(["-TERM", &self.process.0.id().to_string()])
+                .status()
+                .unwrap();
+            assert!(status.success());
+            let status = timeout(Duration::from_secs(10), async {
+                loop {
+                    if let Some(status) = self.process.0.try_wait().unwrap() {
+                        return status;
+                    }
+                    sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .expect("ping bot did not exit within 10 seconds");
+            assert_eq!(status.code(), Some(0));
+        }
+        #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
+        {
+            self.session
+                .0
+                .quit(Some("ping bot test complete"))
+                .await
+                .unwrap();
+            (&mut self.session.1).await.unwrap();
         }
     }
 }
