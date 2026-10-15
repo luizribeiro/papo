@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use papo_proto::{CaseKey, Casemapping};
+use papo_proto::{CaseKey, Casemapping, Isupport, Join, MessageRef, Source};
 
-use crate::Config;
+use crate::{Config, Handled};
 
 /// The known channel and user state for a session.
 #[derive(Debug)]
@@ -46,6 +46,45 @@ impl State {
         *self = Self::new(config);
     }
 
+    pub(crate) fn handle_message(
+        &mut self,
+        message: &MessageRef<'_>,
+        own_nick: &str,
+        isupport: &Isupport,
+    ) -> Handled {
+        let Some(join) = Join::parse(message) else {
+            return Handled::No;
+        };
+        let Some(Source::User { nick, user, host }) = message.source() else {
+            return Handled::No;
+        };
+        let mapping = isupport.casemapping();
+        self.casemapping = mapping;
+        if mapping.eq(nick, own_nick) {
+            nick.clone_into(&mut self.nick);
+            if let Some(user) = user {
+                user.clone_into(&mut self.user);
+            }
+            if let Some(host) = host {
+                self.host = Some(host.to_owned());
+            }
+            self.channels.insert(
+                CaseKey::new(join.channel, mapping),
+                Channel::new(join.channel, mapping),
+            );
+        }
+        if let Some(channel) = self.channels.get_mut(&CaseKey::new(join.channel, mapping)) {
+            channel.members.insert(
+                CaseKey::new(nick, mapping),
+                Member {
+                    nick: nick.to_owned(),
+                    prefixes: Vec::new(),
+                },
+            );
+        }
+        Handled::Yes
+    }
+
     /// Returns the session's current nickname.
     #[must_use]
     pub fn nick(&self) -> &str {
@@ -77,6 +116,16 @@ impl State {
 }
 
 impl Channel {
+    fn new(name: &str, casemapping: Casemapping) -> Self {
+        Self {
+            name: name.to_owned(),
+            casemapping,
+            members: HashMap::new(),
+            topic: None,
+            synced: false,
+        }
+    }
+
     /// Returns the channel name as received from the server.
     #[must_use]
     pub fn name(&self) -> &str {

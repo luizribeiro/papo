@@ -707,9 +707,14 @@ impl Session {
             &mut self.outbox,
         ) == Handled::Yes;
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
+        let state_handled =
+            self.state
+                .handle_message(message, self.registration.nick(), self.isupport.value())
+                == Handled::Yes;
         let handled = registration_handled
             || caps_handled
             || sasl_handled
+            || state_handled
             || self.isupport.handle_message(message) == Handled::Yes
             || self
                 .keepalive
