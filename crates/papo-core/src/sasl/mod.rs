@@ -70,6 +70,8 @@ impl Sasl {
     }
 
     /// Sets the authorization identity sent by SASL EXTERNAL.
+    ///
+    /// This has no effect on PLAIN or SCRAM-SHA-256 mechanisms.
     #[must_use]
     pub fn authzid(mut self, authzid: impl Into<String>) -> Self {
         for mechanism in &mut self.mechanisms {
