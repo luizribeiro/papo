@@ -303,6 +303,66 @@ fn extended_monitor_updates_an_unshared_users_record() {
 }
 
 #[test]
+fn member_departures_retain_monitored_or_still_shared_users() {
+    extended_registered()
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server(":alice!~alice@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "alice"))
+        .server(":bob!bob@users.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "bob"))
+        .server(":papo!papo@127.0.0.1 JOIN #rust")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server(":bob!bob@users.example JOIN #rust")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "bob"))
+        .server(":alice!~alice@cloak.example PART #papo :Leaving")
+        .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "alice"))
+        .server(":bob!bob@users.example PART #papo :Leaving")
+        .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "bob"))
+        .inspect(|session| {
+            assert_eq!(session.state().user("alice").unwrap().channels().count(), 0);
+            assert_eq!(session.state().user("bob").unwrap().channels().count(), 1);
+        })
+        .server(":bob!bob@users.example PART #rust :Leaving")
+        .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "bob"))
+        .inspect(|session| assert!(session.state().user("bob").is_none()))
+        .no_event();
+}
+
+#[test]
+fn leaving_a_channel_retains_only_monitored_or_still_shared_users() {
+    extended_registered()
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server(":alice!~alice@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "alice"))
+        .server(":bob!bob@users.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "bob"))
+        .server(":dan!dan@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
+        .server(":papo!papo@127.0.0.1 JOIN #rust")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server(":dan!dan@cloak.example JOIN #rust")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
+        .server(":papo!papo@127.0.0.1 PART #papo :Leaving")
+        .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "papo"))
+        .inspect(|session| {
+            assert_eq!(session.state().user("alice").unwrap().channels().count(), 0);
+            assert!(session.state().user("bob").is_none());
+            assert_eq!(session.state().user("dan").unwrap().channels().count(), 1);
+        })
+        .no_event();
+}
+
+#[test]
 fn timeout_restores_only_when_registration_becomes_complete() {
     Transcript::new(Config::default())
         .connect_default()
