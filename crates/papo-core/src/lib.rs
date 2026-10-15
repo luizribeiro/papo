@@ -19,6 +19,26 @@ use registration::Registration;
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
 const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
 
+/// Capabilities requested by a default session when the server advertises them.
+pub const DEFAULT_WANTED_CAPS: &[&str] = &[
+    "cap-notify",
+    "message-tags",
+    "server-time",
+    "batch",
+    "echo-message",
+    "account-tag",
+    "extended-join",
+    "multi-prefix",
+    "userhost-in-names",
+    "chghost",
+    "setname",
+    "away-notify",
+    "account-notify",
+    "invite-notify",
+    "standard-replies",
+    "labeled-response",
+];
+
 /// Policy for decoding incoming IRC lines.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
@@ -46,6 +66,8 @@ pub struct Config {
     pub password: Option<String>,
     /// The maximum time to wait for the welcome numeric.
     pub registration_timeout: Duration,
+    /// Capability names to request when advertised by the server.
+    pub wanted_caps: Vec<String>,
 }
 
 impl Default for Config {
@@ -57,6 +79,10 @@ impl Default for Config {
             realname: "papo".to_owned(),
             password: None,
             registration_timeout: DEFAULT_REGISTRATION_TIMEOUT,
+            wanted_caps: DEFAULT_WANTED_CAPS
+                .iter()
+                .map(|name| (*name).to_owned())
+                .collect(),
         }
     }
 }
@@ -101,6 +127,17 @@ impl Config {
     #[must_use]
     pub const fn registration_timeout(mut self, timeout: Duration) -> Self {
         self.registration_timeout = timeout;
+        self
+    }
+
+    /// Sets the capability names to request when advertised by the server.
+    #[must_use]
+    pub fn wanted_caps<I, S>(mut self, caps: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.wanted_caps = caps.into_iter().map(Into::into).collect();
         self
     }
 }

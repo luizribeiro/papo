@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{Config, Session};
+use papo_core::{Config, DEFAULT_WANTED_CAPS, Session};
 use papo_proto::{BuildError, Message};
 
 #[test]
@@ -22,6 +22,16 @@ fn config_builders_set_registration_identity_and_timeout() {
         Some("correct horse battery staple")
     );
     assert_eq!(config.registration_timeout, Duration::from_secs(23));
+    assert_eq!(
+        config.wanted_caps,
+        DEFAULT_WANTED_CAPS
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect::<Vec<_>>()
+    );
+
+    let config = Config::default().wanted_caps(["server-time", "batch"]);
+    assert_eq!(config.wanted_caps, ["server-time", "batch"]);
 }
 
 #[test]
