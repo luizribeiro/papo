@@ -18,6 +18,8 @@ fn main() -> io::Result<()> {
     }
     println!("{}", server.plaintext_addr());
     println!("{}", server.tls_addr());
+    println!("ws://{}/", server.websocket_addr());
+    println!("wss://localhost:{}/", server.secure_websocket_addr().port());
     println!("{}", server.ca_pem_path().display());
     io::stdout().flush()?;
     io::copy(&mut io::stdin(), &mut io::sink())?;

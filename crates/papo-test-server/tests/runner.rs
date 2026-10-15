@@ -32,12 +32,14 @@ fn live_binary_respects_preset_server_variables() {
     let binary = executable(
         &directory,
         "live_preset-deadbeef",
-        "test \"$PAPO_TEST_PLAINTEXT\" = 192.0.2.1:6667 && test \"$PAPO_TEST_TLS\" = 192.0.2.1:6697 && test \"$PAPO_TEST_CA\" = fixture-ca.pem",
+        "test \"$PAPO_TEST_PLAINTEXT\" = 192.0.2.1:6667 && test \"$PAPO_TEST_TLS\" = 192.0.2.1:6697 && test \"$PAPO_TEST_WS\" = ws://192.0.2.1:8097/ && test \"$PAPO_TEST_WSS\" = wss://irc.example:8098/webirc && test \"$PAPO_TEST_CA\" = fixture-ca.pem",
     );
     let status = runner(&binary)
         .env("PAPO_TEST_SERVER_BIN", directory.join("must-not-run"))
         .env("PAPO_TEST_PLAINTEXT", "192.0.2.1:6667")
         .env("PAPO_TEST_TLS", "192.0.2.1:6697")
+        .env("PAPO_TEST_WS", "ws://192.0.2.1:8097/")
+        .env("PAPO_TEST_WSS", "wss://irc.example:8098/webirc")
         .env("PAPO_TEST_CA", "fixture-ca.pem")
         .status()
         .unwrap();
@@ -64,6 +66,8 @@ fn runner(binary: &Path) -> Command {
         .arg(binary)
         .env_remove("PAPO_TEST_PLAINTEXT")
         .env_remove("PAPO_TEST_TLS")
+        .env_remove("PAPO_TEST_WS")
+        .env_remove("PAPO_TEST_WSS")
         .env_remove("PAPO_TEST_CA");
     command
 }

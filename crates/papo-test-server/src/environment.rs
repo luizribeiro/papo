@@ -13,6 +13,8 @@ const RUNNER_HINT: &str = "run tests through the dev shell's test runner";
 pub struct ServerInfo {
     plaintext: SocketAddr,
     tls: SocketAddr,
+    websocket: String,
+    secure_websocket: String,
     ca: PathBuf,
 }
 
@@ -27,6 +29,18 @@ impl ServerInfo {
     #[must_use]
     pub const fn tls_addr(&self) -> SocketAddr {
         self.tls
+    }
+
+    /// Returns the plaintext WebSocket URL.
+    #[must_use]
+    pub fn websocket_url(&self) -> &str {
+        &self.websocket
+    }
+
+    /// Returns the TLS WebSocket URL.
+    #[must_use]
+    pub fn secure_websocket_url(&self) -> &str {
+        &self.secure_websocket
     }
 
     /// Returns the CA certificate path visible to the current process.
@@ -47,6 +61,8 @@ pub fn from_env() -> ServerInfo {
     from_values([
         env::var("PAPO_TEST_PLAINTEXT").ok(),
         env::var("PAPO_TEST_TLS").ok(),
+        env::var("PAPO_TEST_WS").ok(),
+        env::var("PAPO_TEST_WSS").ok(),
         env::var("PAPO_TEST_CA").ok(),
     ])
     .unwrap_or_else(|error| panic!("{error}"))
@@ -82,19 +98,25 @@ fn test_process_id() -> String {
     }
 }
 
-fn from_values(values: [Option<String>; 3]) -> io::Result<ServerInfo> {
-    let [plaintext, tls, ca] = values;
-    match (plaintext, tls, ca) {
-        (None, None, None) => Err(io::Error::new(io::ErrorKind::NotFound, RUNNER_HINT)),
-        (Some(plaintext), Some(tls), Some(ca)) => Ok(ServerInfo {
-            plaintext: parse_address("PAPO_TEST_PLAINTEXT", &plaintext)?,
-            tls: parse_address("PAPO_TEST_TLS", &tls)?,
-            ca: ca.into(),
-        }),
+fn from_values(values: [Option<String>; 5]) -> io::Result<ServerInfo> {
+    if values.iter().all(Option::is_none) {
+        return Err(io::Error::new(io::ErrorKind::NotFound, RUNNER_HINT));
+    }
+    let [plaintext, tls, websocket, secure_websocket, ca] = values;
+    match (plaintext, tls, websocket, secure_websocket, ca) {
+        (Some(plaintext), Some(tls), Some(websocket), Some(secure_websocket), Some(ca)) => {
+            Ok(ServerInfo {
+                plaintext: parse_address("PAPO_TEST_PLAINTEXT", &plaintext)?,
+                tls: parse_address("PAPO_TEST_TLS", &tls)?,
+                websocket,
+                secure_websocket,
+                ca: ca.into(),
+            })
+        }
         _ => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             format!(
-                "PAPO_TEST_PLAINTEXT, PAPO_TEST_TLS, and PAPO_TEST_CA must be set together; {RUNNER_HINT}"
+                "PAPO_TEST_PLAINTEXT, PAPO_TEST_TLS, PAPO_TEST_WS, PAPO_TEST_WSS, and PAPO_TEST_CA must be set together; {RUNNER_HINT}"
             ),
         )),
     }
@@ -113,33 +135,36 @@ mod tests {
     #[test]
     fn distinguishes_unset_complete_and_partial_environments() {
         assert_eq!(
-            from_values([None, None, None]).unwrap_err().to_string(),
+            from_values([None, None, None, None, None])
+                .unwrap_err()
+                .to_string(),
             RUNNER_HINT
         );
         let server = from_values([
             Some("127.0.0.1:6667".into()),
             Some("127.0.0.1:6697".into()),
+            Some("ws://127.0.0.1:8097/".into()),
+            Some("wss://localhost:8098/".into()),
             Some("target/papo-test-ca.pem".into()),
         ])
         .unwrap();
         assert_eq!(server.plaintext_addr().port(), 6667);
         assert_eq!(server.tls_addr().port(), 6697);
+        assert_eq!(server.websocket_url(), "ws://127.0.0.1:8097/");
+        assert_eq!(server.secure_websocket_url(), "wss://localhost:8098/");
         assert_eq!(
             server.ca_pem_path(),
             std::path::Path::new("target/papo-test-ca.pem")
         );
-        for partial in [
-            [Some("127.0.0.1:6667".into()), None, None],
-            [None, Some("127.0.0.1:6697".into()), None],
-            [None, None, Some("ca.pem".into())],
-            [
-                Some("127.0.0.1:6667".into()),
-                Some("127.0.0.1:6697".into()),
-                None,
-            ],
-            [Some("127.0.0.1:6667".into()), None, Some("ca.pem".into())],
-            [None, Some("127.0.0.1:6697".into()), Some("ca.pem".into())],
-        ] {
+        for missing in 0..5 {
+            let mut partial = [
+                Some(String::new()),
+                Some(String::new()),
+                Some(String::new()),
+                Some(String::new()),
+                Some(String::new()),
+            ];
+            partial[missing] = None;
             assert!(
                 from_values(partial)
                     .unwrap_err()

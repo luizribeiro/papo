@@ -7,6 +7,8 @@ use crate::directory::TemporaryDirectory;
 pub(crate) struct Configuration {
     pub(crate) plaintext: std::net::SocketAddr,
     pub(crate) tls: std::net::SocketAddr,
+    pub(crate) websocket: std::net::SocketAddr,
+    pub(crate) secure_websocket: std::net::SocketAddr,
     pub(crate) overrides: Vec<(&'static str, String)>,
 }
 
@@ -14,31 +16,42 @@ impl Configuration {
     pub(crate) fn new(directory: &TemporaryDirectory) -> io::Result<Self> {
         let plaintext = TcpListener::bind(("127.0.0.1", 0))?;
         let tls = TcpListener::bind(("127.0.0.1", 0))?;
+        let websocket = TcpListener::bind(("127.0.0.1", 0))?;
+        let secure_websocket = TcpListener::bind(("127.0.0.1", 0))?;
         let plaintext = plaintext.local_addr()?;
         let tls = tls.local_addr()?;
-        Ok(Self::from_addresses(directory, plaintext, tls))
+        let websocket = websocket.local_addr()?;
+        let secure_websocket = secure_websocket.local_addr()?;
+        Ok(Self::from_addresses(
+            directory,
+            [plaintext, tls, websocket, secure_websocket],
+        ))
     }
 
     #[cfg(test)]
     pub(crate) fn at_addresses(
         directory: &TemporaryDirectory,
-        plaintext: std::net::SocketAddr,
-        tls: std::net::SocketAddr,
+        addresses: [std::net::SocketAddr; 4],
     ) -> Self {
-        Self::from_addresses(directory, plaintext, tls)
+        Self::from_addresses(directory, addresses)
     }
 
     fn from_addresses(
         directory: &TemporaryDirectory,
-        plaintext: std::net::SocketAddr,
-        tls: std::net::SocketAddr,
+        addresses: [std::net::SocketAddr; 4],
     ) -> Self {
-        let listeners = json!({
-            plaintext.to_string(): {},
-            tls.to_string(): {"tls": {
+        let [plaintext, tls, websocket, secure_websocket] = addresses;
+        let tls_config = || {
+            json!({
                 "cert": directory.path().join("server.pem"),
                 "key": directory.path().join("server.key")
-            }}
+            })
+        };
+        let listeners = json!({
+            plaintext.to_string(): {},
+            tls.to_string(): {"tls": tls_config()},
+            websocket.to_string(): {"websocket": true},
+            secure_websocket.to_string(): {"websocket": true, "tls": tls_config()}
         });
         let overrides = vec![
             ("ERGO__SERVER__LISTENERS", listeners.to_string()),
@@ -52,6 +65,8 @@ impl Configuration {
         Self {
             plaintext,
             tls,
+            websocket,
+            secure_websocket,
             overrides,
         }
     }
@@ -86,7 +101,19 @@ mod tests {
         let directory = TemporaryDirectory::create().unwrap();
         let config = Configuration::new(&directory).unwrap();
         assert_ne!(config.plaintext, config.tls);
-        assert!(config.plaintext.ip().is_loopback());
-        assert!(config.tls.ip().is_loopback());
+        let addresses = [
+            config.plaintext,
+            config.tls,
+            config.websocket,
+            config.secure_websocket,
+        ];
+        assert_eq!(
+            addresses
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            4
+        );
+        assert!(addresses.iter().all(|address| address.ip().is_loopback()));
     }
 }

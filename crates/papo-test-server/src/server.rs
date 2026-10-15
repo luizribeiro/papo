@@ -17,6 +17,8 @@ pub struct TestServer {
     directory: TemporaryDirectory,
     plaintext: SocketAddr,
     tls: SocketAddr,
+    websocket: SocketAddr,
+    secure_websocket: SocketAddr,
 }
 
 impl TestServer {
@@ -39,6 +41,18 @@ impl TestServer {
     #[must_use]
     pub const fn tls_addr(&self) -> SocketAddr {
         self.tls
+    }
+
+    /// Returns the plaintext WebSocket listener address.
+    #[must_use]
+    pub const fn websocket_addr(&self) -> SocketAddr {
+        self.websocket
+    }
+
+    /// Returns the TLS WebSocket listener address.
+    #[must_use]
+    pub const fn secure_websocket_addr(&self) -> SocketAddr {
+        self.secure_websocket
     }
 
     /// Returns the generated CA certificate in PEM format.
@@ -81,6 +95,8 @@ impl TestServer {
                 directory,
                 plaintext: config.plaintext,
                 tls: config.tls,
+                websocket: config.websocket,
+                secure_websocket: config.secure_websocket,
             };
             match server.wait_until_ready() {
                 Ok(()) => return Ok(server),
@@ -104,9 +120,14 @@ impl TestServer {
             if let Some(status) = self.child.try_wait()? {
                 return Err(io::Error::other(format!("ergo exited with {status}")));
             }
-            if [self.plaintext, self.tls]
-                .iter()
-                .all(|address| TcpStream::connect(address).is_ok())
+            if [
+                self.plaintext,
+                self.tls,
+                self.websocket,
+                self.secure_websocket,
+            ]
+            .iter()
+            .all(|address| TcpStream::connect(address).is_ok())
             {
                 return Ok(());
             }
@@ -148,8 +169,12 @@ mod tests {
             if attempts == 1 {
                 Ok(Configuration::at_addresses(
                     directory,
-                    occupied_address,
-                    config.tls,
+                    [
+                        occupied_address,
+                        config.tls,
+                        config.websocket,
+                        config.secure_websocket,
+                    ],
                 ))
             } else {
                 Ok(config)

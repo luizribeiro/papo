@@ -35,12 +35,12 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 start_server() {
-  if [[ -v PAPO_TEST_PLAINTEXT && -v PAPO_TEST_TLS && -v PAPO_TEST_CA ]]; then
-    export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS PAPO_TEST_CA
+  if [[ -v PAPO_TEST_PLAINTEXT && -v PAPO_TEST_TLS && -v PAPO_TEST_WS && -v PAPO_TEST_WSS && -v PAPO_TEST_CA ]]; then
+    export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS PAPO_TEST_WS PAPO_TEST_WSS PAPO_TEST_CA
     return
   fi
-  if [[ -v PAPO_TEST_PLAINTEXT || -v PAPO_TEST_TLS || -v PAPO_TEST_CA ]]; then
-    echo "PAPO_TEST_PLAINTEXT, PAPO_TEST_TLS, and PAPO_TEST_CA must be set together" >&2
+  if [[ -v PAPO_TEST_PLAINTEXT || -v PAPO_TEST_TLS || -v PAPO_TEST_WS || -v PAPO_TEST_WSS || -v PAPO_TEST_CA ]]; then
+    echo "PAPO test server variables must be set together" >&2
     exit 2
   fi
 
@@ -57,6 +57,8 @@ start_server() {
   server_pid=$PAPO_ERGO_PID
   IFS= read -r PAPO_TEST_PLAINTEXT <&"$server_output"
   IFS= read -r PAPO_TEST_TLS <&"$server_output"
+  IFS= read -r PAPO_TEST_WS <&"$server_output"
+  IFS= read -r PAPO_TEST_WSS <&"$server_output"
   IFS= read -r host_ca <&"$server_output"
   PAPO_TEST_CA=$host_ca
   if [[ $artifact == *.wasm ]]; then
@@ -66,7 +68,7 @@ start_server() {
     ca_file=${host_ca_copy#"$invocation_dir/"}
     PAPO_TEST_CA=$ca_file
   fi
-  export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS PAPO_TEST_CA
+  export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS PAPO_TEST_WS PAPO_TEST_WSS PAPO_TEST_CA
 }
 
 if [[ $binary_name == live_* ]]; then
@@ -81,6 +83,8 @@ if [[ $artifact == *.wasm ]]; then
     wasmtime_args+=(
       --env PAPO_TEST_PLAINTEXT
       --env PAPO_TEST_TLS
+      --env PAPO_TEST_WS
+      --env PAPO_TEST_WSS
       --env PAPO_TEST_CA
     )
   fi
