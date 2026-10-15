@@ -88,6 +88,25 @@ fn a_full_bucket_has_no_refill_deadline() {
 }
 
 #[test]
+fn reconnecting_restores_the_full_burst() {
+    let mut transcript = Transcript::rate_limited(Config::default()).connect_default();
+    for index in 1..=5 {
+        transcript = transcript.send(Message::privmsg("#papo", format!("before {index}")));
+    }
+    for index in 1..=5 {
+        transcript = transcript.client(&format!("PRIVMSG #papo :before {index}"));
+    }
+    transcript = transcript.disconnect().connect_default();
+    for index in 1..=5 {
+        transcript = transcript.send(Message::privmsg("#papo", format!("after {index}")));
+    }
+    for index in 1..=5 {
+        transcript = transcript.client(&format!("PRIVMSG #papo :after {index}"));
+    }
+    transcript.no_client();
+}
+
+#[test]
 fn unlimited_rate_limit_never_schedules_a_token_deadline() {
     Transcript::rate_limited(Config::default().rate_limit(RateLimit::unlimited()))
         .send(Message::privmsg("#papo", "one"))
