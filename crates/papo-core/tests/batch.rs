@@ -12,6 +12,36 @@ fn message(session: &mut Session) -> papo_core::ReceivedMessage {
 }
 
 #[test]
+fn recorded_ergo_multiline_batch_joins_text_and_metadata() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(
+        now,
+        b"@msgid=RKi9Cw;time=2026-10-15T12:00:01.000Z :alice!~a@cloak BATCH +m draft/multiline #papo",
+    );
+    session.handle_line(now, b"@batch=m :alice!~a@cloak PRIVMSG #papo :hello ");
+    session.handle_line(
+        now,
+        b"@batch=m;draft/multiline-concat :alice!~a@cloak PRIVMSG #papo :world",
+    );
+    session.handle_line(now, b"@batch=m :alice!~a@cloak PRIVMSG #papo :next line");
+    session.handle_line(now, b":alice!~a@cloak BATCH -m");
+
+    let Some(Event::MultilineMessage(multiline)) = session.poll_event() else {
+        panic!("expected multiline message")
+    };
+    let message = multiline.message.as_ref();
+    assert_eq!(message.raw_source(), Some("alice!~a@cloak"));
+    assert_eq!(message.param(0), Some("#papo"));
+    assert_eq!(message.param(1), Some("hello world\nnext line"));
+    assert_eq!(message.tag("msgid").as_deref(), Some("RKi9Cw"));
+    assert_eq!(
+        message.tag("time").as_deref(),
+        Some("2026-10-15T12:00:01.000Z")
+    );
+}
+
+#[test]
 fn unknown_nested_and_interleaved_batches_flow_with_their_types() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());

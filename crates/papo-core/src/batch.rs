@@ -17,6 +17,7 @@ pub(crate) struct Batches {
 
 #[derive(Debug)]
 struct OpenBatch {
+    opening: Message,
     kind: String,
     label: Option<String>,
     parent: Option<String>,
@@ -81,6 +82,7 @@ pub(crate) enum BatchEvent {
         message: Message,
         batch_type: Option<String>,
     },
+    Multiline(Message),
 }
 
 impl Batches {
@@ -97,7 +99,12 @@ impl Batches {
         self.open.clear();
     }
 
-    pub(crate) fn handle(&mut self, now: Instant, message: &MessageRef<'_>) -> BatchAction {
+    pub(crate) fn handle(
+        &mut self,
+        now: Instant,
+        message: &MessageRef<'_>,
+        _multiline_max_bytes: usize,
+    ) -> BatchAction {
         if !message.command_is("BATCH") {
             return self.member(message);
         }
@@ -136,6 +143,7 @@ impl Batches {
         self.open.insert(
             reference.to_owned(),
             OpenBatch {
+                opening: message.to_owned(),
                 kind: kind.to_owned(),
                 label: message.tag("label").map(std::borrow::Cow::into_owned),
                 parent,
@@ -377,7 +385,7 @@ fn is_history(kind: &str) -> bool {
 }
 
 fn is_aggregate(kind: &str) -> bool {
-    is_history(kind) || matches!(kind, "netsplit" | "netjoin")
+    is_history(kind) || matches!(kind, "netsplit" | "netjoin" | "draft/multiline")
 }
 
 impl OpenBatch {
@@ -387,6 +395,12 @@ impl OpenBatch {
 }
 
 fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
+    if batch.kind == "draft/multiline" {
+        return multiline(batch)
+            .into_iter()
+            .map(BatchEvent::Multiline)
+            .collect();
+    }
     let servers = || {
         [
             batch.params.first().cloned().unwrap_or_default(),
@@ -426,6 +440,48 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         .collect()
 }
 
+fn multiline(batch: &mut OpenBatch) -> Option<Message> {
+    let first = batch.messages.first()?.as_ref();
+    let command = first.raw_command();
+    let target = batch
+        .params
+        .first()
+        .map(String::as_str)
+        .or_else(|| first.param(0))?;
+    if !batch.messages.iter().all(|message| {
+        let message = message.as_ref();
+        message.command_is(command)
+            && message.param(0) == Some(target)
+            && message.param(1).is_some()
+    }) {
+        return None;
+    }
+    let mut text = String::new();
+    for (index, line) in batch.messages.iter().enumerate() {
+        let line = line.as_ref();
+        if index != 0 && !line.tags().any(|(key, _)| key == "draft/multiline-concat") {
+            text.push('\n');
+        }
+        text.push_str(line.param(1).expect("validated multiline text"));
+    }
+    let opening = batch.opening.as_ref();
+    let source = opening.raw_source().or_else(|| first.raw_source());
+    let mut message = Message::new(command, [target, &text]);
+    if let Some(source) = source {
+        message = message.with_source(source);
+    }
+    for (key, value) in opening
+        .tags()
+        .chain(first.tags())
+        .filter(|(key, _)| !matches!(*key, "batch" | "draft/multiline-concat"))
+    {
+        if !message.as_ref().tags().any(|(stored, _)| stored == key) {
+            message = message.with_tag(key, value.as_deref().unwrap_or_default());
+        }
+    }
+    Some(message)
+}
+
 fn history_from_event(event: &BatchEvent) -> Option<ResponseHistory> {
     let BatchEvent::History {
         target,
@@ -452,7 +508,9 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
         } => messages.extend(batch),
         BatchEvent::Netsplit { quits, .. } => messages.extend(quits),
         BatchEvent::Netjoin { joins, .. } => messages.extend(joins),
-        BatchEvent::Message { message, .. } => messages.push(message),
+        BatchEvent::Message { message, .. } | BatchEvent::Multiline(message) => {
+            messages.push(message);
+        }
         BatchEvent::Abandoned { .. } => {}
     }
 }
@@ -473,7 +531,7 @@ mod tests {
 
     fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
         let message = MessageRef::parse(line).unwrap();
-        match batches.handle(Instant::now(), &message) {
+        match batches.handle(Instant::now(), &message, usize::MAX) {
             BatchAction::Consumed | BatchAction::Complete(_) => (false, None),
             BatchAction::Dispatch(context) => (true, context.batch_type().map(str::to_owned)),
         }
@@ -523,7 +581,8 @@ mod tests {
             (false, None)
         );
         let close = MessageRef::parse("BATCH -h").unwrap();
-        let BatchAction::Complete(events) = batches.handle(Instant::now(), &close) else {
+        let BatchAction::Complete(events) = batches.handle(Instant::now(), &close, usize::MAX)
+        else {
             panic!("history did not complete")
         };
         let BatchEvent::History {

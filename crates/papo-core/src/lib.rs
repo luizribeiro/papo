@@ -646,6 +646,13 @@ pub struct ResponseHistory {
     pub end: bool,
 }
 
+/// A completed `IRCv3` multiline message.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MultilineMessage {
+    /// The reconstructed `PRIVMSG` or `NOTICE`.
+    pub message: Message,
+}
+
 /// A failure to queue a request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -702,6 +709,8 @@ pub enum Event {
     Registered(Welcome),
     /// A parsed message not consumed by session protocol behavior.
     Message(ReceivedMessage),
+    /// A completed `draft/multiline` batch.
+    MultilineMessage(MultilineMessage),
     /// A request was sent without protocol-level response correlation.
     RequestUntracked {
         /// Identifier assigned to the request.
@@ -1229,17 +1238,21 @@ impl Session {
             return;
         }
         match MessageRef::parse(&decoded) {
-            Ok(message) => match self.batches.handle(now, &message) {
-                BatchAction::Consumed => {}
-                BatchAction::Complete(events) => {
-                    for event in events {
-                        self.dispatch_batch_event(now, event);
+            Ok(message) => {
+                let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
+                    .map_or(usize::MAX, |limits| limits.max_bytes);
+                match self.batches.handle(now, &message, multiline_max_bytes) {
+                    BatchAction::Consumed => {}
+                    BatchAction::Complete(events) => {
+                        for event in events {
+                            self.dispatch_batch_event(now, event);
+                        }
+                    }
+                    BatchAction::Dispatch(context) => {
+                        self.dispatch_message(now, &message, &context, true);
                     }
                 }
-                BatchAction::Dispatch(context) => {
-                    self.dispatch_message(now, &message, &context, true);
-                }
-            },
+            }
             Err(_) => self.malformed(line),
         }
     }
@@ -1902,6 +1915,9 @@ impl Session {
                 let received = self.received_message(message, batch_type);
                 self.outbox.event(Event::Message(received));
             }
+            BatchEvent::Multiline(message) => self
+                .outbox
+                .event(Event::MultilineMessage(MultilineMessage { message })),
         }
     }
 
