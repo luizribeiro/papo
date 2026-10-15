@@ -198,6 +198,24 @@ mod tests {
     }
 
     #[test]
+    fn rejects_server_final_outside_its_exchange_step() {
+        const SERVER_FINAL: &str = "v=6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=";
+
+        assert_eq!(
+            rfc_client().handle_server_final(SERVER_FINAL),
+            Err(ScramError::UnexpectedServerFinal)
+        );
+
+        let mut client = rfc_client();
+        client.handle_server_first(SERVER_FIRST).unwrap();
+        client.handle_server_final(SERVER_FINAL).unwrap();
+        assert_eq!(
+            client.handle_server_final(SERVER_FINAL),
+            Err(ScramError::UnexpectedServerFinal)
+        );
+    }
+
+    #[test]
     fn rejects_nonce_that_does_not_strictly_extend_the_client_nonce() {
         for nonce in ["different", "rOprNGfwEbeRWgbNEkqO"] {
             let mut client = rfc_client();
