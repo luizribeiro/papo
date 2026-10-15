@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use papo_proto::MessageRef;
 
-use crate::{Handled, Outbox};
+use crate::{CloseKind, Handled, Outbox};
 
 #[derive(Debug, Default)]
 pub(super) struct Keepalive {
@@ -57,7 +57,10 @@ impl Keepalive {
             }
             Handled::Yes
         } else if message.command_is("ERROR") {
-            outbox.close(message.param(0).unwrap_or("server sent ERROR").to_owned());
+            outbox.close(
+                CloseKind::ServerError,
+                message.param(0).unwrap_or("server sent ERROR").to_owned(),
+            );
             Handled::Yes
         } else {
             Handled::No
@@ -69,7 +72,10 @@ impl Keepalive {
             .silence_deadline
             .is_some_and(|deadline| now >= deadline)
         {
-            outbox.close("IRC connection timed out".to_owned());
+            outbox.close(
+                CloseKind::PingTimeout,
+                "IRC connection timed out".to_owned(),
+            );
             return;
         }
         if self.next_ping.is_some_and(|deadline| now >= deadline) {

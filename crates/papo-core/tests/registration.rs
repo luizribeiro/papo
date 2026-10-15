@@ -4,7 +4,7 @@ mod support;
 
 use std::time::Duration;
 
-use papo_core::{Config, Event};
+use papo_core::{CloseKind, Config, Event};
 use papo_proto::Isupport;
 use support::Transcript;
 
@@ -47,7 +47,7 @@ fn registration_timeout_is_the_first_deadline_and_closes_once() {
         .no_event()
         .deadline(Some(Duration::from_nanos(1)))
         .advance(Duration::from_nanos(1))
-        .event(|event| matches!(event, Event::Close { reason } if reason.contains("before 001")))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::RegistrationTimeout, reason } if reason.contains("before 001")))
         .deadline(None)
         .advance(Duration::ZERO)
         .no_event();

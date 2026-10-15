@@ -6,7 +6,9 @@ use std::{
 use papo_proto::{MAX_MESSAGE_LEN, MessageRef, NAME_ALIASES, NameKind};
 
 use crate::sts::{StsAction, StsPolicy, decide};
-use crate::{Capabilities, Config, Connection, Event, Handled, Outbox, sasl::SaslSession};
+use crate::{
+    Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox, sasl::SaslSession,
+};
 
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
 const MAX_IRC_BODY_LEN: usize = MAX_MESSAGE_LEN - 2;
@@ -277,7 +279,7 @@ impl Caps {
         match decide(directive, connection.security, &connection.host) {
             StsAction::UpgradeTo { port } => {
                 outbox.event(Event::StsUpgrade { port });
-                outbox.close_and_discard("sts upgrade".to_owned());
+                outbox.close_and_discard(CloseKind::StsUpgrade, "sts upgrade".to_owned());
                 true
             }
             action @ (StsAction::Persist { .. } | StsAction::Remove { .. }) => {

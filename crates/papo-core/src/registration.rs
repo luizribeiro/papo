@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use papo_proto::{Isupport, MessageRef};
 
-use crate::{Capabilities, Config, Event, Handled, Outbox, Welcome};
+use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome};
 
 const WELCOME_BURST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
@@ -88,7 +88,10 @@ impl Registration {
     ) {
         if self.deadline.is_some_and(|deadline| now >= deadline) {
             self.deadline = None;
-            outbox.close("IRC registration timed out before 001".to_owned());
+            outbox.close(
+                CloseKind::RegistrationTimeout,
+                "IRC registration timed out before 001".to_owned(),
+            );
         } else if self
             .welcome_deadline
             .is_some_and(|deadline| now >= deadline)

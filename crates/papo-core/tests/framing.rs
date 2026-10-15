@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Decoding, Event, Session};
+use papo_core::{CloseKind, Config, Decoding, Event, Session};
 
 fn messages(session: &mut Session) -> Vec<String> {
     std::iter::from_fn(|| session.poll_event())
@@ -86,7 +86,13 @@ fn closes_only_over_the_literal_framing_limit() {
     ));
 
     session.handle_bytes(now, &vec![b'x'; 8191 + 512 + 1]);
-    assert!(matches!(session.poll_event(), Some(Event::Close { .. })));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Close {
+            kind: CloseKind::LineTooLong,
+            ..
+        })
+    ));
 }
 
 #[test]
@@ -99,7 +105,13 @@ fn reconnect_resets_partial_and_closed_framing_state() {
     }
     session.handle_bytes(now, b":ergo.test NOTICE * :partial");
     session.handle_bytes(now, &vec![b'x'; 8191 + 512 + 1]);
-    assert!(matches!(session.poll_event(), Some(Event::Close { .. })));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Close {
+            kind: CloseKind::LineTooLong,
+            ..
+        })
+    ));
 
     session.handle_disconnected(now);
     session.handle_connected(now);

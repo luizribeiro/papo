@@ -844,7 +844,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             reason,
         },
         papo_core::Event::Malformed { line } => Event::Malformed { line },
-        papo_core::Event::Close { reason } => return CoreEvent::Close(reason),
+        papo_core::Event::Close { reason, .. } => return CoreEvent::Close(reason),
         papo_core::Event::AuthenticationFailed { reason } => Event::AuthenticationFailed { reason },
         papo_core::Event::CapsChanged { added, removed } => Event::CapsChanged { added, removed },
         papo_core::Event::StsUpgrade { port } => Event::StsUpgrade { port },

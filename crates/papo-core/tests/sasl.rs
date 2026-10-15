@@ -3,7 +3,7 @@
 mod support;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use papo_core::{Config, Entropy, Event, Sasl, Session};
+use papo_core::{CloseKind, Config, Entropy, Event, Sasl, Session};
 use support::Transcript;
 
 struct FixedEntropy;
@@ -347,7 +347,7 @@ fn required_sasl_closes_when_unavailable_naked_or_failed() {
         )
         .connect_default()
         .server("CAP * LS :")
-        .event(|event| matches!(event, Event::Close { reason } if reason.contains("did not advertise"))),
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("did not advertise"))),
         Transcript::new(
             Config::default()
                 .sasl(Sasl::plain("alice", "hunter2"))
@@ -357,7 +357,7 @@ fn required_sasl_closes_when_unavailable_naked_or_failed() {
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
         .server("CAP * NAK :sasl")
-        .event(|event| matches!(event, Event::Close { reason } if reason.contains("rejected"))),
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("rejected"))),
         Transcript::new(
             Config::default()
                 .sasl(Sasl::plain("alice", "hunter2"))
@@ -369,7 +369,7 @@ fn required_sasl_closes_when_unavailable_naked_or_failed() {
         .server("CAP * ACK :sasl")
         .client("AUTHENTICATE PLAIN")
         .server(":ergo.test 904 alice :SASL authentication failed")
-        .event(|event| matches!(event, Event::Close { reason } if reason.contains("PLAIN"))),
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("PLAIN"))),
     ] {
         transcript.no_client();
     }
@@ -407,7 +407,7 @@ fn account_required_closes_and_verification_note_surfaces() {
     .server(":ergo.test NOTE AUTHENTICATE VERIFICATION_REQUIRED alice :Verify your account")
     .event(|event| matches!(event, Event::StandardReply(reply) if reply.code == "VERIFICATION_REQUIRED"))
     .server(":ergo.test FAIL * ACCOUNT_REQUIRED :Authentication required")
-    .event(|event| matches!(event, Event::Close { reason } if reason.contains("Authentication required")))
+    .event(|event| matches!(event, Event::Close { kind: CloseKind::AccountRequired, reason } if reason.contains("Authentication required")))
     .event(|event| matches!(event, Event::StandardReply(reply) if reply.code == "ACCOUNT_REQUIRED"))
     .no_client();
 }
@@ -611,7 +611,7 @@ fn rejects_scram_success_without_a_verified_server_proof() {
             .server(":ergo.test 903 user :SASL authentication successful")
             .client("AUTHENTICATE *")
             .event(|event| {
-                matches!(event, Event::Close { reason }
+                matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason }
                     if reason.contains("without a verified server proof"))
             })
             .no_client();

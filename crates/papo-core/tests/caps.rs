@@ -5,7 +5,7 @@ mod support;
 use std::time::Duration;
 
 use papo_core::sts::{ConnectionSecurity, StsAction};
-use papo_core::{Config, Connection, Event, Session};
+use papo_core::{CloseKind, Config, Connection, Event, Session};
 use support::Transcript;
 
 #[test]
@@ -240,7 +240,7 @@ fn sts_on_plaintext_closes_for_a_tls_upgrade_without_more_output() {
     .connect_default()
     .server("CAP * LS :sts=port=6697,duration=86400 batch")
     .event(|event| matches!(event, Event::StsUpgrade { port: 6697 }))
-    .event(|event| matches!(event, Event::Close { reason } if reason == "sts upgrade"))
+    .event(|event| matches!(event, Event::Close { kind: CloseKind::StsUpgrade, reason } if reason == "sts upgrade"))
     .no_client();
 }
 
@@ -287,7 +287,7 @@ fn sts_upgrade_can_reconnect_the_same_session_securely() {
         .client("USER papo 0 * papo")
         .server("CAP * LS :sts=port=6697")
         .event(|event| matches!(event, Event::StsUpgrade { port: 6697 }))
-        .event(|event| matches!(event, Event::Close { reason } if reason == "sts upgrade"))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::StsUpgrade, reason } if reason == "sts upgrade"))
         .disconnect()
         .connect_with(Connection {
             host: "IRC.Example.NET.".to_owned(),

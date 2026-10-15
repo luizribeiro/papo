@@ -76,7 +76,7 @@ fn authenticate(
     .unwrap_or_else(|| panic!("Ergo did not finish SASL for {account}"));
     match event {
         Event::Registered(_) => Ok(session),
-        Event::Close { reason } => Err(reason),
+        Event::Close { reason, .. } => Err(reason),
         _ => unreachable!("drive predicate only accepts terminal events"),
     }
 }

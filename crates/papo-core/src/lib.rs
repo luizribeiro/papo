@@ -786,6 +786,28 @@ pub enum RequestError {
     InvalidMessageReference,
 }
 
+/// Machine-readable reason that a session requested connection closure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum CloseKind {
+    /// Required SASL authentication failed.
+    SaslFailed,
+    /// IRC registration did not complete before its deadline.
+    RegistrationTimeout,
+    /// A server line exceeded the protocol framing limit.
+    LineTooLong,
+    /// The server sent an `ERROR` command.
+    ServerError,
+    /// The server was silent past the keepalive deadline.
+    PingTimeout,
+    /// The server requested an STS upgrade to TLS.
+    StsUpgrade,
+    /// The server requires an authenticated account.
+    AccountRequired,
+    /// Another protocol condition requires the connection to close.
+    Other,
+}
+
 impl std::fmt::Display for RequestError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -909,6 +931,8 @@ pub enum Event {
     },
     /// A request for the transport to drop the connection.
     Close {
+        /// Machine-readable closure classification.
+        kind: CloseKind,
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
     },
@@ -1254,15 +1278,15 @@ impl Outbox {
         self.events.push_back(event);
     }
 
-    fn close(&mut self, reason: String) {
+    fn close(&mut self, kind: CloseKind, reason: String) {
         self.close_requested = true;
-        self.event(Event::Close { reason });
+        self.event(Event::Close { kind, reason });
     }
 
-    fn close_and_discard(&mut self, reason: String) {
+    fn close_and_discard(&mut self, kind: CloseKind, reason: String) {
         self.transmits.clear();
         self.immediate.clear();
-        self.close(reason);
+        self.close(kind, reason);
     }
 
     fn reset_connection(&mut self) {
@@ -2263,7 +2287,10 @@ impl Session {
     }
 
     fn close_for_long_line(&mut self) {
-        self.close("incoming IRC line exceeds 8703 bytes".to_owned());
+        self.close(
+            CloseKind::LineTooLong,
+            "incoming IRC line exceeds 8703 bytes".to_owned(),
+        );
     }
 
     fn sync_monitored_state(&mut self) {
@@ -2271,8 +2298,8 @@ impl Session {
             .sync_monitored(&self.monitor, self.isupport.value());
     }
 
-    fn close(&mut self, reason: String) {
-        self.outbox.close(reason);
+    fn close(&mut self, kind: CloseKind, reason: String) {
+        self.outbox.close(kind, reason);
         self.apply_close_request();
     }
 

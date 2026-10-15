@@ -366,7 +366,10 @@ impl SaslSession {
                 self.completion = Completion::Failed;
                 self.aborting = false;
                 self.deadline = None;
-                outbox.close(format!("SASL failed: {}", self.failures.join("; ")));
+                outbox.close(
+                    crate::CloseKind::SaslFailed,
+                    format!("SASL failed: {}", self.failures.join("; ")),
+                );
             }
         } else if message.command_is("903") || message.command_is("907") {
             self.active = None;
@@ -400,10 +403,13 @@ impl SaslSession {
         {
             self.completion = Completion::Failed;
             self.deadline = None;
-            outbox.close(format!(
-                "SASL failed: {}",
-                message.param(2).unwrap_or("the server requires an account")
-            ));
+            outbox.close(
+                crate::CloseKind::AccountRequired,
+                format!(
+                    "SASL failed: {}",
+                    message.param(2).unwrap_or("the server requires an account")
+                ),
+            );
         } else {
             return false;
         }
@@ -552,7 +558,7 @@ impl SaslSession {
         self.failures.push(reason.to_owned());
         let reason = format!("SASL failed: {}", self.failures.join("; "));
         if self.require {
-            outbox.close(reason);
+            outbox.close(crate::CloseKind::SaslFailed, reason);
         } else {
             outbox.event(crate::Event::AuthenticationFailed { reason });
         }

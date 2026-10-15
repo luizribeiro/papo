@@ -37,7 +37,7 @@ fn registers_with_live_ergo() {
         matches!(event, Event::Registered(_) | Event::Close { .. })
     })
     .expect("registration did not complete");
-    if let Event::Close { reason } = event {
+    if let Event::Close { reason, .. } = event {
         panic!("session closed: {reason}");
     }
     assert_eq!(session.nick(), nick);
