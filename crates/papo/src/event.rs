@@ -1,4 +1,4 @@
-use papo_core::{Capabilities, Welcome, sts::StsAction};
+use papo_core::{Capabilities, StateLimit, Welcome, sts::StsAction};
 use papo_proto::Message;
 
 /// An event emitted by an IRC client.
@@ -35,6 +35,11 @@ pub enum Event {
     },
     /// An STS persistence action for the client to store.
     StsPolicy(StsAction),
+    /// Server input exceeded a configured state-retention bound.
+    StateLimitReached {
+        /// The state collection that rejected another entry.
+        limit: StateLimit,
+    },
     /// The connection ended.
     Disconnected {
         /// A human-readable explanation suitable for diagnostics.
@@ -60,6 +65,32 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::CapsChanged { added, removed } => Event::CapsChanged { added, removed },
         papo_core::Event::StsUpgrade { port } => Event::StsUpgrade { port },
         papo_core::Event::StsPolicy(action) => Event::StsPolicy(action),
+        papo_core::Event::StateLimitReached { limit } => Event::StateLimitReached { limit },
         _ => return CoreEvent::Unknown,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CoreEvent, Event, from_core};
+    use papo_core::StateLimit;
+
+    fn forwarded(event: papo_core::Event) -> Event {
+        let CoreEvent::Forward(event) = from_core(event) else {
+            panic!("event was not forwarded")
+        };
+        event
+    }
+
+    #[test]
+    fn maps_state_limit_reached() {
+        assert_eq!(
+            forwarded(papo_core::Event::StateLimitReached {
+                limit: StateLimit::Members
+            }),
+            Event::StateLimitReached {
+                limit: StateLimit::Members
+            }
+        );
+    }
 }
