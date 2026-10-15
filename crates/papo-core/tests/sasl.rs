@@ -356,3 +356,37 @@ fn rejects_a_tampered_scram_server_signature() {
     })
     .client("CAP END");
 }
+
+#[test]
+fn replays_recorded_ergo_plain_login() {
+    Transcript::new(
+        Config::default()
+            .wanted_caps(Vec::<String>::new())
+            .sasl(Sasl::plain("paposasl", "v3ry-Long_Unique-Password-7391")),
+    )
+    .connect_default()
+    .load("tests/data/ergo-sasl-plain.irc")
+    .inspect(|session| {
+        assert_eq!(session.account(), Some("paposasl"));
+        assert_eq!(session.nick(), "paposasl");
+    });
+}
+
+#[test]
+fn replays_recorded_ergo_scram_login() {
+    Transcript::with_entropy(
+        Config::default()
+            .wanted_caps(Vec::<String>::new())
+            .sasl(Sasl::scram_sha256(
+                "paposasl",
+                "v3ry-Long_Unique-Password-7391",
+            )),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .load("tests/data/ergo-sasl-scram.irc")
+    .inspect(|session| {
+        assert_eq!(session.account(), Some("paposasl"));
+        assert_eq!(session.nick(), "paposasl");
+    });
+}

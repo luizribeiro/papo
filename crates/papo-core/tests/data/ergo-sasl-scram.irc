@@ -1,0 +1,16 @@
+# Recorded from Ergo 2.19.1 with an injected 18-byte nonce of 0x5a.
+S: :ergo.test CAP * LS * :account-notify account-tag away-notify batch cap-notify chghost draft/account-registration=before-connect draft/channel-rename draft/chathistory draft/event-playback draft/extended-isupport draft/languages=1,en draft/metadata-2=before-connect,max-subs=100,max-keys=100 draft/metadata-3=before-connect,max-subs=100,max-keys=100 draft/multiline=max-bytes=4096,max-lines=100 draft/persistence draft/pre-away draft/read-marker draft/relaymsg=/ draft/whoami echo-message ergo.chat/nope
+S: :ergo.test CAP * LS :extended-join extended-monitor invite-notify labeled-response message-tags multi-prefix no-implicit-names sasl=PLAIN,EXTERNAL,SCRAM-SHA-256 server-time setname standard-replies userhost-in-names znc.in/playback znc.in/self-message
+C: CAP REQ :sasl
+S: :ergo.test CAP * ACK sasl
+C: AUTHENTICATE SCRAM-SHA-256
+S: AUTHENTICATE +
+C: AUTHENTICATE biwsbj1wYXBvc2FzbCxyPVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYQ==
+S: :ergo.test AUTHENTICATE cj1XbHBhV2xwYVdscGFXbHBhV2xwYVdscGFERzZGeGlXeGhSWUJ5WkM2NUhreW9oRzZsSVR5WDU1bCxzPUUza0h5N3h2UGsyWHB2cFB0UVJTYWc9PSxpPTQwOTY=
+C: AUTHENTICATE Yz1iaXdzLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBhREc2RnhpV3hoUllCeVpDNjVIa3lvaEc2bElUeVg1NWwscD1oRlhUSHF0Rktkb2ZzUEF0djFvcWRMTU1wYWlZbTFMdGhrL1FWSGN0UmxrPQ==
+S: :ergo.test AUTHENTICATE dj11S0Z3amtSSmQ2MnAxQmFuNkdoMjB4MHFIeDZoMVJ5VXlZa3VpZEluUUdrPQ==
+C: AUTHENTICATE +
+S: :ergo.test 900 * * paposasl :You are now logged in as paposasl
+S: :ergo.test 903 * :Authentication successful
+C: CAP END
+S: :ergo.test 001 paposasl :Welcome to the ErgoTest IRC Network paposasl

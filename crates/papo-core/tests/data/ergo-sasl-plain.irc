@@ -1,0 +1,12 @@
+# Recorded from Ergo 2.19.1 on a loopback plaintext listener.
+S: :ergo.test CAP * LS * :account-notify account-tag away-notify batch cap-notify chghost draft/account-registration=before-connect draft/channel-rename draft/chathistory draft/event-playback draft/extended-isupport draft/languages=1,en draft/metadata-2=before-connect,max-subs=100,max-keys=100 draft/metadata-3=before-connect,max-subs=100,max-keys=100 draft/multiline=max-bytes=4096,max-lines=100 draft/persistence draft/pre-away draft/read-marker draft/relaymsg=/ draft/whoami echo-message ergo.chat/nope
+S: :ergo.test CAP * LS :extended-join extended-monitor invite-notify labeled-response message-tags multi-prefix no-implicit-names sasl=PLAIN,EXTERNAL,SCRAM-SHA-256 server-time setname standard-replies userhost-in-names znc.in/playback znc.in/self-message
+C: CAP REQ :sasl
+S: :ergo.test CAP * ACK sasl
+C: AUTHENTICATE PLAIN
+S: AUTHENTICATE +
+C: AUTHENTICATE AHBhcG9zYXNsAHYzcnktTG9uZ19VbmlxdWUtUGFzc3dvcmQtNzM5MQ==
+S: :ergo.test 900 * * paposasl :You are now logged in as paposasl
+S: :ergo.test 903 * :Authentication successful
+C: CAP END
+S: :ergo.test 001 paposasl :Welcome to the ErgoTest IRC Network paposasl
