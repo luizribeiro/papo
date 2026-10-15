@@ -105,3 +105,16 @@ fn reports_persistence_account_required() {
             if reply.command == "PERSISTENCE" && reply.code == "ACCOUNT_REQUIRED")
         });
 }
+
+#[test]
+fn ignores_status_with_the_wrong_command_or_subcommand() {
+    for line in [
+        ":ergo.test NOTICE STATUS DEFAULT ON",
+        ":ergo.test PERSISTENCE GET DEFAULT ON",
+    ] {
+        registered(&["draft/persistence"])
+            .server(line)
+            .event(|event| matches!(event, Event::Message(_)))
+            .inspect(|session| assert_eq!(session.state().persistence(), None));
+    }
+}
