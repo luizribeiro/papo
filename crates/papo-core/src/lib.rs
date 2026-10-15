@@ -8,6 +8,7 @@ mod keepalive;
 mod registration;
 #[allow(dead_code)]
 pub(crate) mod sasl;
+pub mod sts;
 
 use std::{
     collections::{BTreeMap, VecDeque},
