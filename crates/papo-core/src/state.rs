@@ -706,10 +706,34 @@ impl State {
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
-        self.handle_account(message, outbox)
+        self.handle_visible_host(message, outbox)
+            .or_else(|| self.handle_account(message, outbox))
             .or_else(|| self.handle_away(message, outbox))
             .or_else(|| self.handle_identity_change(message, outbox))
             .or_else(|| self.handle_who(message, isupport, outbox))
+    }
+
+    fn handle_visible_host(
+        &mut self,
+        message: &MessageRef<'_>,
+        outbox: &mut Outbox,
+    ) -> Option<Handled> {
+        if message.command() != Command::Numeric(Numeric::RPL_VISIBLEHOST) {
+            return None;
+        }
+        let (Some(nick), Some(host)) = (message.param(0), message.param(1)) else {
+            return Some(Handled::No);
+        };
+        if !self.casemapping.eq(nick, &self.nick) {
+            return Some(Handled::No);
+        }
+        self.host = Some(host.to_owned());
+        outbox.event(Event::HostChanged {
+            nick: self.nick.clone(),
+            user: self.user.clone(),
+            host: host.to_owned(),
+        });
+        Some(Handled::Yes)
     }
 
     fn handle_identity_change(

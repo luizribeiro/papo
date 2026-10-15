@@ -248,6 +248,15 @@ fn chghost_updates_shared_and_own_userhosts() {
 }
 
 #[test]
+fn visible_host_numeric_updates_our_host() {
+    Transcript::new(Config::default().nick("emily").username("~em"))
+        .server(":ergo.test 396 emily gateway/tor-sasl :is now your displayed host")
+        .event(|event| matches!(event, Event::HostChanged { nick, user, host } if nick == "emily" && user == "~em" && host == "gateway/tor-sasl"))
+        .inspect(|session| assert_eq!(session.state().host(), Some("gateway/tor-sasl")))
+        .no_event();
+}
+
+#[test]
 fn setname_updates_other_and_own_realnames() {
     Transcript::new(Config::default().nick("emily").realname("Emily Garcia"))
         .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily Garcia")

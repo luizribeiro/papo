@@ -7,6 +7,7 @@ mod framing;
 mod isupport;
 mod keepalive;
 mod monitor;
+mod outgoing;
 mod ratelimit;
 mod registration;
 mod sasl;
@@ -29,6 +30,7 @@ use framing::Framer;
 use isupport::IsupportState;
 use keepalive::Keepalive;
 use monitor::Monitor;
+pub use outgoing::TextKind;
 pub use ratelimit::RateLimit;
 use ratelimit::RateLimiter;
 use registration::Registration;
@@ -1295,6 +1297,11 @@ impl Session {
         drop(message);
         self.outbox.transmit_raw(line.into());
         Ok(())
+    }
+
+    #[allow(dead_code, reason = "used when constructing outgoing text messages")]
+    fn text_budget(&self, kind: TextKind, target: &str) -> usize {
+        outgoing::text_budget(&self.state, kind, target)
     }
 
     /// Queues a message and assigns an identifier for its eventual response.
