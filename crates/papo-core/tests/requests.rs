@@ -363,6 +363,108 @@ fn part_echoes_require_our_source_and_the_named_concurrent_channel() {
 }
 
 #[test]
+fn mode_echoes_and_errors_use_the_named_concurrent_target() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let papo = session
+        .request_with_matcher(
+            now,
+            Message::new("MODE", ["#Papo[", "+t"]),
+            ResponseMatcher::Mode("#Papo[".into()),
+        )
+        .unwrap();
+    let rust = session
+        .request_with_matcher(
+            now,
+            Message::new("MODE", ["#rust", "+m"]),
+            ResponseMatcher::Mode("#rust".into()),
+        )
+        .unwrap();
+    for line in [
+        ":ergo.test 482 papo #unknown :You're not a channel operator",
+        ":ergo.test 482 papo #rust :You're not a channel operator",
+        ":papo!papo@localhost MODE #papo{ +t",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let (responses, messages) = response_lines(&mut session);
+    assert_eq!(responses[&rust][0].as_ref().param(1), Some("#rust"));
+    assert_eq!(responses[&papo][0].as_ref().param(0), Some("#papo{"));
+    assert!(
+        messages
+            .iter()
+            .any(|line| line.as_ref().param(1) == Some("#unknown"))
+    );
+}
+
+#[test]
+fn topic_replies_use_the_named_concurrent_channel() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let papo = session
+        .request_with_matcher(
+            now,
+            Message::new("TOPIC", ["#Papo["]),
+            ResponseMatcher::Topic("#Papo[".into()),
+        )
+        .unwrap();
+    let rust = session
+        .request_with_matcher(
+            now,
+            Message::new("TOPIC", ["#rust"]),
+            ResponseMatcher::Topic("#rust".into()),
+        )
+        .unwrap();
+    for line in [
+        ":ergo.test 332 papo #rust :The Rust Programming Language",
+        ":ergo.test 403 papo #unknown :No such channel",
+        ":alice!alice@staff.example TOPIC #papo{ :Requests in Rust",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let (responses, messages) = response_lines(&mut session);
+    assert_eq!(responses[&rust][0].as_ref().param(1), Some("#rust"));
+    assert_eq!(responses[&papo][0].as_ref().param(0), Some("#papo{"));
+    assert!(
+        messages
+            .iter()
+            .any(|line| line.as_ref().param(1) == Some("#unknown"))
+    );
+}
+
+#[test]
+fn list_replies_use_fifo_without_swallowing_unrelated_errors() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let first = session
+        .request_with_matcher(
+            now,
+            Message::new("LIST", Vec::<String>::new()),
+            ResponseMatcher::List,
+        )
+        .unwrap();
+    let second = session
+        .request_with_matcher(now, Message::new("LIST", ["#rust"]), ResponseMatcher::List)
+        .unwrap();
+    for line in [
+        ":ergo.test 401 papo alice :No such nick/channel",
+        ":ergo.test 322 papo #papo 42 :Ergonomic IRC",
+        ":ergo.test 323 papo :End of /LIST",
+        ":ergo.test 322 papo #rust 17 :The Rust Programming Language",
+        ":ergo.test 323 papo :End of /LIST",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let (responses, messages) = response_lines(&mut session);
+    assert_eq!(responses[&first][0].as_ref().param(1), Some("#papo"));
+    assert_eq!(responses[&second][0].as_ref().param(1), Some("#rust"));
+    assert!(messages.iter().any(|line| line.as_ref().command_is("401")));
+}
+
+#[test]
 fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());

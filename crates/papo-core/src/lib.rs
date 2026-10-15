@@ -485,6 +485,13 @@ impl ResponseMatcher {
             .is_some_and(|value| mapping.eq(value, target))
     }
 
+    fn numeric_names_command(message: &MessageRef<'_>, numeric: Numeric, command: &str) -> bool {
+        numeric.is_error()
+            && message
+                .param(1)
+                .is_some_and(|value| value.eq_ignore_ascii_case(command))
+    }
+
     fn matches(
         &self,
         message: &MessageRef<'_>,
@@ -582,11 +589,12 @@ impl ResponseMatcher {
                     return Some(true);
                 }
                 numeric.and_then(|numeric| {
+                    let list_error = Self::numeric_names_command(message, numeric, "LIST");
                     (matches!(
                         numeric,
                         Numeric::RPL_LISTSTART | Numeric::RPL_LIST | Numeric::RPL_LISTEND
-                    ) || numeric.is_error())
-                    .then_some(numeric == Numeric::RPL_LISTEND || numeric.is_error())
+                    ) || list_error)
+                        .then_some(numeric == Numeric::RPL_LISTEND || list_error)
                 })
             }
         }
