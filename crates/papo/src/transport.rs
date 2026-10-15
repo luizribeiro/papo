@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 #[cfg(feature = "tls-ring")]
 use std::sync::Arc;
 use std::{
-    io,
+    fmt, io,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -30,11 +30,67 @@ pub enum Security {
     Tls(TlsConfig),
 }
 
-/// TLS server-name settings.
-#[derive(Clone, Debug, Default)]
+/// The roots trusted by a TLS connection.
+#[derive(Clone, Debug)]
+pub enum TlsRoots {
+    /// Roots supplied by the operating system, or `WebPKI` roots on WASI.
+    Platform,
+    /// Only the certificates in the supplied PEM document.
+    Ca(Vec<u8>),
+    /// Platform roots plus the certificates in the supplied PEM document.
+    PlatformAndCa(Vec<u8>),
+}
+
+/// A client certificate chain and its private key, both PEM encoded.
+#[derive(Clone)]
+pub struct ClientCertificate {
+    certificate_chain: Vec<u8>,
+    private_key: Vec<u8>,
+}
+
+impl ClientCertificate {
+    /// Creates client credentials from PEM-encoded certificate and key data.
+    #[must_use]
+    pub fn new(certificate_chain: impl Into<Vec<u8>>, private_key: impl Into<Vec<u8>>) -> Self {
+        Self {
+            certificate_chain: certificate_chain.into(),
+            private_key: private_key.into(),
+        }
+    }
+}
+
+impl fmt::Debug for ClientCertificate {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ClientCertificate")
+            .field("certificate_chain", &self.certificate_chain)
+            .field(
+                "private_key",
+                &format_args!("[REDACTED; {} bytes]", self.private_key.len()),
+            )
+            .finish()
+    }
+}
+
+/// TLS trust, identity, and server-name settings.
+#[derive(Clone, Debug)]
 pub struct TlsConfig {
+    /// The roots used to authenticate the server.
+    pub roots: TlsRoots,
+    /// A certificate presented when the server requests client authentication.
+    pub client_certificate: Option<ClientCertificate>,
     /// A DNS name to authenticate in place of the connection host.
     pub server_name: Option<String>,
+}
+
+impl Default for TlsConfig {
+    fn default() -> Self {
+        Self {
+            roots: TlsRoots::Platform,
+            client_certificate: None,
+            server_name: None,
+        }
+    }
 }
 
 /// A connected IRC byte stream.
@@ -132,6 +188,10 @@ pub enum ConnectError {
     #[cfg(feature = "tls-ring")]
     #[error("invalid TLS server name: {0}")]
     InvalidServerName(String),
+    /// PEM-encoded TLS configuration was invalid or empty.
+    #[cfg(feature = "tls-ring")]
+    #[error("invalid TLS configuration: {0}")]
+    InvalidTlsConfiguration(String),
     /// TLS support was not selected at compile time.
     #[error("TLS support is disabled; enable tls-ring or tls-aws-lc")]
     TlsUnavailable,
@@ -203,15 +263,45 @@ fn tls_connector(
     ),
     ConnectError,
 > {
+    use rustls::pki_types::{PrivateKeyDer, pem::PemObject};
     use rustls_platform_verifier::BuilderVerifierExt;
 
     let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let mut config = rustls::ClientConfig::builder_with_provider(provider)
+    let builder = rustls::ClientConfig::builder_with_provider(provider.clone())
         .with_safe_default_protocol_versions()
-        .map_err(ConnectError::Tls)?
-        .with_platform_verifier()
-        .map_err(ConnectError::Tls)?
-        .with_no_client_auth();
+        .map_err(ConnectError::Tls)?;
+    let builder = match &settings.roots {
+        TlsRoots::Platform => builder
+            .with_platform_verifier()
+            .map_err(ConnectError::Tls)?,
+        TlsRoots::Ca(pem) => {
+            let mut roots = rustls::RootCertStore::empty();
+            for certificate in certificates(pem)? {
+                roots.add(certificate).map_err(ConnectError::Tls)?;
+            }
+            builder.with_root_certificates(roots)
+        }
+        TlsRoots::PlatformAndCa(pem) => {
+            let verifier = rustls_platform_verifier::Verifier::new_with_extra_roots(
+                certificates(pem)?,
+                provider,
+            )
+            .map_err(ConnectError::Tls)?;
+            builder
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(verifier))
+        }
+    };
+    let mut config = if let Some(identity) = &settings.client_certificate {
+        let chain = certificates(&identity.certificate_chain)?;
+        let key = PrivateKeyDer::from_pem_slice(&identity.private_key)
+            .map_err(|error| invalid_pem("client private key", error))?;
+        builder
+            .with_client_auth_cert(chain, key)
+            .map_err(ConnectError::Tls)?
+    } else {
+        builder.with_no_client_auth()
+    };
     config.enable_sni = true;
     let name = settings.server_name.as_deref().unwrap_or(host).to_owned();
     let server_name = rustls::pki_types::ServerName::try_from(name.clone())
@@ -220,6 +310,28 @@ fn tls_connector(
         tokio_rustls::TlsConnector::from(Arc::new(config)),
         server_name,
     ))
+}
+
+#[cfg(feature = "tls-ring")]
+fn certificates(
+    pem: &[u8],
+) -> Result<Vec<rustls::pki_types::CertificateDer<'static>>, ConnectError> {
+    use rustls::pki_types::{CertificateDer, pem::PemObject};
+
+    let certificates = CertificateDer::pem_slice_iter(pem)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| invalid_pem("certificate", error))?;
+    if certificates.is_empty() {
+        return Err(ConnectError::InvalidTlsConfiguration(
+            "certificate PEM contains no certificates".into(),
+        ));
+    }
+    Ok(certificates)
+}
+
+#[cfg(feature = "tls-ring")]
+fn invalid_pem(kind: &str, error: impl fmt::Display) -> ConnectError {
+    ConnectError::InvalidTlsConfiguration(format!("invalid {kind} PEM: {error}"))
 }
 
 #[cfg(feature = "tls-ring")]
@@ -265,4 +377,40 @@ async fn connect_address(address: SocketAddr) -> io::Result<TcpStream> {
     #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
     let _ = stream.set_nodelay(true);
     Ok(stream)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ClientCertificate, TlsConfig};
+    #[cfg(feature = "tls-ring")]
+    use super::{ConnectError, TlsRoots, tls_connector};
+
+    #[test]
+    fn client_private_key_is_redacted() {
+        let config = TlsConfig {
+            client_certificate: Some(ClientCertificate::new(
+                b"public certificate".to_vec(),
+                b"private key material".to_vec(),
+            )),
+            ..TlsConfig::default()
+        };
+        let output = format!("{config:?}");
+        assert!(output.contains("certificate_chain"));
+        assert!(output.contains("[REDACTED;"));
+        assert!(!output.contains("private key material"));
+    }
+
+    #[cfg(feature = "tls-ring")]
+    #[test]
+    fn empty_ca_document_is_rejected() {
+        let config = TlsConfig {
+            roots: TlsRoots::Ca(Vec::new()),
+            ..TlsConfig::default()
+        };
+        assert!(matches!(
+            tls_connector("localhost", &config),
+            Err(ConnectError::InvalidTlsConfiguration(message))
+                if message == "certificate PEM contains no certificates"
+        ));
+    }
 }
