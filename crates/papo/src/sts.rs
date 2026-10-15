@@ -304,6 +304,15 @@ mod tests {
     // WASI hosts do not reliably enforce directory mode bits for preopened directories.
     #[cfg(all(unix, not(target_os = "wasi")))]
     #[test]
+    fn a_file_in_place_of_the_parent_directory_loads_empty_with_an_error() {
+        let parent = test_dir("parent-file").join("not-a-directory");
+        fs::write(&parent, b"").unwrap();
+        let store = FileStsStore::open(parent.join("sts.json"));
+        assert!(store.last_error().is_some());
+        assert!(store.get("irc.example.net").is_none());
+    }
+
+    #[test]
     fn a_failed_write_leaves_the_previous_file_intact() {
         use std::os::unix::fs::PermissionsExt;
 
