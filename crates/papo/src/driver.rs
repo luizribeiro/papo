@@ -181,16 +181,7 @@ where
             Ok(Some(reason)) => break reason,
             Ok(None) => {}
             Err(error) => {
-                return finish(
-                    stream,
-                    session,
-                    events,
-                    error.to_string(),
-                    Error::Io(error),
-                    quit,
-                    false,
-                )
-                .await;
+                return finish_io(stream, session, events, error, quit).await;
             }
         }
         let deadline = [
@@ -204,7 +195,7 @@ where
             read = stream.read(&mut buffer), if pending_event.is_none() => match read {
                 Ok(0) => break "server closed the connection".to_owned(),
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
-                Err(error) => return finish(stream, session, events, error.to_string(), Error::Io(error), quit, false).await,
+                Err(error) => return finish_io(stream, session, events, error, quit).await,
             },
             permit = events.regular.clone().reserve_owned(), if pending_event.is_some() => match permit {
                 Ok(permit) => {
@@ -349,6 +340,29 @@ where
     } else {
         Err(result)
     }
+}
+
+async fn finish_io<S>(
+    stream: S,
+    session: Session,
+    events: EventSink,
+    error: io::Error,
+    quit: Option<Quit>,
+) -> Result<(), Error>
+where
+    S: AsyncWrite + Unpin,
+{
+    let reason = error.to_string();
+    finish(
+        stream,
+        session,
+        events,
+        reason,
+        Error::Io(error),
+        quit,
+        false,
+    )
+    .await
 }
 
 fn now() -> Instant {
