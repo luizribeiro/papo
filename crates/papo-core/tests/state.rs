@@ -218,6 +218,21 @@ fn tracks_channel_mode_snapshots_live_changes_and_creation_time() {
 }
 
 #[test]
+fn tracks_user_mode_snapshot_and_live_changes() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 221 emily +Zi")
+        .server(":emily MODE emily +w-i")
+        .inspect(|session| {
+            let mut modes = session.state().user_modes().collect::<Vec<_>>();
+            modes.sort_unstable();
+            assert_eq!(modes, ['Z', 'w']);
+        })
+        .server(":ergo.test 221 emily +i")
+        .inspect(|session| assert_eq!(session.state().user_modes().collect::<Vec<_>>(), ['i']))
+        .ignore_rest();
+}
+
+#[test]
 fn bounds_channel_modes_at_literal_sixty_four() {
     let modes = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnpqrstuwxyzαβγδεζηθικλμνξο";
     let support = format!(":ergo.test 005 emily CHANMODES=,,,{modes} :are supported");

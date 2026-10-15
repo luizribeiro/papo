@@ -16,6 +16,7 @@ pub struct State {
     nick: String,
     user: String,
     host: Option<String>,
+    user_modes: HashSet<char>,
     casemapping: Casemapping,
     channels: HashMap<CaseKey, Channel>,
     users: HashMap<CaseKey, User>,
@@ -61,6 +62,7 @@ impl State {
             nick: config.nick.clone(),
             user: config.username.clone(),
             host: None,
+            user_modes: HashSet::new(),
             casemapping: Casemapping::default(),
             channels: HashMap::new(),
             users: HashMap::new(),
@@ -160,6 +162,9 @@ impl State {
         if self.handle_channel_metadata(message, isupport) {
             return Handled::Yes;
         }
+        if self.handle_user_modes(message) {
+            return Handled::Yes;
+        }
         if let Some((_, channel, entries)) = parse_353(message) {
             for raw in entries {
                 let entry = NamesEntry::parse(raw, isupport);
@@ -218,6 +223,33 @@ impl State {
             }
         } else {
             channel.created_at = message.param(2).and_then(|seconds| seconds.parse().ok());
+        }
+        true
+    }
+
+    fn handle_user_modes(&mut self, message: &MessageRef<'_>) -> bool {
+        let modestring = match message.command() {
+            Command::Mode
+                if message
+                    .param(0)
+                    .is_some_and(|nick| self.casemapping.eq(nick, &self.nick)) =>
+            {
+                message.param(1)
+            }
+            Command::Numeric(Numeric::RPL_UMODEIS) => {
+                self.user_modes.clear();
+                message.param(1)
+            }
+            _ => return false,
+        };
+        let mut set = true;
+        for mode in modestring.unwrap_or_default().chars() {
+            match mode {
+                '+' => set = true,
+                '-' => set = false,
+                _ if set => _ = self.user_modes.insert(mode),
+                _ => _ = self.user_modes.remove(&mode),
+            }
         }
         true
     }
@@ -483,6 +515,11 @@ impl State {
     /// Iterates over joined channels in unspecified order.
     pub fn channels(&self) -> impl Iterator<Item = &Channel> {
         self.channels.values()
+    }
+
+    /// Iterates over the session's current user mode letters in unspecified order.
+    pub fn user_modes(&self) -> impl Iterator<Item = char> + '_ {
+        self.user_modes.iter().copied()
     }
 
     /// Returns a shared user using the server's current casemapping.
