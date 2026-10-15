@@ -45,6 +45,25 @@ struct Channels {
     event_sink: EventSink,
 }
 
+pub(crate) type RegistrationSender = oneshot::Sender<Result<(), Error>>;
+
+#[derive(Default)]
+struct RegistrationWait(Option<RegistrationSender>);
+
+impl RegistrationWait {
+    fn succeeded(&mut self) {
+        if let Some(sender) = self.0.take() {
+            _ = sender.send(Ok(()));
+        }
+    }
+
+    fn failed(&mut self, error: Error) {
+        if let Some(sender) = self.0.take() {
+            _ = sender.send(Err(error));
+        }
+    }
+}
+
 pub(crate) struct ConnectionPlan {
     pub(crate) address: ServerAddress,
     pub(crate) tls: TlsConfig,
@@ -157,8 +176,26 @@ impl Driver {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        Self::with_stream_and_registration(stream, session, capacity, None)
+    }
+
+    fn with_stream_and_registration<S>(
+        stream: S,
+        session: Session,
+        capacity: usize,
+        registration: Option<RegistrationSender>,
+    ) -> (Client, Events, Self)
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
         let channels = channels(capacity);
-        let inner = Box::pin(run(stream, session, channels.commands, channels.event_sink));
+        let inner = Box::pin(run(
+            stream,
+            session,
+            channels.commands,
+            channels.event_sink,
+            RegistrationWait(registration),
+        ));
         (channels.client, channels.events, Self { inner })
     }
 
@@ -166,11 +203,38 @@ impl Driver {
         plan: Result<ConnectionPlan, AddressError>,
         session: Session,
         capacity: usize,
+        registration: Option<RegistrationSender>,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity);
         let inner = Box::pin(async move {
-            let stream = open_connection(plan.map_err(Error::Address)?).await?;
-            run(stream, session, channels.commands, channels.event_sink).await
+            let mut registration = RegistrationWait(registration);
+            let stream = match plan.map_err(Error::Address) {
+                Ok(plan) => match open_connection(plan).await {
+                    Ok(stream) => stream,
+                    Err(error) => {
+                        if registration.0.is_some() {
+                            registration.failed(error);
+                            return Ok(());
+                        }
+                        return Err(error);
+                    }
+                },
+                Err(error) => {
+                    if registration.0.is_some() {
+                        registration.failed(error);
+                        return Ok(());
+                    }
+                    return Err(error);
+                }
+            };
+            run(
+                stream,
+                session,
+                channels.commands,
+                channels.event_sink,
+                registration,
+            )
+            .await
         });
         (channels.client, channels.events, Self { inner })
     }
@@ -252,6 +316,7 @@ async fn run<S>(
     mut session: Session,
     mut commands: mpsc::Receiver<Command>,
     events: EventSink,
+    mut registration: RegistrationWait,
 ) -> Result<(), Error>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -262,10 +327,21 @@ where
     let mut pending_event = None;
     let mut buffer = [0; 4096];
     let terminal = loop {
-        match drain(&mut stream, &mut session, &mut pending_event).await {
-            Ok(Some(reason)) => break reason,
+        match drain(
+            &mut stream,
+            &mut session,
+            &mut pending_event,
+            &mut registration,
+        )
+        .await
+        {
+            Ok(Some(reason)) => {
+                registration.failed(Error::Registration(reason.clone()));
+                break reason;
+            }
             Ok(None) => {}
             Err(error) => {
+                registration.failed(Error::Registration(error.to_string()));
                 return finish_io(stream, session, events, error, quit).await;
             }
         }
@@ -278,9 +354,15 @@ where
         .min();
         tokio::select! {
             read = stream.read(&mut buffer), if pending_event.is_none() => match read {
-                Ok(0) => break "server closed the connection".to_owned(),
+                Ok(0) => {
+                    registration.failed(Error::Disconnected);
+                    break "server closed the connection".to_owned();
+                }
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
-                Err(error) => return finish_io(stream, session, events, error, quit).await,
+                Err(error) => {
+                    registration.failed(Error::Registration(error.to_string()));
+                    return finish_io(stream, session, events, error, quit).await;
+                }
             },
             permit = events.regular.clone().reserve_owned(), if pending_event.is_some() => match permit {
                 Ok(permit) => {
@@ -303,6 +385,7 @@ where
             () = wait_until(deadline) => {
                 let current = now();
                 if quit.as_ref().is_some_and(|quit| current >= quit.deadline) {
+                    registration.failed(Error::Timeout);
                     return finish(
                         stream,
                         session,
@@ -372,6 +455,7 @@ async fn drain<S>(
     stream: &mut S,
     session: &mut Session,
     pending_event: &mut Option<Event>,
+    registration: &mut RegistrationWait,
 ) -> io::Result<Option<String>>
 where
     S: AsyncWrite + Unpin,
@@ -383,7 +467,12 @@ where
         && let Some(core_event) = session.poll_event()
     {
         match event::from_core(core_event) {
-            event::CoreEvent::Forward(event) => *pending_event = Some(event),
+            event::CoreEvent::Forward(event) => {
+                if matches!(event, Event::Registered(_)) {
+                    registration.succeeded();
+                }
+                *pending_event = Some(event);
+            }
             event::CoreEvent::Close(reason) => return Ok(Some(reason)),
             event::CoreEvent::Unknown => {}
         }
@@ -689,6 +778,32 @@ mod tests {
         ));
         client_line(&mut server, b"CAP END\r\n").await;
         server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn required_sasl_failure_rejects_registration_waiter() {
+        let settings = config()
+            .wanted_caps(["sasl"])
+            .sasl(Sasl::plain("alice", "correct horse battery staple"))
+            .require_sasl(true);
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let (registration, waiter) = tokio::sync::oneshot::channel();
+        let (_client, _events, driver) = Driver::with_stream_and_registration(
+            client_stream,
+            Session::new(settings),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            Some(registration),
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
+        client_line(&mut server, b"CAP REQ :sasl\r\n").await;
+        server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
+
+        assert!(
+            matches!(waiter.await.unwrap(), Err(Error::Registration(reason)) if reason.contains("SASL"))
+        );
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
 

@@ -33,6 +33,9 @@ pub enum Error {
     /// An outbound IRC message is not valid on the wire.
     #[error("invalid IRC message: {0}")]
     Build(#[from] BuildError),
+    /// Registration ended before the server welcomed the client.
+    #[error("IRC registration failed: {0}")]
+    Registration(String),
     /// The server disconnected before the requested operation completed.
     #[error("the IRC connection closed")]
     Disconnected,

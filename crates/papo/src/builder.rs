@@ -2,6 +2,8 @@ use std::{path::Path, time::Duration};
 
 use papo_core::sts::ConnectionSecurity;
 use papo_core::{Config, RateLimit, Sasl};
+#[cfg(feature = "spawn")]
+use tokio::sync::oneshot;
 
 use crate::{
     AddressError, Error,
@@ -199,7 +201,31 @@ impl Builder {
     ///
     /// The returned [`crate::Driver`] connects when it is first polled. Use
     /// [`crate::Driver::new`] to drive an already-connected custom transport.
-    pub fn build(mut self) -> (crate::Client, crate::Events, crate::Driver) {
+    pub fn build(self) -> (crate::Client, crate::Events, crate::Driver) {
+        self.build_with_registration(None)
+    }
+
+    /// Connects in a spawned driver and waits for IRC registration.
+    ///
+    /// The [`crate::Event::Registered`] event remains available from the
+    /// returned event stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns connection or registration errors that occur before welcome.
+    #[cfg(feature = "spawn")]
+    pub async fn connect(self) -> Result<(crate::Client, crate::Events), Error> {
+        let (sender, receiver) = oneshot::channel();
+        let (client, events, driver) = self.build_with_registration(Some(sender));
+        tokio::spawn(driver);
+        receiver.await.map_err(|_| Error::Disconnected)??;
+        Ok((client, events))
+    }
+
+    fn build_with_registration(
+        mut self,
+        registration: Option<crate::driver::RegistrationSender>,
+    ) -> (crate::Client, crate::Events, crate::Driver) {
         let plan = self.address.map(|address| {
             self.config.host.clone_from(&address.host);
             self.config.connection_security = if address.is_secure() {
@@ -213,7 +239,7 @@ impl Builder {
             }
         });
         let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
-        crate::Driver::with_plan(plan, session, self.event_capacity)
+        crate::Driver::with_plan(plan, session, self.event_capacity, registration)
     }
 
     fn read_file(self, path: impl AsRef<Path>) -> Result<(Self, Vec<u8>), Error> {
@@ -338,6 +364,13 @@ mod tests {
         let (_client, mut events, driver) = Builder::new("irc://").build();
         assert!(matches!(driver.await, Err(Error::Address(_))));
         assert!(events.next().await.is_none());
+    }
+
+    #[cfg(feature = "spawn")]
+    #[tokio::test(flavor = "current_thread")]
+    async fn connect_returns_a_deferred_address_error() {
+        let error = Builder::new("irc://").connect().await.err().unwrap();
+        assert!(matches!(error, Error::Address(_)));
     }
 
     #[cfg(not(feature = "websocket"))]
