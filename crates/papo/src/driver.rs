@@ -578,8 +578,8 @@ fn handle_disconnected_command(
             true
         }
         Some(Command::Quit { result, .. }) => {
-            _ = result.send(Err(Error::Disconnected));
-            true
+            _ = result.send(Ok(()));
+            false
         }
         None => false,
     }
@@ -1194,6 +1194,43 @@ mod tests {
         server.shutdown().await.unwrap();
         assert!(quit.await.unwrap().is_ok());
         assert!(driver.await.unwrap().is_ok());
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn quit_while_disconnected_stops_without_another_attempt() {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let connector: super::Connector = Arc::new({
+            let calls = Arc::clone(&calls);
+            move |_| {
+                calls.fetch_add(1, Ordering::Relaxed);
+                Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+            }
+        });
+        let (client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential(),
+            256,
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected {
+                will_retry: true,
+                ..
+            })
+        ));
+        client.quit(Some("cancel reconnect")).await.unwrap();
+        assert!(driver.await.unwrap().is_ok());
+        tokio::time::advance(Duration::from_secs(10)).await;
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
     }
 
     #[tokio::test(flavor = "current_thread")]
