@@ -53,6 +53,42 @@ fn malformed_batch_commands_pass_through() {
 }
 
 #[test]
+fn duplicate_batch_reference_passes_through_without_replacing_the_batch() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b"BATCH +sync vendor/first");
+    session.handle_line(now, b"BATCH +sync vendor/second");
+    session.handle_line(now, b"@batch=sync :alice NOTICE papo :still first");
+
+    let duplicate = message(&mut session);
+    assert!(duplicate.as_ref().command_is("BATCH"));
+    assert_eq!(duplicate.as_ref().param(0), Some("+sync"));
+    assert_eq!(duplicate.as_ref().param(1), Some("vendor/second"));
+    let member = message(&mut session);
+    assert_eq!(member.batch_type(), Some("vendor/first"));
+    assert_eq!(member.as_ref().param(1), Some("still first"));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn invalid_nested_batch_closes_pass_through() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b"BATCH +outer vendor/outer");
+    session.handle_line(now, b"BATCH +other vendor/other");
+    session.handle_line(now, b"@batch=outer BATCH +inner vendor/inner");
+    session.handle_line(now, b"BATCH -outer");
+    session.handle_line(now, b"@batch=other BATCH -inner");
+
+    let outer = message(&mut session);
+    assert_eq!(outer.as_ref().param(0), Some("-outer"));
+    let inner = message(&mut session);
+    assert_eq!(inner.batch_type(), Some("vendor/other"));
+    assert_eq!(inner.as_ref().param(0), Some("-inner"));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
 fn disconnect_forgets_open_batches() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
@@ -321,6 +357,31 @@ fn abandons_history_on_the_first_line_beyond_its_limit() {
 }
 
 #[test]
+fn unknown_batch_overflow_delivers_the_overflowing_line_before_abandonment() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_batch_lines(1));
+    session.handle_line(now, b"BATCH +sync vendor/sync");
+    session.handle_line(now, b"@batch=sync :alice NOTICE papo :within limit");
+    assert_eq!(
+        message(&mut session).as_ref().param(1),
+        Some("within limit")
+    );
+    session.handle_line(now, b"@batch=sync :alice NOTICE papo :overflowing line");
+
+    let overflow = message(&mut session);
+    assert_eq!(overflow.batch_type(), Some("vendor/sync"));
+    assert_eq!(overflow.as_ref().param(1), Some("overflowing line"));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reference, batch_type, reason })
+            if reference == "sync"
+                && batch_type == "vendor/sync"
+                && reason == BatchAbandonReason::LineLimit
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
 fn abandons_an_unclosed_batch_at_its_deadline() {
     let now = Instant::now();
     let mut session = Session::new(
@@ -345,6 +406,33 @@ fn abandons_an_unclosed_batch_at_its_deadline() {
                 && batch_type == "chathistory"
                 && reason == BatchAbandonReason::Timeout
     ));
+}
+
+#[test]
+fn nested_batches_expiring_together_abandon_only_the_outer_batch() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .batch_timeout(Duration::from_secs(2)),
+    );
+    session.handle_connected(now);
+    session.handle_line(now, b"BATCH +outer labeled-response");
+    session.handle_line(now, b"@batch=outer BATCH +h chathistory #papo");
+    session.handle_line(now, b"@batch=h :alice PRIVMSG #papo :nested fallback");
+    session.handle_timeout(now + Duration::from_secs(2));
+
+    let fallback = message(&mut session);
+    assert_eq!(fallback.batch_type(), Some("chathistory"));
+    assert_eq!(fallback.as_ref().param(1), Some("nested fallback"));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reference, batch_type, reason })
+            if reference == "outer"
+                && batch_type == "labeled-response"
+                && reason == BatchAbandonReason::Timeout
+    ));
+    assert_eq!(session.poll_event(), None);
 }
 
 #[test]
