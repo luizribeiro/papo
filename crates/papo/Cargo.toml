@@ -23,6 +23,7 @@ tls-ring = [
 ]
 
 [dependencies]
+getrandom = "0.4.3"
 papo-core = { path = "../papo-core", version = "=0.0.0" }
 papo-proto = { path = "../papo-proto", version = "=0.0.0" }
 # TLS 1.2 remains enabled for IRC interoperability; rustls offers only secure 1.2 suites.
