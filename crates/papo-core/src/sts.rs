@@ -146,7 +146,7 @@ pub enum StsParseError {
 pub struct StoredPolicy {
     /// The hostname to which this policy applies.
     pub host: String,
-    /// The TLS port on which the policy was learned.
+    /// The last TLS port used for this host; the policy itself applies to every port.
     pub port: u16,
     /// The wall-clock time at which this policy stops requiring TLS.
     pub expires_at: SystemTime,
