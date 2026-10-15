@@ -2,6 +2,7 @@
 
 mod support;
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_core::{Config, Entropy, Sasl, Session};
 use support::Transcript;
 
@@ -82,4 +83,42 @@ fn accepts_prefixed_plain_challenge_and_tracks_logout() {
         .client("CAP END")
         .server(":solanum.example 901 emersion emersion!user@host :logged out")
         .inspect(|session| assert_eq!(session.account(), None));
+}
+
+#[test]
+fn chunks_plain_responses_at_literal_400_bytes() {
+    let mut password = "correct horse battery staple ".repeat(11);
+    password.truncate(290);
+    let encoded = STANDARD.encode(format!("\0emersion\0{password}"));
+    assert_eq!(encoded.len(), 400);
+
+    Transcript::new(Config::default().sasl(Sasl::plain("emersion", password)))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client(&format!("AUTHENTICATE {encoded}"))
+        .client("AUTHENTICATE +")
+        .server(":ergo.test 903 emersion :SASL authentication successful")
+        .client("CAP END");
+
+    let password = "battery staple ".repeat(21);
+    let encoded = STANDARD.encode(format!("\0emersion\0{password}"));
+    assert!(encoded.len() > 400);
+    let (first, last) = encoded.split_at(400);
+    assert_eq!(first.len(), 400);
+    assert!(last.len() < 400);
+    Transcript::new(Config::default().sasl(Sasl::plain("emersion", password)))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client(&format!("AUTHENTICATE {first}"))
+        .client(&format!("AUTHENTICATE {last}"))
+        .server(":ergo.test 903 emersion :SASL authentication successful")
+        .client("CAP END");
 }

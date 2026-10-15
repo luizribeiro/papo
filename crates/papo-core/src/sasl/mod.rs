@@ -8,6 +8,8 @@ use papo_proto::MessageRef;
 
 use crate::{Config, Handled, Outbox};
 
+const SASL_CHUNK_LEN: usize = 400;
+
 /// Ordered SASL mechanisms to try during connection registration.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Sasl {
@@ -95,6 +97,7 @@ pub(super) struct SaslSession {
     finished: bool,
     account: Option<String>,
     device: Option<String>,
+    challenge: String,
     #[allow(dead_code)]
     entropy: Option<Box<dyn Entropy + Send>>,
 }
@@ -110,6 +113,7 @@ impl std::fmt::Debug for SaslSession {
             .field("finished", &self.finished)
             .field("account", &self.account)
             .field("device", &self.device)
+            .field("challenge_len", &self.challenge.len())
             .field("has_entropy", &self.entropy.is_some())
             .finish()
     }
@@ -129,6 +133,7 @@ impl SaslSession {
             configured,
             account: None,
             device: config.device.clone(),
+            challenge: String::new(),
             entropy,
         }
     }
@@ -139,6 +144,7 @@ impl SaslSession {
         self.awaiting_challenge = false;
         self.finished = self.configured.is_empty();
         self.account = None;
+        self.challenge.clear();
     }
 
     pub(super) fn handle_cap_ack(
@@ -188,12 +194,20 @@ impl SaslSession {
         let Some(Mechanism::Plain { username, password }) = self.active.as_ref() else {
             return Handled::No;
         };
-        if !self.awaiting_challenge || message.param(0) != Some("+") {
+        let Some(chunk) = message.param(0).filter(|_| self.awaiting_challenge) else {
             return Handled::No;
-        }
+        };
+        let challenge = match receive_challenge(&mut self.challenge, chunk) {
+            Ok(Some(challenge)) => challenge,
+            Ok(None) => return Handled::Yes,
+            Err(()) => {
+                self.unavailable("the server sent an invalid SASL challenge", outbox);
+                return Handled::Yes;
+            }
+        };
+        let _ = challenge;
         let authcid = with_device(username, self.device.as_deref());
-        let response = STANDARD.encode(format!("\0{authcid}\0{password}"));
-        outbox.transmit("AUTHENTICATE", [&response]);
+        transmit_response(format!("\0{authcid}\0{password}").as_bytes(), outbox);
         self.awaiting_challenge = false;
         Handled::Yes
     }
@@ -221,6 +235,7 @@ impl SaslSession {
         outbox.transmit("AUTHENTICATE", [mechanism.name()]);
         self.active = Some(mechanism);
         self.awaiting_challenge = true;
+        self.challenge.clear();
     }
 }
 
@@ -231,6 +246,37 @@ fn with_device(username: &str, device: Option<&str>) -> String {
     )
 }
 
+fn receive_challenge(buffer: &mut String, chunk: &str) -> Result<Option<Vec<u8>>, ()> {
+    if chunk != "+" {
+        if chunk.len() > SASL_CHUNK_LEN {
+            return Err(());
+        }
+        buffer.push_str(chunk);
+        if chunk.len() == SASL_CHUNK_LEN {
+            return Ok(None);
+        }
+    }
+    let encoded = std::mem::take(buffer);
+    STANDARD.decode(encoded).map(Some).map_err(|_| ())
+}
+
+fn transmit_response(response: &[u8], outbox: &mut Outbox) {
+    let encoded = STANDARD.encode(response);
+    if encoded.is_empty() {
+        outbox.transmit("AUTHENTICATE", ["+"]);
+        return;
+    }
+    for chunk in encoded.as_bytes().chunks(SASL_CHUNK_LEN) {
+        outbox.transmit(
+            "AUTHENTICATE",
+            [std::str::from_utf8(chunk).expect("base64 is ASCII")],
+        );
+    }
+    if encoded.len().is_multiple_of(SASL_CHUNK_LEN) {
+        outbox.transmit("AUTHENTICATE", ["+"]);
+    }
+}
+
 impl Mechanism {
     fn name(&self) -> &'static str {
         match self {
@@ -238,5 +284,36 @@ impl Mechanism {
             Self::External { .. } => "EXTERNAL",
             Self::ScramSha256 { .. } => "SCRAM-SHA-256",
         }
+    }
+}
+
+#[cfg(test)]
+mod chunk_tests {
+    use super::receive_challenge;
+
+    #[test]
+    fn reassembles_literal_400_byte_server_chunks() {
+        let mut buffer = String::new();
+        let first = "YQ==".repeat(100);
+        assert_eq!(first.len(), 400);
+        assert_eq!(receive_challenge(&mut buffer, &first), Ok(None));
+        assert!(receive_challenge(&mut buffer, "+").is_err());
+
+        let mut buffer = String::new();
+        let first = "YWFh".repeat(100);
+        assert_eq!(first.len(), 400);
+        assert_eq!(receive_challenge(&mut buffer, &first), Ok(None));
+        assert_eq!(
+            receive_challenge(&mut buffer, "YQ==")
+                .unwrap()
+                .unwrap()
+                .len(),
+            301
+        );
+    }
+
+    #[test]
+    fn rejects_server_chunks_over_literal_400_bytes() {
+        assert!(receive_challenge(&mut String::new(), &"A".repeat(401)).is_err());
     }
 }
