@@ -6,7 +6,7 @@ use papo_core::{Config, RateLimit, Sasl};
 use tokio::sync::oneshot;
 
 use crate::{
-    AddressError, Error,
+    AddressError, Error, Reconnect,
     address::ServerAddress,
     driver::{ConnectionPlan, PostRegistration},
     transport::{ClientCertificate, TlsConfig, TlsRoots},
@@ -19,6 +19,7 @@ pub struct Builder {
     pub(crate) config: Config,
     pub(crate) event_capacity: usize,
     pub(crate) tls: TlsConfig,
+    reconnect: Reconnect,
     bot: bool,
     channels: Vec<String>,
     username_set: bool,
@@ -32,6 +33,7 @@ impl Builder {
             config: Config::default(),
             event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
             tls: TlsConfig::default(),
+            reconnect: Reconnect::default(),
             bot: false,
             channels: Vec::new(),
             username_set: false,
@@ -136,6 +138,12 @@ impl Builder {
     pub fn event_capacity(mut self, capacity: usize) -> Self {
         assert!(capacity > 0, "event capacity must be positive");
         self.event_capacity = capacity;
+        self
+    }
+
+    /// Sets the policy for reconnecting after an unexpected disconnect.
+    pub const fn reconnect(mut self, reconnect: Reconnect) -> Self {
+        self.reconnect = reconnect;
         self
     }
 
@@ -258,7 +266,14 @@ impl Builder {
             bot: self.bot,
             channels: self.channels,
         };
-        crate::Driver::with_plan(plan, session, self.event_capacity, registration, defaults)
+        crate::Driver::with_plan(
+            plan,
+            session,
+            self.event_capacity,
+            registration,
+            defaults,
+            self.reconnect,
+        )
     }
 
     fn read_file(self, path: impl AsRef<Path>) -> Result<(Self, Vec<u8>), Error> {

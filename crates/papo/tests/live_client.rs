@@ -40,7 +40,7 @@ async fn registers_messages_itself_and_quits() {
                     assert_eq!(welcome.nick, nick);
                     break;
                 }
-                Event::Disconnected { reason } => {
+                Event::Disconnected { reason, .. } => {
                     panic!("disconnected while registering: {reason}")
                 }
                 _ => {}
@@ -62,7 +62,9 @@ async fn registers_messages_itself_and_quits() {
                         break;
                     }
                 }
-                Event::Disconnected { reason } => panic!("disconnected before echo: {reason}"),
+                Event::Disconnected { reason, .. } => {
+                    panic!("disconnected before echo: {reason}")
+                }
                 _ => {}
             }
         }

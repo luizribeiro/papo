@@ -275,7 +275,7 @@ async fn expect_event(
         loop {
             match events.next_event().await {
                 Some(event) if matcher(&event) => return Ok(event),
-                Some(Event::Disconnected { reason }) => return Err(reason.into()),
+                Some(Event::Disconnected { reason, .. }) => return Err(reason.into()),
                 Some(_) => {}
                 None => return Err("driver stopped while waiting for an event".into()),
             }
@@ -483,7 +483,7 @@ async fn wait_for_registration(events: &mut Events) -> Result<Welcome, String> {
         loop {
             match events.next().await {
                 Some(Event::Registered(welcome)) => return Ok(welcome),
-                Some(Event::Disconnected { reason }) => return Err(reason),
+                Some(Event::Disconnected { reason, .. }) => return Err(reason),
                 Some(_) => {}
                 None => return Err("driver stopped during registration".into()),
             }

@@ -18,7 +18,7 @@ use tokio::{
 };
 
 use crate::{
-    AddressError, Error, Event,
+    AddressError, Error, Event, Reconnect,
     address::{Protocol, ServerAddress},
     event,
     transport::{self, TlsConfig},
@@ -244,6 +244,7 @@ impl Driver {
         capacity: usize,
         registration: Option<RegistrationSender>,
         defaults: PostRegistration,
+        reconnect: Reconnect,
     ) -> (Client, Events, Self) {
         Self::with_connector(
             plan,
@@ -251,6 +252,7 @@ impl Driver {
             capacity,
             registration,
             defaults,
+            reconnect,
             Arc::new(|plan| {
                 Box::pin(async move {
                     open_connection(plan)
@@ -267,6 +269,7 @@ impl Driver {
         capacity: usize,
         registration: Option<RegistrationSender>,
         defaults: PostRegistration,
+        _reconnect: Reconnect,
         connector: Connector,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity);
@@ -400,7 +403,7 @@ where
         &events.connected,
     )
     .await;
-    finish(events, end)
+    finish(events, end, false)
 }
 
 struct ConnectionEnd {
@@ -610,11 +613,12 @@ fn after_registration(
     Ok(())
 }
 
-fn finish(events: EventSink, end: ConnectionEnd) -> Result<(), Error> {
+fn finish(events: EventSink, end: ConnectionEnd, will_retry: bool) -> Result<(), Error> {
     drop(events.regular);
-    _ = events
-        .disconnected
-        .send(Event::Disconnected { reason: end.reason });
+    _ = events.disconnected.send(Event::Disconnected {
+        reason: end.reason,
+        will_retry,
+    });
     if let Some(quit) = end.quit {
         for response in quit.results {
             _ = response.send(if end.quit_timed_out {
@@ -818,7 +822,8 @@ mod tests {
         assert_eq!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "server closed the connection".into()
+                reason: "server closed the connection".into(),
+                will_retry: false,
             })
         );
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
@@ -833,7 +838,8 @@ mod tests {
         assert_eq!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "shutdown failed".into()
+                reason: "shutdown failed".into(),
+                will_retry: false,
             })
         );
         assert!(matches!(driver.await.unwrap(), Err(Error::Io(error))
@@ -848,7 +854,8 @@ mod tests {
         assert_eq!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "original read failure".into()
+                reason: "original read failure".into(),
+                will_retry: false,
             })
         );
         assert!(matches!(driver.await.unwrap(), Err(Error::Io(error))
@@ -864,7 +871,8 @@ mod tests {
         assert_eq!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "incoming IRC line exceeds 8703 bytes".into()
+                reason: "incoming IRC line exceeds 8703 bytes".into(),
+                will_retry: false,
             })
         );
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
@@ -1081,7 +1089,8 @@ mod tests {
         assert_eq!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "sts upgrade".into()
+                reason: "sts upgrade".into(),
+                will_retry: false,
             })
         );
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
@@ -1185,7 +1194,8 @@ mod tests {
         assert_eq!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "original read failure".into()
+                reason: "original read failure".into(),
+                will_retry: false,
             })
         );
     }
@@ -1207,7 +1217,8 @@ mod tests {
         assert_eq!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "QUIT was not acknowledged within 10 seconds".into()
+                reason: "QUIT was not acknowledged within 10 seconds".into(),
+                will_retry: false,
             })
         );
     }

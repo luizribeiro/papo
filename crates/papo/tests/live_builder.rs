@@ -85,7 +85,7 @@ async fn wait_registered(events: &mut papo::Events, nick: &str) {
                 assert_eq!(welcome.nick, nick);
                 return;
             }
-            Some(Event::Disconnected { reason }) => {
+            Some(Event::Disconnected { reason, .. }) => {
                 panic!("disconnected while waiting for registration: {reason}")
             }
             Some(_) => {}
@@ -101,7 +101,9 @@ async fn wait_for(
     loop {
         match events.next().await {
             Some(Event::Message(message)) if accepted(&message.as_ref()) => return,
-            Some(Event::Disconnected { reason }) => panic!("disconnected while waiting: {reason}"),
+            Some(Event::Disconnected { reason, .. }) => {
+                panic!("disconnected while waiting: {reason}")
+            }
             Some(_) => {}
             None => panic!("driver stopped while waiting for an IRC message"),
         }
