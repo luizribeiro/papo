@@ -438,6 +438,19 @@ fn each_scram_step_renews_the_deadline() {
 }
 
 #[test]
+fn rejects_a_non_empty_initial_scram_challenge() {
+    scram_start(false)
+        .server("AUTHENTICATE YQ==")
+        .client("AUTHENTICATE *")
+        .server(":ergo.test 906 user :SASL authentication aborted")
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason }
+                if reason.contains("unexpected SCRAM challenge"))
+        })
+        .client("CAP END");
+}
+
+#[test]
 fn rejects_scram_success_without_a_verified_server_proof() {
     for transcript in [
         scram_start(true),
