@@ -374,6 +374,7 @@ async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
         ":text.example PONG :utf8-✓\r\n"
     );
     assert_eq!(stream.read(&mut [0; 1]).await.unwrap(), 0);
+    assert_eq!(stream.read(&mut [0; 1]).await.unwrap(), 0);
     server.await.unwrap();
 }
 
