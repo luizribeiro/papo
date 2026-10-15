@@ -113,17 +113,22 @@ impl StsStore for FileStsStore {
 #[cfg(feature = "sts-file")]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct DiskPolicy {
-    #[serde(default, rename = "port", skip_serializing_if = "Option::is_none")]
-    _port: Option<u16>,
+    #[serde(default = "default_sts_port")]
+    port: u16,
     duration_secs: u64,
     expires_at_unix: u64,
+}
+
+#[cfg(feature = "sts-file")]
+const fn default_sts_port() -> u16 {
+    6697
 }
 
 #[cfg(feature = "sts-file")]
 impl DiskPolicy {
     fn from_stored(policy: &StoredPolicy) -> Self {
         Self {
-            _port: None,
+            port: policy.port,
             duration_secs: policy.duration.as_secs(),
             expires_at_unix: policy
                 .expires_at
@@ -136,6 +141,7 @@ impl DiskPolicy {
     fn to_stored(&self, host: String) -> Option<StoredPolicy> {
         Some(StoredPolicy {
             host,
+            port: self.port,
             expires_at: UNIX_EPOCH.checked_add(Duration::from_secs(self.expires_at_unix))?,
             duration: Duration::from_secs(self.duration_secs),
         })
@@ -223,6 +229,7 @@ fn normalize_host(host: &str) -> String {
     let mut store = MemoryStsStore::new();
     store.put(StoredPolicy {
         host: host.to_owned(),
+        port: 6697,
         expires_at: UNIX_EPOCH,
         duration: Duration::ZERO,
     });
@@ -247,6 +254,7 @@ mod tests {
     fn policy(host: &str, expires_at_unix: u64) -> StoredPolicy {
         StoredPolicy {
             host: host.to_owned(),
+            port: 6697,
             expires_at: std::time::UNIX_EPOCH + Duration::from_secs(expires_at_unix),
             duration: Duration::from_hours(4_320),
         }
@@ -391,7 +399,7 @@ mod tests {
             entries.insert(
                 format!("irc-{index}.example.net"),
                 super::DiskPolicy {
-                    _port: None,
+                    port: 6697,
                     duration_secs: 60,
                     expires_at_unix: 4_000_000_000 + index,
                 },

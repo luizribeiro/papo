@@ -146,6 +146,8 @@ pub enum StsParseError {
 pub struct StoredPolicy {
     /// The hostname to which this policy applies.
     pub host: String,
+    /// The TLS port on which the policy was learned.
+    pub port: u16,
     /// The wall-clock time at which this policy stops requiring TLS.
     pub expires_at: SystemTime,
     /// The duration used to refresh expiry when a connection closes.
@@ -324,6 +326,7 @@ mod tests {
         let mut store = MemoryStsStore::new();
         let policy = StoredPolicy {
             host: "irc.example.net".to_owned(),
+            port: 6697,
             expires_at: UNIX_EPOCH + Duration::from_secs(2_000_000),
             duration: Duration::from_secs(60),
         };
@@ -333,6 +336,7 @@ mod tests {
 
         let replacement = StoredPolicy {
             host: "irc.example.net".to_owned(),
+            port: 6698,
             expires_at: UNIX_EPOCH + Duration::from_secs(3_000_001),
             duration: Duration::from_secs(120),
         };
@@ -347,6 +351,7 @@ mod tests {
         let mut store = MemoryStsStore::new();
         store.put(StoredPolicy {
             host: "irc.Example.com".to_owned(),
+            port: 6697,
             expires_at: UNIX_EPOCH + Duration::from_secs(2_000_000),
             duration: Duration::from_secs(60),
         });
@@ -362,6 +367,7 @@ mod tests {
         let now = UNIX_EPOCH + Duration::from_secs(1_000_000);
         let policy = StoredPolicy {
             host: "irc.example.net".to_owned(),
+            port: 6697,
             expires_at: now - Duration::from_secs(1),
             duration: Duration::from_secs(60),
         };
@@ -378,6 +384,7 @@ mod tests {
             .unwrap();
         let stored = StoredPolicy {
             host: "irc.example.net".to_owned(),
+            port: 6697,
             expires_at: UNIX_EPOCH + duration,
             duration,
         };
