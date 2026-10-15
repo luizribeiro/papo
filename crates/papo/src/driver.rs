@@ -392,7 +392,7 @@ async fn run_plan(
     force_plaintext: bool,
     connector: Connector,
 ) -> Result<(), Error> {
-    let base_plan = match plan {
+    let mut base_plan = match plan {
         Ok(plan) => plan,
         Err(error) => {
             if registration.0.is_some() {
@@ -405,6 +405,7 @@ async fn run_plan(
     let mut attempts = 0_usize;
     let mut registered = false;
     let mut queued = VecDeque::new();
+    let mut sts_required = false;
     loop {
         attempts = attempts.saturating_add(1);
         let plan = match plan_with_stored_sts(&base_plan, sts_store.as_mut(), force_plaintext) {
@@ -428,11 +429,13 @@ async fn run_plan(
                         quit: None,
                         quit_timed_out: false,
                         registered_at: None,
+                        sts: StsActions::default(),
                     },
                     false,
                 );
             }
         };
+        sts_required |= !base_plan.address.is_secure() && plan.address.is_secure();
         let Some(connection_result) = connect_while_disconnected(
             connector(plan.clone()),
             &mut commands,
@@ -447,7 +450,8 @@ async fn run_plan(
             Ok(stream) => stream,
             Err(error) => {
                 let reason = error.to_string();
-                if is_fatal_failure(&error, &reason) || !reconnect.permits(attempts) {
+                if sts_required || is_fatal_failure(&error, &reason) || !reconnect.permits(attempts)
+                {
                     if registration.0.is_some() {
                         registration.failed(error);
                         drop(events.regular);
@@ -465,6 +469,7 @@ async fn run_plan(
                             quit: None,
                             quit_timed_out: false,
                             registered_at: None,
+                            sts: StsActions::default(),
                         },
                         false,
                     );
@@ -495,7 +500,7 @@ async fn run_plan(
         } else {
             ConnectionSecurity::Plaintext
         };
-        let end = run_connection(
+        let mut end = run_connection(
             stream,
             &mut session,
             &mut commands,
@@ -513,6 +518,30 @@ async fn run_plan(
         .await;
         if end.quit.is_some() {
             return finish(events, end, false);
+        }
+        if let Some(port) = end.sts.upgrade {
+            if force_plaintext {
+                end.reason = Error::StsRequiresTls {
+                    host: plan.address.host.clone(),
+                }
+                .to_string();
+                end.error = Error::StsRequiresTls {
+                    host: plan.address.host.clone(),
+                };
+                registration.failed(end.registration_error());
+                return finish(events, end, false);
+            }
+            base_plan.address.set_tls(true);
+            base_plan.address.set_port(port);
+            sts_required = true;
+            _ = events
+                .regular
+                .send(Event::Disconnected {
+                    reason: end.reason,
+                    will_retry: true,
+                })
+                .await;
+            continue;
         }
         if is_fatal_failure(&end.error, &end.reason) {
             registration.failed(end.registration_error());
@@ -688,6 +717,12 @@ struct ConnectionEnd {
     quit_timed_out: bool,
     #[allow(dead_code)]
     registered_at: Option<Instant>,
+    sts: StsActions,
+}
+
+#[derive(Default)]
+struct StsActions {
+    upgrade: Option<u16>,
 }
 
 impl ConnectionEnd {
@@ -727,6 +762,7 @@ where
     let mut quit = None;
     let mut pending_event = None;
     let mut registered_at = None;
+    let mut sts = StsActions::default();
     let mut buffer = [0; 4096];
     let (mut reason, mut error, quit_timed_out) = loop {
         match drain(
@@ -737,6 +773,7 @@ where
             defaults,
             registered,
             &mut registered_at,
+            &mut sts,
         )
         .await
         {
@@ -805,6 +842,7 @@ where
         quit,
         quit_timed_out,
         registered_at,
+        sts,
     }
 }
 
@@ -847,6 +885,7 @@ async fn wait_until(deadline: Option<Instant>) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn drain<S>(
     stream: &mut S,
     session: &mut Session,
@@ -855,6 +894,7 @@ async fn drain<S>(
     defaults: &PostRegistration,
     registered: &mut bool,
     registered_at: &mut Option<Instant>,
+    sts: &mut StsActions,
 ) -> io::Result<Option<String>>
 where
     S: AsyncWrite + Unpin,
@@ -867,6 +907,9 @@ where
     {
         match event::from_core(core_event) {
             event::CoreEvent::Forward(mut event) => {
+                if let Event::StsUpgrade { port } = &event {
+                    sts.upgrade = Some(*port);
+                }
                 if let Event::Registered(welcome) = &event {
                     after_registration(session, welcome, defaults)?;
                     registration.succeeded();
@@ -1707,6 +1750,62 @@ mod tests {
             })
         );
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() {
+        let (first_stream, mut first_server) = tokio::io::duplex(4096);
+        let (second_stream, mut second_server) = tokio::io::duplex(4096);
+        let streams = Arc::new(Mutex::new(VecDeque::from([
+            Box::new(first_stream) as super::BoxConnection,
+            Box::new(second_stream) as super::BoxConnection,
+        ])));
+        let requested = Arc::new(Mutex::new(Vec::new()));
+        let connector: super::Connector = Arc::new({
+            let requested = Arc::clone(&requested);
+            move |plan| {
+                requested
+                    .lock()
+                    .unwrap()
+                    .push((plan.address.is_secure(), plan.address.port));
+                let stream = streams.lock().unwrap().pop_front().unwrap();
+                Box::pin(async move { Ok(stream) })
+            }
+        });
+        let (client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config().host("irc.example.net").wanted_caps(["sts"])),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential(),
+            256,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut first_server).await;
+        server_line(&mut first_server, b":ergo.test CAP * LS :sts=port=6699\r\n").await;
+        assert_eq!(events.next().await, Some(Event::StsUpgrade { port: 6699 }));
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected {
+                will_retry: true,
+                ..
+            })
+        ));
+        registration_burst(&mut second_server).await;
+        assert_eq!(&*requested.lock().unwrap(), &[(false, 6667), (true, 6699)]);
+
+        let quit = tokio::spawn(async move { client.quit(None).await });
+        client_line(&mut second_server, b"QUIT\r\n").await;
+        second_server.shutdown().await.unwrap();
+        assert!(quit.await.unwrap().is_ok());
+        assert!(driver.await.unwrap().is_ok());
     }
 
     #[tokio::test(flavor = "current_thread")]
