@@ -9,6 +9,7 @@ publish.workspace = true
 
 [features]
 default = ["spawn", "tls-ring"]
+bot = []
 spawn = []
 sts-file = ["dep:serde", "dep:serde_json"]
 websocket = ["dep:futures-util", "dep:tokio-tungstenite"]

@@ -11,6 +11,9 @@ mod event;
 mod reconnect;
 mod state;
 
+#[cfg(feature = "bot")]
+pub mod bot;
+
 pub use address::AddressError;
 pub use builder::Builder;
 pub use driver::{Client, Driver, Events};
