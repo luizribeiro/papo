@@ -217,7 +217,10 @@ fn parses_realistic_ergo_lines() {
     assert_eq!(message.command(), Command::Privmsg);
     assert!(message.command_is("privmsg"));
     assert!(!message.command_is("NOTICE"));
-    assert_eq!(message.tag("msgid"), Some(Cow::Borrowed("abcDEF123")));
+    assert!(matches!(
+        message.tag("msgid"),
+        Some(Cow::Borrowed("abcDEF123"))
+    ));
     assert_eq!(
         message.params().collect::<Vec<_>>(),
         ["#papo", "hello there"]
@@ -376,10 +379,10 @@ fn parses_tags_and_source_with_irregular_spacing() {
     )
     .unwrap();
 
-    assert_eq!(
+    assert!(matches!(
         message.tag("time"),
         Some(Cow::Borrowed("2026-10-14T20:15:42.123Z"))
-    );
+    ));
     assert_eq!(message.raw_source(), Some("alice!~u@example.test"));
     assert_eq!(message.command(), Command::Privmsg);
 }
@@ -391,20 +394,20 @@ fn unescapes_tags_and_uses_the_last_duplicate() {
     )
     .unwrap();
 
-    assert_eq!(
+    assert!(matches!(
         message.tag("draft/example"),
-        Some(Cow::Owned("semi;colon and\\slash\r\nknownq".to_owned()))
-    );
+        Some(Cow::Owned(value)) if value == "semi;colon and\\slash\r\nknownq"
+    ));
     assert_eq!(message.tag("account"), None);
-    assert_eq!(message.tag("batch"), Some(Cow::Borrowed("42")));
+    assert!(matches!(message.tag("batch"), Some(Cow::Borrowed("42"))));
     assert_eq!(message.tag("case"), None);
-    assert_eq!(message.tag("Case"), Some(Cow::Borrowed("UP")));
+    assert!(matches!(message.tag("Case"), Some(Cow::Borrowed("UP"))));
 
     let trailing_slash = MessageRef::parse(r"@example=value\ PRIVMSG #papo :text").unwrap();
-    assert_eq!(
+    assert!(matches!(
         trailing_slash.tag("example"),
-        Some(Cow::Owned("value".to_owned()))
-    );
+        Some(Cow::Owned(value)) if value == "value"
+    ));
 }
 
 #[test]
@@ -528,13 +531,13 @@ fn owns_parsed_messages_without_reparsing() {
         borrowed.params().collect::<Vec<_>>(),
         ["#papo", "hello there"]
     );
-    assert_eq!(
-        borrowed.tags().collect::<Vec<_>>(),
+    assert!(matches!(
+        borrowed.tags().collect::<Vec<_>>().as_slice(),
         [
             ("+draft/reply", Some(Cow::Borrowed("new value"))),
             ("+typing", Some(Cow::Borrowed("active"))),
         ]
-    );
+    ));
 }
 
 #[test]
@@ -544,13 +547,13 @@ fn builds_common_client_commands() {
         .with_tag("+typing", "active")
         .with_tag("+draft/reply", "new-id")
         .with_source("papo-test!~papo@example.test");
-    assert_eq!(
-        tagged.as_ref().tags().collect::<Vec<_>>(),
+    assert!(matches!(
+        tagged.as_ref().tags().collect::<Vec<_>>().as_slice(),
         [
             ("+draft/reply", Some(Cow::Borrowed("new-id"))),
             ("+typing", Some(Cow::Borrowed("active"))),
         ]
-    );
+    ));
 
     let cases = [
         (
