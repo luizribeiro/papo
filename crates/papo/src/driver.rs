@@ -357,15 +357,58 @@ fn now() -> Instant {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{
+        io,
+        pin::Pin,
+        task::{Context, Poll},
+        time::Duration,
+    };
 
     use papo_core::{
         Config, Decoding, Sasl,
         sts::{ConnectionSecurity, StsAction},
     };
-    use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
+    use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf};
 
     use super::{Driver, Error, Event, Session};
+
+    struct FailingStream {
+        inner: DuplexStream,
+        read_error: bool,
+    }
+
+    impl AsyncRead for FailingStream {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            context: &mut Context<'_>,
+            buffer: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            if self.read_error {
+                self.read_error = false;
+                Poll::Ready(Err(io::Error::other("original read failure")))
+            } else {
+                Pin::new(&mut self.inner).poll_read(context, buffer)
+            }
+        }
+    }
+
+    impl AsyncWrite for FailingStream {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            context: &mut Context<'_>,
+            buffer: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            Pin::new(&mut self.inner).poll_write(context, buffer)
+        }
+
+        fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Pin::new(&mut self.inner).poll_flush(context)
+        }
+
+        fn poll_shutdown(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Err(io::Error::other("shutdown failed")))
+        }
+    }
 
     fn scripted(config: Config) -> (DuplexStream, super::Client, super::Events, Driver) {
         scripted_with_capacity(config, super::DEFAULT_CHANNEL_CAPACITY)
@@ -378,6 +421,18 @@ mod tests {
         let (client_stream, server) = tokio::io::duplex(4096);
         let (client, events, driver) =
             Driver::with_stream_and_capacity(client_stream, Session::new(config), capacity);
+        (server, client, events, driver)
+    }
+
+    fn scripted_with_failures(
+        read_error: bool,
+    ) -> (DuplexStream, super::Client, super::Events, Driver) {
+        let (client_stream, server) = tokio::io::duplex(4096);
+        let stream = FailingStream {
+            inner: client_stream,
+            read_error,
+        };
+        let (client, events, driver) = Driver::with_stream(stream, Session::new(config()));
         (server, client, events, driver)
     }
 
@@ -447,6 +502,37 @@ mod tests {
             })
         );
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn shutdown_error_overrides_a_non_io_terminal_cause() {
+        let (mut server, _client, mut events, driver) = scripted_with_failures(false);
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server.shutdown().await.unwrap();
+        assert_eq!(
+            events.next().await,
+            Some(Event::Disconnected {
+                reason: "shutdown failed".into()
+            })
+        );
+        assert!(matches!(driver.await.unwrap(), Err(Error::Io(error))
+            if error.to_string() == "shutdown failed"));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn shutdown_error_does_not_replace_an_io_terminal_cause() {
+        let (mut server, _client, mut events, driver) = scripted_with_failures(true);
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        assert_eq!(
+            events.next().await,
+            Some(Event::Disconnected {
+                reason: "original read failure".into()
+            })
+        );
+        assert!(matches!(driver.await.unwrap(), Err(Error::Io(error))
+            if error.to_string() == "original read failure"));
     }
 
     #[tokio::test(flavor = "current_thread")]
