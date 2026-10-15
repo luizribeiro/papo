@@ -229,6 +229,16 @@ impl Client {
         self.send(Message::privmsg(target, text)).await
     }
 
+    /// Requests information about a nickname.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the server rejects the request or it cannot complete.
+    pub async fn whois(&self, nick: &str) -> Result<crate::Whois, Error> {
+        let response = self.raw(Message::new("WHOIS", [nick])).await?;
+        crate::requests::whois(response, nick)
+    }
+
     /// Requests a clean disconnect and waits for the peer to close.
     ///
     /// The wait is limited to ten seconds. The driver still completes cleanly
@@ -2776,32 +2786,56 @@ mod tests {
         let driver = tokio::spawn(driver);
         complete_labelled_registration(&mut server, &mut events).await;
 
+        let whois = tokio::spawn({
+            let client = client.clone();
+            async move { client.whois("alice").await }
+        });
+        client_line(&mut server, b"@label=0 WHOIS alice\r\n").await;
+        server_line(&mut server, b"@label=0 :ergo.test BATCH +whois-42 labeled-response\r\n@batch=whois-42 :ergo.test 311 papo-driver alice ~alice client.example * :Alice Example\r\n@batch=whois-42 :ergo.test 312 papo-driver alice ergo.test :Ergo Test Network\r\n@batch=whois-42 :ergo.test 317 papo-driver alice 42 1760544000 :seconds idle, signon time\r\n@batch=whois-42 :ergo.test 319 papo-driver alice :@#papo +#rust\r\n@batch=whois-42 :ergo.test 330 papo-driver alice alice :is logged in as\r\n@batch=whois-42 :ergo.test 301 papo-driver alice :away from keyboard\r\n@batch=whois-42 :ergo.test 335 papo-driver alice :is a bot\r\n@batch=whois-42 :ergo.test 671 papo-driver alice :is using a secure connection\r\n@batch=whois-42 :ergo.test 318 papo-driver alice :End of /WHOIS list\r\n:ergo.test BATCH -whois-42\r\n").await;
+        let whois = whois.await.unwrap().unwrap();
+        assert_eq!(
+            (whois.nick.as_str(), whois.user.as_deref()),
+            ("alice", Some("~alice"))
+        );
+        assert_eq!(
+            (whois.host.as_deref(), whois.realname.as_deref()),
+            (Some("client.example"), Some("Alice Example"))
+        );
+        assert_eq!(
+            (whois.account.as_deref(), whois.server.as_deref()),
+            (Some("alice"), Some("ergo.test"))
+        );
+        assert_eq!(whois.channels, ["@#papo", "+#rust"]);
+        assert_eq!(whois.away.as_deref(), Some("away from keyboard"));
+        assert!(whois.is_bot && whois.secure);
+        assert_eq!(whois.idle, Some(Duration::from_secs(42)));
+
         let request = tokio::spawn({
             let client = client.clone();
-            async move { client.raw(Message::new("WHOIS", ["missing-nick"])).await }
+            async move { client.whois("missing-nick").await }
         });
-        client_line(&mut server, b"@label=0 WHOIS missing-nick\r\n").await;
+        client_line(&mut server, b"@label=1 WHOIS missing-nick\r\n").await;
         server_line(
             &mut server,
-            b"@label=0 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
+            b"@label=1 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
         )
         .await;
         assert!(matches!(
-            request.await.unwrap().unwrap().error(),
-            Some(papo_core::ServerError::Numeric { numeric, .. }) if numeric.code() == 401
+            request.await.unwrap(),
+            Err(Error::Server(papo_core::ServerError::Numeric { numeric, .. })) if numeric.code() == 401
         ));
 
         let timed_out = tokio::spawn({
             let client = client.clone();
             async move { client.raw(Message::new("WHOIS", ["alice"])).await }
         });
-        client_line(&mut server, b"@label=1 WHOIS alice\r\n").await;
+        client_line(&mut server, b"@label=2 WHOIS alice\r\n").await;
         tokio::time::advance(Duration::from_secs(1)).await;
         assert!(matches!(timed_out.await.unwrap(), Err(Error::Timeout)));
 
         let aborted =
             tokio::spawn(async move { client.raw(Message::new("WHOIS", ["emily"])).await });
-        client_line(&mut server, b"@label=2 WHOIS emily\r\n").await;
+        client_line(&mut server, b"@label=3 WHOIS emily\r\n").await;
         server.shutdown().await.unwrap();
         assert!(matches!(aborted.await.unwrap(), Err(Error::Disconnected)));
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));

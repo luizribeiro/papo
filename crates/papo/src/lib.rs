@@ -9,6 +9,7 @@ mod entropy;
 mod error;
 mod event;
 mod reconnect;
+mod requests;
 mod state;
 
 #[cfg(feature = "bot")]
@@ -23,6 +24,7 @@ pub use event::{Event, MessageEvent, MessageKind, Origin};
 pub use papo_core::{Account, Capabilities, Channel, Member, Response, ServerError, User};
 pub use papo_core::{RateLimit, Sasl};
 pub use reconnect::Reconnect;
+pub use requests::Whois;
 pub use state::State;
 
 /// Strict Transport Security policy stores.

@@ -57,6 +57,9 @@ pub enum Error {
     /// An operation did not complete before its deadline.
     #[error("the IRC operation timed out")]
     Timeout,
+    /// The IRC server rejected a request.
+    #[error("the IRC server rejected the request: {0:?}")]
+    Server(papo_core::ServerError),
 }
 
 #[cfg(test)]
