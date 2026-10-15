@@ -268,3 +268,61 @@ fn abandons_an_unclosed_batch_at_its_deadline() {
                 && reason == BatchAbandonReason::Timeout
     ));
 }
+
+#[test]
+fn only_live_membership_aggregates_change_channel_state() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    session.handle_line(now, b":alice!~a@remote.example JOIN #papo");
+    while session.poll_event().is_some() {}
+
+    session.handle_line(now, b"BATCH +history chathistory #papo");
+    session.handle_line(
+        now,
+        b"@batch=history :bob!~b@remote.example JOIN #papo bob :Bob Example",
+    );
+    session.handle_line(now, b"BATCH -history");
+    assert!(matches!(session.poll_event(), Some(Event::History { .. })));
+    assert!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .member("bob")
+            .is_none()
+    );
+
+    session.handle_line(now, b"BATCH +split netsplit irc.example irc.remote");
+    session.handle_line(
+        now,
+        b"@batch=split :alice!~a@remote.example QUIT :irc.example irc.remote",
+    );
+    session.handle_line(now, b"BATCH -split");
+    assert!(matches!(session.poll_event(), Some(Event::Netsplit { .. })));
+    assert!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .member("alice")
+            .is_none()
+    );
+
+    session.handle_line(now, b"BATCH +join netjoin irc.example irc.remote");
+    session.handle_line(
+        now,
+        b"@batch=join :alice!~a@remote.example JOIN #papo alice :Alice Example",
+    );
+    session.handle_line(now, b"BATCH -join");
+    assert!(matches!(session.poll_event(), Some(Event::Netjoin { .. })));
+    assert!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .member("alice")
+            .is_some()
+    );
+    assert_eq!(session.poll_event(), None);
+}

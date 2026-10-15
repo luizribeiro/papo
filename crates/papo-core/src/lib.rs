@@ -1170,9 +1170,17 @@ impl Session {
                 end,
             }),
             BatchEvent::Netsplit { servers, quits } => {
+                // History can describe stale membership, while netsplit and netjoin batches
+                // report connectivity changes that define the current live membership.
+                for message in &quits {
+                    self.apply_aggregate_state(message);
+                }
                 self.outbox.event(Event::Netsplit { servers, quits });
             }
             BatchEvent::Netjoin { servers, joins } => {
+                for message in &joins {
+                    self.apply_aggregate_state(message);
+                }
                 self.outbox.event(Event::Netjoin { servers, joins });
             }
             BatchEvent::Abandoned {
@@ -1192,6 +1200,28 @@ impl Session {
                 batch_type,
             })),
         }
+    }
+
+    fn apply_aggregate_state(&mut self, message: &Message) {
+        let no_implicit_names = self
+            .caps
+            .enabled()
+            .keys()
+            .any(|name| papo_proto::canonical(name) == "no-implicit-names");
+        let event_count = self.outbox.events.len();
+        self.state.handle_message(
+            &message.as_ref(),
+            self.registration.nick(),
+            self.isupport.value(),
+            no_implicit_names,
+            &mut self.outbox,
+        );
+        let generated = self.outbox.events.split_off(event_count);
+        self.outbox.events.extend(
+            generated
+                .into_iter()
+                .filter(|event| matches!(event, Event::StateLimitReached { .. })),
+        );
     }
 
     fn close_for_long_line(&mut self) {
