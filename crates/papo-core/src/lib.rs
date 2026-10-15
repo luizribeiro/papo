@@ -395,6 +395,7 @@ impl Session {
             self.isupport.value(),
             &mut self.outbox,
         );
+        self.sasl.handle_timeout(now, &mut self.outbox);
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
         self.keepalive.handle_timeout(now, &mut self.outbox);
@@ -406,6 +407,7 @@ impl Session {
         self.framer.close();
         self.outbox.reset_connection();
         self.registration.handle_disconnected();
+        self.sasl.handle_disconnected();
     }
 
     /// Validates and queues a user-originated raw message for transmission.
@@ -435,6 +437,7 @@ impl Session {
     pub fn poll_timeout(&self) -> Option<Instant> {
         [
             self.registration.next_deadline(),
+            self.sasl.next_deadline(),
             self.keepalive.next_deadline(),
         ]
         .into_iter()

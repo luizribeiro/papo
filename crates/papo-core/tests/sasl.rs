@@ -246,3 +246,42 @@ fn account_required_closes_and_verification_note_surfaces() {
     .event(|event| matches!(event, Event::Close { reason } if reason.contains("Authentication required")))
     .no_client();
 }
+
+#[test]
+fn aborts_at_the_literal_30_second_deadline_then_falls_back() {
+    Transcript::with_entropy(
+        Config::default().sasl(Sasl::any("alice", "hunter2")),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .deadline(Some(std::time::Duration::from_secs(30)))
+    .advance(std::time::Duration::from_secs(29))
+    .no_client()
+    .deadline(Some(std::time::Duration::from_secs(1)))
+    .advance(std::time::Duration::from_secs(1))
+    .client("AUTHENTICATE *")
+    .no_event()
+    .server(":ergo.test 906 alice :SASL authentication aborted")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+    .server(":ergo.test 903 alice :SASL authentication successful")
+    .client("CAP END");
+}
+
+#[test]
+fn a_sasl_deadline_is_cleared_on_disconnect() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .deadline(Some(std::time::Duration::from_secs(30)))
+        .disconnect()
+        .deadline(None);
+}

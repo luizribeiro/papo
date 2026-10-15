@@ -1,7 +1,10 @@
 #[allow(dead_code)]
 pub(crate) mod scram;
 
-use std::{collections::VecDeque, time::Instant};
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::MessageRef;
@@ -9,6 +12,7 @@ use papo_proto::MessageRef;
 use crate::{Config, Handled, Outbox};
 
 const SASL_CHUNK_LEN: usize = 400;
+const SASL_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Ordered SASL mechanisms to try during connection registration.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -101,6 +105,8 @@ pub(super) struct SaslSession {
     entropy: Option<Box<dyn Entropy + Send>>,
     require: bool,
     failures: Vec<String>,
+    deadline: Option<Instant>,
+    aborting: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -125,6 +131,8 @@ impl std::fmt::Debug for SaslSession {
             .field("has_entropy", &self.entropy.is_some())
             .field("require", &self.require)
             .field("failures", &self.failures)
+            .field("deadline", &self.deadline)
+            .field("aborting", &self.aborting)
             .finish()
     }
 }
@@ -151,6 +159,8 @@ impl SaslSession {
             entropy,
             require: config.require_sasl,
             failures: Vec::new(),
+            deadline: None,
+            aborting: false,
         }
     }
 
@@ -166,11 +176,13 @@ impl SaslSession {
         self.account = None;
         self.challenge.clear();
         self.failures.clear();
+        self.deadline = None;
+        self.aborting = false;
     }
 
     pub(super) fn handle_cap_ack(
         &mut self,
-        _now: Instant,
+        now: Instant,
         advertised: Option<&str>,
         outbox: &mut Outbox,
     ) {
@@ -184,12 +196,12 @@ impl SaslSession {
                     .any(|name| name.eq_ignore_ascii_case(mechanism.name()))
             });
         }
-        self.start_next(outbox);
+        self.start_next(now, outbox);
     }
 
     pub(super) fn handle_message(
         &mut self,
-        _now: Instant,
+        now: Instant,
         message: &MessageRef<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
@@ -206,12 +218,13 @@ impl SaslSession {
         if message.command_is("903") || message.command_is("907") {
             self.active = None;
             self.awaiting_challenge = false;
+            self.deadline = None;
             self.completion = Completion::Success;
             return Handled::Yes;
         }
         if message.command_is("904") || message.command_is("905") {
             self.record_active_failure(message.param(1).unwrap_or("SASL mechanism failed"));
-            self.start_next(outbox);
+            self.start_next(now, outbox);
             return Handled::Yes;
         }
         if message.command_is("908") {
@@ -225,10 +238,15 @@ impl SaslSession {
             return Handled::Yes;
         }
         if message.command_is("906") {
-            self.fail_all(
-                message.param(1).unwrap_or("SASL exchange was aborted"),
-                outbox,
-            );
+            if self.aborting {
+                self.aborting = false;
+                self.start_next(now, outbox);
+            } else {
+                self.fail_all(
+                    message.param(1).unwrap_or("SASL exchange was aborted"),
+                    outbox,
+                );
+            }
             return Handled::Yes;
         }
         if message.command_is("FAIL")
@@ -236,6 +254,7 @@ impl SaslSession {
             && message.param(1) == Some("ACCOUNT_REQUIRED")
         {
             self.completion = Completion::Failed;
+            self.deadline = None;
             outbox.close(format!(
                 "SASL failed: {}",
                 message.param(2).unwrap_or("the server requires an account")
@@ -253,9 +272,12 @@ impl SaslSession {
         };
         let challenge = match receive_challenge(&mut self.challenge, chunk) {
             Ok(Some(challenge)) => challenge,
-            Ok(None) => return Handled::Yes,
+            Ok(None) => {
+                self.deadline = Some(now + SASL_TIMEOUT);
+                return Handled::Yes;
+            }
             Err(()) => {
-                self.fail_all("the server sent an invalid SASL challenge", outbox);
+                self.abort(now, "the server sent an invalid SASL challenge", outbox);
                 return Handled::Yes;
             }
         };
@@ -263,6 +285,7 @@ impl SaslSession {
         let authcid = with_device(username, self.device.as_deref());
         transmit_response(format!("\0{authcid}\0{password}").as_bytes(), outbox);
         self.awaiting_challenge = false;
+        self.deadline = Some(now + SASL_TIMEOUT);
         Handled::Yes
     }
 
@@ -282,7 +305,26 @@ impl SaslSession {
         self.account.as_deref()
     }
 
-    fn start_next(&mut self, outbox: &mut Outbox) {
+    pub(super) const fn next_deadline(&self) -> Option<Instant> {
+        self.deadline
+    }
+
+    pub(super) fn handle_timeout(&mut self, now: Instant, outbox: &mut Outbox) {
+        if self.deadline.is_some_and(|deadline| now >= deadline) {
+            self.deadline = None;
+            if self.aborting {
+                self.fail_all("the server did not acknowledge the SASL abort", outbox);
+            } else if self.active.is_some() {
+                self.abort(now, "SASL mechanism timed out after 30 seconds", outbox);
+            }
+        }
+    }
+
+    pub(super) fn handle_disconnected(&mut self) {
+        self.deadline = None;
+    }
+
+    fn start_next(&mut self, now: Instant, outbox: &mut Outbox) {
         loop {
             let Some(mechanism) = self.remaining.pop_front() else {
                 return self.fail_all("every configured SASL mechanism failed", outbox);
@@ -297,6 +339,7 @@ impl SaslSession {
             self.active = Some(mechanism);
             self.awaiting_challenge = true;
             self.challenge.clear();
+            self.deadline = Some(now + SASL_TIMEOUT);
             return;
         }
     }
@@ -307,6 +350,7 @@ impl SaslSession {
                 .push(format!("{}: {reason}", mechanism.name()));
         }
         self.awaiting_challenge = false;
+        self.deadline = None;
     }
 
     fn retain_available(&mut self, available: &str) {
@@ -317,9 +361,17 @@ impl SaslSession {
         });
     }
 
+    fn abort(&mut self, now: Instant, reason: &str, outbox: &mut Outbox) {
+        self.record_active_failure(reason);
+        self.aborting = true;
+        self.deadline = Some(now + SASL_TIMEOUT);
+        outbox.transmit("AUTHENTICATE", ["*"]);
+    }
+
     fn fail_all(&mut self, reason: &str, outbox: &mut Outbox) {
         self.record_active_failure(reason);
         self.completion = Completion::Failed;
+        self.aborting = false;
         self.failures.push(reason.to_owned());
         let reason = format!("SASL failed: {}", self.failures.join("; "));
         if self.require {
