@@ -210,16 +210,16 @@ pub enum ConnectError {
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 pub async fn connect(host: &str, port: u16, security: &Security) -> Result<Stream, ConnectError> {
+    #[cfg(not(any(feature = "tls-ring", feature = "tls-aws-lc")))]
+    if matches!(security, Security::Tls(_)) {
+        return Err(ConnectError::TlsUnavailable);
+    }
     let addresses = resolve(host, port).await?;
     #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
     let tls = match security {
         Security::Plaintext => None,
         Security::Tls(config) => Some(tls_connector(host, config)?),
     };
-    #[cfg(not(any(feature = "tls-ring", feature = "tls-aws-lc")))]
-    if matches!(security, Security::Tls(_)) {
-        return Err(ConnectError::TlsUnavailable);
-    }
     let mut last_error = ConnectError::Tcp(io::Error::new(
         io::ErrorKind::NotFound,
         "hostname resolved no addresses",
@@ -421,6 +421,22 @@ mod tests {
             tls_connector("localhost", &config),
             Err(ConnectError::InvalidTlsConfiguration(message))
                 if message == "certificate PEM contains no certificates"
+        ));
+    }
+
+    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[test]
+    fn malformed_ca_document_is_rejected() {
+        let config = TlsConfig {
+            roots: TlsRoots::Ca(
+                b"-----BEGIN CERTIFICATE-----\nnot-base64!\n-----END CERTIFICATE-----\n".to_vec(),
+            ),
+            ..TlsConfig::default()
+        };
+        assert!(matches!(
+            tls_connector("localhost", &config),
+            Err(ConnectError::InvalidTlsConfiguration(message))
+                if message.starts_with("invalid certificate PEM:")
         ));
     }
 }
