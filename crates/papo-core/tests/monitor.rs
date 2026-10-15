@@ -15,6 +15,19 @@ fn registered() -> Transcript {
         .event(|event| matches!(event, papo_core::Event::Registered(_)))
 }
 
+fn extended_registered() -> Transcript {
+    Transcript::new(Config::default().wanted_caps(["extended-monitor"]))
+        .connect_default()
+        .server("CAP * LS :extended-monitor")
+        .client("CAP REQ :extended-monitor")
+        .server("CAP * ACK :extended-monitor")
+        .client("CAP END")
+        .server(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo MONITOR=100 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+}
+
 #[test]
 fn adds_removes_and_clears_monitored_nicks() {
     registered()
@@ -132,16 +145,7 @@ fn restores_the_desired_list_and_resets_presence_after_reconnect() {
 
 #[test]
 fn extended_monitor_updates_an_unshared_users_record() {
-    Transcript::new(Config::default().wanted_caps(["extended-monitor"]))
-        .connect_default()
-        .server("CAP * LS :extended-monitor")
-        .client("CAP REQ :extended-monitor")
-        .server("CAP * ACK :extended-monitor")
-        .client("CAP END")
-        .server(":ergo.test 001 papo :Welcome to Ergo")
-        .server(":ergo.test 005 papo MONITOR=100 :are supported")
-        .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+    extended_registered()
         .update(|session| session.monitor_add(["alice"]))
         .client("MONITOR + alice")
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
@@ -164,6 +168,68 @@ fn extended_monitor_updates_an_unshared_users_record() {
         })
         .server(":ergo.test 731 papo :alice")
         .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .inspect(|session| assert!(session.state().user("alice").is_none()))
+        .no_event();
+}
+
+#[test]
+fn timeout_restores_only_when_registration_becomes_complete() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .update(|session| session.monitor_add(["alice"]))
+        .server(":soju.example 001 papo :Welcome")
+        .server(":soju.example 005 papo MONITOR=100 :are supported")
+        .advance(std::time::Duration::from_secs(9))
+        .no_client()
+        .advance(std::time::Duration::from_secs(1))
+        .event(|event| matches!(event, Event::Registered(_)))
+        .client("MONITOR + alice")
+        .no_client();
+}
+
+#[test]
+fn monitor_clear_requires_registration_and_server_support() {
+    registered()
+        .update(papo_core::Session::monitor_clear)
+        .client("MONITOR C")
+        .no_client();
+
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test 005 * MONITOR=100 :are supported")
+        .update(|session| session.monitor_add(["alice"]))
+        .update(papo_core::Session::monitor_clear)
+        .no_client();
+
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":solanum.example 001 papo :Welcome")
+        .server(":solanum.example 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(papo_core::Session::monitor_clear)
+        .no_client()
+        .update(|session| session.monitor_add(["alice"]))
+        .event(|event| matches!(event, Event::MonitorUnsupported))
+        .update(papo_core::Session::monitor_clear)
+        .no_client();
+}
+
+#[test]
+fn unrelated_capabilities_do_not_retain_unshared_monitored_users() {
+    Transcript::new(Config::default().wanted_caps(["batch"]))
+        .connect_default()
+        .server("CAP * LS :batch")
+        .client("CAP REQ :batch")
+        .server("CAP * ACK :batch")
+        .client("CAP END")
+        .server(":ergo.test 001 papo :Welcome")
+        .server(":ergo.test 005 papo MONITOR=100 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
         .inspect(|session| assert!(session.state().user("alice").is_none()))
         .no_event();
 }
