@@ -43,7 +43,7 @@ fn releases_five_lines_then_one_every_500_milliseconds() {
 #[test]
 fn one_interval_refills_exactly_one_token() {
     let mut transcript = Transcript::rate_limited(Config::default());
-    for index in 1..=6 {
+    for index in 1..=8 {
         transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
     }
     for index in 1..=5 {
@@ -52,6 +52,12 @@ fn one_interval_refills_exactly_one_token() {
     transcript
         .advance(Duration::from_millis(500))
         .client("PRIVMSG #papo :message 6")
+        .no_client()
+        .advance(Duration::from_millis(500))
+        .client("PRIVMSG #papo :message 7")
+        .no_client()
+        .advance(Duration::from_millis(500))
+        .client("PRIVMSG #papo :message 8")
         .no_client();
 }
 
