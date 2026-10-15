@@ -3904,6 +3904,57 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn labels_distinguish_our_echo_from_another_session() {
+        let caps = ["echo-message", "labeled-response"];
+        let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :echo-message labeled-response\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP REQ :echo-message labeled-response\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * ACK :echo-message labeled-response\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+        )
+        .await;
+        while !matches!(events.next().await, Some(Event::Registered(_))) {}
+
+        let sender = client.clone();
+        let sent = tokio::spawn(async move { sender.privmsg("#papo", "from this device").await });
+        client_line(&mut server, b"@label=0 PRIVMSG #papo :from this device\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=0;msgid=RfcBTzyxY120004 :papo-driver!papo@localhost PRIVMSG #papo :from this device\r\n",
+        )
+        .await;
+        assert!(sent.await.unwrap().is_ok());
+        let echo = next_message(&mut events).await;
+        assert_eq!(echo.origin(), Origin::Echo);
+        assert!(!echo.is_live());
+
+        server_line(
+            &mut server,
+            b"@msgid=RfcBTzyxY120005 :papo-driver!papo@localhost PRIVMSG #papo :from another device\r\n",
+        )
+        .await;
+        let other = next_message(&mut events).await;
+        assert_eq!(other.origin(), Origin::OtherSession);
+        assert!(!other.is_live());
+
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn private_reply_keeps_channel_context() {
         assert_reply_wire(
             true,

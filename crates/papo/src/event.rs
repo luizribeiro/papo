@@ -34,7 +34,12 @@ pub enum Origin {
     /// A newly received message from another user.
     Live,
     /// An echo of a message sent by this client.
+    ///
+    /// Without labelled responses, messages from our nickname use this origin because the
+    /// originating session cannot be identified.
     Echo,
+    /// A message sent by another session of this account.
+    OtherSession,
     /// A message associated with a server batch.
     Replay,
 }
@@ -110,7 +115,17 @@ impl MessageEvent {
             };
             isupport.casemapping().eq(source, nick)
         });
-        Self::new_with_context(raw, None, echo, isupport, client, caps, received_at)
+        let other_session = echo && caps.contains_key("labeled-response");
+        Self::new_with_context(
+            raw,
+            None,
+            echo && !other_session,
+            other_session,
+            isupport,
+            client,
+            caps,
+            received_at,
+        )
     }
 
     pub(crate) fn from_core(
@@ -120,8 +135,17 @@ impl MessageEvent {
         caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
-        let (raw, batch_type, echo) = received.into_parts();
-        Self::new_with_context(raw, batch_type, echo, isupport, client, caps, received_at)
+        let (raw, batch_type, echo, other_session) = received.into_context_parts();
+        Self::new_with_context(
+            raw,
+            batch_type,
+            echo,
+            other_session,
+            isupport,
+            client,
+            caps,
+            received_at,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -129,6 +153,7 @@ impl MessageEvent {
         raw: Message,
         batch_type: Option<String>,
         echo: bool,
+        other_session: bool,
         isupport: &Isupport,
         client: Client,
         caps: &Capabilities,
@@ -171,6 +196,8 @@ impl MessageEvent {
         });
         let origin = if echo {
             Origin::Echo
+        } else if other_session {
+            Origin::OtherSession
         } else if replay {
             Origin::Replay
         } else {
@@ -321,13 +348,15 @@ impl MessageEvent {
         self.batch_type.as_deref()
     }
 
-    /// Returns whether this message is live, an echo, or a replay.
+    /// Returns how this message relates to the current session.
     #[must_use]
     pub fn origin(&self) -> Origin {
         self.origin
     }
 
     /// Reports whether a bot may treat this as a newly received message.
+    ///
+    /// Messages from another session of our account are not live, so bots do not answer them.
     #[must_use]
     pub fn is_live(&self) -> bool {
         self.origin == Origin::Live
