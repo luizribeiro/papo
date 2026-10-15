@@ -94,6 +94,11 @@ impl State {
                 return Handled::No;
             };
             for channel in channels.split(',') {
+                outbox.event(Event::Parted {
+                    channel: channel.to_owned(),
+                    nick: nick.to_owned(),
+                    reason: message.param(1).map(str::to_owned),
+                });
                 if mapping.eq(nick, own_nick) {
                     self.remove_channel(channel);
                 } else {
@@ -103,9 +108,21 @@ impl State {
             return Handled::Yes;
         }
         if message.command() == Command::Kick {
-            let (Some(channel), Some(nick)) = (message.param(0), message.param(1)) else {
+            let (Some(source), Some(channel), Some(nick)) =
+                (message.source(), message.param(0), message.param(1))
+            else {
                 return Handled::No;
             };
+            let by = match source {
+                Source::Server(name) => name,
+                Source::User { nick, .. } => nick,
+            };
+            outbox.event(Event::Kicked {
+                channel: channel.to_owned(),
+                nick: nick.to_owned(),
+                by: by.to_owned(),
+                reason: message.param(2).map(str::to_owned),
+            });
             if mapping.eq(nick, own_nick) {
                 self.remove_channel(channel);
             } else {

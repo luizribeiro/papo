@@ -215,3 +215,25 @@ fn bounds_channels_and_members_with_one_warning_each() {
     })
     .ignore_rest();
 }
+
+#[test]
+fn reports_parts_and_kicks_for_other_users_and_ourselves() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+        .server(":dan!dan@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
+        .server(":dan!dan@cloak.example PART #papo :Leaving")
+        .event(|event| matches!(event, Event::Parted { channel, nick, reason } if channel == "#papo" && nick == "dan" && reason.as_deref() == Some("Leaving")))
+        .server(":dan!dan@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
+        .server(":chanop!op@staff.example KICK #papo dan :Rule violation")
+        .event(|event| matches!(event, Event::Kicked { channel, nick, by, reason } if channel == "#papo" && nick == "dan" && by == "chanop" && reason.as_deref() == Some("Rule violation")))
+        .server(":emily!em@127.0.0.1 PART #papo :Requested")
+        .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "emily"))
+        .server(":emily!em@127.0.0.1 JOIN #rust")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+        .server(":chanop!op@staff.example KICK #rust emily :Requested")
+        .event(|event| matches!(event, Event::Kicked { nick, .. } if nick == "emily"))
+        .no_event();
+}

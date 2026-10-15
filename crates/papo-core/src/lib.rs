@@ -386,6 +386,26 @@ pub enum Event {
         /// The synchronized channel.
         channel: String,
     },
+    /// A user left a shared channel with `PART`.
+    Parted {
+        /// The departed channel.
+        channel: String,
+        /// The departing user's nickname.
+        nick: String,
+        /// The optional part reason.
+        reason: Option<String>,
+    },
+    /// A user was removed from a shared channel with `KICK`.
+    Kicked {
+        /// The affected channel.
+        channel: String,
+        /// The removed user's nickname.
+        nick: String,
+        /// The user or server that issued the kick.
+        by: String,
+        /// The optional kick reason.
+        reason: Option<String>,
+    },
 }
 
 /// A bounded server-controlled state collection.
