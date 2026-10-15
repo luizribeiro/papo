@@ -6,6 +6,9 @@
 pub struct OsEntropy;
 
 impl papo_core::Entropy for OsEntropy {
+    /// # Panics
+    ///
+    /// Panics if the operating system random source is unavailable.
     fn fill(&mut self, buffer: &mut [u8]) {
         getrandom::fill(buffer).expect("the operating system random source is unavailable");
     }
