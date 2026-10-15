@@ -5,7 +5,15 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
-use std::{env, future::Future, pin::Pin, process, time::Duration};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    env, fs,
+    future::Future,
+    path::Path,
+    pin::Pin,
+    process,
+    time::Duration,
+};
 
 use libtest_mimic::{Arguments, Completion, Failed, Trial};
 use papo::{Client, Driver, Event, Events, OsEntropy, transport};
@@ -55,6 +63,9 @@ pub fn run() {
     let arguments = Arguments::from_args();
     let server = from_env();
     let specs = scenario_specs();
+    let server_name = env::var("PAPO_TEST_SERVER").unwrap_or_else(|_| "ergo".into());
+    let known_failures =
+        load_known_failures(&server_name, specs).unwrap_or_else(|error| startup_error(&error));
     let wanted_caps = specs
         .iter()
         .flat_map(|spec| spec.requires.caps)
@@ -65,7 +76,15 @@ pub fn run() {
     let trials = specs
         .iter()
         .copied()
-        .map(|spec| trial(spec, server.clone(), &probe))
+        .map(|spec| {
+            trial(
+                spec,
+                server.clone(),
+                &probe,
+                known_failures.get(spec.name).cloned(),
+                server_name.clone(),
+            )
+        })
         .collect();
     libtest_mimic::run(&arguments, trials).exit();
 }
@@ -74,15 +93,86 @@ fn scenario_specs() -> &'static [ScenarioSpec] {
     &[]
 }
 
-fn trial(spec: ScenarioSpec, server: ServerInfo, probe: &Welcome) -> Trial {
+fn trial(
+    spec: ScenarioSpec,
+    server: ServerInfo,
+    probe: &Welcome,
+    known_failure: Option<String>,
+    server_name: String,
+) -> Trial {
     if let Some(reason) = spec.requires.unsupported(&probe.caps, &probe.isupport) {
         return Trial::ignorable_test(spec.name, move || Ok(Completion::ignored_with(reason)))
             .with_kind(spec.doc);
     }
     Trial::ignorable_test(spec.name, move || {
-        runtime().block_on((spec.run)(Scenario { _server: server }))
+        let result = runtime().block_on((spec.run)(Scenario { _server: server }));
+        known_failure_verdict(result, known_failure.as_deref(), &server_name)
     })
     .with_kind(spec.doc)
+}
+
+fn load_known_failures(
+    server: &str,
+    scenarios: &[ScenarioSpec],
+) -> Result<BTreeMap<String, String>, String> {
+    if server.is_empty()
+        || !server
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Err(format!("invalid PAPO_TEST_SERVER value {server:?}"));
+    }
+    let path = Path::new("known-failures")
+        .join(server)
+        .with_extension("toml");
+    let input = fs::read_to_string(&path)
+        .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    parse_known_failures(&input, scenarios.iter().map(|scenario| scenario.name))
+}
+
+fn parse_known_failures<'a>(
+    input: &str,
+    scenarios: impl IntoIterator<Item = &'a str>,
+) -> Result<BTreeMap<String, String>, String> {
+    let table = input
+        .parse::<toml::Table>()
+        .map_err(|error| format!("invalid known-failures TOML: {error}"))?;
+    let scenarios = scenarios.into_iter().collect::<BTreeSet<_>>();
+    table
+        .into_iter()
+        .map(|(name, entry)| {
+            if !scenarios.contains(name.as_str()) {
+                return Err(format!("known failure names unknown scenario {name:?}"));
+            }
+            let reason = entry
+                .as_table()
+                .and_then(|entry| entry.get("reason"))
+                .and_then(toml::Value::as_str)
+                .filter(|reason| !reason.is_empty())
+                .ok_or_else(|| format!("known failure {name:?} is missing a reason"))?;
+            Ok((name, reason.to_owned()))
+        })
+        .collect()
+}
+
+fn known_failure_verdict(
+    result: ScenarioResult,
+    reason: Option<&str>,
+    server: &str,
+) -> ScenarioResult {
+    let Some(reason) = reason else {
+        return result;
+    };
+    match result {
+        Err(_) => {
+            eprintln!("expected failure: {reason}");
+            Ok(Completion::Completed)
+        }
+        Ok(Completion::Completed) => {
+            Err(format!("unexpected pass; remove it from known-failures/{server}.toml").into())
+        }
+        ignored @ Ok(Completion::Ignored { .. }) => ignored,
+    }
 }
 
 async fn probe(
@@ -195,7 +285,9 @@ mod tests {
     use papo_core::Capabilities;
     use papo_proto::Isupport;
 
-    use super::{CapRequirement, Requirements};
+    use libtest_mimic::{Completion, Failed};
+
+    use super::{CapRequirement, Requirements, known_failure_verdict, parse_known_failures};
 
     #[test]
     fn requirements_match_cap_names_values_and_isupport_tokens() {
@@ -242,6 +334,46 @@ mod tests {
                 .unsupported(&caps, &Isupport::default())
                 .as_deref(),
             Some("server does not advertise CHATHISTORY")
+        );
+    }
+
+    #[test]
+    fn known_failures_require_reasons_and_known_scenarios() {
+        let parsed = parse_known_failures(
+            "[registration]\nreason = 'server bug 417'\n",
+            ["registration"],
+        )
+        .unwrap();
+        assert_eq!(parsed["registration"], "server bug 417");
+        assert!(
+            parse_known_failures("[registration]\nnote = 'missing'\n", ["registration"])
+                .unwrap_err()
+                .contains("missing a reason")
+        );
+        assert!(
+            parse_known_failures("[ghost]\nreason = 'stale'\n", ["registration"])
+                .unwrap_err()
+                .contains("unknown scenario")
+        );
+    }
+
+    #[test]
+    fn known_failure_verdicts_invert_failure_and_pass() {
+        let expected = known_failure_verdict(
+            Err(Failed::from("server rejected command")),
+            Some("server bug 417"),
+            "ergo",
+        );
+        assert!(matches!(expected, Ok(Completion::Completed)));
+
+        let unexpected =
+            known_failure_verdict(Ok(Completion::Completed), Some("server bug 417"), "ergo");
+        let Err(unexpected) = unexpected else {
+            panic!("a known failure passing must fail the trial")
+        };
+        assert_eq!(
+            unexpected.message(),
+            Some("unexpected pass; remove it from known-failures/ergo.toml")
         );
     }
 }
