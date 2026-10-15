@@ -307,3 +307,52 @@ fn authenticates_with_external_empty_and_explicit_authzids() {
             .client("CAP END");
     }
 }
+
+fn scram_until_server_final(server_final: &str) -> Transcript {
+    Transcript::with_entropy(
+        Config::default().sasl(Sasl::scram_sha256("user", "pencil")),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE biwsbj11c2VyLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBh")
+    .server(concat!(
+        "AUTHENTICATE ",
+        "cj1XbHBhV2xwYVdscGFXbHBhV2xwYVdscGElaHZZRHBXVWEyUmFUQ0FmdXhGSWxqKWhObEYkazAs",
+        "cz1XMjJaYUowU05ZN3NvRXNVRWpiNmdRPT0saT00MDk2"
+    ))
+    .client(concat!(
+        "AUTHENTICATE ",
+        "Yz1iaXdzLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBhJWh2WURwV1VhMlJhVENBZnV4Rklsailo",
+        "TmxGJGswLHA9M2dCTVFERWRxdS9jM2FoSjkzMUwrSWl5d0N6QWpoMm92cWFaZExhYjkrWT0="
+    ))
+    .server(server_final)
+}
+
+#[test]
+fn authenticates_with_scram_sha256_using_fixed_entropy() {
+    scram_until_server_final(
+        "AUTHENTICATE dj1hV3UvY3hvOUIyWko1ajMxdnRZeTlObTAxUGY4U2FmbXpGQjN3VEgrS2l3PQ==",
+    )
+    .client("AUTHENTICATE +")
+    .server(":ergo.test 903 user :SASL authentication successful")
+    .client("CAP END");
+}
+
+#[test]
+fn rejects_a_tampered_scram_server_signature() {
+    scram_until_server_final(
+        "AUTHENTICATE dj1iV3UvY3hvOUIyWko1ajMxdnRZeTlObTAxUGY4U2FmbXpGQjN3VEgrS2l3PQ==",
+    )
+    .client("AUTHENTICATE *")
+    .server(":ergo.test 906 user :SASL authentication aborted")
+    .event(|event| {
+        matches!(event, Event::AuthenticationFailed { reason }
+            if reason.contains("ServerSignatureMismatch"))
+    })
+    .client("CAP END");
+}

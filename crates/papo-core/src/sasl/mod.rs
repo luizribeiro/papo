@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 pub(crate) mod scram;
 
 use std::{
@@ -10,6 +9,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::MessageRef;
 
 use crate::{Config, Handled, Outbox};
+use scram::ScramClient;
 
 const SASL_CHUNK_LEN: usize = 400;
 const SASL_TIMEOUT: Duration = Duration::from_secs(30);
@@ -107,6 +107,8 @@ pub(super) struct SaslSession {
     failures: Vec<String>,
     deadline: Option<Instant>,
     aborting: bool,
+    scram: Option<ScramClient>,
+    scram_step: ScramStep,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -114,6 +116,15 @@ enum Completion {
     Pending,
     Success,
     Failed,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum ScramStep {
+    #[default]
+    None,
+    Initial,
+    ServerFirst,
+    ServerFinal,
 }
 
 impl std::fmt::Debug for SaslSession {
@@ -133,6 +144,8 @@ impl std::fmt::Debug for SaslSession {
             .field("failures", &self.failures)
             .field("deadline", &self.deadline)
             .field("aborting", &self.aborting)
+            .field("has_scram", &self.scram.is_some())
+            .field("scram_step", &self.scram_step)
             .finish()
     }
 }
@@ -161,6 +174,8 @@ impl SaslSession {
             failures: Vec::new(),
             deadline: None,
             aborting: false,
+            scram: None,
+            scram_step: ScramStep::None,
         }
     }
 
@@ -178,6 +193,8 @@ impl SaslSession {
         self.failures.clear();
         self.deadline = None;
         self.aborting = false;
+        self.scram = None;
+        self.scram_step = ScramStep::None;
     }
 
     pub(super) fn handle_cap_ack(
@@ -228,7 +245,17 @@ impl SaslSession {
                 return Handled::Yes;
             }
         };
-        let _ = challenge;
+        if matches!(mechanism, Mechanism::ScramSha256 { .. }) {
+            match self.handle_scram_challenge(&challenge, outbox) {
+                Ok(done) => self.awaiting_challenge = !done,
+                Err(reason) => {
+                    self.abort(now, &reason, outbox);
+                    return Handled::Yes;
+                }
+            }
+            self.deadline = Some(now + SASL_TIMEOUT);
+            return Handled::Yes;
+        }
         match mechanism {
             Mechanism::Plain { username, password } => {
                 let authcid = with_device(username, self.device.as_deref());
@@ -237,7 +264,7 @@ impl SaslSession {
             Mechanism::External { authzid } => {
                 transmit_response(authzid.as_deref().unwrap_or("").as_bytes(), outbox);
             }
-            Mechanism::ScramSha256 { .. } => return Handled::No,
+            Mechanism::ScramSha256 { .. } => unreachable!(),
         }
         self.awaiting_challenge = false;
         self.deadline = Some(now + SASL_TIMEOUT);
@@ -260,6 +287,8 @@ impl SaslSession {
             self.active = None;
             self.awaiting_challenge = false;
             self.deadline = None;
+            self.scram = None;
+            self.scram_step = ScramStep::None;
             self.completion = Completion::Success;
         } else if message.command_is("904") || message.command_is("905") {
             self.record_active_failure(message.param(1).unwrap_or("SASL mechanism failed"));
@@ -342,6 +371,24 @@ impl SaslSession {
                 );
                 continue;
             }
+            if let Mechanism::ScramSha256 { username, password } = &mechanism {
+                let mut nonce = [0; 18];
+                self.entropy
+                    .as_mut()
+                    .expect("SCRAM entropy was checked")
+                    .fill(&mut nonce);
+                let authcid = with_device(username, self.device.as_deref());
+                match ScramClient::new(&authcid, password, &STANDARD.encode(nonce)) {
+                    Ok(scram) => {
+                        self.scram = Some(scram);
+                        self.scram_step = ScramStep::Initial;
+                    }
+                    Err(error) => {
+                        self.failures.push(format!("SCRAM-SHA-256: {error:?}"));
+                        continue;
+                    }
+                }
+            }
             outbox.transmit("AUTHENTICATE", [mechanism.name()]);
             self.active = Some(mechanism);
             self.awaiting_challenge = true;
@@ -358,6 +405,8 @@ impl SaslSession {
         }
         self.awaiting_challenge = false;
         self.deadline = None;
+        self.scram = None;
+        self.scram_step = ScramStep::None;
     }
 
     fn retain_available(&mut self, available: &str) {
@@ -373,6 +422,42 @@ impl SaslSession {
         self.aborting = true;
         self.deadline = Some(now + SASL_TIMEOUT);
         outbox.transmit("AUTHENTICATE", ["*"]);
+    }
+
+    fn handle_scram_challenge(
+        &mut self,
+        challenge: &[u8],
+        outbox: &mut Outbox,
+    ) -> Result<bool, String> {
+        let client = self.scram.as_mut().ok_or("SCRAM client is missing")?;
+        match self.scram_step {
+            ScramStep::Initial if challenge.is_empty() => {
+                transmit_response(client.client_first().as_bytes(), outbox);
+                self.scram_step = ScramStep::ServerFirst;
+                Ok(false)
+            }
+            ScramStep::ServerFirst => {
+                let challenge = std::str::from_utf8(challenge)
+                    .map_err(|_| "SCRAM server-first message is not UTF-8")?;
+                let response = client
+                    .handle_server_first(challenge)
+                    .map_err(|error| format!("SCRAM server-first failed: {error:?}"))?;
+                transmit_response(response.as_bytes(), outbox);
+                self.scram_step = ScramStep::ServerFinal;
+                Ok(false)
+            }
+            ScramStep::ServerFinal => {
+                let challenge = std::str::from_utf8(challenge)
+                    .map_err(|_| "SCRAM server-final message is not UTF-8")?;
+                client
+                    .handle_server_final(challenge)
+                    .map_err(|error| format!("SCRAM server-final failed: {error:?}"))?;
+                transmit_response(&[], outbox);
+                self.scram_step = ScramStep::None;
+                Ok(true)
+            }
+            _ => Err("unexpected SCRAM challenge".to_owned()),
+        }
     }
 
     fn fail_all(&mut self, reason: &str, outbox: &mut Outbox) {
