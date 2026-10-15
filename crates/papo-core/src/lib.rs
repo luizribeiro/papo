@@ -894,6 +894,13 @@ pub enum Event {
         /// Whether the server authenticated the session to the account.
         logged_in: bool,
     },
+    /// Account creation requires a verification step.
+    VerificationRequired {
+        /// The account awaiting verification.
+        account: String,
+        /// Human-readable instructions from the server.
+        message: String,
+    },
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -1916,6 +1923,24 @@ impl Session {
                 ],
             ),
         )?;
+        Ok(())
+    }
+
+    /// Submits a verification code for `draft/account-registration`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::Unsupported`] when the capability was not negotiated. Other
+    /// failures are the same as [`Session::request`].
+    pub fn verify(&mut self, now: Instant, account: &str, code: &str) -> Result<(), RequestError> {
+        if !self
+            .caps
+            .enabled()
+            .contains_key("draft/account-registration")
+        {
+            return Err(RequestError::Unsupported("account-registration"));
+        }
+        self.request(now, Message::new("VERIFY", [account, code]))?;
         Ok(())
     }
 

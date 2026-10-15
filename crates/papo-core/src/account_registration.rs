@@ -13,7 +13,9 @@ impl AccountRegistration {
         message: &MessageRef<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
-        if message.command_is("REGISTER") && message.param(0) == Some("SUCCESS") {
+        if (message.command_is("REGISTER") || message.command_is("VERIFY"))
+            && message.param(0) == Some("SUCCESS")
+        {
             let Some(account) = message.param(1) else {
                 return Handled::No;
             };
@@ -21,6 +23,17 @@ impl AccountRegistration {
             outbox.event(Event::AccountRegistered {
                 account: account.to_owned(),
                 logged_in: true,
+            });
+            Handled::Yes
+        } else if message.command_is("REGISTER")
+            && message.param(0) == Some("VERIFICATION_REQUIRED")
+        {
+            let (Some(account), Some(description)) = (message.param(1), message.param(2)) else {
+                return Handled::No;
+            };
+            outbox.event(Event::VerificationRequired {
+                account: account.to_owned(),
+                message: description.to_owned(),
             });
             Handled::Yes
         } else {
