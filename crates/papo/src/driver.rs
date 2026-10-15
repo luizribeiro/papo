@@ -10,12 +10,22 @@ use tokio::{
 use crate::{Error, Event, event, transport};
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
+const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 enum Command {
     Send {
         message: Message,
         result: oneshot::Sender<Result<(), papo_proto::BuildError>>,
     },
+    Quit {
+        reason: Option<String>,
+        result: oneshot::Sender<Result<(), Error>>,
+    },
+}
+
+struct Quit {
+    deadline: Instant,
+    results: Vec<oneshot::Sender<Result<(), Error>>>,
 }
 
 /// A cheap, cloneable handle to a running IRC client.
@@ -48,6 +58,27 @@ impl Client {
     /// Returns an error if the message is invalid or the driver has stopped.
     pub async fn privmsg(&self, target: &str, text: &str) -> Result<(), Error> {
         self.send(Message::privmsg(target, text)).await
+    }
+
+    /// Requests a clean disconnect and waits for the peer to close.
+    ///
+    /// The wait is limited to ten seconds. The driver still completes cleanly
+    /// when that limit is reached.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the QUIT message is invalid, the driver has already
+    /// stopped, or the peer does not close within ten seconds.
+    pub async fn quit(&self, reason: Option<&str>) -> Result<(), Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::Quit {
+                reason: reason.map(str::to_owned),
+                result,
+            })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        receiver.await.map_err(|_| Error::Disconnected)?
     }
 }
 
@@ -116,32 +147,109 @@ where
 {
     session.handle_connected(now());
     let mut commands_open = true;
+    let mut quit = None;
     let mut buffer = [0; 4096];
     let terminal = loop {
         match drain(&mut stream, &mut session, &events).await {
             Ok(Some(reason)) => break reason,
             Ok(None) => {}
             Err(error) => {
-                return finish(stream, session, events, error.to_string(), Error::Io(error)).await;
+                return finish(
+                    stream,
+                    session,
+                    events,
+                    error.to_string(),
+                    Error::Io(error),
+                    quit,
+                    false,
+                )
+                .await;
             }
         }
-        let deadline = session.poll_timeout();
+        let deadline = [
+            session.poll_timeout(),
+            quit.as_ref().map(|quit: &Quit| quit.deadline),
+        ]
+        .into_iter()
+        .flatten()
+        .min();
         tokio::select! {
             read = stream.read(&mut buffer) => match read {
                 Ok(0) => break "server closed the connection".to_owned(),
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
-                Err(error) => return finish(stream, session, events, error.to_string(), Error::Io(error)).await,
+                Err(error) => return finish(stream, session, events, error.to_string(), Error::Io(error), quit, false).await,
             },
             command = commands.recv(), if commands_open => match command {
                 Some(Command::Send { message, result }) => {
                     _ = result.send(session.send(now(), message));
                 }
-                None => commands_open = false,
+                Some(Command::Quit { reason, result }) => {
+                    request_quit(&mut session, &mut quit, reason, Some(result));
+                }
+                None => {
+                    commands_open = false;
+                    request_quit(&mut session, &mut quit, None, None);
+                }
             },
-            () = wait_until(deadline) => session.handle_timeout(now()),
+            () = wait_until(deadline) => {
+                let current = now();
+                if quit.as_ref().is_some_and(|quit| current >= quit.deadline) {
+                    return finish(
+                        stream,
+                        session,
+                        events,
+                        "QUIT was not acknowledged within 10 seconds".to_owned(),
+                        Error::Timeout,
+                        quit,
+                        true,
+                    ).await;
+                }
+                session.handle_timeout(current);
+            },
         }
     };
-    finish(stream, session, events, terminal, Error::Disconnected).await
+    finish(
+        stream,
+        session,
+        events,
+        terminal,
+        Error::Disconnected,
+        quit,
+        false,
+    )
+    .await
+}
+
+fn request_quit(
+    session: &mut Session,
+    quit: &mut Option<Quit>,
+    reason: Option<String>,
+    result: Option<oneshot::Sender<Result<(), Error>>>,
+) {
+    if let Some(quit) = quit {
+        if let Some(result) = result {
+            quit.results.push(result);
+        }
+        return;
+    }
+    let message = reason.map_or_else(
+        || Message::new("QUIT", Vec::<String>::new()),
+        |reason| Message::new("QUIT", [reason]),
+    );
+    let current = now();
+    match session.send(current, message) {
+        Ok(()) => {
+            *quit = Some(Quit {
+                deadline: current + QUIT_TIMEOUT,
+                results: result.into_iter().collect(),
+            });
+        }
+        Err(error) => {
+            if let Some(result) = result {
+                _ = result.send(Err(Error::Build(error)));
+            }
+        }
+    }
 }
 
 async fn wait_until(deadline: Option<Instant>) {
@@ -178,6 +286,8 @@ async fn finish<S>(
     events: mpsc::Sender<Event>,
     mut reason: String,
     mut result: Error,
+    quit: Option<Quit>,
+    quit_timed_out: bool,
 ) -> Result<(), Error>
 where
     S: AsyncWrite + Unpin,
@@ -191,7 +301,18 @@ where
         result = Error::Io(error);
     }
     _ = events.send(Event::Disconnected { reason }).await;
-    Err(result)
+    if let Some(quit) = quit {
+        for response in quit.results {
+            _ = response.send(if quit_timed_out {
+                Err(Error::Timeout)
+            } else {
+                Ok(())
+            });
+        }
+        Ok(())
+    } else {
+        Err(result)
+    }
 }
 
 fn now() -> Instant {
@@ -294,6 +415,59 @@ mod tests {
         ));
         server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn quit_resolves_after_server_eof() {
+        let (mut server, client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        let quit = tokio::spawn(async move { client.quit(Some("leaving for maintenance")).await });
+        let mut line = [0; 31];
+        server.read_exact(&mut line).await.unwrap();
+        assert_eq!(&line, b"QUIT :leaving for maintenance\r\n");
+        server.shutdown().await.unwrap();
+        assert!(quit.await.unwrap().is_ok());
+        assert!(driver.await.unwrap().is_ok());
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected { .. })
+        ));
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn quit_times_out_after_ten_seconds() {
+        let (mut server, client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        let quit = tokio::spawn(async move { client.quit(None).await });
+        let mut line = [0; 6];
+        server.read_exact(&mut line).await.unwrap();
+        assert_eq!(&line, b"QUIT\r\n");
+        tokio::time::advance(Duration::from_secs(9)).await;
+        assert!(!quit.is_finished());
+        tokio::time::advance(Duration::from_secs(1)).await;
+        assert!(matches!(quit.await.unwrap(), Err(Error::Timeout)));
+        assert!(driver.await.unwrap().is_ok());
+        assert_eq!(
+            events.next().await,
+            Some(Event::Disconnected {
+                reason: "QUIT was not acknowledged within 10 seconds".into()
+            })
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn dropping_every_client_sends_quit() {
+        let (mut server, client, _events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        drop(client);
+        let mut line = [0; 6];
+        server.read_exact(&mut line).await.unwrap();
+        assert_eq!(&line, b"QUIT\r\n");
+        server.shutdown().await.unwrap();
+        assert!(driver.await.unwrap().is_ok());
     }
 
     #[tokio::test(flavor = "current_thread", start_paused = true)]
