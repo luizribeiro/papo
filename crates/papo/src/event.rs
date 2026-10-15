@@ -719,103 +719,87 @@ mod tests {
 
     #[test]
     fn maps_joined() {
-        assert_eq!(
+        assert!(matches!(
             forwarded(papo_core::Event::Joined {
                 channel: "#papo".into(),
                 nick: "emily".into()
             }),
-            Event::Joined {
-                channel: "#papo".into(),
-                nick: "emily".into()
-            }
-        );
+            Event::Joined { channel, nick } if channel == "#papo" && nick == "emily"
+        ));
     }
 
     #[test]
     fn maps_channel_synced() {
-        assert_eq!(
+        assert!(matches!(
             forwarded(papo_core::Event::ChannelSynced {
                 channel: "#papo".into()
             }),
-            Event::ChannelSynced {
-                channel: "#papo".into()
-            }
-        );
+            Event::ChannelSynced { channel } if channel == "#papo"
+        ));
     }
 
     #[test]
     fn maps_parted() {
-        assert_eq!(
+        assert!(matches!(
             forwarded(papo_core::Event::Parted {
                 channel: "#papo".into(),
                 nick: "emily".into(),
                 reason: Some("Leaving for lunch".into()),
             }),
-            Event::Parted {
-                channel: "#papo".into(),
-                nick: "emily".into(),
-                reason: Some("Leaving for lunch".into()),
-            }
-        );
+            Event::Parted { channel, nick, reason }
+                if channel == "#papo" && nick == "emily" && reason.as_deref() == Some("Leaving for lunch")
+        ));
     }
 
     #[test]
     fn maps_kicked() {
-        assert_eq!(
+        assert!(matches!(
             forwarded(papo_core::Event::Kicked {
                 channel: "#papo".into(),
                 nick: "emily".into(),
                 by: "alice".into(),
                 reason: Some("Flooding".into()),
             }),
-            Event::Kicked {
-                channel: "#papo".into(),
-                nick: "emily".into(),
-                by: "alice".into(),
-                reason: Some("Flooding".into()),
-            }
-        );
+            Event::Kicked { channel, nick, by, reason }
+                if channel == "#papo" && nick == "emily" && by == "alice"
+                    && reason.as_deref() == Some("Flooding")
+        ));
     }
 
     #[test]
     fn maps_quit() {
-        assert_eq!(
+        assert!(matches!(
             forwarded(papo_core::Event::Quit {
                 nick: "emily".into(),
                 reason: Some("Client exited".into()),
                 channels: vec!["#papo".into(), "#rust".into()],
             }),
-            Event::Quit {
-                nick: "emily".into(),
-                reason: Some("Client exited".into()),
-                channels: vec!["#papo".into(), "#rust".into()],
-            }
-        );
+            Event::Quit { nick, reason, channels }
+                if nick == "emily" && reason.as_deref() == Some("Client exited")
+                    && channels == ["#papo", "#rust"]
+        ));
     }
 
     #[test]
     fn maps_nick_changed() {
-        assert_eq!(
+        assert!(matches!(
             forwarded(papo_core::Event::NickChanged {
                 old: "emily".into(),
                 new: "em".into(),
             }),
-            Event::NickChanged {
-                old: "emily".into(),
-                new: "em".into(),
-            }
-        );
+            Event::NickChanged { old, new } if old == "emily" && new == "em"
+        ));
     }
 
     #[test]
     fn maps_state_limit_reached() {
-        assert_eq!(
+        assert!(matches!(
             forwarded(papo_core::Event::StateLimitReached {
                 limit: StateLimit::Members
             }),
             Event::StateLimitReached {
                 limit: StateLimit::Members
             }
-        );
+        ));
     }
 }
