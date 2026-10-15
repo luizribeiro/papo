@@ -163,7 +163,7 @@ impl Session {
 
     /// Marks the transport as disconnected and drops per-connection state.
     pub fn handle_disconnected(&mut self, _now: Instant) {
-        self.framer.reset();
+        self.framer.close();
         self.outbox.reset_connection();
     }
 

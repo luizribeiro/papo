@@ -90,3 +90,21 @@ fn closes_only_over_the_literal_framing_limit() {
     session.handle_bytes(now, &vec![b'x'; 8191 + 512 + 1]);
     assert!(matches!(session.poll_event(), Some(Event::Close { .. })));
 }
+
+#[test]
+fn reconnect_resets_partial_and_closed_framing_state() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_connected(now);
+    session.handle_bytes(now, b":ergo.test NOTICE * :partial");
+    session.handle_bytes(now, &vec![b'x'; 8191 + 512 + 1]);
+    assert!(matches!(session.poll_event(), Some(Event::Close { .. })));
+
+    session.handle_disconnected(now);
+    session.handle_connected(now);
+    session.handle_bytes(now, b"PING :after-reconnect\r\n");
+    assert_eq!(
+        session.poll_transmit(),
+        Some(b"PONG :after-reconnect\r\n".to_vec())
+    );
+}

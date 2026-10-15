@@ -29,6 +29,15 @@ fn closes_when_the_server_sends_error() {
 }
 
 #[test]
+fn closes_on_a_parameterless_error() {
+    Transcript::new(Config::default())
+        .connect()
+        .server("ERROR")
+        .event(|event| matches!(event, Event::Close { reason } if reason == "server sent ERROR"))
+        .no_client();
+}
+
+#[test]
 fn does_not_answer_invalid_pings() {
     Transcript::new(Config::default())
         .server(":ergo.test PING")
