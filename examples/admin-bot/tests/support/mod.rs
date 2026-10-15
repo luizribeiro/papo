@@ -67,9 +67,7 @@ pub(super) async fn connect(
     let address = format!("irc://{}", server.plaintext_addr());
     let mut builder = Client::builder(&address).nick(nick).channels(channels);
     if authenticated {
-        builder = builder
-            .sasl(Sasl::plain(nick, PASSWORD))
-            .require_sasl(true);
+        builder = builder.sasl(Sasl::plain(nick, PASSWORD)).require_sasl(true);
     }
     let (client, mut events) = builder.connect().await.unwrap();
     wait_synced(&mut events, channels).await;
@@ -106,11 +104,12 @@ pub(super) async fn wait_message(events: &mut Events, text: &str) -> MessageEven
 pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
     loop {
         match events.next().await {
-            Some(Event::ModeChanged { target, changes, .. })
-                if target == channel
-                    && changes.iter().any(|change| {
-                        change.set && change.mode == 'o' && change.arg.as_deref() == Some(nick)
-                    }) =>
+            Some(Event::ModeChanged {
+                target, changes, ..
+            }) if target == channel
+                && changes.iter().any(|change| {
+                    change.set && change.mode == 'o' && change.arg.as_deref() == Some(nick)
+                }) =>
             {
                 return;
             }
