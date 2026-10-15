@@ -1310,6 +1310,7 @@ impl Session {
     ///
     /// Context tags (`+reply`, `+draft/reply`, `+channel-context`, and its draft alias) apply
     /// only to the first fallback line. Other supplied tags are copied to every line.
+    /// A `FAIL BATCH MULTILINE_*` is surfaced as an error or reply without automatic retry.
     ///
     /// # Errors
     ///
@@ -1324,7 +1325,16 @@ impl Session {
         tags: &[(&str, &str)],
     ) -> Result<Option<RequestId>, RequestError> {
         self.rate_limit.advance(now);
-        let segments = papo_proto::split_text(text, self.text_budget(kind, target));
+        let multiline = self
+            .caps
+            .enabled()
+            .contains_key("batch")
+            .then(|| outgoing::multiline_limits(self.caps.enabled()))
+            .flatten();
+        let budget = multiline.map_or(self.text_budget(kind, target), |limits| {
+            self.text_budget(kind, target).min(limits.max_bytes)
+        });
+        let segments = papo_proto::split_text(text, budget);
         if segments.is_empty() {
             return Err(RequestError::EmptyText);
         }
@@ -1334,20 +1344,66 @@ impl Session {
         }
         let id = RequestId(self.next_request_id);
         let label = labelled.then(|| encode_label(self.next_request_id));
-        let mut lines = Vec::with_capacity(segments.len());
-        for (index, segment) in segments.into_iter().enumerate() {
-            let mut message = Message::new(kind.command(), [target, segment.text]);
-            for &(key, value) in tags {
-                if index == 0 || !outgoing::first_line_only(key) {
-                    message = message.with_tag(key, value);
+        let mut lines = Vec::new();
+        let mut batch_count = 0;
+        if let Some(limits) = multiline {
+            let mut start = 0;
+            while start < segments.len() {
+                let mut end = start;
+                let mut bytes = 0;
+                while end < segments.len() && end - start < limits.max_lines {
+                    let separator = usize::from(end > start && !segments[end - 1].concat);
+                    if bytes + separator + segments[end].text.len() > limits.max_bytes {
+                        break;
+                    }
+                    bytes += separator + segments[end].text.len();
+                    end += 1;
                 }
+                let id = format!("b{}-{batch_count}", encode_label(self.next_request_id));
+                let params = [format!("+{id}"), "draft/multiline".into(), target.into()];
+                let mut open = Message::new("BATCH", params);
+                for &(key, value) in tags {
+                    if batch_count == 0 || !outgoing::first_line_only(key) {
+                        open = open.with_tag(key, value);
+                    }
+                }
+                if batch_count == 0
+                    && let Some(label) = &label
+                {
+                    open = open.with_tag("label", label);
+                }
+                lines.push(open.to_line()?.into_bytes());
+                for (offset, segment) in segments[start..end].iter().enumerate() {
+                    let mut inner =
+                        Message::new(kind.command(), [target, segment.text]).with_tag("batch", &id);
+                    if offset + start + 1 < end && segment.concat {
+                        inner = inner.with_tag("draft/multiline-concat", "");
+                    }
+                    lines.push(inner.to_line()?.into_bytes());
+                }
+                lines.push(
+                    Message::new("BATCH", [format!("-{id}")])
+                        .to_line()?
+                        .into_bytes(),
+                );
+                start = end;
+                batch_count += 1;
             }
-            if index == 0
-                && let Some(label) = &label
-            {
-                message = message.with_tag("label", label);
+        } else {
+            for (index, segment) in segments.iter().enumerate() {
+                let mut message = Message::new(kind.command(), [target, segment.text]);
+                for &(key, value) in tags {
+                    if index == 0 || !outgoing::first_line_only(key) {
+                        message = message.with_tag(key, value);
+                    }
+                }
+                if index == 0
+                    && let Some(label) = &label
+                {
+                    message = message.with_tag("label", label);
+                }
+                lines.push(message.to_line()?.into_bytes());
             }
-            lines.push(message.to_line()?.into_bytes());
         }
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {

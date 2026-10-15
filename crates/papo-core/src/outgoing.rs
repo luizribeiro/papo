@@ -1,4 +1,4 @@
-use crate::State;
+use crate::{Capabilities, State};
 
 const UNKNOWN_HOST_LEN: usize = 63;
 
@@ -33,6 +33,27 @@ pub(super) fn first_line_only(key: &str) -> bool {
         key,
         "+reply" | "+draft/reply" | "+channel-context" | "+draft/channel-context"
     )
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct MultilineLimits {
+    pub(super) max_bytes: usize,
+    pub(super) max_lines: usize,
+}
+
+pub(super) fn multiline_limits(caps: &Capabilities) -> Option<MultilineLimits> {
+    let value = caps.get("draft/multiline")?.as_deref()?;
+    let number = |name| {
+        value.split(',').find_map(|item| {
+            let (key, value) = item.split_once('=')?;
+            (key == name).then(|| value.parse().ok()).flatten()
+        })
+    };
+    let limits = MultilineLimits {
+        max_bytes: number("max-bytes")?,
+        max_lines: number("max-lines").unwrap_or(usize::MAX),
+    };
+    (limits.max_bytes > 0 && limits.max_lines > 0).then_some(limits)
 }
 
 #[cfg(test)]
