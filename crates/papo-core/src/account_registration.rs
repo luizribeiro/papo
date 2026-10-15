@@ -2,6 +2,26 @@ use papo_proto::MessageRef;
 
 use crate::{Event, Handled, Outbox};
 
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct RegistrationPolicy {
+    pub(super) custom_account_name: bool,
+    pub(super) email_required: bool,
+}
+
+impl RegistrationPolicy {
+    pub(super) fn parse(value: Option<&str>) -> Self {
+        let mut policy = Self::default();
+        for token in value.unwrap_or("").split(',') {
+            match token.split_once('=').map_or(token, |(key, _)| key) {
+                "custom-account-name" => policy.custom_account_name = true,
+                "email-required" => policy.email_required = true,
+                _ => {}
+            }
+        }
+        policy
+    }
+}
+
 #[derive(Debug, Default)]
 pub(super) struct AccountRegistration {
     account: Option<String>,

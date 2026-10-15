@@ -30,7 +30,7 @@ use papo_proto::{
     StandardReplyKind,
 };
 
-use account_registration::AccountRegistration;
+use account_registration::{AccountRegistration, RegistrationPolicy};
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 use framing::Framer;
@@ -870,6 +870,10 @@ pub enum RequestError {
     Unsupported(&'static str),
     /// The server cannot accept the supplied history reference.
     InvalidMessageReference,
+    /// Account registration requires an email address.
+    EmailRequired,
+    /// The server requires the account name to match the current nickname.
+    CustomAccountNameUnsupported,
 }
 
 /// Machine-readable reason that a session requested connection closure.
@@ -902,6 +906,10 @@ impl std::fmt::Display for RequestError {
             Self::EmptyText => formatter.write_str("text has no nonempty lines"),
             Self::Unsupported(feature) => write!(formatter, "server does not support {feature}"),
             Self::InvalidMessageReference => formatter.write_str("unsupported message reference"),
+            Self::EmailRequired => formatter.write_str("account registration requires an email"),
+            Self::CustomAccountNameUnsupported => {
+                formatter.write_str("server does not support a custom account name")
+            }
         }
     }
 }
@@ -913,7 +921,9 @@ impl std::error::Error for RequestError {
             Self::PendingLimit
             | Self::EmptyText
             | Self::Unsupported(_)
-            | Self::InvalidMessageReference => None,
+            | Self::InvalidMessageReference
+            | Self::EmailRequired
+            | Self::CustomAccountNameUnsupported => None,
         }
     }
 }
@@ -1985,14 +1995,35 @@ impl Session {
                 "account registration before connection",
             ));
         }
-        if !self
+        let value = self
             .caps
             .enabled()
-            .contains_key("draft/account-registration")
-        {
+            .get("draft/account-registration")
+            .map(Option::as_deref);
+        let Some(value) = value else {
             return Err(RequestError::Unsupported("account-registration"));
+        };
+        let policy = RegistrationPolicy::parse(value);
+        if email.is_none() && policy.email_required {
+            return Err(RequestError::EmailRequired);
+        }
+        if account.is_some_and(|account| {
+            !policy.custom_account_name
+                && !self.isupport.value().casemapping().eq(account, self.nick())
+        }) {
+            return Err(RequestError::CustomAccountNameUnsupported);
         }
         let password = password.into();
+        self.send_register(now, account, email, &password)
+    }
+
+    fn send_register(
+        &mut self,
+        now: Instant,
+        account: Option<&str>,
+        email: Option<&str>,
+        password: &Secret,
+    ) -> Result<(), RequestError> {
         self.request(
             now,
             Message::new(
@@ -2500,6 +2531,8 @@ fn bypasses_rate_limit(line: &[u8]) -> bool {
         b"USER",
         b"CAP",
         b"AUTHENTICATE",
+        b"REGISTER",
+        b"VERIFY",
         b"PONG",
     ]
     .iter()

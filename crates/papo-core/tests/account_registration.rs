@@ -134,3 +134,33 @@ fn types_a_labelled_verification_failure() {
                     == Some(AccountRegistrationError::InvalidCode))
         });
 }
+
+#[test]
+fn enforces_account_registration_capability_values_locally() {
+    let config = Config::default().wanted_caps(["draft/account-registration"]);
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=email-required")
+        .client("CAP REQ :draft/account-registration")
+        .server("CAP * ACK :draft/account-registration")
+        .client("CAP END")
+        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .server(":ergo.test 422 alice :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| {
+            assert_eq!(
+                session.register(std::time::Instant::now(), None, None, "hunter2"),
+                Err(papo_core::RequestError::EmailRequired)
+            );
+            assert_eq!(
+                session.register(
+                    std::time::Instant::now(),
+                    Some("other-account"),
+                    Some("alice@example.org"),
+                    "hunter2",
+                ),
+                Err(papo_core::RequestError::CustomAccountNameUnsupported)
+            );
+        })
+        .no_client();
+}
