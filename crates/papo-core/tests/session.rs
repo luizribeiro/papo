@@ -1,7 +1,8 @@
 //! Tests for the public session queue surface.
 
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
+use papo_core::sts::ConnectionSecurity;
 use papo_core::{Config, DEFAULT_WANTED_CAPS, RateLimit, Session};
 use papo_proto::{BuildError, Message};
 
@@ -15,7 +16,10 @@ fn config_builders_set_registration_identity_and_timeout() {
         .registration_timeout(Duration::from_secs(23))
         .ping_interval(Duration::from_secs(41))
         .ping_timeout(Duration::from_secs(82))
-        .rate_limit(RateLimit::new(7, Duration::from_millis(250)));
+        .rate_limit(RateLimit::new(7, Duration::from_millis(250)))
+        .connection_security(ConnectionSecurity::Secure)
+        .host("irc.example.net")
+        .sts_time(SystemTime::UNIX_EPOCH + Duration::from_secs(12_345));
 
     assert_eq!(config.nick, "emily");
     assert_eq!(config.username, "em");
@@ -23,6 +27,12 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(
         config.password.as_deref(),
         Some("correct horse battery staple")
+    );
+    assert_eq!(config.connection_security, ConnectionSecurity::Secure);
+    assert_eq!(config.host, "irc.example.net");
+    assert_eq!(
+        config.sts_time,
+        SystemTime::UNIX_EPOCH + Duration::from_secs(12_345)
     );
     assert_eq!(config.registration_timeout, Duration::from_secs(23));
     assert_eq!(config.ping_interval, Duration::from_secs(41));

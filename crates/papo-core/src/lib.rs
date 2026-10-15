@@ -12,7 +12,7 @@ pub mod sts;
 
 use std::{
     collections::{BTreeMap, VecDeque},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use papo_proto::{BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef};
@@ -26,6 +26,7 @@ use ratelimit::RateLimiter;
 use registration::Registration;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
+use sts::ConnectionSecurity;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
 const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
@@ -99,6 +100,12 @@ pub struct Config {
     pub ping_timeout: Duration,
     /// Outbound line rate limit.
     pub rate_limit: RateLimit,
+    /// Security of the current transport, used to interpret STS advertisements.
+    pub connection_security: ConnectionSecurity,
+    /// Hostname used for the current connection and its STS policy.
+    pub host: String,
+    /// Wall-clock anchor corresponding to the connection's monotonic start time.
+    pub sts_time: SystemTime,
     /// Capability names to request when advertised by the server.
     pub wanted_caps: Vec<String>,
     /// Alternative nicknames to try when registration collides.
@@ -124,6 +131,9 @@ impl std::fmt::Debug for Config {
             .field("ping_interval", &self.ping_interval)
             .field("ping_timeout", &self.ping_timeout)
             .field("rate_limit", &self.rate_limit)
+            .field("connection_security", &self.connection_security)
+            .field("host", &self.host)
+            .field("sts_time", &self.sts_time)
             .field("wanted_caps", &self.wanted_caps)
             .field("alt_nicks", &self.alt_nicks)
             .field("sasl", &self.sasl)
@@ -154,6 +164,9 @@ impl Default for Config {
             ping_interval: DEFAULT_PING_INTERVAL,
             ping_timeout: DEFAULT_PING_TIMEOUT,
             rate_limit: RateLimit::default(),
+            connection_security: ConnectionSecurity::Plaintext,
+            host: String::new(),
+            sts_time: SystemTime::UNIX_EPOCH,
             wanted_caps: DEFAULT_WANTED_CAPS
                 .iter()
                 .map(|name| (*name).to_owned())
@@ -227,6 +240,27 @@ impl Config {
     #[must_use]
     pub const fn rate_limit(mut self, rate_limit: RateLimit) -> Self {
         self.rate_limit = rate_limit;
+        self
+    }
+
+    /// Sets the current transport security.
+    #[must_use]
+    pub const fn connection_security(mut self, security: ConnectionSecurity) -> Self {
+        self.connection_security = security;
+        self
+    }
+
+    /// Sets the hostname used for the current connection.
+    #[must_use]
+    pub fn host(mut self, host: impl Into<String>) -> Self {
+        self.host = host.into();
+        self
+    }
+
+    /// Sets the wall-clock time corresponding to [`Session::handle_connected`].
+    #[must_use]
+    pub const fn sts_time(mut self, now: SystemTime) -> Self {
+        self.sts_time = now;
         self
     }
 
