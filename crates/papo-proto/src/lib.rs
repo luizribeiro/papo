@@ -29,5 +29,5 @@ pub use modes::{ModeChange, ModeChanges, ModeKind};
 pub use names::{NAME_ALIASES, NameKind, NamesEntry, canonical, parse_353};
 pub use numeric::Numeric;
 pub use source::Source;
-pub use views::Join;
+pub use views::{Account, Away, Join};
 pub use whox::{WhoxFlags, WhoxPresence, WhoxReply};

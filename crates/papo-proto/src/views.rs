@@ -1,4 +1,4 @@
-use crate::{Command, MessageRef};
+use crate::{Command, MessageRef, Params};
 
 /// A typed view of a plain or extended `JOIN` message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -39,4 +39,51 @@ impl<'a> Join<'a> {
             _ => None,
         }
     }
+}
+
+/// A typed view of an account-notify `ACCOUNT` message.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Account<'a> {
+    /// The new account name, or `None` when the user logged out.
+    pub account: Option<&'a str>,
+}
+
+impl<'a> Account<'a> {
+    /// Parses an `ACCOUNT` message with exactly one parameter.
+    #[must_use]
+    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
+        let mut params = exact_params(message, Command::Account, 1)?;
+        let account = params.next()?;
+        Some(Self {
+            account: (account != "*").then_some(account),
+        })
+    }
+}
+
+/// A typed view of an away-notify `AWAY` message.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Away<'a> {
+    /// The away message, or `None` when the user returned.
+    pub message: Option<&'a str>,
+}
+
+impl<'a> Away<'a> {
+    /// Parses an `AWAY` message with zero or one parameter.
+    #[must_use]
+    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
+        if message.command() != Command::Away {
+            return None;
+        }
+        let mut params = message.params();
+        let message = params.next();
+        params.next().is_none().then_some(Self { message })
+    }
+}
+
+fn exact_params<'a>(
+    message: &MessageRef<'a>,
+    command: Command<'a>,
+    length: usize,
+) -> Option<Params<'a>> {
+    (message.command() == command && message.len() == length).then(|| message.params())
 }
