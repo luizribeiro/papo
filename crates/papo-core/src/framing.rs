@@ -102,15 +102,17 @@ mod tests {
     }
 
     #[test]
-    fn frames_forty_thousand_lines_without_quadratic_work() {
-        let input = ":ergo.test NOTICE * :Scheduled maintenance\n".repeat(40_000);
+    fn frames_a_large_burst_without_quadratic_work() {
+        // Quadratic framing takes tens of seconds on this burst and linear framing well under one,
+        // so the bound tolerates heavily loaded machines without hiding a regression.
+        let input = ":ergo.test NOTICE * :Scheduled maintenance\n".repeat(200_000);
         let mut framer = Framer::default();
         let start = Instant::now();
         let output = framer.push(input.as_bytes());
         let elapsed = start.elapsed();
 
-        assert!(elapsed < Duration::from_millis(500), "took {elapsed:?}");
-        assert_eq!(output.lines.len(), 40_000);
+        assert!(elapsed < Duration::from_secs(5), "took {elapsed:?}");
+        assert_eq!(output.lines.len(), 200_000);
         assert!(!output.too_long);
     }
 }
