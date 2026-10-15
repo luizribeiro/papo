@@ -47,14 +47,15 @@ impl FromStr for ServerAddress {
         if input.is_empty() {
             return Err(AddressError::Empty);
         }
-        let (protocol, remainder, websocket) = match input.split_once("://") {
-            Some(("irc", rest)) => (Protocol::Irc, rest, false),
-            Some(("ircs", rest)) => (Protocol::Ircs, rest, false),
-            Some(("ws", rest)) => (Protocol::Ws, rest, true),
-            Some(("wss", rest)) => (Protocol::Wss, rest, true),
+        let (protocol, remainder) = match input.split_once("://") {
+            Some((scheme, rest)) if scheme.eq_ignore_ascii_case("irc") => (Protocol::Irc, rest),
+            Some((scheme, rest)) if scheme.eq_ignore_ascii_case("ircs") => (Protocol::Ircs, rest),
+            Some((scheme, rest)) if scheme.eq_ignore_ascii_case("ws") => (Protocol::Ws, rest),
+            Some((scheme, rest)) if scheme.eq_ignore_ascii_case("wss") => (Protocol::Wss, rest),
             Some((scheme, _)) => return Err(AddressError::UnsupportedScheme(scheme.to_owned())),
-            None => (Protocol::Ircs, input, false),
+            None => (Protocol::Ircs, input),
         };
+        let websocket = matches!(protocol, Protocol::Ws | Protocol::Wss);
         let (authority, path) = remainder.split_once('/').unwrap_or((remainder, ""));
         if !websocket && (!path.is_empty() || remainder.ends_with('/')) {
             return Err(AddressError::UnexpectedPath);
@@ -193,6 +194,24 @@ mod tests {
                 Protocol::Wss,
                 "2001:db8::2",
                 8443,
+            ),
+            (
+                "IRCS://irc.example.net",
+                Protocol::Ircs,
+                "irc.example.net",
+                6697,
+            ),
+            (
+                "Irc://irc.example.net",
+                Protocol::Irc,
+                "irc.example.net",
+                6667,
+            ),
+            (
+                "WSS://irc.example.net",
+                Protocol::Wss,
+                "irc.example.net",
+                443,
             ),
         ];
         for (input, protocol, host, port) in cases {
