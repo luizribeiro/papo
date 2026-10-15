@@ -16,18 +16,17 @@ impl papo_core::Entropy for OsEntropy {
 
 #[cfg(test)]
 mod tests {
-    use papo_core::{Config, Entropy, Session};
+    use papo_core::Entropy;
 
     use super::OsEntropy;
 
     #[test]
-    fn fills_a_session_entropy_buffer() {
+    fn fills_distinct_entropy_buffers() {
         let mut entropy = OsEntropy;
-        let mut buffer = [0; 32];
-        entropy.fill(&mut buffer);
-        assert!(buffer.iter().any(|byte| *byte != 0));
-
-        let session = Session::with_entropy(Config::default(), Box::new(entropy));
-        assert_eq!(session.nick(), "papo");
+        let mut first = [0; 32];
+        let mut second = [0; 32];
+        entropy.fill(&mut first);
+        entropy.fill(&mut second);
+        assert_ne!(first, second);
     }
 }
