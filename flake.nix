@@ -15,6 +15,7 @@
 
   outputs =
     {
+      crane,
       nixpkgs,
       flake-utils,
       git-hooks,
@@ -42,6 +43,15 @@
         nightlyToolchain = pkgs.rust-bin.nightly."2026-10-01".minimal.override {
           targets = [ "wasm32-wasip3" ];
         };
+        craneLib = (crane.mkLib pkgs).overrideToolchain stableToolchain;
+        cargoSource = craneLib.cleanCargoSource ./.;
+        craneArgs = {
+          src = cargoSource;
+          strictDeps = true;
+          pname = "papo-workspace";
+          version = "0.0.0";
+        };
+        cargoArtifacts = craneLib.buildDepsOnly craneArgs;
         cargoWasip3 = pkgs.writeShellApplication {
           name = "cargo-wasip3";
           text = ''
@@ -158,9 +168,36 @@
         };
       in
       {
-        checks.pre-commit = git-hooks.lib.${system}.run {
-          src = ./.;
-          hooks = offlineHooks;
+        checks = {
+          pre-commit = git-hooks.lib.${system}.run {
+            src = ./.;
+            hooks = offlineHooks;
+          };
+          clippy = craneLib.cargoClippy (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              cargoClippyExtraArgs = "--workspace --all-targets -- -W clippy::pedantic -D warnings";
+            }
+          );
+          fmt = craneLib.cargoFmt craneArgs;
+          doc = craneLib.cargoDoc (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              cargoDocExtraArgs = "--workspace --no-deps";
+              env.RUSTDOCFLAGS = "-D warnings";
+            }
+          );
+          nextest = craneLib.cargoNextest (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              cargoExtraArgs = "--workspace --locked";
+              cargoNextestPartitionsExtraArgs = "--no-tests=pass";
+              ERGO_BIN = pkgs.lib.getExe ergochat;
+            }
+          );
         };
 
         devShells.default = pkgs.mkShell {
