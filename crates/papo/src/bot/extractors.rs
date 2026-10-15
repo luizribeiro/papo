@@ -126,6 +126,29 @@ where
     }
 }
 
+impl<F, Fut> Handler<(Msg, Args<Vec<String>>)> for F
+where
+    F: Fn(Msg, Args<Vec<String>>) -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = Result<(), Error>> + Send + 'static,
+{
+    fn call(
+        &self,
+        command: Command,
+        _admins: &Admins,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+        if command.args().is_empty() {
+            return Box::pin(async move {
+                command
+                    .private_notice("expected at least one command argument")
+                    .await?;
+                Ok(())
+            });
+        }
+        let arguments = command.args().to_vec();
+        Box::pin((self)(Msg::new(command), Args(arguments)))
+    }
+}
+
 impl<F, Fut> Handler<(Msg, Args<String>, RequireAccount<Admins>)> for F
 where
     F: Fn(Msg, Args<String>, RequireAccount<Admins>) -> Fut + Send + Sync + 'static,
@@ -220,5 +243,12 @@ mod tests {
                 .await
                 .is_err()
         );
+        let echo = |_: Msg, Args(words): Args<Vec<String>>| async move {
+            assert_eq!(words, ["Ergo", "chat"]);
+            Ok(())
+        };
+        Handler::call(&echo, command("!echo Ergo chat", None), &admins)
+            .await
+            .unwrap();
     }
 }
