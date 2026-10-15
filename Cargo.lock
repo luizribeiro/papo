@@ -639,6 +639,8 @@ name = "papo-lurker"
 version = "0.0.0"
 dependencies = [
  "papo",
+ "papo-proto",
+ "papo-test-server",
  "tokio",
 ]
 
