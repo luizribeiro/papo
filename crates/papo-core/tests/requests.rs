@@ -88,6 +88,25 @@ fn assert_unlabelled(
     );
 }
 
+fn response_id(session: &mut Session) -> RequestId {
+    std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) => Some(response.id),
+            _ => None,
+        })
+        .unwrap()
+}
+
+fn unlabelled_whois(session: &mut Session, now: Instant, nick: &str) -> RequestId {
+    session
+        .request_with_matcher(
+            now,
+            Message::new("WHOIS", [nick]),
+            ResponseMatcher::Whois(nick.into()),
+        )
+        .unwrap()
+}
+
 #[test]
 fn matches_other_unlabelled_request_boundaries() {
     let mut session = Session::new(Config::default().nick("papo"));
@@ -127,6 +146,74 @@ fn matches_other_unlabelled_request_boundaries() {
         Message::new("TOPIC", ["#papo"]),
         ResponseMatcher::Topic("#papo".into()),
         &[":ergo.test 332 papo #papo :Requests in Rust"],
+    );
+}
+
+#[test]
+fn concurrent_unlabelled_whois_uses_targets_then_fifo_order() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let alice = unlabelled_whois(&mut session, now, "alice");
+    let bob = unlabelled_whois(&mut session, now, "bob");
+    session.handle_line(now, b":ergo.test 401 papo bob :No such nick/channel");
+    session.handle_line(now, b":ergo.test 401 papo alice :No such nick/channel");
+    assert_eq!(
+        (response_id(&mut session), response_id(&mut session)),
+        (bob, alice)
+    );
+
+    let first = unlabelled_whois(&mut session, now, "missing");
+    let second = unlabelled_whois(&mut session, now, "missing");
+    for _ in 0..2 {
+        session.handle_line(now, b":ergo.test 401 papo missing :No such nick/channel");
+    }
+    assert_eq!(
+        (response_id(&mut session), response_id(&mut session)),
+        (first, second)
+    );
+}
+
+#[test]
+fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let first = session
+        .request_with_matcher(
+            now,
+            Message::new("WHOIS", ["alice"]),
+            ResponseMatcher::Whois("alice".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_timeout(),
+        Some(now + std::time::Duration::from_secs(30))
+    );
+    session.handle_timeout(now + std::time::Duration::from_secs(30));
+    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id }) if id == first));
+
+    for index in 0..256 {
+        session
+            .request_with_matcher(
+                now,
+                Message::new("WHOIS", [format!("user{index}")]),
+                ResponseMatcher::Whois(format!("user{index}")),
+            )
+            .unwrap();
+    }
+    assert_eq!(
+        session.request_with_matcher(
+            now,
+            Message::new("WHOIS", ["overflow"]),
+            ResponseMatcher::Whois("overflow".into())
+        ),
+        Err(RequestError::PendingLimit)
+    );
+    session.handle_disconnected(now);
+    assert_eq!(
+        std::iter::from_fn(|| session.poll_event())
+            .filter(|event| matches!(event, Event::RequestAborted { .. }))
+            .count(),
+        256
     );
 }
 

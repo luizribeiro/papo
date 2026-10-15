@@ -540,6 +540,7 @@ impl ResponseMatcher {
 #[derive(Debug)]
 struct UnlabelledRequest {
     id: RequestId,
+    started: Instant,
     matcher: ResponseMatcher,
     lines: Vec<Message>,
 }
@@ -1221,6 +1222,18 @@ impl Session {
                 self.outbox.event(Event::RequestTimedOut { id });
             }
         }
+        let pending = std::mem::take(&mut self.unlabelled_requests);
+        for request in pending {
+            if request
+                .started
+                .checked_add(self.config.request_timeout)
+                .is_some_and(|deadline| now >= deadline)
+            {
+                self.outbox.event(Event::RequestTimedOut { id: request.id });
+            } else {
+                self.unlabelled_requests.push_back(request);
+            }
+        }
         let was_registered = self.registration.is_registered();
         self.registration.handle_timeout(
             now,
@@ -1246,6 +1259,9 @@ impl Session {
         self.batches.reset();
         for (_, (id, _)) in std::mem::take(&mut self.requests) {
             self.outbox.event(Event::RequestAborted { id });
+        }
+        for request in self.unlabelled_requests.drain(..) {
+            self.outbox.event(Event::RequestAborted { id: request.id });
         }
         self.registration.handle_disconnected();
         self.sasl.handle_disconnected();
@@ -1332,6 +1348,7 @@ impl Session {
         self.next_request_id = self.next_request_id.wrapping_add(1);
         self.unlabelled_requests.push_back(UnlabelledRequest {
             id,
+            started: now,
             matcher,
             lines: Vec::new(),
         });
@@ -1413,6 +1430,10 @@ impl Session {
             self.requests
                 .values()
                 .filter_map(|(_, started)| started.checked_add(self.config.request_timeout))
+                .min(),
+            self.unlabelled_requests
+                .iter()
+                .filter_map(|request| request.started.checked_add(self.config.request_timeout))
                 .min(),
         ]
         .into_iter()
