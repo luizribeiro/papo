@@ -579,6 +579,27 @@ pub enum Event {
     },
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
+    /// Account creation completed and the connection is authenticated.
+    AccountRegistered {
+        /// The registered account name.
+        account: String,
+        /// Whether the server authenticated the connection to the account.
+        logged_in: bool,
+    },
+    /// Account creation requires a verification step.
+    VerificationRequired {
+        /// The account awaiting verification.
+        account: String,
+        /// Human-readable instructions from the server.
+        message: String,
+    },
+    /// The server reported the account's persistence state.
+    PersistenceStatus {
+        /// The configured persistence preference.
+        setting: papo_core::PersistenceSetting,
+        /// Whether persistence is currently effective.
+        effective: bool,
+    },
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -822,6 +843,15 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::RequestTimedOut { id } => Event::RequestTimedOut { id },
         papo_core::Event::RequestAborted { id } => Event::RequestAborted { id },
         papo_core::Event::StandardReply(reply) => Event::StandardReply(reply),
+        papo_core::Event::AccountRegistered { account, logged_in } => {
+            Event::AccountRegistered { account, logged_in }
+        }
+        papo_core::Event::VerificationRequired { account, message } => {
+            Event::VerificationRequired { account, message }
+        }
+        papo_core::Event::PersistenceStatus { setting, effective } => {
+            Event::PersistenceStatus { setting, effective }
+        }
         papo_core::Event::History {
             target,
             messages,
@@ -1276,6 +1306,39 @@ mod tests {
             panic!("standard reply was not forwarded")
         };
         assert_eq!(mapped, reply);
+    }
+
+    #[test]
+    fn maps_account_registration_results() {
+        assert!(matches!(
+            forwarded(papo_core::Event::AccountRegistered {
+                account: "alice".into(),
+                logged_in: true,
+            }),
+            Event::AccountRegistered { account, logged_in: true } if account == "alice"
+        ));
+        assert!(matches!(
+            forwarded(papo_core::Event::VerificationRequired {
+                account: "alice".into(),
+                message: "Verification code sent".into(),
+            }),
+            Event::VerificationRequired { account, message }
+                if account == "alice" && message == "Verification code sent"
+        ));
+    }
+
+    #[test]
+    fn maps_persistence_status() {
+        assert!(matches!(
+            forwarded(papo_core::Event::PersistenceStatus {
+                setting: papo_core::PersistenceSetting::Default,
+                effective: true,
+            }),
+            Event::PersistenceStatus {
+                setting: papo_core::PersistenceSetting::Default,
+                effective: true,
+            }
+        ));
     }
 
     #[test]
