@@ -83,8 +83,11 @@ impl State {
     ) -> Handled {
         let mapping = isupport.casemapping();
         self.casemapping = mapping;
+        if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
+            own_nick.clone_into(&mut self.nick);
+        }
         if let Some(join) = Join::parse(message) {
-            return self.handle_join(message, join, own_nick, isupport, no_implicit_names, outbox);
+            return self.handle_join(message, join, isupport, no_implicit_names, outbox);
         }
         if message.command() == Command::Part {
             let Some(Source::User { nick, .. }) = message.source() else {
@@ -99,7 +102,7 @@ impl State {
                     nick: nick.to_owned(),
                     reason: message.param(1).map(str::to_owned),
                 });
-                if mapping.eq(nick, own_nick) {
+                if mapping.eq(nick, &self.nick) {
                     self.remove_channel(channel);
                 } else {
                     self.remove_member(channel, nick);
@@ -123,7 +126,7 @@ impl State {
                 by: by.to_owned(),
                 reason: message.param(2).map(str::to_owned),
             });
-            if mapping.eq(nick, own_nick) {
+            if mapping.eq(nick, &self.nick) {
                 self.remove_channel(channel);
             } else {
                 self.remove_member(channel, nick);
@@ -131,16 +134,7 @@ impl State {
             return Handled::Yes;
         }
         if message.command() == Command::Quit {
-            let Some(Source::User { nick, .. }) = message.source() else {
-                return Handled::No;
-            };
-            if mapping.eq(nick, own_nick) {
-                self.channels.clear();
-                self.users.clear();
-            } else {
-                self.remove_user(nick);
-            }
-            return Handled::Yes;
+            return self.handle_quit(message, outbox);
         }
         if message.command() == Command::Nick {
             let (Some(Source::User { nick, .. }), Some(new_nick)) =
@@ -149,9 +143,13 @@ impl State {
                 return Handled::No;
             };
             self.rename_user(nick, new_nick);
-            if mapping.eq(nick, own_nick) {
+            if mapping.eq(nick, &self.nick) {
                 new_nick.clone_into(&mut self.nick);
             }
+            outbox.event(Event::NickChanged {
+                old: nick.to_owned(),
+                new: new_nick.to_owned(),
+            });
             return Handled::Yes;
         }
         if let Some((_, channel, entries)) = parse_353(message) {
@@ -176,11 +174,45 @@ impl State {
         Handled::No
     }
 
+    fn handle_quit(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> Handled {
+        let Some(Source::User { nick, .. }) = message.source() else {
+            return Handled::No;
+        };
+        let ours = self.casemapping.eq(nick, &self.nick);
+        let channels = if ours {
+            self.channels
+                .values()
+                .map(|channel| channel.name.clone())
+                .collect()
+        } else {
+            self.users
+                .get(&CaseKey::new(nick, self.casemapping))
+                .map(|user| {
+                    user.channels
+                        .iter()
+                        .map(|key| key.original().to_owned())
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        outbox.event(Event::Quit {
+            nick: nick.to_owned(),
+            reason: message.param(0).map(str::to_owned),
+            channels,
+        });
+        if ours {
+            self.channels.clear();
+            self.users.clear();
+        } else {
+            self.remove_user(nick);
+        }
+        Handled::Yes
+    }
+
     fn handle_join(
         &mut self,
         message: &MessageRef<'_>,
         join: Join<'_>,
-        own_nick: &str,
         isupport: &Isupport,
         no_implicit_names: bool,
         outbox: &mut Outbox,
@@ -192,7 +224,7 @@ impl State {
             channel: join.channel.to_owned(),
             nick: nick.to_owned(),
         });
-        let ours = self.casemapping.eq(nick, own_nick);
+        let ours = self.casemapping.eq(nick, &self.nick);
         if ours {
             nick.clone_into(&mut self.nick);
             if let Some(user) = user {

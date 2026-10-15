@@ -406,6 +406,22 @@ pub enum Event {
         /// The optional kick reason.
         reason: Option<String>,
     },
+    /// A user sharing channels with the session disconnected.
+    Quit {
+        /// The disconnected user's nickname.
+        nick: String,
+        /// The optional quit reason.
+        reason: Option<String>,
+        /// Shared channels captured before the user was removed.
+        channels: Vec<String>,
+    },
+    /// A user changed nickname.
+    NickChanged {
+        /// The previous nickname.
+        old: String,
+        /// The new nickname.
+        new: String,
+    },
 }
 
 /// A bounded server-controlled state collection.

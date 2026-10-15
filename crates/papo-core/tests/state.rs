@@ -237,3 +237,47 @@ fn reports_parts_and_kicks_for_other_users_and_ourselves() {
         .event(|event| matches!(event, Event::Kicked { nick, .. } if nick == "emily"))
         .no_event();
 }
+
+#[test]
+fn reports_nick_changes_and_quit_channels_before_removal() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":emily!em@127.0.0.1 JOIN #rust")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":dan!dan@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":dan!dan@cloak.example JOIN #rust")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":dan!dan@cloak.example NICK :dan-away")
+        .event(|event| matches!(event, Event::NickChanged { old, new } if old == "dan" && new == "dan-away"))
+        .server(":emily!em@127.0.0.1 NICK :emily_")
+        .event(|event| matches!(event, Event::NickChanged { old, new } if old == "emily" && new == "emily_"))
+        .server(":dan-away!dan@cloak.example QUIT :Client exited")
+        .event(|event| match event {
+            Event::Quit { nick, reason, channels } => {
+                let mut channels = channels.clone();
+                channels.sort();
+                nick == "dan-away" && reason.as_deref() == Some("Client exited")
+                    && channels == ["#papo", "#rust"]
+            }
+            _ => false,
+        })
+        .no_event();
+}
+
+#[test]
+fn reconnect_clears_channel_and_user_state() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":dan!dan@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .disconnect()
+        .connect()
+        .inspect(|session| {
+            assert_eq!(session.state().channels().count(), 0);
+            assert!(session.state().user("dan").is_none());
+        })
+        .ignore_rest();
+}
