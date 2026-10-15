@@ -1,6 +1,9 @@
 //! Strict Transport Security policy parsing and storage.
 
-use std::time::{Duration, SystemTime};
+use std::{
+    collections::HashMap,
+    time::{Duration, SystemTime},
+};
 
 /// Stateless operations for `IRCv3` Strict Transport Security policies.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -146,11 +149,85 @@ pub enum StsParseError {
     DuplicateKey(&'static str),
 }
 
+/// A persisted secure-only policy and the duration last advertised by its host.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StoredPolicy {
+    /// The hostname to which this policy applies.
+    pub host: String,
+    /// The wall-clock time at which this policy stops requiring TLS.
+    pub expires_at: SystemTime,
+    /// The duration used to refresh expiry when a connection closes.
+    pub duration: Duration,
+}
+
+impl StoredPolicy {
+    /// Reports whether this policy still requires TLS at `now`.
+    #[must_use]
+    pub fn is_active_at(&self, now: SystemTime) -> bool {
+        now < self.expires_at
+    }
+}
+
+/// Persistent storage for per-host STS policies.
+pub trait StsStore {
+    /// Returns the stored policy for `host`, if one exists.
+    fn get(&self, host: &str) -> Option<StoredPolicy>;
+
+    /// Inserts or replaces a host's policy.
+    fn put(&mut self, policy: StoredPolicy);
+
+    /// Removes a host's policy, if one exists.
+    fn remove(&mut self, host: &str);
+}
+
+/// An in-memory STS policy store.
+#[derive(Clone, Debug, Default)]
+pub struct MemoryStsStore {
+    policies: HashMap<String, StoredPolicy>,
+}
+
+impl MemoryStsStore {
+    /// Creates an empty store.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl StsStore for MemoryStsStore {
+    fn get(&self, host: &str) -> Option<StoredPolicy> {
+        self.policies.get(host).cloned()
+    }
+
+    fn put(&mut self, policy: StoredPolicy) {
+        self.policies.insert(policy.host.clone(), policy);
+    }
+
+    fn remove(&mut self, host: &str) {
+        self.policies.remove(host);
+    }
+}
+
+/// Refreshes a stored policy from the time its connection closed.
+#[must_use]
+pub fn reschedule_on_disconnect(stored: StoredPolicy, disconnected_at: SystemTime) -> StoredPolicy {
+    let expires_at = disconnected_at
+        .checked_add(stored.duration)
+        .unwrap_or(stored.expires_at);
+    StoredPolicy {
+        expires_at,
+        ..stored
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, UNIX_EPOCH};
 
-    use super::{ConnectionSecurity, StsAction, StsDirective, StsParseError, StsPolicy, decide};
+    use super::{
+        ConnectionSecurity, MemoryStsStore, StoredPolicy, StsAction, StsDirective, StsParseError,
+        StsPolicy, StsStore, decide, reschedule_on_disconnect,
+    };
 
     #[test]
     fn parses_every_policy_part() {
@@ -258,6 +335,68 @@ mod tests {
                 UNIX_EPOCH
             ),
             StsAction::Ignore
+        );
+    }
+
+    #[test]
+    fn stores_replaces_and_removes_policies() {
+        let mut store = MemoryStsStore::new();
+        let policy = StoredPolicy {
+            host: "irc.example.net".to_owned(),
+            expires_at: UNIX_EPOCH + Duration::from_secs(2_000_000),
+            duration: Duration::from_secs(60),
+        };
+        assert_eq!(store.get("irc.example.net"), None);
+        store.put(policy.clone());
+        assert_eq!(store.get("irc.example.net"), Some(policy));
+
+        let replacement = StoredPolicy {
+            host: "irc.example.net".to_owned(),
+            expires_at: UNIX_EPOCH + Duration::from_secs(3_000_001),
+            duration: Duration::from_secs(120),
+        };
+        store.put(replacement.clone());
+        assert_eq!(store.get("irc.example.net"), Some(replacement));
+        store.remove("irc.example.net");
+        assert_eq!(store.get("irc.example.net"), None);
+    }
+
+    #[test]
+    fn an_expired_stored_policy_is_inactive() {
+        let now = UNIX_EPOCH + Duration::from_secs(1_000_000);
+        let policy = StoredPolicy {
+            host: "irc.example.net".to_owned(),
+            expires_at: now - Duration::from_secs(1),
+            duration: Duration::from_secs(60),
+        };
+        assert!(!policy.is_active_at(now));
+        assert!(!policy.is_active_at(policy.expires_at));
+        assert!(policy.is_active_at(policy.expires_at - Duration::from_secs(1)));
+    }
+
+    #[test]
+    fn reschedules_expiry_from_disconnect_time() {
+        let duration = StsPolicy::parse("duration=2592000")
+            .unwrap()
+            .duration
+            .unwrap();
+        let stored = StoredPolicy {
+            host: "irc.example.net".to_owned(),
+            expires_at: UNIX_EPOCH + duration,
+            duration,
+        };
+        let disconnected_at = UNIX_EPOCH + Duration::from_hours(48);
+        let refreshed = reschedule_on_disconnect(stored, disconnected_at);
+
+        assert_eq!(refreshed.host, "irc.example.net");
+        assert_eq!(refreshed.duration.as_secs(), 2_592_000);
+        assert_eq!(
+            refreshed
+                .expires_at
+                .duration_since(disconnected_at)
+                .unwrap()
+                .as_secs(),
+            2_592_000
         );
     }
 }
