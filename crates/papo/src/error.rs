@@ -27,6 +27,9 @@ pub enum Error {
     /// Opening the connection failed.
     #[error("connection failed: {0}")]
     Connect(#[from] ConnectError),
+    /// The requested transport is not available in this build.
+    #[error("unsupported transport: {0}")]
+    Unsupported(&'static str),
     /// An outbound IRC message is not valid on the wire.
     #[error("invalid IRC message: {0}")]
     Build(#[from] BuildError),

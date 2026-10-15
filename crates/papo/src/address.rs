@@ -102,6 +102,29 @@ impl ServerAddress {
             };
         }
     }
+
+    pub(crate) fn is_secure(&self) -> bool {
+        matches!(self.protocol, Protocol::Ircs | Protocol::Wss)
+    }
+
+    pub(crate) fn websocket_url(&self) -> Option<String> {
+        let scheme = match self.protocol {
+            Protocol::Ws => "ws",
+            Protocol::Wss => "wss",
+            Protocol::Irc | Protocol::Ircs => return None,
+        };
+        let (open, close) = if self.host.contains(':') {
+            ("[", "]")
+        } else {
+            ("", "")
+        };
+        Some(format!(
+            "{scheme}://{open}{}{close}:{}{}",
+            self.host,
+            self.port,
+            self.websocket_path.as_deref().unwrap_or("/")
+        ))
+    }
 }
 
 fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), AddressError> {

@@ -1,10 +1,12 @@
 use std::{path::Path, time::Duration};
 
+use papo_core::sts::ConnectionSecurity;
 use papo_core::{Config, RateLimit, Sasl};
 
 use crate::{
     AddressError, Error,
     address::ServerAddress,
+    driver::ConnectionPlan,
     transport::{ClientCertificate, TlsConfig, TlsRoots},
 };
 
@@ -193,6 +195,27 @@ impl Builder {
         Ok(builder.tls_client_cert(certificate, key))
     }
 
+    /// Builds handles and a lazy driver without opening a connection.
+    ///
+    /// The returned [`crate::Driver`] connects when it is first polled. Use
+    /// [`crate::Driver::new`] to drive an already-connected custom transport.
+    pub fn build(mut self) -> (crate::Client, crate::Events, crate::Driver) {
+        let plan = self.address.map(|address| {
+            self.config.host.clone_from(&address.host);
+            self.config.connection_security = if address.is_secure() {
+                ConnectionSecurity::Secure
+            } else {
+                ConnectionSecurity::Plaintext
+            };
+            ConnectionPlan {
+                address,
+                tls: self.tls,
+            }
+        });
+        let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
+        crate::Driver::with_plan(plan, session, self.event_capacity)
+    }
+
     fn read_file(self, path: impl AsRef<Path>) -> Result<(Self, Vec<u8>), Error> {
         let path = path.as_ref();
         std::fs::read(path)
@@ -308,5 +331,19 @@ mod tests {
             matches!(&error, Error::ReadFile { path, .. } if path == std::path::Path::new("missing-papo-builder-ca.pem"))
         );
         assert!(error.to_string().contains("missing-papo-builder-ca.pem"));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn build_defers_address_errors_until_the_driver_is_polled() {
+        let (_client, mut events, driver) = Builder::new("irc://").build();
+        assert!(matches!(driver.await, Err(Error::Address(_))));
+        assert!(events.next().await.is_none());
+    }
+
+    #[cfg(not(feature = "websocket"))]
+    #[tokio::test(flavor = "current_thread")]
+    async fn websocket_without_feature_is_typed_as_unsupported() {
+        let (_client, _events, driver) = Builder::new("ws://irc.example.net/webirc").build();
+        assert!(matches!(driver.await, Err(Error::Unsupported("websocket"))));
     }
 }

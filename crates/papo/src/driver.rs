@@ -7,7 +7,12 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 
-use crate::{Error, Event, event, transport};
+use crate::{
+    AddressError, Error, Event,
+    address::{Protocol, ServerAddress},
+    event,
+    transport::{self, TlsConfig},
+};
 
 pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
@@ -31,6 +36,18 @@ struct Quit {
 struct EventSink {
     regular: mpsc::Sender<Event>,
     disconnected: oneshot::Sender<Event>,
+}
+
+struct Channels {
+    client: Client,
+    events: Events,
+    commands: mpsc::Receiver<Command>,
+    event_sink: EventSink,
+}
+
+pub(crate) struct ConnectionPlan {
+    pub(crate) address: ServerAddress,
+    pub(crate) tls: TlsConfig,
 }
 
 /// A cheap, cloneable handle to a running IRC client.
@@ -140,24 +157,85 @@ impl Driver {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        let (command_sender, command_receiver) = mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
-        let (event_sender, event_receiver) = mpsc::channel(capacity);
-        let (disconnect_sender, disconnect_receiver) = oneshot::channel();
-        let events = EventSink {
-            regular: event_sender,
-            disconnected: disconnect_sender,
+        let channels = channels(capacity);
+        let inner = Box::pin(run(stream, session, channels.commands, channels.event_sink));
+        (channels.client, channels.events, Self { inner })
+    }
+
+    pub(crate) fn with_plan(
+        plan: Result<ConnectionPlan, AddressError>,
+        session: Session,
+        capacity: usize,
+    ) -> (Client, Events, Self) {
+        let channels = channels(capacity);
+        let inner = Box::pin(async move {
+            let stream = open_connection(plan.map_err(Error::Address)?).await?;
+            run(stream, session, channels.commands, channels.event_sink).await
+        });
+        (channels.client, channels.events, Self { inner })
+    }
+}
+
+fn channels(capacity: usize) -> Channels {
+    let (command_sender, command_receiver) = mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
+    let (event_sender, event_receiver) = mpsc::channel(capacity);
+    let (disconnect_sender, disconnect_receiver) = oneshot::channel();
+    let events = EventSink {
+        regular: event_sender,
+        disconnected: disconnect_sender,
+    };
+    Channels {
+        client: Client {
+            commands: command_sender,
+        },
+        events: Events {
+            receiver: event_receiver,
+            disconnected: Some(disconnect_receiver),
+        },
+        commands: command_receiver,
+        event_sink: events,
+    }
+}
+
+async fn open_connection(plan: ConnectionPlan) -> Result<transport::Stream, Error> {
+    #[cfg(any(
+        not(target_family = "wasm"),
+        all(target_os = "wasi", not(target_env = "p1"))
+    ))]
+    {
+        if plan.address.websocket_url().is_some() {
+            #[cfg(feature = "websocket")]
+            {
+                let url = plan
+                    .address
+                    .websocket_url()
+                    .expect("WebSocket URL is present");
+                return transport::connect_websocket(
+                    &url,
+                    plan.address.is_secure().then_some(&plan.tls),
+                )
+                .await
+                .map_err(Error::Connect);
+            }
+            #[cfg(not(feature = "websocket"))]
+            return Err(Error::Unsupported("websocket"));
+        }
+        let security = match plan.address.protocol {
+            Protocol::Irc => transport::Security::Plaintext,
+            Protocol::Ircs => transport::Security::Tls(plan.tls),
+            Protocol::Ws | Protocol::Wss => unreachable!("WebSocket URL handled above"),
         };
-        let inner = Box::pin(run(stream, session, command_receiver, events));
-        (
-            Client {
-                commands: command_sender,
-            },
-            Events {
-                receiver: event_receiver,
-                disconnected: Some(disconnect_receiver),
-            },
-            Self { inner },
-        )
+        transport::connect(&plan.address.host, plan.address.port, &security)
+            .await
+            .map_err(Error::Connect)
+    }
+    #[cfg(not(any(
+        not(target_family = "wasm"),
+        all(target_os = "wasi", not(target_env = "p1"))
+    )))]
+    {
+        _ = plan;
+        Err(Error::Unsupported("outbound sockets"))
     }
 }
 
