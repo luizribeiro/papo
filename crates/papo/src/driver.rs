@@ -10,7 +10,7 @@ use std::{
     time::Instant,
 };
 
-use papo_core::Session;
+use papo_core::{Connection, Session};
 use papo_proto::Message;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -393,6 +393,7 @@ async fn run<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    let mut registered = false;
     let end = run_connection(
         stream,
         &mut session,
@@ -400,9 +401,12 @@ where
         &events.regular,
         &mut registration,
         &defaults,
+        &mut registered,
+        None,
         &events.connected,
     )
     .await;
+    registration.failed(end.registration_error());
     finish(events, end, false)
 }
 
@@ -411,9 +415,17 @@ struct ConnectionEnd {
     error: Error,
     quit: Option<Quit>,
     quit_timed_out: bool,
+    #[allow(dead_code)]
+    registered_at: Option<Instant>,
 }
 
-#[allow(clippy::too_many_arguments)]
+impl ConnectionEnd {
+    fn registration_error(&self) -> Error {
+        Error::Registration(self.reason.clone())
+    }
+}
+
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 async fn run_connection<S>(
     mut stream: S,
     session: &mut Session,
@@ -421,16 +433,23 @@ async fn run_connection<S>(
     events: &mpsc::Sender<Event>,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
+    registered: &mut bool,
+    connection: Option<Connection>,
     connected: &AtomicBool,
 ) -> ConnectionEnd
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    session.handle_connected(now());
+    let current = now();
+    match connection {
+        Some(connection) => session.handle_connected_with(current, connection),
+        None => session.handle_connected(current),
+    }
     connected.store(true, Ordering::Relaxed);
     let mut commands_open = true;
     let mut quit = None;
     let mut pending_event = None;
+    let mut registered_at = None;
     let mut buffer = [0; 4096];
     let (mut reason, mut error, quit_timed_out) = loop {
         match drain(
@@ -439,6 +458,8 @@ where
             &mut pending_event,
             registration,
             defaults,
+            registered,
+            &mut registered_at,
         )
         .await
         {
@@ -517,6 +538,7 @@ where
         error,
         quit,
         quit_timed_out,
+        registered_at,
     }
 }
 
@@ -565,6 +587,8 @@ async fn drain<S>(
     pending_event: &mut Option<Event>,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
+    registered: &mut bool,
+    registered_at: &mut Option<Instant>,
 ) -> io::Result<Option<String>>
 where
     S: AsyncWrite + Unpin,
@@ -576,10 +600,16 @@ where
         && let Some(core_event) = session.poll_event()
     {
         match event::from_core(core_event) {
-            event::CoreEvent::Forward(event) => {
+            event::CoreEvent::Forward(mut event) => {
                 if let Event::Registered(welcome) = &event {
                     after_registration(session, welcome, defaults)?;
                     registration.succeeded();
+                    *registered_at = Some(now());
+                    if *registered {
+                        event = Event::Reconnected(welcome.clone());
+                    } else {
+                        *registered = true;
+                    }
                 }
                 *pending_event = Some(event);
             }
