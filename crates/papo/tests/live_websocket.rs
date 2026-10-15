@@ -401,6 +401,7 @@ async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
             .await
             .unwrap();
         socket.send(Message::Close(None)).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(250)).await;
     });
 
     let mut stream = connect_websocket(&format!("ws://{address}/text"), None)
@@ -416,7 +417,13 @@ async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
         ":text.example PONG :utf8-✓\r\n"
     );
     assert_eq!(stream.read(&mut [0; 1]).await.unwrap(), 0);
-    assert_eq!(stream.read(&mut [0; 1]).await.unwrap(), 0);
+    assert_eq!(
+        timeout(Duration::from_millis(100), stream.read(&mut [0; 1]))
+            .await
+            .expect("latched EOF read blocked")
+            .unwrap(),
+        0
+    );
     server.await.unwrap();
 }
 
