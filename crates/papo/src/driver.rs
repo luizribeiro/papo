@@ -1186,6 +1186,24 @@ where
                 }
                 *pending_event = Some(event);
             }
+            event::CoreEvent::Message(message) => {
+                let event = match events.commands.upgrade() {
+                    Some(commands) => crate::MessageEvent::from_core(
+                        message,
+                        session.isupport(),
+                        Client {
+                            commands,
+                            connected: Arc::clone(&events.connected),
+                            state: Arc::clone(&events.state),
+                        },
+                        session.caps(),
+                        SystemTime::now(),
+                    )
+                    .map_or_else(Event::Raw, Event::Message),
+                    None => Event::Raw(message.into_message()),
+                };
+                *pending_event = Some(event);
+            }
             event::CoreEvent::Close(reason) => return Ok(Some(reason)),
             event::CoreEvent::Unknown => {}
         }
@@ -1432,7 +1450,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn message_accessors_use_captured_session_facts() {
-        let (mut server, _client, mut events, driver) = scripted(config());
+        let (mut server, _client, mut events, driver) = scripted(config().max_batch_lines(0));
         let task = tokio::spawn(driver);
         registration_burst(&mut server).await;
         server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
@@ -1472,7 +1490,7 @@ mod tests {
             MessageKind::Ctcp("VERSION")
         );
 
-        server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
+        server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
         assert_eq!(next_message(&mut events).await.origin(), Origin::Echo);
         assert_eq!(next_message(&mut events).await.origin(), Origin::Replay);
 

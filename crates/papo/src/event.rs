@@ -49,6 +49,7 @@ pub struct MessageEvent {
     account: Option<String>,
     bot: bool,
     reply_to: Option<String>,
+    batch_type: Option<String>,
     origin: Origin,
     caps: Capabilities,
 }
@@ -100,6 +101,36 @@ impl MessageEvent {
         caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
+        let echo = raw.as_ref().source().is_some_and(|source| {
+            let Source::User { nick: source, .. } = source else {
+                return false;
+            };
+            isupport.casemapping().eq(source, nick)
+        });
+        Self::new_with_context(raw, None, echo, isupport, client, caps, received_at)
+    }
+
+    pub(crate) fn from_core(
+        received: papo_core::ReceivedMessage,
+        isupport: &Isupport,
+        client: Client,
+        caps: &Capabilities,
+        received_at: SystemTime,
+    ) -> Result<Self, Message> {
+        let (raw, batch_type, echo) = received.into_parts();
+        Self::new_with_context(raw, batch_type, echo, isupport, client, caps, received_at)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn new_with_context(
+        raw: Message,
+        batch_type: Option<String>,
+        echo: bool,
+        isupport: &Isupport,
+        client: Client,
+        caps: &Capabilities,
+        received_at: SystemTime,
+    ) -> Result<Self, Message> {
         let message = raw.as_ref();
         let Some(raw_text) = message.param(0).and_then(|_| message.param(1)) else {
             return Err(raw);
@@ -126,12 +157,18 @@ impl MessageEvent {
         let account = tag_owned(&message, &["account"]);
         let bot = message.tags().any(|(key, _)| key == "bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]);
-        let origin = match message.source() {
-            Some(Source::User { nick: source, .. }) if isupport.casemapping().eq(source, nick) => {
-                Origin::Echo
-            }
-            _ if message.tags().any(|(key, _)| key == "batch") => Origin::Replay,
-            _ => Origin::Live,
+        let replay = batch_type.as_deref().is_some_and(|kind| {
+            matches!(
+                kind,
+                "chathistory" | "draft/chathistory" | "draft/event-playback"
+            )
+        });
+        let origin = if echo {
+            Origin::Echo
+        } else if replay {
+            Origin::Replay
+        } else {
+            Origin::Live
         };
         Ok(Self {
             client,
@@ -144,6 +181,7 @@ impl MessageEvent {
             account,
             bot,
             reply_to,
+            batch_type,
             origin,
             caps: caps.clone(),
         })
@@ -269,6 +307,12 @@ impl MessageEvent {
     #[must_use]
     pub fn reply_to(&self) -> Option<&str> {
         self.reply_to.as_deref()
+    }
+
+    /// Returns the containing batch type, when known.
+    #[must_use]
+    pub fn batch_type(&self) -> Option<&str> {
+        self.batch_type.as_deref()
     }
 
     /// Returns whether this message is live, an echo, or a replay.
@@ -583,6 +627,7 @@ pub enum Event {
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum CoreEvent {
     Forward(Event),
+    Message(papo_core::ReceivedMessage),
     Close(String),
     Unknown,
 }
@@ -590,7 +635,7 @@ pub(crate) enum CoreEvent {
 pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Registered(welcome) => Event::Registered(welcome),
-        papo_core::Event::Message(message) => Event::Raw(message.into_message()),
+        papo_core::Event::Message(message) => return CoreEvent::Message(message),
         papo_core::Event::Malformed { line } => Event::Malformed { line },
         papo_core::Event::Close { reason } => return CoreEvent::Close(reason),
         papo_core::Event::AuthenticationFailed { reason } => Event::AuthenticationFailed { reason },
@@ -666,12 +711,12 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, UNIX_EPOCH};
+    use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
         CoreEvent, Event, MessageEvent, MessageKind, Origin, from_core, parse_server_time,
     };
-    use papo_core::{Account, Capabilities, OwnedModeChange, StateLimit};
+    use papo_core::{Account, Capabilities, Config, OwnedModeChange, Session, StateLimit};
     use papo_proto::{Isupport, Message, ModeKind, Source};
 
     fn event(
@@ -878,18 +923,18 @@ mod tests {
     }
 
     #[test]
-    fn distinguishes_echoes_replays_and_live_messages() {
+    fn distinguishes_echoes_and_live_messages() {
         let classify = |message| event(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH);
         let echo = classify(Message::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
         assert_eq!(echo.origin(), Origin::Echo);
         assert!(!echo.is_live());
-        let replay = classify(
+        let tagged = classify(
             Message::privmsg("#papo", "earlier")
                 .with_source("emily!e@localhost")
                 .with_tag("batch", "history42"),
         );
-        assert_eq!(replay.origin(), Origin::Replay);
-        assert!(!replay.is_live());
+        assert_eq!(tagged.origin(), Origin::Live);
+        assert!(tagged.is_live());
         let live = classify(Message::privmsg("#papo", "now").with_source("emily!e@localhost"));
         assert_eq!(live.origin(), Origin::Live);
         assert!(live.is_live());
@@ -899,6 +944,57 @@ mod tests {
             panic!("event was not forwarded")
         };
         event
+    }
+
+    fn mapped_message(event: papo_core::Event) -> MessageEvent {
+        let CoreEvent::Message(message) = from_core(event) else {
+            panic!("message was not mapped")
+        };
+        MessageEvent::from_core(
+            message,
+            &Isupport::default(),
+            crate::Client::disconnected_for_test(),
+            &Capabilities::new(),
+            UNIX_EPOCH,
+        )
+        .unwrap()
+    }
+
+    fn batched_message(kind: &str, command: &str) -> super::MessageEvent {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().max_batch_lines(0));
+        session.handle_line(now, format!("BATCH +b {kind} #papo").as_bytes());
+        session.handle_line(now, format!("@batch=b :alice!~a@host {command}").as_bytes());
+        let Some(core) = session.poll_event() else {
+            panic!("expected batch fallback")
+        };
+        mapped_message(core)
+    }
+
+    #[test]
+    fn classifies_replay_origin_by_resolved_batch_type() {
+        for kind in ["chathistory", "draft/chathistory", "draft/event-playback"] {
+            let replay = batched_message(kind, "PRIVMSG #papo :earlier");
+            assert_eq!(replay.origin(), Origin::Replay);
+            assert!(!replay.is_live());
+        }
+
+        for kind in ["netsplit", "vendor/sync"] {
+            let live = batched_message(kind, "NOTICE papo :live batch");
+            assert_eq!(live.batch_type(), Some(kind));
+            assert_eq!(live.origin(), Origin::Live);
+            assert!(live.is_live());
+        }
+    }
+
+    #[test]
+    fn classifies_echo_before_batch_origin() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("Papo[bot]"));
+        session.handle_line(now, b":papo{bot}!~p@host PRIVMSG #papo :sent");
+        let echo = mapped_message(session.poll_event().expect("expected echo"));
+        assert_eq!(echo.origin(), Origin::Echo);
+        assert!(!echo.is_live());
     }
 
     #[test]
