@@ -62,6 +62,16 @@ enum StoredKind {
 }
 
 impl MessageEvent {
+    #[cfg(feature = "bot")]
+    pub(crate) fn client_nick(&self) -> String {
+        self.client.nick()
+    }
+
+    #[cfg(feature = "bot")]
+    pub(crate) fn casemapping(&self) -> papo_proto::Casemapping {
+        self.isupport.casemapping()
+    }
+
     pub(crate) fn new(
         raw: Message,
         isupport: &Isupport,
