@@ -6,8 +6,7 @@ mod framing;
 mod isupport;
 mod keepalive;
 mod registration;
-#[allow(dead_code)]
-pub(crate) mod sasl;
+mod sasl;
 pub mod sts;
 
 use std::{
@@ -22,6 +21,7 @@ use framing::Framer;
 use isupport::IsupportState;
 use keepalive::Keepalive;
 use registration::Registration;
+pub use sasl::{Entropy, Sasl};
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
 const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
@@ -91,6 +91,12 @@ pub struct Config {
     pub wanted_caps: Vec<String>,
     /// Alternative nicknames to try when registration collides.
     pub alt_nicks: Vec<String>,
+    /// SASL mechanisms to try in preference order.
+    pub sasl: Option<Sasl>,
+    /// Whether registration must stop when SASL is unavailable or fails.
+    pub require_sasl: bool,
+    /// Ergo multiclient device identifier appended to the authentication identity.
+    pub device: Option<String>,
 }
 
 impl Default for Config {
@@ -107,6 +113,9 @@ impl Default for Config {
                 .map(|name| (*name).to_owned())
                 .collect(),
             alt_nicks: Vec::new(),
+            sasl: None,
+            require_sasl: false,
+            device: None,
         }
     }
 }
@@ -175,6 +184,27 @@ impl Config {
         self.alt_nicks = nicks.into_iter().map(Into::into).collect();
         self
     }
+
+    /// Sets the SASL mechanisms to try during registration.
+    #[must_use]
+    pub fn sasl(mut self, sasl: Sasl) -> Self {
+        self.sasl = Some(sasl);
+        self
+    }
+
+    /// Sets whether registration requires successful SASL authentication.
+    #[must_use]
+    pub const fn require_sasl(mut self, required: bool) -> Self {
+        self.require_sasl = required;
+        self
+    }
+
+    /// Sets the Ergo multiclient device identifier.
+    #[must_use]
+    pub fn device(mut self, device: impl Into<String>) -> Self {
+        self.device = Some(device.into());
+        self
+    }
 }
 
 /// An event emitted by an IRC session.
@@ -198,7 +228,6 @@ pub enum Event {
 }
 
 /// Sans-I/O state for one IRC client session.
-#[derive(Debug)]
 pub struct Session {
     config: Config,
     caps: Caps,
@@ -206,7 +235,24 @@ pub struct Session {
     isupport: IsupportState,
     keepalive: Keepalive,
     registration: Registration,
+    entropy: Option<Box<dyn Entropy + Send>>,
     outbox: Outbox,
+}
+
+impl std::fmt::Debug for Session {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Session")
+            .field("config", &self.config)
+            .field("caps", &self.caps)
+            .field("framer", &self.framer)
+            .field("isupport", &self.isupport)
+            .field("keepalive", &self.keepalive)
+            .field("registration", &self.registration)
+            .field("has_entropy", &self.entropy.is_some())
+            .field("outbox", &self.outbox)
+            .finish()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -253,6 +299,16 @@ impl Session {
     /// Creates a session with no active connection.
     #[must_use]
     pub fn new(config: Config) -> Self {
+        Self::from_config(config, None)
+    }
+
+    /// Creates a session with entropy for authentication mechanisms that need it.
+    #[must_use]
+    pub fn with_entropy(config: Config, entropy: Box<dyn Entropy + Send>) -> Self {
+        Self::from_config(config, Some(entropy))
+    }
+
+    fn from_config(config: Config, entropy: Option<Box<dyn Entropy + Send>>) -> Self {
         let registration = Registration::new(&config);
         let isupport = IsupportState::new(config.decoding);
         Self {
@@ -262,6 +318,7 @@ impl Session {
             isupport,
             keepalive: Keepalive,
             registration,
+            entropy,
             outbox: Outbox::default(),
         }
     }
