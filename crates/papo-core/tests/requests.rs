@@ -94,3 +94,40 @@ fn resolves_a_recorded_ergo_whois_batch_once() {
     assert!(response.lines[2].as_ref().command_is("318"));
     assert_eq!(session.poll_event(), None);
 }
+
+#[test]
+fn links_nested_chathistory_to_its_response() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let id = request(
+        &mut session,
+        now,
+        Message::new("CHATHISTORY", ["LATEST", "#papo", "*", "50"]),
+    );
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +reply labeled-response");
+    session.handle_line(
+        now,
+        b"@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo",
+    );
+    session.handle_line(
+        now,
+        b"@batch=history;time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw :alice!~a@localhost PRIVMSG #papo :earlier",
+    );
+    session.handle_line(now, b"@batch=reply :ergo.test BATCH -history");
+    session.handle_line(now, b":ergo.test BATCH -reply");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::History { target, messages, end })
+            if target == "#papo" && messages.len() == 1 && end
+    ));
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected correlated history response")
+    };
+    assert_eq!(response.id, id);
+    assert_eq!(response.lines.len(), 1);
+    let history = response.history.expect("history reference");
+    assert_eq!(history.target, "#papo");
+    assert_eq!(history.messages.len(), 1);
+    assert!(history.end);
+}

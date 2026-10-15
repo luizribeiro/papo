@@ -5,7 +5,7 @@ use std::{
 
 use papo_proto::{Message, MessageRef};
 
-use crate::{BatchAbandonReason, Config};
+use crate::{BatchAbandonReason, Config, ResponseHistory};
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -57,6 +57,7 @@ pub(crate) enum BatchEvent {
         label: String,
         messages: Vec<Message>,
         batch_type: String,
+        history: Option<ResponseHistory>,
     },
     History {
         target: String,
@@ -167,8 +168,19 @@ impl Batches {
         }
         let mut batch = self.open.remove(reference).expect("validated above");
         let mut completed = std::mem::take(&mut batch.completed);
-        if batch.is_aggregate() && !self.has_aggregate_ancestor(batch.parent.as_deref()) {
+        let response_messages = batch.label.as_ref().map(|_| batch.messages.clone());
+        if batch.is_typed_aggregate() && !self.has_typed_aggregate_ancestor(batch.parent.as_deref())
+        {
             completed.extend(complete(&mut batch));
+        }
+        if let Some(label) = batch.label.take() {
+            let history = completed.iter().find_map(history_from_event);
+            completed.push(BatchEvent::Response {
+                label,
+                messages: response_messages.expect("label captured response messages"),
+                batch_type: batch.kind.clone(),
+                history,
+            });
         }
         if let Some(parent) = batch.parent {
             self.open
@@ -192,10 +204,11 @@ impl Batches {
             let batch = self.open.get_mut(reference).expect("resolved ancestor");
             batch.lines = batch.lines.saturating_add(1);
         }
-        let aggregate = message
+        let aggregates = message
             .tag("batch")
-            .and_then(|reference| self.aggregate_reference(reference.as_ref()));
-        if let Some(reference) = aggregate.as_deref() {
+            .map(|reference| self.aggregate_references(reference.as_ref()))
+            .unwrap_or_default();
+        for reference in &aggregates {
             self.open
                 .get_mut(reference)
                 .expect("resolved aggregate remains open")
@@ -209,7 +222,7 @@ impl Batches {
             .cloned()
         {
             let mut events = self.abandon(&reference, BatchAbandonReason::LineLimit);
-            if aggregate.is_none() {
+            if aggregates.is_empty() {
                 let fallback = BatchEvent::Message {
                     message: message.to_owned(),
                     batch_type: context.batch_type,
@@ -218,10 +231,10 @@ impl Batches {
             }
             return BatchAction::Complete(events);
         }
-        if aggregate.is_some() {
-            BatchAction::Consumed
-        } else {
+        if aggregates.is_empty() {
             BatchAction::Dispatch(context)
+        } else {
+            BatchAction::Consumed
         }
     }
 
@@ -316,25 +329,30 @@ impl Batches {
         events
     }
 
-    fn aggregate_reference(&self, reference: &str) -> Option<String> {
-        let mut aggregate = None;
-        let mut current = Some(reference);
-        while let Some(reference) = current {
-            let batch = self.open.get(reference)?;
-            if batch.is_aggregate() {
-                aggregate = Some(reference.to_owned());
-            }
-            current = batch.parent.as_deref();
+    fn aggregate_references(&self, reference: &str) -> Vec<String> {
+        let ancestors = self.ancestors(reference);
+        let mut aggregates = Vec::new();
+        if let Some(reference) = ancestors
+            .iter()
+            .rev()
+            .find(|reference| is_aggregate(&self.open[*reference].kind))
+        {
+            aggregates.push(reference.clone());
         }
-        aggregate
+        for reference in ancestors {
+            if self.open[&reference].label.is_some() && !aggregates.contains(&reference) {
+                aggregates.push(reference);
+            }
+        }
+        aggregates
     }
 
-    fn has_aggregate_ancestor<'a>(&'a self, mut parent: Option<&'a str>) -> bool {
+    fn has_typed_aggregate_ancestor<'a>(&'a self, mut parent: Option<&'a str>) -> bool {
         while let Some(reference) = parent {
             let Some(batch) = self.open.get(reference) else {
                 return false;
             };
-            if batch.is_aggregate() {
+            if batch.is_typed_aggregate() {
                 return true;
             }
             parent = batch.parent.as_deref();
@@ -363,19 +381,12 @@ fn is_aggregate(kind: &str) -> bool {
 }
 
 impl OpenBatch {
-    fn is_aggregate(&self) -> bool {
-        self.label.is_some() || is_aggregate(&self.kind)
+    fn is_typed_aggregate(&self) -> bool {
+        is_aggregate(&self.kind)
     }
 }
 
 fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
-    if let Some(label) = batch.label.take() {
-        return vec![BatchEvent::Response {
-            label,
-            messages: std::mem::take(&mut batch.messages),
-            batch_type: batch.kind.clone(),
-        }];
-    }
     let servers = || {
         [
             batch.params.first().cloned().unwrap_or_default(),
@@ -413,6 +424,22 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
             batch_type: Some(batch.kind.clone()),
         }))
         .collect()
+}
+
+fn history_from_event(event: &BatchEvent) -> Option<ResponseHistory> {
+    let BatchEvent::History {
+        target,
+        messages,
+        end,
+    } = event
+    else {
+        return None;
+    };
+    Some(ResponseHistory {
+        target: target.clone(),
+        messages: messages.clone(),
+        end: *end,
+    })
 }
 
 fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {

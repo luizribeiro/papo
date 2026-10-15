@@ -400,6 +400,19 @@ pub struct Response {
     pub id: RequestId,
     /// Response lines in server delivery order.
     pub lines: Vec<Message>,
+    /// A typed history page nested in this response, when present.
+    pub history: Option<ResponseHistory>,
+}
+
+/// History page attached to a completed response.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResponseHistory {
+    /// History target named by the batch.
+    pub target: String,
+    /// Replayed messages in server delivery order.
+    pub messages: Vec<Message>,
+    /// Whether the server reported that no further page exists.
+    pub end: bool,
 }
 
 /// A failure to queue a request.
@@ -1282,7 +1295,11 @@ impl Session {
         } else {
             vec![message.to_owned()]
         };
-        self.outbox.event(Event::Response(Response { id, lines }));
+        self.outbox.event(Event::Response(Response {
+            id,
+            lines,
+            history: None,
+        }));
         true
     }
 
@@ -1292,16 +1309,20 @@ impl Session {
                 label,
                 messages,
                 batch_type,
+                history,
             } => {
                 let request = self.requests.remove(&label);
                 let context = DispatchContext::from_batch_type(batch_type);
-                for message in &messages {
-                    self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
+                if history.is_none() || request.is_none() {
+                    for message in &messages {
+                        self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
+                    }
                 }
                 if let Some((id, _)) = request {
                     self.outbox.event(Event::Response(Response {
                         id,
                         lines: messages,
+                        history,
                     }));
                 }
             }
