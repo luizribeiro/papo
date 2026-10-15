@@ -26,6 +26,18 @@ fn history_session(isupport: &str) -> (Session, Instant) {
     (session, now)
 }
 
+fn read_marker_session() -> (Session, Instant) {
+    let now = Instant::now();
+    let mut config = Config::default().rate_limit(RateLimit::unlimited());
+    config.wanted_caps = vec!["draft/read-marker".into(), "labeled-response".into()];
+    let mut session = Session::new(config);
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :draft/read-marker labeled-response");
+    session.handle_line(now, b"CAP * ACK :draft/read-marker labeled-response");
+    while session.poll_transmit().is_some() {}
+    (session, now)
+}
+
 fn transmitted(session: &mut Session) -> String {
     String::from_utf8(session.poll_transmit().unwrap())
         .unwrap()
@@ -235,5 +247,32 @@ fn reports_targets_with_parsed_server_times() {
     assert_eq!(
         targets[0].1,
         UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
+    );
+}
+
+#[test]
+fn sends_read_marker_set_and_query_commands() {
+    let (mut session, now) = read_marker_session();
+    session
+        .mark_read(
+            now,
+            "#papo",
+            UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999),
+        )
+        .unwrap();
+    assert_eq!(
+        transmitted(&mut session),
+        "@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z"
+    );
+    session.read_marker("#papo").unwrap();
+    assert_eq!(transmitted(&mut session), "MARKREAD #papo");
+}
+
+#[test]
+fn rejects_read_markers_without_the_capability() {
+    let mut session = Session::new(Config::default());
+    assert_eq!(
+        session.read_marker("#papo"),
+        Err(RequestError::Unsupported("read-marker"))
     );
 }

@@ -112,6 +112,55 @@ impl Session {
         )?;
         self.request(now, Message::new("CHATHISTORY", params))
     }
+
+    /// Sets the read marker for `target` to a UTC timestamp.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::Unsupported`] when read markers were not negotiated,
+    /// or an error documented by [`Session::request`].
+    pub fn mark_read(
+        &mut self,
+        now: Instant,
+        target: &str,
+        time: SystemTime,
+    ) -> Result<RequestId, RequestError> {
+        if !self.supports_read_marker() {
+            return Err(RequestError::Unsupported("read-marker"));
+        }
+        self.request(
+            now,
+            Message::new(
+                "MARKREAD",
+                [
+                    target.to_owned(),
+                    format!("timestamp={}", format_timestamp(time)?),
+                ],
+            ),
+        )
+    }
+
+    /// Queries the current read marker for `target`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::Unsupported`] when read markers were not negotiated,
+    /// or [`RequestError::Build`] when the target cannot be encoded.
+    pub fn read_marker(&mut self, target: &str) -> Result<(), RequestError> {
+        if !self.supports_read_marker() {
+            return Err(RequestError::Unsupported("read-marker"));
+        }
+        let line = Message::new("MARKREAD", [target]).to_line()?;
+        self.outbox.transmit_raw(line.into());
+        Ok(())
+    }
+
+    fn supports_read_marker(&self) -> bool {
+        self.caps
+            .enabled()
+            .keys()
+            .any(|name| matches!(name.as_str(), "draft/read-marker" | "read-marker"))
+    }
 }
 
 impl HistoryQuery {
