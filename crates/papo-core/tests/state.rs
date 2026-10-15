@@ -107,6 +107,7 @@ fn account_notify_tracks_login_and_logout() {
             );
         })
         .server(":dan!~dan@cloak.example ACCOUNT dan")
+        .event_until(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedIn("dan".into())))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
@@ -114,6 +115,7 @@ fn account_notify_tracks_login_and_logout() {
             );
         })
         .server(":dan!~dan@cloak.example ACCOUNT *")
+        .event(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedOut))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
@@ -129,6 +131,7 @@ fn account_tag_fills_an_unknown_account() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server("@account=dan :dan!~dan@cloak.example PRIVMSG #papo :hello Emily")
+        .event_until(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedIn("dan".into())))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
@@ -144,6 +147,7 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
         .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "dan" && message.as_deref() == Some("Gone to lunch")))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
@@ -151,6 +155,7 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
             );
         })
         .server(":dan!~dan@cloak.example AWAY")
+        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "dan" && message.is_none()))
         .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), None))
         .ignore_rest();
 }
@@ -176,6 +181,7 @@ fn whois_away_reply_records_the_message() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":ergo.test 301 emily dan :Gone to lunch")
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "dan" && message.as_deref() == Some("Gone to lunch")))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
@@ -190,8 +196,10 @@ fn away_numerics_track_our_own_state() {
     Transcript::new(Config::default().nick("emily"))
         .inspect(|session| assert!(!session.state().away()))
         .server(":ergo.test 306 emily :You have been marked as being away")
+        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "emily" && message.as_deref() == Some("")))
         .inspect(|session| assert!(session.state().away()))
         .server(":ergo.test 305 emily :You are no longer marked as being away")
+        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "emily" && message.is_none()))
         .inspect(|session| assert!(!session.state().away()))
         .no_event();
 }

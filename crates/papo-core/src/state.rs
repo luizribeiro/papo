@@ -121,7 +121,7 @@ impl State {
         no_implicit_names: bool,
         outbox: &mut Outbox,
     ) -> Handled {
-        let mapping = self.prepare_message(message, own_nick, isupport);
+        let mapping = self.prepare_message(message, own_nick, isupport, outbox);
         if let Some(join) = Join::parse(message) {
             return self.handle_join(message, join, isupport, no_implicit_names, outbox);
         }
@@ -563,7 +563,7 @@ impl State {
         }
     }
 
-    fn apply_user_tags(&mut self, message: &MessageRef<'_>) {
+    fn apply_user_tags(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) {
         let Some(Source::User { nick, .. }) = message.source() else {
             return;
         };
@@ -571,7 +571,14 @@ impl State {
             for (key, value) in message.tags() {
                 match (key, value) {
                     ("account", Some(account)) => {
-                        user.account = Account::LoggedIn(account.into_owned());
+                        let account = Account::LoggedIn(account.into_owned());
+                        if user.account != account {
+                            user.account = account.clone();
+                            outbox.event(Event::AccountChanged {
+                                nick: nick.to_owned(),
+                                account,
+                            });
+                        }
                     }
                     ("bot", _) => user.is_bot = true,
                     _ => {}
@@ -580,11 +587,16 @@ impl State {
         }
     }
 
-    fn apply_message_metadata(&mut self, message: &MessageRef<'_>, own_nick: &str) {
+    fn apply_message_metadata(
+        &mut self,
+        message: &MessageRef<'_>,
+        own_nick: &str,
+        outbox: &mut Outbox,
+    ) {
         if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
             own_nick.clone_into(&mut self.nick);
         }
-        self.apply_user_tags(message);
+        self.apply_user_tags(message, outbox);
     }
 
     fn prepare_message(
@@ -592,31 +604,46 @@ impl State {
         message: &MessageRef<'_>,
         own_nick: &str,
         isupport: &Isupport,
+        outbox: &mut Outbox,
     ) -> Casemapping {
         let mapping = isupport.casemapping();
         self.update_casemapping(mapping);
-        self.apply_message_metadata(message, own_nick);
+        self.apply_message_metadata(message, own_nick, outbox);
         mapping
     }
 
-    fn handle_account(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
+    fn handle_account(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> Option<Handled> {
         let account = AccountNotify::parse(message)?;
         let Some(Source::User { nick, .. }) = message.source() else {
             return Some(Handled::No);
         };
-        if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
-            user.account = Account::from_notify(account.account);
+        let account = Account::from_notify(account.account);
+        if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping))
+            && user.account != account
+        {
+            user.account = account.clone();
+            outbox.event(Event::AccountChanged {
+                nick: nick.to_owned(),
+                account,
+            });
         }
         Some(Handled::Yes)
     }
 
-    fn handle_away(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
+    fn handle_away(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> Option<Handled> {
         if let Some(away) = Away::parse(message) {
             let Source::User { nick, .. } = message.source()? else {
                 return Some(Handled::No);
             };
             if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
-                user.away = away.message.map(str::to_owned);
+                let message = away.message.map(str::to_owned);
+                if user.away != message {
+                    user.away.clone_from(&message);
+                    outbox.event(Event::AwayChanged {
+                        nick: nick.to_owned(),
+                        message,
+                    });
+                }
             }
             return Some(Handled::Yes);
         }
@@ -626,11 +653,31 @@ impl State {
                     return Some(Handled::No);
                 };
                 if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
-                    user.away = Some(away.to_owned());
+                    let message = Some(away.to_owned());
+                    if user.away != message {
+                        user.away.clone_from(&message);
+                        outbox.event(Event::AwayChanged {
+                            nick: nick.to_owned(),
+                            message,
+                        });
+                    }
                 }
             }
-            Command::Numeric(Numeric::RPL_UNAWAY) => self.away = false,
-            Command::Numeric(Numeric::RPL_NOWAWAY) => self.away = true,
+            Command::Numeric(Numeric::RPL_UNAWAY) if self.away => {
+                self.away = false;
+                outbox.event(Event::AwayChanged {
+                    nick: self.nick.clone(),
+                    message: None,
+                });
+            }
+            Command::Numeric(Numeric::RPL_NOWAWAY) if !self.away => {
+                self.away = true;
+                outbox.event(Event::AwayChanged {
+                    nick: self.nick.clone(),
+                    message: Some(String::new()),
+                });
+            }
+            Command::Numeric(Numeric::RPL_UNAWAY | Numeric::RPL_NOWAWAY) => {}
             _ => return None,
         }
         Some(Handled::Yes)
@@ -642,8 +689,8 @@ impl State {
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
-        self.handle_account(message)
-            .or_else(|| self.handle_away(message))
+        self.handle_account(message, outbox)
+            .or_else(|| self.handle_away(message, outbox))
             .or_else(|| self.handle_identity_change(message))
             .or_else(|| self.handle_who(message, isupport, outbox))
     }

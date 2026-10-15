@@ -448,6 +448,20 @@ pub enum Event {
         /// The new nickname.
         new: String,
     },
+    /// A user's account state changed.
+    AccountChanged {
+        /// The affected user's nickname.
+        nick: String,
+        /// The user's new account state.
+        account: Account,
+    },
+    /// A user's away state changed.
+    AwayChanged {
+        /// The affected user's nickname.
+        nick: String,
+        /// The away message, or `None` when the user returned.
+        message: Option<String>,
+    },
     /// A user or channel mode changed.
     ModeChanged {
         /// The mode target.
