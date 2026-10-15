@@ -462,6 +462,22 @@ pub enum Event {
         /// The away message, or `None` when the user returned.
         message: Option<String>,
     },
+    /// A user's username or hostname changed.
+    HostChanged {
+        /// The affected user's nickname.
+        nick: String,
+        /// The user's new username.
+        user: String,
+        /// The user's new hostname.
+        host: String,
+    },
+    /// A user's real name changed.
+    RealnameChanged {
+        /// The affected user's nickname.
+        nick: String,
+        /// The user's new real name.
+        realname: String,
+    },
     /// A user or channel mode changed.
     ModeChanged {
         /// The mode target.

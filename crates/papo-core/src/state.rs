@@ -691,11 +691,15 @@ impl State {
     ) -> Option<Handled> {
         self.handle_account(message, outbox)
             .or_else(|| self.handle_away(message, outbox))
-            .or_else(|| self.handle_identity_change(message))
+            .or_else(|| self.handle_identity_change(message, outbox))
             .or_else(|| self.handle_who(message, isupport, outbox))
     }
 
-    fn handle_identity_change(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
+    fn handle_identity_change(
+        &mut self,
+        message: &MessageRef<'_>,
+        outbox: &mut Outbox,
+    ) -> Option<Handled> {
         let Source::User { nick, .. } = message.source()? else {
             return None;
         };
@@ -707,6 +711,11 @@ impl State {
                 change.user.clone_into(&mut self.user);
                 self.host = Some(change.host.to_owned());
             }
+            outbox.event(Event::HostChanged {
+                nick: nick.to_owned(),
+                user: change.user.to_owned(),
+                host: change.host.to_owned(),
+            });
             return Some(Handled::Yes);
         }
         let change = Setname::parse(message)?;
@@ -716,6 +725,10 @@ impl State {
         if self.casemapping.eq(nick, &self.nick) {
             change.realname.clone_into(&mut self.realname);
         }
+        outbox.event(Event::RealnameChanged {
+            nick: nick.to_owned(),
+            realname: change.realname.to_owned(),
+        });
         Some(Handled::Yes)
     }
 

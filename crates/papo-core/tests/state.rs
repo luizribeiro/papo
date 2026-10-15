@@ -210,7 +210,9 @@ fn chghost_updates_shared_and_own_userhosts() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":dan!~dan@cloak.example CHGHOST dan account/dan")
+        .event_until(|event| matches!(event, Event::HostChanged { nick, user, host } if nick == "dan" && user == "dan" && host == "account/dan"))
         .server(":emily!em@127.0.0.1 CHGHOST ~em users/emily")
+        .event(|event| matches!(event, Event::HostChanged { nick, user, host } if nick == "emily" && user == "~em" && host == "users/emily"))
         .inspect(|session| {
             let dan = session.state().user("dan").unwrap();
             assert_eq!(dan.username(), Some("dan"));
@@ -225,9 +227,11 @@ fn chghost_updates_shared_and_own_userhosts() {
 fn setname_updates_other_and_own_realnames() {
     Transcript::new(Config::default().nick("emily").realname("Emily Garcia"))
         .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily Garcia")
-        .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
-        .server(":dan!~dan@cloak.example SETNAME :Dan Garcia")
-        .server(":emily!em@127.0.0.1 SETNAME :Emily Smith")
+    .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
+    .server(":dan!~dan@cloak.example SETNAME :Dan Garcia")
+    .event_until(|event| matches!(event, Event::RealnameChanged { nick, realname } if nick == "dan" && realname == "Dan Garcia"))
+    .server(":emily!em@127.0.0.1 SETNAME :Emily Smith")
+    .event(|event| matches!(event, Event::RealnameChanged { nick, realname } if nick == "emily" && realname == "Emily Smith"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().realname(),
