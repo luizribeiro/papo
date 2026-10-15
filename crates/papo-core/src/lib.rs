@@ -12,7 +12,7 @@ pub mod sts;
 
 use std::{
     collections::{BTreeMap, VecDeque},
-    time::{Duration, Instant, SystemTime},
+    time::{Duration, Instant},
 };
 
 use papo_proto::{BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef};
@@ -104,8 +104,6 @@ pub struct Config {
     pub connection_security: ConnectionSecurity,
     /// Hostname used for the current connection and its STS policy.
     pub host: String,
-    /// Wall-clock anchor corresponding to the connection's monotonic start time.
-    pub sts_time: SystemTime,
     /// Capability names to request when advertised by the server.
     pub wanted_caps: Vec<String>,
     /// Alternative nicknames to try when registration collides.
@@ -133,7 +131,6 @@ impl std::fmt::Debug for Config {
             .field("rate_limit", &self.rate_limit)
             .field("connection_security", &self.connection_security)
             .field("host", &self.host)
-            .field("sts_time", &self.sts_time)
             .field("wanted_caps", &self.wanted_caps)
             .field("alt_nicks", &self.alt_nicks)
             .field("sasl", &self.sasl)
@@ -166,7 +163,6 @@ impl Default for Config {
             rate_limit: RateLimit::default(),
             connection_security: ConnectionSecurity::Plaintext,
             host: String::new(),
-            sts_time: SystemTime::UNIX_EPOCH,
             wanted_caps: DEFAULT_WANTED_CAPS
                 .iter()
                 .map(|name| (*name).to_owned())
@@ -254,13 +250,6 @@ impl Config {
     #[must_use]
     pub fn host(mut self, host: impl Into<String>) -> Self {
         self.host = host.into();
-        self
-    }
-
-    /// Sets the wall-clock time corresponding to [`Session::handle_connected`].
-    #[must_use]
-    pub const fn sts_time(mut self, now: SystemTime) -> Self {
-        self.sts_time = now;
         self
     }
 

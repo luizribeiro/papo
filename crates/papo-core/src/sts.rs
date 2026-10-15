@@ -84,8 +84,8 @@ pub enum StsAction {
     Persist {
         /// The hostname used to establish the connection.
         host: String,
-        /// The wall-clock time at which the policy expires.
-        expires_at: SystemTime,
+        /// The duration for which the policy should remain active.
+        duration: Duration,
     },
     /// Remove the stored policy for a hostname.
     Remove {
@@ -98,14 +98,8 @@ pub enum StsAction {
 
 /// Selects the action for an STS directive received on `connection`.
 ///
-/// `now` is supplied by the caller so policy logic never reads a clock.
 #[must_use]
-pub fn decide(
-    directive: StsDirective,
-    connection: ConnectionSecurity,
-    host: &str,
-    now: SystemTime,
-) -> StsAction {
+pub fn decide(directive: StsDirective, connection: ConnectionSecurity, host: &str) -> StsAction {
     match connection {
         ConnectionSecurity::Plaintext => directive
             .port
@@ -114,12 +108,10 @@ pub fn decide(
             Some(duration) if duration.is_zero() => StsAction::Remove {
                 host: normalize_host(host),
             },
-            Some(duration) => now
-                .checked_add(duration)
-                .map_or(StsAction::Ignore, |expires_at| StsAction::Persist {
-                    host: normalize_host(host),
-                    expires_at,
-                }),
+            Some(duration) => StsAction::Persist {
+                host: normalize_host(host),
+                duration,
+            },
             None => StsAction::Ignore,
         },
     }
@@ -283,15 +275,9 @@ mod tests {
 
     #[test]
     fn upgrades_plaintext_only_when_a_port_is_present() {
-        let now = UNIX_EPOCH + Duration::from_secs(1_000_000);
         let with_port = StsPolicy::parse("port=6697,duration=31536000").unwrap();
         assert_eq!(
-            decide(
-                with_port,
-                ConnectionSecurity::Plaintext,
-                "irc.example.net",
-                now
-            ),
+            decide(with_port, ConnectionSecurity::Plaintext, "irc.example.net"),
             StsAction::UpgradeTo { port: 6697 }
         );
         let duration_only = StsPolicy::parse("duration=31536000").unwrap();
@@ -299,8 +285,7 @@ mod tests {
             decide(
                 duration_only,
                 ConnectionSecurity::Plaintext,
-                "irc.example.net",
-                now
+                "irc.example.net"
             ),
             StsAction::Ignore
         );
@@ -308,24 +293,17 @@ mod tests {
 
     #[test]
     fn persists_or_removes_only_from_a_secure_connection() {
-        let now = UNIX_EPOCH + Duration::from_secs(1_000_000);
         let duration = StsPolicy::parse("duration=15552000,preload=consent").unwrap();
-        let StsAction::Persist { host, expires_at } = decide(
-            duration,
-            ConnectionSecurity::Secure,
-            "IRC.Example.NET.",
-            now,
-        ) else {
+        let StsAction::Persist { host, duration } =
+            decide(duration, ConnectionSecurity::Secure, "IRC.Example.NET.")
+        else {
             panic!("duration did not produce a persistent policy");
         };
         assert_eq!(host, "irc.example.net");
-        assert_eq!(
-            expires_at.duration_since(now).unwrap().as_secs(),
-            15_552_000
-        );
+        assert_eq!(duration, Duration::from_hours(4_320));
         let remove = StsPolicy::parse("duration=0").unwrap();
         assert_eq!(
-            decide(remove, ConnectionSecurity::Secure, "IRC.Example.NET.", now),
+            decide(remove, ConnectionSecurity::Secure, "IRC.Example.NET."),
             StsAction::Remove {
                 host: "irc.example.net".to_owned(),
             }
@@ -336,12 +314,7 @@ mod tests {
     fn ignores_a_secure_policy_with_only_a_port() {
         let directive = StsPolicy::parse("port=6697").unwrap();
         assert_eq!(
-            decide(
-                directive,
-                ConnectionSecurity::Secure,
-                "irc.example.net",
-                UNIX_EPOCH
-            ),
+            decide(directive, ConnectionSecurity::Secure, "irc.example.net"),
             StsAction::Ignore
         );
     }

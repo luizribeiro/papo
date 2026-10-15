@@ -18,13 +18,11 @@ pub(super) struct Caps {
     pending: VecDeque<Vec<String>>,
     negotiating: bool,
     ended: bool,
-    connected_at: Option<Instant>,
 }
 
 impl Caps {
-    pub(super) fn handle_connected(&mut self, now: Instant) {
+    pub(super) fn handle_connected(&mut self, _now: Instant) {
         *self = Self::default();
-        self.connected_at = Some(now);
     }
 
     pub(super) fn handle_message(
@@ -40,9 +38,9 @@ impl Caps {
                 return Handled::No;
             };
             if subcommand.eq_ignore_ascii_case("LS") {
-                self.handle_ls(now, message, config, sasl, outbox);
+                self.handle_ls(message, config, sasl, outbox);
             } else if subcommand.eq_ignore_ascii_case("NEW") {
-                self.handle_new(now, message, config, outbox);
+                self.handle_new(message, config, outbox);
             } else if subcommand.eq_ignore_ascii_case("DEL") {
                 self.handle_del(message, sasl, outbox);
             } else if subcommand.eq_ignore_ascii_case("ACK") {
@@ -127,13 +125,7 @@ impl Caps {
         }
     }
 
-    fn handle_new(
-        &mut self,
-        now: Instant,
-        message: &MessageRef<'_>,
-        config: &Config,
-        outbox: &mut Outbox,
-    ) {
+    fn handle_new(&mut self, message: &MessageRef<'_>, config: &Config, outbox: &mut Outbox) {
         let mut updated = Capabilities::new();
         let mut announced = BTreeSet::new();
         for token in message.param(2).unwrap_or("").split_whitespace() {
@@ -151,7 +143,7 @@ impl Caps {
                 updated.insert(name.to_owned(), value);
             }
         }
-        if announced.contains("sts") && self.handle_sts(now, config, outbox) {
+        if announced.contains("sts") && self.handle_sts(config, outbox) {
             return;
         }
         if !updated.is_empty() {
@@ -186,7 +178,6 @@ impl Caps {
 
     fn handle_ls(
         &mut self,
-        now: Instant,
         message: &MessageRef<'_>,
         config: &Config,
         sasl: &mut SaslSession,
@@ -206,7 +197,7 @@ impl Caps {
         if continued {
             return;
         }
-        if self.handle_sts(now, config, outbox) {
+        if self.handle_sts(config, outbox) {
             return;
         }
         self.negotiating = true;
@@ -270,28 +261,14 @@ impl Caps {
         &self.enabled
     }
 
-    fn handle_sts(&self, now: Instant, config: &Config, outbox: &mut Outbox) -> bool {
+    fn handle_sts(&self, config: &Config, outbox: &mut Outbox) -> bool {
         let Some(value) = self.advertised.get("sts").and_then(Option::as_deref) else {
             return false;
         };
         let Ok(directive) = StsPolicy::parse(value) else {
             return false;
         };
-        let elapsed = self
-            .connected_at
-            .map_or(std::time::Duration::ZERO, |connected| {
-                now.saturating_duration_since(connected)
-            });
-        let policy_time = config
-            .sts_time
-            .checked_add(elapsed)
-            .unwrap_or(config.sts_time);
-        match decide(
-            directive,
-            config.connection_security,
-            &config.host,
-            policy_time,
-        ) {
+        match decide(directive, config.connection_security, &config.host) {
             StsAction::UpgradeTo { port } => {
                 outbox.event(Event::StsUpgrade { port });
                 outbox.close_and_discard("sts upgrade".to_owned());

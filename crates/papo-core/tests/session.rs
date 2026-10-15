@@ -1,6 +1,6 @@
 //! Tests for the public session queue surface.
 
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
 use papo_core::{Config, DEFAULT_WANTED_CAPS, RateLimit, Session};
@@ -18,8 +18,7 @@ fn config_builders_set_registration_identity_and_timeout() {
         .ping_timeout(Duration::from_secs(82))
         .rate_limit(RateLimit::new(7, Duration::from_millis(250)))
         .connection_security(ConnectionSecurity::Secure)
-        .host("irc.example.net")
-        .sts_time(SystemTime::UNIX_EPOCH + Duration::from_secs(12_345));
+        .host("irc.example.net");
 
     assert_eq!(config.nick, "emily");
     assert_eq!(config.username, "em");
@@ -30,10 +29,6 @@ fn config_builders_set_registration_identity_and_timeout() {
     );
     assert_eq!(config.connection_security, ConnectionSecurity::Secure);
     assert_eq!(config.host, "irc.example.net");
-    assert_eq!(
-        config.sts_time,
-        SystemTime::UNIX_EPOCH + Duration::from_secs(12_345)
-    );
     assert_eq!(config.registration_timeout, Duration::from_secs(23));
     assert_eq!(config.ping_interval, Duration::from_secs(41));
     assert_eq!(config.ping_timeout, Duration::from_secs(82));

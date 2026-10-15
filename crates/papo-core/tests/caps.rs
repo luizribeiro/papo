@@ -2,7 +2,7 @@
 
 mod support;
 
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use papo_core::sts::{ConnectionSecurity, StsAction};
 use papo_core::{Config, Event, Session};
@@ -239,26 +239,24 @@ fn sts_on_plaintext_closes_for_a_tls_upgrade_without_more_output() {
 
 #[test]
 fn sts_on_tls_surfaces_persist_refresh_and_remove_actions() {
-    let anchor = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000);
     Transcript::new(
         Config::default()
             .connection_security(ConnectionSecurity::Secure)
             .host("IRC.Example.NET.")
-            .sts_time(anchor)
             .wanted_caps(["sts"]),
     )
     .connect_default()
     .server("CAP * LS :sts=duration=3600,preload")
     .event(|event| {
-        matches!(event, Event::StsPolicy(StsAction::Persist { host, expires_at })
+        matches!(event, Event::StsPolicy(StsAction::Persist { host, duration })
         if host == "irc.example.net"
-            && *expires_at == anchor + Duration::from_secs(3_600))
+            && *duration == Duration::from_secs(3_600))
     })
     .client("CAP END")
     .server("CAP papo NEW :sts=duration=7200")
     .event(|event| {
-        matches!(event, Event::StsPolicy(StsAction::Persist { expires_at, .. })
-        if *expires_at == anchor + Duration::from_secs(7_200))
+        matches!(event, Event::StsPolicy(StsAction::Persist { duration, .. })
+        if *duration == Duration::from_secs(7_200))
     })
     .server("CAP papo NEW :sts=duration=0")
     .event(|event| {
