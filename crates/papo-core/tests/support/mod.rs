@@ -35,6 +35,14 @@ impl Transcript {
         self
     }
 
+    /// Connects and asserts the default registration burst.
+    pub fn connect_default(self) -> Self {
+        self.connect()
+            .client("CAP LS 302")
+            .client("NICK papo")
+            .client("USER papo 0 * papo")
+    }
+
     /// Plays one server line without its line ending.
     pub fn server(mut self, line: &str) -> Self {
         self.session.handle_line(self.now, line.as_bytes());

@@ -3,6 +3,7 @@
 
 mod framing;
 mod keepalive;
+mod registration;
 
 use std::{
     collections::VecDeque,
@@ -13,6 +14,7 @@ use papo_proto::{BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, Mess
 
 use framing::Framer;
 use keepalive::Keepalive;
+use registration::Registration;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
 const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
@@ -127,6 +129,7 @@ pub struct Session {
     config: Config,
     framer: Framer,
     keepalive: Keepalive,
+    registration: Registration,
     outbox: Outbox,
 }
 
@@ -148,6 +151,13 @@ impl Outbox {
         self.transmits.push_back(line);
     }
 
+    fn transmit<const N: usize>(&mut self, command: &str, params: [&str; N]) {
+        let line = Message::new(command, params)
+            .to_line()
+            .expect("protocol-generated IRC messages are valid");
+        self.transmit_raw(line.into());
+    }
+
     fn event(&mut self, event: Event) {
         self.events.push_back(event);
     }
@@ -167,10 +177,12 @@ impl Session {
     /// Creates a session with no active connection.
     #[must_use]
     pub fn new(config: Config) -> Self {
+        let registration = Registration::new(&config);
         Self {
             config,
             framer: Framer::default(),
             keepalive: Keepalive,
+            registration,
             outbox: Outbox::default(),
         }
     }
@@ -179,6 +191,8 @@ impl Session {
     pub fn handle_connected(&mut self, _now: Instant) {
         self.framer.reset();
         self.outbox.reset_connection();
+        self.registration
+            .handle_connected(&self.config, &mut self.outbox);
     }
 
     /// Supplies bytes read from a stream transport at `now`.

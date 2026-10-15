@@ -8,7 +8,7 @@ use support::Transcript;
 #[test]
 fn answers_pings_before_and_after_server_data() {
     Transcript::new(Config::default())
-        .connect()
+        .connect_default()
         .server(":ergo.test PING :before-registration")
         .client("PONG :before-registration")
         .server(":ergo.test NOTICE tester :Connection established")
@@ -21,7 +21,7 @@ fn answers_pings_before_and_after_server_data() {
 #[test]
 fn closes_when_the_server_sends_error() {
     Transcript::new(Config::default())
-        .connect()
+        .connect_default()
         .server("ERROR :Closing link")
         .event(|event| matches!(event, Event::Close { reason } if reason == "Closing link"))
         .server("PING :ignored-after-error")
@@ -31,7 +31,7 @@ fn closes_when_the_server_sends_error() {
 #[test]
 fn closes_on_a_parameterless_error() {
     Transcript::new(Config::default())
-        .connect()
+        .connect_default()
         .server("ERROR")
         .event(|event| matches!(event, Event::Close { reason } if reason == "server sent ERROR"))
         .no_client();
@@ -40,7 +40,7 @@ fn closes_on_a_parameterless_error() {
 #[test]
 fn does_not_answer_invalid_pings() {
     Transcript::new(Config::default())
-        .connect()
+        .connect_default()
         .server(":ergo.test PING")
         .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("PING")))
         .server("PING :bad\rtoken")
