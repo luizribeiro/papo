@@ -370,6 +370,15 @@ mod tests {
     }
 
     #[test]
+    fn plaintext_keeps_an_explicit_tls_default_port() {
+        let address = Builder::new("irc.example.net:6697")
+            .plaintext()
+            .address
+            .unwrap();
+        assert_eq!((address.protocol, address.port), (Protocol::Irc, 6697));
+    }
+
+    #[test]
     fn address_security_reaches_the_session_configuration() {
         for (input, plaintext, expected) in [
             ("ircs://irc.example.net", false, ConnectionSecurity::Secure),
