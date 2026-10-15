@@ -28,7 +28,11 @@ impl TestServer {
         let directory = TemporaryDirectory::create()?;
         certificate::generate(directory.path())?;
         let config = Configuration::new(&directory)?;
-        let status = config.command("initdb", &directory)?.status()?;
+        let status = config
+            .command("initdb", &directory)?
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?;
         if !status.success() {
             return Err(io::Error::other(format!(
                 "ergo initdb failed with {status}"
