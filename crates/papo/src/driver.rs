@@ -50,6 +50,10 @@ enum Command {
         message: Message,
         result: oneshot::Sender<Result<Response, Error>>,
     },
+    WaitChannelSync {
+        channel: String,
+        result: oneshot::Sender<Result<(), Error>>,
+    },
     Quit {
         reason: Option<String>,
         result: oneshot::Sender<Result<(), Error>>,
@@ -253,6 +257,41 @@ impl Client {
             Message::new("WHO", [mask])
         };
         crate::requests::who(self.raw(message).await?, &isupport, extended)
+    }
+
+    /// Joins a channel and waits for its topic and member list to synchronize.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the server rejects the join or it cannot complete.
+    pub async fn join(&self, channel: &str) -> Result<crate::ChannelInfo, Error> {
+        let response = self.raw(Message::join(channel)).await?;
+        if let Some(error) = response.error() {
+            return Err(Error::Server(error));
+        }
+        if !self.state(|state| {
+            state
+                .channel(channel)
+                .is_some_and(papo_core::Channel::is_synced)
+        }) {
+            let (result, receiver) = oneshot::channel();
+            self.commands
+                .send(Command::WaitChannelSync {
+                    channel: channel.to_owned(),
+                    result,
+                })
+                .await
+                .map_err(|_| Error::Disconnected)?;
+            receiver.await.map_err(|_| Error::Disconnected)??;
+        }
+        self.state(|state| {
+            let joined = state.channel(channel).ok_or(Error::Disconnected)?;
+            Ok(crate::ChannelInfo {
+                name: joined.name().to_owned(),
+                topic: joined.topic().map(str::to_owned),
+                members_count: joined.members().count(),
+            })
+        })
     }
 
     /// Requests a clean disconnect and waits for the peer to close.
@@ -958,6 +997,10 @@ fn handle_disconnected_command(
             _ = result.send(Err(Error::Disconnected));
             true
         }
+        Some(Command::WaitChannelSync { result, .. }) => {
+            _ = result.send(Err(Error::Disconnected));
+            true
+        }
         Some(Command::Quit { result, .. }) => {
             _ = result.send(Ok(()));
             false
@@ -1054,6 +1097,7 @@ where
     let mut quit = None;
     let mut pending_event = None;
     let mut requests = BTreeMap::new();
+    let mut sync_waiters = Vec::new();
     let mut registered_at = None;
     let mut sts = StsActions::default();
     let mut buffer = [0; 4096];
@@ -1064,6 +1108,7 @@ where
             events,
             &mut pending_event,
             &mut requests,
+            &mut sync_waiters,
             registration,
             defaults,
             registered,
@@ -1121,6 +1166,17 @@ where
                         }
                     }
                 }
+                Some(Command::WaitChannelSync { channel, result }) => {
+                    if session
+                        .state()
+                        .channel(&channel)
+                        .is_some_and(papo_core::Channel::is_synced)
+                    {
+                        _ = result.send(Ok(()));
+                    } else {
+                        sync_waiters.push((channel, result));
+                    }
+                }
                 Some(Command::Quit { reason, result }) => {
                     request_quit(session, &mut quit, reason, Some(result));
                 }
@@ -1144,6 +1200,9 @@ where
     };
     session.handle_disconnected(now());
     for (_, result) in requests {
+        _ = result.send(Err(Error::Disconnected));
+    }
+    for (_, result) in sync_waiters {
         _ = result.send(Err(Error::Disconnected));
     }
     connected.store(false, Ordering::Relaxed);
@@ -1212,6 +1271,7 @@ async fn drain<S>(
     events: &EventSink,
     pending_event: &mut Option<Event>,
     requests: &mut BTreeMap<RequestId, oneshot::Sender<Result<Response, Error>>>,
+    sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
     registered: &mut bool,
@@ -1256,6 +1316,9 @@ where
                     }
                     event => event,
                 };
+                if let Event::ChannelSynced { channel } = &event {
+                    resolve_sync_waiters(session, sync_waiters, channel);
+                }
                 if let Event::Raw(message) = event {
                     event = match events.commands.upgrade() {
                         Some(commands) => crate::MessageEvent::new(
@@ -1318,6 +1381,25 @@ where
         }
     }
     Ok(None)
+}
+
+fn resolve_sync_waiters(
+    session: &Session,
+    waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
+    channel: &str,
+) {
+    let mapping = session.isupport().casemapping();
+    *waiters = std::mem::take(waiters)
+        .into_iter()
+        .filter_map(|(waiting, result)| {
+            if mapping.eq(&waiting, channel) {
+                _ = result.send(Ok(()));
+                None
+            } else {
+                Some((waiting, result))
+            }
+        })
+        .collect();
 }
 
 fn publish_state(events: &EventSink, session: &Session, connected: bool) {
@@ -1541,6 +1623,29 @@ mod tests {
         )
         .await;
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    }
+
+    async fn assert_join_waits_for_sync(server: &mut DuplexStream, client: &super::Client) {
+        let join = tokio::spawn({
+            let client = client.clone();
+            async move { client.join("#papo").await }
+        });
+        client_line(server, b"@label=2 JOIN #papo\r\n").await;
+        server_line(
+            server,
+            b"@label=2 :papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n",
+        )
+        .await;
+        tokio::task::yield_now().await;
+        assert!(!join.is_finished());
+        server_line(server, b":ergo.test 332 papo-driver #papo :Ergonomic IRC\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
+        let joined = join.await.unwrap().unwrap();
+        assert_eq!(
+            (joined.name.as_str(), joined.topic.as_deref()),
+            ("#papo", Some("Ergonomic IRC"))
+        );
+        assert_eq!(joined.members_count, 2);
+        client_line(server, b"WHO #papo %tcuhnfar,152\r\n").await;
     }
 
     async fn complete_extended_monitor_registration(
@@ -2852,14 +2957,16 @@ mod tests {
             (true, true, ['+'].as_slice())
         );
 
+        assert_join_waits_for_sync(&mut server, &client).await;
+
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.whois("missing-nick").await }
         });
-        client_line(&mut server, b"@label=2 WHOIS missing-nick\r\n").await;
+        client_line(&mut server, b"@label=3 WHOIS missing-nick\r\n").await;
         server_line(
             &mut server,
-            b"@label=2 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
+            b"@label=3 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
         )
         .await;
         assert!(matches!(
@@ -2871,13 +2978,13 @@ mod tests {
             let client = client.clone();
             async move { client.raw(Message::new("WHOIS", ["alice"])).await }
         });
-        client_line(&mut server, b"@label=3 WHOIS alice\r\n").await;
+        client_line(&mut server, b"@label=4 WHOIS alice\r\n").await;
         tokio::time::advance(Duration::from_secs(1)).await;
         assert!(matches!(timed_out.await.unwrap(), Err(Error::Timeout)));
 
         let aborted =
             tokio::spawn(async move { client.raw(Message::new("WHOIS", ["emily"])).await });
-        client_line(&mut server, b"@label=4 WHOIS emily\r\n").await;
+        client_line(&mut server, b"@label=5 WHOIS emily\r\n").await;
         server.shutdown().await.unwrap();
         assert!(matches!(aborted.await.unwrap(), Err(Error::Disconnected)));
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));

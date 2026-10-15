@@ -24,7 +24,7 @@ pub use event::{Event, MessageEvent, MessageKind, Origin};
 pub use papo_core::{Account, Capabilities, Channel, Member, Response, ServerError, User};
 pub use papo_core::{RateLimit, Sasl};
 pub use reconnect::Reconnect;
-pub use requests::{WhoEntry, Whois};
+pub use requests::{ChannelInfo, WhoEntry, Whois};
 pub use state::State;
 
 /// Strict Transport Security policy stores.

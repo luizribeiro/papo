@@ -57,6 +57,17 @@ pub struct WhoEntry {
     pub prefixes: Vec<char>,
 }
 
+/// State established by a completed channel join.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ChannelInfo {
+    /// Channel name as reported by the server.
+    pub name: String,
+    /// Current channel topic, when one is set.
+    pub topic: Option<String>,
+    /// Number of members present after initial synchronization.
+    pub members_count: usize,
+}
+
 pub(crate) fn whois(response: Response, requested_nick: &str) -> Result<Whois, Error> {
     if let Some(error) = response.error() {
         return Err(Error::Server(error));
