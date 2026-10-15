@@ -21,6 +21,7 @@ use framing::Framer;
 use isupport::IsupportState;
 use keepalive::Keepalive;
 use registration::Registration;
+use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
@@ -235,7 +236,7 @@ pub struct Session {
     isupport: IsupportState,
     keepalive: Keepalive,
     registration: Registration,
-    entropy: Option<Box<dyn Entropy + Send>>,
+    sasl: SaslSession,
     outbox: Outbox,
 }
 
@@ -249,7 +250,7 @@ impl std::fmt::Debug for Session {
             .field("isupport", &self.isupport)
             .field("keepalive", &self.keepalive)
             .field("registration", &self.registration)
-            .field("has_entropy", &self.entropy.is_some())
+            .field("sasl", &self.sasl)
             .field("outbox", &self.outbox)
             .finish()
     }
@@ -311,6 +312,7 @@ impl Session {
     fn from_config(config: Config, entropy: Option<Box<dyn Entropy + Send>>) -> Self {
         let registration = Registration::new(&config);
         let isupport = IsupportState::new(config.decoding);
+        let sasl = SaslSession::new(&config, entropy);
         Self {
             config,
             caps: Caps::default(),
@@ -318,7 +320,7 @@ impl Session {
             isupport,
             keepalive: Keepalive,
             registration,
-            entropy,
+            sasl,
             outbox: Outbox::default(),
         }
     }
@@ -329,6 +331,7 @@ impl Session {
         self.outbox.reset_connection();
         self.caps.handle_connected();
         self.isupport.handle_connected();
+        self.sasl.handle_connected();
         self.registration
             .handle_connected(now, &self.config, &mut self.outbox);
     }
@@ -387,6 +390,8 @@ impl Session {
             self.isupport.value(),
             &mut self.outbox,
         );
+        self.caps
+            .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
         self.keepalive.handle_timeout(now, &mut self.outbox);
         self.apply_close_request();
     }
@@ -463,25 +468,29 @@ impl Session {
     }
 
     fn dispatch_message(&mut self, now: Instant, message: &MessageRef<'_>) {
-        let handled = self.registration.handle_message(
+        let registration_handled = self.registration.handle_message(
             now,
             message,
             &self.config,
             self.caps.enabled(),
             self.isupport.value(),
             &mut self.outbox,
-        ) == Handled::Yes
-            || self.caps.handle_message(
-                message,
-                &self.config,
-                self.registration.authentication_finished(),
-                &mut self.outbox,
-            ) == Handled::Yes
+        ) == Handled::Yes;
+        let caps_handled =
+            self.caps
+                .handle_message(now, message, &self.config, &mut self.sasl, &mut self.outbox)
+                == Handled::Yes;
+        let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
+        let handled = registration_handled
+            || caps_handled
+            || sasl_handled
             || self.isupport.handle_message(message) == Handled::Yes
             || self
                 .keepalive
                 .handle_message(now, message, &mut self.outbox)
                 == Handled::Yes;
+        self.caps
+            .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
         if !handled {
             self.outbox.event(Event::Message(message.to_owned()));
         }

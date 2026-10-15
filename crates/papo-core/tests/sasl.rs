@@ -1,6 +1,9 @@
 //! Transcript tests for SASL authentication.
 
+mod support;
+
 use papo_core::{Config, Entropy, Sasl, Session};
+use support::Transcript;
 
 struct FixedEntropy;
 
@@ -27,4 +30,17 @@ fn configures_mechanisms_policy_and_entropy() {
 #[test]
 fn external_accepts_an_authorization_identity() {
     assert_ne!(Sasl::external(), Sasl::external().authzid("alice"));
+}
+
+#[test]
+fn starts_sasl_after_ack_and_holds_cap_end() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .no_client()
+        .server(":ergo.test 903 alice :SASL authentication successful")
+        .client("CAP END");
 }

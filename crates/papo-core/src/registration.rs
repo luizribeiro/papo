@@ -118,11 +118,6 @@ impl Registration {
         self.registered
     }
 
-    #[allow(clippy::unused_self)]
-    pub(super) const fn authentication_finished(&self) -> bool {
-        true
-    }
-
     fn complete(&mut self, caps: &Capabilities, isupport: &Isupport, outbox: &mut Outbox) {
         self.welcome_deadline = None;
         self.registered = true;

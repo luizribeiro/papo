@@ -1,8 +1,11 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::{
+    collections::{BTreeSet, VecDeque},
+    time::Instant,
+};
 
 use papo_proto::{MAX_MESSAGE_LEN, MessageRef, NAME_ALIASES, NameKind};
 
-use crate::{Capabilities, Config, Handled, Outbox};
+use crate::{Capabilities, Config, Handled, Outbox, sasl::SaslSession};
 
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
 const MAX_IRC_BODY_LEN: usize = MAX_MESSAGE_LEN - 2;
@@ -12,6 +15,7 @@ pub(super) struct Caps {
     advertised: Capabilities,
     enabled: Capabilities,
     pending: VecDeque<Vec<String>>,
+    negotiating: bool,
     ended: bool,
 }
 
@@ -22,9 +26,10 @@ impl Caps {
 
     pub(super) fn handle_message(
         &mut self,
+        now: Instant,
         message: &MessageRef<'_>,
         config: &Config,
-        authentication_finished: bool,
+        sasl: &mut SaslSession,
         outbox: &mut Outbox,
     ) -> Handled {
         if message.command_is("CAP") {
@@ -32,20 +37,34 @@ impl Caps {
                 return Handled::No;
             };
             if subcommand.eq_ignore_ascii_case("LS") {
-                self.handle_ls(message, config, authentication_finished, outbox);
+                self.handle_ls(message, config, sasl, outbox);
             } else if subcommand.eq_ignore_ascii_case("ACK") {
                 if message.param(2) != Some("*") {
                     if let Some(requested) = self.pending.pop_front() {
+                        let sasl_acked = requested.iter().any(|name| name == "sasl");
                         for name in requested {
                             let value = self.advertised.get(&name).cloned().flatten();
                             self.enabled.insert(name, value);
                         }
+                        if sasl_acked {
+                            sasl.handle_cap_ack(
+                                now,
+                                self.enabled.get("sasl").and_then(Option::as_deref),
+                                outbox,
+                            );
+                        }
                     }
-                    self.finish(authentication_finished, outbox);
+                    self.maybe_finish(sasl.is_finished(), outbox);
                 }
             } else if subcommand.eq_ignore_ascii_case("NAK") {
-                self.pending.pop_front();
-                self.finish(authentication_finished, outbox);
+                if self
+                    .pending
+                    .pop_front()
+                    .is_some_and(|request| request.iter().any(|name| name == "sasl"))
+                {
+                    sasl.unavailable("the server rejected the sasl capability", outbox);
+                }
+                self.maybe_finish(sasl.is_finished(), outbox);
             } else {
                 return Handled::No;
             }
@@ -66,7 +85,7 @@ impl Caps {
         &mut self,
         message: &MessageRef<'_>,
         config: &Config,
-        authentication_finished: bool,
+        sasl: &mut SaslSession,
         outbox: &mut Outbox,
     ) {
         let continued = message.param(2) == Some("*");
@@ -83,21 +102,28 @@ impl Caps {
         if continued {
             return;
         }
+        self.negotiating = true;
 
         self.enabled.insert("cap-notify".to_owned(), None);
         let mut seen = BTreeSet::new();
-        let requested = config
+        let wanted = config
             .wanted_caps
             .iter()
+            .map(String::as_str)
+            .chain(config.sasl.as_ref().map(|_| "sasl"));
+        let requested = wanted
             // Ergo disconnects pre-registration clients that request this trap capability.
-            .filter(|wanted| wanted.as_str() != "ergo.chat/nope")
+            .filter(|wanted| *wanted != "ergo.chat/nope")
             .filter_map(|wanted| self.advertised_spelling(wanted))
             .filter(|name| seen.insert((*name).to_owned()))
             .map(str::to_owned)
             .collect::<Vec<_>>();
         let requests = split_requests(requested);
+        if config.sasl.is_some() && !self.advertised.contains_key("sasl") {
+            sasl.unavailable("the server did not advertise sasl", outbox);
+        }
         if requests.is_empty() {
-            self.finish(authentication_finished, outbox);
+            self.maybe_finish(sasl.is_finished(), outbox);
         } else {
             for request in &requests {
                 let mut line = b"CAP REQ :".to_vec();
@@ -125,8 +151,8 @@ impl Caps {
         })
     }
 
-    fn finish(&mut self, authentication_finished: bool, outbox: &mut Outbox) {
-        if authentication_finished && self.pending.is_empty() && !self.ended {
+    pub(super) fn maybe_finish(&mut self, authentication_finished: bool, outbox: &mut Outbox) {
+        if self.negotiating && authentication_finished && self.pending.is_empty() && !self.ended {
             outbox.transmit_raw(b"CAP END\r\n".to_vec());
             self.ended = true;
         }
