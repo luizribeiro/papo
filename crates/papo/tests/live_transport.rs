@@ -6,7 +6,7 @@
 
 #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
 use std::fs;
-use std::{io, net::ToSocketAddrs};
+use std::{io, net::ToSocketAddrs, time::Duration};
 
 #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
 use papo::transport::{ClientCertificate, TlsConfig, TlsRoots};
@@ -15,6 +15,7 @@ use papo_test_server::from_env;
 #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
 use papo_test_server::{ServerInfo, unique};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::time::timeout;
 
 #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
 const CLIENT_CERTIFICATE: &[u8] = include_bytes!("data/client.pem");
@@ -37,6 +38,19 @@ async fn plaintext_cap_exchange() {
     assert_cap_exchange(stream).await;
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn plaintext_shutdown_reaches_ergo() {
+    let server = from_env();
+    let stream = connect(
+        &server.plaintext_addr().ip().to_string(),
+        server.plaintext_addr().port(),
+        &Security::Plaintext,
+    )
+    .await
+    .unwrap();
+    assert_clean_shutdown(stream).await;
+}
+
 #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_cap_exchange_trusts_the_test_ca() {
@@ -50,6 +64,20 @@ async fn tls_cap_exchange_trusts_the_test_ca() {
     .unwrap();
     assert!(stream.is_secure());
     assert_cap_exchange(stream).await;
+}
+
+#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[tokio::test(flavor = "current_thread")]
+async fn tls_shutdown_reaches_ergo() {
+    let server = from_env();
+    let stream = connect(
+        "localhost",
+        server.tls_addr().port(),
+        &Security::Tls(tls_config(&server)),
+    )
+    .await
+    .unwrap();
+    assert_clean_shutdown(stream).await;
 }
 
 #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
@@ -199,6 +227,36 @@ async fn assert_cap_exchange(mut stream: Stream) {
     stream.write_all(b"CAP LS 302\r\n").await.unwrap();
     let line = read_line(&mut stream).await.unwrap();
     assert!(line.starts_with(":ergo.test CAP * LS "), "{line:?}");
+}
+
+async fn assert_clean_shutdown(mut stream: Stream) {
+    stream.write_all(b"CAP LS 302\r\n").await.unwrap();
+    stream.flush().await.unwrap();
+    stream.shutdown().await.unwrap();
+    let reply = timeout(Duration::from_secs(2), async {
+        let mut reply = Vec::new();
+        loop {
+            let mut chunk = [0; 1024];
+            let count = stream.read(&mut chunk).await?;
+            if count == 0 {
+                return Ok::<_, io::Error>(reply);
+            }
+            if reply.len() + count > 8191 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Ergo shutdown reply exceeded 8191 bytes",
+                ));
+            }
+            reply.extend_from_slice(&chunk[..count]);
+        }
+    })
+    .await
+    .expect("Ergo did not observe the shutdown")
+    .unwrap();
+    assert!(
+        String::from_utf8_lossy(&reply).contains(":ergo.test CAP * LS "),
+        "{reply:?}"
+    );
 }
 
 #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
