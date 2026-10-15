@@ -313,13 +313,17 @@ impl Message {
     }
 
     /// Adds or replaces a tag, retaining its first insertion position.
+    ///
+    /// An empty value is normalized to a valueless tag.
     #[must_use]
     pub fn with_tag(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.insert_tag(key.into(), Some(value.into()));
         self
     }
 
-    /// Sets the optional message source.
+    /// Sets the optional message source for tests and server-side use.
+    ///
+    /// IRC clients must not send a source.
     #[must_use]
     pub fn with_source(mut self, source: impl Into<String>) -> Self {
         self.source = Some(source.into());
