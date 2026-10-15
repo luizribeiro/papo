@@ -12,6 +12,7 @@ use crate::{Config, Handled, Outbox, Redacted};
 use scram::ScramClient;
 
 const SASL_CHUNK_LEN: usize = 400;
+const MAX_SASL_CHALLENGE_LEN: usize = 4096;
 const SASL_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Ordered SASL mechanisms to try during connection registration.
@@ -523,7 +524,9 @@ fn with_device(username: &str, device: Option<&str>) -> String {
 
 fn receive_challenge(buffer: &mut String, chunk: &str) -> Result<Option<Vec<u8>>, ()> {
     if chunk != "+" {
-        if chunk.len() > SASL_CHUNK_LEN {
+        if chunk.len() > SASL_CHUNK_LEN
+            || buffer.len().saturating_add(chunk.len()) > MAX_SASL_CHALLENGE_LEN
+        {
             return Err(());
         }
         buffer.push_str(chunk);
@@ -594,5 +597,23 @@ mod chunk_tests {
     fn rejects_server_chunks_over_literal_400_bytes() {
         assert!(receive_challenge(&mut String::new(), &"A".repeat(401)).is_err());
         assert!(receive_challenge(&mut String::new(), "not+base64!").is_err());
+    }
+
+    #[test]
+    fn accepts_a_literal_4096_byte_reassembled_challenge() {
+        let mut buffer = String::new();
+        for _ in 0..10 {
+            assert_eq!(
+                receive_challenge(&mut buffer, &"YWFh".repeat(100)),
+                Ok(None)
+            );
+        }
+        assert_eq!(
+            receive_challenge(&mut buffer, &"YWFh".repeat(24))
+                .unwrap()
+                .unwrap()
+                .len(),
+            3072
+        );
     }
 }

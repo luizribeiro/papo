@@ -490,3 +490,23 @@ fn aborts_a_challenge_without_a_payload() {
         .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
         .client("CAP END");
 }
+
+#[test]
+fn aborts_a_server_challenge_over_4096_bytes() {
+    let chunk = format!("AUTHENTICATE {}", "YWFh".repeat(100));
+    let mut transcript = Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN");
+    for _ in 0..10 {
+        transcript = transcript.server(&chunk).no_client();
+    }
+    transcript
+        .server(&chunk)
+        .client("AUTHENTICATE *")
+        .server(":ergo.test 906 alice :SASL authentication aborted")
+        .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+        .client("CAP END");
+}
