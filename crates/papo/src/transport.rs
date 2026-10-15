@@ -113,6 +113,8 @@ enum StreamInner {
     Tls(Box<TlsStream<TcpStream>>),
     #[cfg(feature = "websocket")]
     WebSocket(Box<websocket::WebSocket>),
+    #[cfg(all(test, feature = "websocket"))]
+    BrokenPeer,
 }
 
 impl Stream {
@@ -125,6 +127,8 @@ impl Stream {
             StreamInner::Tls(_) => true,
             #[cfg(feature = "websocket")]
             StreamInner::WebSocket(stream) => stream.is_secure(),
+            #[cfg(all(test, feature = "websocket"))]
+            StreamInner::BrokenPeer => false,
         }
     }
 
@@ -151,6 +155,8 @@ impl AsyncRead for Stream {
             StreamInner::Tls(stream) => Pin::new(stream).poll_read(context, buffer),
             #[cfg(feature = "websocket")]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_read(context, buffer),
+            #[cfg(all(test, feature = "websocket"))]
+            StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
         }
     }
 }
@@ -167,6 +173,8 @@ impl AsyncWrite for Stream {
             StreamInner::Tls(stream) => Pin::new(stream).poll_write(context, buffer),
             #[cfg(feature = "websocket")]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_write(context, buffer),
+            #[cfg(all(test, feature = "websocket"))]
+            StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
         }
     }
 
@@ -177,6 +185,8 @@ impl AsyncWrite for Stream {
             StreamInner::Tls(stream) => Pin::new(stream).poll_flush(context),
             #[cfg(feature = "websocket")]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_flush(context),
+            #[cfg(all(test, feature = "websocket"))]
+            StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
         }
     }
 
@@ -187,8 +197,15 @@ impl AsyncWrite for Stream {
             StreamInner::Tls(stream) => Pin::new(stream).poll_shutdown(context),
             #[cfg(feature = "websocket")]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_shutdown(context),
+            #[cfg(all(test, feature = "websocket"))]
+            StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
         }
     }
+}
+
+#[cfg(all(test, feature = "websocket"))]
+fn broken_peer() -> io::Error {
+    io::Error::new(io::ErrorKind::BrokenPipe, "broken WebSocket peer")
 }
 
 /// An error while opening a network connection.

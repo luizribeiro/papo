@@ -43,7 +43,7 @@ impl fmt::Debug for WebSocket {
             .field("read_offset", &self.read_offset)
             .field("write_buffer_len", &self.write_buffer.len())
             .field("eof", &self.eof)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -271,5 +271,38 @@ impl AsyncWrite for WebSocket {
         Pin::new(&mut self.stream)
             .poll_close(context)
             .map_err(Self::io_error)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::io::AsyncWriteExt;
+    use tokio_tungstenite::tungstenite::protocol::Role;
+
+    use super::WebSocket;
+    use crate::transport::{Stream, StreamInner};
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn flush_propagates_a_broken_peer_error() {
+        let peer = Stream {
+            inner: StreamInner::BrokenPeer,
+        };
+        let websocket =
+            tokio_tungstenite::WebSocketStream::from_raw_socket(peer, Role::Client, None).await;
+        let mut stream = Stream {
+            inner: StreamInner::WebSocket(Box::new(WebSocket {
+                stream: websocket,
+                secure: false,
+                subprotocol: None,
+                read_buffer: Vec::new(),
+                read_offset: 0,
+                write_buffer: Vec::new(),
+                eof: false,
+            })),
+        };
+
+        let error = stream.flush().await.unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::Other);
+        assert_eq!(error.to_string(), "IO error: broken WebSocket peer");
     }
 }
