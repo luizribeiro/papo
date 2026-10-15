@@ -23,6 +23,16 @@ const BINARY: &str = "binary.ircv3.net";
 const TEXT: &str = "text.ircv3.net";
 const MAX_MESSAGE_SIZE: usize = 8191 + 510;
 
+fn check_outgoing_size(length: usize, terminator_allowance: usize) -> io::Result<()> {
+    if length.saturating_sub(terminator_allowance) > MAX_MESSAGE_SIZE {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "IRC line exceeds the WebSocket message limit",
+        ));
+    }
+    Ok(())
+}
+
 pub(super) struct WebSocket {
     stream: WebSocketStream<Stream>,
     secure: bool,
@@ -149,12 +159,6 @@ impl WebSocket {
     }
 
     fn outgoing_message(&self, bytes: Vec<u8>) -> io::Result<Message> {
-        if bytes.len() > MAX_MESSAGE_SIZE {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "IRC line exceeds the WebSocket message limit",
-            ));
-        }
         if self.subprotocol == Some(BINARY) {
             Ok(Message::binary(bytes))
         } else {
@@ -214,11 +218,10 @@ impl AsyncWrite for WebSocket {
         buffer: &[u8],
     ) -> Poll<io::Result<usize>> {
         let Some(newline) = buffer.iter().position(|byte| *byte == b'\n') else {
-            if self.write_buffer.len().saturating_add(buffer.len()) > MAX_MESSAGE_SIZE + 1 {
-                return Poll::Ready(Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "partial IRC line exceeds the WebSocket message limit",
-                )));
+            if let Err(error) =
+                check_outgoing_size(self.write_buffer.len().saturating_add(buffer.len()), 1)
+            {
+                return Poll::Ready(Err(error));
             }
             self.write_buffer.extend_from_slice(buffer);
             return Poll::Ready(Ok(buffer.len()));
@@ -234,11 +237,8 @@ impl AsyncWrite for WebSocket {
         } else {
             buffer[newline - 1] == b'\r'
         };
-        if line_length - usize::from(ends_with_cr) > MAX_MESSAGE_SIZE {
-            return Poll::Ready(Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "IRC line exceeds the WebSocket message limit",
-            )));
+        if let Err(error) = check_outgoing_size(line_length, usize::from(ends_with_cr)) {
+            return Poll::Ready(Err(error));
         }
         self.write_buffer.extend_from_slice(&buffer[..newline]);
         if self.write_buffer.last() == Some(&b'\r') {
