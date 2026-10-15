@@ -7,7 +7,7 @@ type HmacSha256 = Hmac<Sha256>;
 
 pub(crate) struct ScramClient {
     username: String,
-    password: String,
+    password: Option<String>,
     client_nonce: String,
     server_verifier: Option<HmacSha256>,
 }
@@ -23,7 +23,7 @@ impl ScramClient {
         }
         Ok(Self {
             username: username.replace('=', "=3D").replace(',', "=2C"),
-            password: password.to_owned(),
+            password: Some(password.to_owned()),
             client_nonce: client_nonce.to_owned(),
             server_verifier: None,
         })
@@ -57,7 +57,11 @@ impl ScramClient {
         let final_without_proof = format!("c=biws,r={nonce}");
         let first = self.client_first();
         let auth_message = format!("{},{server_first},{final_without_proof}", &first[3..]);
-        let (proof, verifier) = derive_keys(&self.password, &salt, iterations, &auth_message);
+        let password = self
+            .password
+            .take()
+            .ok_or(ScramError::UnexpectedServerFirst)?;
+        let (proof, verifier) = derive_keys(&password, &salt, iterations, &auth_message);
         self.server_verifier = Some(verifier);
         Ok(format!(
             "{final_without_proof},p={}",
@@ -90,6 +94,7 @@ pub(crate) enum ScramError {
     MalformedMessage,
     InvalidServerNonce,
     IterationCountTooLow,
+    UnexpectedServerFirst,
     UnexpectedServerFinal,
     ServerSignatureMismatch,
     Server(String),
@@ -212,6 +217,18 @@ mod tests {
         assert_eq!(
             client.handle_server_final(SERVER_FINAL),
             Err(ScramError::UnexpectedServerFinal)
+        );
+    }
+
+    #[test]
+    fn drops_password_after_deriving_keys() {
+        let mut client = rfc_client();
+        assert!(client.password.is_some());
+        client.handle_server_first(SERVER_FIRST).unwrap();
+        assert!(client.password.is_none());
+        assert_eq!(
+            client.handle_server_first(SERVER_FIRST),
+            Err(ScramError::UnexpectedServerFirst)
         );
     }
 
