@@ -67,6 +67,22 @@ pub enum Event {
         /// The optional kick reason.
         reason: Option<String>,
     },
+    /// A user sharing channels with the client disconnected.
+    Quit {
+        /// The disconnected user's nickname.
+        nick: String,
+        /// The optional quit reason.
+        reason: Option<String>,
+        /// Shared channels captured before the user was removed.
+        channels: Vec<String>,
+    },
+    /// A user changed nickname.
+    NickChanged {
+        /// The previous nickname.
+        old: String,
+        /// The new nickname.
+        new: String,
+    },
     /// Server input exceeded a configured state-retention bound.
     StateLimitReached {
         /// The state collection that rejected another entry.
@@ -119,6 +135,16 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             by,
             reason,
         },
+        papo_core::Event::Quit {
+            nick,
+            reason,
+            channels,
+        } => Event::Quit {
+            nick,
+            reason,
+            channels,
+        },
+        papo_core::Event::NickChanged { old, new } => Event::NickChanged { old, new },
         papo_core::Event::StateLimitReached { limit } => Event::StateLimitReached { limit },
         _ => return CoreEvent::Unknown,
     })
@@ -192,6 +218,36 @@ mod tests {
                 nick: "emily".into(),
                 by: "alice".into(),
                 reason: Some("Flooding".into()),
+            }
+        );
+    }
+
+    #[test]
+    fn maps_quit() {
+        assert_eq!(
+            forwarded(papo_core::Event::Quit {
+                nick: "emily".into(),
+                reason: Some("Client exited".into()),
+                channels: vec!["#papo".into(), "#rust".into()],
+            }),
+            Event::Quit {
+                nick: "emily".into(),
+                reason: Some("Client exited".into()),
+                channels: vec!["#papo".into(), "#rust".into()],
+            }
+        );
+    }
+
+    #[test]
+    fn maps_nick_changed() {
+        assert_eq!(
+            forwarded(papo_core::Event::NickChanged {
+                old: "emily".into(),
+                new: "em".into(),
+            }),
+            Event::NickChanged {
+                old: "emily".into(),
+                new: "em".into(),
             }
         );
     }
