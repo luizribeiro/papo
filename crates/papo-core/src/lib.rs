@@ -12,8 +12,11 @@ mod outgoing;
 mod ratelimit;
 mod registration;
 mod sasl;
+mod secret;
 mod state;
 pub mod sts;
+
+pub use secret::Secret;
 
 use std::{
     collections::{BTreeMap, VecDeque},
