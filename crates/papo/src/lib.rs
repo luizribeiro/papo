@@ -9,6 +9,7 @@ mod entropy;
 mod error;
 mod event;
 mod reconnect;
+mod state;
 
 pub use address::AddressError;
 pub use builder::Builder;

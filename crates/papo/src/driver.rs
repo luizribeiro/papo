@@ -5,7 +5,7 @@ use std::{
     ops::ControlFlow,
     pin::Pin,
     sync::{
-        Arc,
+        Arc, RwLock,
         atomic::{AtomicBool, Ordering},
     },
     task,
@@ -26,6 +26,7 @@ use crate::{
     AddressError, Error, Event, Reconnect,
     address::{Protocol, ServerAddress},
     event,
+    state::State,
     transport::{self, TlsConfig},
 };
 
@@ -60,6 +61,7 @@ struct EventSink {
     regular: mpsc::Sender<Event>,
     disconnected: oneshot::Sender<Event>,
     connected: Arc<AtomicBool>,
+    state: Arc<RwLock<Arc<State>>>,
     commands: mpsc::WeakSender<Command>,
 }
 
@@ -106,12 +108,14 @@ pub(crate) struct PostRegistration {
 pub struct Client {
     commands: mpsc::Sender<Command>,
     connected: Arc<AtomicBool>,
+    #[allow(dead_code)]
+    state: Arc<RwLock<Arc<State>>>,
 }
 
 impl Client {
     #[cfg(test)]
     pub(crate) fn disconnected_for_test() -> Self {
-        channels(1).client
+        channels(1, &Session::new(papo_core::Config::default())).client
     }
 
     /// Starts configuring a client for `address`.
@@ -244,7 +248,7 @@ impl Driver {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        let channels = channels(capacity);
+        let channels = channels(capacity, &session);
         let inner = Box::pin(run(
             stream,
             session,
@@ -330,7 +334,7 @@ impl Driver {
         connector: Connector,
         entropy: BackoffEntropy,
     ) -> (Client, Events, Self) {
-        let channels = channels(capacity);
+        let channels = channels(capacity, &session);
         let inner = Box::pin(run_plan(
             plan,
             session,
@@ -349,19 +353,22 @@ impl Driver {
     }
 }
 
-fn channels(capacity: usize) -> Channels {
+fn channels(capacity: usize, session: &Session) -> Channels {
     let (command_sender, command_receiver) = mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
     let (event_sender, event_receiver) = mpsc::channel(capacity);
     let (disconnect_sender, disconnect_receiver) = oneshot::channel();
     let connected = Arc::new(AtomicBool::new(false));
+    let state = Arc::new(RwLock::new(Arc::new(State::from_session(session, false))));
     let client = Client {
         commands: command_sender,
         connected: Arc::clone(&connected),
+        state: Arc::clone(&state),
     };
     let events = EventSink {
         regular: event_sender,
         disconnected: disconnect_sender,
         connected: Arc::clone(&connected),
+        state,
         commands: client.commands.downgrade(),
     };
     Channels {
@@ -931,6 +938,7 @@ where
         None => session.handle_connected(current),
     }
     connected.store(true, Ordering::Relaxed);
+    publish_state(events, session, true);
     while let Some(message) = queued.pop_front() {
         session
             .send(now(), message)
@@ -1010,6 +1018,7 @@ where
     };
     session.handle_disconnected(now());
     connected.store(false, Ordering::Relaxed);
+    publish_state(events, session, false);
     let close_error = stream.flush().await.err().or(stream.shutdown().await.err());
     if let Some(close_error) = close_error
         && !matches!(error, Error::Io(_))
@@ -1084,6 +1093,7 @@ async fn drain<S>(
 where
     S: AsyncWrite + Unpin,
 {
+    publish_state(events, session, true);
     while let Some(line) = session.poll_transmit() {
         stream.write_all(&line).await?;
     }
@@ -1101,6 +1111,7 @@ where
                             Client {
                                 commands,
                                 connected: Arc::clone(&events.connected),
+                                state: Arc::clone(&events.state),
                             },
                             session.caps(),
                             SystemTime::now(),
@@ -1135,6 +1146,22 @@ where
         }
     }
     Ok(None)
+}
+
+fn publish_state(events: &EventSink, session: &Session, connected: bool) {
+    let current = events
+        .state
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if current.matches(session, connected) {
+        return;
+    }
+    drop(current);
+    let mut slot = events
+        .state
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *slot = Arc::new(State::from_session(session, connected));
 }
 
 fn after_registration(

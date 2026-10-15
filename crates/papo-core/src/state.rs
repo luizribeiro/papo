@@ -15,7 +15,7 @@ const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 
 /// The known channel and user state for a session.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct State {
     nick: String,
     user: String,
@@ -34,7 +34,7 @@ pub struct State {
 }
 
 /// State known about a joined channel.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Channel {
     name: String,
     casemapping: Casemapping,
@@ -49,7 +49,7 @@ pub struct Channel {
 }
 
 /// State known about a channel member.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Member {
     nick: String,
     prefixes: Vec<char>,
@@ -57,7 +57,7 @@ pub struct Member {
 }
 
 /// State known about a user sharing a channel or followed through MONITOR.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct User {
     nick: String,
     username: Option<String>,
@@ -1000,6 +1000,11 @@ impl State {
     #[must_use]
     pub fn user(&self, nick: &str) -> Option<&User> {
         self.users.get(&CaseKey::new(nick, self.casemapping))
+    }
+
+    /// Iterates over users currently reported online through `MONITOR`.
+    pub fn monitor_online(&self) -> impl Iterator<Item = &User> {
+        self.users.values().filter(|user| user.monitored)
     }
 }
 

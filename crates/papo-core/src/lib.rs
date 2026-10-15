@@ -547,6 +547,7 @@ pub struct Session {
     registration: Registration,
     sasl: SaslSession,
     state: State,
+    state_generation: u64,
     outbox: Outbox,
 }
 
@@ -565,6 +566,7 @@ impl std::fmt::Debug for Session {
             .field("registration", &self.registration)
             .field("sasl", &self.sasl)
             .field("state", &self.state)
+            .field("state_generation", &self.state_generation)
             .field("outbox", &self.outbox)
             .finish()
     }
@@ -660,6 +662,7 @@ impl Session {
             registration,
             sasl,
             state,
+            state_generation: 0,
             outbox: Outbox::default(),
         }
     }
@@ -683,6 +686,7 @@ impl Session {
         self.isupport.handle_connected();
         self.sasl.handle_connected();
         self.state.reset(&self.config);
+        self.state_generation = self.state_generation.wrapping_add(1);
         self.keepalive
             .handle_connected(now, self.config.ping_interval, self.config.ping_timeout);
         self.registration
@@ -732,7 +736,13 @@ impl Session {
             return;
         }
         match MessageRef::parse(&decoded) {
-            Ok(message) => self.dispatch_message(now, &message),
+            Ok(message) => {
+                let before = self.snapshot_values();
+                self.dispatch_message(now, &message);
+                if before != self.snapshot_values() {
+                    self.state_generation = self.state_generation.wrapping_add(1);
+                }
+            }
             Err(_) => self.malformed(line),
         }
     }
@@ -767,6 +777,7 @@ impl Session {
         self.keepalive.handle_disconnected();
         self.monitor.handle_disconnected();
         self.state.reset(&self.config);
+        self.state_generation = self.state_generation.wrapping_add(1);
     }
 
     /// Validates and queues a user-originated raw message for transmission.
@@ -805,6 +816,7 @@ impl Session {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
+        let before = self.state.clone();
         self.monitor.remove(
             nicks,
             self.isupport.value(),
@@ -812,14 +824,21 @@ impl Session {
             &mut self.outbox,
         );
         self.sync_monitored_state();
+        if before != self.state {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
     }
 
     /// Clears the desired server-side monitor list.
     pub fn monitor_clear(&mut self) {
+        let before = self.state.clone();
         let supported =
             self.registration.is_registered() && self.isupport.value().monitor().is_some();
         self.monitor.clear(supported, &mut self.outbox);
         self.sync_monitored_state();
+        if before != self.state {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
     }
 
     /// Returns the next CRLF-terminated wire line to transmit.
@@ -877,6 +896,12 @@ impl Session {
         &self.state
     }
 
+    /// Returns a counter that changes when snapshot-visible state changes.
+    #[must_use]
+    pub const fn state_generation(&self) -> u64 {
+        self.state_generation
+    }
+
     /// Reports whether connection registration has completed.
     #[must_use]
     pub const fn is_registered(&self) -> bool {
@@ -920,6 +945,15 @@ impl Session {
         self.outbox.event(Event::Malformed {
             line: line.to_vec(),
         });
+    }
+
+    fn snapshot_values(&self) -> (State, Capabilities, papo_proto::Isupport, Option<String>) {
+        (
+            self.state.clone(),
+            self.caps.enabled().clone(),
+            self.isupport.value().clone(),
+            self.sasl.account().map(str::to_owned),
+        )
     }
 
     fn dispatch_message(&mut self, now: Instant, message: &MessageRef<'_>) {

@@ -94,3 +94,29 @@ fn rejects_an_invalid_message_before_queueing_a_valid_one() {
     assert_eq!(session.poll_transmit(), Some(b"JOIN #papo\r\n".to_vec()));
     assert_eq!(session.poll_transmit(), None);
 }
+
+#[test]
+fn state_generation_changes_only_with_snapshot_state() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("emily"));
+    assert_eq!(session.state_generation(), 0);
+
+    session.handle_connected(now);
+    assert_eq!(session.state_generation(), 1);
+    session.handle_line(now, b":irc.example NOTICE emily :maintenance soon");
+    assert_eq!(session.state_generation(), 1);
+
+    session.handle_line(
+        now,
+        b":irc.example 005 emily CASEMAPPING=ascii :are supported",
+    );
+    assert_eq!(session.state_generation(), 2);
+    session.handle_line(
+        now,
+        b":irc.example 005 emily CASEMAPPING=ascii :are supported",
+    );
+    assert_eq!(session.state_generation(), 2);
+
+    session.handle_line(now, b":emily!em@localhost JOIN #papo");
+    assert_eq!(session.state_generation(), 3);
+}
