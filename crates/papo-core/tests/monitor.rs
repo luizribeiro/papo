@@ -2,6 +2,8 @@
 
 mod support;
 
+use std::cell::Cell;
+
 use papo_core::{Account, Config, Event};
 use papo_proto::Message;
 use support::Transcript;
@@ -38,6 +40,37 @@ fn adds_removes_and_clears_monitored_nicks() {
         .update(papo_core::Session::monitor_clear)
         .client("MONITOR C")
         .no_client();
+}
+
+#[test]
+fn monitor_updates_generation_only_when_presence_changes() {
+    let generation = Cell::new(0);
+    extended_registered()
+        .update(|session| session.monitor_add(["alice", "bob"]))
+        .client("MONITOR + alice,bob")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob!bob@users.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "bob"))
+        .inspect(|session| generation.set(session.state_generation()))
+        .update(|session| session.monitor_remove(["zoe"]))
+        .inspect(|session| assert_eq!(session.state_generation(), generation.get()))
+        .no_client()
+        .update(|session| session.monitor_remove(["alice"]))
+        .client("MONITOR - alice")
+        .inspect(|session| {
+            assert_eq!(session.state_generation(), generation.get() + 1);
+            generation.set(session.state_generation());
+        })
+        .update(papo_core::Session::monitor_clear)
+        .client("MONITOR C")
+        .inspect(|session| {
+            assert_eq!(session.state_generation(), generation.get() + 1);
+            generation.set(session.state_generation());
+        })
+        .update(papo_core::Session::monitor_clear)
+        .client("MONITOR C")
+        .inspect(|session| assert_eq!(session.state_generation(), generation.get()))
+        .no_event();
 }
 
 #[test]
