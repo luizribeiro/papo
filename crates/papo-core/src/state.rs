@@ -60,6 +60,7 @@ pub struct User {
     account: Account,
     away: Option<String>,
     realname: Option<String>,
+    is_bot: bool,
     channels: HashSet<CaseKey>,
 }
 
@@ -532,14 +533,20 @@ impl State {
         }
     }
 
-    fn apply_account_tag(&mut self, message: &MessageRef<'_>) {
-        let (Some(Source::User { nick, .. }), Some(account)) =
-            (message.source(), message.tag("account"))
-        else {
+    fn apply_user_tags(&mut self, message: &MessageRef<'_>) {
+        let Some(Source::User { nick, .. }) = message.source() else {
             return;
         };
         if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
-            user.account = Account::LoggedIn(account.into_owned());
+            for (key, value) in message.tags() {
+                match (key, value) {
+                    ("account", Some(account)) => {
+                        user.account = Account::LoggedIn(account.into_owned());
+                    }
+                    ("bot", _) => user.is_bot = true,
+                    _ => {}
+                }
+            }
         }
     }
 
@@ -547,7 +554,7 @@ impl State {
         if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
             own_nick.clone_into(&mut self.nick);
         }
-        self.apply_account_tag(message);
+        self.apply_user_tags(message);
     }
 
     fn prepare_message(
@@ -920,6 +927,7 @@ impl User {
             account: Account::Unknown,
             away: None,
             realname: None,
+            is_bot: false,
             channels: HashSet::new(),
         }
     }
@@ -967,6 +975,12 @@ impl User {
     #[must_use]
     pub fn realname(&self) -> Option<&str> {
         self.realname.as_deref()
+    }
+
+    /// Returns whether the user is known to be a bot.
+    #[must_use]
+    pub const fn is_bot(&self) -> bool {
+        self.is_bot
     }
 
     /// Iterates over shared channel names in unspecified order.

@@ -659,6 +659,16 @@ fn bounds_channels_and_members_with_one_warning_each() {
 }
 
 #[test]
+fn bot_tag_marks_a_shared_user() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":papo-bot!bot@services.example JOIN #papo")
+        .server("@bot :papo-bot!bot@services.example PRIVMSG #papo :status green")
+        .inspect(|session| assert!(session.state().user("papo-bot").unwrap().is_bot()))
+        .ignore_rest();
+}
+
+#[test]
 fn reports_parts_and_kicks_for_other_users_and_ourselves() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
