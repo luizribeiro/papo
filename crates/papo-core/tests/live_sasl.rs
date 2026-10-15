@@ -1,0 +1,88 @@
+//! End-to-end SASL authentication against the pinned Ergo test server.
+#![cfg(any(
+    not(target_os = "wasi"),
+    all(target_os = "wasi", not(target_env = "p1"))
+))]
+
+use std::{
+    io::{Read, Write},
+    net::TcpStream,
+    time::{Duration, Instant},
+};
+
+use papo_core::{Config, Entropy, Event, RateLimit, Sasl, Session};
+use papo_test_server::{ServerInfo, from_env, register_account, unique};
+
+struct FixedEntropy;
+
+impl Entropy for FixedEntropy {
+    fn fill(&mut self, buf: &mut [u8]) {
+        buf.fill(0x5a);
+    }
+}
+
+#[test]
+fn authenticates_with_plain_and_scram_against_live_ergo() {
+    let server = from_env();
+    let account = unique("papo-sasl");
+    let password = "q7Hx-2mZp_9vLcT4wRfB";
+    register_account(&server, &account, password).unwrap();
+
+    for sasl in [
+        Sasl::plain(&account, password),
+        Sasl::scram_sha256(&account, password),
+    ] {
+        let session = authenticate(&server, &account, sasl, true)
+            .unwrap_or_else(|reason| panic!("valid credentials closed: {reason}"));
+        assert!(session.is_registered());
+        assert_eq!(session.account(), Some(account.as_str()));
+    }
+
+    let reason = authenticate(
+        &server,
+        &account,
+        Sasl::plain(&account, "wrong-password-4917"),
+        true,
+    )
+    .expect_err("required SASL accepted a wrong password");
+    assert!(reason.contains("SASL failed"));
+}
+
+fn authenticate(
+    server: &ServerInfo,
+    account: &str,
+    sasl: Sasl,
+    require_sasl: bool,
+) -> Result<Session, String> {
+    let mut stream = TcpStream::connect(server.plaintext_addr()).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    let config = Config::default()
+        .nick(unique("papo-auth"))
+        .username("papo")
+        .realname("papo live SASL test")
+        .sasl(sasl)
+        .require_sasl(require_sasl)
+        .rate_limit(RateLimit::unlimited());
+    let mut session = Session::with_entropy(config, Box::new(FixedEntropy));
+    session.handle_connected(Instant::now());
+
+    for _ in 0..128 {
+        while let Some(bytes) = session.poll_transmit() {
+            stream.write_all(&bytes).unwrap();
+        }
+        while let Some(event) = session.poll_event() {
+            match event {
+                Event::Registered(_) => return Ok(session),
+                Event::Close { reason } => return Err(reason),
+                _ => {}
+            }
+        }
+        let mut bytes = [0; 16 * 1024];
+        let count = stream.read(&mut bytes).unwrap();
+        assert_ne!(count, 0, "Ergo closed during SASL for {account}");
+        session.handle_bytes(Instant::now(), &bytes[..count]);
+    }
+    panic!("Ergo did not finish SASL for {account}");
+}
