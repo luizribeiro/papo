@@ -190,6 +190,51 @@ fn ignores_membership_modes_for_unknown_channels_and_members() {
 }
 
 #[test]
+fn tracks_channel_mode_snapshots_live_changes_and_creation_time() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":ergo.test 324 emily #papo +kln swordfish 10")
+        .server(":ergo.test 329 emily #papo 1723501539")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.mode('k'), Some(Some("swordfish")));
+            assert_eq!(channel.mode('l'), Some(Some("10")));
+            assert_eq!(channel.mode('n'), Some(None));
+            assert_eq!(channel.created_at(), Some(1_723_501_539));
+        })
+        .server(":alice!alice@staff.example MODE #papo -k")
+        .server(":alice!alice@staff.example MODE #papo -l+mb *!*@gateway/tor-sasl")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.mode('k'), None);
+            assert_eq!(channel.mode('l'), None);
+            assert_eq!(channel.mode('m'), Some(None));
+            assert_eq!(channel.mode('b'), None);
+        })
+        .server(":ergo.test 324 emily #papo +n")
+        .inspect(|session| assert_eq!(session.state().channel("#papo").unwrap().modes().count(), 1))
+        .ignore_rest();
+}
+
+#[test]
+fn bounds_channel_modes_at_literal_sixty_four() {
+    let modes = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnpqrstuwxyzαβγδεζηθικλμνξο";
+    let support = format!(":ergo.test 005 emily CHANMODES=,,,{modes} :are supported");
+    let snapshot = format!(":ergo.test 324 emily #papo +{modes}");
+    Transcript::new(Config::default().nick("emily"))
+        .server(&support)
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(&snapshot)
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.modes().count(), 64);
+            assert_eq!(channel.mode('ο'), None);
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn no_implicit_names_marks_our_join_synced_without_366() {
     Transcript::new(Config::default().wanted_caps(["no-implicit-names"]))
         .connect_default()

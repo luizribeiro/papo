@@ -31,6 +31,8 @@ pub struct Channel {
     name: String,
     casemapping: Casemapping,
     members: HashMap<CaseKey, Member>,
+    modes: HashMap<char, Option<String>>,
+    created_at: Option<u64>,
     topic: Option<String>,
     synced: bool,
     prefix_order: Arc<[char]>,
@@ -155,6 +157,9 @@ impl State {
         if self.handle_channel_mode(message, isupport) {
             return Handled::Yes;
         }
+        if self.handle_channel_metadata(message, isupport) {
+            return Handled::Yes;
+        }
         if let Some((_, channel, entries)) = parse_353(message) {
             for raw in entries {
                 let entry = NamesEntry::parse(raw, isupport);
@@ -189,7 +194,30 @@ impl State {
                 .channels
                 .get_mut(&CaseKey::new(target, self.casemapping))
         {
-            channel.apply_membership_modes(modestring, message.params().skip(2), isupport);
+            channel.apply_modes(modestring, message.params().skip(2), isupport, false);
+        }
+        true
+    }
+
+    fn handle_channel_metadata(&mut self, message: &MessageRef<'_>, isupport: &Isupport) -> bool {
+        if !matches!(
+            message.command(),
+            Command::Numeric(Numeric::RPL_CHANNELMODEIS | Numeric::RPL_CREATIONTIME)
+        ) {
+            return false;
+        }
+        let Some(channel) = message
+            .param(1)
+            .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
+        else {
+            return true;
+        };
+        if message.command() == Command::Numeric(Numeric::RPL_CHANNELMODEIS) {
+            if let Some(modestring) = message.param(2) {
+                channel.apply_modes(modestring, message.params().skip(3), isupport, true);
+            }
+        } else {
+            channel.created_at = message.param(2).and_then(|seconds| seconds.parse().ok());
         }
         true
     }
@@ -470,6 +498,8 @@ impl Channel {
             name: name.to_owned(),
             casemapping,
             members: HashMap::new(),
+            modes: HashMap::new(),
+            created_at: None,
             topic: None,
             synced,
             prefix_order: isupport
@@ -480,32 +510,47 @@ impl Channel {
         }
     }
 
-    fn apply_membership_modes<'a>(
+    fn apply_modes<'a>(
         &mut self,
         modestring: &'a str,
         args: impl Iterator<Item = &'a str> + 'a,
         isupport: &'a Isupport,
+        replace: bool,
     ) {
+        if replace {
+            self.modes.clear();
+        }
         let prefixes = isupport.prefix();
         for change in ModeChanges::parse(modestring, args, isupport) {
-            let ModeKind::Prefix(rank) = change.kind else {
-                continue;
-            };
-            let (Some(nick), Some(prefix)) = (change.arg, prefixes.get(rank)) else {
-                continue;
-            };
-            let Some(member) = self.members.get_mut(&CaseKey::new(nick, self.casemapping)) else {
-                continue;
-            };
-            if change.set {
-                if !member.prefixes.contains(&prefix.symbol) {
-                    member.prefixes.push(prefix.symbol);
-                    member.prefixes.sort_by_key(|symbol| {
-                        member.prefix_order.iter().position(|item| item == symbol)
-                    });
+            match change.kind {
+                ModeKind::Prefix(rank) => {
+                    let (Some(nick), Some(prefix)) = (change.arg, prefixes.get(rank)) else {
+                        continue;
+                    };
+                    let Some(member) = self.members.get_mut(&CaseKey::new(nick, self.casemapping))
+                    else {
+                        continue;
+                    };
+                    if change.set && !member.prefixes.contains(&prefix.symbol) {
+                        member.prefixes.push(prefix.symbol);
+                        member.prefixes.sort_by_key(|symbol| {
+                            member.prefix_order.iter().position(|item| item == symbol)
+                        });
+                    } else if !change.set {
+                        member.prefixes.retain(|symbol| *symbol != prefix.symbol);
+                    }
                 }
-            } else {
-                member.prefixes.retain(|symbol| *symbol != prefix.symbol);
+                ModeKind::AlwaysArg | ModeKind::ArgWhenSet | ModeKind::NoArg => {
+                    if change.set && (change.arg.is_some() || change.kind == ModeKind::NoArg) {
+                        if self.modes.len() < 64 || self.modes.contains_key(&change.mode) {
+                            self.modes
+                                .insert(change.mode, change.arg.map(str::to_owned));
+                        }
+                    } else if !change.set {
+                        self.modes.remove(&change.mode);
+                    }
+                }
+                ModeKind::List | ModeKind::Unknown => {}
             }
         }
     }
@@ -520,6 +565,25 @@ impl Channel {
     #[must_use]
     pub fn topic(&self) -> Option<&str> {
         self.topic.as_deref()
+    }
+
+    /// Returns a stored non-list mode's argument, distinguishing flags from absent modes.
+    #[must_use]
+    pub fn mode(&self, mode: char) -> Option<Option<&str>> {
+        self.modes.get(&mode).map(|argument| argument.as_deref())
+    }
+
+    /// Iterates over stored non-list modes in unspecified order.
+    pub fn modes(&self) -> impl Iterator<Item = (char, Option<&str>)> {
+        self.modes
+            .iter()
+            .map(|(mode, argument)| (*mode, argument.as_deref()))
+    }
+
+    /// Returns the channel creation time in seconds since the Unix epoch.
+    #[must_use]
+    pub const fn created_at(&self) -> Option<u64> {
+        self.created_at
     }
 
     /// Returns whether initial member synchronization is complete.
