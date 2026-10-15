@@ -5,6 +5,7 @@ mod caps;
 mod framing;
 mod isupport;
 mod keepalive;
+mod monitor;
 mod ratelimit;
 mod registration;
 mod sasl;
@@ -24,6 +25,7 @@ use caps::Caps;
 use framing::Framer;
 use isupport::IsupportState;
 use keepalive::Keepalive;
+use monitor::Monitor;
 pub use ratelimit::RateLimit;
 use ratelimit::RateLimiter;
 use registration::Registration;
@@ -516,6 +518,7 @@ pub struct Session {
     framer: Framer,
     isupport: IsupportState,
     keepalive: Keepalive,
+    monitor: Monitor,
     rate_limit: RateLimiter,
     registration: Registration,
     sasl: SaslSession,
@@ -533,6 +536,7 @@ impl std::fmt::Debug for Session {
             .field("framer", &self.framer)
             .field("isupport", &self.isupport)
             .field("keepalive", &self.keepalive)
+            .field("monitor", &self.monitor)
             .field("rate_limit", &self.rate_limit)
             .field("registration", &self.registration)
             .field("sasl", &self.sasl)
@@ -627,6 +631,7 @@ impl Session {
             framer: Framer::default(),
             isupport,
             keepalive: Keepalive::default(),
+            monitor: Monitor::default(),
             rate_limit,
             registration,
             sasl,
@@ -748,6 +753,41 @@ impl Session {
         drop(message);
         self.outbox.transmit_raw(line.into());
         Ok(())
+    }
+
+    /// Adds nicknames to the desired server-side monitor list.
+    pub fn monitor_add<I, S>(&mut self, nicks: I)
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.monitor.add(
+            nicks,
+            self.isupport.value(),
+            self.registration.is_registered(),
+            &mut self.outbox,
+        );
+    }
+
+    /// Removes nicknames from the desired server-side monitor list.
+    pub fn monitor_remove<I, S>(&mut self, nicks: I)
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.monitor.remove(
+            nicks,
+            self.isupport.value(),
+            self.registration.is_registered(),
+            &mut self.outbox,
+        );
+    }
+
+    /// Clears the desired server-side monitor list.
+    pub fn monitor_clear(&mut self) {
+        let supported =
+            self.registration.is_registered() && self.isupport.value().monitor().is_some();
+        self.monitor.clear(supported, &mut self.outbox);
     }
 
     /// Returns the next CRLF-terminated wire line to transmit.

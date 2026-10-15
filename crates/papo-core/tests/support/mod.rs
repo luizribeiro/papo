@@ -109,6 +109,11 @@ impl Transcript {
         self
     }
 
+    pub fn update(mut self, update: impl FnOnce(&mut Session)) -> Self {
+        update(&mut self.session);
+        self
+    }
+
     /// Asserts the next client line exactly, without its line ending.
     pub fn client(mut self, expected: &str) -> Self {
         let actual = self.session.poll_transmit().map(|line| {
