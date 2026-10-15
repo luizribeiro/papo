@@ -393,6 +393,15 @@ pub struct OwnedModeChange {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct RequestId(u64);
 
+/// Completed response to a labelled request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Response {
+    /// Identifier assigned when the request was queued.
+    pub id: RequestId,
+    /// Response lines in server delivery order.
+    pub lines: Vec<Message>,
+}
+
 /// A failure to queue a request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -451,6 +460,8 @@ pub enum Event {
         /// Identifier assigned to the request.
         id: RequestId,
     },
+    /// A labelled request received its complete logical response.
+    Response(Response),
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -1247,14 +1258,31 @@ impl Session {
                 .keepalive
                 .handle_message(now, message, &mut self.outbox)
                 == Handled::Yes;
+        let response = self.resolve_message(message);
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
-        if !handled {
+        if !handled && !response {
             let received =
                 self.received_message(message.to_owned(), context.batch_type().map(str::to_owned));
             self.outbox.event(Event::Message(received));
         }
         self.apply_close_request();
+    }
+
+    fn resolve_message(&mut self, message: &MessageRef<'_>) -> bool {
+        let Some(label) = message.tag("label") else {
+            return false;
+        };
+        let Some((id, _)) = self.requests.remove(label.as_ref()) else {
+            return false;
+        };
+        let lines = if message.command_is("ACK") {
+            Vec::new()
+        } else {
+            vec![message.to_owned()]
+        };
+        self.outbox.event(Event::Response(Response { id, lines }));
+        true
     }
 
     fn dispatch_batch_event(&mut self, event: BatchEvent) {
