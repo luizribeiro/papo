@@ -449,44 +449,24 @@ async fn run_plan(
             }
         };
         sts_required |= !base_plan.address.is_secure() && plan.address.is_secure();
-        let Some(connection_result) = connect_while_disconnected(
+        let stream = match connect_or_wait(
             connector(plan.clone()),
             &mut commands,
             &mut queued,
             disconnected_queue_capacity,
+            &events.regular,
+            sts_required,
+            reconnect,
+            attempts,
+            entropy.as_mut(),
         )
         .await
-        else {
-            return Ok(());
-        };
-        let stream = match connection_result {
-            Ok(stream) => stream,
-            Err(error) => {
-                let reason = error.to_string();
-                if sts_required || is_fatal_failure(&error, &reason) || !reconnect.permits(attempts)
-                {
-                    return finish_connection_failure(events, &mut registration, error);
-                }
-                _ = events
-                    .regular
-                    .send(Event::Disconnected {
-                        reason,
-                        will_retry: true,
-                    })
-                    .await;
-                if !wait_before_retry(
-                    reconnect,
-                    attempts,
-                    &mut commands,
-                    &mut queued,
-                    disconnected_queue_capacity,
-                    entropy.as_mut(),
-                )
-                .await
-                {
-                    return Ok(());
-                }
-                continue;
+        {
+            ConnectionAttempt::Connected(stream) => stream,
+            ConnectionAttempt::Retry => continue,
+            ConnectionAttempt::Stop => return Ok(()),
+            ConnectionAttempt::Failed(error) => {
+                return finish_connection_failure(events, &mut registration, error);
             }
         };
         let security = if plan.address.is_secure() {
@@ -591,6 +571,50 @@ async fn run_plan(
         {
             return Ok(());
         }
+    }
+}
+
+enum ConnectionAttempt {
+    Connected(BoxConnection),
+    Retry,
+    Stop,
+    Failed(Error),
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn connect_or_wait(
+    connection: ConnectFuture,
+    commands: &mut mpsc::Receiver<Command>,
+    queued: &mut VecDeque<Message>,
+    capacity: usize,
+    events: &mpsc::Sender<Event>,
+    sts_required: bool,
+    reconnect: Reconnect,
+    attempts: usize,
+    entropy: &mut (dyn FnMut() -> u64 + Send),
+) -> ConnectionAttempt {
+    let Some(result) = connect_while_disconnected(connection, commands, queued, capacity).await
+    else {
+        return ConnectionAttempt::Stop;
+    };
+    let error = match result {
+        Ok(stream) => return ConnectionAttempt::Connected(stream),
+        Err(error) => error,
+    };
+    let reason = error.to_string();
+    if sts_required || is_fatal_failure(&error, &reason) || !reconnect.permits(attempts) {
+        return ConnectionAttempt::Failed(error);
+    }
+    _ = events
+        .send(Event::Disconnected {
+            reason,
+            will_retry: true,
+        })
+        .await;
+    if wait_before_retry(reconnect, attempts, commands, queued, capacity, entropy).await {
+        ConnectionAttempt::Retry
+    } else {
+        ConnectionAttempt::Stop
     }
 }
 
