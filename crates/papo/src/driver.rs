@@ -2647,11 +2647,18 @@ mod tests {
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
     }
 
+    enum ReplyKind {
+        Reply,
+        #[cfg(feature = "bot")]
+        PrivateNotice,
+    }
+
     async fn assert_reply_wire(
         message_tags: bool,
         isupport: &str,
         incoming: &[u8],
         expected: &[u8],
+        kind: ReplyKind,
     ) {
         let wanted = message_tags.then_some("message-tags");
         let (mut server, _client, mut events, driver) = scripted(config().wanted_caps(wanted));
@@ -2678,7 +2685,11 @@ mod tests {
         let Some(Event::Message(message)) = events.next().await else {
             panic!("expected message event")
         };
-        message.reply("pong").await.unwrap();
+        match kind {
+            ReplyKind::Reply => message.reply("pong").await.unwrap(),
+            #[cfg(feature = "bot")]
+            ReplyKind::PrivateNotice => message.private_notice("denied").await.unwrap(),
+        }
         client_line(&mut server, expected).await;
         server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
@@ -2692,6 +2703,7 @@ mod tests {
             "",
             tagged,
             b"@+reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
+            ReplyKind::Reply,
         )
         .await;
         assert_reply_wire(
@@ -2699,14 +2711,23 @@ mod tests {
             "",
             b":emily!e@localhost PRIVMSG #papo :!ping\r\n",
             b"PRIVMSG #papo pong\r\n",
+            ReplyKind::Reply,
         )
         .await;
-        assert_reply_wire(false, "", tagged, b"PRIVMSG #papo pong\r\n").await;
+        assert_reply_wire(
+            false,
+            "",
+            tagged,
+            b"PRIVMSG #papo pong\r\n",
+            ReplyKind::Reply,
+        )
+        .await;
         assert_reply_wire(
             true,
             ":ergo.test 005 papo-driver CLIENTTAGDENY=* :are supported\r\n",
             tagged,
             b"PRIVMSG #papo pong\r\n",
+            ReplyKind::Reply,
         )
         .await;
         assert_reply_wire(
@@ -2714,6 +2735,7 @@ mod tests {
             ":ergo.test 005 papo-driver CLIENTTAGDENY=*,-reply :are supported\r\n",
             tagged,
             b"@+reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
+            ReplyKind::Reply,
         )
         .await;
         assert_reply_wire(
@@ -2721,6 +2743,7 @@ mod tests {
             ":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply :are supported\r\n",
             tagged,
             b"@+draft/reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
+            ReplyKind::Reply,
         )
         .await;
     }
@@ -2732,6 +2755,20 @@ mod tests {
             "",
             b"@msgid=RfcBTzyxY120003;+channel-context=#papo :emily!e@localhost PRIVMSG papo-driver :!ping\r\n",
             b"@+reply=RfcBTzyxY120003;+channel-context=#papo PRIVMSG emily pong\r\n",
+            ReplyKind::Reply,
+        )
+        .await;
+    }
+
+    #[cfg(feature = "bot")]
+    #[tokio::test(flavor = "current_thread")]
+    async fn private_notice_adds_the_source_channel_context() {
+        assert_reply_wire(
+            true,
+            "",
+            b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG #papo :!op alice\r\n",
+            b"@+reply=RfcBTzyxY120003;+channel-context=#papo NOTICE emily denied\r\n",
+            ReplyKind::PrivateNotice,
         )
         .await;
     }

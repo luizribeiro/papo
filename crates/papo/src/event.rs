@@ -149,6 +149,45 @@ impl MessageEvent {
         })
     }
 
+    #[cfg(feature = "bot")]
+    pub(crate) fn sender_nick(&self) -> Option<&str> {
+        match self.source()? {
+            Source::User { nick, .. } => Some(nick),
+            Source::Server(_) => None,
+        }
+    }
+
+    #[cfg(feature = "bot")]
+    pub(crate) async fn private_notice(&self, text: &str) -> Result<(), Error> {
+        let Some(target) = self.sender_nick() else {
+            return Ok(());
+        };
+        let mut notice = Message::notice(target, text);
+        if self.caps.contains_key("message-tags") {
+            let denied = self.isupport.clienttagdeny();
+            if let Some(msgid) = self.msgid()
+                && let Some(tag) = allowed_alias(&denied, "+reply", "+draft/reply")
+            {
+                notice = notice.with_tag(tag, msgid);
+            }
+            let context = if self.is_private() {
+                tag_owned(
+                    &self.as_ref(),
+                    &["+channel-context", "+draft/channel-context"],
+                )
+            } else {
+                Some(self.target().to_owned())
+            };
+            if let Some(context) = context
+                && let Some(tag) =
+                    allowed_alias(&denied, "+channel-context", "+draft/channel-context")
+            {
+                notice = notice.with_tag(tag, context);
+            }
+        }
+        self.client.send(notice).await
+    }
+
     /// Returns the semantic kind of this message.
     #[must_use]
     pub fn kind(&self) -> MessageKind<'_> {

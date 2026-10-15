@@ -204,6 +204,22 @@ impl Command {
         self.message.reply(text).await?;
         Ok(ReplyStatus::Sent)
     }
+
+    /// Sends a private threaded notice, retaining channel context when available.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the response is invalid or the driver has stopped.
+    pub async fn private_notice(&self, text: &str) -> Result<ReplyStatus, Error> {
+        let Some(target) = self.message.sender_nick() else {
+            return Ok(ReplyStatus::Dropped);
+        };
+        if !self.replies.check(&self.client().casemap(target)) {
+            return Ok(ReplyStatus::Dropped);
+        }
+        self.message.private_notice(text).await?;
+        Ok(ReplyStatus::Sent)
+    }
 }
 
 fn addressed_body<'a>(message: &'a MessageEvent, config: &BotConfig) -> Option<&'a str> {
