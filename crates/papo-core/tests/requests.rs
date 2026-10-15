@@ -250,3 +250,27 @@ fn generates_one_thousand_distinct_short_alphanumeric_labels() {
         assert!(matches!(session.poll_event(), Some(Event::Response(_))));
     }
 }
+
+#[test]
+fn reports_only_well_formed_unlabelled_standard_replies() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(
+        now,
+        b":ergo.test FAIL CHATHISTORY INVALID_PARAMS #papo :Invalid parameters",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::StandardReply(reply))
+            if reply.kind == papo_proto::StandardReplyKind::Fail
+                && reply.command == "CHATHISTORY"
+                && reply.code == "INVALID_PARAMS"
+                && reply.context == ["#papo"]
+                && reply.description == "Invalid parameters"
+    ));
+
+    session.handle_line(now, b":ergo.test WARN CHATHISTORY MISSING_DESCRIPTION");
+    assert!(
+        matches!(session.poll_event(), Some(Event::Message(message)) if message.as_ref().command_is("WARN"))
+    );
+}

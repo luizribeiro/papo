@@ -20,7 +20,7 @@ use std::{
 
 use papo_proto::{
     BuildError, Command, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef, ModeChange,
-    ModeKind, Numeric, StandardReply, StandardReplyKind,
+    ModeKind, Numeric, StandardReply as StandardReplyView, StandardReplyKind,
 };
 
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
@@ -423,7 +423,7 @@ impl Response {
     pub fn error(&self) -> Option<ServerError> {
         self.lines.iter().find_map(|message| {
             let message = message.as_ref();
-            if let Some(reply) = StandardReply::parse(&message)
+            if let Some(reply) = StandardReplyView::parse(&message)
                 && reply.kind == StandardReplyKind::Fail
             {
                 return Some(ServerError::Standard {
@@ -466,6 +466,21 @@ pub enum ServerError {
         /// Numeric parameters in wire order.
         params: Vec<String>,
     },
+}
+
+/// Owned `IRCv3` standard reply received outside a correlated request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StandardReply {
+    /// Reply severity.
+    pub kind: StandardReplyKind,
+    /// Case-normalized command associated with the reply.
+    pub command: String,
+    /// Case-normalized reply code.
+    pub code: String,
+    /// Additional diagnostic parameters.
+    pub context: Vec<String>,
+    /// Human-readable reply description.
+    pub description: String,
 }
 
 /// History page attached to a completed response.
@@ -549,6 +564,8 @@ pub enum Event {
         /// Identifier assigned to the request.
         id: RequestId,
     },
+    /// An unsolicited `IRCv3` standard reply.
+    StandardReply(StandardReply),
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -1366,9 +1383,10 @@ impl Session {
                 .handle_message(now, message, &mut self.outbox)
                 == Handled::Yes;
         let response = self.resolve_message(message);
+        let standard_reply = !response && emit_unhandled && self.report_standard_reply(message);
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
-        if !handled && !response && emit_unhandled {
+        if !handled && !response && !standard_reply && emit_unhandled {
             let received =
                 self.received_message(message.to_owned(), context.batch_type().map(str::to_owned));
             self.outbox.event(Event::Message(received));
@@ -1395,6 +1413,20 @@ impl Session {
             id,
             lines,
             history: None,
+        }));
+        true
+    }
+
+    fn report_standard_reply(&mut self, message: &MessageRef<'_>) -> bool {
+        let Some(reply) = StandardReplyView::parse(message) else {
+            return false;
+        };
+        self.outbox.event(Event::StandardReply(StandardReply {
+            kind: reply.kind,
+            command: reply.command.to_ascii_uppercase(),
+            code: reply.code.to_ascii_uppercase(),
+            context: reply.context.into_iter().map(str::to_owned).collect(),
+            description: reply.description.to_owned(),
         }));
         true
     }

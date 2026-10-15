@@ -405,9 +405,10 @@ fn account_required_closes_and_verification_note_surfaces() {
     .server("CAP * ACK :standard-replies sasl")
     .client("AUTHENTICATE PLAIN")
     .server(":ergo.test NOTE AUTHENTICATE VERIFICATION_REQUIRED alice :Verify your account")
-    .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTE")))
+    .event(|event| matches!(event, Event::StandardReply(reply) if reply.code == "VERIFICATION_REQUIRED"))
     .server(":ergo.test FAIL * ACCOUNT_REQUIRED :Authentication required")
     .event(|event| matches!(event, Event::Close { reason } if reason.contains("Authentication required")))
+    .event(|event| matches!(event, Event::StandardReply(reply) if reply.code == "ACCOUNT_REQUIRED"))
     .no_client();
 }
 
@@ -428,9 +429,7 @@ fn unrelated_fail_replies_do_not_trigger_account_required_policy() {
         .server("CAP * ACK :standard-replies sasl")
         .client("AUTHENTICATE PLAIN")
         .server(reply)
-        .event(
-            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("FAIL")),
-        )
+        .event(|event| matches!(event, Event::StandardReply(_)))
         .no_client()
         .deadline(Some(std::time::Duration::from_secs(30)));
     }
