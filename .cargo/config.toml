@@ -1,0 +1,3 @@
+[target.'cfg(target_os = "wasi")']
+# Tokio gates WASI networking behind this cfg.
+rustflags = ["--cfg", "tokio_unstable"]

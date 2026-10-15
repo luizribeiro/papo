@@ -1,0 +1,15 @@
+[package]
+name = "papo"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+papo-core = { path = "../papo-core", version = "=0.0.0" }
+papo-proto = { path = "../papo-proto", version = "=0.0.0" }
+
+[lints]
+workspace = true
