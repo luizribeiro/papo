@@ -72,6 +72,21 @@ impl MessageEvent {
         self.isupport.casemapping()
     }
 
+    #[cfg(feature = "bot")]
+    pub(crate) fn resolved_account(&self) -> Option<String> {
+        if let Some(account) = &self.account {
+            return Some(account.clone());
+        }
+        let Source::User { nick, .. } = self.source()? else {
+            return None;
+        };
+        self.client
+            .state(|state| match state.user(nick)?.account() {
+                Account::LoggedIn(account) => Some(account.clone()),
+                Account::Unknown | Account::LoggedOut => None,
+            })
+    }
+
     pub(crate) fn new(
         raw: Message,
         isupport: &Isupport,

@@ -117,6 +117,11 @@ impl Client {
         channels(1, &Session::new(papo_core::Config::default())).client
     }
 
+    #[cfg(all(test, feature = "bot"))]
+    pub(crate) fn from_session_for_test(session: &Session) -> Self {
+        channels(1, session).client
+    }
+
     /// Starts configuring a client for `address`.
     pub fn builder(address: &str) -> crate::Builder {
         crate::Builder::new(address)

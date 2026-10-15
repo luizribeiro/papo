@@ -33,6 +33,7 @@ pub struct Command {
     message: MessageEvent,
     name: String,
     args: Vec<String>,
+    account: Option<String>,
 }
 
 impl Command {
@@ -51,10 +52,12 @@ impl Command {
             return None;
         }
         let name = words.remove(0).to_ascii_lowercase();
+        let account = message.resolved_account();
         Some(Self {
             message: message.clone(),
             name,
             args: words,
+            account,
         })
     }
 
@@ -74,6 +77,26 @@ impl Command {
     #[must_use]
     pub const fn message(&self) -> &MessageEvent {
         &self.message
+    }
+
+    /// Returns the sender's authenticated account, when known.
+    #[must_use]
+    pub fn account(&self) -> Option<&str> {
+        self.account.as_deref()
+    }
+
+    /// Reports whether the sender's account is in `accounts`.
+    #[must_use]
+    pub fn account_in<I, S>(&self, accounts: I) -> bool
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.account().is_some_and(|account| {
+            accounts
+                .into_iter()
+                .any(|allowed| account.eq_ignore_ascii_case(allowed.as_ref()))
+        })
     }
 }
 
@@ -162,6 +185,51 @@ mod tests {
         assert_eq!(command.name(), "echo");
         assert_eq!(command.args(), ["hello", "world"]);
         assert_eq!(command.message().text(), "!EcHo hello world");
+    }
+
+    #[test]
+    fn authorizes_only_known_accounts() {
+        let Event::Message(message) = event("!op alice") else {
+            unreachable!()
+        };
+        let tagged = MessageEvent::new(
+            message.as_ref().to_owned().with_tag("account", "Emily"),
+            &Isupport::default(),
+            "papo",
+            crate::Client::disconnected_for_test(),
+            &Capabilities::new(),
+            UNIX_EPOCH,
+        )
+        .unwrap();
+        let command = Command::parse(&Event::Message(tagged), &BotConfig::new("!")).unwrap();
+        assert_eq!(command.account(), Some("Emily"));
+        assert!(command.account_in(["emily", "alice"]));
+        assert!(!command.account_in(["carol"]));
+        let unknown = Command::parse(&event("!op alice"), &BotConfig::new("!")).unwrap();
+        assert_eq!(unknown.account(), None);
+        assert!(!unknown.account_in(["emily"]));
+    }
+
+    #[test]
+    fn falls_back_to_synchronized_account_state() {
+        let mut session = papo_core::Session::new(papo_core::Config::default());
+        session.handle_bytes(
+            std::time::Instant::now(),
+            b":papo!papo@localhost JOIN #papo\r\n\
+              :emily!~emily@localhost JOIN #papo\r\n\
+              :emily!~emily@localhost ACCOUNT emily\r\n",
+        );
+        let message = MessageEvent::new(
+            Message::privmsg("#papo", "!op alice").with_source("emily!~emily@localhost"),
+            &Isupport::default(),
+            "papo",
+            crate::Client::from_session_for_test(&session),
+            &Capabilities::new(),
+            UNIX_EPOCH,
+        )
+        .unwrap();
+        let command = Command::parse(&Event::Message(message), &BotConfig::new("!")).unwrap();
+        assert_eq!(command.account(), Some("emily"));
     }
 
     #[test]
