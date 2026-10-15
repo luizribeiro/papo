@@ -118,6 +118,7 @@
             text = ''
               cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip1 --locked
               cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip2 --locked
+              cargo check -p papo-proto --all-targets --all-features --target wasm32-wasip2 --locked
               cargo check -p papo-proto -p papo-core --target wasm32-unknown-unknown --locked
               cargo check -p papo --target wasm32-wasip2 --locked
             '';
@@ -126,6 +127,7 @@
             name = "wasip3-checks-hook";
             text = ''
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto -p papo-core --all-targets --locked
+              ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto --all-targets --all-features --locked
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo --locked
             '';
           };
@@ -146,13 +148,19 @@
           wasip2-tests = cargoHook {
             name = "wasip2-tests-hook";
             runtimeInputs = [ pkgs.wasmtime ];
-            text = "cargo test --workspace --locked --target wasm32-wasip2";
+            text = ''
+              cargo test --workspace --locked --target wasm32-wasip2
+              cargo test -p papo-proto --all-features --locked --target wasm32-wasip2
+            '';
             stages = [ "pre-push" ];
           };
           wasip3-tests = cargoHook {
             name = "wasip3-tests-hook";
             runtimeInputs = [ pkgs.wasmtime ];
-            text = "${cargoWasip3}/bin/cargo-wasip3 test --workspace --locked";
+            text = ''
+              ${cargoWasip3}/bin/cargo-wasip3 test --workspace --locked
+              ${cargoWasip3}/bin/cargo-wasip3 test -p papo-proto --all-features --locked
+            '';
             stages = [ "pre-push" ];
           };
           doctests = cargoHook {
