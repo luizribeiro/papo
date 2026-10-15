@@ -1,7 +1,8 @@
+use std::io;
 use tokio_tungstenite::{
     WebSocketStream, client_async_with_config,
     tungstenite::{
-        Error, client::IntoClientRequest, http::header::SEC_WEBSOCKET_PROTOCOL,
+        Error, Message, client::IntoClientRequest, http::header::SEC_WEBSOCKET_PROTOCOL,
         protocol::WebSocketConfig,
     },
 };
@@ -17,6 +18,10 @@ pub(super) struct WebSocket {
     stream: WebSocketStream<Stream>,
     secure: bool,
     subprotocol: Option<&'static str>,
+    read_buffer: Vec<u8>,
+    read_offset: usize,
+    write_buffer: Vec<u8>,
+    eof: bool,
 }
 
 pub(super) async fn connect(url: &str, tls: Option<&TlsConfig>) -> Result<WebSocket, ConnectError> {
@@ -50,6 +55,8 @@ pub(super) async fn connect(url: &str, tls: Option<&TlsConfig>) -> Result<WebSoc
             .expect("static protocols"),
     );
     let config = WebSocketConfig::default()
+        .write_buffer_size(0)
+        .max_write_buffer_size(MAX_MESSAGE_SIZE * 2)
         .max_message_size(Some(MAX_MESSAGE_SIZE))
         .max_frame_size(Some(MAX_MESSAGE_SIZE));
     let (stream, response) = client_async_with_config(request, transport, Some(config))
@@ -68,6 +75,10 @@ pub(super) async fn connect(url: &str, tls: Option<&TlsConfig>) -> Result<WebSoc
         stream,
         secure,
         subprotocol,
+        read_buffer: Vec::new(),
+        read_offset: 0,
+        write_buffer: Vec::new(),
+        eof: false,
     })
 }
 
@@ -78,5 +89,30 @@ impl WebSocket {
 
     pub(super) const fn subprotocol(&self) -> Option<&str> {
         self.subprotocol
+    }
+
+    fn io_error(error: Error) -> io::Error {
+        let kind = if matches!(error, Error::Capacity(_)) {
+            io::ErrorKind::InvalidData
+        } else {
+            io::ErrorKind::Other
+        };
+        io::Error::new(kind, error)
+    }
+
+    fn outgoing_message(&self, bytes: Vec<u8>) -> io::Result<Message> {
+        if bytes.len() > MAX_MESSAGE_SIZE {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "IRC line exceeds the WebSocket message limit",
+            ));
+        }
+        if self.subprotocol == Some(BINARY) {
+            Ok(Message::binary(bytes))
+        } else {
+            String::from_utf8(bytes)
+                .map(Message::text)
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
+        }
     }
 }
