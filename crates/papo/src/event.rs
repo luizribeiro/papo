@@ -39,3 +39,23 @@ pub enum Event {
         reason: String,
     },
 }
+
+pub(crate) enum CoreEvent {
+    Forward(Event),
+    Close(String),
+    Unknown,
+}
+
+pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
+    CoreEvent::Forward(match event {
+        papo_core::Event::Registered(welcome) => Event::Registered(welcome),
+        papo_core::Event::Message(message) => Event::Message(message),
+        papo_core::Event::Malformed { line } => Event::Malformed { line },
+        papo_core::Event::Close { reason } => return CoreEvent::Close(reason),
+        papo_core::Event::AuthenticationFailed { reason } => Event::AuthenticationFailed { reason },
+        papo_core::Event::CapsChanged { added, removed } => Event::CapsChanged { added, removed },
+        papo_core::Event::StsUpgrade { port } => Event::StsUpgrade { port },
+        papo_core::Event::StsPolicy(action) => Event::StsPolicy(action),
+        _ => return CoreEvent::Unknown,
+    })
+}
