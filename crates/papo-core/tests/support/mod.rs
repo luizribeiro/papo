@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use papo_core::{Config, Entropy, Event, RateLimit, Session};
+use papo_core::{Config, Connection, Entropy, Event, RateLimit, Session};
 use papo_proto::Message;
 
 /// A fluent driver for a [`Session`] with a manually advanced clock.
@@ -48,6 +48,12 @@ impl Transcript {
     /// Connects the session.
     pub fn connect(mut self) -> Self {
         self.session.handle_connected(self.now);
+        self
+    }
+
+    /// Connects the session with explicit connection context.
+    pub fn connect_with(mut self, connection: Connection) -> Self {
+        self.session.handle_connected_with(self.now, connection);
         self
     }
 

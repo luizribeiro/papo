@@ -5,7 +5,7 @@ mod support;
 use std::time::Duration;
 
 use papo_core::sts::{ConnectionSecurity, StsAction};
-use papo_core::{Config, Event, Session};
+use papo_core::{Config, Connection, Event, Session};
 use support::Transcript;
 
 #[test]
@@ -266,4 +266,33 @@ fn sts_on_tls_surfaces_persist_refresh_and_remove_actions() {
     .server("CAP papo DEL :sts")
     .no_event()
     .no_client();
+}
+
+#[test]
+fn sts_upgrade_can_reconnect_the_same_session_securely() {
+    Transcript::new(Config::default().wanted_caps(["sts"]))
+        .connect_with(Connection {
+            host: "irc.example.net".to_owned(),
+            security: ConnectionSecurity::Plaintext,
+        })
+        .client("CAP LS 302")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .server("CAP * LS :sts=port=6697")
+        .event(|event| matches!(event, Event::StsUpgrade { port: 6697 }))
+        .event(|event| matches!(event, Event::Close { reason } if reason == "sts upgrade"))
+        .disconnect()
+        .connect_with(Connection {
+            host: "IRC.Example.NET.".to_owned(),
+            security: ConnectionSecurity::Secure,
+        })
+        .client("CAP LS 302")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .server("CAP * LS :sts=duration=86400")
+        .event(|event| {
+            matches!(event, Event::StsPolicy(StsAction::Persist { host, duration })
+                if host == "irc.example.net" && *duration == Duration::from_hours(24))
+        })
+        .client("CAP END");
 }

@@ -78,6 +78,15 @@ pub enum Decoding {
     Utf8OrLatin1,
 }
 
+/// Host and transport security for one connection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Connection {
+    /// Hostname used to establish the connection and identify its STS policy.
+    pub host: String,
+    /// Security of the connected transport.
+    pub security: ConnectionSecurity,
+}
+
 /// Configuration for an IRC session.
 #[derive(Clone, Eq, PartialEq)]
 #[non_exhaustive]
@@ -100,9 +109,9 @@ pub struct Config {
     pub ping_timeout: Duration,
     /// Outbound line rate limit.
     pub rate_limit: RateLimit,
-    /// Security of the current transport, used to interpret STS advertisements.
+    /// Default transport security used by [`Session::handle_connected`].
     pub connection_security: ConnectionSecurity,
-    /// Hostname used for the current connection and its STS policy.
+    /// Default hostname used by [`Session::handle_connected`].
     pub host: String,
     /// Capability names to request when advertised by the server.
     pub wanted_caps: Vec<String>,
@@ -339,6 +348,7 @@ pub enum Event {
 /// Sans-I/O state for one IRC client session.
 pub struct Session {
     config: Config,
+    connection: Connection,
     caps: Caps,
     framer: Framer,
     isupport: IsupportState,
@@ -354,6 +364,7 @@ impl std::fmt::Debug for Session {
         formatter
             .debug_struct("Session")
             .field("config", &self.config)
+            .field("connection", &self.connection)
             .field("caps", &self.caps)
             .field("framer", &self.framer)
             .field("isupport", &self.isupport)
@@ -435,12 +446,17 @@ impl Session {
     }
 
     fn from_config(config: Config, entropy: Option<Box<dyn Entropy + Send>>) -> Self {
+        let connection = Connection {
+            host: config.host.clone(),
+            security: config.connection_security,
+        };
         let registration = Registration::new(&config);
         let isupport = IsupportState::new(config.decoding);
         let sasl = SaslSession::new(&config, entropy);
         let rate_limit = RateLimiter::new(config.rate_limit);
         Self {
             config,
+            connection,
             caps: Caps::default(),
             framer: Framer::default(),
             isupport,
@@ -454,6 +470,16 @@ impl Session {
 
     /// Marks the transport as connected at `now`.
     pub fn handle_connected(&mut self, now: Instant) {
+        let connection = Connection {
+            host: self.config.host.clone(),
+            security: self.config.connection_security,
+        };
+        self.handle_connected_with(now, connection);
+    }
+
+    /// Marks a transport with connection-specific context as connected at `now`.
+    pub fn handle_connected_with(&mut self, now: Instant, connection: Connection) {
+        self.connection = connection;
         self.framer.reset();
         self.outbox.reset_connection();
         self.rate_limit.reset(now);
@@ -658,10 +684,14 @@ impl Session {
             self.isupport.value(),
             &mut self.outbox,
         ) == Handled::Yes;
-        let caps_handled =
-            self.caps
-                .handle_message(now, message, &self.config, &mut self.sasl, &mut self.outbox)
-                == Handled::Yes;
+        let caps_handled = self.caps.handle_message(
+            now,
+            message,
+            &self.config,
+            &self.connection,
+            &mut self.sasl,
+            &mut self.outbox,
+        ) == Handled::Yes;
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
         let handled = registration_handled
             || caps_handled

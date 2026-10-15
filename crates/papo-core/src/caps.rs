@@ -6,7 +6,7 @@ use std::{
 use papo_proto::{MAX_MESSAGE_LEN, MessageRef, NAME_ALIASES, NameKind};
 
 use crate::sts::{StsAction, StsPolicy, decide};
-use crate::{Capabilities, Config, Event, Handled, Outbox, sasl::SaslSession};
+use crate::{Capabilities, Config, Connection, Event, Handled, Outbox, sasl::SaslSession};
 
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
 const MAX_IRC_BODY_LEN: usize = MAX_MESSAGE_LEN - 2;
@@ -30,6 +30,7 @@ impl Caps {
         now: Instant,
         message: &MessageRef<'_>,
         config: &Config,
+        connection: &Connection,
         sasl: &mut SaslSession,
         outbox: &mut Outbox,
     ) -> Handled {
@@ -38,9 +39,9 @@ impl Caps {
                 return Handled::No;
             };
             if subcommand.eq_ignore_ascii_case("LS") {
-                self.handle_ls(message, config, sasl, outbox);
+                self.handle_ls(message, config, connection, sasl, outbox);
             } else if subcommand.eq_ignore_ascii_case("NEW") {
-                self.handle_new(message, config, outbox);
+                self.handle_new(message, config, connection, outbox);
             } else if subcommand.eq_ignore_ascii_case("DEL") {
                 self.handle_del(message, sasl, outbox);
             } else if subcommand.eq_ignore_ascii_case("ACK") {
@@ -125,7 +126,13 @@ impl Caps {
         }
     }
 
-    fn handle_new(&mut self, message: &MessageRef<'_>, config: &Config, outbox: &mut Outbox) {
+    fn handle_new(
+        &mut self,
+        message: &MessageRef<'_>,
+        config: &Config,
+        connection: &Connection,
+        outbox: &mut Outbox,
+    ) {
         let mut updated = Capabilities::new();
         let mut announced = BTreeSet::new();
         for token in message.param(2).unwrap_or("").split_whitespace() {
@@ -143,7 +150,7 @@ impl Caps {
                 updated.insert(name.to_owned(), value);
             }
         }
-        if announced.contains("sts") && self.handle_sts(config, outbox) {
+        if announced.contains("sts") && self.handle_sts(connection, outbox) {
             return;
         }
         if !updated.is_empty() {
@@ -180,6 +187,7 @@ impl Caps {
         &mut self,
         message: &MessageRef<'_>,
         config: &Config,
+        connection: &Connection,
         sasl: &mut SaslSession,
         outbox: &mut Outbox,
     ) {
@@ -197,7 +205,7 @@ impl Caps {
         if continued {
             return;
         }
-        if self.handle_sts(config, outbox) {
+        if self.handle_sts(connection, outbox) {
             return;
         }
         self.negotiating = true;
@@ -261,14 +269,14 @@ impl Caps {
         &self.enabled
     }
 
-    fn handle_sts(&self, config: &Config, outbox: &mut Outbox) -> bool {
+    fn handle_sts(&self, connection: &Connection, outbox: &mut Outbox) -> bool {
         let Some(value) = self.advertised.get("sts").and_then(Option::as_deref) else {
             return false;
         };
         let Ok(directive) = StsPolicy::parse(value) else {
             return false;
         };
-        match decide(directive, config.connection_security, &config.host) {
+        match decide(directive, connection.security, &connection.host) {
             StsAction::UpgradeTo { port } => {
                 outbox.event(Event::StsUpgrade { port });
                 outbox.close_and_discard("sts upgrade".to_owned());
