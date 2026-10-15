@@ -106,20 +106,33 @@ async fn authenticate(context: Scenario, scram: bool) -> ScenarioResult {
         .send(Message::new("WHOIS", [registered_nick]))
         .await
         .map_err(Failed::from)?;
-    context
+    let event = context
         .expect(
             &mut connection.events,
             |event| match event {
                 Event::Message(message) => {
                     let message = message.as_ref();
-                    message.command_is("330") && message.param(2) == Some(account.as_str())
+                    message.command_is("900") || message.command_is("330")
                 }
                 _ => false,
             },
             EXPECT_TIMEOUT,
         )
         .await?;
+    let Event::Message(message) = event else {
+        return Err("account matcher returned a non-message event".into());
+    };
+    validate_account_reply(&message.as_ref(), &account)?;
     connection.close().await
+}
+
+fn validate_account_reply(message: &MessageRef<'_>, account: &str) -> Result<(), Failed> {
+    if (message.command_is("900") || message.command_is("330")) && message.param(2) == Some(account)
+    {
+        Ok(())
+    } else {
+        Err("server account reply did not contain the authenticated account".into())
+    }
 }
 
 fn ping(context: Scenario) -> ScenarioFuture {
@@ -141,11 +154,17 @@ fn ping(context: Scenario) -> ScenarioFuture {
             .await
             .map_err(|_| Failed::from("timed out waiting for PONG"))??;
         let message = MessageRef::parse_bytes(&line).map_err(Failed::from)?;
-        if !message.command_is("PONG") || message.params().last() != Some(token.as_str()) {
-            return Err("server PONG did not contain the PING token".into());
-        }
+        validate_pong(&message, &token)?;
         Ok(Completion::Completed)
     })
+}
+
+fn validate_pong(message: &MessageRef<'_>, token: &str) -> Result<(), Failed> {
+    if message.command_is("PONG") && message.params().last() == Some(token) {
+        Ok(())
+    } else {
+        Err("server PONG did not contain the PING token".into())
+    }
 }
 
 async fn read_line(stream: &mut papo::transport::Stream) -> Result<Vec<u8>, Failed> {
@@ -208,4 +227,34 @@ fn echo_message(context: Scenario) -> ScenarioFuture {
             .await?;
         connection.close().await
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use papo_proto::MessageRef;
+
+    use super::{validate_account_reply, validate_pong};
+
+    #[test]
+    fn wrong_account_in_logged_in_reply_fails() {
+        let message = MessageRef::parse(
+            ":ergo.test 900 papo papo!~u@host mallory :You are now logged in as mallory",
+        )
+        .unwrap();
+        let error = validate_account_reply(&message, "alice").unwrap_err();
+        assert_eq!(
+            error.message(),
+            Some("server account reply did not contain the authenticated account")
+        );
+    }
+
+    #[test]
+    fn wrong_pong_token_fails() {
+        let message = MessageRef::parse(":ergo.test PONG ergo.test :wrong-token").unwrap();
+        let error = validate_pong(&message, "papo-ping-417").unwrap_err();
+        assert_eq!(
+            error.message(),
+            Some("server PONG did not contain the PING token")
+        );
+    }
 }
