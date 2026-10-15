@@ -184,8 +184,10 @@ impl Monitor {
                 let Some(entries) = message.param(1) else {
                     return Handled::No;
                 };
+                let mut handled = false;
                 for entry in entries.split(',') {
                     if let Some((nick, user, host)) = parse_mask(entry) {
+                        handled = true;
                         let next = Presence::Online {
                             nick: nick.to_owned(),
                             user: user.to_owned(),
@@ -200,17 +202,25 @@ impl Monitor {
                         }
                     }
                 }
+                if !handled {
+                    return Handled::No;
+                }
             }
             "731" => {
                 let Some(entries) = message.param(1) else {
                     return Handled::No;
                 };
+                let mut handled = false;
                 for nick in entries.split(',').filter(|nick| !nick.is_empty()) {
+                    handled = true;
                     if self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport) {
                         outbox.event(Event::MonitorOffline {
                             nick: nick.to_owned(),
                         });
                     }
+                }
+                if !handled {
+                    return Handled::No;
                 }
             }
             "734" => {
@@ -220,7 +230,14 @@ impl Monitor {
                 let Ok(limit) = limit.parse() else {
                     return Handled::No;
                 };
-                let nicks: Vec<_> = entries.split(',').map(str::to_owned).collect();
+                let nicks: Vec<_> = entries
+                    .split(',')
+                    .filter(|nick| !nick.is_empty())
+                    .map(str::to_owned)
+                    .collect();
+                if nicks.is_empty() {
+                    return Handled::No;
+                }
                 let mapping = isupport.casemapping();
                 self.presence
                     .retain(|presence| !nicks.iter().any(|nick| mapping.eq(presence.nick(), nick)));

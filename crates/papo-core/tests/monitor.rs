@@ -80,6 +80,8 @@ fn tracks_online_offline_and_list_full_replies() {
         .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob!bob@users.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "alice" && user == "~alice" && host == "cloak.example"))
         .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "bob" && user == "bob" && host == "users.example"))
+        .server(":ergo.test 730 papo :bob!bob@users.example")
+        .no_event()
         .server(":ergo.test 730 papo :ALICE!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "ALICE"))
         .server(":ergo.test 731 papo :alice")
@@ -88,6 +90,24 @@ fn tracks_online_offline_and_list_full_replies() {
         .no_event()
         .server(":ergo.test 734 papo 100 carol :Monitor list is full")
         .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks } if nicks == &["carol"]))
+        .no_event();
+}
+
+#[test]
+fn malformed_monitor_replies_remain_messages() {
+    registered()
+        .server(":ergo.test 730 papo :!alice@cloak.example")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "730"))
+        .server(":ergo.test 730 papo :alice!@cloak.example")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "730"))
+        .server(":ergo.test 730 papo :alice!~alice@")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "730"))
+        .server(":ergo.test 731 papo :")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "731"))
+        .server(":ergo.test 734 papo many alice :Monitor list is full")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "734"))
+        .server(":ergo.test 734 papo 100 :")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "734"))
         .no_event();
 }
 
