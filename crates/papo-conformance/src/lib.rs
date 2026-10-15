@@ -16,8 +16,8 @@ use std::{
 };
 
 use libtest_mimic::{Arguments, Completion, Conclusion, Failed, Trial};
-use papo::{Client, Driver, Event, Events, OsEntropy, transport};
-use papo_core::{Capabilities, Config, Session, Welcome};
+use papo::{Client, Event, Events};
+use papo_core::{Capabilities, Sasl, Welcome};
 use papo_proto::{Advertised, Isupport};
 use papo_test_server::{ServerInfo, from_env};
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
@@ -162,16 +162,10 @@ impl Scenario {
     async fn client_with(
         &self,
         nick: &str,
-        sasl: Option<papo_core::Sasl>,
+        sasl: Option<Sasl>,
     ) -> Result<RegisteredClient, Failed> {
-        let mut config = Config::default()
-            .nick(nick)
-            .username("papo")
-            .realname("papo conformance client");
-        if let Some(sasl) = sasl {
-            config = config.sasl(sasl).require_sasl(true);
-        }
-        let mut connection = connect_client(&self.server, config).await?;
+        let mut connection =
+            connect_client(&self.server, nick, "papo conformance client", None, sasl)?;
         let welcome = wait_for_registration(&mut connection.events).await?;
         Ok(RegisteredClient {
             client: connection.client,
@@ -309,12 +303,14 @@ async fn probe(
     wanted_caps: impl IntoIterator<Item = &str>,
 ) -> Result<Welcome, String> {
     let nick = papo_test_server::unique("papo-probe");
-    let config = Config::default()
-        .nick(&nick)
-        .username("papo")
-        .realname("papo conformance probe")
-        .wanted_caps(wanted_caps);
-    let mut connection = connect_client(server, config).await?;
+    let wanted_caps = wanted_caps.into_iter().map(str::to_owned).collect();
+    let mut connection = connect_client(
+        server,
+        &nick,
+        "papo conformance probe",
+        Some(wanted_caps),
+        None,
+    )?;
     let welcome = wait_for_registration(&mut connection.events).await?;
     connection
         .client
@@ -371,17 +367,28 @@ fn required_environment_from(
     lookup(name).map_err(|_| Completion::ignored_with(format!("{name} is not set up")))
 }
 
-async fn connect_client(server: &ServerInfo, config: Config) -> Result<Connection, String> {
+fn connect_client(
+    server: &ServerInfo,
+    nick: &str,
+    realname: &str,
+    wanted_caps: Option<Vec<String>>,
+    sasl: Option<Sasl>,
+) -> Result<Connection, String> {
     let address = server.plaintext_addr();
-    let stream = transport::connect(
-        &address.ip().to_string(),
-        address.port(),
-        &transport::Security::Plaintext,
-    )
-    .await
-    .map_err(|error| error.to_string())?;
-    let session = Session::with_entropy(config.host(address.ip().to_string()), Box::new(OsEntropy));
-    let (client, events, driver) = Driver::new(stream, session);
+    let address = format!("irc://{address}");
+    let mut builder = Client::builder(&address)
+        .nick(nick)
+        .username("papo")
+        .realname(realname)
+        .tls_ca_file(server.ca_pem_path())
+        .map_err(|error| error.to_string())?;
+    if let Some(wanted_caps) = wanted_caps {
+        builder = builder.caps(wanted_caps);
+    }
+    if let Some(sasl) = sasl {
+        builder = builder.sasl(sasl).require_sasl(true);
+    }
+    let (client, events, driver) = builder.build();
     Ok(Connection {
         client,
         events,
