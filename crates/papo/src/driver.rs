@@ -2190,7 +2190,7 @@ mod tests {
             Box::pin(async move { Ok(stream) })
         });
         let store = SharedStsStore::default();
-        let inspection = store.clone();
+        let mut inspection = store.clone();
         let (_client, mut events, driver) = Driver::with_connector(
             Ok(ConnectionPlan {
                 address: "ircs://irc.example.net:7443".parse().unwrap(),
@@ -2215,13 +2215,30 @@ mod tests {
         registration_burst(&mut server).await;
         server_line(&mut server, b":ergo.test CAP * LS :sts=duration=3600\r\n").await;
         assert!(matches!(events.next().await, Some(Event::StsPolicy(_))));
-        let policy = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
+        let mut policy = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
         assert_eq!(policy.port, 7443);
         assert_eq!(policy.duration, Duration::from_secs(3600));
         assert!(policy.expires_at > std::time::SystemTime::now());
+        policy.expires_at = SystemTime::UNIX_EPOCH;
+        papo_core::sts::StsStore::put(&mut inspection, policy);
         client_line(&mut server, b"CAP END\r\n").await;
+        let disconnect_started = SystemTime::now();
         server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+        let disconnect_finished = SystemTime::now();
+        let refreshed = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
+        assert!(
+            refreshed.expires_at
+                >= disconnect_started
+                    .checked_add(Duration::from_secs(3600))
+                    .unwrap()
+        );
+        assert!(
+            refreshed.expires_at
+                <= disconnect_finished
+                    .checked_add(Duration::from_secs(3600))
+                    .unwrap()
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]
