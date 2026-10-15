@@ -13,7 +13,7 @@ use std::{
 };
 
 use papo_core::{
-    Connection, RequestError, RequestId, Response, Session,
+    Connection, RequestError, RequestId, Response, ResponseMatcher, Session,
     sts::{ConnectionSecurity, StoredPolicy, StsAction, StsStore, reschedule_on_disconnect},
 };
 use papo_proto::Message;
@@ -48,6 +48,7 @@ enum Command {
     },
     Request {
         message: Message,
+        matcher: Option<ResponseMatcher>,
         result: oneshot::Sender<Result<Response, Error>>,
     },
     WaitChannelSync {
@@ -207,9 +208,21 @@ impl Client {
     /// Returns an error if the message is invalid, the request limit is reached,
     /// the response times out, or the driver disconnects.
     pub async fn raw(&self, message: Message) -> Result<Response, Error> {
+        self.correlated(message, None).await
+    }
+
+    async fn correlated(
+        &self,
+        message: Message,
+        matcher: Option<ResponseMatcher>,
+    ) -> Result<Response, Error> {
         let (result, receiver) = oneshot::channel();
         self.commands
-            .send(Command::Request { message, result })
+            .send(Command::Request {
+                message,
+                matcher,
+                result,
+            })
             .await
             .map_err(|_| Error::Disconnected)?;
         receiver.await.map_err(|_| Error::Disconnected)?
@@ -239,7 +252,12 @@ impl Client {
     ///
     /// Returns an error when the server rejects the request or it cannot complete.
     pub async fn whois(&self, nick: &str) -> Result<crate::Whois, Error> {
-        let response = self.raw(Message::new("WHOIS", [nick])).await?;
+        let response = self
+            .correlated(
+                Message::new("WHOIS", [nick]),
+                Some(ResponseMatcher::Whois(nick.to_owned())),
+            )
+            .await?;
         crate::requests::whois(response, nick)
     }
 
@@ -256,7 +274,10 @@ impl Client {
         } else {
             Message::new("WHO", [mask])
         };
-        crate::requests::who(self.raw(message).await?, &isupport, extended)
+        let response = self
+            .correlated(message, Some(ResponseMatcher::Who(mask.to_owned())))
+            .await?;
+        crate::requests::who(response, &isupport, extended)
     }
 
     /// Joins a channel and waits for its topic and member list to synchronize.
@@ -265,7 +286,12 @@ impl Client {
     ///
     /// Returns an error when the server rejects the join or it cannot complete.
     pub async fn join(&self, channel: &str) -> Result<crate::ChannelInfo, Error> {
-        let response = self.raw(Message::join(channel)).await?;
+        let response = self
+            .correlated(
+                Message::join(channel),
+                Some(ResponseMatcher::Join(channel.to_owned())),
+            )
+            .await?;
         if let Some(error) = response.error() {
             return Err(Error::Server(error));
         }
@@ -302,7 +328,13 @@ impl Client {
     pub async fn part(&self, channel: &str, reason: Option<&str>) -> Result<(), Error> {
         let mut params = vec![channel];
         params.extend(reason);
-        crate::requests::empty(&self.raw(Message::new("PART", params)).await?)
+        let response = self
+            .correlated(
+                Message::new("PART", params),
+                Some(ResponseMatcher::Part(channel.to_owned())),
+            )
+            .await?;
+        crate::requests::empty(&response)
     }
 
     /// Applies a mode string and its arguments to a channel or user.
@@ -317,7 +349,13 @@ impl Client {
     {
         let mut params = vec![target.to_owned(), modes.to_owned()];
         params.extend(args.into_iter().map(|arg| arg.as_ref().to_owned()));
-        crate::requests::empty(&self.raw(Message::new("MODE", params)).await?)
+        let response = self
+            .correlated(
+                Message::new("MODE", params),
+                Some(ResponseMatcher::Mode(target.to_owned())),
+            )
+            .await?;
+        crate::requests::empty(&response)
     }
 
     /// Sets a channel topic, or queries it when `text` is `None`.
@@ -328,7 +366,13 @@ impl Client {
     pub async fn topic(&self, channel: &str, text: Option<&str>) -> Result<Option<String>, Error> {
         let mut params = vec![channel];
         params.extend(text);
-        crate::requests::topic(&self.raw(Message::new("TOPIC", params)).await?)
+        let response = self
+            .correlated(
+                Message::new("TOPIC", params),
+                Some(ResponseMatcher::Topic(channel.to_owned())),
+            )
+            .await?;
+        crate::requests::topic(&response)
     }
 
     /// Lists visible channels matching `filter`.
@@ -339,10 +383,13 @@ impl Client {
     ///
     /// Returns an error when the server rejects the request or it cannot complete.
     pub async fn list(&self, filter: crate::ListFilter) -> Result<Vec<crate::ListEntry>, Error> {
-        let response = match filter.parameter() {
-            Some(parameter) => self.raw(Message::new("LIST", [parameter])).await?,
-            None => self.raw(Message::new("LIST", Vec::<String>::new())).await?,
+        let message = match filter.parameter() {
+            Some(parameter) => Message::new("LIST", [parameter]),
+            None => Message::new("LIST", Vec::<String>::new()),
         };
+        let response = self
+            .correlated(message, Some(ResponseMatcher::List))
+            .await?;
         crate::requests::list(response)
     }
 
@@ -1200,12 +1247,18 @@ where
                 Some(Command::Send { message, result }) => {
                     _ = result.send(session.send(now(), message).map_err(Error::Build));
                 }
-                Some(Command::Request { message, result }) => {
-                    if !session.caps().contains_key("labeled-response") {
-                        _ = result.send(Err(Error::Unsupported("labeled-response")));
-                        continue;
-                    }
-                    match session.request(now(), message) {
+                Some(Command::Request { message, matcher, result }) => {
+                    let requested = match matcher {
+                        Some(matcher) => session.request_with_matcher(now(), message, matcher),
+                        None if session.caps().contains_key("labeled-response") => {
+                            session.request(now(), message)
+                        }
+                        None => {
+                            _ = result.send(Err(Error::Unsupported("labeled-response")));
+                            continue;
+                        }
+                    };
+                    match requested {
                         Ok(id) => {
                             requests.insert(id, result);
                         }
@@ -3109,6 +3162,49 @@ mod tests {
         client_line(&mut server, b"@label=A WHOIS emily\r\n").await;
         server.shutdown().await.unwrap();
         assert!(matches!(aborted.await.unwrap(), Err(Error::Disconnected)));
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn typed_requests_match_unlabelled_responses() {
+        let (mut server, client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        complete_registration(&mut server, &mut events).await;
+
+        let whois = tokio::spawn({
+            let client = client.clone();
+            async move { client.whois("alice").await }
+        });
+        client_line(&mut server, b"WHOIS alice\r\n").await;
+        server_line(&mut server, b":ergo.test 311 papo-driver alice ~alice host * :Alice Example\r\n:ergo.test 318 papo-driver alice :End of /WHOIS list\r\n").await;
+        assert_eq!(whois.await.unwrap().unwrap().nick, "alice");
+
+        let who = tokio::spawn({
+            let client = client.clone();
+            async move { client.who("#papo").await }
+        });
+        client_line(&mut server, b"WHO #papo\r\n").await;
+        server_line(&mut server, b":ergo.test 352 papo-driver #papo ~alice host ergo.test alice H@ :0 Alice Example\r\n:ergo.test 315 papo-driver #papo :End of WHO list\r\n").await;
+        assert_eq!(who.await.unwrap().unwrap()[0].nick, "alice");
+
+        let join = tokio::spawn({
+            let client = client.clone();
+            async move { client.join("#papo").await }
+        });
+        client_line(&mut server, b"JOIN #papo\r\n").await;
+        server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
+        assert_eq!(join.await.unwrap().unwrap().members_count, 2);
+        client_line(&mut server, b"WHO #papo\r\n").await;
+
+        let list = tokio::spawn({
+            let client = client.clone();
+            async move { client.list(crate::ListFilter::default()).await }
+        });
+        client_line(&mut server, b"LIST\r\n").await;
+        server_line(&mut server, b":ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n:ergo.test 323 papo-driver :End of /LIST\r\n").await;
+        assert_eq!(list.await.unwrap().unwrap()[0].members_count, 42);
+
+        server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
 
