@@ -205,6 +205,30 @@ fn away_numerics_track_our_own_state() {
 }
 
 #[test]
+fn away_numerics_do_not_repeat_our_own_state_changes() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 306 emily :You have been marked as being away")
+        .event(|event| {
+            matches!(
+                event,
+                Event::AwayChanged {
+                    message: Some(_),
+                    ..
+                }
+            )
+        })
+        .server(":ergo.test 306 emily :You have been marked as being away")
+        .no_event()
+        .inspect(|session| assert!(session.state().away()))
+        .server(":ergo.test 305 emily :You are no longer marked as being away")
+        .event(|event| matches!(event, Event::AwayChanged { message: None, .. }))
+        .server(":ergo.test 305 emily :You are no longer marked as being away")
+        .no_event()
+        .inspect(|session| assert!(!session.state().away()))
+        .no_event();
+}
+
+#[test]
 fn chghost_updates_shared_and_own_userhosts() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
@@ -743,6 +767,72 @@ fn falls_back_to_plain_who_without_whox() {
             assert_eq!(dan.realname(), Some("Daniel Garcia"));
             assert_eq!(dan.away(), Some(""));
             assert!(dan.is_bot());
+        })
+        .no_event();
+}
+
+#[test]
+fn who_here_flags_clear_a_previous_away_state() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":dan!~dan@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
+        .event(|event| {
+            matches!(
+                event,
+                Event::AwayChanged {
+                    message: Some(_),
+                    ..
+                }
+            )
+        })
+        .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("WHO #papo")
+        .event(|event| matches!(event, Event::ChannelSynced { .. }))
+        .server(":ergo.test 352 emily #papo ~dan cloak.example ergo.test dan H :0 Daniel Garcia")
+        .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), None))
+        .no_event();
+}
+
+#[test]
+fn plain_who_recognizes_each_bot_flag_source() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily BOT=Z :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("WHO #papo")
+        .event(|event| matches!(event, Event::ChannelSynced { .. }))
+        .server(":ergo.test 352 emily #papo bot services.example ergo.test service-bot HB :0 Service Bot")
+        .server(":ergo.test 352 emily #papo bot users.example ergo.test relay-bot HZ :0 Relay Bot")
+        .server(":ergo.test 352 emily #papo alice users.example ergo.test alice H :0 Alice Smith")
+        .inspect(|session| {
+            assert!(session.state().user("service-bot").unwrap().is_bot());
+            assert!(session.state().user("relay-bot").unwrap().is_bot());
+            assert!(!session.state().user("alice").unwrap().is_bot());
+        })
+        .no_event();
+}
+
+#[test]
+fn whox_replies_require_our_token_and_an_active_sweep() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily WHOX :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("WHO #papo %tcuhnfar,152")
+        .event(|event| matches!(event, Event::ChannelSynced { .. }))
+        .server(":ergo.test 354 emily 999 #papo dan cloak.example dan H dan :Daniel Garcia")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "354"))
+        .server(":ergo.test 315 emily #papo :End of WHO list")
+        .server(":ergo.test 354 emily 152 #papo alice users.example alice H alice :Alice Smith")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "354"))
+        .inspect(|session| {
+            assert!(session.state().user("dan").is_none());
+            assert!(session.state().user("alice").is_none());
         })
         .no_event();
 }
