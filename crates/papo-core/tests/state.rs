@@ -281,3 +281,22 @@ fn reconnect_clears_channel_and_user_state() {
         })
         .ignore_rest();
 }
+
+#[test]
+fn rekeys_existing_state_when_casemapping_changes() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #Papo[dev]")
+        .server(":Alice[bot]!alice@users.example JOIN #Papo[dev]")
+        .inspect(|session| {
+            assert!(session.state().channel("#papo{dev}").is_none());
+            assert!(session.state().user("alice{bot}").is_none());
+        })
+        .server(":ergo.test 005 emily CASEMAPPING=rfc1459 :are supported")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo{dev}").unwrap();
+            assert!(channel.member("alice{bot}").is_some());
+            assert!(session.state().user("alice{bot}").is_some());
+        })
+        .ignore_rest();
+}

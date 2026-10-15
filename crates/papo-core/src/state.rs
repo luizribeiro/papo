@@ -82,7 +82,7 @@ impl State {
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = isupport.casemapping();
-        self.casemapping = mapping;
+        self.update_casemapping(mapping);
         if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
             own_nick.clone_into(&mut self.nick);
         }
@@ -172,6 +172,36 @@ impl State {
             return Handled::Yes;
         }
         Handled::No
+    }
+
+    fn update_casemapping(&mut self, mapping: Casemapping) {
+        if mapping == self.casemapping {
+            return;
+        }
+        self.channels = std::mem::take(&mut self.channels)
+            .into_values()
+            .map(|mut channel| {
+                channel.casemapping = mapping;
+                channel.members = channel
+                    .members
+                    .into_values()
+                    .map(|member| (CaseKey::new(&member.nick, mapping), member))
+                    .collect();
+                (CaseKey::new(&channel.name, mapping), channel)
+            })
+            .collect();
+        self.users = std::mem::take(&mut self.users)
+            .into_values()
+            .map(|mut user| {
+                user.channels = user
+                    .channels
+                    .into_iter()
+                    .map(|channel| CaseKey::new(channel.original(), mapping))
+                    .collect();
+                (CaseKey::new(&user.nick, mapping), user)
+            })
+            .collect();
+        self.casemapping = mapping;
     }
 
     fn handle_quit(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> Handled {

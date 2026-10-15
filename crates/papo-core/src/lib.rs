@@ -794,6 +794,7 @@ impl Session {
             &mut self.outbox,
         ) == Handled::Yes;
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
+        let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
         let no_implicit_names = self
             .caps
             .enabled()
@@ -810,7 +811,7 @@ impl Session {
             || caps_handled
             || sasl_handled
             || state_handled
-            || self.isupport.handle_message(message) == Handled::Yes
+            || isupport_handled
             || self
                 .keepalive
                 .handle_message(now, message, &mut self.outbox)
