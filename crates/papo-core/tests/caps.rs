@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Session};
+use papo_core::{Config, Event, Session};
 use support::Transcript;
 
 #[test]
@@ -134,4 +134,19 @@ fn ignores_cap_errors_and_waits_for_welcome() {
         .no_client()
         .server(":broken.example 001 papo :Welcome")
         .no_client();
+}
+
+#[test]
+fn surfaces_unknown_command_for_commands_other_than_cap() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":legacy.example 421 papo WHOIS :Unknown command")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Message(message)
+                    if message.as_ref().command_is("421")
+                        && message.as_ref().param(1) == Some("WHOIS")
+            )
+        });
 }
