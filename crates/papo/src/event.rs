@@ -611,7 +611,7 @@ pub enum Event {
         /// The history target named by the batch.
         target: String,
         /// Messages in server delivery order.
-        messages: Vec<Message>,
+        messages: Vec<papo_core::HistoryMessage>,
         /// Whether the server reported that no further page exists.
         end: bool,
     },
@@ -1605,14 +1605,18 @@ mod tests {
             end,
         } = forwarded(papo_core::Event::History {
             target: "#papo".into(),
-            messages: vec![message.clone()],
+            messages: vec![papo_core::HistoryMessage {
+                message: message.clone(),
+                context: false,
+            }],
             end: true,
         })
         else {
             panic!("history was not forwarded")
         };
         assert_eq!(target, "#papo");
-        assert_eq!(messages, vec![message]);
+        assert_eq!(messages[0].message, message);
+        assert!(!messages[0].context);
         assert!(end);
     }
 

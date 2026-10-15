@@ -619,7 +619,7 @@ pub struct Response {
     /// Response lines in server delivery order.
     pub lines: Vec<Message>,
     /// A typed history page nested in this response, when present.
-    pub history: Option<ResponseHistory>,
+    pub history: Option<HistoryPage>,
     sent: Option<SentInfo>,
 }
 
@@ -704,16 +704,38 @@ pub struct StandardReply {
     pub description: String,
 }
 
+/// One message in a history page.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HistoryMessage {
+    /// The replayed IRC message.
+    pub message: Message,
+    /// Whether the server supplied it as context outside the requested limit.
+    pub context: bool,
+}
+
+impl std::ops::Deref for HistoryMessage {
+    type Target = Message;
+
+    fn deref(&self) -> &Self::Target {
+        &self.message
+    }
+}
+
 /// History page attached to a completed response.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ResponseHistory {
+pub struct HistoryPage {
     /// History target named by the batch.
     pub target: String,
     /// Replayed messages in server delivery order.
-    pub messages: Vec<Message>,
+    pub messages: Vec<HistoryMessage>,
     /// Whether the server reported that no further page exists.
+    ///
+    /// A page shorter than the requested limit does not imply the end.
     pub end: bool,
 }
+
+/// Compatibility name for a history page attached to a response.
+pub type ResponseHistory = HistoryPage;
 
 /// A completed `IRCv3` multiline message.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -841,7 +863,7 @@ pub enum Event {
         /// The history target named by the batch.
         target: String,
         /// Messages in server delivery order.
-        messages: Vec<Message>,
+        messages: Vec<HistoryMessage>,
         /// Whether the server reported that no further page exists.
         end: bool,
     },

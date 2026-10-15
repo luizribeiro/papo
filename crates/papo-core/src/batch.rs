@@ -1,11 +1,11 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     time::{Duration, Instant},
 };
 
 use papo_proto::{Message, MessageRef};
 
-use crate::{BatchAbandonReason, Config, ResponseHistory};
+use crate::{BatchAbandonReason, Config, HistoryMessage, HistoryPage};
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -59,11 +59,11 @@ pub(crate) enum BatchEvent {
         label: String,
         messages: Vec<Message>,
         batch_type: String,
-        history: Option<ResponseHistory>,
+        history: Option<HistoryPage>,
     },
     History {
         target: String,
-        messages: Vec<Message>,
+        messages: Vec<HistoryMessage>,
         end: bool,
     },
     Netsplit {
@@ -433,7 +433,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         _ => {
             return vec![BatchEvent::History {
                 target: batch.params.first().cloned().unwrap_or_default(),
-                messages: std::mem::take(&mut batch.messages),
+                messages: history_messages(std::mem::take(&mut batch.messages)),
                 end: batch.end,
             }];
         }
@@ -502,7 +502,7 @@ fn multiline(batch: &mut OpenBatch) -> Option<Message> {
     Some(message)
 }
 
-fn history_from_event(event: &BatchEvent) -> Option<ResponseHistory> {
+fn history_from_event(event: &BatchEvent) -> Option<HistoryPage> {
     let BatchEvent::History {
         target,
         messages,
@@ -511,7 +511,7 @@ fn history_from_event(event: &BatchEvent) -> Option<ResponseHistory> {
     else {
         return None;
     };
-    Some(ResponseHistory {
+    Some(HistoryPage {
         target: target.clone(),
         messages: messages.clone(),
         end: *end,
@@ -522,10 +522,12 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
     match event {
         BatchEvent::Response {
             messages: batch, ..
-        }
-        | BatchEvent::History {
-            messages: batch, ..
         } => messages.extend(batch),
+        BatchEvent::History {
+            messages: batch, ..
+        } => {
+            messages.extend(batch.into_iter().map(|item| item.message));
+        }
         BatchEvent::Netsplit { quits, .. } => messages.extend(quits),
         BatchEvent::Netjoin { joins, .. } => messages.extend(joins),
         BatchEvent::Message { message, .. } | BatchEvent::Multiline(message) => {
@@ -533,6 +535,23 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
         }
         BatchEvent::Abandoned { .. } => {}
     }
+}
+
+fn history_messages(messages: Vec<Message>) -> Vec<HistoryMessage> {
+    let mut msgids = HashSet::new();
+    messages
+        .into_iter()
+        .filter_map(|message| {
+            let parsed = message.as_ref();
+            let msgid = parsed.tag("msgid").map(std::borrow::Cow::into_owned);
+            let context = parsed
+                .tags()
+                .any(|(key, _)| key == "draft/chathistory-context");
+            msgid
+                .is_none_or(|msgid| msgids.insert(msgid))
+                .then_some(HistoryMessage { message, context })
+        })
+        .collect()
 }
 
 fn valid_reference(reference: &str) -> bool {

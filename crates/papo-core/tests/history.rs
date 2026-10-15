@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
-use papo_core::{Config, HistoryQuery, MsgRef, RateLimit, RequestError, Session};
+use papo_core::{Config, Event, HistoryQuery, MsgRef, RateLimit, RequestError, Session};
 
 fn history_session(isupport: &str) -> (Session, Instant) {
     let now = Instant::now();
@@ -140,4 +140,65 @@ fn rejects_history_without_its_capability() {
         ),
         Err(RequestError::Unsupported("chathistory"))
     );
+}
+
+#[test]
+fn assembles_deduplicated_context_aware_pages() {
+    let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+    session
+        .chathistory(
+            now,
+            HistoryQuery::Latest {
+                target: "#papo".into(),
+                after: None,
+                limit: 50,
+            },
+        )
+        .unwrap();
+    let _ = session.poll_transmit();
+    for line in [
+        "@label=0 :ergo.test BATCH +reply labeled-response",
+        "@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo",
+        "@batch=history;msgid=RKi9Cw :alice!~a@localhost PRIVMSG #papo :earlier",
+        "@batch=history;msgid=RKi9Cw :alice!~a@localhost PRIVMSG #papo :duplicate",
+        "@batch=history;msgid=T1pQ6g;draft/chathistory-context :alice!~a@localhost TAGMSG #papo",
+        "@batch=reply :ergo.test BATCH -history",
+        ":ergo.test BATCH -reply",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(
+        matches!(session.poll_event(), Some(Event::History { messages, end: true, .. }) if messages.len() == 2)
+    );
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected history response")
+    };
+    let page = response.history.unwrap();
+    assert_eq!(page.target, "#papo");
+    assert_eq!(page.messages[0].as_ref().param(1), Some("earlier"));
+    assert!(!page.messages[0].context);
+    assert!(page.messages[1].context);
+}
+
+#[test]
+fn correlates_chathistory_failures() {
+    let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+    session
+        .chathistory(
+            now,
+            HistoryQuery::Latest {
+                target: "#missing".into(),
+                after: None,
+                limit: 50,
+            },
+        )
+        .unwrap();
+    session.handle_line(
+        now,
+        b"@label=0 :ergo.test FAIL CHATHISTORY INVALID_TARGET #missing :Messages could not be retrieved",
+    );
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected failed response")
+    };
+    assert!(response.error().is_some_and(|error| matches!(error, papo_core::ServerError::Standard { code, .. } if code == "INVALID_TARGET")));
 }
