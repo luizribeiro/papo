@@ -852,6 +852,37 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn successful_registration_preserves_earlier_events() {
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let (registration, waiter) = tokio::sync::oneshot::channel();
+        let (_client, mut events, driver) = Driver::with_stream_and_registration(
+            client_stream,
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            Some(registration),
+            super::PostRegistration::default(),
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test NOTICE * :*** Looking up your hostname...\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 376 papo-driver :End of MOTD\r\n",
+        )
+        .await;
+
+        assert!(waiter.await.unwrap().is_ok());
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Message(message)) if message.as_ref().command_is("NOTICE")
+        ));
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
         let (client_stream, mut server) = tokio::io::duplex(4096);
         let (_client, mut events, driver) = Driver::with_stream_and_registration(
