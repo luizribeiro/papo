@@ -1,5 +1,6 @@
 use papo_core::{
-    Account, BatchAbandonReason, Capabilities, OwnedModeChange, StateLimit, Welcome, sts::StsAction,
+    Account, BatchAbandonReason, Capabilities, OwnedModeChange, RequestId, Response, StandardReply,
+    StateLimit, Welcome, sts::StsAction,
 };
 use std::{
     fmt,
@@ -471,6 +472,25 @@ pub enum Event {
     Message(MessageEvent),
     /// A parsed message without a typed event variant.
     Raw(Message),
+    /// A labelled request received its complete logical response.
+    Response(Response),
+    /// A request was sent without protocol-level response correlation.
+    RequestUntracked {
+        /// Identifier assigned to the request.
+        id: RequestId,
+    },
+    /// A labelled request did not receive a response before its deadline.
+    RequestTimedOut {
+        /// Identifier assigned to the request.
+        id: RequestId,
+    },
+    /// A labelled request was pending when the connection ended.
+    RequestAborted {
+        /// Identifier assigned to the request.
+        id: RequestId,
+    },
+    /// An unsolicited `IRCv3` standard reply.
+    StandardReply(StandardReply),
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -679,6 +699,11 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Registered(welcome) => Event::Registered(welcome),
         papo_core::Event::Message(message) => return CoreEvent::Message(message),
+        papo_core::Event::Response(response) => Event::Response(response),
+        papo_core::Event::RequestUntracked { id } => Event::RequestUntracked { id },
+        papo_core::Event::RequestTimedOut { id } => Event::RequestTimedOut { id },
+        papo_core::Event::RequestAborted { id } => Event::RequestAborted { id },
+        papo_core::Event::StandardReply(reply) => Event::StandardReply(reply),
         papo_core::Event::History {
             target,
             messages,
@@ -780,9 +805,10 @@ mod tests {
         CoreEvent, Event, MessageEvent, MessageKind, Origin, from_core, parse_server_time,
     };
     use papo_core::{
-        Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session, StateLimit,
+        Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session, StandardReply,
+        StateLimit,
     };
-    use papo_proto::{Isupport, Message, ModeKind, Source};
+    use papo_proto::{Isupport, Message, ModeKind, Source, StandardReplyKind};
 
     fn event(
         message: Message,
@@ -1034,6 +1060,83 @@ mod tests {
             panic!("expected batch fallback")
         };
         mapped_message(core)
+    }
+
+    fn labelled_session(now: Instant, config: Config) -> Session {
+        let mut session = Session::new(config);
+        session.handle_connected(now);
+        session.handle_line(now, b"CAP * LS :labeled-response");
+        session.handle_line(now, b"CAP * ACK :labeled-response");
+        while session.poll_transmit().is_some() {}
+        session
+    }
+
+    #[test]
+    fn maps_response() {
+        let now = Instant::now();
+        let mut session = labelled_session(now, Config::default());
+        let id = session
+            .request(now, Message::new("MODE", ["#papo"]))
+            .unwrap();
+        session.handle_line(now, b"@label=0 :ergo.test ACK");
+        assert!(
+            matches!(forwarded(session.poll_event().unwrap()), Event::Response(response) if response.id == id)
+        );
+    }
+
+    #[test]
+    fn maps_request_untracked() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        let id = session
+            .request(now, Message::new("MODE", ["#papo"]))
+            .unwrap();
+        assert!(
+            matches!(forwarded(session.poll_event().unwrap()), Event::RequestUntracked { id: mapped } if mapped == id)
+        );
+    }
+
+    #[test]
+    fn maps_request_timed_out() {
+        let now = Instant::now();
+        let mut session = labelled_session(now, Config::default().request_timeout(Duration::ZERO));
+        let id = session
+            .request(now, Message::new("MODE", ["#papo"]))
+            .unwrap();
+        session.handle_timeout(now);
+        assert!(
+            matches!(forwarded(session.poll_event().unwrap()), Event::RequestTimedOut { id: mapped } if mapped == id)
+        );
+    }
+
+    #[test]
+    fn maps_request_aborted() {
+        let now = Instant::now();
+        let mut session = labelled_session(now, Config::default());
+        let id = session
+            .request(now, Message::new("MODE", ["#papo"]))
+            .unwrap();
+        session.handle_disconnected(now);
+        assert!(
+            matches!(forwarded(session.poll_event().unwrap()), Event::RequestAborted { id: mapped } if mapped == id)
+        );
+    }
+
+    #[test]
+    fn maps_standard_reply() {
+        let reply = StandardReply {
+            kind: StandardReplyKind::Warn,
+            command: "CHATHISTORY".into(),
+            code: "RATE_LIMITED".into(),
+            context: vec!["#papo".into()],
+            description: "Please wait".into(),
+        };
+        let Event::StandardReply(mapped) =
+            forwarded(papo_core::Event::StandardReply(reply.clone()))
+        else {
+            panic!("standard reply was not forwarded")
+        };
+        assert_eq!(mapped, reply);
     }
 
     #[test]
