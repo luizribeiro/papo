@@ -285,4 +285,19 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn builds_websocket_urls_with_brackets_and_default_paths() {
+        let ipv6: ServerAddress = "wss://[2001:db8::2]:8443/irc".parse().unwrap();
+        assert_eq!(
+            ipv6.websocket_url().as_deref(),
+            Some("wss://[2001:db8::2]:8443/irc")
+        );
+
+        let hostname: ServerAddress = "ws://irc.example.net".parse().unwrap();
+        assert_eq!(
+            hostname.websocket_url().as_deref(),
+            Some("ws://irc.example.net:80/")
+        );
+    }
 }
