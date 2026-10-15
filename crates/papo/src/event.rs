@@ -5,7 +5,6 @@ use std::{
 };
 
 use papo_proto::{Ctcp, Isupport, Message, MessageRef, Source, strip_formatting};
-use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::{Client, Error};
 
@@ -294,9 +293,68 @@ fn tag_owned(message: &MessageRef<'_>, keys: &[&str]) -> Option<String> {
 }
 
 fn parse_server_time(value: &str) -> Option<SystemTime> {
-    let parsed = OffsetDateTime::parse(value, &Rfc3339).ok()?;
-    let seconds = u64::try_from(parsed.unix_timestamp()).ok()?;
-    UNIX_EPOCH.checked_add(Duration::new(seconds, parsed.nanosecond()))
+    let bytes = value.as_bytes();
+    if !value.is_ascii()
+        || !(bytes.len() == 20 || (22..=30).contains(&bytes.len()))
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || bytes[bytes.len() - 1] != b'Z'
+    {
+        return None;
+    }
+    let year = decimal(&bytes[0..4])?;
+    let month = decimal(&bytes[5..7])?;
+    let day = decimal(&bytes[8..10])?;
+    let hour = decimal(&bytes[11..13])?;
+    let minute = decimal(&bytes[14..16])?;
+    let second = decimal(&bytes[17..19])?;
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let month_days = match month {
+        2 => 28 + i64::from(leap_year),
+        4 | 6 | 9 | 11 => 30,
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        _ => return None,
+    };
+    if !(1..=month_days).contains(&day) || hour > 23 || minute > 59 || second > 60 {
+        return None;
+    }
+    let fraction = if bytes.len() == 20 {
+        0
+    } else {
+        if bytes[19] != b'.' {
+            return None;
+        }
+        let digits = &bytes[20..bytes.len() - 1];
+        let padding = u32::try_from(9 - digits.len()).ok()?;
+        u32::try_from(decimal(digits)?).ok()? * 10_u32.pow(padding)
+    };
+    let nanos = if second == 60 { 999_999_999 } else { fraction };
+    let adjusted_year = year - i64::from(month <= 2);
+    let era = adjusted_year.div_euclid(400);
+    let year_of_era = adjusted_year - era * 400;
+    let shifted_month = month + if month > 2 { -3 } else { 9 };
+    let day_of_year = (153 * shifted_month + 2) / 5 + day - 1;
+    let days = era * 146_097 + year_of_era * 365 + year_of_era / 4 - year_of_era / 100
+        + day_of_year
+        - 719_468;
+    let seconds = days * 86_400 + hour * 3_600 + minute * 60 + second.min(59);
+    if seconds >= 0 {
+        UNIX_EPOCH.checked_add(Duration::new(u64::try_from(seconds).ok()?, nanos))
+    } else {
+        UNIX_EPOCH
+            .checked_sub(Duration::from_secs(seconds.unsigned_abs()))?
+            .checked_add(Duration::from_nanos(u64::from(nanos)))
+    }
+}
+
+fn decimal(bytes: &[u8]) -> Option<i64> {
+    bytes.iter().try_fold(0_i64, |value, byte| {
+        byte.is_ascii_digit()
+            .then_some(value * 10 + i64::from(byte - b'0'))
+    })
 }
 
 /// An event emitted by an IRC client.
@@ -458,7 +516,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 mod tests {
     use std::time::{Duration, UNIX_EPOCH};
 
-    use super::{CoreEvent, Event, MessageEvent, MessageKind, Origin, from_core};
+    use super::{
+        CoreEvent, Event, MessageEvent, MessageKind, Origin, from_core, parse_server_time,
+    };
     use papo_core::{Capabilities, StateLimit};
     use papo_proto::{Isupport, Message, Source};
 
@@ -587,6 +647,47 @@ mod tests {
                 event(message, &Isupport::default(), "papo", received).time(),
                 received
             );
+        }
+    }
+
+    #[test]
+    fn parses_fixed_utc_server_times() {
+        for (input, seconds, nanos) in [
+            ("2026-02-03T04:05:06.789Z", 1_770_091_506, 789_000_000),
+            ("2026-02-03T04:05:06Z", 1_770_091_506, 0),
+            ("2026-02-03T04:05:06.123456789Z", 1_770_091_506, 123_456_789),
+            ("1970-01-01T00:00:00Z", 0, 0),
+            ("2038-01-19T03:14:07Z", 2_147_483_647, 0),
+            ("2000-02-29T00:00:00Z", 951_782_400, 0),
+        ] {
+            assert_eq!(
+                parse_server_time(input),
+                Some(UNIX_EPOCH + Duration::new(seconds, nanos)),
+                "{input}"
+            );
+        }
+        assert_eq!(
+            parse_server_time("2016-12-31T23:59:60Z"),
+            Some(UNIX_EPOCH + Duration::new(1_483_228_799, 999_999_999))
+        );
+    }
+
+    #[test]
+    fn rejects_non_fixed_or_invalid_server_times() {
+        for input in [
+            "2026-02-03T04:05:06",
+            "2026-13-03T04:05:06Z",
+            "2026-02-30T04:05:06Z",
+            "1900-02-29T04:05:06Z",
+            "2026-04-31T04:05:06Z",
+            "2026-02-03T24:05:06Z",
+            "2026-02-03T04:60:06Z",
+            "2026-02-03T04:05:61Z",
+            "202é-02-03T04:05:06Z",
+            "2026-02-03T04:05:06.Z",
+            "2026-02-03T04:05:06.1234567890Z",
+        ] {
+            assert_eq!(parse_server_time(input), None, "{input}");
         }
     }
 
