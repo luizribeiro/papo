@@ -22,7 +22,7 @@ use papo_proto::{
     BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef, ModeChange, ModeKind,
 };
 
-use batch::{BatchAction, Batches, DispatchContext};
+use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 use framing::Framer;
 use isupport::IsupportState;
@@ -371,6 +371,15 @@ pub enum Event {
     Registered(Welcome),
     /// A parsed message not consumed by session protocol behavior.
     Message(ReceivedMessage),
+    /// A completed history or playback batch.
+    History {
+        /// The history target named by the batch.
+        target: String,
+        /// Messages in server delivery order.
+        messages: Vec<Message>,
+        /// Whether the server reported that no further page exists.
+        end: bool,
+    },
     /// A line that could not be decoded or parsed.
     Malformed {
         /// The original bytes, excluding the line ending.
@@ -779,6 +788,11 @@ impl Session {
         match MessageRef::parse(&decoded) {
             Ok(message) => match self.batches.handle(&message) {
                 BatchAction::Consumed => {}
+                BatchAction::Complete(events) => {
+                    for event in events {
+                        self.dispatch_batch_event(event);
+                    }
+                }
                 BatchAction::Dispatch(context) => {
                     let before = self.snapshot_values();
                     self.dispatch_message(now, &message, &context);
@@ -1066,6 +1080,20 @@ impl Session {
             }));
         }
         self.apply_close_request();
+    }
+
+    fn dispatch_batch_event(&mut self, event: BatchEvent) {
+        match event {
+            BatchEvent::History {
+                target,
+                messages,
+                end,
+            } => self.outbox.event(Event::History {
+                target,
+                messages,
+                end,
+            }),
+        }
     }
 
     fn close_for_long_line(&mut self) {

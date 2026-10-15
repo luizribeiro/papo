@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use papo_proto::MessageRef;
+use papo_proto::{Message, MessageRef};
 
 #[derive(Debug, Default)]
 pub(crate) struct Batches {
@@ -11,6 +11,10 @@ pub(crate) struct Batches {
 struct OpenBatch {
     kind: String,
     parent: Option<String>,
+    params: Vec<String>,
+    end: bool,
+    messages: Vec<Message>,
+    completed: Vec<BatchEvent>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -26,7 +30,17 @@ impl DispatchContext {
 
 pub(crate) enum BatchAction {
     Consumed,
+    Complete(Vec<BatchEvent>),
     Dispatch(DispatchContext),
+}
+
+#[derive(Debug)]
+pub(crate) enum BatchEvent {
+    History {
+        target: String,
+        messages: Vec<Message>,
+        end: bool,
+    },
 }
 
 impl Batches {
@@ -36,7 +50,7 @@ impl Batches {
 
     pub(crate) fn handle(&mut self, message: &MessageRef<'_>) -> BatchAction {
         if !message.command_is("BATCH") {
-            return BatchAction::Dispatch(self.context(message));
+            return self.member(message);
         }
         let Some(reference) = message.param(0) else {
             return BatchAction::Dispatch(self.context(message));
@@ -68,6 +82,12 @@ impl Batches {
             OpenBatch {
                 kind: kind.to_owned(),
                 parent,
+                params: message.params().skip(2).map(str::to_owned).collect(),
+                end: message
+                    .tags()
+                    .any(|(key, _)| key == "draft/chathistory-end"),
+                messages: Vec::new(),
+                completed: Vec::new(),
             },
         );
         BatchAction::Consumed
@@ -87,8 +107,68 @@ impl Batches {
         if !valid {
             return BatchAction::Dispatch(self.context(message));
         }
-        self.open.remove(reference);
-        BatchAction::Consumed
+        let batch = self.open.remove(reference).expect("validated above");
+        let mut completed = batch.completed;
+        if is_history(&batch.kind) && !self.has_aggregate_ancestor(batch.parent.as_deref()) {
+            completed.push(BatchEvent::History {
+                target: batch.params.first().cloned().unwrap_or_default(),
+                messages: batch.messages,
+                end: batch.end,
+            });
+        }
+        if let Some(parent) = batch.parent {
+            self.open
+                .get_mut(&parent)
+                .expect("validated batch parent remains open")
+                .completed
+                .append(&mut completed);
+            BatchAction::Consumed
+        } else {
+            BatchAction::Complete(completed)
+        }
+    }
+
+    fn member(&mut self, message: &MessageRef<'_>) -> BatchAction {
+        let context = self.context(message);
+        let aggregate = message
+            .tag("batch")
+            .and_then(|reference| self.aggregate_reference(reference.as_ref()));
+        if let Some(reference) = aggregate {
+            self.open
+                .get_mut(&reference)
+                .expect("resolved aggregate remains open")
+                .messages
+                .push(message.to_owned());
+            BatchAction::Consumed
+        } else {
+            BatchAction::Dispatch(context)
+        }
+    }
+
+    fn aggregate_reference(&self, reference: &str) -> Option<String> {
+        let mut aggregate = None;
+        let mut current = Some(reference);
+        while let Some(reference) = current {
+            let batch = self.open.get(reference)?;
+            if is_history(&batch.kind) {
+                aggregate = Some(reference.to_owned());
+            }
+            current = batch.parent.as_deref();
+        }
+        aggregate
+    }
+
+    fn has_aggregate_ancestor<'a>(&'a self, mut parent: Option<&'a str>) -> bool {
+        while let Some(reference) = parent {
+            let Some(batch) = self.open.get(reference) else {
+                return false;
+            };
+            if is_history(&batch.kind) {
+                return true;
+            }
+            parent = batch.parent.as_deref();
+        }
+        false
     }
 
     fn context(&self, message: &MessageRef<'_>) -> DispatchContext {
@@ -100,6 +180,13 @@ impl Batches {
     }
 }
 
+fn is_history(kind: &str) -> bool {
+    matches!(
+        kind,
+        "chathistory" | "draft/chathistory" | "draft/chathistory-targets" | "draft/event-playback"
+    )
+}
+
 fn valid_reference(reference: &str) -> bool {
     !reference.is_empty()
         && reference
@@ -109,13 +196,14 @@ fn valid_reference(reference: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{BatchAction, Batches};
+    use super::{BatchAction, BatchEvent, Batches};
     use papo_proto::MessageRef;
 
     fn handle(batches: &mut Batches, line: &str) -> Option<Option<String>> {
         let message = MessageRef::parse(line).unwrap();
         match batches.handle(&message) {
             BatchAction::Consumed => None,
+            BatchAction::Complete(_) => None,
             BatchAction::Dispatch(context) => Some(context.batch_type().map(str::to_owned)),
         }
     }
@@ -141,5 +229,24 @@ mod tests {
         let mut batches = Batches::default();
         assert_eq!(handle(&mut batches, "BATCH +bad_ref sync"), Some(None));
         assert_eq!(handle(&mut batches, "BATCH -missing"), Some(None));
+    }
+
+    #[test]
+    fn completes_history_with_its_members() {
+        let mut batches = Batches::default();
+        assert_eq!(handle(&mut batches, "BATCH +h chathistory #papo"), None);
+        assert_eq!(
+            handle(&mut batches, "@batch=h :alice PRIVMSG #papo :hello"),
+            None
+        );
+        let close = MessageRef::parse("BATCH -h").unwrap();
+        let BatchAction::Complete(events) = batches.handle(&close) else {
+            panic!("history did not complete")
+        };
+        let BatchEvent::History {
+            target, messages, ..
+        } = &events[0];
+        assert_eq!(target, "#papo");
+        assert_eq!(messages[0].as_ref().param(1), Some("hello"));
     }
 }
