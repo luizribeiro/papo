@@ -605,9 +605,16 @@ pub struct Response {
     pub lines: Vec<Message>,
     /// A typed history page nested in this response, when present.
     pub history: Option<ResponseHistory>,
+    sent: Option<SentInfo>,
 }
 
 impl Response {
+    /// Returns identifiers assigned to an echoed `PRIVMSG` or `NOTICE`.
+    #[must_use]
+    pub fn sent(&self) -> Option<SentInfo> {
+        self.sent.clone()
+    }
+
     /// Returns the first standard failure or error numeric in this response.
     #[must_use]
     pub fn error(&self) -> Option<ServerError> {
@@ -632,6 +639,15 @@ impl Response {
             })
         })
     }
+}
+
+/// Server-assigned identity of a message sent by this session.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SentInfo {
+    /// Network-unique message identifier.
+    pub msgid: String,
+    /// Server time tag, when supplied.
+    pub time: Option<String>,
 }
 
 /// Error reported by an IRC server while processing a request.
@@ -1073,7 +1089,7 @@ pub struct Session {
     keepalive: Keepalive,
     monitor: Monitor,
     rate_limit: RateLimiter,
-    requests: BTreeMap<String, (RequestId, Instant)>,
+    requests: BTreeMap<String, (RequestId, Instant, bool)>,
     unlabelled_requests: VecDeque<UnlabelledRequest>,
     next_request_id: u64,
     registration: Registration,
@@ -1338,7 +1354,7 @@ impl Session {
         let expired: Vec<_> = self
             .requests
             .iter()
-            .filter(|(_, (_, started))| {
+            .filter(|(_, (_, started, _))| {
                 started
                     .checked_add(self.config.request_timeout)
                     .is_some_and(|deadline| now >= deadline)
@@ -1346,7 +1362,7 @@ impl Session {
             .map(|(label, _)| label.clone())
             .collect();
         for label in expired {
-            if let Some((id, _)) = self.requests.remove(&label) {
+            if let Some((id, _, _)) = self.requests.remove(&label) {
                 self.outbox.event(Event::RequestTimedOut { id });
             }
         }
@@ -1385,7 +1401,7 @@ impl Session {
         self.framer.close();
         self.outbox.reset_connection();
         self.batches.reset();
-        for (_, (id, _)) in std::mem::take(&mut self.requests) {
+        for (_, (id, _, _)) in std::mem::take(&mut self.requests) {
             self.outbox.event(Event::RequestAborted { id });
         }
         for request in self.unlabelled_requests.drain(..) {
@@ -1523,7 +1539,7 @@ impl Session {
         }
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
-            self.requests.insert(label, (id, now));
+            self.requests.insert(label, (id, now, false));
         }
         if batch_count == 0 {
             for line in lines {
@@ -1551,6 +1567,11 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.rate_limit.advance(now);
         let id = RequestId(self.next_request_id);
+        let sent = self.caps.enabled().contains_key("echo-message")
+            && matches!(
+                message.as_ref().command(),
+                Command::Privmsg | Command::Notice
+            );
         let labelled = self.caps.enabled().contains_key("labeled-response");
         let label = labelled.then(|| encode_label(self.next_request_id));
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
@@ -1562,7 +1583,7 @@ impl Session {
         let line = message.to_line()?;
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
-            self.requests.insert(label, (id, now));
+            self.requests.insert(label, (id, now, sent));
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
@@ -1693,7 +1714,7 @@ impl Session {
             self.batches.next_deadline(),
             self.requests
                 .values()
-                .filter_map(|(_, started)| started.checked_add(self.config.request_timeout))
+                .filter_map(|(_, started, _)| started.checked_add(self.config.request_timeout))
                 .min(),
             self.unlabelled_requests
                 .iter()
@@ -1947,7 +1968,7 @@ impl Session {
         let Some(label) = message.tag("label") else {
             return false;
         };
-        let Some((id, _)) = self.requests.remove(label.as_ref()) else {
+        let Some((id, _, sent)) = self.requests.remove(label.as_ref()) else {
             return false;
         };
         let lines = if message.command_is("ACK") {
@@ -1957,6 +1978,7 @@ impl Session {
         };
         self.outbox.event(Event::Response(Response {
             id,
+            sent: if sent { sent_info(message) } else { None },
             lines,
             history: None,
         }));
@@ -1984,6 +2006,7 @@ impl Session {
             let request = self.unlabelled_requests.remove(index).unwrap();
             self.outbox.event(Event::Response(Response {
                 id: request.id,
+                sent: None,
                 lines: request.lines,
                 history: None,
             }));
@@ -2020,9 +2043,16 @@ impl Session {
                         self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
                     }
                 }
-                if let Some((id, _)) = request {
+                if let Some((id, _, sent)) = request {
                     self.outbox.event(Event::Response(Response {
                         id,
+                        sent: if sent {
+                            messages
+                                .iter()
+                                .find_map(|message| sent_info(&message.as_ref()))
+                        } else {
+                            None
+                        },
                         lines: messages,
                         history,
                     }));
@@ -2175,6 +2205,13 @@ fn encode_label(mut value: u64) -> String {
             return String::from_utf8(buffer[index..].to_vec()).expect("labels are ASCII");
         }
     }
+}
+
+fn sent_info(message: &MessageRef<'_>) -> Option<SentInfo> {
+    Some(SentInfo {
+        msgid: message.tag("msgid")?.into_owned(),
+        time: message.tag("time").map(std::borrow::Cow::into_owned),
+    })
 }
 
 #[cfg(test)]

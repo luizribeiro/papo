@@ -260,6 +260,33 @@ fn resolves_a_labelled_echo_and_an_ack() {
 }
 
 #[test]
+fn exposes_the_msgid_and_time_of_a_labelled_echo() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :echo-message labeled-response");
+    session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
+    while session.poll_transmit().is_some() {}
+    let id = request(
+        &mut session,
+        now,
+        Message::privmsg("#papo", "hello from papo"),
+    );
+    session.handle_line(
+        now,
+        b"@label=0;msgid=RKi9Cw;time=2026-10-15T12:00:01.000Z :papo!~papo@localhost PRIVMSG #papo :hello from papo",
+    );
+
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected response")
+    };
+    assert_eq!(response.id, id);
+    let sent = response.sent().expect("echo identity");
+    assert_eq!(sent.msgid, "RKi9Cw");
+    assert_eq!(sent.time.as_deref(), Some("2026-10-15T12:00:01.000Z"));
+}
+
+#[test]
 fn labelled_join_updates_state_before_resolving() {
     let now = Instant::now();
     let mut session = labelled_session(now);
