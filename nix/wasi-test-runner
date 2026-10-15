@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$repo_root"
+cargo build --quiet -p papo-test-server --bin papo-test-server
+
+coproc PAPO_ERGO { "$repo_root/target/debug/papo-test-server"; }
+server_output=${PAPO_ERGO[0]}
+server_input=${PAPO_ERGO[1]}
+server_pid=$PAPO_ERGO_PID
+ca_file=
+
+cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  exec {server_input}>&-
+  wait "$server_pid" || true
+  if [[ -n "$ca_file" ]]; then
+    rm -f "$repo_root/$ca_file"
+  fi
+  exit "$status"
+}
+trap cleanup EXIT INT TERM
+
+IFS= read -r PAPO_TEST_PLAINTEXT <&"$server_output"
+IFS= read -r PAPO_TEST_TLS <&"$server_output"
+IFS= read -r host_ca <&"$server_output"
+mkdir -p target/papo-test-server
+host_ca_copy=$(mktemp "$repo_root/target/papo-test-server/ca.XXXXXX.pem")
+cp "$host_ca" "$host_ca_copy"
+ca_file=${host_ca_copy#"$repo_root/"}
+export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS
+export PAPO_TEST_CA=$ca_file
+
+permissions=(-S inherit-network -S allow-ip-name-lookup)
+if [[ ${1-} == *wasm32-wasip3* ]]; then
+  permissions+=(-S p3)
+fi
+wasmtime run --dir=. \
+  --env PAPO_TEST_PLAINTEXT --env PAPO_TEST_TLS --env PAPO_TEST_CA \
+  "${permissions[@]}" "$@"

@@ -276,9 +276,9 @@
           CC_wasm32_wasip2 = "${wasiSdk}/bin/wasm32-wasip2-clang";
           CC_wasm32_wasip3 = "${wasiSdk}/bin/wasm32-wasip3-clang";
           WASI_SDK_PATH = wasiSdk;
-          CARGO_TARGET_WASM32_WASIP1_RUNNER = "wasmtime run --dir=.";
-          CARGO_TARGET_WASM32_WASIP2_RUNNER = "wasmtime run --dir=. -S inherit-network -S allow-ip-name-lookup";
-          CARGO_TARGET_WASM32_WASIP3_RUNNER = "wasmtime run --dir=. -S inherit-network -S allow-ip-name-lookup -S p3";
+          CARGO_TARGET_WASM32_WASIP1_RUNNER = "./nix/wasi-test-runner";
+          CARGO_TARGET_WASM32_WASIP2_RUNNER = "./nix/wasi-test-runner";
+          CARGO_TARGET_WASM32_WASIP3_RUNNER = "./nix/wasi-test-runner";
           inherit (gitHooks) shellHook;
         };
       }
