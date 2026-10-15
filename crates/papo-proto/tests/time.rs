@@ -82,6 +82,18 @@ fn edge_dates_round_trip_at_millisecond_precision() {
     }
 }
 
+#[test]
+fn formats_times_before_the_unix_epoch() {
+    assert_eq!(
+        time::format(UNIX_EPOCH - Duration::from_millis(1)).as_deref(),
+        Some("1969-12-31T23:59:59.999Z")
+    );
+    assert_eq!(
+        time::format(UNIX_EPOCH - Duration::from_hours(24 * 365)).as_deref(),
+        Some("1969-01-01T00:00:00.000Z")
+    );
+}
+
 proptest! {
     #[test]
     fn millisecond_aligned_times_round_trip(millis in 0_u64..=253_402_300_799_999) {
