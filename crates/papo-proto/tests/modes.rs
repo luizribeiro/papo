@@ -59,6 +59,49 @@ fn parses_user_modes_without_argument_semantics() {
     );
 }
 
+#[test]
+fn ranks_ergo_prefix_modes_and_preserves_toggles() {
+    let support = support(&["CHANMODES=Ibe,k,fl,CEMRUimnstu", "PREFIX=(qaohv)~&@%+"]);
+    assert_eq!(
+        ModeChanges::parse("+ov-b", ["alice", "bob", "*!*@example.test"], &support)
+            .collect::<Vec<_>>(),
+        [
+            change(true, 'o', Some("alice"), ModeKind::Prefix(2)),
+            change(true, 'v', Some("bob"), ModeKind::Prefix(4)),
+            change(false, 'b', Some("*!*@example.test"), ModeKind::List),
+        ]
+    );
+}
+
+#[test]
+fn represents_missing_required_arguments_without_panicking() {
+    let support = support(&["CHANMODES=eIbq,k,flj,CFLMPQScgimnprstuz", "PREFIX=(ov)@+"]);
+    assert_eq!(
+        ModeChanges::parse("+ob", ["dan"], &support).collect::<Vec<_>>(),
+        [
+            change(true, 'o', Some("dan"), ModeKind::Prefix(0)),
+            change(true, 'b', None, ModeKind::List),
+        ]
+    );
+}
+
+#[test]
+fn iterates_a_fifty_mode_change_without_truncation() {
+    let support = support(&["CHANMODES=b,k,l,imnst", "PREFIX=(ov)@+"]);
+    let masks = ["*!*@gateway/tor-sasl"; 50];
+    let changes = ModeChanges::parse(
+        "+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        masks,
+        &support,
+    )
+    .collect::<Vec<_>>();
+
+    assert_eq!(changes.len(), 50);
+    assert!(changes.iter().all(|parsed| {
+        *parsed == change(true, 'b', Some("*!*@gateway/tor-sasl"), ModeKind::List)
+    }));
+}
+
 fn change(set: bool, mode: char, arg: Option<&str>, kind: ModeKind) -> ModeChange<'_> {
     ModeChange {
         set,

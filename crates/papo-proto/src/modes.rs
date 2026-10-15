@@ -1,4 +1,4 @@
-use crate::{ChanModes, Isupport};
+use crate::{ChanModes, Isupport, Prefix};
 
 /// The parameter behavior of a channel mode.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -11,6 +11,8 @@ pub enum ModeKind {
     ArgWhenSet,
     /// A mode that never takes an argument.
     NoArg,
+    /// A channel-membership mode with its zero-based privilege rank.
+    Prefix(usize),
     /// A mode whose parameter behavior was not advertised.
     ///
     /// Unknown modes consume no argument. A server that gives one an argument can
@@ -53,6 +55,7 @@ impl ModeChanges {
         let mut modes = modestring.chars();
         let mut args = args.into_iter();
         let chanmodes = isupport.chanmodes();
+        let prefixes = chanmodes.map_or_else(Vec::new, |_| isupport.prefix());
         let mut set = true;
 
         std::iter::from_fn(move || {
@@ -62,9 +65,11 @@ impl ModeChanges {
                     '+' => set = true,
                     '-' => set = false,
                     _ => {
-                        let kind = classify(mode, chanmodes.as_ref());
-                        let needs_arg = matches!(kind, ModeKind::List | ModeKind::AlwaysArg)
-                            || kind == ModeKind::ArgWhenSet && set;
+                        let kind = classify(mode, chanmodes.as_ref(), &prefixes);
+                        let needs_arg = matches!(
+                            kind,
+                            ModeKind::List | ModeKind::AlwaysArg | ModeKind::Prefix(_)
+                        ) || kind == ModeKind::ArgWhenSet && set;
                         let arg = if needs_arg { args.next() } else { None };
                         return Some(ModeChange {
                             set,
@@ -79,11 +84,13 @@ impl ModeChanges {
     }
 }
 
-fn classify(mode: char, groups: Option<&ChanModes<'_>>) -> ModeKind {
+fn classify(mode: char, groups: Option<&ChanModes<'_>>, prefixes: &[Prefix]) -> ModeKind {
     let Some(groups) = groups else {
         return ModeKind::Unknown;
     };
-    if groups.list.contains(mode) {
+    if let Some(prefix) = prefixes.iter().find(|prefix| prefix.mode == mode) {
+        ModeKind::Prefix(prefix.rank)
+    } else if groups.list.contains(mode) {
         ModeKind::List
     } else if groups.always.contains(mode) {
         ModeKind::AlwaysArg
@@ -99,7 +106,7 @@ fn classify(mode: char, groups: Option<&ChanModes<'_>>) -> ModeKind {
 #[cfg(test)]
 mod tests {
     use super::{ModeKind, classify};
-    use crate::ChanModes;
+    use crate::{ChanModes, Prefix};
 
     #[test]
     fn classifies_each_chanmodes_group_and_user_modes() {
@@ -109,11 +116,27 @@ mod tests {
             when_set: "fl",
             never: "CEMRUimnstu",
         };
-        assert_eq!(classify('b', Some(&groups)), ModeKind::List);
-        assert_eq!(classify('k', Some(&groups)), ModeKind::AlwaysArg);
-        assert_eq!(classify('l', Some(&groups)), ModeKind::ArgWhenSet);
-        assert_eq!(classify('m', Some(&groups)), ModeKind::NoArg);
-        assert_eq!(classify('x', Some(&groups)), ModeKind::Unknown);
-        assert_eq!(classify('o', None), ModeKind::Unknown);
+        assert_eq!(classify('b', Some(&groups), &[]), ModeKind::List);
+        assert_eq!(classify('k', Some(&groups), &[]), ModeKind::AlwaysArg);
+        assert_eq!(classify('l', Some(&groups), &[]), ModeKind::ArgWhenSet);
+        assert_eq!(classify('m', Some(&groups), &[]), ModeKind::NoArg);
+        assert_eq!(classify('x', Some(&groups), &[]), ModeKind::Unknown);
+        assert_eq!(classify('o', None, &[]), ModeKind::Unknown);
+    }
+
+    #[test]
+    fn prefix_modes_win_over_chanmodes_groups() {
+        let groups = ChanModes {
+            list: "o",
+            always: "",
+            when_set: "",
+            never: "",
+        };
+        let prefixes = [Prefix {
+            mode: 'o',
+            symbol: '@',
+            rank: 2,
+        }];
+        assert_eq!(classify('o', Some(&groups), &prefixes), ModeKind::Prefix(2));
     }
 }
