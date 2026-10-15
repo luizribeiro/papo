@@ -33,6 +33,12 @@ pub enum Error {
         /// The hostname protected by the stored policy.
         host: String,
     },
+    /// A server requested consecutive STS upgrades without registering.
+    #[error("repeated STS upgrade for {host} without registration")]
+    StsUpgradeLoop {
+        /// The hostname whose server repeated the upgrade.
+        host: String,
+    },
     /// The requested transport is not available in this build.
     #[error("unsupported transport: {0}")]
     Unsupported(&'static str),

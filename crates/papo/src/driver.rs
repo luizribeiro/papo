@@ -439,6 +439,7 @@ async fn run_plan(
     let mut registered = false;
     let mut queued = VecDeque::new();
     let mut sts_required = false;
+    let mut last_sts_upgrade = None;
     loop {
         attempts = attempts.saturating_add(1);
         let plan = match plan_with_stored_sts(&base_plan, sts_store.as_mut(), force_plaintext) {
@@ -519,6 +520,9 @@ async fn run_plan(
         if end.quit.is_some() {
             return finish(events, end, false);
         }
+        if end.registered_at.is_some() {
+            last_sts_upgrade = None;
+        }
         if let Some(port) = end.sts.upgrade {
             if force_plaintext {
                 end.reason = Error::StsRequiresTls {
@@ -528,6 +532,16 @@ async fn run_plan(
                 end.error = Error::StsRequiresTls {
                     host: plan.address.host.clone(),
                 };
+                registration.failed(end.registration_error());
+                return finish(events, end, false);
+            }
+            if let Err(error) = record_sts_upgrade(&mut last_sts_upgrade, &plan.address.host) {
+                end.reason = error.to_string();
+                end.error = error;
+                registration.failed(end.registration_error());
+                return finish(events, end, false);
+            }
+            if !reconnect.permits(attempts) {
                 registration.failed(end.registration_error());
                 return finish(events, end, false);
             }
@@ -543,6 +557,7 @@ async fn run_plan(
                 .await;
             continue;
         }
+        last_sts_upgrade = None;
         if is_fatal_failure(&end.error, &end.reason) {
             registration.failed(end.registration_error());
             return finish(events, end, false);
@@ -577,6 +592,16 @@ async fn run_plan(
             return Ok(());
         }
     }
+}
+
+fn record_sts_upgrade(last_host: &mut Option<String>, host: &str) -> Result<(), Error> {
+    if last_host.as_deref() == Some(host) {
+        return Err(Error::StsUpgradeLoop {
+            host: host.to_owned(),
+        });
+    }
+    *last_host = Some(host.to_owned());
+    Ok(())
 }
 
 fn finish_connection_failure(
@@ -2073,6 +2098,56 @@ mod tests {
         second_server.shutdown().await.unwrap();
         assert!(quit.await.unwrap().is_ok());
         assert!(driver.await.unwrap().is_ok());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn sts_upgrade_obeys_the_attempt_limit() {
+        let (stream, mut server) = tokio::io::duplex(4096);
+        let stream = Arc::new(Mutex::new(Some(Box::new(stream) as super::BoxConnection)));
+        let connector: super::Connector = Arc::new(move |_| {
+            let stream = stream.lock().unwrap().take().unwrap();
+            Box::pin(async move { Ok(stream) })
+        });
+        let (_client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config().host("irc.example.net").wanted_caps(["sts"])),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential().max_attempts(1),
+            256,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::StsUpgrade { .. })
+        ));
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected {
+                will_retry: false,
+                ..
+            })
+        ));
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[test]
+    fn consecutive_sts_upgrades_are_a_typed_error() {
+        let mut last_host = None;
+        assert!(super::record_sts_upgrade(&mut last_host, "irc.example.net").is_ok());
+        assert!(matches!(
+            super::record_sts_upgrade(&mut last_host, "irc.example.net"),
+            Err(Error::StsUpgradeLoop { host }) if host == "irc.example.net"
+        ));
     }
 
     #[tokio::test(flavor = "current_thread")]
