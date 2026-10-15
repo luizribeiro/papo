@@ -259,24 +259,6 @@ impl fmt::Debug for MessageEvent {
     }
 }
 
-impl PartialEq for MessageEvent {
-    fn eq(&self, other: &Self) -> bool {
-        self.raw == other.raw
-            && self.text == other.text
-            && self.kind == other.kind
-            && self.isupport == other.isupport
-            && self.msgid == other.msgid
-            && self.time == other.time
-            && self.account == other.account
-            && self.bot == other.bot
-            && self.reply_to == other.reply_to
-            && self.origin == other.origin
-            && self.caps == other.caps
-    }
-}
-
-impl Eq for MessageEvent {}
-
 fn allowed_alias<'a>(
     denied: &papo_proto::ClientTagDeny<'_>,
     preferred: &'a str,
@@ -358,7 +340,7 @@ fn decimal(bytes: &[u8]) -> Option<i64> {
 }
 
 /// An event emitted by an IRC client.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 // Message events carry bounded connection snapshots used by their accessors and reply helper.
 #[allow(clippy::large_enum_variant)]

@@ -602,7 +602,8 @@ mod tests {
                 |_| false,
                 Duration::from_millis(1),
             ))
-            .unwrap_err();
+            .err()
+            .unwrap();
         assert_eq!(error.message(), Some("timed out waiting for an event"));
     }
 

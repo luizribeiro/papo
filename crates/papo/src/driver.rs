@@ -1883,13 +1883,13 @@ mod tests {
         let task = tokio::spawn(driver);
         registration_burst(&mut server).await;
         server.shutdown().await.unwrap();
-        assert_eq!(
+        assert!(matches!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "server closed the connection".into(),
+                reason,
                 will_retry: false,
-            })
-        );
+            }) if reason == "server closed the connection"
+        ));
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
     }
 
@@ -1899,13 +1899,13 @@ mod tests {
         let driver = tokio::spawn(driver);
         registration_burst(&mut server).await;
         server.shutdown().await.unwrap();
-        assert_eq!(
+        assert!(matches!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "shutdown failed".into(),
+                reason,
                 will_retry: false,
-            })
-        );
+            }) if reason == "shutdown failed"
+        ));
         assert!(matches!(driver.await.unwrap(), Err(Error::Io(error))
             if error.to_string() == "shutdown failed"));
     }
@@ -1915,13 +1915,13 @@ mod tests {
         let (mut server, _client, mut events, driver) = scripted_with_failures(true);
         let driver = tokio::spawn(driver);
         registration_burst(&mut server).await;
-        assert_eq!(
+        assert!(matches!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "original read failure".into(),
+                reason,
                 will_retry: false,
-            })
-        );
+            }) if reason == "original read failure"
+        ));
         assert!(matches!(driver.await.unwrap(), Err(Error::Io(error))
             if error.to_string() == "original read failure"));
     }
@@ -1932,13 +1932,13 @@ mod tests {
         let driver = tokio::spawn(driver);
         registration_burst(&mut server).await;
         server.write_all(&vec![b'x'; 8704]).await.unwrap();
-        assert_eq!(
+        assert!(matches!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "incoming IRC line exceeds 8703 bytes".into(),
+                reason,
                 will_retry: false,
-            })
-        );
+            }) if reason == "incoming IRC line exceeds 8703 bytes"
+        ));
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
 
@@ -1951,12 +1951,10 @@ mod tests {
             .write_all(b":ergo.test NOTICE * :caf\xe9\r\n")
             .await
             .unwrap();
-        assert_eq!(
+        assert!(matches!(
             events.next().await,
-            Some(Event::Malformed {
-                line: b":ergo.test NOTICE * :caf\xe9".to_vec()
-            })
-        );
+            Some(Event::Malformed { line }) if line == b":ergo.test NOTICE * :caf\xe9"
+        ));
         server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
@@ -2210,14 +2208,17 @@ mod tests {
         let driver = tokio::spawn(driver);
         registration_burst(&mut server).await;
         server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
-        assert_eq!(events.next().await, Some(Event::StsUpgrade { port: 6697 }));
-        assert_eq!(
+        assert!(matches!(
+            events.next().await,
+            Some(Event::StsUpgrade { port: 6697 })
+        ));
+        assert!(matches!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "sts upgrade".into(),
+                reason,
                 will_retry: false,
-            })
-        );
+            }) if reason == "sts upgrade"
+        ));
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
 
@@ -2259,7 +2260,10 @@ mod tests {
         let driver = tokio::spawn(driver);
         registration_burst(&mut first_server).await;
         server_line(&mut first_server, b":ergo.test CAP * LS :sts=port=6699\r\n").await;
-        assert_eq!(events.next().await, Some(Event::StsUpgrade { port: 6699 }));
+        assert!(matches!(
+            events.next().await,
+            Some(Event::StsUpgrade { port: 6699 })
+        ));
         assert!(matches!(
             events.next().await,
             Some(Event::Disconnected {
@@ -2686,13 +2690,13 @@ mod tests {
 
         assert!(quit.await.unwrap().is_ok());
         assert!(driver.await.unwrap().is_ok());
-        assert_eq!(
+        assert!(matches!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "original read failure".into(),
+                reason,
                 will_retry: false,
-            })
-        );
+            }) if reason == "original read failure"
+        ));
     }
 
     #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -2709,13 +2713,13 @@ mod tests {
         tokio::time::advance(Duration::from_secs(1)).await;
         assert!(matches!(quit.await.unwrap(), Err(Error::Timeout)));
         assert!(driver.await.unwrap().is_ok());
-        assert_eq!(
+        assert!(matches!(
             events.next().await,
             Some(Event::Disconnected {
-                reason: "QUIT was not acknowledged within 10 seconds".into(),
+                reason,
                 will_retry: false,
-            })
-        );
+            }) if reason == "QUIT was not acknowledged within 10 seconds"
+        ));
     }
 
     #[tokio::test(flavor = "current_thread")]
