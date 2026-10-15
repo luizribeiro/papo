@@ -22,7 +22,6 @@ use tokio::{
 use tokio_rustls::client::TlsStream;
 
 #[cfg(feature = "websocket")]
-#[allow(dead_code)]
 mod websocket;
 
 /// The security used for a connection.
@@ -112,6 +111,8 @@ enum StreamInner {
     Tcp(TcpStream),
     #[cfg(tls)]
     Tls(Box<TlsStream<TcpStream>>),
+    #[cfg(feature = "websocket")]
+    WebSocket(Box<websocket::WebSocket>),
 }
 
 impl Stream {
@@ -122,6 +123,18 @@ impl Stream {
             StreamInner::Tcp(_) => false,
             #[cfg(tls)]
             StreamInner::Tls(_) => true,
+            #[cfg(feature = "websocket")]
+            StreamInner::WebSocket(stream) => stream.is_secure(),
+        }
+    }
+
+    /// Returns the negotiated WebSocket subprotocol, if this is a WebSocket stream.
+    #[must_use]
+    pub fn websocket_subprotocol(&self) -> Option<&str> {
+        match &self.inner {
+            #[cfg(feature = "websocket")]
+            StreamInner::WebSocket(stream) => stream.subprotocol(),
+            _ => None,
         }
     }
 }
@@ -136,6 +149,8 @@ impl AsyncRead for Stream {
             StreamInner::Tcp(stream) => Pin::new(stream).poll_read(context, buffer),
             #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_read(context, buffer),
+            #[cfg(feature = "websocket")]
+            StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_read(context, buffer),
         }
     }
 }
@@ -150,6 +165,8 @@ impl AsyncWrite for Stream {
             StreamInner::Tcp(stream) => Pin::new(stream).poll_write(context, buffer),
             #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_write(context, buffer),
+            #[cfg(feature = "websocket")]
+            StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_write(context, buffer),
         }
     }
 
@@ -158,6 +175,8 @@ impl AsyncWrite for Stream {
             StreamInner::Tcp(stream) => Pin::new(stream).poll_flush(context),
             #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_flush(context),
+            #[cfg(feature = "websocket")]
+            StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_flush(context),
         }
     }
 
@@ -166,6 +185,8 @@ impl AsyncWrite for Stream {
             StreamInner::Tcp(stream) => Pin::new(stream).poll_shutdown(context),
             #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_shutdown(context),
+            #[cfg(feature = "websocket")]
+            StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_shutdown(context),
         }
     }
 }
@@ -207,6 +228,27 @@ pub enum ConnectError {
     #[cfg(feature = "websocket")]
     #[error("WebSocket failed: {0}")]
     WebSocket(#[source] tokio_tungstenite::tungstenite::Error),
+}
+
+/// Opens a WebSocket connection over the existing TCP and TLS transports.
+///
+/// Binary `IRCv3` messages are preferred over text messages. TLS settings are
+/// used for `wss` URLs; when omitted, the platform trust configuration applies.
+///
+/// # Errors
+///
+/// Returns an error for an invalid URL or failed TCP, TLS, or WebSocket handshake.
+#[cfg(all(
+    feature = "websocket",
+    any(
+        not(target_family = "wasm"),
+        all(target_os = "wasi", not(target_env = "p1"))
+    )
+))]
+pub async fn connect_websocket(url: &str, tls: Option<&TlsConfig>) -> Result<Stream, ConnectError> {
+    websocket::connect(url, tls).await.map(|stream| Stream {
+        inner: StreamInner::WebSocket(Box::new(stream)),
+    })
 }
 
 /// Resolves a host and connects to each address in order until one succeeds.

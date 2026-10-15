@@ -1,4 +1,11 @@
-use std::io;
+use std::{
+    io,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
+use futures_util::{Sink, Stream as FuturesStream};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_tungstenite::{
     WebSocketStream, client_async_with_config,
     tungstenite::{
@@ -114,5 +121,102 @@ impl WebSocket {
                 .map(Message::text)
                 .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
         }
+    }
+}
+
+impl AsyncRead for WebSocket {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        loop {
+            if self.read_offset < self.read_buffer.len() {
+                let available = &self.read_buffer[self.read_offset..];
+                let count = available.len().min(buffer.remaining());
+                buffer.put_slice(&available[..count]);
+                self.read_offset += count;
+                return Poll::Ready(Ok(()));
+            }
+            self.read_buffer.clear();
+            self.read_offset = 0;
+            if self.eof || buffer.remaining() == 0 {
+                return Poll::Ready(Ok(()));
+            }
+            match Pin::new(&mut self.stream).poll_next(context) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(None | Some(Ok(Message::Close(_)))) => {
+                    self.eof = true;
+                    return Poll::Ready(Ok(()));
+                }
+                Poll::Ready(Some(Ok(Message::Text(text)))) => {
+                    self.read_buffer.extend_from_slice(text.as_bytes());
+                    self.read_buffer.extend_from_slice(b"\r\n");
+                }
+                Poll::Ready(Some(Ok(Message::Binary(bytes)))) => {
+                    self.read_buffer.extend_from_slice(&bytes);
+                    self.read_buffer.extend_from_slice(b"\r\n");
+                }
+                Poll::Ready(Some(Ok(_))) => {}
+                Poll::Ready(Some(Err(error))) => {
+                    return Poll::Ready(Err(Self::io_error(error)));
+                }
+            }
+        }
+    }
+}
+
+impl AsyncWrite for WebSocket {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        let Some(newline) = buffer.iter().position(|byte| *byte == b'\n') else {
+            if self.write_buffer.len() + buffer.len() > MAX_MESSAGE_SIZE + 1 {
+                return Poll::Ready(Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "partial IRC line exceeds the WebSocket message limit",
+                )));
+            }
+            self.write_buffer.extend_from_slice(buffer);
+            return Poll::Ready(Ok(buffer.len()));
+        };
+        match Pin::new(&mut self.stream).poll_ready(context) {
+            Poll::Pending => return Poll::Pending,
+            Poll::Ready(Err(error)) => return Poll::Ready(Err(Self::io_error(error))),
+            Poll::Ready(Ok(())) => {}
+        }
+        self.write_buffer.extend_from_slice(&buffer[..newline]);
+        if self.write_buffer.last() == Some(&b'\r') {
+            self.write_buffer.pop();
+        }
+        let bytes = std::mem::take(&mut self.write_buffer);
+        let message = match self.outgoing_message(bytes) {
+            Ok(message) => message,
+            Err(error) => return Poll::Ready(Err(error)),
+        };
+        Pin::new(&mut self.stream).start_send(message).map_or_else(
+            |error| Poll::Ready(Err(Self::io_error(error))),
+            |()| Poll::Ready(Ok(newline + 1)),
+        )
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.stream)
+            .poll_flush(context)
+            .map_err(Self::io_error)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        if !self.write_buffer.is_empty() {
+            return Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "WebSocket stream ended with a partial IRC line",
+            )));
+        }
+        Pin::new(&mut self.stream)
+            .poll_close(context)
+            .map_err(Self::io_error)
     }
 }

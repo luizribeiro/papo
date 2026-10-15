@@ -9,7 +9,7 @@ publish.workspace = true
 
 [features]
 default = ["tls-ring"]
-websocket = ["dep:tokio-tungstenite"]
+websocket = ["dep:futures-util", "dep:tokio-tungstenite"]
 tls-aws-lc = [
   "dep:rustls",
   "dep:rustls-platform-verifier",
@@ -24,6 +24,7 @@ tls-ring = [
 ]
 
 [dependencies]
+futures-util = { version = "0.3.34", default-features = false, features = ["sink"], optional = true }
 getrandom = "0.4.3"
 papo-core = { path = "../papo-core", version = "=0.0.0" }
 papo-proto = { path = "../papo-proto", version = "=0.0.0" }
