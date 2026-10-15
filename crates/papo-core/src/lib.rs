@@ -46,6 +46,17 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
 /// Enabled `IRCv3` capability names and their advertised values.
 pub type Capabilities = BTreeMap<String, Option<String>>;
 
+/// Registration state captured when a session becomes ready for use.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Welcome {
+    /// The nickname assigned by the server.
+    pub nick: String,
+    /// The enabled capabilities and their advertised values.
+    pub caps: Capabilities,
+    /// The accumulated server feature advertisement.
+    pub isupport: papo_proto::Isupport,
+}
+
 /// Policy for decoding incoming IRC lines.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
@@ -167,6 +178,8 @@ impl Config {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Event {
+    /// Connection registration completed.
+    Registered(Welcome),
     /// A parsed message not consumed by session protocol behavior.
     Message(Message),
     /// A line that could not be decoded or parsed.
@@ -308,7 +321,12 @@ impl Session {
 
     /// Notifies the session that its current deadline was reached.
     pub fn handle_timeout(&mut self, now: Instant) {
-        self.registration.handle_timeout(now, &mut self.outbox);
+        self.registration.handle_timeout(
+            now,
+            self.caps.enabled(),
+            self.isupport.value(),
+            &mut self.outbox,
+        );
         self.keepalive.handle_timeout(now, &mut self.outbox);
         self.apply_close_request();
     }
@@ -372,6 +390,12 @@ impl Session {
         self.isupport.value()
     }
 
+    /// Reports whether connection registration has completed.
+    #[must_use]
+    pub const fn is_registered(&self) -> bool {
+        self.registration.is_registered()
+    }
+
     fn malformed(&mut self, line: &[u8]) {
         self.outbox.event(Event::Malformed {
             line: line.to_vec(),
@@ -380,9 +404,11 @@ impl Session {
 
     fn dispatch_message(&mut self, now: Instant, message: &MessageRef<'_>) {
         let handled = self.registration.handle_message(
+            now,
             message,
             &self.config,
-            self.isupport.value().nicklen(),
+            self.caps.enabled(),
+            self.isupport.value(),
             &mut self.outbox,
         );
         let handled = if handled == Handled::No {

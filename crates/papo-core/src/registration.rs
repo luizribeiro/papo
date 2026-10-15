@@ -1,14 +1,18 @@
 use std::time::Instant;
 
-use papo_proto::MessageRef;
+use papo_proto::{Isupport, MessageRef};
 
-use crate::{Config, Handled, Outbox};
+use crate::{Capabilities, Config, Event, Handled, Outbox, Welcome};
+
+const WELCOME_BURST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 #[derive(Debug)]
 pub(super) struct Registration {
     nick: String,
     deadline: Option<Instant>,
+    welcome_deadline: Option<Instant>,
     next_alt_nick: usize,
+    registered: bool,
 }
 
 impl Registration {
@@ -16,14 +20,18 @@ impl Registration {
         Self {
             nick: config.nick.clone(),
             deadline: None,
+            welcome_deadline: None,
             next_alt_nick: 0,
+            registered: false,
         }
     }
 
     pub(super) fn handle_connected(&mut self, now: Instant, config: &Config, outbox: &mut Outbox) {
         self.nick.clone_from(&config.nick);
         self.deadline = Some(now + config.registration_timeout);
+        self.welcome_deadline = None;
         self.next_alt_nick = 0;
+        self.registered = false;
         outbox.transmit_raw(b"CAP LS 302\r\n".to_vec());
         if let Some(password) = &config.password {
             outbox.transmit("PASS", [password]);
@@ -34,9 +42,11 @@ impl Registration {
 
     pub(super) fn handle_message(
         &mut self,
+        now: Instant,
         message: &MessageRef<'_>,
         config: &Config,
-        nicklen: Option<usize>,
+        caps: &Capabilities,
+        isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Handled {
         if message.command_is("001") {
@@ -44,6 +54,12 @@ impl Registration {
                 nick.clone_into(&mut self.nick);
             }
             self.deadline = None;
+            self.welcome_deadline = Some(now + WELCOME_BURST_TIMEOUT);
+            Handled::Yes
+        } else if self.welcome_deadline.is_some()
+            && (message.command_is("376") || message.command_is("422"))
+        {
+            self.complete(caps, isupport, outbox);
             Handled::Yes
         } else if self.deadline.is_some()
             && ["432", "433", "436", "437"]
@@ -54,7 +70,7 @@ impl Registration {
                 nick.clone_into(&mut self.nick);
                 self.next_alt_nick += 1;
             } else {
-                self.nick = append_underscore(&self.nick, nicklen.unwrap_or(30));
+                self.nick = append_underscore(&self.nick, isupport.nicklen().unwrap_or(30));
             }
             outbox.transmit("NICK", [&self.nick]);
             Handled::Yes
@@ -63,28 +79,58 @@ impl Registration {
         }
     }
 
-    pub(super) fn handle_timeout(&mut self, now: Instant, outbox: &mut Outbox) {
+    pub(super) fn handle_timeout(
+        &mut self,
+        now: Instant,
+        caps: &Capabilities,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) {
         if self.deadline.is_some_and(|deadline| now >= deadline) {
             self.deadline = None;
             outbox.close("IRC registration timed out before 001".to_owned());
+        } else if self
+            .welcome_deadline
+            .is_some_and(|deadline| now >= deadline)
+        {
+            self.complete(caps, isupport, outbox);
         }
     }
 
-    pub(super) const fn next_deadline(&self) -> Option<Instant> {
-        self.deadline
+    pub(super) fn next_deadline(&self) -> Option<Instant> {
+        [self.deadline, self.welcome_deadline]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
     pub(super) fn handle_disconnected(&mut self) {
         self.deadline = None;
+        self.welcome_deadline = None;
+        self.registered = false;
     }
 
     pub(super) fn nick(&self) -> &str {
         &self.nick
     }
 
+    pub(super) const fn is_registered(&self) -> bool {
+        self.registered
+    }
+
     #[allow(clippy::unused_self)]
     pub(super) const fn authentication_finished(&self) -> bool {
         true
+    }
+
+    fn complete(&mut self, caps: &Capabilities, isupport: &Isupport, outbox: &mut Outbox) {
+        self.welcome_deadline = None;
+        self.registered = true;
+        outbox.event(Event::Registered(Welcome {
+            nick: self.nick.clone(),
+            caps: caps.clone(),
+            isupport: isupport.clone(),
+        }));
     }
 }
 

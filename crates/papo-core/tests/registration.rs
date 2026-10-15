@@ -42,7 +42,7 @@ fn welcome_adopts_the_server_nick_and_cancels_the_timeout() {
     );
 
     assert_eq!(session.nick(), "account");
-    assert_eq!(session.poll_timeout(), None);
+    assert_eq!(session.poll_timeout(), Some(now + Duration::from_secs(11)));
 }
 
 #[test]
@@ -144,4 +144,77 @@ fn generated_nicks_honor_an_early_nicklen_advertisement() {
     session.handle_line(now, b":ergo.test 433 * nick :Nickname is already in use");
 
     assert_eq!(line(&mut session), "NICK long-client_");
+}
+
+#[test]
+fn completes_after_motd_with_capabilities_and_isupport() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("requested")
+            .wanted_caps(["server-time"]),
+    );
+    session.handle_connected(now);
+    for _ in 0..3 {
+        session.poll_transmit();
+    }
+    session.handle_line(now, b"CAP * LS :server-time=iso8601");
+    assert_eq!(line(&mut session), "CAP REQ :server-time");
+    session.handle_line(now, b"CAP * ACK :server-time");
+    assert_eq!(line(&mut session), "CAP END");
+    session.handle_line(now, b":ergo.test 001 account :Welcome to Ergo");
+    session.handle_line(
+        now,
+        b":ergo.test 005 account CASEMAPPING=ascii NICKLEN=32 :are supported by this server",
+    );
+    session.handle_line(
+        now,
+        b":ergo.test 005 account NETWORK=Ergo UTF8ONLY :are supported by this server",
+    );
+    session.handle_line(now, b":ergo.test 376 account :End of MOTD");
+
+    assert!(session.is_registered());
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Registered(welcome))
+            if welcome.nick == "account"
+                && welcome.caps.get("server-time") == Some(&Some("iso8601".to_owned()))
+                && welcome.isupport.network() == Some("Ergo")
+                && welcome.isupport.utf8only()
+    ));
+}
+
+#[test]
+fn no_motd_numeric_completes_registration() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_connected(now);
+    for _ in 0..3 {
+        session.poll_transmit();
+    }
+    session.handle_line(now, b":solanum.example 001 papo :Welcome");
+    session.handle_line(now, b":solanum.example 422 papo :MOTD File is missing");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Registered(welcome)) if welcome.nick == "papo" && welcome.caps.is_empty()
+    ));
+    assert!(session.is_registered());
+}
+
+#[test]
+fn completes_ten_seconds_after_welcome_when_motd_never_finishes() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_connected(now);
+    session.handle_line(now, b":soju.example 001 papo :Welcome");
+    assert_eq!(session.poll_timeout(), Some(now + Duration::from_secs(10)));
+
+    session.handle_timeout(now + Duration::from_secs(9));
+    assert!(!session.is_registered());
+    assert_eq!(session.poll_event(), None);
+    session.handle_timeout(now + Duration::from_secs(10));
+    assert!(session.is_registered());
+    assert!(matches!(session.poll_event(), Some(Event::Registered(_))));
+    assert_eq!(session.poll_timeout(), None);
 }
