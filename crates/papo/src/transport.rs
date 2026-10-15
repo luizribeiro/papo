@@ -73,6 +73,10 @@ impl fmt::Debug for ClientCertificate {
 }
 
 /// TLS trust, identity, and server-name settings.
+///
+/// TLS 1.2 remains enabled alongside TLS 1.3 because Ergo's default minimum
+/// and many IRC networks still accept 1.2. Rustls offers only secure TLS 1.2
+/// cipher suites.
 #[derive(Clone, Debug)]
 pub struct TlsConfig {
     /// The roots used to authenticate the server.
