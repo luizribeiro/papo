@@ -65,6 +65,52 @@ fn drops_a_rejected_request_and_ends_negotiation() {
 }
 
 #[test]
+fn splits_requests_at_510_bytes_and_resolves_each_atomically() {
+    let first = format!("example.com/{}", "a".repeat(238));
+    let second = format!("example.net/{}", "b".repeat(238));
+    let third = "batch".to_owned();
+    let config = Config::default().wanted_caps([first.clone(), second.clone(), third.clone()]);
+    Transcript::new(config)
+        .connect_default()
+        .server(&format!("CAP * LS * :{first}"))
+        .server(&format!("CAP * LS * :{second}"))
+        .server(&format!("CAP * LS :{third}"))
+        .client(&format!("CAP REQ :{first} {second}"))
+        .client("CAP REQ :batch")
+        .server("CAP * NAK :request rejected")
+        .no_client()
+        .server("CAP * ACK * :bat")
+        .no_client()
+        .server("CAP * ACK :ch")
+        .client("CAP END")
+        .no_client();
+
+    let first_request = format!("CAP REQ :{first} {second}");
+    assert_eq!(first_request.len(), 510);
+}
+
+#[test]
+fn never_emits_a_request_over_510_bytes() {
+    let first = format!("example.com/{}", "a".repeat(239));
+    let second = format!("example.net/{}", "b".repeat(239));
+    let now = std::time::Instant::now();
+    let mut session = Session::new(Config::default().wanted_caps([&first, &second]));
+    session.handle_connected(now);
+    for _ in 0..3 {
+        session.poll_transmit();
+    }
+    session.handle_line(now, format!("CAP * LS * :{first}").as_bytes());
+    session.handle_line(now, format!("CAP * LS :{second}").as_bytes());
+
+    let requests = [
+        session.poll_transmit().unwrap(),
+        session.poll_transmit().unwrap(),
+    ];
+    assert!(requests.iter().all(|line| line.len() - 2 <= 510));
+    assert_eq!(session.poll_transmit(), None);
+}
+
+#[test]
 fn ignores_cap_errors_and_waits_for_welcome() {
     Transcript::new(Config::default())
         .connect_default()

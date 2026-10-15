@@ -1,16 +1,18 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use papo_proto::{MessageRef, NAME_ALIASES, NameKind};
 
 use crate::{Config, Handled, Outbox};
 
 pub(super) type Capabilities = BTreeMap<String, Option<String>>;
+const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
+const MAX_IRC_BODY_LEN: usize = 510;
 
 #[derive(Debug, Default)]
 pub(super) struct Caps {
     advertised: Capabilities,
     enabled: Capabilities,
-    pending: Option<Vec<String>>,
+    pending: VecDeque<Vec<String>>,
     ended: bool,
 }
 
@@ -33,15 +35,17 @@ impl Caps {
             if subcommand.eq_ignore_ascii_case("LS") {
                 self.handle_ls(message, config, authentication_finished, outbox);
             } else if subcommand.eq_ignore_ascii_case("ACK") {
-                if let Some(requested) = self.pending.take() {
-                    for name in requested {
-                        let value = self.advertised.get(&name).cloned().flatten();
-                        self.enabled.insert(name, value);
+                if message.param(2) != Some("*") {
+                    if let Some(requested) = self.pending.pop_front() {
+                        for name in requested {
+                            let value = self.advertised.get(&name).cloned().flatten();
+                            self.enabled.insert(name, value);
+                        }
                     }
+                    self.finish(authentication_finished, outbox);
                 }
-                self.finish(authentication_finished, outbox);
             } else if subcommand.eq_ignore_ascii_case("NAK") {
-                self.pending = None;
+                self.pending.pop_front();
                 self.finish(authentication_finished, outbox);
             } else {
                 return Handled::No;
@@ -92,11 +96,17 @@ impl Caps {
             .filter(|name| seen.insert((*name).to_owned()))
             .map(str::to_owned)
             .collect::<Vec<_>>();
-        if requested.is_empty() {
+        let requests = split_requests(requested);
+        if requests.is_empty() {
             self.finish(authentication_finished, outbox);
         } else {
-            outbox.transmit("CAP", ["REQ", &requested.join(" ")]);
-            self.pending = Some(requested);
+            for request in &requests {
+                let mut line = b"CAP REQ :".to_vec();
+                line.extend_from_slice(request.join(" ").as_bytes());
+                line.extend_from_slice(b"\r\n");
+                outbox.transmit_raw(line);
+            }
+            self.pending = requests.into();
         }
     }
 
@@ -117,7 +127,7 @@ impl Caps {
     }
 
     fn finish(&mut self, authentication_finished: bool, outbox: &mut Outbox) {
-        if authentication_finished && self.pending.is_none() && !self.ended {
+        if authentication_finished && self.pending.is_empty() && !self.ended {
             outbox.transmit_raw(b"CAP END\r\n".to_vec());
             self.ended = true;
         }
@@ -126,4 +136,25 @@ impl Caps {
     pub(super) const fn enabled(&self) -> &Capabilities {
         &self.enabled
     }
+}
+
+fn split_requests(names: Vec<String>) -> Vec<Vec<String>> {
+    let mut requests = Vec::new();
+    let mut current = Vec::new();
+    let mut current_len = CAP_REQ_PREFIX_LEN;
+    for name in names {
+        let separator = usize::from(!current.is_empty());
+        if !current.is_empty() && current_len + separator + name.len() > MAX_IRC_BODY_LEN {
+            requests.push(std::mem::take(&mut current));
+            current_len = CAP_REQ_PREFIX_LEN;
+        }
+        if current_len + name.len() <= MAX_IRC_BODY_LEN {
+            current_len += usize::from(!current.is_empty()) + name.len();
+            current.push(name);
+        }
+    }
+    if !current.is_empty() {
+        requests.push(current);
+    }
+    requests
 }
