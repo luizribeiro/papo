@@ -64,3 +64,24 @@ fn reports_tagmsg_without_known_tags() {
         [("+example.org/read".into(), Some("cursor-42".into()))]
     );
 }
+
+#[test]
+fn reports_redactions_with_and_without_a_reason() {
+    for (line, expected_reason) in [
+        (
+            ":alice!~a@cloak REDACT #papo RKi9Cw :Removed by author",
+            Some("Removed by author"),
+        ),
+        (":alice!~a@cloak REDACT #papo 8sKY2A", None),
+    ] {
+        let mut session = Session::new(Config::default());
+        session.handle_line(Instant::now(), line.as_bytes());
+        let Some(Event::Redacted(redacted)) = session.poll_event() else {
+            panic!("expected redaction")
+        };
+        assert_eq!(redacted.source.as_deref(), Some("alice!~a@cloak"));
+        assert_eq!(redacted.target, "#papo");
+        assert!(matches!(redacted.msgid.as_str(), "RKi9Cw" | "8sKY2A"));
+        assert_eq!(redacted.reason.as_deref(), expected_reason);
+    }
+}

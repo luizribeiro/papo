@@ -165,7 +165,7 @@ impl std::fmt::Debug for Config {
             .field("nick", &self.nick)
             .field("username", &self.username)
             .field("realname", &self.realname)
-            .field("password", &self.password.as_ref().map(|_| Redacted))
+            .field("password", &self.password.as_ref().map(|_| RedactedSecret))
             .field("registration_timeout", &self.registration_timeout)
             .field("ping_interval", &self.ping_interval)
             .field("ping_timeout", &self.ping_timeout)
@@ -188,9 +188,9 @@ impl std::fmt::Debug for Config {
 }
 
 #[derive(Clone, Copy)]
-struct Redacted;
+struct RedactedSecret;
 
-impl std::fmt::Debug for Redacted {
+impl std::fmt::Debug for RedactedSecret {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str("[REDACTED]")
     }
@@ -664,6 +664,19 @@ pub struct TagMessage {
     pub tags: Vec<(String, Option<String>)>,
 }
 
+/// A server-relayed message redaction.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Redacted {
+    /// Source prefix without its leading colon.
+    pub source: Option<String>,
+    /// History target containing the message.
+    pub target: String,
+    /// Identifier of the redacted message.
+    pub msgid: String,
+    /// Optional human-readable reason.
+    pub reason: Option<String>,
+}
+
 /// A failure to queue a request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -724,6 +737,8 @@ pub enum Event {
     MultilineMessage(MultilineMessage),
     /// A received tag-only message.
     TagMessage(TagMessage),
+    /// A message was redacted from a target's history.
+    Redacted(Redacted),
     /// A request was sent without protocol-level response correlation.
     RequestUntracked {
         /// Identifier assigned to the request.
@@ -1793,11 +1808,16 @@ impl Session {
                 == Handled::Yes;
         let response = self.resolve_message(message) || self.resolve_unlabelled(message);
         let tag_message = !response && emit_unhandled && self.report_tag_message(message);
-        let standard_reply =
-            !response && !tag_message && emit_unhandled && self.report_standard_reply(message);
+        let redacted =
+            !response && !tag_message && emit_unhandled && self.report_redaction(message);
+        let standard_reply = !response
+            && !tag_message
+            && !redacted
+            && emit_unhandled
+            && self.report_standard_reply(message);
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
-        if !handled && !response && !tag_message && !standard_reply && emit_unhandled {
+        if !handled && !response && !tag_message && !redacted && !standard_reply && emit_unhandled {
             let received =
                 self.received_message(message.to_owned(), context.batch_type().map(str::to_owned));
             self.outbox.event(Event::Message(received));
@@ -1819,6 +1839,22 @@ impl Session {
                 .tags()
                 .map(|(key, value)| (key.to_owned(), value.map(std::borrow::Cow::into_owned)))
                 .collect(),
+        }));
+        true
+    }
+
+    fn report_redaction(&mut self, message: &MessageRef<'_>) -> bool {
+        let (Some(target), Some(msgid)) = (
+            message.param(0).filter(|_| message.command_is("REDACT")),
+            message.param(1),
+        ) else {
+            return false;
+        };
+        self.outbox.event(Event::Redacted(Redacted {
+            source: message.raw_source().map(str::to_owned),
+            target: target.to_owned(),
+            msgid: msgid.to_owned(),
+            reason: message.param(2).map(str::to_owned),
         }));
         true
     }

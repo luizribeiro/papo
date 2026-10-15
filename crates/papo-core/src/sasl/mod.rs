@@ -8,7 +8,7 @@ use std::{
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::MessageRef;
 
-use crate::{Config, Handled, Outbox, Redacted};
+use crate::{Config, Handled, Outbox, RedactedSecret};
 use scram::ScramClient;
 
 const SASL_CHUNK_LEN: usize = 400;
@@ -34,7 +34,7 @@ impl std::fmt::Debug for Mechanism {
             Self::Plain { username, .. } => formatter
                 .debug_struct("Plain")
                 .field("username", username)
-                .field("password", &Redacted)
+                .field("password", &RedactedSecret)
                 .finish(),
             Self::External { authzid } => formatter
                 .debug_struct("External")
@@ -43,7 +43,7 @@ impl std::fmt::Debug for Mechanism {
             Self::ScramSha256 { username, .. } => formatter
                 .debug_struct("ScramSha256")
                 .field("username", username)
-                .field("password", &Redacted)
+                .field("password", &RedactedSecret)
                 .finish(),
         }
     }
