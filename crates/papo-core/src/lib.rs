@@ -479,16 +479,21 @@ impl ResponseMatcher {
                 (relevant && Self::target_is(message, 1, nick, mapping))
                     .then_some(numeric == Numeric::RPL_ENDOFWHOIS || numeric.is_error())
             }
-            Self::Who(mask) => numeric.and_then(|numeric| {
-                let target = if numeric == Numeric::RPL_WHOSPCRPL {
-                    2
-                } else {
-                    1
-                };
-                (matches!(numeric, Numeric::RPL_WHOREPLY | Numeric::RPL_WHOSPCRPL)
-                    || Self::target_is(message, target, mask, mapping))
-                .then_some(numeric == Numeric::RPL_ENDOFWHO || numeric.is_error())
-            }),
+            Self::Who(mask) => {
+                if Self::standard_failure(message, "WHO") {
+                    return Some(true);
+                }
+                numeric.and_then(|numeric| {
+                    let target = if numeric == Numeric::RPL_WHOSPCRPL {
+                        2
+                    } else {
+                        1
+                    };
+                    (matches!(numeric, Numeric::RPL_WHOREPLY | Numeric::RPL_WHOSPCRPL)
+                        || Self::target_is(message, target, mask, mapping))
+                    .then_some(numeric == Numeric::RPL_ENDOFWHO || numeric.is_error())
+                })
+            }
             Self::Join(channel) => {
                 if Self::standard_failure(message, "JOIN") {
                     return Some(true);
@@ -526,13 +531,18 @@ impl ResponseMatcher {
                     || Self::standard_failure(message, "TOPIC"))
                 .then_some(true)
             }
-            Self::List => numeric.and_then(|numeric| {
-                matches!(
-                    numeric,
-                    Numeric::RPL_LISTSTART | Numeric::RPL_LIST | Numeric::RPL_LISTEND
-                )
-                .then_some(numeric == Numeric::RPL_LISTEND || numeric.is_error())
-            }),
+            Self::List => {
+                if Self::standard_failure(message, "LIST") {
+                    return Some(true);
+                }
+                numeric.and_then(|numeric| {
+                    (matches!(
+                        numeric,
+                        Numeric::RPL_LISTSTART | Numeric::RPL_LIST | Numeric::RPL_LISTEND
+                    ) || numeric.is_error())
+                    .then_some(numeric == Numeric::RPL_LISTEND || numeric.is_error())
+                })
+            }
         }
     }
 }

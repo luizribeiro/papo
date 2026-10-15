@@ -147,6 +147,18 @@ fn matches_other_unlabelled_request_boundaries() {
         ResponseMatcher::Topic("#papo".into()),
         &[":ergo.test 332 papo #papo :Requests in Rust"],
     );
+    assert_unlabelled(
+        &mut session,
+        Message::new("WHO", ["#missing"]),
+        ResponseMatcher::Who("#missing".into()),
+        &["FAIL WHO INVALID_PARAMS #missing :Invalid mask"],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("LIST", Vec::<String>::new()),
+        ResponseMatcher::List,
+        &[":ergo.test 461 papo LIST :Not enough parameters"],
+    );
 }
 
 #[test]
