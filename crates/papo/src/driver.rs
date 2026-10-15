@@ -359,7 +359,10 @@ fn now() -> Instant {
 mod tests {
     use std::time::Duration;
 
-    use papo_core::Config;
+    use papo_core::{
+        Config, Decoding, Sasl,
+        sts::{ConnectionSecurity, StsAction},
+    };
     use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
     use super::{Driver, Error, Event, Session};
@@ -383,6 +386,24 @@ mod tests {
         let mut actual = vec![0; expected.len()];
         server.read_exact(&mut actual).await.unwrap();
         assert_eq!(actual, expected);
+    }
+
+    async fn client_line(server: &mut DuplexStream, expected: &[u8]) {
+        let mut actual = vec![0; expected.len()];
+        server.read_exact(&mut actual).await.unwrap();
+        assert_eq!(actual, expected);
+    }
+
+    async fn server_line(server: &mut DuplexStream, line: &[u8]) {
+        server.write_all(line).await.unwrap();
+    }
+
+    async fn complete_registration(server: &mut DuplexStream, events: &mut super::Events) {
+        registration_burst(server).await;
+        server_line(server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(server, b"CAP END\r\n").await;
+        server_line(server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
     }
 
     fn config() -> Config {
@@ -426,6 +447,134 @@ mod tests {
             })
         );
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn overlong_line_becomes_a_terminal_disconnect() {
+        let (mut server, _client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server.write_all(&vec![b'x'; 8704]).await.unwrap();
+        assert_eq!(
+            events.next().await,
+            Some(Event::Disconnected {
+                reason: "incoming IRC line exceeds 8703 bytes".into()
+            })
+        );
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn malformed_line_preserves_exact_bytes() {
+        let (mut server, _client, mut events, driver) = scripted(config().decoding(Decoding::Utf8));
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server
+            .write_all(b":ergo.test NOTICE * :caf\xe9\r\n")
+            .await
+            .unwrap();
+        assert_eq!(
+            events.next().await,
+            Some(Event::Malformed {
+                line: b":ergo.test NOTICE * :caf\xe9".to_vec()
+            })
+        );
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn sasl_nak_forwards_authentication_failure() {
+        let settings = config()
+            .wanted_caps(["sasl"])
+            .sasl(Sasl::plain("alice", "correct horse battery staple"))
+            .require_sasl(false);
+        let (mut server, _client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
+        client_line(&mut server, b"CAP REQ :sasl\r\n").await;
+        server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::AuthenticationFailed { .. })
+        ));
+        client_line(&mut server, b"CAP END\r\n").await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn cap_new_and_del_forward_capability_changes() {
+        let (mut server, _client, mut events, driver) =
+            scripted(config().wanted_caps(["server-time"]));
+        let driver = tokio::spawn(driver);
+        complete_registration(&mut server, &mut events).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP papo-driver NEW :server-time=2027\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP REQ :server-time\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP papo-driver ACK :server-time\r\n",
+        )
+        .await;
+        assert!(
+            matches!(events.next().await, Some(Event::CapsChanged { added, .. })
+            if added.get("server-time") == Some(&Some("2027".to_owned())))
+        );
+        server_line(
+            &mut server,
+            b":ergo.test CAP papo-driver DEL :server-time\r\n",
+        )
+        .await;
+        assert!(
+            matches!(events.next().await, Some(Event::CapsChanged { removed, .. })
+            if removed.contains_key("server-time"))
+        );
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn plaintext_sts_forwards_upgrade_and_closes() {
+        let settings = config().host("irc.example.net").wanted_caps(["sts"]);
+        let (mut server, _client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
+        assert_eq!(events.next().await, Some(Event::StsUpgrade { port: 6697 }));
+        assert_eq!(
+            events.next().await,
+            Some(Event::Disconnected {
+                reason: "sts upgrade".into()
+            })
+        );
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn secure_sts_forwards_persistence_policy() {
+        let settings = config()
+            .connection_security(ConnectionSecurity::Secure)
+            .host("IRC.Example.NET.")
+            .wanted_caps(["sts"]);
+        let (mut server, _client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :sts=duration=3600,preload\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::StsPolicy(
+            StsAction::Persist { host, duration }
+        )) if host == "irc.example.net" && duration == Duration::from_secs(3600)));
+        client_line(&mut server, b"CAP END\r\n").await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
 
     #[tokio::test(flavor = "current_thread")]
