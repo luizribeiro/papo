@@ -178,6 +178,51 @@ async fn does_not_retry_an_unrelated_handshake_failure() {
 
 #[tokio::test(flavor = "current_thread")]
 #[allow(clippy::result_large_err)]
+async fn retries_when_a_successful_handshake_omits_the_subprotocol() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (first, _) = listener.accept().await.unwrap();
+        let first = accept_hdr_async(
+            first,
+            |request: &Request, response: Response| -> Result<Response, ErrorResponse> {
+                assert_eq!(
+                    request.headers()[SEC_WEBSOCKET_PROTOCOL],
+                    "binary.ircv3.net, text.ircv3.net"
+                );
+                Ok(response)
+            },
+        )
+        .await
+        .unwrap();
+        drop(first);
+
+        let (second, _) = listener.accept().await.unwrap();
+        let mut second = accept_hdr_async(
+            second,
+            |request: &Request, response: Response| -> Result<Response, ErrorResponse> {
+                assert!(!request.headers().contains_key(SEC_WEBSOCKET_PROTOCOL));
+                Ok(response)
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            second.next().await.unwrap().unwrap(),
+            Message::text("PING :no-subprotocol")
+        );
+    });
+
+    let mut stream = connect_websocket(&format!("ws://{address}/legacy"), None)
+        .await
+        .unwrap();
+    assert_eq!(stream.websocket_subprotocol(), None);
+    stream.write_all(b"PING :no-subprotocol\r\n").await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[allow(clippy::result_large_err)]
 async fn bounds_incoming_messages_at_the_extended_line_limit() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let address = listener.local_addr().unwrap();
