@@ -192,3 +192,82 @@ fn registers_before_connect_and_holds_cap_end_until_success() {
         )
         .client("CAP END");
 }
+
+#[test]
+fn rejects_early_registration_without_before_connect() {
+    Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=email-required")
+        .client("CAP REQ :draft/account-registration")
+        .update(|session| {
+            assert_eq!(
+                session.register(
+                    std::time::Instant::now(),
+                    None,
+                    Some("alice@example.org"),
+                    "hunter2",
+                ),
+                Err(papo_core::RequestError::Unsupported(
+                    "account registration before connection"
+                ))
+            );
+        })
+        .server("CAP * ACK :draft/account-registration")
+        .client("CAP END");
+}
+
+#[test]
+fn early_verification_keeps_cap_negotiation_open() {
+    Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect,email-required")
+        .client("CAP REQ :draft/account-registration")
+        .update(|session| {
+            session
+                .register(
+                    std::time::Instant::now(),
+                    None,
+                    Some("alice@example.org"),
+                    "correct horse battery staple",
+                )
+                .unwrap();
+        })
+        .server("CAP * ACK :draft/account-registration")
+        .client("REGISTER * alice@example.org :correct horse battery staple")
+        .server(":ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent")
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .event(|event| matches!(event, Event::VerificationRequired { account, .. } if account == "alice"))
+        .no_client()
+        .update(|session| {
+            session
+                .verify(std::time::Instant::now(), "alice", "39gvcdg4myvnmdcfhvd6exsv4n")
+                .unwrap();
+        })
+        .client("VERIFY alice 39gvcdg4myvnmdcfhvd6exsv4n")
+        .server(":ergo.test VERIFY SUCCESS alice :Account successfully registered")
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .event(|event| matches!(event, Event::AccountRegistered { account, .. } if account == "alice"))
+        .client("CAP END");
+}
+
+#[test]
+fn early_registration_failure_releases_cap_end() {
+    Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect")
+        .client("CAP REQ :draft/account-registration")
+        .update(|session| {
+            session
+                .register(std::time::Instant::now(), None, None, "password")
+                .unwrap();
+        })
+        .server("CAP * ACK :draft/account-registration")
+        .client("REGISTER * * password")
+        .server(":ergo.test FAIL REGISTER WEAK_PASSWORD alice :Password is too weak")
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .event(|event| {
+            matches!(event, Event::StandardReply(reply)
+            if reply.account_registration_error() == Some(AccountRegistrationError::WeakPassword))
+        })
+        .client("CAP END");
+}
