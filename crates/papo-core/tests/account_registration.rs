@@ -19,6 +19,21 @@ fn registered() -> Transcript {
     .event(|event| matches!(event, Event::Registered(_)))
 }
 
+fn early_registration_waiting() -> Transcript {
+    Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect")
+        .client("CAP REQ :draft/account-registration")
+        .update(|session| {
+            session
+                .register(std::time::Instant::now(), None, None, "password")
+                .unwrap();
+        })
+        .server("CAP * ACK :draft/account-registration")
+        .client("REGISTER * * password")
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+}
+
 #[test]
 fn registers_an_account_with_a_labelled_response() {
     registered()
@@ -354,7 +369,81 @@ fn disconnect_aborts_registration_and_rejects_its_late_success() {
     .disconnect()
     .event(|event| matches!(event, Event::RequestAborted { .. }))
     .connect_default()
+    .server(":ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent")
+    .event(|event| matches!(event, Event::Message(_)))
     .server(":ergo.test REGISTER SUCCESS alice :Account successfully registered")
     .event(|event| matches!(event, Event::Message(_)))
     .inspect(|session| assert_eq!(session.account(), None));
+}
+
+#[test]
+fn verification_challenge_requires_both_register_and_its_result_code() {
+    early_registration_waiting()
+        .server(":ergo.test VERIFY VERIFICATION_REQUIRED alice :Verification code sent")
+        .event(|event| matches!(event, Event::Message(_)))
+        .no_client()
+        .server(":ergo.test REGISTER CONTINUE alice :Verification code sent")
+        .event(|event| matches!(event, Event::Message(_)))
+        .no_client()
+        .server(":ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent")
+        .event(|event| {
+            matches!(event, Event::VerificationRequired { account, .. } if account == "alice")
+        })
+        .no_client();
+}
+
+#[test]
+fn only_account_request_failures_release_cap_negotiation() {
+    early_registration_waiting()
+        .server(":ergo.test FAIL PERSISTENCE ACCOUNT_REQUIRED :Log in to use persistence")
+        .event(
+            |event| matches!(event, Event::StandardReply(reply) if reply.command == "PERSISTENCE"),
+        )
+        .no_client()
+        .server(":ergo.test NOTE REGISTER MAINTENANCE :Registration service maintenance soon")
+        .event(|event| matches!(event, Event::StandardReply(reply) if reply.command == "REGISTER"))
+        .no_client()
+        .server(":ergo.test FAIL REGISTER WEAK_PASSWORD alice :Password is too weak")
+        .event(
+            |event| matches!(event, Event::StandardReply(reply) if reply.code == "WEAK_PASSWORD"),
+        )
+        .client("CAP END");
+}
+
+#[test]
+fn pending_cap_request_preserves_queued_registration() {
+    Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect")
+        .client("CAP REQ :draft/account-registration")
+        .update(|session| {
+            session
+                .register(std::time::Instant::now(), None, None, "password")
+                .unwrap();
+        })
+        .server("PING :ergo.test")
+        .client("PONG :ergo.test")
+        .server("CAP * ACK :draft/account-registration")
+        .client("REGISTER * * password")
+        .event(|event| matches!(event, Event::RequestUntracked { .. }));
+}
+
+#[test]
+fn rejected_cap_request_discards_queued_registration() {
+    Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect")
+        .client("CAP REQ :draft/account-registration")
+        .update(|session| {
+            session
+                .register(std::time::Instant::now(), None, None, "password")
+                .unwrap();
+        })
+        .server("CAP * NAK :draft/account-registration")
+        .client("CAP END")
+        .server("CAP * NEW :draft/account-registration=before-connect")
+        .client("CAP REQ :draft/account-registration")
+        .server("CAP * ACK :draft/account-registration")
+        .event(|event| matches!(event, Event::CapsChanged { .. }))
+        .no_client();
 }
