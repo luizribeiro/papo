@@ -248,6 +248,125 @@ fn parses_realistic_ergo_lines() {
 }
 
 #[test]
+fn parses_literal_wire_commands() {
+    let cases = [
+        ("NICK papo-test", Command::Nick),
+        ("USER papo 0 * :papo test", Command::User),
+        ("PING :irc.example.net", Command::Ping),
+        ("PRIVMSG #papo :hello", Command::Privmsg),
+        ("JOIN #papo", Command::Join),
+        ("CAP LS 302", Command::Cap),
+        ("AUTHENTICATE PLAIN", Command::Authenticate),
+        ("BATCH +history chathistory #papo", Command::Batch),
+        ("CHATHISTORY LATEST #papo * 50", Command::Chathistory),
+        (
+            "MARKREAD #papo timestamp=2026-10-14T20:15:42.123Z",
+            Command::Markread,
+        ),
+        ("RELAYMSG #papo nick/relay :hello", Command::Relaymsg),
+        ("EXTJWT * papo", Command::Extjwt),
+        (
+            ":ergo.test FAIL * ACCOUNT_REQUIRED :Authentication required",
+            Command::Fail,
+        ),
+        ("METADATA * GET display-name", Command::Metadata),
+        (
+            "REGISTER papo-test * :correct horse battery staple",
+            Command::Register,
+        ),
+    ];
+
+    for (line, expected) in cases {
+        assert_eq!(
+            MessageRef::parse(line).unwrap().command(),
+            expected,
+            "{line:?}"
+        );
+    }
+}
+
+#[test]
+fn parses_literal_wire_numeric_codes_and_names() {
+    let cases = [
+        (
+            ":ergo.test 001 papo-test :Welcome",
+            1,
+            "RPL_WELCOME",
+            Numeric::RPL_WELCOME,
+        ),
+        (
+            ":ergo.test 005 papo-test MONITOR=100 :are supported",
+            5,
+            "RPL_ISUPPORT",
+            Numeric::RPL_ISUPPORT,
+        ),
+        (
+            ":ergo.test 335 papo-test bot :is a bot",
+            335,
+            "RPL_WHOISBOT",
+            Numeric::RPL_WHOISBOT,
+        ),
+        (
+            ":ergo.test 354 papo-test 42 #papo ~u host irc.example.net nick H 0 :real name",
+            354,
+            "RPL_WHOSPCRPL",
+            Numeric::RPL_WHOSPCRPL,
+        ),
+        (
+            ":ergo.test 396 papo-test cloak.example :is now your displayed host",
+            396,
+            "RPL_VISIBLEHOST",
+            Numeric::RPL_VISIBLEHOST,
+        ),
+        (
+            ":ergo.test 417 papo-test :Input line was too long",
+            417,
+            "ERR_INPUTTOOLONG",
+            Numeric::ERR_INPUTTOOLONG,
+        ),
+        (
+            ":ergo.test 470 papo-test #old #new :Forwarding",
+            470,
+            "ERR_LINKCHANNEL",
+            Numeric::ERR_LINKCHANNEL,
+        ),
+        (
+            ":ergo.test 730 papo-test :nick!~u@cloak",
+            730,
+            "RPL_MONONLINE",
+            Numeric::RPL_MONONLINE,
+        ),
+        (
+            ":ergo.test 760 papo-test nick display-name * :Papo Bot",
+            760,
+            "RPL_WHOISKEYVALUE",
+            Numeric::RPL_WHOISKEYVALUE,
+        ),
+        (
+            ":ergo.test 903 papo-test :SASL authentication successful",
+            903,
+            "RPL_SASLSUCCESS",
+            Numeric::RPL_SASLSUCCESS,
+        ),
+        (
+            ":ergo.test 904 papo-test :SASL authentication failed",
+            904,
+            "ERR_SASLFAIL",
+            Numeric::ERR_SASLFAIL,
+        ),
+    ];
+
+    for (line, code, name, expected) in cases {
+        let Command::Numeric(numeric) = MessageRef::parse(line).unwrap().command() else {
+            panic!("{line:?} did not parse as a numeric");
+        };
+        assert_eq!(numeric, expected, "{line:?}");
+        assert_eq!(numeric.0, code, "{line:?}");
+        assert_eq!(numeric.name(), Some(name), "{line:?}");
+    }
+}
+
+#[test]
 fn parses_tags_and_source_with_irregular_spacing() {
     let message = MessageRef::parse(
         "@time=2026-10-14T20:15:42.123Z   :alice!~u@example.test   PRIVMSG #papo :hello",
