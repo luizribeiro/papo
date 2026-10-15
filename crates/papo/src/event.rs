@@ -554,6 +554,8 @@ pub enum Event {
     TagMsg(TagMsg),
     /// A tag-only reaction or unreaction.
     Reaction(TagMsg),
+    /// A tag-only typing notification.
+    Typing(TagMsg),
     /// A message was redacted from a target's history.
     Redacted(papo_core::Redacted),
     /// A labelled request received its complete logical response.
@@ -794,6 +796,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             };
             if tag.reaction().is_some() {
                 Event::Reaction(tag)
+            } else if tag.typing().is_some() {
+                Event::Typing(tag)
             } else {
                 Event::TagMsg(tag)
             }
@@ -1240,6 +1244,15 @@ mod tests {
         assert_eq!(typing("paused"), Some(Typing::Paused));
         assert_eq!(typing("done"), Some(Typing::Done));
         assert_eq!(typing("composing"), None);
+
+        let tag = papo_core::TagMessage {
+            source: Some("alice!~a@cloak".into()),
+            target: "#papo".into(),
+            tags: vec![("+typing".into(), Some("active".into()))],
+        };
+        assert!(
+            matches!(forwarded(papo_core::Event::TagMessage(tag)), Event::Typing(tag) if tag.typing() == Some(Typing::Active))
+        );
     }
 
     #[test]

@@ -16,7 +16,7 @@ use papo_core::{
     Connection, RequestError, RequestId, Response, ResponseMatcher, Session, TextKind,
     sts::{ConnectionSecurity, StoredPolicy, StsAction, StsStore, reschedule_on_disconnect},
 };
-use papo_proto::Message;
+use papo_proto::{Message, Typing};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     sync::{mpsc, oneshot},
@@ -57,6 +57,11 @@ enum Command {
         text: String,
         tags: Vec<(String, String)>,
         result: oneshot::Sender<Result<Sent, Error>>,
+    },
+    Typing {
+        target: String,
+        state: Typing,
+        result: oneshot::Sender<Result<(), Error>>,
     },
     WaitChannelSync {
         channel: String,
@@ -355,6 +360,30 @@ impl Client {
                 .with_tag(reaction_tag, emoji),
         )
         .await
+    }
+
+    /// Sends a typing state for `target`.
+    ///
+    /// Repeated active states within three seconds are silently dropped. The call is also a
+    /// no-op when message tags are unavailable or the server blocks the typing tag.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the driver stops or the resulting message is invalid.
+    pub async fn typing(&self, target: &str, state: Typing) -> Result<(), Error> {
+        if !self.has_cap("message-tags") || self.isupport().clienttagdeny().denies("typing") {
+            return Ok(());
+        }
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::Typing {
+                target: target.to_owned(),
+                state,
+                result,
+            })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        receiver.await.map_err(|_| Error::Disconnected)?
     }
 
     pub(crate) async fn send_text(
@@ -1243,7 +1272,7 @@ fn handle_disconnected_command(
             _ = result.send(Err(Error::Disconnected));
             true
         }
-        Some(Command::WaitChannelSync { result, .. }) => {
+        Some(Command::Typing { result, .. } | Command::WaitChannelSync { result, .. }) => {
             _ = result.send(Err(Error::Disconnected));
             true
         }
@@ -1343,6 +1372,7 @@ where
     let mut quit = None;
     let mut pending_event = None;
     let mut requests = BTreeMap::new();
+    let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
     let mut registered_at = None;
     let mut sts = StsActions::default();
@@ -1434,6 +1464,31 @@ where
                             _ = result.send(Err(error));
                         }
                     }
+                }
+                Some(Command::Typing { target, state, result }) => {
+                    let current = now();
+                    let key = session.isupport().casemapping().fold(&target).into_owned();
+                    let send = state != Typing::Active
+                        || active_typing.get(&key).is_none_or(|last: &Instant| {
+                            last.checked_add(Duration::from_secs(3))
+                                .is_none_or(|deadline| current >= deadline)
+                        });
+                    if send && state == Typing::Active {
+                        active_typing.insert(key, current);
+                    }
+                    let response = if send {
+                        let value = match state {
+                            Typing::Active => "active",
+                            Typing::Paused => "paused",
+                            Typing::Done => "done",
+                        };
+                        session
+                            .send(current, Message::tagmsg(target).with_tag("+typing", value))
+                            .map_err(Error::Build)
+                    } else {
+                        Ok(())
+                    };
+                    _ = result.send(response);
                 }
                 Some(Command::WaitChannelSync { channel, result }) => {
                     if session
@@ -1759,7 +1814,7 @@ mod tests {
         Config, Decoding, Sasl,
         sts::{ConnectionSecurity, StsAction},
     };
-    use papo_proto::Message;
+    use papo_proto::{Message, Typing};
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf};
 
     use super::{ConnectionPlan, Driver, Error, Event, Session};
@@ -3699,6 +3754,57 @@ mod tests {
             None,
         )
         .await;
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn typing_throttles_active_per_target_and_sends_terminal_states() {
+        let (mut server, client, _events, driver) =
+            scripted(config().wanted_caps(["message-tags"]));
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
+        client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
+        server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+
+        client.typing("#papo", Typing::Active).await.unwrap();
+        client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;
+        client.typing("#PAPO", Typing::Active).await.unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+        tokio::time::advance(Duration::from_secs(2)).await;
+        client.typing("#papo", Typing::Active).await.unwrap();
+        client.typing("#papo", Typing::Paused).await.unwrap();
+        client.typing("#papo", Typing::Done).await.unwrap();
+        client_line(
+            &mut server,
+            b"@+typing=paused TAGMSG #papo\r\n@+typing=done TAGMSG #papo\r\n",
+        )
+        .await;
+        tokio::time::advance(Duration::from_secs(1)).await;
+        client.typing("#papo", Typing::Active).await.unwrap();
+        client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;
+
+        server_line(
+            &mut server,
+            b":ergo.test 005 papo-driver CLIENTTAGDENY=typing :are supported\r\n",
+        )
+        .await;
+        while !client.isupport().clienttagdeny().denies("typing") {
+            tokio::task::yield_now().await;
+        }
+        client.typing("emily", Typing::Done).await.unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
     }
 
     #[tokio::test(flavor = "current_thread")]

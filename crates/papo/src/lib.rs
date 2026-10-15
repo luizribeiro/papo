@@ -23,6 +23,7 @@ pub use error::Error;
 pub use event::{Event, MessageEvent, MessageKind, Origin};
 pub use papo_core::{Account, Capabilities, Channel, Member, Response, ServerError, User};
 pub use papo_core::{RateLimit, Sasl};
+pub use papo_proto::Typing;
 pub use reconnect::Reconnect;
 pub use requests::{ChannelInfo, ListEntry, ListFilter, WhoEntry, Whois};
 pub use state::State;
