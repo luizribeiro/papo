@@ -431,6 +431,7 @@ async fn run_plan(
                         quit_timed_out: false,
                         registered_at: None,
                         sts: StsActions::default(),
+                        sts_store: None,
                     },
                     false,
                 );
@@ -471,6 +472,7 @@ async fn run_plan(
                             quit_timed_out: false,
                             registered_at: None,
                             sts: StsActions::default(),
+                            sts_store: None,
                         },
                         false,
                     );
@@ -514,10 +516,15 @@ async fn run_plan(
                 host: plan.address.host.clone(),
                 security,
             }),
+            Some(sts_store),
+            plan.address.port,
             &events.connected,
         )
         .await;
-        apply_sts_actions(sts_store.as_mut(), &plan, &end.sts);
+        sts_store = end
+            .sts_store
+            .take()
+            .expect("planned connections retain their STS store");
         reschedule_stored_policy(sts_store.as_mut(), &plan.address.host);
         if end.quit.is_some() {
             return finish(events, end, false);
@@ -581,23 +588,21 @@ async fn run_plan(
     }
 }
 
-fn apply_sts_actions(store: &mut dyn StsStore, plan: &ConnectionPlan, actions: &StsActions) {
-    for action in &actions.policies {
-        match action {
-            StsAction::Persist { host, duration } => {
-                let now = SystemTime::now();
-                if let Some(expires_at) = now.checked_add(*duration) {
-                    store.put(StoredPolicy {
-                        host: host.clone(),
-                        port: plan.address.port,
-                        expires_at,
-                        duration: *duration,
-                    });
-                }
+fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &StsAction) {
+    match action {
+        StsAction::Persist { host, duration } => {
+            let now = SystemTime::now();
+            if let Some(expires_at) = now.checked_add(*duration) {
+                store.put(StoredPolicy {
+                    host: host.clone(),
+                    port,
+                    expires_at,
+                    duration: *duration,
+                });
             }
-            StsAction::Remove { host } => store.remove(host),
-            _ => {}
         }
+        StsAction::Remove { host } => store.remove(host),
+        _ => {}
     }
 }
 
@@ -738,6 +743,8 @@ where
         &mut queued,
         &mut registered,
         None,
+        None,
+        0,
         &events.connected,
     )
     .await;
@@ -753,12 +760,12 @@ struct ConnectionEnd {
     #[allow(dead_code)]
     registered_at: Option<Instant>,
     sts: StsActions,
+    sts_store: Option<Box<dyn StsStore + Send>>,
 }
 
 #[derive(Default)]
 struct StsActions {
     upgrade: Option<u16>,
-    policies: Vec<StsAction>,
 }
 
 impl ConnectionEnd {
@@ -778,6 +785,8 @@ async fn run_connection<S>(
     queued: &mut VecDeque<Message>,
     registered: &mut bool,
     connection: Option<Connection>,
+    mut sts_store: Option<Box<dyn StsStore + Send>>,
+    sts_port: u16,
     connected: &AtomicBool,
 ) -> ConnectionEnd
 where
@@ -810,6 +819,8 @@ where
             registered,
             &mut registered_at,
             &mut sts,
+            &mut sts_store,
+            sts_port,
         )
         .await
         {
@@ -879,6 +890,7 @@ where
         quit_timed_out,
         registered_at,
         sts,
+        sts_store,
     }
 }
 
@@ -931,6 +943,8 @@ async fn drain<S>(
     registered: &mut bool,
     registered_at: &mut Option<Instant>,
     sts: &mut StsActions,
+    sts_store: &mut Option<Box<dyn StsStore + Send>>,
+    sts_port: u16,
 ) -> io::Result<Option<String>>
 where
     S: AsyncWrite + Unpin,
@@ -945,7 +959,11 @@ where
             event::CoreEvent::Forward(mut event) => {
                 match &event {
                     Event::StsUpgrade { port } => sts.upgrade = Some(*port),
-                    Event::StsPolicy(action) => sts.policies.push(action.clone()),
+                    Event::StsPolicy(action) => {
+                        if let Some(store) = sts_store {
+                            apply_sts_action(store.as_mut(), sts_port, action);
+                        }
+                    }
                     _ => {}
                 }
                 if let Event::Registered(welcome) = &event {
@@ -2043,14 +2061,13 @@ mod tests {
         registration_burst(&mut server).await;
         server_line(&mut server, b":ergo.test CAP * LS :sts=duration=3600\r\n").await;
         assert!(matches!(events.next().await, Some(Event::StsPolicy(_))));
-        client_line(&mut server, b"CAP END\r\n").await;
-        server.shutdown().await.unwrap();
-        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
-
         let policy = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
         assert_eq!(policy.port, 7443);
         assert_eq!(policy.duration, Duration::from_secs(3600));
         assert!(policy.expires_at > std::time::SystemTime::now());
+        client_line(&mut server, b"CAP END\r\n").await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
 
     #[tokio::test(flavor = "current_thread")]
