@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "crates/papo-proto",
   "crates/papo-core",
+  "crates/papo-test-server",
   "crates/papo",
   "examples/parse",
 ]
