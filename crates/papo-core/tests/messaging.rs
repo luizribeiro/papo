@@ -136,3 +136,67 @@ fn answers_supported_ctcp_queries_and_applies_safety_rules() {
         Some("NOTICE dave :\x01SOURCE https://example.invalid/papo\x01\r\n")
     );
 }
+
+#[test]
+fn honors_disabled_ping_and_time_replies() {
+    let now = Instant::now();
+    let replies = CtcpReplies {
+        version: None,
+        ping: false,
+        time: None,
+        source: None,
+    };
+    let mut session = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .ctcp(replies),
+    );
+    session.handle_line(
+        now,
+        b":alice!~a@cloak PRIVMSG papo :\x01PING 1731513600\x01",
+    );
+    assert_eq!(wire(&mut session), None);
+    session.handle_line(now, b":bob!~b@cloak PRIVMSG papo :\x01TIME\x01");
+    assert_eq!(wire(&mut session), None);
+}
+
+#[test]
+fn answers_time_with_the_injected_wall_clock_value() {
+    let now = Instant::now();
+    let replies = CtcpReplies {
+        version: None,
+        ping: false,
+        time: Some("Thu Oct 15 16:30:00 2026 EDT".into()),
+        source: None,
+    };
+    let mut session = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .ctcp(replies),
+    );
+    session.handle_line(now, b":alice!~a@cloak PRIVMSG papo :\x01TIME\x01");
+    assert_eq!(
+        wire(&mut session).as_deref(),
+        Some("NOTICE alice :\x01TIME Thu Oct 15 16:30:00 2026 EDT\x01\r\n")
+    );
+}
+
+#[test]
+fn ctcp_source_bound_evicts_only_when_full() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    for index in 0..1024 {
+        session.handle_line(
+            now,
+            format!(":user{index}!~u@cloak PRIVMSG papo :\x01VERSION\x01").as_bytes(),
+        );
+        assert!(wire(&mut session).is_some());
+    }
+    session.handle_line(now, b":user0!~u@cloak PRIVMSG papo :\x01VERSION\x01");
+    assert_eq!(wire(&mut session), None);
+
+    session.handle_line(now, b":user1024!~u@cloak PRIVMSG papo :\x01VERSION\x01");
+    assert!(wire(&mut session).is_some());
+    session.handle_line(now, b":user0!~u@cloak PRIVMSG papo :\x01VERSION\x01");
+    assert!(wire(&mut session).is_some());
+}
