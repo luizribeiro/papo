@@ -10,6 +10,7 @@ binary_name=${binary_name%-*}
 server_pid=
 server_input=
 ca_file=
+export PAPO_TEST_PID=$$
 
 # The EXIT trap is the only caller.
 # shellcheck disable=SC2329
@@ -71,6 +72,7 @@ fi
 set +e
 if [[ $artifact == *.wasm ]]; then
   wasmtime_args=(run --dir=.)
+  wasmtime_args+=(--env PAPO_TEST_PID)
   if [[ $binary_name == live_* ]]; then
     wasmtime_args+=(
       --env PAPO_TEST_PLAINTEXT

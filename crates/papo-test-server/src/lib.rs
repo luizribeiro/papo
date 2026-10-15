@@ -10,6 +10,6 @@ mod ergo;
 #[cfg(not(target_family = "wasm"))]
 mod server;
 
-pub use environment::{Server, from_env_or_start};
+pub use environment::{ServerInfo, from_env, unique};
 #[cfg(not(target_family = "wasm"))]
 pub use server::TestServer;

@@ -8,6 +8,7 @@ use papo_test_server::TestServer;
 
 #[cfg(not(target_family = "wasm"))]
 fn main() -> io::Result<()> {
+    // The runner helper owns the fixture outside every test process.
     let server = TestServer::start()?;
     println!("{}", server.plaintext_addr());
     println!("{}", server.tls_addr());

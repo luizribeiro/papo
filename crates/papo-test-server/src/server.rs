@@ -139,6 +139,7 @@ mod tests {
 
     #[test]
     fn starts_greets_and_stops_ergo() {
+        // This test owns a server to verify native process cleanup in isolation.
         let server = TestServer::start().unwrap();
         assert!(server.ca_pem_path().is_file());
         TcpStream::connect(server.tls_addr()).unwrap();

@@ -12,18 +12,19 @@ use std::{
 
 use papo_core::{Config, Event, Session};
 use papo_proto::Casemapping;
-use papo_test_server::from_env_or_start;
+use papo_test_server::{from_env, unique};
 
 #[test]
 fn registers_with_live_ergo() {
-    let server = from_env_or_start().unwrap();
+    let server = from_env();
     let mut stream = TcpStream::connect(server.plaintext_addr()).unwrap();
     stream
         .set_read_timeout(Some(Duration::from_secs(10)))
         .unwrap();
+    let nick = unique("papo-registration");
     let mut session = Session::new(
         Config::default()
-            .nick("papo-live-test")
+            .nick(nick.clone())
             .username("papo")
             .realname("papo live registration test"),
     );
@@ -51,7 +52,7 @@ fn registers_with_live_ergo() {
     }
 
     assert!(registered, "registration did not complete");
-    assert_eq!(session.nick(), "papo-live-test");
+    assert_eq!(session.nick(), nick);
     assert!(session.caps().contains_key("message-tags"));
     assert!(session.caps().contains_key("server-time"));
     assert_eq!(session.isupport().casemapping(), Casemapping::Ascii);
