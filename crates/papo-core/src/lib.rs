@@ -8,6 +8,7 @@ mod framing;
 mod history;
 mod isupport;
 mod keepalive;
+mod metadata;
 mod monitor;
 mod outgoing;
 mod persistence;
@@ -38,6 +39,7 @@ use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
 use keepalive::Keepalive;
+pub use metadata::MetadataLimits;
 use monitor::Monitor;
 pub use outgoing::TextKind;
 pub use ratelimit::RateLimit;
@@ -82,6 +84,7 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "standard-replies",
     "labeled-response",
     "draft/multiline",
+    "draft/metadata-2",
 ];
 
 /// Enabled `IRCv3` capability names and their advertised values.
@@ -2031,6 +2034,12 @@ impl Session {
     #[must_use]
     pub fn caps(&self) -> &Capabilities {
         self.caps.enabled()
+    }
+
+    /// Returns the limits advertised for the negotiated metadata capability.
+    #[must_use]
+    pub fn metadata_limits(&self) -> Option<MetadataLimits> {
+        MetadataLimits::from_caps(self.caps.enabled())
     }
 
     /// Returns the accumulated server features advertised through `005`.

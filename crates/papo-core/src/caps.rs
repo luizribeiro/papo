@@ -161,6 +161,13 @@ impl Caps {
         }
 
         let mut seen = BTreeSet::new();
+        let modern_metadata = config
+            .wanted_caps
+            .iter()
+            .any(|name| matches!(name.as_str(), "draft/metadata-2" | "draft/metadata-3"))
+            && ["draft/metadata-3", "draft/metadata-2"]
+                .iter()
+                .any(|name| self.advertised.contains_key(*name));
         let requested = config
             .wanted_caps
             .iter()
@@ -168,6 +175,7 @@ impl Caps {
             .chain(config.sasl.as_ref().map(|_| "sasl"))
             .filter(|wanted| *wanted != "ergo.chat/nope")
             .filter(|wanted| *wanted != "sts")
+            .filter(|wanted| *wanted != "metadata-notify" || !modern_metadata)
             .filter_map(|wanted| self.advertised_spelling(wanted))
             .filter(|name| announced.contains(*name))
             .filter(|name| !self.enabled.contains_key(*name))
@@ -206,6 +214,13 @@ impl Caps {
 
         self.enabled.insert("cap-notify".to_owned(), None);
         let mut seen = BTreeSet::new();
+        let modern_metadata = config
+            .wanted_caps
+            .iter()
+            .any(|name| matches!(name.as_str(), "draft/metadata-2" | "draft/metadata-3"))
+            && ["draft/metadata-3", "draft/metadata-2"]
+                .iter()
+                .any(|name| self.advertised.contains_key(*name));
         let wanted = config
             .wanted_caps
             .iter()
@@ -215,6 +230,7 @@ impl Caps {
             // Ergo disconnects pre-registration clients that request this trap capability.
             .filter(|wanted| *wanted != "ergo.chat/nope")
             .filter(|wanted| *wanted != "sts")
+            .filter(|wanted| *wanted != "metadata-notify" || !modern_metadata)
             .filter_map(|wanted| self.advertised_spelling(wanted))
             .filter(|name| seen.insert((*name).to_owned()))
             .map(str::to_owned)
@@ -239,6 +255,15 @@ impl Caps {
     }
 
     fn advertised_spelling(&self, wanted: &str) -> Option<&str> {
+        if matches!(wanted, "draft/metadata-2" | "draft/metadata-3") {
+            return ["draft/metadata-3", "draft/metadata-2"]
+                .into_iter()
+                .find_map(|name| {
+                    self.advertised
+                        .get_key_value(name)
+                        .map(|(name, _)| name.as_str())
+                });
+        }
         if let Some((name, _)) = self.advertised.get_key_value(wanted) {
             return Some(name);
         }
