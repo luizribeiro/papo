@@ -188,11 +188,11 @@ impl Session {
     }
 
     /// Marks the transport as connected at `now`.
-    pub fn handle_connected(&mut self, _now: Instant) {
+    pub fn handle_connected(&mut self, now: Instant) {
         self.framer.reset();
         self.outbox.reset_connection();
         self.registration
-            .handle_connected(&self.config, &mut self.outbox);
+            .handle_connected(now, &self.config, &mut self.outbox);
     }
 
     /// Supplies bytes read from a stream transport at `now`.
@@ -243,6 +243,7 @@ impl Session {
 
     /// Notifies the session that its current deadline was reached.
     pub fn handle_timeout(&mut self, now: Instant) {
+        self.registration.handle_timeout(now, &mut self.outbox);
         self.keepalive.handle_timeout(now, &mut self.outbox);
         self.apply_close_request();
     }
@@ -251,6 +252,7 @@ impl Session {
     pub fn handle_disconnected(&mut self, _now: Instant) {
         self.framer.close();
         self.outbox.reset_connection();
+        self.registration.handle_disconnected();
     }
 
     /// Validates and queues a user-originated raw message for transmission.
@@ -278,7 +280,19 @@ impl Session {
     /// Returns the next protocol deadline, if any.
     #[must_use]
     pub fn poll_timeout(&self) -> Option<Instant> {
-        [self.keepalive.next_deadline()].into_iter().flatten().min()
+        [
+            self.registration.next_deadline(),
+            self.keepalive.next_deadline(),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
+    }
+
+    /// Returns the nickname currently assigned to this session.
+    #[must_use]
+    pub fn nick(&self) -> &str {
+        self.registration.nick()
     }
 
     fn malformed(&mut self, line: &[u8]) {
@@ -288,11 +302,14 @@ impl Session {
     }
 
     fn dispatch_message(&mut self, now: Instant, message: &MessageRef<'_>) {
-        if self
-            .keepalive
-            .handle_message(now, message, &mut self.outbox)
-            == Handled::No
-        {
+        let handled = self.registration.handle_message(message);
+        let handled = if handled == Handled::No {
+            self.keepalive
+                .handle_message(now, message, &mut self.outbox)
+        } else {
+            handled
+        };
+        if handled == Handled::No {
             self.outbox.event(Event::Message(message.to_owned()));
         }
         self.apply_close_request();
