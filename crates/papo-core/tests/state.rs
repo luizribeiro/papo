@@ -28,3 +28,19 @@ fn tracks_our_join_and_another_member_with_rfc1459_keys() {
             assert_eq!(channel.member("dan").unwrap().nick(), "dan");
         });
 }
+
+#[test]
+fn tracks_userhost_and_shared_channels_from_joins() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":dan!~dan@cloak.example JOIN #papo")
+        .server(":emily!em@127.0.0.1 JOIN #rust")
+        .server(":dan!~dan@cloak.example JOIN #rust")
+        .inspect(|session| {
+            let dan = session.state().user("DAN").unwrap();
+            assert_eq!(dan.nick(), "dan");
+            assert_eq!(dan.username(), Some("~dan"));
+            assert_eq!(dan.host(), Some("cloak.example"));
+            assert_eq!(dan.channels().count(), 2);
+        });
+}
