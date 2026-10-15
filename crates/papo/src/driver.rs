@@ -8,7 +8,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     task,
-    time::{Instant, SystemTime},
+    time::{Duration, Instant, SystemTime},
 };
 
 use papo_core::{
@@ -30,13 +30,14 @@ use crate::{
 
 pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-const STABLE_CONNECTION: std::time::Duration = std::time::Duration::from_secs(60);
+const STABLE_CONNECTION: Duration = Duration::from_secs(60);
 
 pub(crate) trait ConnectionIo: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> ConnectionIo for T {}
 type BoxConnection = Box<dyn ConnectionIo>;
 type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>> + Send>>;
 pub(crate) type Connector = Arc<dyn Fn(ConnectionPlan) -> ConnectFuture + Send + Sync>;
+type BackoffEntropy = Box<dyn FnMut() -> u64 + Send>;
 
 enum Command {
     Send {
@@ -287,6 +288,35 @@ impl Driver {
         force_plaintext: bool,
         connector: Connector,
     ) -> (Client, Events, Self) {
+        Self::with_connector_and_entropy(
+            plan,
+            session,
+            capacity,
+            registration,
+            defaults,
+            reconnect,
+            disconnected_queue_capacity,
+            sts_store,
+            force_plaintext,
+            connector,
+            Box::new(crate::OsEntropy::next_u64),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn with_connector_and_entropy(
+        plan: Result<ConnectionPlan, AddressError>,
+        session: Session,
+        capacity: usize,
+        registration: Option<RegistrationSender>,
+        defaults: PostRegistration,
+        reconnect: Reconnect,
+        disconnected_queue_capacity: usize,
+        sts_store: Box<dyn StsStore + Send>,
+        force_plaintext: bool,
+        connector: Connector,
+        entropy: BackoffEntropy,
+    ) -> (Client, Events, Self) {
         let channels = channels(capacity);
         let inner = Box::pin(run_plan(
             plan,
@@ -300,6 +330,7 @@ impl Driver {
             sts_store,
             force_plaintext,
             connector,
+            entropy,
         ));
         (channels.client, channels.events, Self { inner })
     }
@@ -392,6 +423,7 @@ async fn run_plan(
     mut sts_store: Box<dyn StsStore + Send>,
     force_plaintext: bool,
     connector: Connector,
+    mut entropy: BackoffEntropy,
 ) -> Result<(), Error> {
     let mut base_plan = match plan {
         Ok(plan) => plan,
@@ -490,6 +522,7 @@ async fn run_plan(
                     &mut commands,
                     &mut queued,
                     disconnected_queue_capacity,
+                    entropy.as_mut(),
                 )
                 .await
                 {
@@ -580,6 +613,7 @@ async fn run_plan(
             &mut commands,
             &mut queued,
             disconnected_queue_capacity,
+            entropy.as_mut(),
         )
         .await
         {
@@ -678,9 +712,10 @@ async fn wait_before_retry(
     commands: &mut mpsc::Receiver<Command>,
     queued: &mut VecDeque<Message>,
     capacity: usize,
+    entropy: &mut (dyn FnMut() -> u64 + Send),
 ) -> bool {
     let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
-    let sleep = tokio::time::sleep(reconnect.delay(retry, crate::OsEntropy::next_u64()));
+    let sleep = tokio::time::sleep(reconnect.delay(retry, entropy()));
     tokio::pin!(sleep);
     loop {
         tokio::select! {
@@ -1245,7 +1280,7 @@ mod tests {
                 Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
             }
         });
-        let (_client, mut events, driver) = Driver::with_connector(
+        let (_client, mut events, driver) = Driver::with_connector_and_entropy(
             Ok(ConnectionPlan {
                 address: "irc://irc.example.net".parse().unwrap(),
                 tls: TlsConfig::default(),
@@ -1259,6 +1294,7 @@ mod tests {
             Box::new(papo_core::sts::MemoryStsStore::new()),
             false,
             connector,
+            Box::new(|| 0),
         );
         let driver = tokio::spawn(driver);
         assert!(matches!(
@@ -1445,7 +1481,7 @@ mod tests {
                 Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
             }
         });
-        let (_client, mut events, driver) = Driver::with_connector(
+        let (_client, mut events, driver) = Driver::with_connector_and_entropy(
             Ok(ConnectionPlan {
                 address: "irc://irc.example.net".parse().unwrap(),
                 tls: TlsConfig::default(),
@@ -1459,6 +1495,7 @@ mod tests {
             Box::new(papo_core::sts::MemoryStsStore::new()),
             false,
             connector,
+            Box::new(|| 0),
         );
         let driver = tokio::spawn(driver);
 
@@ -1474,36 +1511,31 @@ mod tests {
         ));
         let attempts = attempts.lock().unwrap();
         assert_eq!(attempts.len(), 3);
-        assert!(
-            (Duration::from_millis(800)..=Duration::from_millis(1200))
-                .contains(&(attempts[1] - attempts[0]))
-        );
-        assert!(
-            (Duration::from_millis(1600)..=Duration::from_millis(2400))
-                .contains(&(attempts[2] - attempts[1]))
-        );
+        assert_eq!(attempts[1] - attempts[0], Duration::from_millis(800));
+        assert_eq!(attempts[2] - attempts[1], Duration::from_millis(1600));
     }
 
     #[tokio::test(flavor = "current_thread", start_paused = true)]
     async fn stable_registration_resets_the_backoff() {
-        let (first_stream, mut first_server) = tokio::io::duplex(4096);
-        let (second_stream, mut second_server) = tokio::io::duplex(4096);
-        let (third_stream, mut third_server) = tokio::io::duplex(4096);
-        let streams = Arc::new(Mutex::new(VecDeque::from([
-            Box::new(first_stream) as super::BoxConnection,
-            Box::new(second_stream) as super::BoxConnection,
-            Box::new(third_stream) as super::BoxConnection,
+        let (stable_stream, mut stable_server) = tokio::io::duplex(4096);
+        let (next_stream, mut next_server) = tokio::io::duplex(4096);
+        let results = Arc::new(Mutex::new(VecDeque::from([
+            Err(Error::Unsupported("first scripted failure")),
+            Err(Error::Unsupported("second scripted failure")),
+            Ok(Box::new(stable_stream) as super::BoxConnection),
+            Ok(Box::new(next_stream) as super::BoxConnection),
         ])));
         let attempts = Arc::new(Mutex::new(Vec::new()));
         let connector: super::Connector = Arc::new({
             let attempts = Arc::clone(&attempts);
+            let results = Arc::clone(&results);
             move |_| {
                 attempts.lock().unwrap().push(tokio::time::Instant::now());
-                let stream = streams.lock().unwrap().pop_front().unwrap();
-                Box::pin(async move { Ok(stream) })
+                let result = results.lock().unwrap().pop_front().unwrap();
+                Box::pin(async move { result })
             }
         });
-        let (client, mut events, driver) = Driver::with_connector(
+        let (client, mut events, driver) = Driver::with_connector_and_entropy(
             Ok(ConnectionPlan {
                 address: "irc://irc.example.net".parse().unwrap(),
                 tls: TlsConfig::default(),
@@ -1517,42 +1549,45 @@ mod tests {
             Box::new(papo_core::sts::MemoryStsStore::new()),
             false,
             connector,
+            Box::new(|| 0),
         );
         let driver = tokio::spawn(driver);
-        complete_registration(&mut first_server, &mut events).await;
-        first_server.shutdown().await.unwrap();
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected { .. })
+        ));
         assert!(matches!(
             events.next().await,
             Some(Event::Disconnected { .. })
         ));
 
-        registration_burst(&mut second_server).await;
-        server_line(&mut second_server, b":ergo.test CAP * LS :\r\n").await;
-        client_line(&mut second_server, b"CAP END\r\n").await;
+        registration_burst(&mut stable_server).await;
+        server_line(&mut stable_server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(&mut stable_server, b"CAP END\r\n").await;
         server_line(
-            &mut second_server,
+            &mut stable_server,
             b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
         )
         .await;
-        assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
         tokio::time::advance(Duration::from_secs(60)).await;
         let disconnected_at = tokio::time::Instant::now();
-        second_server.shutdown().await.unwrap();
+        stable_server.shutdown().await.unwrap();
         assert!(matches!(
             events.next().await,
             Some(Event::Disconnected { .. })
         ));
 
-        registration_burst(&mut third_server).await;
+        registration_burst(&mut next_server).await;
         let delay = {
             let attempts = attempts.lock().unwrap();
-            assert_eq!(attempts.len(), 3);
-            attempts[2] - disconnected_at
+            assert_eq!(attempts.len(), 4);
+            attempts[3] - disconnected_at
         };
-        assert!((Duration::from_millis(800)..=Duration::from_millis(1200)).contains(&delay));
+        assert_eq!(delay, Duration::from_millis(800));
         let quit = tokio::spawn(async move { client.quit(None).await });
-        client_line(&mut third_server, b"QUIT\r\n").await;
-        third_server.shutdown().await.unwrap();
+        client_line(&mut next_server, b"QUIT\r\n").await;
+        next_server.shutdown().await.unwrap();
         assert!(quit.await.unwrap().is_ok());
         assert!(driver.await.unwrap().is_ok());
     }
