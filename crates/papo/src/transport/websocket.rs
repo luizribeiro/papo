@@ -21,7 +21,7 @@ use super::{ConnectError, Security, Stream, TlsConfig};
 
 const BINARY: &str = "binary.ircv3.net";
 const TEXT: &str = "text.ircv3.net";
-const MAX_MESSAGE_SIZE: usize = 8191 + 512;
+const MAX_MESSAGE_SIZE: usize = 8191 + 510;
 
 #[derive(Debug)]
 pub(super) struct WebSocket {

@@ -167,11 +167,11 @@ async fn bounds_incoming_messages_at_the_extended_line_limit() {
             Message::Pong(payload) if payload.as_ref() == b"fixture-healthcheck"
         ));
         socket
-            .send(Message::binary(vec![b'x'; 8191 + 512]))
+            .send(Message::binary(vec![b'x'; 8191 + 510]))
             .await
             .unwrap();
         socket
-            .send(Message::binary(vec![b'x'; 8191 + 512 + 1]))
+            .send(Message::binary(vec![b'x'; 8191 + 510 + 1]))
             .await
             .unwrap();
     });
@@ -179,10 +179,10 @@ async fn bounds_incoming_messages_at_the_extended_line_limit() {
     let mut stream = connect_websocket(&format!("ws://{address}/limits"), None)
         .await
         .unwrap();
-    let mut accepted = vec![0; 8191 + 512 + 2];
+    let mut accepted = vec![0; 8191 + 510 + 2];
     stream.read_exact(&mut accepted).await.unwrap();
-    assert!(accepted[..8191 + 512].iter().all(|byte| *byte == b'x'));
-    assert_eq!(&accepted[8191 + 512..], b"\r\n");
+    assert!(accepted[..8191 + 510].iter().all(|byte| *byte == b'x'));
+    assert_eq!(&accepted[8191 + 510..], b"\r\n");
     let error = stream.read_u8().await.unwrap_err();
     assert_eq!(error.kind(), io::ErrorKind::InvalidData);
     server.await.unwrap();
@@ -205,14 +205,14 @@ async fn bounds_outgoing_complete_and_partial_lines() {
     let mut complete = connect_websocket(server.websocket_url(), None)
         .await
         .unwrap();
-    let mut accepted = vec![b'x'; 8191 + 512];
+    let mut accepted = vec![b'x'; 8191 + 510];
     accepted.extend_from_slice(b"\r\n");
     complete.write_all(&accepted).await.unwrap();
 
     let mut complete = connect_websocket(server.websocket_url(), None)
         .await
         .unwrap();
-    let mut rejected = vec![b'x'; 8191 + 512 + 1];
+    let mut rejected = vec![b'x'; 8191 + 510 + 1];
     rejected.extend_from_slice(b"\r\n");
     assert_eq!(
         complete.write_all(&rejected).await.unwrap_err().kind(),
@@ -223,7 +223,7 @@ async fn bounds_outgoing_complete_and_partial_lines() {
         .await
         .unwrap();
     partial
-        .write_all(&vec![b'x'; 8191 + 512 + 1])
+        .write_all(&vec![b'x'; 8191 + 510 + 1])
         .await
         .unwrap();
     assert_eq!(
