@@ -8,7 +8,7 @@ use tokio::sync::oneshot;
 use crate::{
     AddressError, Error,
     address::ServerAddress,
-    driver::ConnectionPlan,
+    driver::{ConnectionPlan, PostRegistration},
     transport::{ClientCertificate, TlsConfig, TlsRoots},
 };
 
@@ -19,6 +19,8 @@ pub struct Builder {
     pub(crate) config: Config,
     pub(crate) event_capacity: usize,
     pub(crate) tls: TlsConfig,
+    bot: bool,
+    channels: Vec<String>,
     username_set: bool,
     realname_set: bool,
 }
@@ -30,6 +32,8 @@ impl Builder {
             config: Config::default(),
             event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
             tls: TlsConfig::default(),
+            bot: false,
+            channels: Vec::new(),
             username_set: false,
             realname_set: false,
         }
@@ -197,6 +201,22 @@ impl Builder {
         Ok(builder.tls_client_cert(certificate, key))
     }
 
+    /// Sets the server-advertised bot user mode after registration.
+    pub fn bot(mut self) -> Self {
+        self.bot = true;
+        self
+    }
+
+    /// Sets channels to join after registration.
+    pub fn channels<I, S>(mut self, channels: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.channels = channels.into_iter().map(Into::into).collect();
+        self
+    }
+
     /// Builds handles and a lazy driver without opening a connection.
     ///
     /// The returned [`crate::Driver`] connects when it is first polled. Use
@@ -239,7 +259,11 @@ impl Builder {
             }
         });
         let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
-        crate::Driver::with_plan(plan, session, self.event_capacity, registration)
+        let defaults = PostRegistration {
+            bot: self.bot,
+            channels: self.channels,
+        };
+        crate::Driver::with_plan(plan, session, self.event_capacity, registration, defaults)
     }
 
     fn read_file(self, path: impl AsRef<Path>) -> Result<(Self, Vec<u8>), Error> {
@@ -357,6 +381,15 @@ mod tests {
             matches!(&error, Error::ReadFile { path, .. } if path == std::path::Path::new("missing-papo-builder-ca.pem"))
         );
         assert!(error.to_string().contains("missing-papo-builder-ca.pem"));
+    }
+
+    #[test]
+    fn configures_post_registration_defaults() {
+        let builder = Builder::new("irc.example.net")
+            .bot()
+            .channels(["#papo", "#papo-bots"]);
+        assert!(builder.bot);
+        assert_eq!(builder.channels, ["#papo", "#papo-bots"]);
     }
 
     #[tokio::test(flavor = "current_thread")]

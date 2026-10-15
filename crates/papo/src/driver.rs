@@ -69,6 +69,12 @@ pub(crate) struct ConnectionPlan {
     pub(crate) tls: TlsConfig,
 }
 
+#[derive(Default)]
+pub(crate) struct PostRegistration {
+    pub(crate) bot: bool,
+    pub(crate) channels: Vec<String>,
+}
+
 /// A cheap, cloneable handle to a running IRC client.
 #[derive(Clone)]
 pub struct Client {
@@ -176,7 +182,13 @@ impl Driver {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        Self::with_stream_and_registration(stream, session, capacity, None)
+        Self::with_stream_and_registration(
+            stream,
+            session,
+            capacity,
+            None,
+            PostRegistration::default(),
+        )
     }
 
     fn with_stream_and_registration<S>(
@@ -184,6 +196,7 @@ impl Driver {
         session: Session,
         capacity: usize,
         registration: Option<RegistrationSender>,
+        defaults: PostRegistration,
     ) -> (Client, Events, Self)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -195,6 +208,7 @@ impl Driver {
             channels.commands,
             channels.event_sink,
             RegistrationWait(registration),
+            defaults,
         ));
         (channels.client, channels.events, Self { inner })
     }
@@ -204,6 +218,7 @@ impl Driver {
         session: Session,
         capacity: usize,
         registration: Option<RegistrationSender>,
+        defaults: PostRegistration,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity);
         let inner = Box::pin(async move {
@@ -233,6 +248,7 @@ impl Driver {
                 channels.commands,
                 channels.event_sink,
                 registration,
+                defaults,
             )
             .await
         });
@@ -317,6 +333,7 @@ async fn run<S>(
     mut commands: mpsc::Receiver<Command>,
     events: EventSink,
     mut registration: RegistrationWait,
+    defaults: PostRegistration,
 ) -> Result<(), Error>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -332,6 +349,7 @@ where
             &mut session,
             &mut pending_event,
             &mut registration,
+            &defaults,
         )
         .await
         {
@@ -456,6 +474,7 @@ async fn drain<S>(
     session: &mut Session,
     pending_event: &mut Option<Event>,
     registration: &mut RegistrationWait,
+    defaults: &PostRegistration,
 ) -> io::Result<Option<String>>
 where
     S: AsyncWrite + Unpin,
@@ -468,7 +487,8 @@ where
     {
         match event::from_core(core_event) {
             event::CoreEvent::Forward(event) => {
-                if matches!(event, Event::Registered(_)) {
+                if let Event::Registered(welcome) = &event {
+                    after_registration(session, welcome, defaults)?;
                     registration.succeeded();
                 }
                 *pending_event = Some(event);
@@ -478,6 +498,29 @@ where
         }
     }
     Ok(None)
+}
+
+fn after_registration(
+    session: &mut Session,
+    welcome: &papo_core::Welcome,
+    defaults: &PostRegistration,
+) -> Result<(), io::Error> {
+    if defaults.bot
+        && let Some(mode) = welcome.isupport.bot_mode()
+    {
+        session
+            .send(
+                now(),
+                Message::new("MODE", [welcome.nick.clone(), format!("+{mode}")]),
+            )
+            .map_err(io::Error::other)?;
+    }
+    for channel in &defaults.channels {
+        session
+            .send(now(), Message::new("JOIN", [channel.clone()]))
+            .map_err(io::Error::other)?;
+    }
+    Ok(())
 }
 
 async fn finish<S>(
@@ -794,6 +837,7 @@ mod tests {
             Session::new(settings),
             super::DEFAULT_CHANNEL_CAPACITY,
             Some(registration),
+            super::PostRegistration::default(),
         );
         let driver = tokio::spawn(driver);
         registration_burst(&mut server).await;
@@ -804,6 +848,38 @@ mod tests {
         assert!(
             matches!(waiter.await.unwrap(), Err(Error::Registration(reason)) if reason.contains("SASL"))
         );
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let (_client, mut events, driver) = Driver::with_stream_and_registration(
+            client_stream,
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration {
+                bot: true,
+                channels: vec!["#papo".into(), "#papo-bots".into()],
+            },
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        client_line(
+            &mut server,
+            b"MODE papo-driver +B\r\nJOIN #papo\r\nJOIN #papo-bots\r\n",
+        )
+        .await;
+        server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
 
