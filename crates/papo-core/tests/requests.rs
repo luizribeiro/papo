@@ -279,6 +279,90 @@ fn who_rows_attach_only_to_the_named_concurrent_mask() {
 }
 
 #[test]
+fn join_sync_and_errors_use_the_named_concurrent_channel() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let papo = session
+        .request_with_matcher(
+            now,
+            Message::join("#Papo["),
+            ResponseMatcher::Join("#Papo[".into()),
+        )
+        .unwrap();
+    let invite = session
+        .request_with_matcher(
+            now,
+            Message::join("#invite"),
+            ResponseMatcher::Join("#invite".into()),
+        )
+        .unwrap();
+    for line in [
+        ":papo!papo@localhost JOIN #papo{ * :Papo Client",
+        ":ergo.test 471 papo #unknown :Cannot join channel (+l)",
+        ":ergo.test 473 papo #invite :Cannot join channel (+i)",
+        ":ergo.test 353 papo = #papo{ :@papo alice",
+        ":ergo.test 366 papo #papo{ :End of /NAMES list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let (responses, messages) = response_lines(&mut session);
+    assert_eq!(responses[&invite].len(), 1);
+    assert_eq!(responses[&invite][0].as_ref().param(1), Some("#invite"));
+    assert_eq!(responses[&papo].len(), 2);
+    assert!(responses[&papo][0].as_ref().command_is("JOIN"));
+    assert!(responses[&papo][1].as_ref().command_is("366"));
+    assert!(
+        messages
+            .iter()
+            .any(|line| line.as_ref().param(1) == Some("#unknown"))
+    );
+}
+
+#[test]
+fn part_echoes_require_our_source_and_the_named_concurrent_channel() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let papo = session
+        .request_with_matcher(
+            now,
+            Message::new("PART", ["#Papo["]),
+            ResponseMatcher::Part("#Papo[".into()),
+        )
+        .unwrap();
+    let rust = session
+        .request_with_matcher(
+            now,
+            Message::new("PART", ["#rust"]),
+            ResponseMatcher::Part("#rust".into()),
+        )
+        .unwrap();
+    for line in [
+        ":alice!alice@staff.example PART #papo{ :Leaving",
+        ":ergo.test 403 papo #unknown :No such channel",
+        ":papo!papo@localhost PART #rust :Requested",
+        ":papo!papo@localhost PART #papo{ :Requested",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let (responses, messages) = response_lines(&mut session);
+    for (id, channel) in [(rust, "#rust"), (papo, "#papo{")] {
+        assert_eq!(responses[&id].len(), 1);
+        assert_eq!(responses[&id][0].as_ref().param(0), Some(channel));
+        assert_eq!(
+            responses[&id][0].as_ref().raw_source(),
+            Some("papo!papo@localhost")
+        );
+    }
+    assert!(
+        messages
+            .iter()
+            .any(|line| line.as_ref().param(1) == Some("#unknown"))
+    );
+}
+
+#[test]
 fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
