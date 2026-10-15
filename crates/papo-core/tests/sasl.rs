@@ -300,6 +300,53 @@ fn a_sasl_deadline_is_cleared_on_disconnect() {
 }
 
 #[test]
+fn reconnect_resets_every_sasl_exchange_state() {
+    Transcript::with_entropy(
+        Config::default().sasl(Sasl::any("alice", "hunter2")),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server(":ergo.test 904 alice :SASL authentication failed")
+    .client("AUTHENTICATE PLAIN")
+    .disconnect()
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE biwsbj1hbGljZSxyPVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYQ==")
+    .disconnect()
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256");
+
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
+        .server(":ergo.test 903 alice :SASL authentication successful")
+        .client("CAP END")
+        .inspect(|session| assert_eq!(session.account(), Some("alice")))
+        .disconnect()
+        .connect_default()
+        .inspect(|session| assert_eq!(session.account(), None))
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN");
+}
+
+#[test]
 fn authenticates_with_external_empty_and_explicit_authzids() {
     for (sasl, expected) in [
         (Sasl::external(), "AUTHENTICATE +"),
