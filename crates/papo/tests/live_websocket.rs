@@ -200,6 +200,19 @@ async fn rejects_a_partial_line_at_shutdown() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn debug_redacts_buffered_wire_bytes() {
+    let server = from_env();
+    let mut stream = connect_websocket(server.websocket_url(), None)
+        .await
+        .unwrap();
+    stream.write_all(b"AUTHENTICATE c2VjcmV0").await.unwrap();
+    let debug = format!("{stream:?}");
+    assert!(debug.contains("write_buffer_len: 21"), "{debug}");
+    assert!(!debug.contains("AUTHENTICATE"), "{debug}");
+    assert!(!debug.contains("c2VjcmV0"), "{debug}");
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn bounds_outgoing_complete_and_partial_lines() {
     let server = from_env();
     let mut complete = connect_websocket(server.websocket_url(), None)

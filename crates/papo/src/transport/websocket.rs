@@ -1,5 +1,5 @@
 use std::{
-    io,
+    fmt, io,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -23,7 +23,6 @@ const BINARY: &str = "binary.ircv3.net";
 const TEXT: &str = "text.ircv3.net";
 const MAX_MESSAGE_SIZE: usize = 8191 + 510;
 
-#[derive(Debug)]
 pub(super) struct WebSocket {
     stream: WebSocketStream<Stream>,
     secure: bool,
@@ -32,6 +31,20 @@ pub(super) struct WebSocket {
     read_offset: usize,
     write_buffer: Vec<u8>,
     eof: bool,
+}
+
+impl fmt::Debug for WebSocket {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("WebSocket")
+            .field("secure", &self.secure)
+            .field("subprotocol", &self.subprotocol)
+            .field("read_buffer_len", &self.read_buffer.len())
+            .field("read_offset", &self.read_offset)
+            .field("write_buffer_len", &self.write_buffer.len())
+            .field("eof", &self.eof)
+            .finish()
+    }
 }
 
 pub(super) async fn connect(url: &str, tls: Option<&TlsConfig>) -> Result<WebSocket, ConnectError> {
