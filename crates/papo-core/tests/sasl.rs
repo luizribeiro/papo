@@ -276,7 +276,9 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
             if added.contains_key("sasl"))
         })
         .server(":ergo.test 907 papo :already authenticated")
-        .no_client();
+        .no_client()
+        .reauthenticate()
+        .client("AUTHENTICATE PLAIN");
 }
 
 #[test]

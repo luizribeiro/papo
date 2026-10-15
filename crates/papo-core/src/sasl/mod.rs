@@ -248,6 +248,27 @@ impl SaslSession {
         }
     }
 
+    pub(super) fn reauthenticate(
+        &mut self,
+        now: Instant,
+        available: bool,
+        advertised: Option<&str>,
+        outbox: &mut Outbox,
+    ) {
+        if self.configured.is_empty() || self.completion == Completion::Pending {
+            return;
+        }
+        self.reset_exchange();
+        if !available {
+            self.fail_all("the server does not currently advertise sasl", outbox);
+            return;
+        }
+        if let Some(advertised) = advertised {
+            self.retain_available(advertised);
+        }
+        self.start_next(now, outbox);
+    }
+
     fn reset_exchange(&mut self) {
         self.remaining = self.configured.clone().into();
         self.active = None;

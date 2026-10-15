@@ -510,6 +510,18 @@ impl Session {
         self.sasl.account()
     }
 
+    /// Starts another SASL exchange with the configured credentials.
+    pub fn reauthenticate(&mut self, now: Instant) {
+        let available = self.caps.enabled().contains_key("sasl");
+        self.sasl.reauthenticate(
+            now,
+            available,
+            self.caps.enabled().get("sasl").and_then(Option::as_deref),
+            &mut self.outbox,
+        );
+        self.apply_close_request();
+    }
+
     fn malformed(&mut self, line: &[u8]) {
         self.outbox.event(Event::Malformed {
             line: line.to_vec(),

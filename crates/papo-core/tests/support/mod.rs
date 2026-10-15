@@ -108,6 +108,12 @@ impl Transcript {
         self
     }
 
+    /// Starts another SASL exchange at the current transcript time.
+    pub fn reauthenticate(mut self) -> Self {
+        self.session.reauthenticate(self.now);
+        self
+    }
+
     /// Inspects session state without changing it.
     pub fn inspect(self, inspect: impl FnOnce(&Session)) -> Self {
         inspect(&self.session);
