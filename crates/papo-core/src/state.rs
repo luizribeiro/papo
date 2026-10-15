@@ -1216,6 +1216,12 @@ impl User {
         self.username.as_deref()
     }
 
+    /// Returns the user's username when known.
+    #[must_use]
+    pub fn user(&self) -> Option<&str> {
+        self.username()
+    }
+
     /// Returns the user's hostname when known.
     #[must_use]
     pub fn host(&self) -> Option<&str> {

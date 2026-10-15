@@ -17,8 +17,10 @@ pub use driver::{Client, Driver, Events};
 pub use entropy::OsEntropy;
 pub use error::Error;
 pub use event::{Event, MessageEvent, MessageKind, Origin};
+pub use papo_core::{Account, Channel, Member, User};
 pub use papo_core::{RateLimit, Sasl};
 pub use reconnect::Reconnect;
+pub use state::State;
 
 /// Strict Transport Security policy stores.
 pub mod sts;

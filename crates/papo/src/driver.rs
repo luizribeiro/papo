@@ -108,7 +108,6 @@ pub(crate) struct PostRegistration {
 pub struct Client {
     commands: mpsc::Sender<Command>,
     connected: Arc<AtomicBool>,
-    #[allow(dead_code)]
     state: Arc<RwLock<Arc<State>>>,
 }
 
@@ -127,6 +126,29 @@ impl Client {
     #[must_use]
     pub fn is_connected(&self) -> bool {
         self.connected.load(Ordering::Relaxed)
+    }
+
+    /// Borrows the latest immutable state snapshot for the duration of `read`.
+    pub fn state<R>(&self, read: impl FnOnce(&State) -> R) -> R {
+        let snapshot = self.snapshot();
+        read(&snapshot)
+    }
+
+    /// Returns the latest immutable state snapshot.
+    #[must_use]
+    pub fn snapshot(&self) -> Arc<State> {
+        Arc::clone(
+            &self
+                .state
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
+    }
+
+    /// Returns the client's current nickname.
+    #[must_use]
+    pub fn nick(&self) -> String {
+        self.state(|state| state.nick().to_owned())
     }
 
     /// Validates and queues an IRC message for transmission.
@@ -2800,5 +2822,48 @@ mod tests {
         assert_eq!(&ping, b"PING :papo-0\r\n");
         server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn client_reads_owned_state_snapshots() {
+        let (mut server, client, mut events, driver) = scripted(config());
+        assert!(!client.snapshot().connected());
+        let driver = tokio::spawn(driver);
+        complete_registration(&mut server, &mut events).await;
+        assert!(client.snapshot().connected());
+
+        server_line(
+            &mut server,
+            b":papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver +emily\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n",
+        )
+        .await;
+        while !matches!(events.next().await, Some(Event::ChannelSynced { .. })) {}
+        client.state(|state| {
+            let channel = state.channel("#papo").unwrap();
+            assert!(channel.is_synced());
+            assert_eq!(channel.member("EMILY").unwrap().prefixes(), &['+']);
+        });
+
+        let unchanged = client.snapshot();
+        server_line(
+            &mut server,
+            b":ergo.test NOTICE papo-driver :maintenance soon\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Message(_))));
+        assert!(Arc::ptr_eq(&unchanged, &client.snapshot()));
+
+        server_line(
+            &mut server,
+            b":papo-driver!papo@localhost PART #Papo :leaving\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Parted { .. })));
+        assert!(!Arc::ptr_eq(&unchanged, &client.snapshot()));
+        assert!(client.state(|state| state.channel("#papo").is_none()));
+
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+        assert!(!client.snapshot().connected());
     }
 }
