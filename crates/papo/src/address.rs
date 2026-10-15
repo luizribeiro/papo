@@ -63,12 +63,7 @@ impl FromStr for ServerAddress {
         if authority.contains(['?', '#', '@']) || path.contains(['#', ' ']) {
             return Err(AddressError::InvalidHost);
         }
-        let default_port = match protocol {
-            Protocol::Irc => 6667,
-            Protocol::Ircs => 6697,
-            Protocol::Ws => 80,
-            Protocol::Wss => 443,
-        };
+        let default_port = default_port(protocol);
         let (host, port) = parse_authority(authority, default_port)?;
         Ok(Self {
             protocol,
@@ -95,12 +90,7 @@ impl ServerAddress {
             (true, true) => Protocol::Wss,
         };
         if !self.explicit_port {
-            self.port = match self.protocol {
-                Protocol::Irc => 6667,
-                Protocol::Ircs => 6697,
-                Protocol::Ws => 80,
-                Protocol::Wss => 443,
-            };
+            self.port = default_port(self.protocol);
         }
     }
 
@@ -125,6 +115,15 @@ impl ServerAddress {
             self.port,
             self.websocket_path.as_deref().unwrap_or("/")
         ))
+    }
+}
+
+const fn default_port(protocol: Protocol) -> u16 {
+    match protocol {
+        Protocol::Irc => 6667,
+        Protocol::Ircs => 6697,
+        Protocol::Ws => 80,
+        Protocol::Wss => 443,
     }
 }
 
@@ -266,6 +265,23 @@ mod tests {
                 input.parse::<ServerAddress>(),
                 Err(AddressError::InvalidHost),
                 "accepted {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn changing_security_updates_each_implicit_port() {
+        for (input, enabled, expected_protocol, expected_port) in [
+            ("irc://irc.example.net", true, Protocol::Ircs, 6697),
+            ("ircs://irc.example.net", false, Protocol::Irc, 6667),
+            ("ws://irc.example.net", true, Protocol::Wss, 443),
+            ("wss://irc.example.net", false, Protocol::Ws, 80),
+        ] {
+            let mut address: ServerAddress = input.parse().unwrap();
+            address.set_tls(enabled);
+            assert_eq!(
+                (address.protocol, address.port),
+                (expected_protocol, expected_port)
             );
         }
     }
