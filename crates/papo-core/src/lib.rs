@@ -345,13 +345,18 @@ enum Handled {
 #[derive(Debug, Default)]
 struct Outbox {
     transmits: VecDeque<Vec<u8>>,
+    immediate: VecDeque<Vec<u8>>,
     events: VecDeque<Event>,
     close_requested: bool,
 }
 
 impl Outbox {
     fn transmit_raw(&mut self, line: Vec<u8>) {
-        self.transmits.push_back(line);
+        if bypasses_rate_limit(&line) {
+            self.immediate.push_back(line);
+        } else {
+            self.transmits.push_back(line);
+        }
     }
 
     fn transmit<const N: usize>(&mut self, command: &str, params: [&str; N]) {
@@ -372,6 +377,7 @@ impl Outbox {
 
     fn reset_connection(&mut self) {
         self.transmits.clear();
+        self.immediate.clear();
         self.close_requested = false;
     }
 }
@@ -509,6 +515,9 @@ impl Session {
 
     /// Returns the next CRLF-terminated wire line to transmit.
     pub fn poll_transmit(&mut self) -> Option<Vec<u8>> {
+        if let Some(line) = self.outbox.immediate.pop_front() {
+            return Some(line);
+        }
         if self.outbox.transmits.is_empty() || !self.rate_limit.take() {
             return None;
         }
@@ -574,7 +583,7 @@ impl Session {
     /// Returns the number of lines waiting to be transmitted.
     #[must_use]
     pub fn queued_len(&self) -> usize {
-        self.outbox.transmits.len()
+        self.outbox.transmits.len() + self.outbox.immediate.len()
     }
 
     /// Starts another SASL exchange with the configured credentials.
@@ -640,4 +649,28 @@ impl Session {
             self.keepalive.handle_disconnected();
         }
     }
+}
+
+fn bypasses_rate_limit(line: &[u8]) -> bool {
+    let mut fields = line.split(|byte| *byte == b' ');
+    let first = fields.next().unwrap_or_default();
+    let command = if first.starts_with(b"@") {
+        fields.next().unwrap_or_default()
+    } else {
+        first
+    };
+    // Ergo exempts handshake traffic, while delayed PONG or QUIT lines
+    // can leave a connection alive after it should have closed or get it disconnected.
+    [
+        b"WEBIRC".as_slice(),
+        b"PASS",
+        b"NICK",
+        b"USER",
+        b"CAP",
+        b"AUTHENTICATE",
+        b"PONG",
+        b"QUIT",
+    ]
+    .iter()
+    .any(|exempt| command.eq_ignore_ascii_case(exempt))
 }

@@ -10,7 +10,12 @@ use support::Transcript;
 
 #[test]
 fn releases_five_lines_then_one_every_500_milliseconds() {
-    let mut transcript = Transcript::rate_limited(Config::default());
+    let mut transcript = Transcript::rate_limited(
+        Config::default()
+            .ping_interval(Duration::from_secs(3_600))
+            .ping_timeout(Duration::from_secs(7_200)),
+    )
+    .connect_default();
     for index in 1..=8 {
         transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
     }
@@ -20,6 +25,8 @@ fn releases_five_lines_then_one_every_500_milliseconds() {
     transcript
         .inspect(|session| assert_eq!(session.queued_len(), 3))
         .no_client()
+        .server("PING :ergo.test-4917")
+        .client("PONG :ergo.test-4917")
         .deadline(Some(Duration::from_millis(500)))
         .advance(Duration::from_millis(499))
         .no_client()
@@ -30,8 +37,7 @@ fn releases_five_lines_then_one_every_500_milliseconds() {
         .client("PRIVMSG #papo :message 7")
         .advance(Duration::from_millis(500))
         .client("PRIVMSG #papo :message 8")
-        .inspect(|session| assert_eq!(session.queued_len(), 0))
-        .deadline(None);
+        .inspect(|session| assert_eq!(session.queued_len(), 0));
 }
 
 #[test]
@@ -40,4 +46,26 @@ fn unlimited_rate_limit_never_schedules_a_token_deadline() {
         .send(Message::privmsg("#papo", "one"))
         .client("PRIVMSG #papo one")
         .deadline(None);
+}
+
+#[test]
+fn protocol_critical_commands_bypass_an_exhausted_bucket() {
+    let mut transcript = Transcript::rate_limited(Config::default());
+    for index in 1..=5 {
+        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+    }
+    for index in 1..=5 {
+        transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
+    }
+    for (message, expected) in [
+        (Message::new("CAP", ["END"]), "CAP END"),
+        (Message::new("AUTHENTICATE", ["+"]), "AUTHENTICATE +"),
+        (Message::new("PONG", ["ergo.test"]), "PONG ergo.test"),
+        (
+            Message::new("QUIT", ["shutting down"]),
+            "QUIT :shutting down",
+        ),
+    ] {
+        transcript = transcript.send(message).client(expected);
+    }
 }
