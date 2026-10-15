@@ -330,3 +330,31 @@ fn early_registration_failure_releases_cap_end() {
         })
         .client("CAP END");
 }
+
+#[test]
+fn disconnect_aborts_registration_and_rejects_its_late_success() {
+    Transcript::new(
+        Config::default().wanted_caps(["draft/account-registration", "labeled-response"]),
+    )
+    .connect_default()
+    .server("CAP * LS :draft/account-registration=before-connect,email-required labeled-response")
+    .client("CAP REQ :draft/account-registration labeled-response")
+    .update(|session| {
+        session
+            .register(
+                std::time::Instant::now(),
+                None,
+                Some("alice@example.org"),
+                "correct horse battery staple",
+            )
+            .unwrap();
+    })
+    .server("CAP * ACK :draft/account-registration labeled-response")
+    .client("@label=0 REGISTER * alice@example.org :correct horse battery staple")
+    .disconnect()
+    .event(|event| matches!(event, Event::RequestAborted { .. }))
+    .connect_default()
+    .server(":ergo.test REGISTER SUCCESS alice :Account successfully registered")
+    .event(|event| matches!(event, Event::Message(_)))
+    .inspect(|session| assert_eq!(session.account(), None));
+}

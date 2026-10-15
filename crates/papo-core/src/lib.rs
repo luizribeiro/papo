@@ -2150,6 +2150,7 @@ impl Session {
                 ],
             ),
         )?;
+        self.account_registration.request_started();
         Ok(())
     }
 
@@ -2181,6 +2182,7 @@ impl Session {
             ));
         }
         self.request(now, Message::new("VERIFY", [account, code]))?;
+        self.account_registration.request_started();
         Ok(())
     }
 

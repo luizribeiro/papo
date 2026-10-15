@@ -44,7 +44,8 @@ impl AccountRegistration {
         message: &MessageRef<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
-        if (message.command_is("REGISTER") || message.command_is("VERIFY"))
+        if self.waiting
+            && (message.command_is("REGISTER") || message.command_is("VERIFY"))
             && message.param(0) == Some("SUCCESS")
         {
             let Some(account) = message.param(1) else {
@@ -57,7 +58,8 @@ impl AccountRegistration {
                 logged_in: true,
             });
             Handled::Yes
-        } else if message.command_is("REGISTER")
+        } else if self.waiting
+            && message.command_is("REGISTER")
             && message.param(0) == Some("VERIFICATION_REQUIRED")
         {
             let (Some(account), Some(description)) = (message.param(1), message.param(2)) else {
@@ -95,6 +97,10 @@ impl AccountRegistration {
 
     pub(super) fn take_pending(&mut self) -> Option<PendingRegistration> {
         self.pending.take()
+    }
+
+    pub(super) fn request_started(&mut self) {
+        self.waiting = true;
     }
 
     pub(super) fn cancel_pending(&mut self) {
