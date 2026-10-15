@@ -354,6 +354,10 @@ async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
             socket.next().await.unwrap().unwrap(),
             Message::text("PING :split")
         );
+        assert_eq!(
+            socket.next().await.unwrap().unwrap(),
+            Message::text("PING :extra-cr")
+        );
         socket
             .send(Message::text(":text.example PONG :utf8-✓"))
             .await
@@ -367,6 +371,7 @@ async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
     assert_eq!(stream.websocket_subprotocol(), Some("text.ircv3.net"));
     stream.write_all(b"PING :split\r").await.unwrap();
     stream.write_all(b"\n").await.unwrap();
+    stream.write_all(b"PING :extra-cr\r\r\n").await.unwrap();
     assert_eq!(
         read_line(&mut stream).await.unwrap(),
         ":text.example PONG :utf8-✓\r\n"

@@ -241,7 +241,7 @@ impl AsyncWrite for WebSocket {
             return Poll::Ready(Err(error));
         }
         self.write_buffer.extend_from_slice(&buffer[..newline]);
-        if self.write_buffer.last() == Some(&b'\r') {
+        while self.write_buffer.last() == Some(&b'\r') {
             self.write_buffer.pop();
         }
         let bytes = std::mem::take(&mut self.write_buffer);
