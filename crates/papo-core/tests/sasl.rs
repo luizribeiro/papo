@@ -285,3 +285,25 @@ fn a_sasl_deadline_is_cleared_on_disconnect() {
         .disconnect()
         .deadline(None);
 }
+
+#[test]
+fn authenticates_with_external_empty_and_explicit_authzids() {
+    for (sasl, expected) in [
+        (Sasl::external(), "AUTHENTICATE +"),
+        (
+            Sasl::external().authzid("alice@example.org"),
+            "AUTHENTICATE YWxpY2VAZXhhbXBsZS5vcmc=",
+        ),
+    ] {
+        Transcript::new(Config::default().sasl(sasl))
+            .connect_default()
+            .server("CAP * LS :sasl=EXTERNAL,PLAIN")
+            .client("CAP REQ :sasl")
+            .server("CAP * ACK :sasl")
+            .client("AUTHENTICATE EXTERNAL")
+            .server("AUTHENTICATE +")
+            .client(expected)
+            .server(":ergo.test 903 alice :SASL authentication successful")
+            .client("CAP END");
+    }
+}

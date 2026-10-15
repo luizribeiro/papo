@@ -264,7 +264,7 @@ impl SaslSession {
         if !message.command_is("AUTHENTICATE") {
             return Handled::No;
         }
-        let Some(Mechanism::Plain { username, password }) = self.active.as_ref() else {
+        let Some(mechanism) = self.active.as_ref() else {
             return Handled::No;
         };
         let Some(chunk) = message.param(0).filter(|_| self.awaiting_challenge) else {
@@ -282,8 +282,16 @@ impl SaslSession {
             }
         };
         let _ = challenge;
-        let authcid = with_device(username, self.device.as_deref());
-        transmit_response(format!("\0{authcid}\0{password}").as_bytes(), outbox);
+        match mechanism {
+            Mechanism::Plain { username, password } => {
+                let authcid = with_device(username, self.device.as_deref());
+                transmit_response(format!("\0{authcid}\0{password}").as_bytes(), outbox);
+            }
+            Mechanism::External { authzid } => {
+                transmit_response(authzid.as_deref().unwrap_or("").as_bytes(), outbox);
+            }
+            Mechanism::ScramSha256 { .. } => return Handled::No,
+        }
         self.awaiting_challenge = false;
         self.deadline = Some(now + SASL_TIMEOUT);
         Handled::Yes
