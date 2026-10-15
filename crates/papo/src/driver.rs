@@ -695,6 +695,42 @@ mod tests {
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
     }
 
+    async fn assert_registration_output(
+        defaults: super::PostRegistration,
+        isupport: Option<&[u8]>,
+        expected: &[u8],
+    ) {
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let (_client, mut events, driver) = Driver::with_stream_and_registration(
+            client_stream,
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            defaults,
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        if let Some(isupport) = isupport {
+            server_line(&mut server, isupport).await;
+        }
+        server_line(
+            &mut server,
+            b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        client_line(&mut server, expected).await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
     fn config() -> Config {
         Config::default()
             .nick("papo-driver")
@@ -912,6 +948,42 @@ mod tests {
         .await;
         server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn bot_default_without_advertised_mode_sends_no_mode() {
+        assert_registration_output(
+            super::PostRegistration {
+                bot: true,
+                channels: Vec::new(),
+            },
+            None,
+            b"",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn advertised_bot_mode_without_bot_default_sends_no_mode() {
+        assert_registration_output(
+            super::PostRegistration::default(),
+            Some(b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n"),
+            b"",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn empty_channel_defaults_send_no_join() {
+        assert_registration_output(
+            super::PostRegistration {
+                bot: true,
+                channels: Vec::new(),
+            },
+            Some(b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n"),
+            b"MODE papo-driver +B\r\n",
+        )
+        .await;
     }
 
     #[tokio::test(flavor = "current_thread")]
