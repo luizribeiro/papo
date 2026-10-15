@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, OwnedModeChange, StateLimit};
+use papo_core::{Account, Config, Event, OwnedModeChange, StateLimit};
 use papo_proto::ModeKind;
 use support::Transcript;
 
@@ -66,6 +66,68 @@ fn tracks_userhost_and_shared_channels_from_joins() {
             assert_eq!(dan.username(), Some("~dan"));
             assert_eq!(dan.host(), Some("cloak.example"));
             assert_eq!(dan.channels().count(), 2);
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn extended_join_distinguishes_accounts_from_logged_out_users() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily")
+        .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
+        .server(":alice!alice@staff.example JOIN #papo * :Alice Smith")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().account(),
+                &Account::LoggedIn("dan".into())
+            );
+            assert_eq!(
+                session.state().user("alice").unwrap().account(),
+                &Account::LoggedOut
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn account_notify_tracks_login_and_logout() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":dan!~dan@cloak.example JOIN #papo")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().account(),
+                &Account::Unknown
+            );
+        })
+        .server(":dan!~dan@cloak.example ACCOUNT dan")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().account(),
+                &Account::LoggedIn("dan".into())
+            );
+        })
+        .server(":dan!~dan@cloak.example ACCOUNT *")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().account(),
+                &Account::LoggedOut
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn account_tag_fills_an_unknown_account() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":dan!~dan@cloak.example JOIN #papo")
+        .server("@account=dan :dan!~dan@cloak.example PRIVMSG #papo :hello Emily")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().account(),
+                &Account::LoggedIn("dan".into())
+            );
         })
         .ignore_rest();
 }

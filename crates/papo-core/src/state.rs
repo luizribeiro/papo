@@ -4,8 +4,8 @@ use std::{
 };
 
 use papo_proto::{
-    CaseKey, Casemapping, Command, Isupport, Join, MessageRef, ModeChanges, ModeKind, NamesEntry,
-    Numeric, Source, parse_353,
+    Account as AccountNotify, CaseKey, Casemapping, Command, Isupport, Join, MessageRef,
+    ModeChanges, ModeKind, NamesEntry, Numeric, Source, parse_353,
 };
 
 use crate::{Config, Event, Handled, Outbox, OwnedModeChange, StateLimit};
@@ -55,7 +55,19 @@ pub struct User {
     nick: String,
     username: Option<String>,
     host: Option<String>,
+    account: Account,
     channels: HashSet<CaseKey>,
+}
+
+/// A user's known account state.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Account {
+    /// No source has reported whether the user is logged in.
+    Unknown,
+    /// The user is known to be logged out.
+    LoggedOut,
+    /// The user is logged in to the named account.
+    LoggedIn(String),
 }
 
 impl State {
@@ -87,13 +99,12 @@ impl State {
         no_implicit_names: bool,
         outbox: &mut Outbox,
     ) -> Handled {
-        let mapping = isupport.casemapping();
-        self.update_casemapping(mapping);
-        if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
-            own_nick.clone_into(&mut self.nick);
-        }
+        let mapping = self.prepare_message(message, own_nick, isupport);
         if let Some(join) = Join::parse(message) {
             return self.handle_join(message, join, isupport, no_implicit_names, outbox);
+        }
+        if let Some(handled) = self.handle_account(message) {
+            return handled;
         }
         if message.command() == Command::Part {
             let Some(Source::User { nick, .. }) = message.source() else {
@@ -429,6 +440,11 @@ impl State {
             );
         }
         self.add_member(join.channel, nick, user, host, Vec::new(), outbox);
+        if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping))
+            && join.realname.is_some()
+        {
+            user.account = Account::from_notify(join.account);
+        }
         if ours && no_implicit_names {
             outbox.event(Event::ChannelSynced {
                 channel: join.channel.to_owned(),
@@ -504,6 +520,47 @@ impl State {
             *warned = true;
             outbox.event(Event::StateLimitReached { limit });
         }
+    }
+
+    fn apply_account_tag(&mut self, message: &MessageRef<'_>) {
+        let (Some(Source::User { nick, .. }), Some(account)) =
+            (message.source(), message.tag("account"))
+        else {
+            return;
+        };
+        if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
+            user.account = Account::LoggedIn(account.into_owned());
+        }
+    }
+
+    fn apply_message_metadata(&mut self, message: &MessageRef<'_>, own_nick: &str) {
+        if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
+            own_nick.clone_into(&mut self.nick);
+        }
+        self.apply_account_tag(message);
+    }
+
+    fn prepare_message(
+        &mut self,
+        message: &MessageRef<'_>,
+        own_nick: &str,
+        isupport: &Isupport,
+    ) -> Casemapping {
+        let mapping = isupport.casemapping();
+        self.update_casemapping(mapping);
+        self.apply_message_metadata(message, own_nick);
+        mapping
+    }
+
+    fn handle_account(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
+        let account = AccountNotify::parse(message)?;
+        let Some(Source::User { nick, .. }) = message.source() else {
+            return Some(Handled::No);
+        };
+        if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
+            user.account = Account::from_notify(account.account);
+        }
+        Some(Handled::Yes)
     }
 
     fn remove_channel(&mut self, name: &str) {
@@ -782,6 +839,7 @@ impl User {
             nick: nick.to_owned(),
             username: user.map(str::to_owned),
             host: host.map(str::to_owned),
+            account: Account::Unknown,
             channels: HashSet::new(),
         }
     }
@@ -813,8 +871,22 @@ impl User {
         self.host.as_deref()
     }
 
+    /// Returns the user's known account state.
+    #[must_use]
+    pub const fn account(&self) -> &Account {
+        &self.account
+    }
+
     /// Iterates over shared channel names in unspecified order.
     pub fn channels(&self) -> impl Iterator<Item = &str> {
         self.channels.iter().map(CaseKey::original)
+    }
+}
+
+impl Account {
+    fn from_notify(account: Option<&str>) -> Self {
+        account.map_or(Self::LoggedOut, |account| {
+            Self::LoggedIn(account.to_owned())
+        })
     }
 }
