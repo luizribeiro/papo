@@ -2,7 +2,10 @@
 
 use std::{borrow::Cow, collections::BTreeMap};
 
-use papo_proto::{MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef, ParseError};
+use papo_proto::{
+    BuildError, MAX_CLIENT_TAG_DATA_LEN, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef,
+    ParseError,
+};
 use serde_json::Value;
 
 #[test]
@@ -286,4 +289,199 @@ fn builds_common_client_commands() {
         assert_eq!(message.as_ref().command(), command);
         assert_eq!(message.as_ref().len(), param_count);
     }
+}
+
+#[test]
+fn passes_ircdocs_message_join_corpus() {
+    let corpus: Value =
+        serde_json::from_str(include_str!("data/parser-tests/msg-join.json")).unwrap();
+
+    for case in corpus["tests"].as_array().unwrap() {
+        let matches = case["matches"].as_array().unwrap();
+        let input = matches[0].as_str().unwrap();
+        let output = MessageRef::parse(input)
+            .unwrap()
+            .to_owned()
+            .to_line()
+            .unwrap();
+        assert!(
+            matches
+                .iter()
+                .any(|candidate| candidate.as_str() == output.strip_suffix("\r\n")),
+            "{}: {output:?}",
+            case["desc"]
+        );
+    }
+}
+
+#[test]
+fn serializes_realistic_client_lines() {
+    let reply = Message::privmsg("#papo", "hello there")
+        .with_tag("+draft/reply", "abcDEF123")
+        .with_tag("+reply", "xyz789");
+    assert_eq!(
+        reply.to_line().unwrap(),
+        "@+draft/reply=abcDEF123;+reply=xyz789 PRIVMSG #papo :hello there\r\n"
+    );
+
+    let chunk = "dGVzdABwYXBvLXRlc3QAc2VjcmV0".repeat(12);
+    assert_eq!(
+        Message::raw("AUTHENTICATE", [&chunk]).to_line().unwrap(),
+        format!("AUTHENTICATE {chunk}\r\n")
+    );
+    assert_eq!(
+        Message::raw(
+            "CAP",
+            ["REQ", "message-tags server-time batch labeled-response"]
+        )
+        .to_line()
+        .unwrap(),
+        "CAP REQ :message-tags server-time batch labeled-response\r\n"
+    );
+}
+
+#[test]
+fn rejects_forbidden_command_and_parameter_bytes() {
+    for command in ["", "PRIV MSG", "PRIV\rMSG", "PRIV\nMSG", "PRIV\0MSG"] {
+        assert_eq!(
+            Message::raw(command, ["#papo", "hello"]).to_line(),
+            Err(BuildError::InvalidCommand)
+        );
+    }
+    for param in ["hello\rthere", "hello\nthere", "hello\0there"] {
+        assert_eq!(
+            Message::privmsg("#papo", param).to_line(),
+            Err(BuildError::InvalidParam(1))
+        );
+    }
+}
+
+#[test]
+fn rejects_fields_that_could_change_wire_structure() {
+    for source in [
+        "",
+        "bad source",
+        "bad\rsource",
+        "bad\nsource",
+        "bad\0source",
+    ] {
+        assert_eq!(
+            Message::raw("NOTICE", ["papo-test", "maintenance"])
+                .with_source(source)
+                .to_line(),
+            Err(BuildError::InvalidSource)
+        );
+    }
+    for key in [
+        "", "bad key", "bad;key", "bad=key", "bad\rkey", "bad\nkey", "bad\0key",
+    ] {
+        assert_eq!(
+            Message::tagmsg("#papo").with_tag(key, "active").to_line(),
+            Err(BuildError::InvalidTagKey)
+        );
+    }
+    assert_eq!(
+        Message::tagmsg("#papo")
+            .with_tag("+example.test/status", "active\0idle")
+            .to_line(),
+        Err(BuildError::InvalidTagValue)
+    );
+    assert_eq!(
+        Message::tagmsg("#papo")
+            .with_tag("+typing", "")
+            .to_line()
+            .unwrap(),
+        "@+typing TAGMSG #papo\r\n"
+    );
+}
+
+#[test]
+fn requires_middle_parameters_to_use_middle_form() {
+    for invalid in ["", "two words", ":prefixed"] {
+        assert_eq!(
+            Message::raw("COMMAND", [invalid, "last"]).to_line(),
+            Err(BuildError::InvalidParam(0))
+        );
+    }
+
+    assert_eq!(
+        Message::raw("COMMAND", [""]).to_line().unwrap(),
+        "COMMAND :\r\n"
+    );
+    assert_eq!(
+        Message::raw("COMMAND", ["two words"]).to_line().unwrap(),
+        "COMMAND :two words\r\n"
+    );
+    assert_eq!(
+        Message::raw("COMMAND", [":prefixed"]).to_line().unwrap(),
+        "COMMAND ::prefixed\r\n"
+    );
+    assert_eq!(
+        Message::raw("COMMAND", ["ordinary"]).to_line().unwrap(),
+        "COMMAND ordinary\r\n"
+    );
+}
+
+#[test]
+fn enforces_client_tag_data_length_at_the_byte_boundary() {
+    let prefix_len = "+example.test/reply=".len();
+    let maximum = Message::tagmsg("#papo").with_tag(
+        "+example.test/reply",
+        "x".repeat(MAX_CLIENT_TAG_DATA_LEN - prefix_len),
+    );
+    assert!(maximum.to_line().is_ok());
+
+    let over_limit = Message::tagmsg("#papo").with_tag(
+        "+example.test/reply",
+        "x".repeat(MAX_CLIENT_TAG_DATA_LEN - prefix_len + 1),
+    );
+    assert_eq!(over_limit.to_line(), Err(BuildError::TagsTooLong));
+}
+
+#[test]
+fn enforces_serialized_body_length_at_the_byte_boundary() {
+    let prefix = "PRIVMSG #papo ";
+    let maximum = Message::privmsg("#papo", "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len()))
+        .with_tag("+typing", "active");
+    let maximum_line = maximum.to_line().unwrap();
+    assert_eq!(
+        maximum_line.split_once(' ').unwrap().1.len(),
+        MAX_MESSAGE_LEN
+    );
+
+    let over_limit = Message::privmsg("#papo", "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len() + 1))
+        .with_tag("+typing", "active");
+    assert_eq!(over_limit.to_line(), Err(BuildError::MessageTooLong));
+}
+
+#[test]
+fn displays_each_build_error() {
+    assert_eq!(
+        BuildError::InvalidCommand.to_string(),
+        "IRC command is invalid"
+    );
+    assert_eq!(
+        BuildError::InvalidParam(2).to_string(),
+        "IRC parameter 2 is invalid"
+    );
+    assert_eq!(
+        BuildError::InvalidSource.to_string(),
+        "IRC source is invalid"
+    );
+    assert_eq!(
+        BuildError::InvalidTagKey.to_string(),
+        "IRC tag key is invalid"
+    );
+    assert_eq!(
+        BuildError::InvalidTagValue.to_string(),
+        "IRC tag value is invalid"
+    );
+    assert_eq!(
+        BuildError::TagsTooLong.to_string(),
+        "IRC client tag data exceeds its wire limit"
+    );
+    assert_eq!(
+        BuildError::MessageTooLong.to_string(),
+        "IRC message body exceeds its wire limit"
+    );
 }

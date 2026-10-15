@@ -14,6 +14,9 @@ pub const MAX_MESSAGE_LEN: usize = 512;
 /// [IRCv3 message-tags specification]: https://ircv3.net/specs/extensions/message-tags#size-limit
 pub const MAX_TAG_SECTION_LEN: usize = 8191;
 
+/// Maximum byte length of tags supplied by a client, excluding `@` and the trailing space.
+pub const MAX_CLIENT_TAG_DATA_LEN: usize = MAX_TAG_SECTION_LEN.div_ceil(2) - 2;
+
 /// A failure to parse an IRC message.
 ///
 /// New variants may be added as more protocol validation is introduced.
@@ -59,6 +62,42 @@ impl From<Utf8Error> for ParseError {
         Self::InvalidUtf8
     }
 }
+
+/// A failure to build a valid IRC wire message.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum BuildError {
+    /// The command is empty or contains a wire delimiter.
+    InvalidCommand,
+    /// A parameter contains a forbidden byte or requires trailing position.
+    InvalidParam(usize),
+    /// The source is empty or contains a wire delimiter.
+    InvalidSource,
+    /// A tag key is empty or contains a wire delimiter.
+    InvalidTagKey,
+    /// A tag value contains NUL.
+    InvalidTagValue,
+    /// Client-supplied tag data exceeds its wire limit.
+    TagsTooLong,
+    /// The message body exceeds its wire limit.
+    MessageTooLong,
+}
+
+impl fmt::Display for BuildError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidCommand => formatter.write_str("IRC command is invalid"),
+            Self::InvalidParam(index) => write!(formatter, "IRC parameter {index} is invalid"),
+            Self::InvalidSource => formatter.write_str("IRC source is invalid"),
+            Self::InvalidTagKey => formatter.write_str("IRC tag key is invalid"),
+            Self::InvalidTagValue => formatter.write_str("IRC tag value is invalid"),
+            Self::TagsTooLong => formatter.write_str("IRC client tag data exceeds its wire limit"),
+            Self::MessageTooLong => formatter.write_str("IRC message body exceeds its wire limit"),
+        }
+    }
+}
+
+impl Error for BuildError {}
 
 /// A zero-copy view of one IRC message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -304,13 +343,98 @@ impl Message {
         }
     }
 
+    /// Serializes this message with its terminating CRLF.
+    ///
+    /// A colon is added to the final parameter only when required by the wire grammar.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BuildError`] when a field cannot be represented safely or either wire length
+    /// limit would be exceeded.
+    pub fn to_line(&self) -> Result<String, BuildError> {
+        self.validate_fields()?;
+
+        let mut line = String::new();
+        if !self.tags.is_empty() {
+            line.push('@');
+            for (index, (key, value)) in self.tags.iter().enumerate() {
+                if index != 0 {
+                    line.push(';');
+                }
+                line.push_str(key);
+                if let Some(value) = value {
+                    line.push('=');
+                    line.push_str(&escape_tag(value));
+                }
+            }
+            if line.len() - 1 > MAX_CLIENT_TAG_DATA_LEN {
+                return Err(BuildError::TagsTooLong);
+            }
+            line.push(' ');
+        }
+
+        let body_start = line.len();
+        if let Some(source) = &self.source {
+            line.push(':');
+            line.push_str(source);
+            line.push(' ');
+        }
+        line.push_str(&self.command);
+        for (index, param) in self.params.iter().enumerate() {
+            line.push(' ');
+            if index + 1 == self.params.len() && needs_trailing_prefix(param) {
+                line.push(':');
+            }
+            line.push_str(param);
+        }
+        line.push_str("\r\n");
+        if line.len() - body_start > MAX_MESSAGE_LEN {
+            return Err(BuildError::MessageTooLong);
+        }
+        Ok(line)
+    }
+
+    fn validate_fields(&self) -> Result<(), BuildError> {
+        if self.command.is_empty() || self.command.contains([' ', '\r', '\n', '\0']) {
+            return Err(BuildError::InvalidCommand);
+        }
+        if self
+            .source
+            .as_deref()
+            .is_some_and(|source| source.is_empty() || source.contains([' ', '\r', '\n', '\0']))
+        {
+            return Err(BuildError::InvalidSource);
+        }
+        for (key, value) in &self.tags {
+            if key.is_empty() || key.contains([' ', ';', '=', '\r', '\n', '\0']) {
+                return Err(BuildError::InvalidTagKey);
+            }
+            if value.as_deref().is_some_and(|value| value.contains('\0')) {
+                return Err(BuildError::InvalidTagValue);
+            }
+        }
+        for (index, param) in self.params.iter().enumerate() {
+            if param.contains(['\r', '\n', '\0'])
+                || (index + 1 != self.params.len() && needs_trailing_prefix(param))
+            {
+                return Err(BuildError::InvalidParam(index));
+            }
+        }
+        Ok(())
+    }
+
     fn insert_tag(&mut self, key: String, value: Option<String>) {
+        let value = value.filter(|value| !value.is_empty());
         if let Some((_, stored)) = self.tags.iter_mut().find(|(stored, _)| stored == &key) {
             *stored = value;
         } else {
             self.tags.push((key, value));
         }
     }
+}
+
+fn needs_trailing_prefix(param: &str) -> bool {
+    param.is_empty() || param.contains(' ') || param.starts_with(':')
 }
 
 /// An iterator over the tags of a borrowed IRC message.
@@ -432,7 +556,6 @@ fn unescape_tag(value: &str) -> Cow<'_, str> {
     Cow::Owned(unescaped)
 }
 
-#[allow(dead_code)]
 fn escape_tag(value: &str) -> Cow<'_, str> {
     if !value
         .chars()
