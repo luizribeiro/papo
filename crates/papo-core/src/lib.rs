@@ -1552,7 +1552,8 @@ impl Session {
         }
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
-            self.requests.insert(label, (id, now, false));
+            let sent = self.caps.enabled().contains_key("echo-message");
+            self.requests.insert(label, (id, now, sent));
         }
         if batch_count == 0 {
             for line in lines {

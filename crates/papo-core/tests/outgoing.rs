@@ -355,3 +355,29 @@ fn multiline_failure_is_a_response_error_without_retry() {
     ));
     assert_eq!(session.poll_transmit(), None);
 }
+
+#[test]
+fn text_response_retains_labelled_echo_identity() {
+    let now = Instant::now();
+    let mut session =
+        Session::new(Config::default().wanted_caps(["echo-message", "labeled-response"]));
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :echo-message labeled-response");
+    session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
+    while session.poll_transmit().is_some() {}
+    let id = session
+        .send_text(now, TextKind::Privmsg, "#papo", "hello everyone", &[])
+        .unwrap()
+        .unwrap();
+    session.handle_line(
+        now,
+        b"@label=0;msgid=RfcBTzyxY120004;time=2026-02-03T04:05:06.789Z :papo!p@localhost PRIVMSG #papo :hello everyone",
+    );
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) if response.id == id => Some(response),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(response.sent().unwrap().msgid, "RfcBTzyxY120004");
+}
