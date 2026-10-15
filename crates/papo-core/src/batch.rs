@@ -8,6 +8,7 @@ use crate::{BatchAbandonReason, Config};
 pub(crate) struct Batches {
     open: HashMap<String, OpenBatch>,
     max_open: usize,
+    max_lines: usize,
 }
 
 #[derive(Debug)]
@@ -18,6 +19,7 @@ struct OpenBatch {
     end: bool,
     messages: Vec<Message>,
     completed: Vec<BatchEvent>,
+    lines: usize,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -57,6 +59,10 @@ pub(crate) enum BatchEvent {
         batch_type: String,
         reason: BatchAbandonReason,
     },
+    Message {
+        message: Message,
+        batch_type: Option<String>,
+    },
 }
 
 impl Batches {
@@ -64,6 +70,7 @@ impl Batches {
         Self {
             open: HashMap::new(),
             max_open: config.max_open_batches,
+            max_lines: config.max_batch_lines,
         }
     }
 
@@ -118,6 +125,7 @@ impl Batches {
                     .any(|(key, _)| key == "draft/chathistory-end"),
                 messages: Vec::new(),
                 completed: Vec::new(),
+                lines: 0,
             },
         );
         BatchAction::Consumed
@@ -156,6 +164,14 @@ impl Batches {
 
     fn member(&mut self, message: &MessageRef<'_>) -> BatchAction {
         let context = self.context(message);
+        let Some(reference) = message.tag("batch") else {
+            return BatchAction::Dispatch(context);
+        };
+        let ancestors = self.ancestors(reference.as_ref());
+        for reference in &ancestors {
+            let batch = self.open.get_mut(reference).expect("resolved ancestor");
+            batch.lines = batch.lines.saturating_add(1);
+        }
         let aggregate = message
             .tag("batch")
             .and_then(|reference| self.aggregate_reference(reference.as_ref()));
@@ -166,11 +182,83 @@ impl Batches {
                 .messages
                 .push(message.to_owned());
         }
+        if let Some(reference) = ancestors
+            .iter()
+            .rev()
+            .find(|reference| self.open[*reference].lines > self.max_lines)
+            .cloned()
+        {
+            let mut events = self.abandon(&reference, BatchAbandonReason::LineLimit);
+            if aggregate.is_none() {
+                let fallback = BatchEvent::Message {
+                    message: message.to_owned(),
+                    batch_type: context.batch_type,
+                };
+                events.insert(events.len() - 1, fallback);
+            }
+            return BatchAction::Complete(events);
+        }
         if aggregate.is_some() {
             BatchAction::Consumed
         } else {
             BatchAction::Dispatch(context)
         }
+    }
+
+    fn ancestors(&self, reference: &str) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut current = Some(reference);
+        while let Some(reference) = current {
+            let Some(batch) = self.open.get(reference) else {
+                break;
+            };
+            result.push(reference.to_owned());
+            current = batch.parent.as_deref();
+        }
+        result
+    }
+
+    fn abandon(&mut self, reference: &str, reason: BatchAbandonReason) -> Vec<BatchEvent> {
+        let references: Vec<_> = self
+            .open
+            .keys()
+            .filter(|candidate| {
+                self.ancestors(candidate)
+                    .iter()
+                    .any(|item| item == reference)
+            })
+            .cloned()
+            .collect();
+        let types: HashMap<_, _> = references
+            .iter()
+            .map(|candidate| (candidate.clone(), self.open[candidate].kind.clone()))
+            .collect();
+        let batch_type = types[reference].clone();
+        let mut messages = Vec::new();
+        for candidate in references {
+            let batch = self.open.remove(&candidate).expect("selected open batch");
+            messages.extend(batch.messages);
+            for event in batch.completed {
+                collect_messages(event, &mut messages);
+            }
+        }
+        let mut events: Vec<_> = messages
+            .into_iter()
+            .map(|message| BatchEvent::Message {
+                batch_type: message
+                    .as_ref()
+                    .tag("batch")
+                    .and_then(|reference| types.get(reference.as_ref()))
+                    .cloned(),
+                message,
+            })
+            .collect();
+        events.push(BatchEvent::Abandoned {
+            reference: reference.to_owned(),
+            batch_type,
+            reason,
+        });
+        events
     }
 
     fn aggregate_reference(&self, reference: &str) -> Option<String> {
@@ -246,6 +334,18 @@ fn complete(batch: &mut OpenBatch) -> BatchEvent {
             messages: std::mem::take(&mut batch.messages),
             end: batch.end,
         },
+    }
+}
+
+fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
+    match event {
+        BatchEvent::History {
+            messages: batch, ..
+        } => messages.extend(batch),
+        BatchEvent::Netsplit { quits, .. } => messages.extend(quits),
+        BatchEvent::Netjoin { joins, .. } => messages.extend(joins),
+        BatchEvent::Message { message, .. } => messages.push(message),
+        BatchEvent::Abandoned { .. } => {}
     }
 }
 

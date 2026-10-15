@@ -1180,6 +1180,13 @@ impl Session {
                 batch_type,
                 reason,
             }),
+            BatchEvent::Message {
+                message,
+                batch_type,
+            } => self.outbox.event(Event::Message(ReceivedMessage {
+                message,
+                batch_type,
+            })),
         }
     }
 

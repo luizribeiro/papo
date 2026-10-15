@@ -216,3 +216,28 @@ fn rejects_a_batch_beyond_the_configured_open_limit() {
     ));
     assert_eq!(session.poll_event(), None);
 }
+
+#[test]
+fn abandons_history_on_the_first_line_beyond_its_limit() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_batch_lines(2));
+    session.handle_line(now, b"BATCH +h chathistory #papo");
+    session.handle_line(now, b"@batch=h :alice PRIVMSG #papo :one");
+    session.handle_line(now, b"@batch=h :alice PRIVMSG #papo :two");
+    assert_eq!(session.poll_event(), None);
+    session.handle_line(now, b"@batch=h :alice PRIVMSG #papo :three");
+
+    for expected in ["one", "two", "three"] {
+        let fallback = message(&mut session);
+        assert_eq!(fallback.batch_type(), Some("chathistory"));
+        assert_eq!(fallback.as_ref().param(1), Some(expected));
+    }
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reference, batch_type, reason })
+            if reference == "h"
+                && batch_type == "chathistory"
+                && reason == BatchAbandonReason::LineLimit
+    ));
+    assert_eq!(session.poll_event(), None);
+}
