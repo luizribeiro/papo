@@ -54,6 +54,7 @@ fn parses_realistic_ergo_lines() {
     assert_eq!(message.source(), Some("alice!~u@example.test"));
     assert_eq!(message.command(), "PRIVMSG");
     assert!(message.command_is("privmsg"));
+    assert!(!message.command_is("NOTICE"));
     assert_eq!(message.tag("msgid"), Some(Cow::Borrowed("abcDEF123")));
     assert_eq!(
         message.params().collect::<Vec<_>>(),
@@ -160,6 +161,23 @@ fn rejects_non_utf8_bytes() {
     assert_eq!(
         MessageRef::parse_bytes(b"PRIVMSG #papo :invalid \xff"),
         Err(ParseError::InvalidUtf8)
+    );
+}
+
+#[test]
+fn displays_each_parse_error() {
+    assert_eq!(ParseError::EmptyLine.to_string(), "IRC line is empty");
+    assert_eq!(
+        ParseError::MissingCommand.to_string(),
+        "IRC line has no command"
+    );
+    assert_eq!(
+        ParseError::InvalidUtf8.to_string(),
+        "IRC line is not valid UTF-8"
+    );
+    assert_eq!(
+        ParseError::TooLong.to_string(),
+        "IRC line exceeds its wire length limit"
     );
 }
 
