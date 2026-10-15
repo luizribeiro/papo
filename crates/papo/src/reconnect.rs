@@ -40,19 +40,11 @@ impl Reconnect {
         self
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the driver consumes policies when reconnecting")
-    )]
     pub(crate) fn permits(self, completed_attempts: usize) -> bool {
         self.max_attempts
             .is_none_or(|maximum| completed_attempts < maximum)
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the driver consumes schedules when reconnecting")
-    )]
     pub(crate) fn delay(self, retry: u32, entropy: u64) -> Duration {
         let seconds = 1_u64.checked_shl(retry.min(63)).unwrap_or(u64::MAX);
         let base = Duration::from_secs(seconds).min(self.max_delay);

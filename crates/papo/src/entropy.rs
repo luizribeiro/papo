@@ -6,7 +6,6 @@
 pub struct OsEntropy;
 
 impl OsEntropy {
-    #[allow(dead_code)]
     pub(crate) fn next_u64() -> u64 {
         let mut bytes = [0; 8];
         getrandom::fill(&mut bytes).expect("the operating system random source is unavailable");

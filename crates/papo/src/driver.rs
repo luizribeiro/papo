@@ -269,7 +269,7 @@ impl Driver {
         capacity: usize,
         registration: Option<RegistrationSender>,
         defaults: PostRegistration,
-        _reconnect: Reconnect,
+        reconnect: Reconnect,
         connector: Connector,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity);
@@ -280,6 +280,7 @@ impl Driver {
             channels.event_sink,
             RegistrationWait(registration),
             defaults,
+            reconnect,
             connector,
         ));
         (channels.client, channels.events, Self { inner })
@@ -368,28 +369,65 @@ async fn run_plan(
     events: EventSink,
     mut registration: RegistrationWait,
     defaults: PostRegistration,
+    reconnect: Reconnect,
     connector: Connector,
 ) -> Result<(), Error> {
-    let stream = match plan.map_err(Error::Address) {
-        Ok(plan) => match connector(plan).await {
-            Ok(stream) => stream,
-            Err(error) => {
-                if registration.0.is_some() {
-                    registration.failed(error);
-                    return Ok(());
-                }
-                return Err(error);
-            }
-        },
+    let plan = match plan {
+        Ok(plan) => plan,
         Err(error) => {
             if registration.0.is_some() {
-                registration.failed(error);
+                registration.failed(Error::Address(error));
                 return Ok(());
             }
-            return Err(error);
+            return Err(Error::Address(error));
+        }
+    };
+    let mut attempts = 0_usize;
+    let stream = loop {
+        attempts = attempts.saturating_add(1);
+        match connector(plan.clone()).await {
+            Ok(stream) => break stream,
+            Err(error) if !reconnect.permits(attempts) => {
+                let reason = error.to_string();
+                if registration.0.is_some() {
+                    registration.failed(error);
+                    drop(events.regular);
+                    _ = events.disconnected.send(Event::Disconnected {
+                        reason,
+                        will_retry: false,
+                    });
+                    return Ok(());
+                }
+                return finish(
+                    events,
+                    ConnectionEnd {
+                        reason,
+                        error,
+                        quit: None,
+                        quit_timed_out: false,
+                        registered_at: None,
+                    },
+                    false,
+                );
+            }
+            Err(error) => {
+                _ = events
+                    .regular
+                    .send(Event::Disconnected {
+                        reason: error.to_string(),
+                        will_retry: true,
+                    })
+                    .await;
+                sleep_before_retry(reconnect, attempts).await;
+            }
         }
     };
     run(stream, session, commands, events, registration, defaults).await
+}
+
+async fn sleep_before_retry(reconnect: Reconnect, attempts: usize) {
+    let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
+    tokio::time::sleep(reconnect.delay(retry, crate::OsEntropy::next_u64())).await;
 }
 
 async fn run<S>(
@@ -684,7 +722,7 @@ mod tests {
         pin::Pin,
         sync::{
             Arc,
-            atomic::{AtomicBool, Ordering},
+            atomic::{AtomicBool, AtomicUsize, Ordering},
         },
         task::{Context, Poll},
         time::Duration,
@@ -696,7 +734,8 @@ mod tests {
     };
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf};
 
-    use super::{Driver, Error, Event, Session};
+    use super::{ConnectionPlan, Driver, Error, Event, Session};
+    use crate::transport::TlsConfig;
 
     struct FailingStream {
         inner: DuplexStream,
@@ -851,6 +890,48 @@ mod tests {
         server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
         assert!(!client.is_connected());
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn connection_failures_retry_up_to_the_configured_limit() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let connector: super::Connector = Arc::new({
+            let calls = Arc::clone(&calls);
+            move |_| {
+                calls.fetch_add(1, Ordering::Relaxed);
+                Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+            }
+        });
+        let (_client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            crate::Reconnect::exponential().max_attempts(2),
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected {
+                will_retry: true,
+                ..
+            })
+        ));
+        tokio::time::advance(Duration::from_secs(2)).await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected {
+                will_retry: false,
+                ..
+            })
+        ));
+        assert!(matches!(driver.await.unwrap(), Err(Error::Unsupported(_))));
+        assert_eq!(calls.load(Ordering::Relaxed), 2);
     }
 
     #[tokio::test(flavor = "current_thread")]
