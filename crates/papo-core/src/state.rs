@@ -8,7 +8,7 @@ use papo_proto::{
     parse_353,
 };
 
-use crate::{Config, Handled};
+use crate::{Config, Event, Handled, Outbox, StateLimit};
 
 /// The known channel and user state for a session.
 #[derive(Debug)]
@@ -19,6 +19,10 @@ pub struct State {
     casemapping: Casemapping,
     channels: HashMap<CaseKey, Channel>,
     users: HashMap<CaseKey, User>,
+    max_channels: usize,
+    max_members_per_channel: usize,
+    channel_limit_warned: bool,
+    member_limit_warned: bool,
 }
 
 /// State known about a joined channel.
@@ -58,6 +62,10 @@ impl State {
             casemapping: Casemapping::default(),
             channels: HashMap::new(),
             users: HashMap::new(),
+            max_channels: config.max_channels,
+            max_members_per_channel: config.max_members_per_channel,
+            channel_limit_warned: false,
+            member_limit_warned: false,
         }
     }
 
@@ -71,6 +79,7 @@ impl State {
         own_nick: &str,
         isupport: &Isupport,
         no_implicit_names: bool,
+        outbox: &mut Outbox,
     ) -> Handled {
         let mapping = isupport.casemapping();
         self.casemapping = mapping;
@@ -86,12 +95,17 @@ impl State {
                 if let Some(host) = host {
                     self.host = Some(host.to_owned());
                 }
+                let key = CaseKey::new(join.channel, mapping);
+                if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
+                    self.warn_limit(StateLimit::Channels, outbox);
+                    return Handled::Yes;
+                }
                 self.channels.insert(
-                    CaseKey::new(join.channel, mapping),
+                    key,
                     Channel::new(join.channel, mapping, isupport, no_implicit_names),
                 );
             }
-            self.add_member(join.channel, nick, user, host, Vec::new());
+            self.add_member(join.channel, nick, user, host, Vec::new(), outbox);
             return Handled::Yes;
         }
         if message.command() == Command::Part {
@@ -149,21 +163,35 @@ impl State {
             for raw in entries {
                 let entry = NamesEntry::parse(raw, isupport);
                 if !entry.nick.is_empty() {
-                    self.add_member(channel, entry.nick, entry.user, entry.host, entry.prefixes);
+                    self.add_member(
+                        channel,
+                        entry.nick,
+                        entry.user,
+                        entry.host,
+                        entry.prefixes,
+                        outbox,
+                    );
                 }
             }
             return Handled::Yes;
         }
-        if message.command() == Command::Numeric(Numeric::RPL_ENDOFNAMES) {
-            if let Some(channel) = message
-                .param(1)
-                .and_then(|name| self.channels.get_mut(&CaseKey::new(name, mapping)))
-            {
-                channel.synced = true;
-            }
+        if self.finish_names(message) {
             return Handled::Yes;
         }
         Handled::No
+    }
+
+    fn finish_names(&mut self, message: &MessageRef<'_>) -> bool {
+        if message.command() != Command::Numeric(Numeric::RPL_ENDOFNAMES) {
+            return false;
+        }
+        if let Some(channel) = message
+            .param(1)
+            .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
+        {
+            channel.synced = true;
+        }
+        true
     }
 
     fn add_member(
@@ -173,13 +201,24 @@ impl State {
         user: Option<&str>,
         host: Option<&str>,
         mut prefixes: Vec<char>,
+        outbox: &mut Outbox,
     ) {
         let mapping = self.casemapping;
-        if let Some(channel) = self.channels.get_mut(&CaseKey::new(channel_name, mapping)) {
+        let channel_key = CaseKey::new(channel_name, mapping);
+        let nick_key = CaseKey::new(nick, mapping);
+        let full = self.channels.get(&channel_key).is_some_and(|channel| {
+            !channel.members.contains_key(&nick_key)
+                && channel.members.len() >= self.max_members_per_channel
+        });
+        if full {
+            self.warn_limit(StateLimit::Members, outbox);
+            return;
+        }
+        if let Some(channel) = self.channels.get_mut(&channel_key) {
             prefixes.sort_by_key(|symbol| channel.prefix_order.iter().position(|p| p == symbol));
             prefixes.dedup();
             channel.members.insert(
-                CaseKey::new(nick, mapping),
+                nick_key,
                 Member {
                     nick: nick.to_owned(),
                     prefixes,
@@ -192,6 +231,17 @@ impl State {
                 .or_insert_with(|| User::new(nick, user, host));
             shared.update_userhost(user, host);
             shared.channels.insert(CaseKey::new(channel_name, mapping));
+        }
+    }
+
+    fn warn_limit(&mut self, limit: StateLimit, outbox: &mut Outbox) {
+        let warned = match limit {
+            StateLimit::Channels => &mut self.channel_limit_warned,
+            StateLimit::Members => &mut self.member_limit_warned,
+        };
+        if !*warned {
+            *warned = true;
+            outbox.event(Event::StateLimitReached { limit });
         }
     }
 

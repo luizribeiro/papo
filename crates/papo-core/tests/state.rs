@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::Config;
+use papo_core::{Config, Event, StateLimit};
 use support::Transcript;
 
 #[test]
@@ -161,4 +161,43 @@ fn follows_our_own_nick_change() {
             assert!(channel.member("emily").is_none());
             assert!(channel.member("EMILY_").is_some());
         });
+}
+
+#[test]
+fn bounds_channels_and_members_with_one_warning_each() {
+    Transcript::new(
+        Config::default()
+            .nick("emily")
+            .max_channels(1)
+            .max_members_per_channel(2),
+    )
+    .server(":emily!em@127.0.0.1 JOIN #papo")
+    .server(":emily!em@127.0.0.1 JOIN #rust")
+    .event(|event| {
+        matches!(
+            event,
+            Event::StateLimitReached {
+                limit: StateLimit::Channels
+            }
+        )
+    })
+    .server(":emily!em@127.0.0.1 JOIN #bots")
+    .server(":dan!dan@cloak.example JOIN #papo")
+    .server(":alice!alice@staff.example JOIN #papo")
+    .event(|event| {
+        matches!(
+            event,
+            Event::StateLimitReached {
+                limit: StateLimit::Members
+            }
+        )
+    })
+    .server(":bob!bob@users.example JOIN #papo")
+    .inspect(|session| {
+        assert_eq!(session.state().channels().count(), 1);
+        let channel = session.state().channel("#papo").unwrap();
+        assert_eq!(channel.members().count(), 2);
+        assert!(channel.member("alice").is_none());
+        assert!(channel.member("bob").is_none());
+    });
 }

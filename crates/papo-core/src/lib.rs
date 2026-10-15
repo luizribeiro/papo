@@ -369,6 +369,21 @@ pub enum Event {
     },
     /// An STS persistence action for the transport shell to store.
     StsPolicy(sts::StsAction),
+    /// Server input exceeded a configured state-retention bound.
+    StateLimitReached {
+        /// The state collection that rejected another entry.
+        limit: StateLimit,
+    },
+}
+
+/// A bounded server-controlled state collection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum StateLimit {
+    /// Joined channels.
+    Channels,
+    /// Members retained for one channel.
+    Members,
 }
 
 /// Sans-I/O state for one IRC client session.
@@ -741,6 +756,7 @@ impl Session {
             self.registration.nick(),
             self.isupport.value(),
             no_implicit_names,
+            &mut self.outbox,
         ) == Handled::Yes;
         let handled = registration_handled
             || caps_handled
