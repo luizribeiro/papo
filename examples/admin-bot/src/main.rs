@@ -3,8 +3,8 @@
 use std::{env, error::Error, io, time::Duration};
 
 use papo::{
-    Client, Sasl,
-    bot::{Admins, Args, Bot, Msg, ReplyRateLimiter, RequireAccount},
+    Client, Error as PapoError, Event, Events, Sasl,
+    bot::{BotConfig, Command, ReplyRateLimiter},
 };
 use papo_proto::Message;
 
@@ -27,32 +27,74 @@ async fn main() -> Result<(), Box<dyn Error>> {
         builder = builder.tls_ca_file(ca_file)?;
     }
     let (client, events) = builder.connect().await?;
-    Bot::new(client)
-        .prefix("!")
-        .admins(Admins::new(
-            admins.split(',').map(str::trim).filter(|name| !name.is_empty()),
-        ))
-        .reply_limiter(ReplyRateLimiter::new(2, Duration::from_secs(5)))
-        .command("ping", |msg: Msg| async move { msg.reply("pong").await })
-        .command(
-            "echo",
-            |msg: Msg, Args(words): Args<Vec<String>>| async move {
-                msg.reply(&words.join(" ")).await
-            },
-        )
-        .command(
-            "op",
-            |msg: Msg, Args(nick): Args<String>, _: RequireAccount<Admins>| async move {
-                let Some(channel) = msg.channel().map(str::to_owned) else {
-                    return msg.private_notice("op requires a channel command").await;
-                };
-                msg.client()
-                    .send(Message::new("MODE", [channel, "+o".to_owned(), nick]))
-                    .await
-            },
-        )
-        .run(events)
-        .await?;
+    let admins: Vec<_> = admins
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let config =
+        BotConfig::new("!").reply_limiter(ReplyRateLimiter::new(2, Duration::from_secs(5)));
+    run(client, events, &config, &admins).await?;
+    Ok(())
+}
+
+async fn run(
+    client: Client,
+    mut events: Events,
+    config: &BotConfig,
+    admins: &[String],
+) -> Result<(), PapoError> {
+    while let Some(event) = events.next().await {
+        handle(&event, config, admins).await?;
+    }
+    drop(client);
+    Ok(())
+}
+
+async fn handle(event: &Event, config: &BotConfig, admins: &[String]) -> Result<(), PapoError> {
+    let Some(command) = Command::parse(event, config) else {
+        return Ok(());
+    };
+    match command.name() {
+        "ping" => {
+            command.reply("pong").await?;
+        }
+        "echo" if !command.args().is_empty() => {
+            command.reply(&command.args().join(" ")).await?;
+        }
+        "echo" => {
+            command
+                .private_notice("expected at least one command argument")
+                .await?;
+        }
+        "op" if command.args().len() != 1 => {
+            command
+                .private_notice("expected exactly one command argument")
+                .await?;
+        }
+        "op" if !command.account_in(admins) => {
+            command
+                .private_notice("permission denied: authenticated account required")
+                .await?;
+        }
+        "op" => {
+            let Some(channel) = command.channel() else {
+                command
+                    .private_notice("op requires a channel command")
+                    .await?;
+                return Ok(());
+            };
+            command
+                .client()
+                .send(Message::new(
+                    "MODE",
+                    [channel, "+o", command.args()[0].as_str()],
+                ))
+                .await?;
+        }
+        _ => {}
+    }
     Ok(())
 }
 
