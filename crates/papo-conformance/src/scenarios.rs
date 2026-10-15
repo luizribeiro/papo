@@ -256,6 +256,21 @@ fn echo_message(context: Scenario) -> ScenarioFuture {
             .send(Message::join(&channel))
             .await
             .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut connection.events,
+                |event| {
+                    matches!(
+                        event,
+                        Event::Joined {
+                            channel: joined,
+                            nick: joined_nick,
+                        } if joined == &channel && joined_nick == &registered_nick
+                    )
+                },
+                EXPECT_TIMEOUT,
+            )
+            .await?;
         connection
             .client
             .privmsg(&channel, &text)

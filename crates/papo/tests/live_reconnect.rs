@@ -26,6 +26,7 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         .unwrap();
 
         wait_for(&mut events, |event| matches!(event, Event::Registered(_))).await;
+        wait_for(&mut events, |event| joined(event, &nick, &channel)).await;
         server.stop().unwrap();
         wait_for(&mut events, |event| {
             matches!(
@@ -39,6 +40,7 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         .await;
         server.restart().unwrap();
         wait_for(&mut events, |event| matches!(event, Event::Reconnected(_))).await;
+        wait_for(&mut events, |event| joined(event, &nick, &channel)).await;
         client.quit(Some("reconnect test complete")).await.unwrap();
     })
     .await
@@ -52,4 +54,14 @@ async fn wait_for(events: &mut papo::Events, accepted: impl Fn(&Event) -> bool) 
             return;
         }
     }
+}
+
+fn joined(event: &Event, nick: &str, channel: &str) -> bool {
+    matches!(
+        event,
+        Event::Joined {
+            channel: joined,
+            nick: joined_nick,
+        } if joined == channel && joined_nick == nick
+    )
 }
