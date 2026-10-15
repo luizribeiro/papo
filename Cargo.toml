@@ -5,6 +5,7 @@ members = [
   "crates/papo-core",
   "crates/papo-test-server",
   "crates/papo",
+  "crates/papo-conformance",
   "examples/parse",
 ]
 exclude = ["fuzz"]
