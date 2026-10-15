@@ -90,24 +90,33 @@ fn splits_requests_at_510_bytes_and_resolves_each_atomically() {
 }
 
 #[test]
-fn never_emits_a_request_over_510_bytes() {
-    let first = format!("example.com/{}", "a".repeat(239));
-    let second = format!("example.net/{}", "b".repeat(239));
-    let now = std::time::Instant::now();
-    let mut session = Session::new(Config::default().wanted_caps([&first, &second]));
-    session.handle_connected(now);
-    for _ in 0..3 {
-        session.poll_transmit();
-    }
-    session.handle_line(now, format!("CAP * LS * :{first}").as_bytes());
-    session.handle_line(now, format!("CAP * LS :{second}").as_bytes());
+fn keeps_510_bytes_together_and_splits_511_bytes() {
+    let first = format!("example.com/{}", "a".repeat(238));
+    let fits = format!("example.net/{}", "b".repeat(238));
+    let exact = format!("CAP REQ :{first} {fits}");
+    assert_eq!(exact.len(), 510);
+    Transcript::new(Config::default().wanted_caps([&first, &fits]))
+        .connect_default()
+        .server(&format!("CAP * LS * :{first}"))
+        .server(&format!("CAP * LS :{fits}"))
+        .client(&exact)
+        .no_client()
+        .server("CAP * ACK :accepted")
+        .client("CAP END");
 
-    let requests = [
-        session.poll_transmit().unwrap(),
-        session.poll_transmit().unwrap(),
-    ];
-    assert!(requests.iter().all(|line| line.len() - 2 <= 510));
-    assert_eq!(session.poll_transmit(), None);
+    let splits = format!("example.net/{}", "b".repeat(239));
+    let too_long = format!("CAP REQ :{first} {splits}");
+    assert_eq!(too_long.len(), 511);
+    Transcript::new(Config::default().wanted_caps([&first, &splits]))
+        .connect_default()
+        .server(&format!("CAP * LS * :{first}"))
+        .server(&format!("CAP * LS :{splits}"))
+        .client(&format!("CAP REQ :{first}"))
+        .client(&format!("CAP REQ :{splits}"))
+        .server("CAP * ACK :first accepted")
+        .no_client()
+        .server("CAP * ACK :second accepted")
+        .client("CAP END");
 }
 
 #[test]
