@@ -391,7 +391,7 @@ impl fmt::Debug for MessageEvent {
     }
 }
 
-fn allowed_alias<'a>(
+pub(crate) fn allowed_alias<'a>(
     denied: &papo_proto::ClientTagDeny<'_>,
     preferred: &'a str,
     fallback: &'a str,
@@ -552,6 +552,8 @@ pub enum Event {
     Raw(Message),
     /// A tag-only message with typed accessors for known client tags.
     TagMsg(TagMsg),
+    /// A tag-only reaction or unreaction.
+    Reaction(TagMsg),
     /// A message was redacted from a target's history.
     Redacted(papo_core::Redacted),
     /// A labelled request received its complete logical response.
@@ -784,11 +786,18 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::Registered(welcome) => Event::Registered(welcome),
         papo_core::Event::Message(message) => return CoreEvent::Message(message),
         papo_core::Event::MultilineMessage(message) => Event::Raw(message.message),
-        papo_core::Event::TagMessage(message) => Event::TagMsg(TagMsg {
-            source: message.source,
-            target: message.target,
-            tags: message.tags,
-        }),
+        papo_core::Event::TagMessage(message) => {
+            let tag = TagMsg {
+                source: message.source,
+                target: message.target,
+                tags: message.tags,
+            };
+            if tag.reaction().is_some() {
+                Event::Reaction(tag)
+            } else {
+                Event::TagMsg(tag)
+            }
+        }
         papo_core::Event::Redacted(redacted) => Event::Redacted(redacted),
         papo_core::Event::Response(response) => Event::Response(response),
         papo_core::Event::RequestUntracked { id } => Event::RequestUntracked { id },
@@ -1197,8 +1206,8 @@ mod tests {
                 ("+reply".into(), Some("RKi9Cw".into())),
             ],
         };
-        let Event::TagMsg(tag) = forwarded(papo_core::Event::TagMessage(tag)) else {
-            panic!("expected tag message")
+        let Event::Reaction(tag) = forwarded(papo_core::Event::TagMessage(tag)) else {
+            panic!("expected reaction")
         };
         assert_eq!(tag.source(), Some("alice!~a@cloak"));
         assert_eq!(tag.target(), "#papo");

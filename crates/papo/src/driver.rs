@@ -312,6 +312,51 @@ impl Client {
             .await
     }
 
+    /// Adds `emoji` as a reaction to `message`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unsupported`] when message tags, a message identifier, or an allowed
+    /// reaction or reply tag is unavailable. Other errors indicate that sending failed.
+    pub async fn react(&self, message: &crate::MessageEvent, emoji: &str) -> Result<(), Error> {
+        self.reaction(message, emoji, "+draft/react").await
+    }
+
+    /// Removes `emoji` as a reaction to `message`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unsupported`] when message tags, a message identifier, or an allowed
+    /// reaction or reply tag is unavailable. Other errors indicate that sending failed.
+    pub async fn unreact(&self, message: &crate::MessageEvent, emoji: &str) -> Result<(), Error> {
+        self.reaction(message, emoji, "+draft/unreact").await
+    }
+
+    async fn reaction(
+        &self,
+        message: &crate::MessageEvent,
+        emoji: &str,
+        reaction_tag: &'static str,
+    ) -> Result<(), Error> {
+        if !self.has_cap("message-tags") {
+            return Err(Error::Unsupported("message-tags"));
+        }
+        let isupport = self.isupport();
+        let denied = isupport.clienttagdeny();
+        let reply_tag = event::allowed_alias(&denied, "+reply", "+draft/reply")
+            .ok_or(Error::Unsupported("reply tag"))?;
+        if denied.denies(reaction_tag) {
+            return Err(Error::Unsupported("reaction tag"));
+        }
+        let msgid = message.msgid().ok_or(Error::Unsupported("message id"))?;
+        self.send(
+            Message::tagmsg(message.reply_target())
+                .with_tag(reply_tag, msgid)
+                .with_tag(reaction_tag, emoji),
+        )
+        .await
+    }
+
     pub(crate) async fn send_text(
         &self,
         kind: TextKind,
@@ -3588,6 +3633,72 @@ mod tests {
 
         server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    async fn assert_reaction_wire(isupport: &str, remove: bool, expected: Option<&[u8]>) {
+        let (mut server, client, mut events, driver) =
+            scripted(config().wanted_caps(["message-tags"]));
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
+        client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
+        server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        if !isupport.is_empty() {
+            server_line(&mut server, isupport.as_bytes()).await;
+        }
+        server_line(
+            &mut server,
+            b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        server_line(
+            &mut server,
+            b"@msgid=RfcBTzyxY120004 :emily!e@localhost PRIVMSG #papo :ship it\r\n",
+        )
+        .await;
+        let message = next_message(&mut events).await;
+        let result = if remove {
+            client.unreact(&message, "👍").await
+        } else {
+            client.react(&message, "👍").await
+        };
+        if let Some(expected) = expected {
+            result.unwrap();
+            client_line(&mut server, expected).await;
+        } else {
+            assert!(matches!(result, Err(Error::Unsupported("reaction tag"))));
+            assert!(
+                tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                    .await
+                    .is_err()
+            );
+        }
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn reactions_obey_clienttagdeny() {
+        assert_reaction_wire(
+            "",
+            false,
+            Some(b"@+reply=RfcBTzyxY120004;+draft/react=\xF0\x9F\x91\x8D TAGMSG #papo\r\n"),
+        )
+        .await;
+        assert_reaction_wire(
+            "",
+            true,
+            Some(b"@+reply=RfcBTzyxY120004;+draft/unreact=\xF0\x9F\x91\x8D TAGMSG #papo\r\n"),
+        )
+        .await;
+        assert_reaction_wire(
+            ":ergo.test 005 papo-driver CLIENTTAGDENY=draft/react :are supported\r\n",
+            false,
+            None,
+        )
+        .await;
     }
 
     #[tokio::test(flavor = "current_thread")]
