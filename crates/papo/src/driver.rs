@@ -1,21 +1,54 @@
 use std::{future::Future, io, pin::Pin, task, time::Instant};
 
 use papo_core::Session;
+use papo_proto::Message;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    sync::mpsc,
+    sync::{mpsc, oneshot},
 };
 
 use crate::{Error, Event, event, transport};
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 
-enum Command {}
+enum Command {
+    Send {
+        message: Message,
+        result: oneshot::Sender<Result<(), papo_proto::BuildError>>,
+    },
+}
 
 /// A cheap, cloneable handle to a running IRC client.
 #[derive(Clone)]
 pub struct Client {
-    _commands: mpsc::Sender<Command>,
+    commands: mpsc::Sender<Command>,
+}
+
+impl Client {
+    /// Validates and queues an IRC message for transmission.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Build`] if the message is invalid, or
+    /// [`Error::Disconnected`] if the driver has stopped.
+    pub async fn send(&self, message: Message) -> Result<(), Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::Send { message, result })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        receiver.await.map_err(|_| Error::Disconnected)??;
+        Ok(())
+    }
+
+    /// Sends a private message to a user or channel.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message is invalid or the driver has stopped.
+    pub async fn privmsg(&self, target: &str, text: &str) -> Result<(), Error> {
+        self.send(Message::privmsg(target, text)).await
+    }
 }
 
 /// The events produced by a running IRC client.
@@ -54,7 +87,7 @@ impl Driver {
         let inner = Box::pin(run(stream, session, command_receiver, event_sender));
         (
             Client {
-                _commands: command_sender,
+                commands: command_sender,
             },
             Events {
                 receiver: event_receiver,
@@ -100,7 +133,9 @@ where
                 Err(error) => return finish(stream, session, events, error.to_string(), Error::Io(error)).await,
             },
             command = commands.recv(), if commands_open => match command {
-                Some(command) => match command {},
+                Some(Command::Send { message, result }) => {
+                    _ = result.send(session.send(now(), message));
+                }
                 None => commands_open = false,
             },
             () = wait_until(deadline) => session.handle_timeout(now()),
@@ -225,6 +260,39 @@ mod tests {
                 reason: "server closed the connection".into()
             })
         );
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn client_send_reaches_the_wire() {
+        let (mut server, client, _events, driver) = scripted(config());
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        client
+            .send(papo_proto::Message::new("WHOIS", ["emily"]))
+            .await
+            .unwrap();
+        let mut whois = [0; 13];
+        server.read_exact(&mut whois).await.unwrap();
+        assert_eq!(&whois, b"WHOIS emily\r\n");
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn client_send_rejects_an_invalid_message() {
+        let (mut server, client, _events, driver) = scripted(config());
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        let error = client
+            .send(papo_proto::Message::new("WHO IS", ["emily"]))
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            Error::Build(papo_proto::BuildError::InvalidCommand)
+        ));
+        server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
     }
 
