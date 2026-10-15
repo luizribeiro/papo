@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
 };
 
@@ -10,12 +10,13 @@ use papo_proto::{
 };
 
 use crate::{
-    Config, Event, Handled, Outbox, OwnedModeChange, ReadMarker, StateLimit,
+    Config, Event, Handled, LastSeen, Outbox, OwnedModeChange, ReadMarker, StateLimit,
     history::parse_timestamp, monitor::Monitor,
 };
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
+const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 
 /// The known channel and user state for a session.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -31,6 +32,8 @@ pub struct State {
     users: HashMap<CaseKey, User>,
     who_sweeps: HashSet<CaseKey>,
     read_markers: HashMap<CaseKey, ReadMarker>,
+    last_seen: HashMap<CaseKey, LastSeen>,
+    last_seen_order: VecDeque<String>,
     max_channels: usize,
     max_members_per_channel: usize,
     channel_limit_warned: bool,
@@ -108,6 +111,8 @@ impl State {
             users: HashMap::new(),
             who_sweeps: HashSet::new(),
             read_markers: HashMap::new(),
+            last_seen: HashMap::new(),
+            last_seen_order: VecDeque::new(),
             max_channels: config.max_channels,
             max_members_per_channel: config.max_members_per_channel,
             channel_limit_warned: false,
@@ -116,7 +121,14 @@ impl State {
     }
 
     pub(crate) fn reset(&mut self, config: &Config) {
+        let last_seen = std::mem::take(&mut self.last_seen);
+        let last_seen_order = std::mem::take(&mut self.last_seen_order);
         *self = Self::new(config);
+        self.last_seen = last_seen
+            .into_values()
+            .map(|seen| (CaseKey::new(&seen.target, self.casemapping), seen))
+            .collect();
+        self.last_seen_order = last_seen_order;
     }
 
     pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, isupport: &Isupport) {
@@ -145,6 +157,7 @@ impl State {
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = self.prepare_message(message, own_nick, isupport, outbox);
+        self.remember_last_seen(message, own_nick);
         if self.handle_read_marker(message, outbox) {
             return Handled::Yes;
         }
@@ -284,6 +297,53 @@ impl State {
             outbox.event(Event::ReadMarker(marker));
         }
         true
+    }
+
+    fn remember_last_seen(&mut self, message: &MessageRef<'_>, own_nick: &str) {
+        if !matches!(message.command(), Command::Privmsg | Command::Notice) {
+            return;
+        }
+        let (Some(mut target), Some(msgid), Some(time)) = (
+            message.param(0),
+            message.tag("msgid"),
+            message
+                .tag("time")
+                .and_then(|value| parse_timestamp(&value)),
+        ) else {
+            return;
+        };
+        if self.casemapping.eq(target, own_nick) {
+            let Some(Source::User { nick, .. }) = message.source() else {
+                return;
+            };
+            target = nick;
+        }
+        let key = CaseKey::new(target, self.casemapping);
+        if self
+            .last_seen
+            .get(&key)
+            .is_some_and(|seen| seen.time > time)
+        {
+            return;
+        }
+        self.last_seen_order
+            .retain(|stored| !self.casemapping.eq(stored, target));
+        if !self.last_seen.contains_key(&key)
+            && self.last_seen.len() == MAX_LAST_SEEN_TARGETS
+            && let Some(oldest) = self.last_seen_order.pop_front()
+        {
+            self.last_seen
+                .remove(&CaseKey::new(oldest, self.casemapping));
+        }
+        self.last_seen_order.push_back(target.to_owned());
+        self.last_seen.insert(
+            key,
+            LastSeen {
+                target: target.to_owned(),
+                msgid: msgid.into_owned(),
+                time,
+            },
+        );
     }
 
     fn handle_channel_mode(&mut self, message: &MessageRef<'_>, isupport: &Isupport) -> bool {
@@ -456,6 +516,14 @@ impl State {
         self.who_sweeps = std::mem::take(&mut self.who_sweeps)
             .into_iter()
             .map(|channel| CaseKey::new(channel.original(), mapping))
+            .collect();
+        self.read_markers = std::mem::take(&mut self.read_markers)
+            .into_values()
+            .map(|marker| (CaseKey::new(&marker.target, mapping), marker))
+            .collect();
+        self.last_seen = std::mem::take(&mut self.last_seen)
+            .into_values()
+            .map(|seen| (CaseKey::new(&seen.target, mapping), seen))
             .collect();
         self.casemapping = mapping;
     }
@@ -1076,6 +1144,12 @@ impl State {
     pub fn read_marker(&self, target: &str) -> Option<&ReadMarker> {
         self.read_markers
             .get(&CaseKey::new(target, self.casemapping))
+    }
+
+    /// Returns the newest live message remembered for a target.
+    #[must_use]
+    pub fn last_seen(&self, target: &str) -> Option<&LastSeen> {
+        self.last_seen.get(&CaseKey::new(target, self.casemapping))
     }
 
     /// Iterates over users currently reported online through `MONITOR`.

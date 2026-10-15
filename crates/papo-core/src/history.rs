@@ -27,6 +27,17 @@ pub struct ReadMarker {
     pub time: Option<SystemTime>,
 }
 
+/// The newest live message remembered for one target.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LastSeen {
+    /// Channel or nickname to which the message belongs.
+    pub target: String,
+    /// Network-unique message identifier.
+    pub msgid: String,
+    /// Server-assigned message time.
+    pub time: SystemTime,
+}
+
 /// A history query supported by `CHATHISTORY`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

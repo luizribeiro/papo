@@ -29,7 +29,7 @@ use papo_proto::{
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 use framing::Framer;
-pub use history::{HistoryQuery, MsgRef, ReadMarker};
+pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
 use keepalive::Keepalive;
 use monitor::Monitor;

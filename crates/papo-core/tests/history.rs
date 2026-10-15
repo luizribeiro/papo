@@ -330,3 +330,39 @@ fn markread_failures_remain_standard_replies() {
         matches!(session.poll_event(), Some(Event::StandardReply(reply)) if reply.command == "MARKREAD" && reply.code == "INVALID_PARAMS")
     );
 }
+
+#[test]
+fn remembers_live_messages_but_not_history_pages() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T11:55:42.123Z;msgid=RKi9Cw :alice!~a@cloak PRIVMSG #papo :live",
+    );
+    let seen = session.state().last_seen("#PAPO").unwrap();
+    assert_eq!(seen.msgid, "RKi9Cw");
+    assert_eq!(
+        seen.time,
+        UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
+    );
+
+    for line in [
+        ":ergo.test BATCH +history chathistory #papo",
+        "@batch=history;time=2025-10-15T11:55:43.000Z;msgid=T1pQ6g :bob!~b@cloak PRIVMSG #papo :replay",
+        ":ergo.test BATCH -history",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(matches!(session.poll_event(), Some(Event::Message(_))));
+    assert!(matches!(session.poll_event(), Some(Event::History { .. })));
+    assert_eq!(session.state().last_seen("#papo").unwrap().msgid, "RKi9Cw");
+
+    session.handle_disconnected(now);
+    session.handle_connected(now);
+    assert_eq!(session.state().last_seen("#papo").unwrap().msgid, "RKi9Cw");
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T11:55:44.000Z;msgid=8sKY2A :alice!~a@cloak NOTICE papo :private",
+    );
+    assert_eq!(session.state().last_seen("Alice").unwrap().msgid, "8sKY2A");
+}
