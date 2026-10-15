@@ -56,20 +56,18 @@ impl RateLimiter {
 
     pub(super) fn reset(&mut self, now: Instant) {
         self.tokens = self.config.burst;
-        self.next_token = None;
+        self.set_next_token(None);
         self.now = Some(now);
     }
 
     pub(super) fn advance(&mut self, now: Instant) {
         self.now = Some(now);
-        while self
-            .next_token
-            .is_some_and(|deadline| now >= deadline && self.tokens < self.config.burst)
-        {
+        while self.next_token.is_some_and(|deadline| now >= deadline) {
             self.tokens += 1;
-            self.next_token = self.next_token.and_then(|deadline| {
+            let next_token = self.next_token.and_then(|deadline| {
                 (self.tokens < self.config.burst).then(|| deadline + self.config.refill)
             });
+            self.set_next_token(next_token);
         }
     }
 
@@ -81,10 +79,16 @@ impl RateLimiter {
             return false;
         }
         self.tokens -= 1;
-        if self.next_token.is_none() && self.tokens < self.config.burst {
-            self.next_token = self.now.map(|now| now + self.config.refill);
+        if self.next_token.is_none() {
+            let next_token = self.now.map(|now| now + self.config.refill);
+            self.set_next_token(next_token);
         }
         true
+    }
+
+    fn set_next_token(&mut self, next_token: Option<Instant>) {
+        debug_assert!(next_token.is_none() || self.tokens < self.config.burst);
+        self.next_token = next_token;
     }
 
     pub(super) const fn next_deadline(&self, queued: bool) -> Option<Instant> {

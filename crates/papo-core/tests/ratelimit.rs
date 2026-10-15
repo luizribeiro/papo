@@ -121,6 +121,22 @@ fn taking_another_token_preserves_the_refill_deadline() {
 }
 
 #[test]
+fn taking_from_a_refilled_bucket_starts_a_new_interval() {
+    let mut transcript = Transcript::rate_limited(Config::default());
+    for index in 1..=10 {
+        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+    }
+    for index in 1..=5 {
+        transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
+    }
+    transcript
+        .advance(Duration::from_millis(2_500))
+        .client("PRIVMSG #papo :message 6")
+        .deadline(Some(Duration::from_millis(500)))
+        .ignore_rest();
+}
+
+#[test]
 fn unlimited_rate_limit_never_schedules_a_token_deadline() {
     Transcript::rate_limited(Config::default().rate_limit(RateLimit::unlimited()))
         .send(Message::privmsg("#papo", "one"))
