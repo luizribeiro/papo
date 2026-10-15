@@ -2,6 +2,7 @@
 //! This crate performs no I/O and has minimal dependencies.
 
 mod casemapping;
+mod client_tags;
 mod command;
 mod ctcp;
 mod formatting;
@@ -16,6 +17,7 @@ mod views;
 mod whox;
 
 pub use casemapping::{CaseKey, Casemapping};
+pub use client_tags::{Reaction, Typing};
 pub use command::Command;
 pub use ctcp::Ctcp;
 pub use formatting::{Color, FormatBuilder, Formatted, Span, Style, strip_formatting};
