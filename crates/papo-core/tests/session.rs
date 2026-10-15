@@ -316,4 +316,12 @@ fn request_errors_describe_the_failure_and_preserve_build_sources() {
     let limit = RequestError::PendingLimit;
     assert_eq!(limit.to_string(), "too many labelled requests are pending");
     assert!(std::error::Error::source(&limit).is_none());
+    assert_eq!(
+        RequestError::Unsupported("chathistory").to_string(),
+        "server does not support chathistory"
+    );
+    assert_eq!(
+        RequestError::InvalidMessageReference.to_string(),
+        "unsupported message reference"
+    );
 }

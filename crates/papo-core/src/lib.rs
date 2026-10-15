@@ -756,6 +756,10 @@ pub enum RequestError {
     PendingLimit,
     /// The text contains no nonempty lines to send.
     EmptyText,
+    /// The server has not enabled the named optional protocol feature.
+    Unsupported(&'static str),
+    /// The server cannot accept the supplied history reference.
+    InvalidMessageReference,
 }
 
 impl std::fmt::Display for RequestError {
@@ -764,6 +768,8 @@ impl std::fmt::Display for RequestError {
             Self::Build(error) => error.fmt(formatter),
             Self::PendingLimit => formatter.write_str("too many labelled requests are pending"),
             Self::EmptyText => formatter.write_str("text has no nonempty lines"),
+            Self::Unsupported(feature) => write!(formatter, "server does not support {feature}"),
+            Self::InvalidMessageReference => formatter.write_str("unsupported message reference"),
         }
     }
 }
@@ -772,7 +778,10 @@ impl std::error::Error for RequestError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Build(error) => Some(error),
-            Self::PendingLimit | Self::EmptyText => None,
+            Self::PendingLimit
+            | Self::EmptyText
+            | Self::Unsupported(_)
+            | Self::InvalidMessageReference => None,
         }
     }
 }
