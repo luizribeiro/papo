@@ -6,7 +6,7 @@ mod keepalive;
 
 use std::{collections::VecDeque, time::Instant};
 
-use papo_proto::{MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef};
+use papo_proto::{BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef};
 
 use framing::Framer;
 use keepalive::Keepalive;
@@ -58,12 +58,6 @@ pub struct Session {
     outbox: Outbox,
 }
 
-#[derive(Debug)]
-enum Transmit {
-    Message(Message),
-    Raw(Vec<u8>),
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Handled {
     Yes,
@@ -72,14 +66,14 @@ enum Handled {
 
 #[derive(Debug, Default)]
 struct Outbox {
-    transmits: VecDeque<Transmit>,
+    transmits: VecDeque<Vec<u8>>,
     events: VecDeque<Event>,
     close_requested: bool,
 }
 
 impl Outbox {
     fn transmit_raw(&mut self, line: Vec<u8>) {
-        self.transmits.push_back(Transmit::Raw(line));
+        self.transmits.push_back(line);
     }
 
     fn event(&mut self, event: Event) {
@@ -173,27 +167,21 @@ impl Session {
         self.outbox.reset_connection();
     }
 
-    /// Queues a user-originated raw message for transmission.
-    pub fn send(&mut self, _now: Instant, message: Message) {
-        self.outbox.transmits.push_back(Transmit::Message(message));
+    /// Validates and queues a user-originated raw message for transmission.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BuildError`] if `message` cannot be represented as a valid IRC wire line.
+    pub fn send(&mut self, _now: Instant, message: Message) -> Result<(), BuildError> {
+        let line = message.to_line()?;
+        drop(message);
+        self.outbox.transmit_raw(line.into());
+        Ok(())
     }
 
     /// Returns the next CRLF-terminated wire line to transmit.
-    ///
-    /// # Panics
-    ///
-    /// Panics if a queued message cannot be represented as a valid IRC wire line.
     pub fn poll_transmit(&mut self) -> Option<Vec<u8>> {
-        self.outbox
-            .transmits
-            .pop_front()
-            .map(|transmit| match transmit {
-                Transmit::Message(message) => message
-                    .to_line()
-                    .expect("message passed to Session::send is invalid")
-                    .into(),
-                Transmit::Raw(line) => line,
-            })
+        self.outbox.transmits.pop_front()
     }
 
     /// Returns the next session event.

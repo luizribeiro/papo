@@ -41,7 +41,9 @@ impl Transcript {
 
     /// Queues a user-originated message.
     pub fn send(mut self, message: Message) -> Self {
-        self.session.send(self.now, message);
+        self.session
+            .send(self.now, message)
+            .expect("transcript user message is valid");
         self
     }
 
