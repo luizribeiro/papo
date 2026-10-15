@@ -157,6 +157,27 @@ impl Transcript {
         self
     }
 
+    /// Asserts that no event is pending.
+    pub fn no_event(mut self) -> Self {
+        assert_eq!(self.session.poll_event(), None);
+        self
+    }
+
+    /// Consumes events until one satisfies `predicate`.
+    pub fn event_until(mut self, mut predicate: impl FnMut(&Event) -> bool) -> Self {
+        loop {
+            let event = self.session.poll_event().unwrap_or_else(|| {
+                panic!(
+                    "expected another event; client lines sent so far:\n{}",
+                    self.log()
+                )
+            });
+            if predicate(&event) {
+                return self;
+            }
+        }
+    }
+
     /// Discards any output that remains when this transcript ends.
     pub fn ignore_rest(mut self) {
         self.ignore_rest = true;
