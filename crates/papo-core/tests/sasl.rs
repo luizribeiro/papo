@@ -74,6 +74,35 @@ fn reauthentication_does_not_interrupt_an_active_exchange() {
 }
 
 #[test]
+fn sasl_capability_return_does_not_restart_successful_authentication() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+        .server(":ergo.test 900 papo papo!u@host alice :logged in")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .client("CAP END")
+        .server("CAP papo DEL :sasl")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { removed, .. }
+                if removed.contains_key("sasl"))
+        })
+        .server("CAP papo NEW :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP papo ACK :sasl")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { added, .. }
+                if added.contains_key("sasl"))
+        })
+        .inspect(|session| assert_eq!(session.account(), Some("alice")))
+        .no_client();
+}
+
+#[test]
 fn starts_sasl_after_ack_and_holds_cap_end() {
     Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
         .connect_default()
