@@ -107,6 +107,20 @@ fn reconnecting_restores_the_full_burst() {
 }
 
 #[test]
+fn taking_another_token_preserves_the_refill_deadline() {
+    Transcript::rate_limited(Config::default())
+        .send(Message::privmsg("#papo", "first"))
+        .send(Message::privmsg("#papo", "second"))
+        .send(Message::privmsg("#papo", "third"))
+        .client("PRIVMSG #papo first")
+        .deadline(Some(Duration::from_millis(500)))
+        .advance(Duration::from_millis(100))
+        .client("PRIVMSG #papo second")
+        .deadline(Some(Duration::from_millis(400)))
+        .ignore_rest();
+}
+
+#[test]
 fn unlimited_rate_limit_never_schedules_a_token_deadline() {
     Transcript::rate_limited(Config::default().rate_limit(RateLimit::unlimited()))
         .send(Message::privmsg("#papo", "one"))
