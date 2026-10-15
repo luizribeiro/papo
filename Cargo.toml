@@ -7,6 +7,7 @@ members = [
   "crates/papo",
   "crates/papo-conformance",
   "examples/parse",
+  "examples/ping-bot",
 ]
 exclude = ["fuzz"]
 
