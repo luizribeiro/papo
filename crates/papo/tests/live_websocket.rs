@@ -11,11 +11,21 @@
 use std::fs;
 use std::io;
 
+use futures_util::{SinkExt, StreamExt};
 use papo::transport::{Stream, connect_websocket};
 #[cfg(tls)]
 use papo::transport::{TlsConfig, TlsRoots};
 use papo_test_server::from_env;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+use tokio_tungstenite::{
+    accept_hdr_async,
+    tungstenite::{
+        Message,
+        handshake::server::{ErrorResponse, Request, Response},
+        http::StatusCode,
+    },
+};
 
 #[tokio::test(flavor = "current_thread")]
 async fn plaintext_cap_exchange_prefers_binary_messages() {
@@ -61,6 +71,68 @@ async fn writes_each_complete_line_as_one_message() {
     stream.write_all(b"PING :split").await.unwrap();
     stream.write_all(b"\r\n").await.unwrap();
     assert!(read_line(&mut stream).await.unwrap().contains(" PONG "));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[allow(clippy::result_large_err)]
+async fn retries_without_subprotocols_when_a_legacy_server_rejects_them() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (first, _) = listener.accept().await.unwrap();
+        let error = accept_hdr_async(
+            first,
+            |request: &Request, _response: Response| -> Result<Response, ErrorResponse> {
+                assert_eq!(request.uri().path(), "/webirc");
+                assert_eq!(
+                    request.headers()["Sec-WebSocket-Protocol"],
+                    "binary.ircv3.net, text.ircv3.net"
+                );
+                Err(tokio_tungstenite::tungstenite::http::Response::builder()
+                    .status(StatusCode::BAD_REQUEST)
+                    .body(Some("subprotocols unsupported".into()))
+                    .unwrap())
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            tokio_tungstenite::tungstenite::Error::Http(response)
+                if response.status() == StatusCode::BAD_REQUEST
+        ));
+
+        let (second, _) = listener.accept().await.unwrap();
+        let mut socket = accept_hdr_async(
+            second,
+            |request: &Request, response: Response| -> Result<Response, ErrorResponse> {
+                assert_eq!(request.uri().path(), "/webirc");
+                assert!(!request.headers().contains_key("Sec-WebSocket-Protocol"));
+                Ok(response)
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            socket.next().await.unwrap().unwrap(),
+            Message::text("PING :legacy")
+        );
+        socket
+            .send(Message::text(":legacy.example PONG legacy"))
+            .await
+            .unwrap();
+    });
+
+    let mut stream = connect_websocket(&format!("ws://{address}/webirc"), None)
+        .await
+        .unwrap();
+    assert_eq!(stream.websocket_subprotocol(), None);
+    stream.write_all(b"PING :legacy\r\n").await.unwrap();
+    assert_eq!(
+        read_line(&mut stream).await.unwrap(),
+        ":legacy.example PONG legacy\r\n"
+    );
+    server.await.unwrap();
 }
 
 async fn read_line(stream: &mut Stream) -> io::Result<String> {

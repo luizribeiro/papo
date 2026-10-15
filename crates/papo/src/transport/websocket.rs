@@ -9,7 +9,10 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_tungstenite::{
     WebSocketStream, client_async_with_config,
     tungstenite::{
-        Error, Message, client::IntoClientRequest, http::header::SEC_WEBSOCKET_PROTOCOL,
+        Error, Message,
+        client::IntoClientRequest,
+        error::{ProtocolError, SubProtocolError},
+        http::{StatusCode, header::SEC_WEBSOCKET_PROTOCOL},
         protocol::WebSocketConfig,
     },
 };
@@ -32,6 +35,29 @@ pub(super) struct WebSocket {
 }
 
 pub(super) async fn connect(url: &str, tls: Option<&TlsConfig>) -> Result<WebSocket, ConnectError> {
+    match connect_once(url, tls, true).await {
+        Err(ConnectError::WebSocket(error)) if rejects_subprotocols(&error) => {
+            connect_once(url, tls, false).await
+        }
+        result => result,
+    }
+}
+
+fn rejects_subprotocols(error: &Error) -> bool {
+    match error {
+        Error::Http(response) => response.status() == StatusCode::BAD_REQUEST,
+        Error::Protocol(ProtocolError::SecWebSocketSubProtocolError(
+            SubProtocolError::NoSubProtocol,
+        )) => true,
+        _ => false,
+    }
+}
+
+async fn connect_once(
+    url: &str,
+    tls: Option<&TlsConfig>,
+    offer_subprotocols: bool,
+) -> Result<WebSocket, ConnectError> {
     let mut request = url.into_client_request().map_err(ConnectError::WebSocket)?;
     let uri = request.uri();
     let secure = match uri.scheme_str() {
@@ -55,12 +81,14 @@ pub(super) async fn connect(url: &str, tls: Option<&TlsConfig>) -> Result<WebSoc
         Security::Plaintext
     };
     let transport = super::connect(host, port, &security).await?;
-    request.headers_mut().insert(
-        SEC_WEBSOCKET_PROTOCOL,
-        format!("{BINARY}, {TEXT}")
-            .parse()
-            .expect("static protocols"),
-    );
+    if offer_subprotocols {
+        request.headers_mut().insert(
+            SEC_WEBSOCKET_PROTOCOL,
+            format!("{BINARY}, {TEXT}")
+                .parse()
+                .expect("static protocols"),
+        );
+    }
     let config = WebSocketConfig::default()
         .write_buffer_size(0)
         .max_write_buffer_size(MAX_MESSAGE_SIZE * 2)
