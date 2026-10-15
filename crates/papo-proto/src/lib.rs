@@ -11,7 +11,7 @@ mod source;
 
 pub use casemapping::{CaseKey, Casemapping};
 pub use command::Command;
-pub use formatting::{Formatted, Span, Style, strip};
+pub use formatting::{Color, Formatted, Span, Style, strip};
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, Extban, Isupport, Limit, LimitValue, Prefix,
 };

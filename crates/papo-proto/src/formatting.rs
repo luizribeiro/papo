@@ -1,12 +1,23 @@
 use std::{borrow::Cow, iter::FusedIterator};
 
 const BOLD: u8 = 0x02;
+const COLOR: u8 = 0x03;
+const HEX_COLOR: u8 = 0x04;
 const RESET: u8 = 0x0f;
 const MONOSPACE: u8 = 0x11;
 const REVERSE: u8 = 0x16;
 const ITALICS: u8 = 0x1d;
 const STRIKETHROUGH: u8 = 0x1e;
 const UNDERLINE: u8 = 0x1f;
+
+/// A color selected by an IRC formatting code.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Color {
+    /// A numbered color in the IRC palette.
+    Palette(u8),
+    /// A 24-bit RGB color written as six hexadecimal digits.
+    Hex(u32),
+}
 
 /// The formatting active for a span of text.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -24,6 +35,10 @@ pub struct Style {
     pub monospace: bool,
     /// Whether foreground and background colors are reversed.
     pub reverse: bool,
+    /// The foreground color, when explicitly selected.
+    pub fg: Option<Color>,
+    /// The background color, when explicitly selected.
+    pub bg: Option<Color>,
 }
 
 /// A non-empty piece of text and the formatting active for it.
@@ -55,6 +70,8 @@ impl<'a> Formatted<'a> {
                 strikethrough: false,
                 monospace: false,
                 reverse: false,
+                fg: None,
+                bg: None,
             },
         }
     }
@@ -70,7 +87,30 @@ impl<'a> Formatted<'a> {
             MONOSPACE => self.style.monospace = !self.style.monospace,
             REVERSE => self.style.reverse = !self.style.reverse,
             RESET => self.style = Style::default(),
+            COLOR => self.consume_color(false),
+            HEX_COLOR => self.consume_color(true),
             _ => unreachable!("only formatting controls are selected"),
+        }
+    }
+
+    fn consume_color(&mut self, hex: bool) {
+        let digits = if hex { 6 } else { 2 };
+        let parsed = take_digits(self.remaining, digits, hex);
+        let Some((value, consumed)) = parsed else {
+            // Fewer than six hex digits cannot name a color, so they reset like a bare ^C.
+            self.style.fg = None;
+            self.style.bg = None;
+            return;
+        };
+        self.remaining = &self.remaining[consumed..];
+        self.style.fg = Some(parsed_color(value, hex));
+
+        let Some(after_comma) = self.remaining.strip_prefix(',') else {
+            return;
+        };
+        if let Some((value, consumed)) = take_digits(after_comma, digits, hex) {
+            self.remaining = &after_comma[consumed..];
+            self.style.bg = Some(parsed_color(value, hex));
         }
     }
 }
@@ -120,6 +160,41 @@ pub fn strip(text: &str) -> Cow<'_, str> {
 fn is_control(byte: u8) -> bool {
     matches!(
         byte,
-        BOLD | RESET | MONOSPACE | REVERSE | ITALICS | STRIKETHROUGH | UNDERLINE
+        BOLD | COLOR
+            | HEX_COLOR
+            | RESET
+            | MONOSPACE
+            | REVERSE
+            | ITALICS
+            | STRIKETHROUGH
+            | UNDERLINE
     )
+}
+
+fn take_digits(input: &str, maximum: usize, hex: bool) -> Option<(u32, usize)> {
+    let count = input
+        .bytes()
+        .take(maximum)
+        .take_while(|byte| {
+            if hex {
+                byte.is_ascii_hexdigit()
+            } else {
+                byte.is_ascii_digit()
+            }
+        })
+        .count();
+    if count == 0 || (hex && count != maximum) {
+        return None;
+    }
+    u32::from_str_radix(&input[..count], if hex { 16 } else { 10 })
+        .ok()
+        .map(|value| (value, count))
+}
+
+fn parsed_color(value: u32, hex: bool) -> Color {
+    if hex {
+        Color::Hex(value)
+    } else {
+        Color::Palette(u8::try_from(value).expect("two decimal digits fit in u8"))
+    }
 }
