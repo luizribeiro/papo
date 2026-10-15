@@ -213,7 +213,16 @@ fn rejects_early_registration_without_before_connect() {
             );
         })
         .server("CAP * ACK :draft/account-registration")
-        .client("CAP END");
+        .client("CAP END")
+        .update(|session| {
+            assert_eq!(
+                session.verify(std::time::Instant::now(), "alice", "pending-code"),
+                Err(papo_core::RequestError::Unsupported(
+                    "account verification before connection"
+                ))
+            );
+        })
+        .no_client();
 }
 
 #[test]

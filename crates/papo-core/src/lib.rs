@@ -2167,6 +2167,19 @@ impl Session {
         {
             return Err(RequestError::Unsupported("account-registration"));
         }
+        if !self.registration.is_registered()
+            && !RegistrationPolicy::parse(
+                self.caps
+                    .enabled()
+                    .get("draft/account-registration")
+                    .and_then(Option::as_deref),
+            )
+            .before_connect
+        {
+            return Err(RequestError::Unsupported(
+                "account verification before connection",
+            ));
+        }
         self.request(now, Message::new("VERIFY", [account, code]))?;
         Ok(())
     }
@@ -2716,7 +2729,7 @@ fn sent_info(message: &MessageRef<'_>) -> Option<SentInfo> {
 
 #[cfg(test)]
 mod tests {
-    use super::Outbox;
+    use super::{CloseKind, Event, Outbox};
 
     #[test]
     fn batch_queue_rejects_empty_and_closed_transmissions() {
@@ -2727,5 +2740,18 @@ mod tests {
         outbox.close_requested = true;
         outbox.transmit_batch(vec![b"BATCH +papo draft/multiline #papo\r\n".to_vec()]);
         assert!(outbox.transmits.is_empty());
+    }
+
+    #[test]
+    fn generic_protocol_closures_retain_the_other_kind() {
+        let mut outbox = Outbox::default();
+        outbox.close(CloseKind::Other, "protocol shutdown".to_owned());
+        assert!(matches!(
+            outbox.events.pop_front(),
+            Some(Event::Close {
+                kind: CloseKind::Other,
+                ..
+            })
+        ));
     }
 }
