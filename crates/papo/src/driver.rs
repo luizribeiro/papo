@@ -13,7 +13,7 @@ use std::{
 };
 
 use papo_core::{
-    Connection, RequestError, RequestId, Response, ResponseMatcher, Session,
+    Connection, RequestError, RequestId, Response, ResponseMatcher, Session, TextKind,
     sts::{ConnectionSecurity, StoredPolicy, StsAction, StsStore, reschedule_on_disconnect},
 };
 use papo_proto::Message;
@@ -50,6 +50,13 @@ enum Command {
         message: Message,
         matcher: Option<ResponseMatcher>,
         result: oneshot::Sender<Result<Response, Error>>,
+    },
+    SendText {
+        kind: TextKind,
+        target: String,
+        text: String,
+        tags: Vec<(String, String)>,
+        result: oneshot::Sender<Result<(), Error>>,
     },
     WaitChannelSync {
         channel: String,
@@ -246,7 +253,49 @@ impl Client {
     ///
     /// Returns an error if the message is invalid or the driver has stopped.
     pub async fn privmsg(&self, target: &str, text: &str) -> Result<(), Error> {
-        self.send(Message::privmsg(target, text)).await
+        self.send_text(TextKind::Privmsg, target, text, Vec::new())
+            .await
+    }
+
+    /// Sends a notice to a user or channel.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the text is empty or invalid, or the driver has stopped.
+    pub async fn notice(&self, target: &str, text: &str) -> Result<(), Error> {
+        self.send_text(TextKind::Notice, target, text, Vec::new())
+            .await
+    }
+
+    pub(crate) async fn send_text(
+        &self,
+        kind: TextKind,
+        target: &str,
+        text: &str,
+        tags: Vec<(String, String)>,
+    ) -> Result<(), Error> {
+        if !self.is_connected() {
+            let mut message = match kind {
+                TextKind::Privmsg => Message::privmsg(target, text),
+                TextKind::Notice => Message::notice(target, text),
+            };
+            for (key, value) in tags {
+                message = message.with_tag(key, value);
+            }
+            return self.send(message).await;
+        }
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::SendText {
+                kind,
+                target: target.to_owned(),
+                text: text.to_owned(),
+                tags,
+                result,
+            })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        receiver.await.map_err(|_| Error::Disconnected)?
     }
 
     /// Requests information about a nickname.
@@ -1099,7 +1148,7 @@ fn handle_disconnected_command(
             _ = result.send(Err(Error::Disconnected));
             true
         }
-        Some(Command::WaitChannelSync { result, .. }) => {
+        Some(Command::SendText { result, .. } | Command::WaitChannelSync { result, .. }) => {
             _ = result.send(Err(Error::Disconnected));
             true
         }
@@ -1268,6 +1317,20 @@ where
                         Err(error) => {
                             let error = match error {
                                 RequestError::Build(error) => Error::Build(error),
+                                _ => Error::RequestLimit,
+                            };
+                            _ = result.send(Err(error));
+                        }
+                    }
+                }
+                Some(Command::SendText { kind, target, text, tags, result }) => {
+                    let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
+                    match session.send_text(now(), kind, &target, &text, &tags) {
+                        Ok(_) => _ = result.send(Ok(())),
+                        Err(error) => {
+                            let error = match error {
+                                RequestError::Build(error) => Error::Build(error),
+                                RequestError::EmptyText => Error::EmptyText,
                                 _ => Error::RequestLimit,
                             };
                             _ = result.send(Err(error));
@@ -3373,6 +3436,60 @@ mod tests {
             ReplyKind::Reply,
         )
         .await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
+        let (mut server, client, _events, driver) = scripted(config());
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        client.privmsg("#papo", &"a".repeat(600)).await.unwrap();
+        let lines = format!(
+            "PRIVMSG #papo {}\r\nPRIVMSG #papo {}\r\n",
+            "a".repeat(413),
+            "a".repeat(187)
+        );
+        client_line(&mut server, lines.as_bytes()).await;
+        client
+            .notice("papo-helper", "maintenance soon")
+            .await
+            .unwrap();
+        client_line(&mut server, b"NOTICE papo-helper :maintenance soon\r\n").await;
+        assert!(matches!(
+            client.privmsg("#papo", "\n").await,
+            Err(Error::EmptyText)
+        ));
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn chat_text_uses_multiline_when_negotiated() {
+        let config = config().wanted_caps(["batch", "draft/multiline"]);
+        let (mut server, client, _events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :batch draft/multiline=max-bytes=4096,max-lines=100\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP REQ :batch draft/multiline\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * ACK :batch draft/multiline\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        client.privmsg("#papo", &"a".repeat(600)).await.unwrap();
+        let batch = format!(
+            "BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0;draft/multiline-concat PRIVMSG #papo {}\r\n@batch=b0-0 PRIVMSG #papo {}\r\nBATCH -b0-0\r\n",
+            "a".repeat(413),
+            "a".repeat(187)
+        );
+        client_line(&mut server, batch.as_bytes()).await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
     }
 
     #[tokio::test(flavor = "current_thread")]

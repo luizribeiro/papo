@@ -48,6 +48,9 @@ pub enum Error {
     /// The connection already has 256 requests awaiting replies.
     #[error("too many IRC requests are awaiting replies")]
     RequestLimit,
+    /// The outgoing chat text contains no nonempty lines.
+    #[error("chat text is empty")]
+    EmptyText,
     /// Registration ended before the server welcomed the client.
     #[error("IRC registration failed: {0}")]
     Registration(String),

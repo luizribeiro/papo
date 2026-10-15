@@ -358,7 +358,20 @@ impl MessageEvent {
                 reply = reply.with_tag(tag, context);
             }
         }
-        self.client.send(reply).await
+        let tags = reply
+            .as_ref()
+            .tags()
+            .filter(|(key, _)| key.starts_with('+'))
+            .map(|(key, value)| (key.to_owned(), value.unwrap_or_default().into_owned()))
+            .collect();
+        self.client
+            .send_text(
+                papo_core::TextKind::Privmsg,
+                self.reply_target(),
+                text,
+                tags,
+            )
+            .await
     }
 
     /// Borrows the underlying IRC message.
