@@ -1,9 +1,28 @@
 //! Tests for the public session queue surface.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use papo_core::{Config, Session};
 use papo_proto::{BuildError, Message};
+
+#[test]
+fn config_builders_set_registration_identity_and_timeout() {
+    let config = Config::default()
+        .nick("emily")
+        .username("em")
+        .realname("Emily Example")
+        .password("correct horse battery staple")
+        .registration_timeout(Duration::from_secs(23));
+
+    assert_eq!(config.nick, "emily");
+    assert_eq!(config.username, "em");
+    assert_eq!(config.realname, "Emily Example");
+    assert_eq!(
+        config.password.as_deref(),
+        Some("correct horse battery staple")
+    );
+    assert_eq!(config.registration_timeout, Duration::from_secs(23));
+}
 
 #[test]
 fn sends_crlf_terminated_messages_in_order() {

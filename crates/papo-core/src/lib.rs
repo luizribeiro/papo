@@ -4,7 +4,10 @@
 mod framing;
 mod keepalive;
 
-use std::{collections::VecDeque, time::Instant};
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
 
 use papo_proto::{BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef};
 
@@ -12,6 +15,7 @@ use framing::Framer;
 use keepalive::Keepalive;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
+const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Policy for decoding incoming IRC lines.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -25,11 +29,34 @@ pub enum Decoding {
 }
 
 /// Configuration for an IRC session.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Config {
     /// The policy used to decode incoming lines.
     pub decoding: Decoding,
+    /// The nickname requested during registration.
+    pub nick: String,
+    /// The username sent during registration.
+    pub username: String,
+    /// The real name sent during registration.
+    pub realname: String,
+    /// The optional server password sent during registration.
+    pub password: Option<String>,
+    /// The maximum time to wait for the welcome numeric.
+    pub registration_timeout: Duration,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            decoding: Decoding::default(),
+            nick: "papo".to_owned(),
+            username: "papo".to_owned(),
+            realname: "papo".to_owned(),
+            password: None,
+            registration_timeout: DEFAULT_REGISTRATION_TIMEOUT,
+        }
+    }
 }
 
 impl Config {
@@ -37,6 +64,41 @@ impl Config {
     #[must_use]
     pub const fn decoding(mut self, decoding: Decoding) -> Self {
         self.decoding = decoding;
+        self
+    }
+
+    /// Sets the nickname requested during registration.
+    #[must_use]
+    pub fn nick(mut self, nick: impl Into<String>) -> Self {
+        self.nick = nick.into();
+        self
+    }
+
+    /// Sets the username sent during registration.
+    #[must_use]
+    pub fn username(mut self, username: impl Into<String>) -> Self {
+        self.username = username.into();
+        self
+    }
+
+    /// Sets the real name sent during registration.
+    #[must_use]
+    pub fn realname(mut self, realname: impl Into<String>) -> Self {
+        self.realname = realname.into();
+        self
+    }
+
+    /// Sets the optional server password sent during registration.
+    #[must_use]
+    pub fn password(mut self, password: impl Into<String>) -> Self {
+        self.password = Some(password.into());
+        self
+    }
+
+    /// Sets the maximum time to wait for the welcome numeric.
+    #[must_use]
+    pub const fn registration_timeout(mut self, timeout: Duration) -> Self {
+        self.registration_timeout = timeout;
         self
     }
 }
