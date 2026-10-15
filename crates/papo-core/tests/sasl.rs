@@ -261,6 +261,31 @@ fn account_required_closes_and_verification_note_surfaces() {
 }
 
 #[test]
+fn unrelated_fail_replies_do_not_trigger_account_required_policy() {
+    for reply in [
+        ":ergo.test FAIL AUTHENTICATE ACCOUNT_REQUIRED :Authentication required",
+        ":ergo.test FAIL * OTHER_CODE :A different failure",
+    ] {
+        Transcript::new(
+            Config::default()
+                .sasl(Sasl::plain("alice", "hunter2"))
+                .require_sasl(true),
+        )
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN standard-replies")
+        .client("CAP REQ :standard-replies sasl")
+        .server("CAP * ACK :standard-replies sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(reply)
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("FAIL")),
+        )
+        .no_client()
+        .deadline(Some(std::time::Duration::from_secs(30)));
+    }
+}
+
+#[test]
 fn aborts_at_the_literal_30_second_deadline_then_falls_back() {
     Transcript::with_entropy(
         Config::default().sasl(Sasl::any("alice", "hunter2")),
