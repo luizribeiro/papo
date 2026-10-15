@@ -390,7 +390,7 @@ async fn run_plan(
             Ok(stream) => stream,
             Err(error) => {
                 let reason = error.to_string();
-                if !reconnect.permits(attempts) {
+                if is_fatal_failure(&error, &reason) || !reconnect.permits(attempts) {
                     if registration.0.is_some() {
                         registration.failed(error);
                         drop(events.regular);
@@ -446,6 +446,10 @@ async fn run_plan(
         if end.quit.is_some() {
             return finish(events, end, false);
         }
+        if is_fatal_failure(&end.error, &end.reason) {
+            registration.failed(end.registration_error());
+            return finish(events, end, false);
+        }
         if !reconnect.permits(attempts) {
             registration.failed(end.registration_error());
             return finish(events, end, false);
@@ -459,6 +463,22 @@ async fn run_plan(
             .await;
         sleep_before_retry(reconnect, attempts).await;
     }
+}
+
+fn is_fatal_failure(error: &Error, reason: &str) -> bool {
+    if reason.starts_with("SASL failed:") {
+        return true;
+    }
+    #[cfg(tls)]
+    if matches!(
+        error,
+        Error::Connect(transport::ConnectError::Tls(
+            rustls::Error::InvalidCertificate(_)
+        ))
+    ) {
+        return true;
+    }
+    false
 }
 
 async fn sleep_before_retry(reconnect: Reconnect, attempts: usize) {
@@ -1147,6 +1167,64 @@ mod tests {
             matches!(waiter.await.unwrap(), Err(Error::Registration(reason)) if reason.contains("SASL"))
         );
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn required_sasl_failure_does_not_reconnect() {
+        let settings = config()
+            .wanted_caps(["sasl"])
+            .sasl(Sasl::plain("alice", "correct horse battery staple"))
+            .require_sasl(true);
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let stream = Arc::new(Mutex::new(Some(
+            Box::new(client_stream) as super::BoxConnection
+        )));
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let connector: super::Connector = Arc::new({
+            let calls = Arc::clone(&calls);
+            move |_| {
+                calls.fetch_add(1, Ordering::Relaxed);
+                let stream = stream.lock().unwrap().take().unwrap();
+                Box::pin(async move { Ok(stream) })
+            }
+        });
+        let (_client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(settings),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential(),
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
+        client_line(&mut server, b"CAP REQ :sasl\r\n").await;
+        server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
+
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected {
+                will_retry: false,
+                ..
+            })
+        ));
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+        tokio::time::advance(Duration::from_secs(10)).await;
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+    }
+
+    #[cfg(tls)]
+    #[test]
+    fn certificate_verification_failure_is_fatal() {
+        let error = Error::Connect(crate::transport::ConnectError::Tls(
+            rustls::Error::InvalidCertificate(rustls::CertificateError::UnknownIssuer),
+        ));
+        assert!(super::is_fatal_failure(&error, &error.to_string()));
     }
 
     #[tokio::test(flavor = "current_thread")]
