@@ -615,6 +615,8 @@ pub enum Event {
         /// Whether the server reported that no further page exists.
         end: bool,
     },
+    /// Targets that received messages during a requested time range.
+    HistoryTargets(Vec<(String, SystemTime)>),
     /// Users departed because connectivity between two servers was lost.
     ///
     /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
@@ -846,6 +848,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             messages,
             end,
         },
+        papo_core::Event::HistoryTargets(targets) => Event::HistoryTargets(targets),
         papo_core::Event::Netsplit { servers, quits } => Event::Netsplit { servers, quits },
         papo_core::Event::Netjoin { servers, joins } => Event::Netjoin { servers, joins },
         papo_core::Event::BatchAbandoned {
@@ -1618,6 +1621,15 @@ mod tests {
         assert_eq!(messages[0].message, message);
         assert!(!messages[0].context);
         assert!(end);
+    }
+
+    #[test]
+    fn maps_history_targets() {
+        let targets = vec![("#papo".into(), UNIX_EPOCH + Duration::from_secs(42))];
+        assert!(matches!(
+            forwarded(papo_core::Event::HistoryTargets(targets.clone())),
+            Event::HistoryTargets(mapped) if mapped == targets
+        ));
     }
 
     #[test]

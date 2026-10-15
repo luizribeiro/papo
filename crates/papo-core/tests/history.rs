@@ -202,3 +202,38 @@ fn correlates_chathistory_failures() {
     };
     assert!(response.error().is_some_and(|error| matches!(error, papo_core::ServerError::Standard { code, .. } if code == "INVALID_TARGET")));
 }
+
+#[test]
+fn reports_targets_with_parsed_server_times() {
+    let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+    session
+        .chathistory(
+            now,
+            HistoryQuery::Targets {
+                from: UNIX_EPOCH + Duration::from_secs(1_760_529_301),
+                to: UNIX_EPOCH + Duration::from_secs(1_760_529_401),
+                limit: 20,
+            },
+        )
+        .unwrap();
+    assert!(transmitted(&mut session).contains("CHATHISTORY TARGETS "));
+    for line in [
+        "@label=0 :ergo.test BATCH +reply labeled-response",
+        "@batch=reply :ergo.test BATCH +targets draft/chathistory-targets",
+        "@batch=targets :ergo.test CHATHISTORY TARGETS #papo 2025-10-15T11:55:42.123Z",
+        "@batch=targets :ergo.test CHATHISTORY TARGETS Alice 2025-10-15T11:55:43.000Z",
+        "@batch=reply :ergo.test BATCH -targets",
+        ":ergo.test BATCH -reply",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    let Some(Event::HistoryTargets(targets)) = session.poll_event() else {
+        panic!("expected history targets")
+    };
+    assert_eq!(targets.len(), 2);
+    assert_eq!(targets[0].0, "#papo");
+    assert_eq!(
+        targets[0].1,
+        UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
+    );
+}

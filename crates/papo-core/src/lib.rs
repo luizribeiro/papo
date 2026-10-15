@@ -867,6 +867,8 @@ pub enum Event {
         /// Whether the server reported that no further page exists.
         end: bool,
     },
+    /// Targets that received messages during a requested time range.
+    HistoryTargets(Vec<(String, std::time::SystemTime)>),
     /// Users departed because connectivity between two servers was lost.
     ///
     /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
@@ -2157,6 +2159,9 @@ impl Session {
                 messages,
                 end,
             }),
+            BatchEvent::HistoryTargets(targets) => {
+                self.outbox.event(Event::HistoryTargets(targets));
+            }
             BatchEvent::Netsplit { servers, quits } => {
                 // History can describe stale membership, while netsplit and netjoin batches
                 // report connectivity changes that define the current live membership.

@@ -1,4 +1,4 @@
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use papo_proto::{LimitValue, Message};
 
@@ -191,6 +191,54 @@ fn format_timestamp(time: SystemTime) -> Result<String, RequestError> {
         second_of_day % 60,
         millis.rem_euclid(1_000)
     ))
+}
+
+pub(crate) fn parse_timestamp(value: &str) -> Option<SystemTime> {
+    let bytes = value.as_bytes();
+    if bytes.len() != 24
+        || !matches!(
+            (
+                bytes[4], bytes[7], bytes[10], bytes[13], bytes[16], bytes[19], bytes[23]
+            ),
+            (b'-', b'-', b'T', b':', b':', b'.', b'Z')
+        )
+    {
+        return None;
+    }
+    let number = |range: std::ops::Range<usize>| {
+        bytes[range].iter().try_fold(0_i64, |value, byte| {
+            byte.is_ascii_digit()
+                .then_some(value * 10 + i64::from(byte - b'0'))
+        })
+    };
+    let (year, month, day) = (number(0..4)?, number(5..7)?, number(8..10)?);
+    let (hour, minute, second) = (number(11..13)?, number(14..16)?, number(17..19)?);
+    let millis = number(20..23)?;
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let month_days = match month {
+        2 => 28 + i64::from(leap),
+        4 | 6 | 9 | 11 => 30,
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        _ => return None,
+    };
+    if !(1..=month_days).contains(&day) || hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+    let adjusted_year = year - i64::from(month <= 2);
+    let era = adjusted_year.div_euclid(400);
+    let year_of_era = adjusted_year - era * 400;
+    let shifted_month = month + if month > 2 { -3 } else { 9 };
+    let day_of_year = (153 * shifted_month + 2) / 5 + day - 1;
+    let days = era * 146_097 + year_of_era * 365 + year_of_era / 4 - year_of_era / 100
+        + day_of_year
+        - 719_468;
+    let total_millis = (days * 86_400 + hour * 3_600 + minute * 60 + second) * 1_000 + millis;
+    let duration = Duration::from_millis(total_millis.unsigned_abs());
+    if total_millis >= 0 {
+        UNIX_EPOCH.checked_add(duration)
+    } else {
+        UNIX_EPOCH.checked_sub(duration)
+    }
 }
 
 #[cfg(test)]

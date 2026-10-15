@@ -289,12 +289,7 @@ fn recorded_ergo_latest_batch_becomes_history() {
 
 #[test]
 fn empty_and_draft_history_types_complete() {
-    for kind in [
-        "chathistory",
-        "draft/chathistory",
-        "draft/chathistory-targets",
-        "draft/event-playback",
-    ] {
+    for kind in ["chathistory", "draft/chathistory", "draft/event-playback"] {
         let now = Instant::now();
         let mut session = Session::new(Config::default());
         session.handle_line(now, format!("BATCH +h {kind} #papo").as_bytes());

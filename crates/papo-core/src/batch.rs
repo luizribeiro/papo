@@ -5,7 +5,7 @@ use std::{
 
 use papo_proto::{Message, MessageRef};
 
-use crate::{BatchAbandonReason, Config, HistoryMessage, HistoryPage};
+use crate::{BatchAbandonReason, Config, HistoryMessage, HistoryPage, history::parse_timestamp};
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -66,6 +66,7 @@ pub(crate) enum BatchEvent {
         messages: Vec<HistoryMessage>,
         end: bool,
     },
+    HistoryTargets(Vec<(String, std::time::SystemTime)>),
     Netsplit {
         servers: [String; 2],
         quits: Vec<Message>,
@@ -421,6 +422,22 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
             .map(BatchEvent::Multiline)
             .collect();
     }
+    if batch.kind == "draft/chathistory-targets" {
+        let targets = std::mem::take(&mut batch.messages)
+            .into_iter()
+            .filter_map(|message| {
+                let message = message.as_ref();
+                if !message.command_is("CHATHISTORY") || message.param(0) != Some("TARGETS") {
+                    return None;
+                }
+                Some((
+                    message.param(1)?.to_owned(),
+                    parse_timestamp(message.param(2)?)?,
+                ))
+            })
+            .collect();
+        return vec![BatchEvent::HistoryTargets(targets)];
+    }
     let servers = || {
         [
             batch.params.first().cloned().unwrap_or_default(),
@@ -533,7 +550,7 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
         BatchEvent::Message { message, .. } | BatchEvent::Multiline(message) => {
             messages.push(message);
         }
-        BatchEvent::Abandoned { .. } => {}
+        BatchEvent::HistoryTargets(_) | BatchEvent::Abandoned { .. } => {}
     }
 }
 
