@@ -50,3 +50,11 @@ fn embedded_newlines_split_without_empty_segments() {
     );
     assert_eq!(parts("", 20), []);
 }
+
+#[test]
+fn a_space_at_the_budget_edge_is_not_a_word_continuation() {
+    assert_eq!(
+        parts("hello world", 6),
+        vec![("hello ", false), ("world", false)]
+    );
+}
