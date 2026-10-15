@@ -407,6 +407,12 @@ fn scram_until_server_final(server_final: &str) -> Transcript {
 }
 
 #[test]
+fn each_scram_step_renews_the_deadline() {
+    scram_after_client_first(false).deadline(Some(std::time::Duration::from_secs(30)));
+    scram_after_client_final(false).deadline(Some(std::time::Duration::from_secs(30)));
+}
+
+#[test]
 fn rejects_scram_success_without_a_verified_server_proof() {
     for transcript in [
         scram_start(true),
