@@ -239,6 +239,22 @@ impl Client {
         crate::requests::whois(response, nick)
     }
 
+    /// Requests the users matching a channel or mask.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the server rejects the request or it cannot complete.
+    pub async fn who(&self, mask: &str) -> Result<Vec<crate::WhoEntry>, Error> {
+        let isupport = self.isupport();
+        let extended = isupport.whox();
+        let message = if extended {
+            Message::new("WHO", [mask, "%tcuhnfar"])
+        } else {
+            Message::new("WHO", [mask])
+        };
+        crate::requests::who(self.raw(message).await?, &isupport, extended)
+    }
+
     /// Requests a clean disconnect and waits for the peer to close.
     ///
     /// The wait is limited to ten seconds. The driver still completes cleanly
@@ -2810,14 +2826,40 @@ mod tests {
         assert!(whois.is_bot && whois.secure);
         assert_eq!(whois.idle, Some(Duration::from_secs(42)));
 
+        server_line(
+            &mut server,
+            b":ergo.test 005 papo-driver WHOX PREFIX=(ov)@+ :are supported\r\n",
+        )
+        .await;
+        let who = tokio::spawn({
+            let client = client.clone();
+            async move { client.who("#papo").await }
+        });
+        client_line(&mut server, b"@label=1 WHO #papo %tcuhnfar\r\n").await;
+        server_line(&mut server, b"@label=1 :ergo.test BATCH +who-42 labeled-response\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~alice client.example alice H@B alice :Alice Example\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~dan user.example dan G+* 0 :Dan Away\r\n@batch=who-42 :ergo.test 315 papo-driver #papo :End of WHO list\r\n:ergo.test BATCH -who-42\r\n").await;
+        let who = who.await.unwrap().unwrap();
+        assert_eq!(who.len(), 2);
+        assert_eq!(
+            (who[0].nick.as_str(), who[0].account.as_deref()),
+            ("alice", Some("alice"))
+        );
+        assert_eq!(
+            (who[0].away, who[0].is_bot, who[0].prefixes.as_slice()),
+            (false, true, ['@'].as_slice())
+        );
+        assert_eq!(
+            (who[1].away, who[1].is_oper, who[1].prefixes.as_slice()),
+            (true, true, ['+'].as_slice())
+        );
+
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.whois("missing-nick").await }
         });
-        client_line(&mut server, b"@label=1 WHOIS missing-nick\r\n").await;
+        client_line(&mut server, b"@label=2 WHOIS missing-nick\r\n").await;
         server_line(
             &mut server,
-            b"@label=1 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
+            b"@label=2 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
         )
         .await;
         assert!(matches!(
@@ -2829,13 +2871,13 @@ mod tests {
             let client = client.clone();
             async move { client.raw(Message::new("WHOIS", ["alice"])).await }
         });
-        client_line(&mut server, b"@label=2 WHOIS alice\r\n").await;
+        client_line(&mut server, b"@label=3 WHOIS alice\r\n").await;
         tokio::time::advance(Duration::from_secs(1)).await;
         assert!(matches!(timed_out.await.unwrap(), Err(Error::Timeout)));
 
         let aborted =
             tokio::spawn(async move { client.raw(Message::new("WHOIS", ["emily"])).await });
-        client_line(&mut server, b"@label=3 WHOIS emily\r\n").await;
+        client_line(&mut server, b"@label=4 WHOIS emily\r\n").await;
         server.shutdown().await.unwrap();
         assert!(matches!(aborted.await.unwrap(), Err(Error::Disconnected)));
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));

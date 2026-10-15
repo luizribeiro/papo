@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use papo_core::Response;
-use papo_proto::{Command, Numeric};
+use papo_proto::{Command, Isupport, Numeric, WhoxPresence, WhoxReply};
 
 use crate::Error;
 
@@ -30,6 +30,31 @@ pub struct Whois {
     pub secure: bool,
     /// Duration for which the user has been idle.
     pub idle: Option<Duration>,
+}
+
+/// One user returned by a `WHO` request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WhoEntry {
+    /// Channel associated with this reply, when present.
+    pub channel: Option<String>,
+    /// Nickname of the user.
+    pub nick: String,
+    /// Username of the user.
+    pub user: String,
+    /// Visible hostname of the user.
+    pub host: String,
+    /// Logged-in account name.
+    pub account: Option<String>,
+    /// Real name of the user.
+    pub realname: String,
+    /// Whether the user is away.
+    pub away: bool,
+    /// Whether the user is an IRC operator.
+    pub is_oper: bool,
+    /// Whether the server identifies the user as a bot.
+    pub is_bot: bool,
+    /// Channel-membership prefixes in wire order.
+    pub prefixes: Vec<char>,
 }
 
 pub(crate) fn whois(response: Response, requested_nick: &str) -> Result<Whois, Error> {
@@ -86,4 +111,63 @@ pub(crate) fn whois(response: Response, requested_nick: &str) -> Result<Whois, E
         }
     }
     Ok(result)
+}
+
+pub(crate) fn who(
+    response: Response,
+    isupport: &Isupport,
+    extended: bool,
+) -> Result<Vec<WhoEntry>, Error> {
+    if let Some(error) = response.error() {
+        return Err(Error::Server(error));
+    }
+    Ok(response
+        .lines
+        .into_iter()
+        .filter_map(|line| {
+            let message = line.as_ref();
+            if extended {
+                let reply = WhoxReply::parse(&message, "%tcuhnfar")?;
+                let flags = reply.flags(isupport)?;
+                Some(WhoEntry {
+                    channel: reply.channel.map(str::to_owned),
+                    nick: reply.nick?.to_owned(),
+                    user: reply.user?.to_owned(),
+                    host: reply.host?.to_owned(),
+                    account: reply.account.map(str::to_owned),
+                    realname: reply.realname?.to_owned(),
+                    away: flags.presence == Some(WhoxPresence::Gone),
+                    is_oper: flags.oper,
+                    is_bot: flags.bot,
+                    prefixes: flags.prefixes,
+                })
+            } else {
+                plain_who(&message, isupport)
+            }
+        })
+        .collect())
+}
+
+fn plain_who(message: &papo_proto::MessageRef<'_>, isupport: &Isupport) -> Option<WhoEntry> {
+    (message.command() == Command::Numeric(Numeric::RPL_WHOREPLY)).then_some(())?;
+    let flags = message.param(6)?;
+    let prefixes = isupport.prefix();
+    Some(WhoEntry {
+        channel: message
+            .param(1)
+            .filter(|value| *value != "*")
+            .map(str::to_owned),
+        user: message.param(2)?.to_owned(),
+        host: message.param(3)?.to_owned(),
+        nick: message.param(5)?.to_owned(),
+        account: None,
+        realname: message.param(7)?.split_once(' ')?.1.to_owned(),
+        away: flags.contains('G'),
+        is_oper: flags.contains('*'),
+        is_bot: flags.contains('B'),
+        prefixes: flags
+            .chars()
+            .filter(|flag| prefixes.iter().any(|prefix| prefix.symbol == *flag))
+            .collect(),
+    })
 }
