@@ -591,6 +591,25 @@ fn aborts_a_challenge_without_a_payload() {
 }
 
 #[test]
+fn fails_when_the_server_does_not_acknowledge_an_abort() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE")
+        .client("AUTHENTICATE *")
+        .deadline(Some(std::time::Duration::from_secs(30)))
+        .advance(std::time::Duration::from_secs(30))
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason }
+                if reason.contains("did not acknowledge"))
+        })
+        .client("CAP END");
+}
+
+#[test]
 fn aborts_a_server_challenge_over_4096_bytes() {
     let chunk = format!("AUTHENTICATE {}", "YWFh".repeat(100));
     let mut transcript = Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
