@@ -590,7 +590,7 @@ pub(crate) enum CoreEvent {
 pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Registered(welcome) => Event::Registered(welcome),
-        papo_core::Event::Message(raw) => Event::Raw(raw),
+        papo_core::Event::Message(message) => Event::Raw(message.into_message()),
         papo_core::Event::Malformed { line } => Event::Malformed { line },
         papo_core::Event::Close { reason } => return CoreEvent::Close(reason),
         papo_core::Event::AuthenticationFailed { reason } => Event::AuthenticationFailed { reason },

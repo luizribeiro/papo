@@ -22,6 +22,7 @@ use papo_proto::{
     BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef, ModeChange, ModeKind,
 };
 
+use batch::{BatchAction, Batches, DispatchContext};
 use caps::Caps;
 use framing::Framer;
 use isupport::IsupportState;
@@ -369,7 +370,7 @@ pub enum Event {
     /// Connection registration completed.
     Registered(Welcome),
     /// A parsed message not consumed by session protocol behavior.
-    Message(Message),
+    Message(ReceivedMessage),
     /// A line that could not be decoded or parsed.
     Malformed {
         /// The original bytes, excluding the line ending.
@@ -525,6 +526,41 @@ pub enum Event {
     },
 }
 
+/// A parsed message annotated with protocol dispatch context.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReceivedMessage {
+    message: Message,
+    batch_type: Option<String>,
+}
+
+impl ReceivedMessage {
+    /// Borrows the parsed IRC message.
+    #[must_use]
+    pub fn as_ref(&self) -> MessageRef<'_> {
+        self.message.as_ref()
+    }
+
+    /// Returns the containing batch's type, when known.
+    #[must_use]
+    pub fn batch_type(&self) -> Option<&str> {
+        self.batch_type.as_deref()
+    }
+
+    /// Removes the dispatch annotation and returns the parsed IRC message.
+    #[must_use]
+    pub fn into_message(self) -> Message {
+        self.message
+    }
+}
+
+impl std::ops::Deref for ReceivedMessage {
+    type Target = Message;
+
+    fn deref(&self) -> &Self::Target {
+        &self.message
+    }
+}
+
 /// A bounded server-controlled state collection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -537,6 +573,7 @@ pub enum StateLimit {
 
 /// Sans-I/O state for one IRC client session.
 pub struct Session {
+    batches: Batches,
     config: Config,
     connection: Connection,
     caps: Caps,
@@ -556,6 +593,7 @@ impl std::fmt::Debug for Session {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("Session")
+            .field("batches", &self.batches)
             .field("config", &self.config)
             .field("connection", &self.connection)
             .field("caps", &self.caps)
@@ -652,6 +690,7 @@ impl Session {
         let rate_limit = RateLimiter::new(config.rate_limit);
         let state = State::new(&config);
         Self {
+            batches: Batches::default(),
             config,
             connection,
             caps: Caps::default(),
@@ -682,6 +721,7 @@ impl Session {
         self.connection = connection;
         self.framer.reset();
         self.outbox.reset_connection();
+        self.batches.reset();
         self.rate_limit.reset(now);
         self.caps.handle_connected(now);
         self.isupport.handle_connected();
@@ -737,13 +777,16 @@ impl Session {
             return;
         }
         match MessageRef::parse(&decoded) {
-            Ok(message) => {
-                let before = self.snapshot_values();
-                self.dispatch_message(now, &message);
-                if before != self.snapshot_values() {
-                    self.state_generation = self.state_generation.wrapping_add(1);
+            Ok(message) => match self.batches.handle(&message) {
+                BatchAction::Consumed => {}
+                BatchAction::Dispatch(context) => {
+                    let before = self.snapshot_values();
+                    self.dispatch_message(now, &message, &context);
+                    if before != self.snapshot_values() {
+                        self.state_generation = self.state_generation.wrapping_add(1);
+                    }
                 }
-            }
+            },
             Err(_) => self.malformed(line),
         }
     }
@@ -773,6 +816,7 @@ impl Session {
     pub fn handle_disconnected(&mut self, _now: Instant) {
         self.framer.close();
         self.outbox.reset_connection();
+        self.batches.reset();
         self.registration.handle_disconnected();
         self.sasl.handle_disconnected();
         self.keepalive.handle_disconnected();
@@ -957,7 +1001,12 @@ impl Session {
         )
     }
 
-    fn dispatch_message(&mut self, now: Instant, message: &MessageRef<'_>) {
+    fn dispatch_message(
+        &mut self,
+        now: Instant,
+        message: &MessageRef<'_>,
+        context: &DispatchContext,
+    ) {
         let was_registered = self.registration.is_registered();
         let registration_handled = self.registration.handle_message(
             now,
@@ -1011,7 +1060,10 @@ impl Session {
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
         if !handled {
-            self.outbox.event(Event::Message(message.to_owned()));
+            self.outbox.event(Event::Message(ReceivedMessage {
+                message: message.to_owned(),
+                batch_type: context.batch_type().map(str::to_owned),
+            }));
         }
         self.apply_close_request();
     }
