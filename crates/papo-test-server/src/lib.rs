@@ -3,3 +3,5 @@
 
 #[allow(dead_code)]
 mod certificate;
+#[allow(dead_code)]
+mod directory;
