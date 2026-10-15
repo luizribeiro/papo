@@ -227,13 +227,38 @@ impl SaslSession {
         advertised: Option<&str>,
         outbox: &mut Outbox,
     ) {
-        if self.completion != Completion::Pending {
+        if self.completion != Completion::Pending && self.account.is_some() {
             return;
+        }
+        if self.completion != Completion::Pending {
+            self.reset_exchange();
         }
         if let Some(advertised) = advertised {
             self.retain_available(advertised);
         }
         self.start_next(now, outbox);
+    }
+
+    pub(super) fn cap_removed(&mut self, outbox: &mut Outbox) {
+        if self.completion == Completion::Pending {
+            self.fail_all(
+                "the sasl capability disappeared during authentication",
+                outbox,
+            );
+        }
+    }
+
+    fn reset_exchange(&mut self) {
+        self.remaining = self.configured.clone().into();
+        self.active = None;
+        self.awaiting_challenge = false;
+        self.completion = Completion::Pending;
+        self.challenge.clear();
+        self.failures.clear();
+        self.deadline = None;
+        self.aborting = false;
+        self.scram = None;
+        self.scram_step = ScramStep::None;
     }
 
     pub(super) fn handle_message(

@@ -41,7 +41,7 @@ impl Caps {
             } else if subcommand.eq_ignore_ascii_case("NEW") {
                 self.handle_new(message, config, outbox);
             } else if subcommand.eq_ignore_ascii_case("DEL") {
-                self.handle_del(message, outbox);
+                self.handle_del(message, sasl, outbox);
             } else if subcommand.eq_ignore_ascii_case("ACK") {
                 if message.param(2) != Some("*") {
                     if let Some(requested) = self.pending.pop_front() {
@@ -93,8 +93,14 @@ impl Caps {
         }
     }
 
-    fn handle_del(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) {
+    fn handle_del(
+        &mut self,
+        message: &MessageRef<'_>,
+        sasl: &mut SaslSession,
+        outbox: &mut Outbox,
+    ) {
         let mut removed = Capabilities::new();
+        let mut sasl_removed = false;
         for name in message.param(2).unwrap_or("").split_whitespace() {
             if name == "sts" {
                 continue;
@@ -103,12 +109,18 @@ impl Caps {
             if let Some(value) = self.enabled.remove(name) {
                 removed.insert(name.to_owned(), value);
             }
+            if name == "sasl" {
+                sasl_removed = true;
+            }
         }
         if !removed.is_empty() {
             outbox.event(Event::CapsChanged {
                 added: Capabilities::new(),
                 removed,
             });
+        }
+        if sasl_removed {
+            sasl.cap_removed(outbox);
         }
     }
 
@@ -141,7 +153,9 @@ impl Caps {
         let requested = config
             .wanted_caps
             .iter()
-            .filter(|wanted| wanted.as_str() != "ergo.chat/nope")
+            .map(String::as_str)
+            .chain(config.sasl.as_ref().map(|_| "sasl"))
+            .filter(|wanted| *wanted != "ergo.chat/nope")
             .filter_map(|wanted| self.advertised_spelling(wanted))
             .filter(|name| announced.contains(*name))
             .filter(|name| !self.enabled.contains_key(*name))
