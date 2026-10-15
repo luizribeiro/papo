@@ -737,12 +737,17 @@ impl Session {
     /// Notifies the session that its current deadline was reached.
     pub fn handle_timeout(&mut self, now: Instant) {
         self.rate_limit.advance(now);
+        let was_registered = self.registration.is_registered();
         self.registration.handle_timeout(
             now,
             self.caps.enabled(),
             self.isupport.value(),
             &mut self.outbox,
         );
+        if !was_registered && self.registration.is_registered() {
+            self.monitor
+                .restore(self.isupport.value(), &mut self.outbox);
+        }
         self.sasl.handle_timeout(now, &mut self.outbox);
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
@@ -757,6 +762,7 @@ impl Session {
         self.registration.handle_disconnected();
         self.sasl.handle_disconnected();
         self.keepalive.handle_disconnected();
+        self.monitor.handle_disconnected();
         self.state.reset(&self.config);
     }
 
@@ -912,6 +918,7 @@ impl Session {
     }
 
     fn dispatch_message(&mut self, now: Instant, message: &MessageRef<'_>) {
+        let was_registered = self.registration.is_registered();
         let registration_handled = self.registration.handle_message(
             now,
             message,
@@ -930,6 +937,10 @@ impl Session {
         ) == Handled::Yes;
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
         let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
+        if !was_registered && self.registration.is_registered() {
+            self.monitor
+                .restore(self.isupport.value(), &mut self.outbox);
+        }
         let monitor_handled =
             self.monitor
                 .handle_message(message, self.isupport.value(), &mut self.outbox)

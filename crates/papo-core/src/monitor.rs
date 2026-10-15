@@ -22,6 +22,22 @@ enum Presence {
 }
 
 impl Monitor {
+    pub(super) fn handle_disconnected(&mut self) {
+        self.presence.clear();
+    }
+
+    pub(super) fn restore(&mut self, isupport: &Isupport, outbox: &mut Outbox) {
+        self.presence.clear();
+        let Some(limit) = isupport.monitor() else {
+            return;
+        };
+        let limit = match limit {
+            LimitValue::Limited(limit) => limit,
+            LimitValue::Unlimited => usize::MAX,
+        };
+        transmit_chunks("+", &self.desired[..self.desired.len().min(limit)], outbox);
+    }
+
     pub(super) fn add<I, S>(
         &mut self,
         nicks: I,

@@ -69,3 +69,22 @@ fn tracks_online_offline_and_list_full_replies() {
         .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks } if nicks == &["carol"]))
         .no_event();
 }
+
+#[test]
+fn restores_the_desired_list_and_resets_presence_after_reconnect() {
+    registered()
+        .update(|session| session.monitor_add(["alice", "bob", "carol"]))
+        .client("MONITOR + alice,bob,carol")
+        .server(":ergo.test 731 papo :alice")
+        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .disconnect()
+        .connect_default()
+        .server(":ergo.test 001 papo :Welcome back to Ergo")
+        .server(":ergo.test 005 papo MONITOR=100 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .client("MONITOR + alice,bob,carol")
+        .server(":ergo.test 731 papo :alice")
+        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .no_event();
+}
