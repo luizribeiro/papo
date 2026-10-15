@@ -60,7 +60,7 @@
             case "''${1-}" in
               --version|-V) exec ${nightlyToolchain}/bin/cargo "$@" ;;
               *)
-                subcommand="$1"
+                subcommand="''${1:?a cargo subcommand is required}"
                 shift
                 exec ${nightlyToolchain}/bin/cargo "$subcommand" --target wasm32-wasip3 "$@"
                 ;;
