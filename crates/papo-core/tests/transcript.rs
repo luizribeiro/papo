@@ -32,6 +32,27 @@ fn drives_server_lines_events_and_time() {
 }
 
 #[test]
+fn plays_trace_file_contents() {
+    Transcript::new(Config::default())
+        .connect()
+        .send(Message::new("NICK", ["tester"]))
+        .play(include_str!("data/harness.irc"))
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")))
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("JOIN")))
+        .no_client();
+}
+
+#[test]
+#[cfg(not(all(target_os = "wasi", not(target_env = "p1"))))]
+fn loads_trace_files() {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/harness.irc");
+    Transcript::new(Config::default())
+        .send(Message::new("NICK", ["tester"]))
+        .load(path)
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")));
+}
+
+#[test]
 #[cfg(panic = "unwind")]
 fn reports_unexpected_client_output_with_a_readable_diff() {
     let panic = panic::catch_unwind(|| {

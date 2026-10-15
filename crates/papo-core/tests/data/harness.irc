@@ -1,0 +1,5 @@
+# A compact trace using every directive.
+C: NICK tester
+S: :ergo.test NOTICE tester :*** Looking up your hostname...
++30s
+S: :tester!~user@localhost JOIN #papo

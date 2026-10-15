@@ -1,6 +1,10 @@
 //! Shared support for transcript-driven protocol tests.
 
-use std::time::{Duration, Instant};
+use std::{
+    fs,
+    path::Path,
+    time::{Duration, Instant},
+};
 
 use papo_core::{Config, Event, Session};
 use papo_proto::Message;
@@ -68,6 +72,47 @@ impl Transcript {
     pub fn advance(mut self, duration: Duration) -> Self {
         self.now += duration;
         self.session.handle_timeout(self.now);
+        self
+    }
+
+    /// Plays directives from a transcript trace file.
+    #[allow(dead_code)]
+    pub fn load(mut self, path: impl AsRef<Path>) -> Self {
+        let path = path.as_ref();
+        let trace = fs::read_to_string(path)
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
+        self = self.play_inner(&trace, &path.display().to_string());
+        self
+    }
+
+    /// Plays directives from transcript trace contents.
+    pub fn play(mut self, trace: &str) -> Self {
+        self = self.play_inner(trace, "<inline trace>");
+        self
+    }
+
+    fn play_inner(mut self, trace: &str, source: &str) -> Self {
+        for (index, raw) in trace.lines().enumerate() {
+            let line = raw.strip_suffix('\r').unwrap_or(raw);
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if let Some(server) = line.strip_prefix("S: ") {
+                self = self.server(server);
+            } else if let Some(client) = line.strip_prefix("C: ") {
+                self = self.client(client);
+            } else if let Some(seconds) = line
+                .strip_prefix('+')
+                .and_then(|line| line.strip_suffix('s'))
+            {
+                let seconds = seconds
+                    .parse()
+                    .unwrap_or_else(|_| panic!("{source}:{}: invalid duration: {line}", index + 1));
+                self = self.advance(Duration::from_secs(seconds));
+            } else {
+                panic!("{source}:{}: invalid directive: {line}", index + 1);
+            }
+        }
         self
     }
 
