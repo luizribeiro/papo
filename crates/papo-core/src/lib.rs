@@ -1020,13 +1020,8 @@ impl Session {
     }
 
     fn sync_monitored_state(&mut self) {
-        let enabled = self
-            .caps
-            .enabled()
-            .keys()
-            .any(|name| papo_proto::canonical(name) == "extended-monitor");
         self.state
-            .sync_monitored(&self.monitor, enabled, self.isupport.value());
+            .sync_monitored(&self.monitor, self.isupport.value());
     }
 
     fn close(&mut self, reason: String) {

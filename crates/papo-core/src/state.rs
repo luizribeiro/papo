@@ -114,19 +114,17 @@ impl State {
         *self = Self::new(config);
     }
 
-    pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, enabled: bool, isupport: &Isupport) {
+    pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, isupport: &Isupport) {
         self.update_casemapping(isupport.casemapping());
         for user in self.users.values_mut() {
             user.monitored = false;
         }
-        if enabled {
-            for (nick, username, host) in monitor.online() {
-                let user = self
-                    .users
-                    .entry(CaseKey::new(nick, self.casemapping))
-                    .or_insert_with(|| User::new(nick, Some(username), Some(host)));
-                user.monitored = true;
-            }
+        for (nick, username, host) in monitor.online() {
+            let user = self
+                .users
+                .entry(CaseKey::new(nick, self.casemapping))
+                .or_insert_with(|| User::new(nick, Some(username), Some(host)));
+            user.monitored = true;
         }
         self.users
             .retain(|_, user| user.monitored || !user.channels.is_empty());
@@ -1003,6 +1001,8 @@ impl State {
     }
 
     /// Iterates over users currently reported online through `MONITOR`.
+    ///
+    /// Presence from `730` replies is included without requiring `extended-monitor`.
     pub fn monitor_online(&self) -> impl Iterator<Item = &User> {
         self.users.values().filter(|user| user.monitored)
     }

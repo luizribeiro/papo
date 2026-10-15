@@ -184,6 +184,21 @@ fn tracks_online_offline_and_list_full_replies() {
         .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob!bob@users.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "alice" && user == "~alice" && host == "cloak.example"))
         .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "bob" && user == "bob" && host == "users.example"))
+        .inspect(|session| {
+            let mut online: Vec<_> = session
+                .state()
+                .monitor_online()
+                .map(|user| (user.nick(), user.user(), user.host()))
+                .collect();
+            online.sort_unstable();
+            assert_eq!(
+                online,
+                [
+                    ("alice", Some("~alice"), Some("cloak.example")),
+                    ("bob", Some("bob"), Some("users.example")),
+                ]
+            );
+        })
         .server(":ergo.test 730 papo :bob!bob@users.example")
         .no_event()
         .server(":ergo.test 730 papo :ALICE!~alice@cloak.example")
@@ -438,22 +453,19 @@ fn monitor_clear_requires_registration_and_server_support() {
 }
 
 #[test]
-fn unrelated_capabilities_do_not_retain_unshared_monitored_users() {
-    Transcript::new(Config::default().wanted_caps(["batch"]))
-        .connect_default()
-        .server("CAP * LS :batch")
-        .client("CAP REQ :batch")
-        .server("CAP * ACK :batch")
-        .client("CAP END")
-        .server(":ergo.test 001 papo :Welcome")
-        .server(":ergo.test 005 papo MONITOR=100 :are supported")
-        .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+fn plain_monitor_presence_is_removed_after_offline() {
+    registered()
         .update(|session| session.monitor_add(["alice"]))
         .client("MONITOR + alice")
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
-        .inspect(|session| assert!(session.state().user("alice").is_none()))
+        .inspect(|session| assert_eq!(session.state().monitor_online().count(), 1))
+        .server(":ergo.test 731 papo :alice")
+        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .inspect(|session| {
+            assert_eq!(session.state().monitor_online().count(), 0);
+            assert!(session.state().user("alice").is_none());
+        })
         .no_event();
 }
 

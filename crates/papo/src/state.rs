@@ -77,6 +77,8 @@ impl State {
     }
 
     /// Iterates over users currently reported online through `MONITOR`.
+    ///
+    /// Presence from `730` replies is included without requiring `extended-monitor`.
     pub fn monitor_online(&self) -> impl Iterator<Item = &User> {
         self.core.monitor_online()
     }
