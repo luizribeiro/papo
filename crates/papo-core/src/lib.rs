@@ -653,6 +653,17 @@ pub struct MultilineMessage {
     pub message: Message,
 }
 
+/// A received `TAGMSG` and its client-only metadata.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TagMessage {
+    /// Source prefix without its leading colon.
+    pub source: Option<String>,
+    /// Message target.
+    pub target: String,
+    /// Tags in wire order.
+    pub tags: Vec<(String, Option<String>)>,
+}
+
 /// A failure to queue a request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -711,6 +722,8 @@ pub enum Event {
     Message(ReceivedMessage),
     /// A completed `draft/multiline` batch.
     MultilineMessage(MultilineMessage),
+    /// A received tag-only message.
+    TagMessage(TagMessage),
     /// A request was sent without protocol-level response correlation.
     RequestUntracked {
         /// Identifier assigned to the request.
@@ -1779,10 +1792,12 @@ impl Session {
                 .handle_message(now, message, &mut self.outbox)
                 == Handled::Yes;
         let response = self.resolve_message(message) || self.resolve_unlabelled(message);
-        let standard_reply = !response && emit_unhandled && self.report_standard_reply(message);
+        let tag_message = !response && emit_unhandled && self.report_tag_message(message);
+        let standard_reply =
+            !response && !tag_message && emit_unhandled && self.report_standard_reply(message);
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
-        if !handled && !response && !standard_reply && emit_unhandled {
+        if !handled && !response && !tag_message && !standard_reply && emit_unhandled {
             let received =
                 self.received_message(message.to_owned(), context.batch_type().map(str::to_owned));
             self.outbox.event(Event::Message(received));
@@ -1791,6 +1806,21 @@ impl Session {
         if before != self.snapshot_values() {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
+    }
+
+    fn report_tag_message(&mut self, message: &MessageRef<'_>) -> bool {
+        let Some(target) = message.param(0).filter(|_| message.command_is("TAGMSG")) else {
+            return false;
+        };
+        self.outbox.event(Event::TagMessage(TagMessage {
+            source: message.raw_source().map(str::to_owned),
+            target: target.to_owned(),
+            tags: message
+                .tags()
+                .map(|(key, value)| (key.to_owned(), value.map(std::borrow::Cow::into_owned)))
+                .collect(),
+        }));
+        true
     }
 
     fn resolve_message(&mut self, message: &MessageRef<'_>) -> bool {
