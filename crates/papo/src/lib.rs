@@ -17,5 +17,8 @@ pub use error::Error;
 pub use event::Event;
 pub use papo_core::{RateLimit, Sasl};
 
+/// Strict Transport Security policy stores.
+pub mod sts;
+
 /// TCP and TLS connections to IRC servers.
 pub mod transport;

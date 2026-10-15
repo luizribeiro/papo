@@ -10,6 +10,7 @@ publish.workspace = true
 [features]
 default = ["spawn", "tls-ring"]
 spawn = []
+sts-file = ["dep:serde", "dep:serde_json"]
 websocket = ["dep:futures-util", "dep:tokio-tungstenite"]
 tls-aws-lc = [
   "dep:rustls",
@@ -32,6 +33,8 @@ papo-proto = { path = "../papo-proto", version = "=0.0.0" }
 # TLS 1.2 remains enabled for IRC interoperability; rustls offers only secure 1.2 suites.
 rustls = { version = "0.23.46", default-features = false, features = ["std", "tls12"], optional = true }
 rustls-platform-verifier = { version = "0.7.1", optional = true }
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+serde_json = { version = "1.0.145", optional = true }
 thiserror = "2.0.21"
 tokio = { version = "1.53.3", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
 tokio-rustls = { version = "0.26.6", default-features = false, features = ["tls12"], optional = true }
