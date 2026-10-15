@@ -1038,6 +1038,7 @@ pub struct ReceivedMessage {
     message: Message,
     batch_type: Option<String>,
     echo: bool,
+    other_session: bool,
 }
 
 impl ReceivedMessage {
@@ -1059,6 +1060,12 @@ impl ReceivedMessage {
         self.echo
     }
 
+    /// Reports whether the message came from another session using our nickname.
+    #[must_use]
+    pub const fn is_other_session(&self) -> bool {
+        self.other_session
+    }
+
     /// Removes the dispatch annotation and returns the parsed IRC message.
     #[must_use]
     pub fn into_message(self) -> Message {
@@ -1069,6 +1076,12 @@ impl ReceivedMessage {
     #[must_use]
     pub fn into_parts(self) -> (Message, Option<String>, bool) {
         (self.message, self.batch_type, self.echo)
+    }
+
+    /// Splits the message into its wire value and all dispatch annotations.
+    #[must_use]
+    pub fn into_context_parts(self) -> (Message, Option<String>, bool, bool) {
+        (self.message, self.batch_type, self.echo, self.other_session)
     }
 }
 
@@ -1884,7 +1897,18 @@ impl Session {
                 .keepalive
                 .handle_message(now, message, &mut self.outbox)
                 == Handled::Yes;
+        let labelled_echo = matches!(message.command(), Command::Privmsg | Command::Notice)
+            && message.tag("label").is_some_and(|label| {
+                self.requests
+                    .get(label.as_ref())
+                    .is_some_and(|(_, _, sent)| *sent)
+            })
+            && self.is_own_source(message);
         let response = self.resolve_message(message) || self.resolve_unlabelled(message);
+        if response && labelled_echo {
+            let received = self.received_message(message.to_owned(), None, true);
+            self.outbox.event(Event::Message(received));
+        }
         let tag_message = !response && emit_unhandled && self.report_tag_message(message);
         let redacted =
             !response && !tag_message && emit_unhandled && self.report_redaction(message);
@@ -1896,8 +1920,11 @@ impl Session {
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
         if !handled && !response && !tag_message && !redacted && !standard_reply && emit_unhandled {
-            let received =
-                self.received_message(message.to_owned(), context.batch_type().map(str::to_owned));
+            let received = self.received_message(
+                message.to_owned(),
+                context.batch_type().map(str::to_owned),
+                false,
+            );
             self.outbox.event(Event::Message(received));
         }
         self.apply_close_request();
@@ -2108,7 +2135,7 @@ impl Session {
                 message,
                 batch_type,
             } => {
-                let received = self.received_message(message, batch_type);
+                let received = self.received_message(message, batch_type, false);
                 self.outbox.event(Event::Message(received));
             }
             BatchEvent::Multiline(message) => self
@@ -2117,8 +2144,8 @@ impl Session {
         }
     }
 
-    fn received_message(&self, message: Message, batch_type: Option<String>) -> ReceivedMessage {
-        let echo = message.as_ref().source().is_some_and(|source| {
+    fn is_own_source(&self, message: &MessageRef<'_>) -> bool {
+        message.source().is_some_and(|source| {
             let papo_proto::Source::User { nick, .. } = source else {
                 return false;
             };
@@ -2126,11 +2153,22 @@ impl Session {
                 .value()
                 .casemapping()
                 .eq(nick, self.registration.nick())
-        });
+        })
+    }
+
+    fn received_message(
+        &self,
+        message: Message,
+        batch_type: Option<String>,
+        labelled_echo: bool,
+    ) -> ReceivedMessage {
+        let own_source = self.is_own_source(&message.as_ref());
+        let labels = self.caps.enabled().contains_key("labeled-response");
         ReceivedMessage {
             message,
             batch_type,
-            echo,
+            echo: own_source && (labelled_echo || !labels),
+            other_session: own_source && !labelled_echo && labels,
         }
     }
 

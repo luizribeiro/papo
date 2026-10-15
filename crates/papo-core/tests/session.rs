@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
-use papo_core::{Config, DEFAULT_WANTED_CAPS, Event, RateLimit, RequestError, Session};
+use papo_core::{Config, DEFAULT_WANTED_CAPS, Event, RateLimit, RequestError, Session, TextKind};
 use papo_proto::{BuildError, Message};
 
 #[test]
@@ -148,6 +148,44 @@ fn annotates_echoes_with_the_active_casemapping() {
     };
     assert!(echo.is_echo());
     assert!(!received.is_echo());
+}
+
+#[test]
+fn labels_distinguish_our_echo_from_another_session() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .wanted_caps(["echo-message", "labeled-response"]),
+    );
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :echo-message labeled-response");
+    session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+    session
+        .send_text(now, TextKind::Privmsg, "#papo", "from this device", &[])
+        .unwrap();
+    session.handle_line(
+        now,
+        b"@label=0;msgid=RfcBTzyxY120004 :papo!p@localhost PRIVMSG #papo :from this device",
+    );
+    session.handle_line(
+        now,
+        b"@msgid=RfcBTzyxY120005 :papo!p@localhost PRIVMSG #papo :from another device",
+    );
+
+    let messages: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::Message(message) => Some(message),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(messages.len(), 2);
+    assert!(messages[0].is_echo());
+    assert!(!messages[0].is_other_session());
+    assert!(!messages[1].is_echo());
+    assert!(messages[1].is_other_session());
 }
 
 #[test]
