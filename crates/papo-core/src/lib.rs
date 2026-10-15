@@ -70,6 +70,7 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "invite-notify",
     "standard-replies",
     "labeled-response",
+    "draft/multiline",
 ];
 
 /// Enabled `IRCv3` capability names and their advertised values.
