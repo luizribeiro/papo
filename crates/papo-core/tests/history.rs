@@ -124,6 +124,74 @@ fn uses_timestamps_when_they_are_the_only_reference_type() {
         transmitted(&mut session),
         "@label=1 CHATHISTORY BEFORE #papo timestamp=2025-10-15T11:55:43.000Z 50"
     );
+    assert_eq!(
+        session.chathistory(
+            now,
+            HistoryQuery::Before {
+                target: "#papo".into(),
+                before: MsgRef::Msgid("UnknownErgoMessageId".into()),
+                limit: 50,
+            }
+        ),
+        Err(RequestError::InvalidMessageReference)
+    );
+}
+
+#[test]
+fn honors_each_advertised_reference_type() {
+    let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid");
+    session
+        .chathistory(
+            now,
+            HistoryQuery::Before {
+                target: "#papo".into(),
+                before: MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
+                limit: 25,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        transmitted(&mut session),
+        "@label=0 CHATHISTORY BEFORE #papo msgid=2Zl7JeYG6I8fG9q1lJ55BQ 25"
+    );
+    assert_eq!(
+        session.chathistory(
+            now,
+            HistoryQuery::After {
+                target: "#papo".into(),
+                after: MsgRef::Timestamp(UNIX_EPOCH + Duration::from_secs(1_760_529_342)),
+                limit: 25,
+            }
+        ),
+        Err(RequestError::InvalidMessageReference)
+    );
+}
+
+#[test]
+fn allows_both_reference_types_when_msgreftypes_is_absent() {
+    let (mut session, now) = history_session("CHATHISTORY=1000");
+    session
+        .chathistory(
+            now,
+            HistoryQuery::Before {
+                target: "#papo".into(),
+                before: MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
+                limit: 50,
+            },
+        )
+        .unwrap();
+    assert!(transmitted(&mut session).contains(" msgid=2Zl7JeYG6I8fG9q1lJ55BQ "));
+    session
+        .chathistory(
+            now,
+            HistoryQuery::After {
+                target: "#papo".into(),
+                after: MsgRef::Timestamp(UNIX_EPOCH + Duration::from_secs(1_760_529_342)),
+                limit: 50,
+            },
+        )
+        .unwrap();
+    assert!(transmitted(&mut session).contains(" timestamp=2025-10-15T11:55:42.000Z "));
 }
 
 #[test]
