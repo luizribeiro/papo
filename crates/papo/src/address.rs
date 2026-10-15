@@ -234,4 +234,20 @@ mod tests {
         assert_eq!("host:1".parse::<ServerAddress>().unwrap().port, 1);
         assert_eq!("host:65535".parse::<ServerAddress>().unwrap().port, 65535);
     }
+
+    #[test]
+    fn rejects_url_components_and_ipv6_suffixes_with_typed_errors() {
+        for input in [
+            "alice@irc.example.net",
+            "irc.example.net?x=1",
+            "irc.example.net#frag",
+            "[::1]x",
+        ] {
+            assert_eq!(
+                input.parse::<ServerAddress>(),
+                Err(AddressError::InvalidHost),
+                "accepted {input:?}"
+            );
+        }
+    }
 }
