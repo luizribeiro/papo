@@ -110,6 +110,19 @@ fn generated_nicks_honor_an_early_nicklen_advertisement() {
 }
 
 #[test]
+fn generated_nicks_handle_the_smallest_advertised_limits() {
+    for (limit, expected) in [(1, "_"), (2, "p_"), (3, "pa_")] {
+        Transcript::new(Config::default())
+            .connect_default()
+            .server(&format!(
+                ":ergo.test 005 * NICKLEN={limit} :are supported by this server"
+            ))
+            .server(":ergo.test 433 * papo :Nickname is already in use")
+            .client(&format!("NICK {expected}"));
+    }
+}
+
+#[test]
 fn completes_after_motd_with_capabilities_and_isupport() {
     Transcript::new(
         Config::default()
