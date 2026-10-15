@@ -1387,6 +1387,27 @@ mod tests {
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
     }
 
+    async fn complete_extended_monitor_registration(
+        server: &mut DuplexStream,
+        events: &mut super::Events,
+    ) {
+        registration_burst(server).await;
+        server_line(server, b":ergo.test CAP * LS :extended-monitor\r\n").await;
+        client_line(server, b"CAP REQ :extended-monitor\r\n").await;
+        server_line(
+            server,
+            b":ergo.test CAP papo-driver ACK :extended-monitor\r\n",
+        )
+        .await;
+        client_line(server, b"CAP END\r\n").await;
+        server_line(
+            server,
+            b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 005 papo-driver MONITOR=100 :are supported\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    }
+
     async fn next_message(events: &mut super::Events) -> MessageEvent {
         let Some(Event::Message(message)) = events.next().await else {
             panic!("expected message event")
@@ -2916,5 +2937,63 @@ mod tests {
 
         server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn monitor_offline_snapshot_keeps_other_online_users() {
+        let config = config().wanted_caps(["extended-monitor"]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let driver = tokio::spawn(driver);
+        complete_extended_monitor_registration(&mut server, &mut events).await;
+        server_line(
+            &mut server,
+            b":ergo.test 730 papo-driver :alice!~alice@cloak.example,bob!bob@users.example\r\n",
+        )
+        .await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::MonitorOnline { .. })
+        ));
+        assert!(matches!(
+            events.next().await,
+            Some(Event::MonitorOnline { .. })
+        ));
+
+        server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
+        assert!(
+            matches!(events.next().await, Some(Event::MonitorOffline { nick }) if nick == "alice")
+        );
+        let online: Vec<_> = client.state(|state| {
+            state
+                .monitor_online()
+                .map(|user| user.nick().to_owned())
+                .collect()
+        });
+        assert_eq!(online, ["bob"]);
+
+        server.shutdown().await.unwrap();
+        _ = driver.await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn disconnect_clears_monitor_presence_snapshot() {
+        let config = config().wanted_caps(["extended-monitor"]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let driver = tokio::spawn(driver);
+        complete_extended_monitor_registration(&mut server, &mut events).await;
+        server_line(
+            &mut server,
+            b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\n",
+        )
+        .await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::MonitorOnline { .. })
+        ));
+        assert_eq!(client.state(|state| state.monitor_online().count()), 1);
+
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+        assert_eq!(client.state(|state| state.monitor_online().count()), 0);
     }
 }
