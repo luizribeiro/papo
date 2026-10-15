@@ -412,8 +412,18 @@ pub struct RequestId(u64);
 pub enum ResponseMatcher {
     /// A `WHOIS` reply ending at `318` or an error naming this nickname.
     Whois(String),
+    /// A `WHO` reply ending at `315` for this mask.
+    Who(String),
     /// A channel join ending when initial channel state is synchronized.
     Join(String),
+    /// A channel departure ending at our `PART` echo.
+    Part(String),
+    /// A mode change ending at its `MODE` echo.
+    Mode(String),
+    /// A topic request ending at its echo or topic numeric.
+    Topic(String),
+    /// A channel list ending at `323`.
+    List,
 }
 
 impl ResponseMatcher {
@@ -469,6 +479,16 @@ impl ResponseMatcher {
                 (relevant && Self::target_is(message, 1, nick, mapping))
                     .then_some(numeric == Numeric::RPL_ENDOFWHOIS || numeric.is_error())
             }
+            Self::Who(mask) => numeric.and_then(|numeric| {
+                let target = if numeric == Numeric::RPL_WHOSPCRPL {
+                    2
+                } else {
+                    1
+                };
+                (matches!(numeric, Numeric::RPL_WHOREPLY | Numeric::RPL_WHOSPCRPL)
+                    || Self::target_is(message, target, mask, mapping))
+                .then_some(numeric == Numeric::RPL_ENDOFWHO || numeric.is_error())
+            }),
             Self::Join(channel) => {
                 if Self::standard_failure(message, "JOIN") {
                     return Some(true);
@@ -482,6 +502,37 @@ impl ResponseMatcher {
                         .then_some(true)
                 })
             }
+            Self::Part(channel) => ((message.command() == Command::Part
+                && own_source
+                && Self::target_is(message, 0, channel, mapping))
+                || (numeric.is_some_and(Numeric::is_error)
+                    && Self::target_is(message, 1, channel, mapping))
+                || Self::standard_failure(message, "PART"))
+            .then_some(true),
+            Self::Mode(target) => ((message.command() == Command::Mode
+                && Self::target_is(message, 0, target, mapping))
+                || (numeric.is_some_and(Numeric::is_error)
+                    && Self::target_is(message, 1, target, mapping))
+                || Self::standard_failure(message, "MODE"))
+            .then_some(true),
+            Self::Topic(channel) => {
+                let named = |index| Self::target_is(message, index, channel, mapping);
+                ((message.command() == Command::Topic && named(0))
+                    || numeric.is_some_and(|numeric| {
+                        named(1)
+                            && (matches!(numeric, Numeric::RPL_NOTOPIC | Numeric::RPL_TOPIC)
+                                || numeric.is_error())
+                    })
+                    || Self::standard_failure(message, "TOPIC"))
+                .then_some(true)
+            }
+            Self::List => numeric.and_then(|numeric| {
+                matches!(
+                    numeric,
+                    Numeric::RPL_LISTSTART | Numeric::RPL_LIST | Numeric::RPL_LISTEND
+                )
+                .then_some(numeric == Numeric::RPL_LISTEND || numeric.is_error())
+            }),
         }
     }
 }

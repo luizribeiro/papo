@@ -71,6 +71,65 @@ fn unlabelled_join_waits_for_channel_sync() {
     );
 }
 
+fn assert_unlabelled(
+    session: &mut Session,
+    message: Message,
+    matcher: ResponseMatcher,
+    lines: &[&str],
+) {
+    let now = Instant::now();
+    let id = session.request_with_matcher(now, message, matcher).unwrap();
+    for line in lines {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(response) if response.id == id))
+    );
+}
+
+#[test]
+fn matches_other_unlabelled_request_boundaries() {
+    let mut session = Session::new(Config::default().nick("papo"));
+    assert_unlabelled(
+        &mut session,
+        Message::new("WHO", ["#papo"]),
+        ResponseMatcher::Who("#papo".into()),
+        &[
+            ":ergo.test 352 papo #papo ~alice host ergo.test alice H@ :0 Alice Example",
+            ":ergo.test 315 papo #papo :End of WHO list",
+        ],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("LIST", Vec::<String>::new()),
+        ResponseMatcher::List,
+        &[
+            ":ergo.test 321 papo Channel :Users Name",
+            ":ergo.test 322 papo #papo 42 :Ergonomic IRC",
+            ":ergo.test 323 papo :End of /LIST",
+        ],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("PART", ["#papo"]),
+        ResponseMatcher::Part("#papo".into()),
+        &[":papo!papo@localhost PART #papo :Leaving"],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("MODE", ["#papo", "+t"]),
+        ResponseMatcher::Mode("#papo".into()),
+        &[":ergo.test 482 papo #papo :You're not a channel operator"],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("TOPIC", ["#papo"]),
+        ResponseMatcher::Topic("#papo".into()),
+        &[":ergo.test 332 papo #papo :Requests in Rust"],
+    );
+}
+
 #[test]
 fn resolves_a_labelled_echo_and_an_ack() {
     let now = Instant::now();
