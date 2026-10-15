@@ -16,6 +16,23 @@ impl Configuration {
         let tls = TcpListener::bind(("127.0.0.1", 0))?;
         let plaintext = plaintext.local_addr()?;
         let tls = tls.local_addr()?;
+        Ok(Self::from_addresses(directory, plaintext, tls))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn at_addresses(
+        directory: &TemporaryDirectory,
+        plaintext: std::net::SocketAddr,
+        tls: std::net::SocketAddr,
+    ) -> Self {
+        Self::from_addresses(directory, plaintext, tls)
+    }
+
+    fn from_addresses(
+        directory: &TemporaryDirectory,
+        plaintext: std::net::SocketAddr,
+        tls: std::net::SocketAddr,
+    ) -> Self {
         let listeners = json!({
             plaintext.to_string(): {},
             tls.to_string(): {"tls": {
@@ -32,11 +49,11 @@ impl Configuration {
             ("ERGO__LANGUAGES__ENABLED", "false".into()),
             ("ERGO__ACCOUNTS__REGISTRATION__ENABLED", "true".into()),
         ];
-        Ok(Self {
+        Self {
             plaintext,
             tls,
             overrides,
-        })
+        }
     }
 
     pub(crate) fn command(

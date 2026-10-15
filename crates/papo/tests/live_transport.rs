@@ -174,6 +174,7 @@ async fn tls_without_a_provider_returns_a_clear_error() {
 async fn a_closed_port_returns_connection_refused() {
     let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let port = listener.local_addr().unwrap().port();
+    // Another process could theoretically claim this port before connect runs.
     drop(listener);
     let error = connect("127.0.0.1", port, &Security::Plaintext)
         .await

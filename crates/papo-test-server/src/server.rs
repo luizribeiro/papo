@@ -9,6 +9,8 @@ use std::{
 
 use crate::{certificate, directory::TemporaryDirectory, ergo::Configuration};
 
+const START_ATTEMPTS: usize = 5;
+
 /// A child Ergo process with isolated storage and loopback listeners.
 pub struct TestServer {
     child: Child,
@@ -24,32 +26,7 @@ impl TestServer {
     ///
     /// Returns an error if setup fails or Ergo does not become ready in time.
     pub fn start() -> io::Result<Self> {
-        let directory = TemporaryDirectory::create()?;
-        certificate::generate(directory.path())?;
-        let config = Configuration::new(&directory)?;
-        let status = config
-            .command("initdb", &directory)?
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()?;
-        if !status.success() {
-            return Err(io::Error::other(format!(
-                "ergo initdb failed with {status}"
-            )));
-        }
-        let child = config
-            .command("run", &directory)?
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
-        let mut server = Self {
-            child,
-            directory,
-            plaintext: config.plaintext,
-            tls: config.tls,
-        };
-        server.wait_until_ready()?;
-        Ok(server)
+        Self::start_with(Configuration::new)
     }
 
     /// Returns the plaintext IRC listener address.
@@ -74,6 +51,51 @@ impl TestServer {
     #[must_use]
     pub fn process_id(&self) -> u32 {
         self.child.id()
+    }
+
+    fn start_with(
+        mut configuration: impl FnMut(&TemporaryDirectory) -> io::Result<Configuration>,
+    ) -> io::Result<Self> {
+        let mut errors = Vec::with_capacity(START_ATTEMPTS);
+        for _ in 0..START_ATTEMPTS {
+            let directory = TemporaryDirectory::create()?;
+            certificate::generate(directory.path())?;
+            let config = configuration(&directory)?;
+            let status = config
+                .command("initdb", &directory)?
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()?;
+            if !status.success() {
+                return Err(io::Error::other(format!(
+                    "ergo initdb failed with {status}"
+                )));
+            }
+            let child = config
+                .command("run", &directory)?
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()?;
+            let mut server = Self {
+                child,
+                directory,
+                plaintext: config.plaintext,
+                tls: config.tls,
+            };
+            match server.wait_until_ready() {
+                Ok(()) => return Ok(server),
+                Err(error) => errors.push(error),
+            }
+        }
+        let errors = errors
+            .iter()
+            .enumerate()
+            .map(|(index, error)| format!("attempt {}: {error}", index + 1))
+            .collect::<Vec<_>>()
+            .join("; ");
+        Err(io::Error::other(format!(
+            "Ergo failed to become ready after {START_ATTEMPTS} attempts: {errors}"
+        )))
     }
 
     fn wait_until_ready(&mut self) -> io::Result<()> {
@@ -108,12 +130,36 @@ impl Drop for TestServer {
 mod tests {
     use std::{
         io::{Read, Write},
-        net::TcpStream,
+        net::{TcpListener, TcpStream},
         path::Path,
         time::Duration,
     };
 
-    use super::TestServer;
+    use super::{Configuration, TestServer};
+
+    #[test]
+    fn retries_with_fresh_ports_after_a_bind_collision() {
+        let occupied = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let occupied_address = occupied.local_addr().unwrap();
+        let mut attempts = 0;
+        let server = TestServer::start_with(|directory| {
+            attempts += 1;
+            let config = Configuration::new(directory)?;
+            if attempts == 1 {
+                Ok(Configuration::at_addresses(
+                    directory,
+                    occupied_address,
+                    config.tls,
+                ))
+            } else {
+                Ok(config)
+            }
+        })
+        .unwrap();
+
+        assert!((2..=5).contains(&attempts));
+        assert_ne!(server.plaintext_addr(), occupied_address);
+    }
 
     #[test]
     fn starts_greets_and_stops_ergo() {
