@@ -1,6 +1,6 @@
 //! WHOX reply parsing behavior.
 
-use papo_proto::{MessageRef, WhoxReply};
+use papo_proto::{Isupport, MessageRef, WhoxFlags, WhoxPresence, WhoxReply};
 
 #[test]
 fn parses_real_ergo_state_query_reply() {
@@ -18,6 +18,18 @@ fn parses_real_ergo_state_query_reply() {
     assert_eq!(reply.raw_flags, Some("H@"));
     assert_eq!(reply.account, Some("alice"));
     assert_eq!(reply.realname, Some("Alice Example"));
+
+    let mut support = Isupport::default();
+    support.apply_tokens(["PREFIX=(qaohv)~&@%+", "BOT=B"]);
+    assert_eq!(
+        reply.flags(&support),
+        Some(WhoxFlags {
+            presence: Some(WhoxPresence::Here),
+            oper: false,
+            bot: false,
+            prefixes: vec!['@'],
+        })
+    );
 }
 
 #[test]
@@ -35,6 +47,35 @@ fn maps_fixed_field_order_and_normalizes_placeholders() {
     assert_eq!(reply.hopcount, Some("1"));
     assert_eq!(reply.idle, Some("20"));
     assert_eq!(reply.oplevel, Some("0"));
+
+    let mut support = Isupport::default();
+    support.apply_tokens(["PREFIX=(ov)@+", "BOT=b"]);
+    assert_eq!(
+        reply.flags(&support),
+        Some(WhoxFlags {
+            presence: Some(WhoxPresence::Gone),
+            oper: true,
+            bot: true,
+            prefixes: vec!['+'],
+        })
+    );
+}
+
+#[test]
+fn accepts_custom_bot_mode_and_absent_flags() {
+    let message = MessageRef::parse(":irc.ergo.test 354 tester bot Hb%").unwrap();
+    let reply = WhoxReply::parse(&message, "%fn").unwrap();
+    let mut support = Isupport::default();
+    support.apply_tokens(["PREFIX=(ohv)@%+", "BOT=b"]);
+    assert_eq!(reply.nick, Some("bot"));
+    assert!(reply.flags(&support).unwrap().bot);
+    assert_eq!(reply.flags(&support).unwrap().prefixes, vec!['%']);
+
+    let no_flags = MessageRef::parse(":irc.ergo.test 354 tester alice").unwrap();
+    assert_eq!(
+        WhoxReply::parse(&no_flags, "n").unwrap().flags(&support),
+        None
+    );
 }
 
 #[test]

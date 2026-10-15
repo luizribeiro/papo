@@ -1,6 +1,28 @@
-use crate::{Command, MessageRef, Numeric};
+use crate::{Command, Isupport, MessageRef, Numeric};
 
 const FIELDS: &str = "tcuihsnfdlaor";
+
+/// The here or gone marker from WHO flags.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum WhoxPresence {
+    /// The user is present.
+    Here,
+    /// The user is away.
+    Gone,
+}
+
+/// Parsed status markers from a WHOX flags field.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WhoxFlags {
+    /// The user's presence when an `H` or `G` marker was supplied.
+    pub presence: Option<WhoxPresence>,
+    /// Whether the user is an IRC operator.
+    pub oper: bool,
+    /// Whether the user has the advertised bot mode or the standard `B` marker.
+    pub bot: bool,
+    /// Advertised channel-membership prefixes in wire order.
+    pub prefixes: Vec<char>,
+}
 
 /// A typed view of an `RPL_WHOSPCRPL` (`354`) reply.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -74,6 +96,27 @@ impl<'a> WhoxReply<'a> {
             }
         }
         values.next().is_none().then_some(reply)
+    }
+
+    /// Parses presence, operator, bot, and membership markers from the flags field.
+    #[must_use]
+    pub fn flags(&self, isupport: &Isupport) -> Option<WhoxFlags> {
+        let flags = self.raw_flags?;
+        let prefixes = isupport.prefix();
+        Some(WhoxFlags {
+            presence: flags.chars().find_map(|flag| match flag {
+                'H' => Some(WhoxPresence::Here),
+                'G' => Some(WhoxPresence::Gone),
+                _ => None,
+            }),
+            oper: flags.contains('*'),
+            bot: flags.contains('B')
+                || isupport.bot_mode().is_some_and(|mode| flags.contains(mode)),
+            prefixes: flags
+                .chars()
+                .filter(|flag| prefixes.iter().any(|prefix| prefix.symbol == *flag))
+                .collect(),
+        })
     }
 }
 
