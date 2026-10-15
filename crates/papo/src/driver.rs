@@ -444,29 +444,7 @@ async fn run_plan(
         let plan = match plan_with_stored_sts(&base_plan, sts_store.as_mut(), force_plaintext) {
             Ok(plan) => plan,
             Err(error) => {
-                let reason = error.to_string();
-                if registration.0.is_some() {
-                    registration.failed(error);
-                    drop(events.regular);
-                    _ = events.disconnected.send(Event::Disconnected {
-                        reason,
-                        will_retry: false,
-                    });
-                    return Ok(());
-                }
-                return finish(
-                    events,
-                    ConnectionEnd {
-                        reason,
-                        error,
-                        quit: None,
-                        quit_timed_out: false,
-                        registered_at: None,
-                        sts: StsActions::default(),
-                        sts_store: None,
-                    },
-                    false,
-                );
+                return finish_connection_failure(events, &mut registration, error);
             }
         };
         sts_required |= !base_plan.address.is_secure() && plan.address.is_secure();
@@ -486,28 +464,7 @@ async fn run_plan(
                 let reason = error.to_string();
                 if sts_required || is_fatal_failure(&error, &reason) || !reconnect.permits(attempts)
                 {
-                    if registration.0.is_some() {
-                        registration.failed(error);
-                        drop(events.regular);
-                        _ = events.disconnected.send(Event::Disconnected {
-                            reason,
-                            will_retry: false,
-                        });
-                        return Ok(());
-                    }
-                    return finish(
-                        events,
-                        ConnectionEnd {
-                            reason,
-                            error,
-                            quit: None,
-                            quit_timed_out: false,
-                            registered_at: None,
-                            sts: StsActions::default(),
-                            sts_store: None,
-                        },
-                        false,
-                    );
+                    return finish_connection_failure(events, &mut registration, error);
                 }
                 _ = events
                     .regular
@@ -620,6 +577,36 @@ async fn run_plan(
             return Ok(());
         }
     }
+}
+
+fn finish_connection_failure(
+    events: EventSink,
+    registration: &mut RegistrationWait,
+    error: Error,
+) -> Result<(), Error> {
+    let reason = error.to_string();
+    if registration.0.is_some() {
+        registration.failed(error);
+        drop(events.regular);
+        _ = events.disconnected.send(Event::Disconnected {
+            reason,
+            will_retry: false,
+        });
+        return Ok(());
+    }
+    finish(
+        events,
+        ConnectionEnd {
+            reason,
+            error,
+            quit: None,
+            quit_timed_out: false,
+            registered_at: None,
+            sts: StsActions::default(),
+            sts_store: None,
+        },
+        false,
+    )
 }
 
 fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &StsAction) {
@@ -1085,7 +1072,7 @@ mod tests {
             atomic::{AtomicBool, AtomicUsize, Ordering},
         },
         task::{Context, Poll},
-        time::Duration,
+        time::{Duration, SystemTime},
     };
 
     use papo_core::{
@@ -1636,6 +1623,56 @@ mod tests {
         server.shutdown().await.unwrap();
         assert!(quit.await.unwrap().is_ok());
         assert!(driver.await.unwrap().is_ok());
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn connector_failure_under_stored_sts_is_terminal() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let connector: super::Connector = Arc::new({
+            let calls = Arc::clone(&calls);
+            move |_| {
+                calls.fetch_add(1, Ordering::Relaxed);
+                Box::pin(async { Err(Error::Unsupported("scripted TLS failure")) })
+            }
+        });
+        let mut store = papo_core::sts::MemoryStsStore::new();
+        papo_core::sts::StsStore::put(
+            &mut store,
+            papo_core::sts::StoredPolicy {
+                host: "irc.example.net".into(),
+                port: 6697,
+                expires_at: SystemTime::now() + Duration::from_secs(3600),
+                duration: Duration::from_secs(3600),
+            },
+        );
+        let (_client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential(),
+            256,
+            Box::new(store),
+            false,
+            connector,
+        );
+
+        assert!(matches!(
+            driver.await,
+            Err(Error::Unsupported("scripted TLS failure"))
+        ));
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected {
+                will_retry: false,
+                ..
+            })
+        ));
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
     }
 
     #[tokio::test(flavor = "current_thread")]
