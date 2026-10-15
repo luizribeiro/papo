@@ -3204,6 +3204,69 @@ mod tests {
         server_line(&mut server, b":ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n:ergo.test 323 papo-driver :End of /LIST\r\n").await;
         assert_eq!(list.await.unwrap().unwrap()[0].members_count, 42);
 
+        let mode = tokio::spawn({
+            let client = client.clone();
+            async move { client.mode("#papo", "+t", [] as [&str; 0]).await }
+        });
+        client_line(&mut server, b"MODE #papo +t\r\n").await;
+        server_line(
+            &mut server,
+            b":papo-driver!papo@localhost MODE #papo +t\r\n",
+        )
+        .await;
+        mode.await.unwrap().unwrap();
+
+        let topic = tokio::spawn({
+            let client = client.clone();
+            async move { client.topic("#papo", None).await }
+        });
+        client_line(&mut server, b"TOPIC #papo\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test 332 papo-driver #papo :Ergonomic IRC\r\n",
+        )
+        .await;
+        assert_eq!(
+            topic.await.unwrap().unwrap().as_deref(),
+            Some("Ergonomic IRC")
+        );
+
+        let part = tokio::spawn({
+            let client = client.clone();
+            async move { client.part("#papo", None).await }
+        });
+        client_line(&mut server, b"PART #papo\r\n").await;
+        server_line(
+            &mut server,
+            b":papo-driver!papo@localhost PART #papo :Leaving\r\n",
+        )
+        .await;
+        part.await.unwrap().unwrap();
+
+        let denied = tokio::spawn({
+            let client = client.clone();
+            async move { client.join("#invite-only").await }
+        });
+        client_line(&mut server, b"JOIN #invite-only\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test 473 papo-driver #invite-only :Cannot join channel (+i)\r\n",
+        )
+        .await;
+        assert!(matches!(denied.await.unwrap(), Err(Error::Server(_))));
+
+        assert!(matches!(
+            client
+                .raw(Message::new("VERSION", Vec::<String>::new()))
+                .await,
+            Err(Error::Unsupported("labeled-response"))
+        ));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+
         server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
