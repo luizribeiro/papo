@@ -1,5 +1,5 @@
 use papo_core::{Capabilities, StateLimit, Welcome, sts::StsAction};
-use papo_proto::{Ctcp, Message, strip_formatting};
+use papo_proto::{Ctcp, Isupport, Message, Source, strip_formatting};
 
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -21,6 +21,7 @@ pub struct MessageEvent {
     raw: Message,
     text: String,
     kind: StoredKind,
+    isupport: Isupport,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -32,7 +33,7 @@ enum StoredKind {
 }
 
 impl MessageEvent {
-    pub(crate) fn new(raw: Message) -> Result<Self, Message> {
+    pub(crate) fn new(raw: Message, isupport: &Isupport) -> Result<Self, Message> {
         let message = raw.as_ref();
         let Some(raw_text) = message.param(0).and_then(|_| message.param(1)) else {
             return Err(raw);
@@ -51,7 +52,12 @@ impl MessageEvent {
             _ => return Err(raw),
         };
         let text = strip_formatting(displayed).into_owned();
-        Ok(Self { raw, text, kind })
+        Ok(Self {
+            raw,
+            text,
+            kind,
+            isupport: isupport.clone(),
+        })
     }
 
     /// Returns the semantic kind of this message.
@@ -75,6 +81,36 @@ impl MessageEvent {
     #[must_use]
     pub fn raw_text(&self) -> &str {
         self.raw.as_ref().param(1).unwrap_or("")
+    }
+
+    /// Returns the parsed source, when the server supplied one.
+    #[must_use]
+    pub fn source(&self) -> Option<Source<'_>> {
+        self.raw.as_ref().source()
+    }
+
+    /// Returns the message target.
+    #[must_use]
+    pub fn target(&self) -> &str {
+        self.raw.as_ref().param(0).unwrap_or("")
+    }
+
+    /// Reports whether the target is not a channel under the captured `CHANTYPES` value.
+    #[must_use]
+    pub fn is_private(&self) -> bool {
+        !self.isupport.is_channel(self.target())
+    }
+
+    /// Returns the channel target, or the sender for a private message.
+    #[must_use]
+    pub fn reply_target(&self) -> &str {
+        if self.is_private()
+            && let Some(Source::User { nick, .. }) = self.source()
+        {
+            nick
+        } else {
+            self.target()
+        }
     }
 
     /// Borrows the underlying IRC message.
@@ -239,11 +275,12 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 mod tests {
     use super::{CoreEvent, Event, MessageEvent, MessageKind, from_core};
     use papo_core::StateLimit;
-    use papo_proto::Message;
+    use papo_proto::{Isupport, Message, Source};
 
     fn chat(command: &str, text: &str) -> MessageEvent {
         MessageEvent::new(
             Message::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
+            &Isupport::default(),
         )
         .unwrap()
     }
@@ -270,6 +307,36 @@ mod tests {
         let action = chat("PRIVMSG", "\x01ACTION writes the specification\x01");
         assert_eq!(action.raw_text(), "\x01ACTION writes the specification\x01");
         assert_eq!(action.text(), "writes the specification");
+    }
+
+    #[test]
+    fn routes_channels_and_private_messages_with_ergo_chantypes() {
+        let mut isupport = Isupport::default();
+        isupport.apply_tokens(["CHANTYPES=#"]);
+        let channel = MessageEvent::new(
+            Message::privmsg("#papo", "hello").with_source("emily!~emily@localhost"),
+            &isupport,
+        )
+        .unwrap();
+        assert!(!channel.is_private());
+        assert_eq!(channel.target(), "#papo");
+        assert_eq!(channel.reply_target(), "#papo");
+        assert_eq!(
+            channel.source(),
+            Some(Source::User {
+                nick: "emily",
+                user: Some("~emily"),
+                host: Some("localhost")
+            })
+        );
+
+        let private = MessageEvent::new(
+            Message::privmsg("papo", "hello").with_source("emily!~emily@localhost"),
+            &isupport,
+        )
+        .unwrap();
+        assert!(private.is_private());
+        assert_eq!(private.reply_target(), "emily");
     }
 
     fn forwarded(event: papo_core::Event) -> Event {
