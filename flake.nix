@@ -17,6 +17,7 @@
     {
       nixpkgs,
       flake-utils,
+      git-hooks,
       rust-overlay,
       ...
     }:
@@ -53,8 +54,115 @@
           '';
         };
         ergochat = pkgs.callPackage ./nix/ergochat.nix { };
+        cargoHook =
+          {
+            name,
+            text,
+            runtimeInputs ? [ ],
+            stages ? [ "pre-commit" ],
+          }:
+          {
+            enable = true;
+            entry = "${
+              pkgs.writeShellApplication {
+                inherit name text;
+                runtimeInputs = [ stableToolchain ] ++ runtimeInputs;
+              }
+            }/bin/${name}";
+            files = "(^|/)(Cargo\\.(toml|lock)|.*\\.rs)$";
+            pass_filenames = false;
+            inherit stages;
+          };
+        offlineHooks = {
+          nixfmt.enable = true;
+          deadnix = {
+            enable = true;
+            settings = {
+              noLambdaArg = true;
+              noLambdaPatternNames = true;
+            };
+          };
+          check-toml.enable = true;
+          check-merge-conflicts.enable = true;
+          end-of-file-fixer.enable = true;
+          trim-trailing-whitespace.enable = true;
+          shellcheck.enable = true;
+          actionlint.enable = true;
+          yamllint.enable = true;
+        };
+        cargoHooks = {
+          rustfmt = cargoHook {
+            name = "rustfmt-hook";
+            text = "cargo fmt --all -- --check";
+          };
+          clippy = cargoHook {
+            name = "clippy-hook";
+            text = "cargo clippy --workspace --all-targets --locked -- -W clippy::pedantic -D warnings";
+          };
+          wasi-checks = cargoHook {
+            name = "wasi-checks-hook";
+            text = ''
+              cargo check -p papo-proto -p papo-core --target wasm32-wasip1 --locked
+              cargo check -p papo-proto -p papo-core --target wasm32-wasip2 --locked
+              cargo check -p papo-proto -p papo-core --target wasm32-unknown-unknown --locked
+              cargo check -p papo --target wasm32-wasip2 --locked
+            '';
+          };
+          wasip3-checks = cargoHook {
+            name = "wasip3-checks-hook";
+            text = ''
+              ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto -p papo-core --locked
+              ${cargoWasip3}/bin/cargo-wasip3 check -p papo --locked
+            '';
+          };
+          cargo-deny = cargoHook {
+            name = "cargo-deny-hook";
+            runtimeInputs = [ pkgs.cargo-deny ];
+            text = "cargo deny check bans licenses sources";
+          };
+          cargo-nextest = cargoHook {
+            name = "cargo-nextest-hook";
+            runtimeInputs = [ pkgs.cargo-nextest ];
+            # Once the workspace has tests, an empty test suite should fail.
+            text = "cargo nextest run --workspace --locked --no-tests pass";
+            stages = [ "pre-push" ];
+          };
+          wasip2-tests = cargoHook {
+            name = "wasip2-tests-hook";
+            runtimeInputs = [ pkgs.wasmtime ];
+            text = "cargo test --workspace --locked --target wasm32-wasip2";
+            stages = [ "pre-push" ];
+          };
+          wasip3-tests = cargoHook {
+            name = "wasip3-tests-hook";
+            runtimeInputs = [ pkgs.wasmtime ];
+            text = "${cargoWasip3}/bin/cargo-wasip3 test --workspace --locked";
+            stages = [ "pre-push" ];
+          };
+          doctests = cargoHook {
+            name = "doctests-hook";
+            text = "cargo test --doc --workspace --locked";
+            stages = [ "pre-push" ];
+          };
+          docs = cargoHook {
+            name = "docs-hook";
+            text = ''
+              RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
+            '';
+            stages = [ "pre-push" ];
+          };
+        };
+        gitHooks = git-hooks.lib.${system}.run {
+          src = ./.;
+          hooks = offlineHooks // cargoHooks;
+        };
       in
       {
+        checks.pre-commit = git-hooks.lib.${system}.run {
+          src = ./.;
+          hooks = offlineHooks;
+        };
+
         devShells.default = pkgs.mkShell {
           packages = [
             stableToolchain
@@ -68,13 +176,13 @@
             pkgs.taplo
             pkgs.git-absorb
             ergochat
-          ];
+          ]
+          ++ gitHooks.enabledPackages;
           ERGO_BIN = pkgs.lib.getExe ergochat;
           CARGO_TARGET_WASM32_WASIP1_RUNNER = "wasmtime run";
-          CARGO_TARGET_WASM32_WASIP2_RUNNER =
-            "wasmtime run -S inherit-network -S allow-ip-name-lookup";
-          CARGO_TARGET_WASM32_WASIP3_RUNNER =
-            "wasmtime run -S inherit-network -S allow-ip-name-lookup -S p3";
+          CARGO_TARGET_WASM32_WASIP2_RUNNER = "wasmtime run -S inherit-network -S allow-ip-name-lookup";
+          CARGO_TARGET_WASM32_WASIP3_RUNNER = "wasmtime run -S inherit-network -S allow-ip-name-lookup -S p3";
+          inherit (gitHooks) shellHook;
         };
       }
     );
