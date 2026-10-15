@@ -1,4 +1,5 @@
 //! Shared support for transcript-driven protocol tests.
+#![allow(dead_code)]
 
 use std::{
     fs,
@@ -76,7 +77,6 @@ impl Transcript {
     }
 
     /// Plays directives from a transcript trace file.
-    #[allow(dead_code)]
     pub fn load(mut self, path: impl AsRef<Path>) -> Self {
         let path = path.as_ref();
         let trace = fs::read_to_string(path)

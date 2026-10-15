@@ -48,9 +48,15 @@ pub enum Event {
 pub struct Session {
     config: Config,
     incoming: Vec<u8>,
-    transmits: VecDeque<Message>,
+    transmits: VecDeque<Transmit>,
     events: VecDeque<Event>,
     closing: bool,
+}
+
+#[derive(Debug)]
+enum Transmit {
+    Message(Message),
+    Raw(Vec<u8>),
 }
 
 impl Session {
@@ -116,6 +122,25 @@ impl Session {
             Err(_) => return self.malformed(line),
         };
         match MessageRef::parse(&decoded) {
+            Ok(message) if message.command_is("PING") => {
+                let Some(token) = message.param(0) else {
+                    self.events.push_back(Event::Message(message.to_owned()));
+                    return;
+                };
+                if token.contains(['\r', '\n', '\0']) {
+                    self.malformed(line);
+                    return;
+                }
+                let mut pong = Vec::with_capacity(token.len() + 8);
+                pong.extend_from_slice(b"PONG :");
+                pong.extend_from_slice(token.as_bytes());
+                pong.extend_from_slice(b"\r\n");
+                self.transmits.push_back(Transmit::Raw(pong));
+            }
+            Ok(message) if message.command_is("ERROR") => {
+                let reason = message.param(0).unwrap_or("server sent ERROR").to_owned();
+                self.close(reason);
+            }
             Ok(message) => self.events.push_back(Event::Message(message.to_owned())),
             Err(_) => self.malformed(line),
         }
@@ -133,7 +158,7 @@ impl Session {
 
     /// Queues a user-originated raw message for transmission.
     pub fn send(&mut self, _now: Instant, message: Message) {
-        self.transmits.push_back(message);
+        self.transmits.push_back(Transmit::Message(message));
     }
 
     /// Returns the next CRLF-terminated wire line to transmit.
@@ -142,11 +167,12 @@ impl Session {
     ///
     /// Panics if a queued message cannot be represented as a valid IRC wire line.
     pub fn poll_transmit(&mut self) -> Option<Vec<u8>> {
-        self.transmits.pop_front().map(|message| {
-            message
+        self.transmits.pop_front().map(|transmit| match transmit {
+            Transmit::Message(message) => message
                 .to_line()
                 .expect("message passed to Session::send is invalid")
-                .into()
+                .into(),
+            Transmit::Raw(line) => line,
         })
     }
 
@@ -168,10 +194,12 @@ impl Session {
     }
 
     fn close_for_long_line(&mut self) {
+        self.close("incoming IRC line exceeds 8703 bytes".to_owned());
+    }
+
+    fn close(&mut self, reason: String) {
         self.incoming.clear();
         self.closing = true;
-        self.events.push_back(Event::Close {
-            reason: "incoming IRC line exceeds 8703 bytes".to_owned(),
-        });
+        self.events.push_back(Event::Close { reason });
     }
 }
