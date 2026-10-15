@@ -1,5 +1,5 @@
 //! Live cross-server conformance test binary.
 
-fn main() {
-    papo_conformance::run();
+fn main() -> std::process::ExitCode {
+    papo_conformance::run()
 }

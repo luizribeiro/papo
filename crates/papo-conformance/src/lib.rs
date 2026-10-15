@@ -11,11 +11,11 @@ use std::{
     future::Future,
     path::Path,
     pin::Pin,
-    process,
+    process::{self, ExitCode},
     time::Duration,
 };
 
-use libtest_mimic::{Arguments, Completion, Failed, Trial};
+use libtest_mimic::{Arguments, Completion, Conclusion, Failed, Trial};
 use papo::{Client, Driver, Event, Events, OsEntropy, transport};
 use papo_core::{Capabilities, Config, Session, Welcome};
 use papo_proto::{Advertised, Isupport};
@@ -69,7 +69,8 @@ struct RegisteredClient {
 }
 
 /// Runs the live conformance test binary.
-pub fn run() {
+#[must_use]
+pub fn run() -> ExitCode {
     let arguments = Arguments::from_args();
     let server = from_env();
     let specs = scenario_specs();
@@ -96,7 +97,20 @@ pub fn run() {
             )
         })
         .collect();
-    libtest_mimic::run(&arguments, trials).exit();
+    match run_trials(&arguments, trials) {
+        Ok(conclusion) => conclusion.exit_code(),
+        Err(error) => {
+            eprintln!("conformance startup error: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run_trials(arguments: &Arguments, trials: Vec<Trial>) -> Result<Conclusion, String> {
+    if trials.is_empty() {
+        return Err("conformance suite contains no scenarios".into());
+    }
+    Ok(libtest_mimic::run(arguments, trials))
 }
 
 fn scenario_specs() -> &'static [ScenarioSpec] {
@@ -364,9 +378,32 @@ mod tests {
     use papo_core::Capabilities;
     use papo_proto::Isupport;
 
-    use libtest_mimic::{Completion, Failed};
+    use libtest_mimic::{Arguments, Completion, Failed, Trial};
 
-    use super::{CapRequirement, Requirements, known_failure_verdict, parse_known_failures};
+    use super::{
+        CapRequirement, Requirements, known_failure_verdict, parse_known_failures, run_trials,
+    };
+
+    #[test]
+    fn harness_rejects_an_empty_trial_list() {
+        let arguments = Arguments::from_iter(["papo-conformance", "--test-threads=1"]);
+        assert_eq!(
+            run_trials(&arguments, Vec::new()).unwrap_err(),
+            "conformance suite contains no scenarios"
+        );
+    }
+
+    #[test]
+    fn harness_executes_failing_trials() {
+        let arguments = Arguments::from_iter(["papo-conformance", "--test-threads=1"]);
+        let trials = vec![Trial::test("deliberate_failure", || {
+            Err("deliberate harness failure".into())
+        })];
+        let conclusion = run_trials(&arguments, trials).unwrap();
+        assert!(conclusion.has_failed());
+        assert_eq!(conclusion.num_failed, 1);
+        assert_eq!(conclusion.num_passed, 0);
+    }
 
     #[test]
     fn requirements_match_cap_names_values_and_isupport_tokens() {
