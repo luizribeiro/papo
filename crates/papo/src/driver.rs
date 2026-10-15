@@ -2475,38 +2475,93 @@ mod tests {
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
     }
 
-    #[tokio::test(flavor = "current_thread")]
-    async fn message_reply_sends_an_allowed_reply_tag() {
-        let (mut server, _client, mut events, driver) =
-            scripted(config().wanted_caps(["message-tags"]));
+    async fn assert_reply_wire(
+        message_tags: bool,
+        isupport: &str,
+        incoming: &[u8],
+        expected: &[u8],
+    ) {
+        let wanted = message_tags.then_some("message-tags");
+        let (mut server, _client, mut events, driver) = scripted(config().wanted_caps(wanted));
         let task = tokio::spawn(driver);
         registration_burst(&mut server).await;
-        server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
-        client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
-        server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
+        if message_tags {
+            server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
+            client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
+            server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
+        } else {
+            server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+        }
         client_line(&mut server, b"CAP END\r\n").await;
+        if !isupport.is_empty() {
+            server_line(&mut server, isupport.as_bytes()).await;
+        }
         server_line(
             &mut server,
-            b":ergo.test 005 papo-driver CLIENTTAGDENY=*,-reply :are supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+            b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
         )
         .await;
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
-        server_line(
-            &mut server,
-            b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG #papo :!ping\r\n",
-        )
-        .await;
+        server_line(&mut server, incoming).await;
         let Some(Event::Message(message)) = events.next().await else {
             panic!("expected message event")
         };
         message.reply("pong").await.unwrap();
-        client_line(
-            &mut server,
+        client_line(&mut server, expected).await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn message_reply_obeys_tags_and_clienttagdeny() {
+        let tagged = b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG #papo :!ping\r\n";
+        assert_reply_wire(
+            true,
+            "",
+            tagged,
             b"@+reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
         )
         .await;
-        server.shutdown().await.unwrap();
-        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+        assert_reply_wire(
+            true,
+            "",
+            b":emily!e@localhost PRIVMSG #papo :!ping\r\n",
+            b"PRIVMSG #papo pong\r\n",
+        )
+        .await;
+        assert_reply_wire(false, "", tagged, b"PRIVMSG #papo pong\r\n").await;
+        assert_reply_wire(
+            true,
+            ":ergo.test 005 papo-driver CLIENTTAGDENY=* :are supported\r\n",
+            tagged,
+            b"PRIVMSG #papo pong\r\n",
+        )
+        .await;
+        assert_reply_wire(
+            true,
+            ":ergo.test 005 papo-driver CLIENTTAGDENY=*,-reply :are supported\r\n",
+            tagged,
+            b"@+reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
+        )
+        .await;
+        assert_reply_wire(
+            true,
+            ":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply :are supported\r\n",
+            tagged,
+            b"@+draft/reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn private_reply_keeps_channel_context() {
+        assert_reply_wire(
+            true,
+            "",
+            b"@msgid=RfcBTzyxY120003;+channel-context=#papo :emily!e@localhost PRIVMSG papo-driver :!ping\r\n",
+            b"@+reply=RfcBTzyxY120003;+channel-context=#papo PRIVMSG emily pong\r\n",
+        )
+        .await;
     }
 
     #[tokio::test(flavor = "current_thread")]
