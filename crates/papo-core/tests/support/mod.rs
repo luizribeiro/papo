@@ -44,8 +44,13 @@ impl Transcript {
     }
 
     /// Plays one server line without its line ending.
-    pub fn server(mut self, line: &str) -> Self {
-        self.session.handle_line(self.now, line.as_bytes());
+    pub fn server(self, line: &str) -> Self {
+        self.server_bytes(line.as_bytes())
+    }
+
+    /// Plays one server line as raw bytes without its line ending.
+    pub fn server_bytes(mut self, line: &[u8]) -> Self {
+        self.session.handle_line(self.now, line);
         self
     }
 
