@@ -1,5 +1,8 @@
 use papo_core::{Capabilities, StateLimit, Welcome, sts::StsAction};
-use papo_proto::{Ctcp, Isupport, Message, Source, strip_formatting};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use papo_proto::{Ctcp, Isupport, Message, MessageRef, Source, strip_formatting};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -22,6 +25,11 @@ pub struct MessageEvent {
     text: String,
     kind: StoredKind,
     isupport: Isupport,
+    msgid: Option<String>,
+    time: SystemTime,
+    account: Option<String>,
+    bot: bool,
+    reply_to: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -33,7 +41,11 @@ enum StoredKind {
 }
 
 impl MessageEvent {
-    pub(crate) fn new(raw: Message, isupport: &Isupport) -> Result<Self, Message> {
+    pub(crate) fn new(
+        raw: Message,
+        isupport: &Isupport,
+        received_at: SystemTime,
+    ) -> Result<Self, Message> {
         let message = raw.as_ref();
         let Some(raw_text) = message.param(0).and_then(|_| message.param(1)) else {
             return Err(raw);
@@ -52,11 +64,23 @@ impl MessageEvent {
             _ => return Err(raw),
         };
         let text = strip_formatting(displayed).into_owned();
+        let msgid = tag_owned(&message, &["msgid"]);
+        let time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
+            .and_then(|value| parse_server_time(&value))
+            .unwrap_or(received_at);
+        let account = tag_owned(&message, &["account"]);
+        let bot = message.tags().any(|(key, _)| key == "bot");
+        let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]);
         Ok(Self {
             raw,
             text,
             kind,
             isupport: isupport.clone(),
+            msgid,
+            time,
+            account,
+            bot,
+            reply_to,
         })
     }
 
@@ -113,11 +137,52 @@ impl MessageEvent {
         }
     }
 
+    /// Returns the server-assigned message identifier, when present.
+    #[must_use]
+    pub fn msgid(&self) -> Option<&str> {
+        self.msgid.as_deref()
+    }
+
+    /// Returns server time when valid, or the local receipt time.
+    #[must_use]
+    pub fn time(&self) -> SystemTime {
+        self.time
+    }
+
+    /// Returns the sender's authenticated account, when tagged.
+    #[must_use]
+    pub fn account(&self) -> Option<&str> {
+        self.account.as_deref()
+    }
+
+    /// Reports whether the message carried the `bot` tag.
+    #[must_use]
+    pub fn is_bot(&self) -> bool {
+        self.bot
+    }
+
+    /// Returns the message identifier referenced by a reply tag.
+    #[must_use]
+    pub fn reply_to(&self) -> Option<&str> {
+        self.reply_to.as_deref()
+    }
+
     /// Borrows the underlying IRC message.
     #[must_use]
     pub fn as_ref(&self) -> papo_proto::MessageRef<'_> {
         self.raw.as_ref()
     }
+}
+
+fn tag_owned(message: &MessageRef<'_>, keys: &[&str]) -> Option<String> {
+    keys.iter()
+        .find_map(|key| message.tag(key).map(std::borrow::Cow::into_owned))
+}
+
+fn parse_server_time(value: &str) -> Option<SystemTime> {
+    let parsed = OffsetDateTime::parse(value, &Rfc3339).ok()?;
+    let seconds = u64::try_from(parsed.unix_timestamp()).ok()?;
+    UNIX_EPOCH.checked_add(Duration::new(seconds, parsed.nanosecond()))
 }
 
 /// An event emitted by an IRC client.
@@ -218,6 +283,8 @@ pub enum Event {
     },
 }
 
+// This transient mapping keeps forwarding allocation-free for every event kind.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum CoreEvent {
     Forward(Event),
     Close(String),
@@ -273,6 +340,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, UNIX_EPOCH};
+
     use super::{CoreEvent, Event, MessageEvent, MessageKind, from_core};
     use papo_core::StateLimit;
     use papo_proto::{Isupport, Message, Source};
@@ -281,6 +350,7 @@ mod tests {
         MessageEvent::new(
             Message::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
             &Isupport::default(),
+            UNIX_EPOCH,
         )
         .unwrap()
     }
@@ -316,6 +386,7 @@ mod tests {
         let channel = MessageEvent::new(
             Message::privmsg("#papo", "hello").with_source("emily!~emily@localhost"),
             &isupport,
+            UNIX_EPOCH,
         )
         .unwrap();
         assert!(!channel.is_private());
@@ -333,10 +404,48 @@ mod tests {
         let private = MessageEvent::new(
             Message::privmsg("papo", "hello").with_source("emily!~emily@localhost"),
             &isupport,
+            UNIX_EPOCH,
         )
         .unwrap();
         assert!(private.is_private());
         assert_eq!(private.reply_target(), "emily");
+    }
+
+    #[test]
+    fn exposes_message_tags_and_server_time() {
+        let received = UNIX_EPOCH + Duration::from_secs(42);
+        let tagged = MessageEvent::new(
+            Message::privmsg("#papo", "hello")
+                .with_tag("time", "2026-02-03T04:05:06.789Z")
+                .with_tag("msgid", "RfcBTzyxY120004")
+                .with_tag("account", "emily")
+                .with_tag("bot", "")
+                .with_tag("+draft/reply", "RfcBTzyxY120003"),
+            &Isupport::default(),
+            received,
+        )
+        .unwrap();
+        assert_eq!(
+            tagged.time(),
+            UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
+        );
+        assert_eq!(tagged.msgid(), Some("RfcBTzyxY120004"));
+        assert_eq!(tagged.account(), Some("emily"));
+        assert!(tagged.is_bot());
+        assert_eq!(tagged.reply_to(), Some("RfcBTzyxY120003"));
+
+        for time in [None, Some("not-a-time")] {
+            let mut message = Message::privmsg("#papo", "fallback");
+            if let Some(time) = time {
+                message = message.with_tag("time", time);
+            }
+            assert_eq!(
+                MessageEvent::new(message, &Isupport::default(), received)
+                    .unwrap()
+                    .time(),
+                received
+            );
+        }
     }
 
     fn forwarded(event: papo_core::Event) -> Event {

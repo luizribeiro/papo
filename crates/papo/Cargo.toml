@@ -36,6 +36,7 @@ rustls-platform-verifier = { version = "0.7.1", optional = true }
 serde = { version = "1.0.228", features = ["derive"], optional = true }
 serde_json = { version = "1.0.145", optional = true }
 thiserror = "2.0.21"
+time = { version = "0.3.44", default-features = false, features = ["parsing"] }
 tokio = { version = "1.53.3", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
 tokio-rustls = { version = "0.26.6", default-features = false, features = ["tls12"], optional = true }
 tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"], optional = true }

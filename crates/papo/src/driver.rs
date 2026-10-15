@@ -1077,8 +1077,9 @@ where
         match event::from_core(core_event) {
             event::CoreEvent::Forward(mut event) => {
                 if let Event::Raw(message) = event {
-                    event = crate::MessageEvent::new(message, session.isupport())
-                        .map_or_else(Event::Raw, Event::Message);
+                    event =
+                        crate::MessageEvent::new(message, session.isupport(), SystemTime::now())
+                            .map_or_else(Event::Raw, Event::Message);
                 }
                 match &event {
                     Event::StsUpgrade { port } => sts.upgrade = Some(*port),
