@@ -162,7 +162,10 @@ impl MessageEvent {
         let replay = batch_type.as_deref().is_some_and(|kind| {
             matches!(
                 kind,
-                "chathistory" | "draft/chathistory" | "draft/event-playback"
+                "chathistory"
+                    | "draft/chathistory"
+                    | "draft/chathistory-targets"
+                    | "draft/event-playback"
             )
         });
         let origin = if echo {
@@ -1035,7 +1038,12 @@ mod tests {
 
     #[test]
     fn classifies_replay_origin_by_resolved_batch_type() {
-        for kind in ["chathistory", "draft/chathistory", "draft/event-playback"] {
+        for kind in [
+            "chathistory",
+            "draft/chathistory",
+            "draft/chathistory-targets",
+            "draft/event-playback",
+        ] {
             let replay = batched_message(kind, "PRIVMSG #papo :earlier");
             assert_eq!(replay.origin(), Origin::Replay);
             assert!(!replay.is_live());
