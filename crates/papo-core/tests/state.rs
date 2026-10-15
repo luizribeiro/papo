@@ -131,3 +131,34 @@ fn our_part_and_kick_remove_channels_and_orphaned_users() {
             assert!(session.state().user("dan").is_none());
         });
 }
+
+#[test]
+fn rekeys_another_users_nick_across_shared_channels() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":emily!em@127.0.0.1 JOIN #rust")
+        .server(":dan!dan@cloak.example JOIN #papo")
+        .server(":dan!dan@cloak.example JOIN #rust")
+        .server(":dan!dan@cloak.example NICK :dan-away")
+        .inspect(|session| {
+            assert!(session.state().user("dan").is_none());
+            assert_eq!(session.state().user("DAN-AWAY").unwrap().nick(), "dan-away");
+            for channel in session.state().channels() {
+                assert!(channel.member("dan").is_none());
+                assert!(channel.member("dan-away").is_some());
+            }
+        });
+}
+
+#[test]
+fn follows_our_own_nick_change() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":emily!em@127.0.0.1 NICK :emily_")
+        .inspect(|session| {
+            assert_eq!(session.state().nick(), "emily_");
+            let channel = session.state().channel("#papo").unwrap();
+            assert!(channel.member("emily").is_none());
+            assert!(channel.member("EMILY_").is_some());
+        });
+}

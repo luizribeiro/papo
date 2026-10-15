@@ -133,6 +133,18 @@ impl State {
             }
             return Handled::Yes;
         }
+        if message.command() == Command::Nick {
+            let (Some(Source::User { nick, .. }), Some(new_nick)) =
+                (message.source(), message.param(0))
+            else {
+                return Handled::No;
+            };
+            self.rename_user(nick, new_nick);
+            if mapping.eq(nick, own_nick) {
+                new_nick.clone_into(&mut self.nick);
+            }
+            return Handled::Yes;
+        }
         if let Some((_, channel, entries)) = parse_353(message) {
             for raw in entries {
                 let entry = NamesEntry::parse(raw, isupport);
@@ -220,6 +232,24 @@ impl State {
                 joined.members.remove(&key);
             }
         }
+    }
+
+    fn rename_user(&mut self, old_nick: &str, new_nick: &str) {
+        let old_key = CaseKey::new(old_nick, self.casemapping);
+        let new_key = CaseKey::new(new_nick, self.casemapping);
+        let Some(mut user) = self.users.remove(&old_key) else {
+            return;
+        };
+        new_nick.clone_into(&mut user.nick);
+        for channel_key in &user.channels {
+            if let Some(channel) = self.channels.get_mut(channel_key)
+                && let Some(mut member) = channel.members.remove(&old_key)
+            {
+                new_nick.clone_into(&mut member.nick);
+                channel.members.insert(new_key.clone(), member);
+            }
+        }
+        self.users.insert(new_key, user);
     }
 
     /// Returns the session's current nickname.
