@@ -4,8 +4,8 @@ use std::{
 };
 
 use papo_proto::{
-    CaseKey, Casemapping, Command, Isupport, Join, MessageRef, NamesEntry, Numeric, Source,
-    parse_353,
+    CaseKey, Casemapping, Command, Isupport, Join, MessageRef, ModeChanges, ModeKind, NamesEntry,
+    Numeric, Source, parse_353,
 };
 
 use crate::{Config, Event, Handled, Outbox, StateLimit};
@@ -152,6 +152,9 @@ impl State {
             });
             return Handled::Yes;
         }
+        if self.handle_channel_mode(message, isupport) {
+            return Handled::Yes;
+        }
         if let Some((_, channel, entries)) = parse_353(message) {
             for raw in entries {
                 let entry = NamesEntry::parse(raw, isupport);
@@ -172,6 +175,23 @@ impl State {
             return Handled::Yes;
         }
         Handled::No
+    }
+
+    fn handle_channel_mode(&mut self, message: &MessageRef<'_>, isupport: &Isupport) -> bool {
+        let Some(target) = message
+            .param(0)
+            .filter(|target| message.command() == Command::Mode && isupport.is_channel(target))
+        else {
+            return false;
+        };
+        if let Some(modestring) = message.param(1)
+            && let Some(channel) = self
+                .channels
+                .get_mut(&CaseKey::new(target, self.casemapping))
+        {
+            channel.apply_membership_modes(modestring, message.params().skip(2), isupport);
+        }
+        true
     }
 
     fn update_casemapping(&mut self, mapping: Casemapping) {
@@ -457,6 +477,36 @@ impl Channel {
                 .into_iter()
                 .map(|prefix| prefix.symbol)
                 .collect(),
+        }
+    }
+
+    fn apply_membership_modes<'a>(
+        &mut self,
+        modestring: &'a str,
+        args: impl Iterator<Item = &'a str> + 'a,
+        isupport: &'a Isupport,
+    ) {
+        let prefixes = isupport.prefix();
+        for change in ModeChanges::parse(modestring, args, isupport) {
+            let ModeKind::Prefix(rank) = change.kind else {
+                continue;
+            };
+            let (Some(nick), Some(prefix)) = (change.arg, prefixes.get(rank)) else {
+                continue;
+            };
+            let Some(member) = self.members.get_mut(&CaseKey::new(nick, self.casemapping)) else {
+                continue;
+            };
+            if change.set {
+                if !member.prefixes.contains(&prefix.symbol) {
+                    member.prefixes.push(prefix.symbol);
+                    member.prefixes.sort_by_key(|symbol| {
+                        member.prefix_order.iter().position(|item| item == symbol)
+                    });
+                }
+            } else {
+                member.prefixes.retain(|symbol| *symbol != prefix.symbol);
+            }
         }
     }
 

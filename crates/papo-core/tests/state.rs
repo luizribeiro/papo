@@ -140,6 +140,56 @@ fn ranks_names_prefixes_independently_of_wire_order() {
 }
 
 #[test]
+fn applies_membership_modes_in_advertised_rank_order() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":ergo.test 353 emily = #papo :+emily!em@127.0.0.1 dan!dan@cloak.example")
+        .server(":alice!alice@staff.example MODE #papo +ov dan emily")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.member("dan").unwrap().prefixes(), ['@']);
+            assert_eq!(channel.member("emily").unwrap().prefixes(), ['+']);
+        })
+        .server(":alice!alice@staff.example MODE #papo +v-o dan dan")
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .channel("#papo")
+                    .unwrap()
+                    .member("dan")
+                    .unwrap()
+                    .prefixes(),
+                ['+']
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn ignores_membership_modes_for_unknown_channels_and_members() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":alice!alice@staff.example MODE #unknown +o emily")
+        .server(":alice!alice@staff.example MODE #papo +o dan")
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .channel("#papo")
+                    .unwrap()
+                    .member("emily")
+                    .unwrap()
+                    .prefixes(),
+                []
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn no_implicit_names_marks_our_join_synced_without_366() {
     Transcript::new(Config::default().wanted_caps(["no-implicit-names"]))
         .connect_default()
