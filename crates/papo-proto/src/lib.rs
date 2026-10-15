@@ -3,6 +3,7 @@
 
 mod casemapping;
 mod command;
+mod formatting;
 mod isupport;
 mod message;
 mod numeric;
@@ -10,6 +11,7 @@ mod source;
 
 pub use casemapping::{CaseKey, Casemapping};
 pub use command::Command;
+pub use formatting::{Formatted, Span, Style, strip};
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, Extban, Isupport, Limit, LimitValue, Prefix,
 };
