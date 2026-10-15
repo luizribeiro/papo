@@ -1,5 +1,3 @@
-#![allow(dead_code, reason = "used when constructing outgoing text messages")]
-
 use crate::State;
 
 const UNKNOWN_HOST_LEN: usize = 63;
@@ -28,6 +26,13 @@ pub(super) fn text_budget(state: &State, kind: TextKind, target: &str) -> usize 
     let source_len = 1 + state.nick().len() + 1 + state.username().len() + 1 + host_len + 1;
     let message_len = kind.command().len() + 1 + target.len() + 2;
     512usize.saturating_sub(source_len + message_len + 2)
+}
+
+pub(super) fn first_line_only(key: &str) -> bool {
+    matches!(
+        key,
+        "+reply" | "+draft/reply" | "+channel-context" | "+draft/channel-context"
+    )
 }
 
 #[cfg(test)]

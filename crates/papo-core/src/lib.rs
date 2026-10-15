@@ -653,6 +653,8 @@ pub enum RequestError {
     Build(BuildError),
     /// The session already has 256 labelled requests awaiting replies.
     PendingLimit,
+    /// The text contains no nonempty lines to send.
+    EmptyText,
 }
 
 impl std::fmt::Display for RequestError {
@@ -660,6 +662,7 @@ impl std::fmt::Display for RequestError {
         match self {
             Self::Build(error) => error.fmt(formatter),
             Self::PendingLimit => formatter.write_str("too many labelled requests are pending"),
+            Self::EmptyText => formatter.write_str("text has no nonempty lines"),
         }
     }
 }
@@ -668,7 +671,7 @@ impl std::error::Error for RequestError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Build(error) => Some(error),
-            Self::PendingLimit => None,
+            Self::PendingLimit | Self::EmptyText => None,
         }
     }
 }
@@ -1299,9 +1302,61 @@ impl Session {
         Ok(())
     }
 
-    #[allow(dead_code, reason = "used when constructing outgoing text messages")]
     fn text_budget(&self, kind: TextKind, target: &str) -> usize {
         outgoing::text_budget(&self.state, kind, target)
+    }
+
+    /// Splits and queues text within the server's relayed line budget.
+    ///
+    /// Context tags (`+reply`, `+draft/reply`, `+channel-context`, and its draft alias) apply
+    /// only to the first fallback line. Other supplied tags are copied to every line.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::EmptyText`] when `text` has no nonempty lines, or the validation
+    /// and pending-request errors documented by [`Session::request`].
+    pub fn send_text(
+        &mut self,
+        now: Instant,
+        kind: TextKind,
+        target: &str,
+        text: &str,
+        tags: &[(&str, &str)],
+    ) -> Result<Option<RequestId>, RequestError> {
+        self.rate_limit.advance(now);
+        let segments = papo_proto::split_text(text, self.text_budget(kind, target));
+        if segments.is_empty() {
+            return Err(RequestError::EmptyText);
+        }
+        let labelled = self.caps.enabled().contains_key("labeled-response");
+        if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
+            return Err(RequestError::PendingLimit);
+        }
+        let id = RequestId(self.next_request_id);
+        let label = labelled.then(|| encode_label(self.next_request_id));
+        let mut lines = Vec::with_capacity(segments.len());
+        for (index, segment) in segments.into_iter().enumerate() {
+            let mut message = Message::new(kind.command(), [target, segment.text]);
+            for &(key, value) in tags {
+                if index == 0 || !outgoing::first_line_only(key) {
+                    message = message.with_tag(key, value);
+                }
+            }
+            if index == 0
+                && let Some(label) = &label
+            {
+                message = message.with_tag("label", label);
+            }
+            lines.push(message.to_line()?.into_bytes());
+        }
+        self.next_request_id = self.next_request_id.wrapping_add(1);
+        if let Some(label) = label {
+            self.requests.insert(label, (id, now));
+        }
+        for line in lines {
+            self.outbox.transmit_raw(line);
+        }
+        Ok(labelled.then_some(id))
     }
 
     /// Queues a message and assigns an identifier for its eventual response.
