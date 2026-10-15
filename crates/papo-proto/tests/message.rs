@@ -34,8 +34,6 @@ fn valid_message() -> impl Strategy<Value = Message> {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(256))]
-
     #[test]
     fn owned_messages_round_trip(message in valid_message()) {
         let line = message.to_line().unwrap();
