@@ -465,6 +465,72 @@ fn list_replies_use_fifo_without_swallowing_unrelated_errors() {
 }
 
 #[test]
+fn standard_failures_require_fail_kind_and_matching_command() {
+    let now = Instant::now();
+    let cases = [
+        (
+            "WHOIS",
+            Message::new("WHOIS", ["alice"]),
+            ResponseMatcher::Whois("alice".into()),
+        ),
+        (
+            "WHO",
+            Message::new("WHO", ["#papo"]),
+            ResponseMatcher::Who("#papo".into()),
+        ),
+        (
+            "JOIN",
+            Message::join("#papo"),
+            ResponseMatcher::Join("#papo".into()),
+        ),
+        (
+            "PART",
+            Message::new("PART", ["#papo"]),
+            ResponseMatcher::Part("#papo".into()),
+        ),
+        (
+            "MODE",
+            Message::new("MODE", ["#papo", "+t"]),
+            ResponseMatcher::Mode("#papo".into()),
+        ),
+        (
+            "TOPIC",
+            Message::new("TOPIC", ["#papo"]),
+            ResponseMatcher::Topic("#papo".into()),
+        ),
+        (
+            "LIST",
+            Message::new("LIST", Vec::<String>::new()),
+            ResponseMatcher::List,
+        ),
+    ];
+
+    for (command, message, matcher) in cases {
+        let mut session = Session::new(Config::default());
+        let id = session.request_with_matcher(now, message, matcher).unwrap();
+        session.handle_line(
+            now,
+            format!("WARN {command} INVALID_PARAMS :Not a failure").as_bytes(),
+        );
+        session.handle_line(now, b"FAIL CHATHISTORY INVALID_PARAMS :Different command");
+        assert!(
+            std::iter::from_fn(|| session.poll_event())
+                .all(|event| !matches!(event, Event::Response(_)))
+        );
+
+        session.handle_line(
+            now,
+            format!(
+                "FAIL {} INVALID_PARAMS :Rejected",
+                command.to_ascii_lowercase()
+            )
+            .as_bytes(),
+        );
+        assert_eq!(response_id(&mut session), id);
+    }
+}
+
+#[test]
 fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
