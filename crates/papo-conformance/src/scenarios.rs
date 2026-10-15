@@ -3,7 +3,7 @@ use std::time::Duration;
 use libtest_mimic::{Completion, Failed};
 use papo::Event;
 use papo_core::Sasl;
-use papo_proto::{Message, MessageRef};
+use papo_proto::{Message, MessageRef, Source};
 use papo_test_server::register_account;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -55,6 +55,18 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 isupport: &[],
             },
             run: ping,
+        },
+        ScenarioSpec {
+            name: "echo_message",
+            doc: "echoes a channel PRIVMSG to its sender",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "echo-message",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: echo_message,
         },
     ]
 }
@@ -146,4 +158,54 @@ async fn read_line(stream: &mut papo::transport::Stream) -> Result<Vec<u8>, Fail
         }
     }
     Err("server line exceeds the IRC wire limits".into())
+}
+
+fn echo_message(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = context.unique();
+        let channel = format!("#{}", context.unique());
+        let text = format!("echo from {}", context.unique());
+        let mut connection = context.client(&nick).await?;
+        let registered_nick = connection.welcome.nick.clone();
+        connection
+            .client
+            .send(Message::join(&channel))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut connection.events,
+                |event| {
+                    matches!(event, Event::Message(message) if {
+                        let message = message.as_ref();
+                        message.command_is("JOIN")
+                            && message.param(0) == Some(channel.as_str())
+                            && matches!(message.source(), Some(Source::User { nick, .. }) if nick == registered_nick)
+                    })
+                },
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        connection
+            .client
+            .privmsg(&channel, &text)
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut connection.events,
+                |event| {
+                    matches!(event, Event::Message(message) if {
+                        let message = message.as_ref();
+                        message.command_is("PRIVMSG")
+                            && message.param(0) == Some(channel.as_str())
+                            && message.param(1) == Some(text.as_str())
+                            && matches!(message.source(), Some(Source::User { nick, .. }) if nick == registered_nick)
+                    })
+                },
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        connection.close().await
+    })
 }
