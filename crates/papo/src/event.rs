@@ -1,4 +1,4 @@
-use papo_core::{Capabilities, StateLimit, Welcome, sts::StsAction};
+use papo_core::{Capabilities, OwnedModeChange, StateLimit, Welcome, sts::StsAction};
 use std::{
     fmt,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -425,6 +425,24 @@ pub enum Event {
         /// The new nickname.
         new: String,
     },
+    /// A user or channel mode changed.
+    ModeChanged {
+        /// The mode target.
+        target: String,
+        /// The user or server that changed the modes.
+        by: String,
+        /// Parsed mode operations in wire order.
+        changes: Vec<OwnedModeChange>,
+    },
+    /// A channel topic changed live.
+    TopicChanged {
+        /// The affected channel.
+        channel: String,
+        /// The new topic, or `None` when it was cleared.
+        topic: Option<String>,
+        /// The user or server that changed the topic.
+        by: String,
+    },
     /// Server input exceeded a configured state-retention bound.
     StateLimitReached {
         /// The state collection that rejected another entry.
@@ -489,6 +507,18 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             channels,
         },
         papo_core::Event::NickChanged { old, new } => Event::NickChanged { old, new },
+        papo_core::Event::ModeChanged {
+            target,
+            by,
+            changes,
+        } => Event::ModeChanged {
+            target,
+            by,
+            changes,
+        },
+        papo_core::Event::TopicChanged { channel, topic, by } => {
+            Event::TopicChanged { channel, topic, by }
+        }
         papo_core::Event::StateLimitReached { limit } => Event::StateLimitReached { limit },
         _ => return CoreEvent::Unknown,
     })
@@ -501,8 +531,8 @@ mod tests {
     use super::{
         CoreEvent, Event, MessageEvent, MessageKind, Origin, from_core, parse_server_time,
     };
-    use papo_core::{Capabilities, StateLimit};
-    use papo_proto::{Isupport, Message, Source};
+    use papo_core::{Capabilities, OwnedModeChange, StateLimit};
+    use papo_proto::{Isupport, Message, ModeKind, Source};
 
     fn event(
         message: Message,
@@ -724,7 +754,6 @@ mod tests {
         assert_eq!(live.origin(), Origin::Live);
         assert!(live.is_live());
     }
-
     fn forwarded(event: papo_core::Event) -> Event {
         let CoreEvent::Forward(event) = from_core(event) else {
             panic!("event was not forwarded")
@@ -803,6 +832,40 @@ mod tests {
                 new: "em".into(),
             }),
             Event::NickChanged { old, new } if old == "emily" && new == "em"
+        ));
+    }
+
+    #[test]
+    fn maps_mode_changed() {
+        let changes = vec![OwnedModeChange {
+            set: true,
+            mode: 'o',
+            arg: Some("emily".into()),
+            kind: ModeKind::Prefix(0),
+        }];
+        assert!(matches!(
+            forwarded(papo_core::Event::ModeChanged {
+                target: "#papo".into(),
+                by: "alice".into(),
+                changes: changes.clone(),
+            }),
+            Event::ModeChanged { target, by, changes: forwarded_changes }
+                if target == "#papo" && by == "alice" && forwarded_changes == changes
+        ));
+    }
+
+    #[test]
+    fn maps_topic_changed() {
+        assert!(matches!(
+            forwarded(papo_core::Event::TopicChanged {
+                channel: "#papo".into(),
+                topic: Some("Rust 1.90 is out".into()),
+                by: "alice".into(),
+            }),
+            Event::TopicChanged { channel, topic, by }
+                if channel == "#papo"
+                    && topic.as_deref() == Some("Rust 1.90 is out")
+                    && by == "alice"
         ));
     }
 
