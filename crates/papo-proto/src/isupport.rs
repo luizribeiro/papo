@@ -476,9 +476,8 @@ fn one_char(value: &str) -> Option<char> {
 
 fn unescape(value: &str) -> String {
     let mut result = String::with_capacity(value.len());
-    let mut index = 0;
-    while index < value.len() {
-        let rest = &value[index..];
+    let mut rest = value;
+    while !rest.is_empty() {
         let (replacement, consumed) = if rest.starts_with("\\x20") {
             (' ', 4)
         } else if rest.starts_with("\\x5C") {
@@ -492,7 +491,7 @@ fn unescape(value: &str) -> String {
             (character, character.len_utf8())
         };
         result.push(replacement);
-        index += consumed;
+        rest = &rest[consumed..];
     }
     result
 }
