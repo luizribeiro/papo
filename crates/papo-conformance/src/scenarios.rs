@@ -7,7 +7,10 @@ use papo_proto::{Message, MessageRef, Source};
 use papo_test_server::register_account;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use super::{CapRequirement, Requirements, Scenario, ScenarioFuture, ScenarioResult, ScenarioSpec};
+use super::{
+    CapRequirement, Requirements, Scenario, ScenarioFuture, ScenarioResult, ScenarioSpec,
+    required_environment,
+};
 
 const EXPECT_TIMEOUT: Duration = Duration::from_secs(10);
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -22,6 +25,33 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 isupport: &[],
             },
             run: registration,
+        },
+        ScenarioSpec {
+            name: "tls",
+            doc: "registers over TLS with the configured test CA",
+            requires: Requirements {
+                caps: &[],
+                isupport: &[],
+            },
+            run: tls,
+        },
+        ScenarioSpec {
+            name: "websocket",
+            doc: "registers over a WebSocket transport",
+            requires: Requirements {
+                caps: &[],
+                isupport: &[],
+            },
+            run: websocket,
+        },
+        ScenarioSpec {
+            name: "websocket_tls",
+            doc: "registers over a TLS WebSocket transport",
+            requires: Requirements {
+                caps: &[],
+                isupport: &[],
+            },
+            run: websocket_tls,
         },
         ScenarioSpec {
             name: "sasl_plain",
@@ -75,11 +105,46 @@ fn registration(context: Scenario) -> ScenarioFuture {
     Box::pin(async move {
         let nick = context.unique();
         let connection = context.client(&nick).await?;
-        if connection.welcome.nick != nick {
-            return Err("welcome nickname differs from the requested nickname".into());
-        }
-        connection.close().await
+        validate_registration(connection, &nick).await
     })
+}
+
+fn tls(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let address = format!("ircs://{}", context.server.tls_addr());
+        register_over(context, &address).await
+    })
+}
+
+fn websocket(context: Scenario) -> ScenarioFuture {
+    register_over_environment(context, "PAPO_TEST_WS")
+}
+
+fn websocket_tls(context: Scenario) -> ScenarioFuture {
+    register_over_environment(context, "PAPO_TEST_WSS")
+}
+
+fn register_over_environment(context: Scenario, variable: &'static str) -> ScenarioFuture {
+    Box::pin(async move {
+        let address = match required_environment(variable) {
+            Ok(address) => address,
+            Err(ignored) => return Ok(ignored),
+        };
+        register_over(context, &address).await
+    })
+}
+
+async fn register_over(context: Scenario, address: &str) -> ScenarioResult {
+    let nick = context.unique();
+    let connection = context.client_at(&nick, address).await?;
+    validate_registration(connection, &nick).await
+}
+
+async fn validate_registration(connection: super::RegisteredClient, nick: &str) -> ScenarioResult {
+    if connection.welcome.nick != nick {
+        return Err("welcome nickname differs from the requested nickname".into());
+    }
+    connection.close().await
 }
 
 fn sasl_plain(context: Scenario) -> ScenarioFuture {

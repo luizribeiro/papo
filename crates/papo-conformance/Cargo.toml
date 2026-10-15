@@ -9,7 +9,7 @@ publish = false
 
 [dependencies]
 libtest-mimic = "0.8.2"
-papo = { path = "../papo", version = "=0.0.0", default-features = false }
+papo = { path = "../papo", version = "=0.0.0", default-features = false, features = ["tls-ring", "websocket"] }
 papo-core = { path = "../papo-core", version = "=0.0.0" }
 papo-proto = { path = "../papo-proto", version = "=0.0.0" }
 papo-test-server = { path = "../papo-test-server", version = "=0.0.0" }

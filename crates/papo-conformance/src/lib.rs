@@ -159,13 +159,33 @@ impl Scenario {
         self.client_with(nick, None).await
     }
 
+    async fn client_at(&self, nick: &str, address: &str) -> Result<RegisteredClient, Failed> {
+        self.client_with_at(nick, address, None).await
+    }
+
     async fn client_with(
         &self,
         nick: &str,
         sasl: Option<Sasl>,
     ) -> Result<RegisteredClient, Failed> {
-        let mut connection =
-            connect_client(&self.server, nick, "papo conformance client", None, sasl)?;
+        let address = format!("irc://{}", self.server.plaintext_addr());
+        self.client_with_at(nick, &address, sasl).await
+    }
+
+    async fn client_with_at(
+        &self,
+        nick: &str,
+        address: &str,
+        sasl: Option<Sasl>,
+    ) -> Result<RegisteredClient, Failed> {
+        let mut connection = connect_client(
+            &self.server,
+            address,
+            nick,
+            "papo conformance client",
+            None,
+            sasl,
+        )?;
         let welcome = wait_for_registration(&mut connection.events).await?;
         Ok(RegisteredClient {
             client: connection.client,
@@ -303,9 +323,11 @@ async fn probe(
     wanted_caps: impl IntoIterator<Item = &str>,
 ) -> Result<Welcome, String> {
     let nick = papo_test_server::unique("papo-probe");
+    let address = format!("irc://{}", server.plaintext_addr());
     let wanted_caps = wanted_caps.into_iter().map(str::to_owned).collect();
     let mut connection = connect_client(
         server,
+        &address,
         &nick,
         "papo conformance probe",
         Some(wanted_caps),
@@ -369,14 +391,13 @@ fn required_environment_from(
 
 fn connect_client(
     server: &ServerInfo,
+    address: &str,
     nick: &str,
     realname: &str,
     wanted_caps: Option<Vec<String>>,
     sasl: Option<Sasl>,
 ) -> Result<Connection, String> {
-    let address = server.plaintext_addr();
-    let address = format!("irc://{address}");
-    let mut builder = Client::builder(&address)
+    let mut builder = Client::builder(address)
         .nick(nick)
         .username("papo")
         .realname(realname)
