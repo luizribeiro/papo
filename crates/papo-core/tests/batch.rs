@@ -153,3 +153,48 @@ fn interleaved_histories_complete_independently() {
     assert!(matches!(session.poll_event(), Some(Event::History { target, .. }) if target == "#b"));
     assert!(matches!(session.poll_event(), Some(Event::History { target, .. }) if target == "#a"));
 }
+
+#[test]
+fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(
+        now,
+        b":irc.example BATCH +split netsplit irc.example irc.remote",
+    );
+    session.handle_line(
+        now,
+        b"@batch=split :alice!~a@remote.example QUIT :irc.example irc.remote",
+    );
+    session.handle_line(
+        now,
+        b"@batch=split :bob!~b@remote.example QUIT :irc.example irc.remote",
+    );
+    session.handle_line(now, b"@batch=split :irc.example NOTICE * :link lost");
+    session.handle_line(now, b":irc.example BATCH -split");
+    session.handle_line(
+        now,
+        b":irc.example BATCH +join netjoin irc.example irc.remote",
+    );
+    session.handle_line(
+        now,
+        b"@batch=join :alice!~a@remote.example JOIN #papo alice :Alice Example",
+    );
+    session.handle_line(
+        now,
+        b"@batch=join :bob!~b@remote.example JOIN #papo bob :Bob Example",
+    );
+    session.handle_line(now, b":irc.example BATCH -join");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Netsplit { servers, quits })
+            if servers == ["irc.example", "irc.remote"] && quits.len() == 2
+    ));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Netjoin { servers, joins })
+            if servers == ["irc.example", "irc.remote"] && joins.len() == 2
+    ));
+    assert_eq!(session.poll_event(), None);
+}

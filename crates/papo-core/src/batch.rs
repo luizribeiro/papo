@@ -41,6 +41,14 @@ pub(crate) enum BatchEvent {
         messages: Vec<Message>,
         end: bool,
     },
+    Netsplit {
+        servers: [String; 2],
+        quits: Vec<Message>,
+    },
+    Netjoin {
+        servers: [String; 2],
+        joins: Vec<Message>,
+    },
 }
 
 impl Batches {
@@ -107,14 +115,10 @@ impl Batches {
         if !valid {
             return BatchAction::Dispatch(self.context(message));
         }
-        let batch = self.open.remove(reference).expect("validated above");
-        let mut completed = batch.completed;
-        if is_history(&batch.kind) && !self.has_aggregate_ancestor(batch.parent.as_deref()) {
-            completed.push(BatchEvent::History {
-                target: batch.params.first().cloned().unwrap_or_default(),
-                messages: batch.messages,
-                end: batch.end,
-            });
+        let mut batch = self.open.remove(reference).expect("validated above");
+        let mut completed = std::mem::take(&mut batch.completed);
+        if is_aggregate(&batch.kind) && !self.has_aggregate_ancestor(batch.parent.as_deref()) {
+            completed.push(complete(&mut batch));
         }
         if let Some(parent) = batch.parent {
             self.open
@@ -150,7 +154,7 @@ impl Batches {
         let mut current = Some(reference);
         while let Some(reference) = current {
             let batch = self.open.get(reference)?;
-            if is_history(&batch.kind) {
+            if is_aggregate(&batch.kind) {
                 aggregate = Some(reference.to_owned());
             }
             current = batch.parent.as_deref();
@@ -163,7 +167,7 @@ impl Batches {
             let Some(batch) = self.open.get(reference) else {
                 return false;
             };
-            if is_history(&batch.kind) {
+            if is_aggregate(&batch.kind) {
                 return true;
             }
             parent = batch.parent.as_deref();
@@ -185,6 +189,40 @@ fn is_history(kind: &str) -> bool {
         kind,
         "chathistory" | "draft/chathistory" | "draft/chathistory-targets" | "draft/event-playback"
     )
+}
+
+fn is_aggregate(kind: &str) -> bool {
+    is_history(kind) || matches!(kind, "netsplit" | "netjoin")
+}
+
+fn complete(batch: &mut OpenBatch) -> BatchEvent {
+    let servers = || {
+        [
+            batch.params.first().cloned().unwrap_or_default(),
+            batch.params.get(1).cloned().unwrap_or_default(),
+        ]
+    };
+    match batch.kind.as_str() {
+        "netsplit" => BatchEvent::Netsplit {
+            servers: servers(),
+            quits: std::mem::take(&mut batch.messages)
+                .into_iter()
+                .filter(|message| message.as_ref().command_is("QUIT"))
+                .collect(),
+        },
+        "netjoin" => BatchEvent::Netjoin {
+            servers: servers(),
+            joins: std::mem::take(&mut batch.messages)
+                .into_iter()
+                .filter(|message| message.as_ref().command_is("JOIN"))
+                .collect(),
+        },
+        _ => BatchEvent::History {
+            target: batch.params.first().cloned().unwrap_or_default(),
+            messages: std::mem::take(&mut batch.messages),
+            end: batch.end,
+        },
+    }
 }
 
 fn valid_reference(reference: &str) -> bool {
@@ -245,7 +283,10 @@ mod tests {
         };
         let BatchEvent::History {
             target, messages, ..
-        } = &events[0];
+        } = &events[0]
+        else {
+            panic!("expected history")
+        };
         assert_eq!(target, "#papo");
         assert_eq!(messages[0].as_ref().param(1), Some("hello"));
     }

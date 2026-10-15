@@ -380,6 +380,20 @@ pub enum Event {
         /// Whether the server reported that no further page exists.
         end: bool,
     },
+    /// Users departed because connectivity between two servers was lost.
+    Netsplit {
+        /// The servers on either side of the lost link.
+        servers: [String; 2],
+        /// The `QUIT` messages grouped by the server.
+        quits: Vec<Message>,
+    },
+    /// Users returned after connectivity between two servers was restored.
+    Netjoin {
+        /// The servers on either side of the restored link.
+        servers: [String; 2],
+        /// The `JOIN` messages grouped by the server.
+        joins: Vec<Message>,
+    },
     /// A line that could not be decoded or parsed.
     Malformed {
         /// The original bytes, excluding the line ending.
@@ -1093,6 +1107,12 @@ impl Session {
                 messages,
                 end,
             }),
+            BatchEvent::Netsplit { servers, quits } => {
+                self.outbox.event(Event::Netsplit { servers, quits });
+            }
+            BatchEvent::Netjoin { servers, joins } => {
+                self.outbox.event(Event::Netjoin { servers, joins });
+            }
         }
     }
 
