@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     future::Future,
     io,
     pin::Pin,
@@ -36,7 +37,7 @@ pub(crate) type Connector = Arc<dyn Fn(ConnectionPlan) -> ConnectFuture + Send +
 enum Command {
     Send {
         message: Message,
-        result: oneshot::Sender<Result<(), papo_proto::BuildError>>,
+        result: oneshot::Sender<Result<(), Error>>,
     },
     Quit {
         reason: Option<String>,
@@ -124,8 +125,7 @@ impl Client {
             .send(Command::Send { message, result })
             .await
             .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)??;
-        Ok(())
+        receiver.await.map_err(|_| Error::Disconnected)?
     }
 
     /// Sends a private message to a user or channel.
@@ -245,6 +245,7 @@ impl Driver {
         registration: Option<RegistrationSender>,
         defaults: PostRegistration,
         reconnect: Reconnect,
+        disconnected_queue_capacity: usize,
     ) -> (Client, Events, Self) {
         Self::with_connector(
             plan,
@@ -253,6 +254,7 @@ impl Driver {
             registration,
             defaults,
             reconnect,
+            disconnected_queue_capacity,
             Arc::new(|plan| {
                 Box::pin(async move {
                     open_connection(plan)
@@ -263,6 +265,7 @@ impl Driver {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn with_connector(
         plan: Result<ConnectionPlan, AddressError>,
         session: Session,
@@ -270,6 +273,7 @@ impl Driver {
         registration: Option<RegistrationSender>,
         defaults: PostRegistration,
         reconnect: Reconnect,
+        disconnected_queue_capacity: usize,
         connector: Connector,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity);
@@ -281,6 +285,7 @@ impl Driver {
             RegistrationWait(registration),
             defaults,
             reconnect,
+            disconnected_queue_capacity,
             connector,
         ));
         (channels.client, channels.events, Self { inner })
@@ -361,7 +366,7 @@ impl Future for Driver {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 async fn run_plan(
     plan: Result<ConnectionPlan, AddressError>,
     mut session: Session,
@@ -370,6 +375,7 @@ async fn run_plan(
     mut registration: RegistrationWait,
     defaults: PostRegistration,
     reconnect: Reconnect,
+    disconnected_queue_capacity: usize,
     connector: Connector,
 ) -> Result<(), Error> {
     let plan = match plan {
@@ -384,9 +390,20 @@ async fn run_plan(
     };
     let mut attempts = 0_usize;
     let mut registered = false;
+    let mut queued = VecDeque::new();
     loop {
         attempts = attempts.saturating_add(1);
-        let stream = match connector(plan.clone()).await {
+        let Some(connection_result) = connect_while_disconnected(
+            connector(plan.clone()),
+            &mut commands,
+            &mut queued,
+            disconnected_queue_capacity,
+        )
+        .await
+        else {
+            return Ok(());
+        };
+        let stream = match connection_result {
             Ok(stream) => stream,
             Err(error) => {
                 let reason = error.to_string();
@@ -419,7 +436,17 @@ async fn run_plan(
                         will_retry: true,
                     })
                     .await;
-                sleep_before_retry(reconnect, attempts).await;
+                if !wait_before_retry(
+                    reconnect,
+                    attempts,
+                    &mut commands,
+                    &mut queued,
+                    disconnected_queue_capacity,
+                )
+                .await
+                {
+                    return Ok(());
+                }
                 continue;
             }
         };
@@ -435,6 +462,7 @@ async fn run_plan(
             &events.regular,
             &mut registration,
             &defaults,
+            &mut queued,
             &mut registered,
             Some(Connection {
                 host: plan.address.host.clone(),
@@ -461,7 +489,17 @@ async fn run_plan(
                 will_retry: true,
             })
             .await;
-        sleep_before_retry(reconnect, attempts).await;
+        if !wait_before_retry(
+            reconnect,
+            attempts,
+            &mut commands,
+            &mut queued,
+            disconnected_queue_capacity,
+        )
+        .await
+        {
+            return Ok(());
+        }
     }
 }
 
@@ -481,9 +519,70 @@ fn is_fatal_failure(error: &Error, reason: &str) -> bool {
     false
 }
 
-async fn sleep_before_retry(reconnect: Reconnect, attempts: usize) {
+async fn connect_while_disconnected(
+    mut connection: ConnectFuture,
+    commands: &mut mpsc::Receiver<Command>,
+    queued: &mut VecDeque<Message>,
+    capacity: usize,
+) -> Option<Result<BoxConnection, Error>> {
+    loop {
+        tokio::select! {
+            result = &mut connection => return Some(result),
+            command = commands.recv() => {
+                if !handle_disconnected_command(command, queued, capacity) {
+                    return None;
+                }
+            }
+        }
+    }
+}
+
+async fn wait_before_retry(
+    reconnect: Reconnect,
+    attempts: usize,
+    commands: &mut mpsc::Receiver<Command>,
+    queued: &mut VecDeque<Message>,
+    capacity: usize,
+) -> bool {
     let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
-    tokio::time::sleep(reconnect.delay(retry, crate::OsEntropy::next_u64())).await;
+    let sleep = tokio::time::sleep(reconnect.delay(retry, crate::OsEntropy::next_u64()));
+    tokio::pin!(sleep);
+    loop {
+        tokio::select! {
+            () = &mut sleep => return true,
+            command = commands.recv() => {
+                if !handle_disconnected_command(command, queued, capacity) {
+                    return false;
+                }
+            }
+        }
+    }
+}
+
+fn handle_disconnected_command(
+    command: Option<Command>,
+    queued: &mut VecDeque<Message>,
+    capacity: usize,
+) -> bool {
+    match command {
+        Some(Command::Send { message, result }) => {
+            let response = message.to_line().map_err(Error::Build).and_then(|_| {
+                if queued.len() < capacity {
+                    queued.push_back(message);
+                    Ok(())
+                } else {
+                    Err(Error::Disconnected)
+                }
+            });
+            _ = result.send(response);
+            true
+        }
+        Some(Command::Quit { result, .. }) => {
+            _ = result.send(Err(Error::Disconnected));
+            true
+        }
+        None => false,
+    }
 }
 
 async fn run<S>(
@@ -498,6 +597,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let mut registered = false;
+    let mut queued = VecDeque::new();
     let end = run_connection(
         stream,
         &mut session,
@@ -505,6 +605,7 @@ where
         &events.regular,
         &mut registration,
         &defaults,
+        &mut queued,
         &mut registered,
         None,
         &events.connected,
@@ -537,6 +638,7 @@ async fn run_connection<S>(
     events: &mpsc::Sender<Event>,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
+    queued: &mut VecDeque<Message>,
     registered: &mut bool,
     connection: Option<Connection>,
     connected: &AtomicBool,
@@ -550,6 +652,11 @@ where
         None => session.handle_connected(current),
     }
     connected.store(true, Ordering::Relaxed);
+    while let Some(message) = queued.pop_front() {
+        session
+            .send(now(), message)
+            .expect("disconnected commands were validated before queueing");
+    }
     let mut commands_open = true;
     let mut quit = None;
     let mut pending_event = None;
@@ -594,7 +701,7 @@ where
             },
             command = commands.recv(), if commands_open => match command {
                 Some(Command::Send { message, result }) => {
-                    _ = result.send(session.send(now(), message));
+                    _ = result.send(session.send(now(), message).map_err(Error::Build));
                 }
                 Some(Command::Quit { reason, result }) => {
                     request_quit(session, &mut quit, reason, Some(result));
@@ -778,6 +885,7 @@ mod tests {
         Config, Decoding, Sasl,
         sts::{ConnectionSecurity, StsAction},
     };
+    use papo_proto::Message;
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf};
 
     use super::{ConnectionPlan, Driver, Error, Event, Session};
@@ -958,6 +1066,7 @@ mod tests {
             None,
             super::PostRegistration::default(),
             crate::Reconnect::exponential().max_attempts(2),
+            256,
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1002,6 +1111,7 @@ mod tests {
             None,
             super::PostRegistration::default(),
             Reconnect::exponential(),
+            256,
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1033,6 +1143,55 @@ mod tests {
         let quit = tokio::spawn(async move { client.quit(None).await });
         client_line(&mut second_server, b"QUIT\r\n").await;
         second_server.shutdown().await.unwrap();
+        assert!(quit.await.unwrap().is_ok());
+        assert!(driver.await.unwrap().is_ok());
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn commands_queue_while_disconnected_and_overflow_is_rejected() {
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let results = Arc::new(Mutex::new(VecDeque::from([
+            Err(Error::Unsupported("scripted connection failure")),
+            Ok(Box::new(client_stream) as super::BoxConnection),
+        ])));
+        let connector: super::Connector = Arc::new(move |_| {
+            let result = results.lock().unwrap().pop_front().unwrap();
+            Box::pin(async move { result })
+        });
+        let (client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential(),
+            1,
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected {
+                will_retry: true,
+                ..
+            })
+        ));
+
+        client.send(Message::new("WHOIS", ["emily"])).await.unwrap();
+        assert!(matches!(
+            client.privmsg("#papo", "queue overflow").await,
+            Err(Error::Disconnected)
+        ));
+
+        tokio::time::advance(Duration::from_secs(2)).await;
+        registration_burst(&mut server).await;
+        client_line(&mut server, b"WHOIS emily\r\n").await;
+        let quit = tokio::spawn(async move { client.quit(None).await });
+        client_line(&mut server, b"QUIT\r\n").await;
+        server.shutdown().await.unwrap();
         assert!(quit.await.unwrap().is_ok());
         assert!(driver.await.unwrap().is_ok());
     }
@@ -1198,6 +1357,7 @@ mod tests {
             None,
             super::PostRegistration::default(),
             Reconnect::exponential(),
+            256,
             connector,
         );
         let driver = tokio::spawn(driver);

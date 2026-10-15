@@ -20,6 +20,7 @@ pub struct Builder {
     pub(crate) event_capacity: usize,
     pub(crate) tls: TlsConfig,
     reconnect: Reconnect,
+    disconnected_queue_capacity: usize,
     bot: bool,
     channels: Vec<String>,
     username_set: bool,
@@ -34,6 +35,7 @@ impl Builder {
             event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
             tls: TlsConfig::default(),
             reconnect: Reconnect::default(),
+            disconnected_queue_capacity: 256,
             bot: false,
             channels: Vec::new(),
             username_set: false,
@@ -144,6 +146,12 @@ impl Builder {
     /// Sets the policy for reconnecting after an unexpected disconnect.
     pub const fn reconnect(mut self, reconnect: Reconnect) -> Self {
         self.reconnect = reconnect;
+        self
+    }
+
+    /// Sets the number of commands retained while no transport is connected.
+    pub const fn disconnected_queue_capacity(mut self, capacity: usize) -> Self {
+        self.disconnected_queue_capacity = capacity;
         self
     }
 
@@ -273,6 +281,7 @@ impl Builder {
             registration,
             defaults,
             self.reconnect,
+            self.disconnected_queue_capacity,
         )
     }
 
