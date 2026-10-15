@@ -6,7 +6,46 @@ use papo_proto::{
     BuildError, MAX_CLIENT_TAG_DATA_LEN, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef,
     ParseError,
 };
+use proptest::{collection::vec, option, prelude::*};
 use serde_json::Value;
+
+fn valid_message() -> impl Strategy<Value = Message> {
+    let tag_value = vec(
+        any::<char>().prop_filter("NUL cannot be serialized", |character| *character != '\0'),
+        0..16,
+    )
+    .prop_map(|characters| characters.into_iter().collect::<String>());
+
+    (
+        "[A-Z]{1,10}",
+        option::of("[!-~]{1,24}"),
+        vec((r"\+?[A-Za-z0-9./_-]{1,12}", tag_value), 0..4),
+        vec("[-A-Za-z0-9#._/+~]{1,16}", 0..4),
+        option::of("[ -~]{0,24}"),
+    )
+        .prop_map(|(command, source, tags, mut middle, trailing)| {
+            middle.extend(trailing);
+            let mut message = Message::new(command, middle);
+            if let Some(source) = source {
+                message = message.with_source(source);
+            }
+            for (key, value) in tags {
+                message = message.with_tag(key, value);
+            }
+            message
+        })
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(256))]
+
+    #[test]
+    fn owned_messages_round_trip(message in valid_message()) {
+        let line = message.to_line().unwrap();
+        let reparsed = MessageRef::parse(&line).unwrap().to_owned();
+        prop_assert_eq!(reparsed, message);
+    }
+}
 
 #[test]
 fn passes_ircdocs_message_split_corpus() {
@@ -46,6 +85,31 @@ fn passes_ircdocs_message_split_corpus() {
             .collect();
         assert_eq!(actual_tags, expected_tags, "{input:?}");
     }
+}
+
+#[test]
+fn source_free_ircdocs_lines_round_trip_through_serialization() {
+    let corpus: Value =
+        serde_json::from_str(include_str!("data/parser-tests/msg-split.json")).unwrap();
+    let mut tested = 0;
+
+    for case in corpus["tests"].as_array().unwrap() {
+        let input = case["input"].as_str().unwrap();
+        let parsed = MessageRef::parse(input).unwrap();
+        if parsed.source().is_some() {
+            continue;
+        }
+        let message = parsed.to_owned();
+        let line = message.to_line().unwrap();
+        assert_eq!(
+            MessageRef::parse(&line).unwrap().to_owned(),
+            message,
+            "{input:?}"
+        );
+        tested += 1;
+    }
+
+    assert_eq!(tested, 14);
 }
 
 #[test]
