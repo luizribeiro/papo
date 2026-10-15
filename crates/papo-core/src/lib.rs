@@ -430,6 +430,15 @@ pub enum Event {
         /// The `JOIN` messages grouped by the server.
         joins: Vec<Message>,
     },
+    /// A server batch exceeded a retention bound or deadline.
+    BatchAbandoned {
+        /// The opaque batch reference.
+        reference: String,
+        /// The batch type from its opening line.
+        batch_type: String,
+        /// The bound that was reached.
+        reason: BatchAbandonReason,
+    },
     /// A line that could not be decoded or parsed.
     Malformed {
         /// The original bytes, excluding the line ending.
@@ -583,6 +592,18 @@ pub enum Event {
         /// The user or server that changed the topic.
         by: String,
     },
+}
+
+/// Why an incomplete server batch was released as individual messages.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum BatchAbandonReason {
+    /// The server opened more batches than configured.
+    OpenBatchLimit,
+    /// A batch exceeded its configured retained-line limit.
+    LineLimit,
+    /// A batch did not close before its deadline.
+    Timeout,
 }
 
 /// A parsed message annotated with protocol dispatch context.
@@ -748,8 +769,9 @@ impl Session {
         let sasl = SaslSession::new(&config, entropy);
         let rate_limit = RateLimiter::new(config.rate_limit);
         let state = State::new(&config);
+        let batches = Batches::new(&config);
         Self {
-            batches: Batches::default(),
+            batches,
             config,
             connection,
             caps: Caps::default(),
@@ -1149,6 +1171,15 @@ impl Session {
             BatchEvent::Netjoin { servers, joins } => {
                 self.outbox.event(Event::Netjoin { servers, joins });
             }
+            BatchEvent::Abandoned {
+                reference,
+                batch_type,
+                reason,
+            } => self.outbox.event(Event::BatchAbandoned {
+                reference,
+                batch_type,
+                reason,
+            }),
         }
     }
 

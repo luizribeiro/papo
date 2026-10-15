@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use papo_proto::{Message, MessageRef};
 
-#[derive(Debug, Default)]
+use crate::{BatchAbandonReason, Config};
+
+#[derive(Debug)]
 pub(crate) struct Batches {
     open: HashMap<String, OpenBatch>,
+    max_open: usize,
 }
 
 #[derive(Debug)]
@@ -49,9 +52,21 @@ pub(crate) enum BatchEvent {
         servers: [String; 2],
         joins: Vec<Message>,
     },
+    Abandoned {
+        reference: String,
+        batch_type: String,
+        reason: BatchAbandonReason,
+    },
 }
 
 impl Batches {
+    pub(crate) fn new(config: &Config) -> Self {
+        Self {
+            open: HashMap::new(),
+            max_open: config.max_open_batches,
+        }
+    }
+
     pub(crate) fn reset(&mut self) {
         self.open.clear();
     }
@@ -76,7 +91,7 @@ impl Batches {
         let Some(kind) = message.param(1) else {
             return BatchAction::Dispatch(self.context(message));
         };
-        let parent = message.tag("batch").map(|value| value.into_owned());
+        let parent = message.tag("batch").map(std::borrow::Cow::into_owned);
         if !valid_reference(reference)
             || self.open.contains_key(reference)
             || parent
@@ -84,6 +99,13 @@ impl Batches {
                 .is_some_and(|parent| !self.open.contains_key(parent))
         {
             return BatchAction::Dispatch(self.context(message));
+        }
+        if self.open.len() >= self.max_open {
+            return BatchAction::Complete(vec![BatchEvent::Abandoned {
+                reference: reference.to_owned(),
+                batch_type: kind.to_owned(),
+                reason: BatchAbandonReason::OpenBatchLimit,
+            }]);
         }
         self.open.insert(
             reference.to_owned(),
@@ -137,12 +159,14 @@ impl Batches {
         let aggregate = message
             .tag("batch")
             .and_then(|reference| self.aggregate_reference(reference.as_ref()));
-        if let Some(reference) = aggregate {
+        if let Some(reference) = aggregate.as_deref() {
             self.open
-                .get_mut(&reference)
+                .get_mut(reference)
                 .expect("resolved aggregate remains open")
                 .messages
                 .push(message.to_owned());
+        }
+        if aggregate.is_some() {
             BatchAction::Consumed
         } else {
             BatchAction::Dispatch(context)
@@ -235,47 +259,59 @@ fn valid_reference(reference: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{BatchAction, BatchEvent, Batches};
+    use crate::Config;
     use papo_proto::MessageRef;
 
-    fn handle(batches: &mut Batches, line: &str) -> Option<Option<String>> {
+    fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
         let message = MessageRef::parse(line).unwrap();
         match batches.handle(&message) {
-            BatchAction::Consumed => None,
-            BatchAction::Complete(_) => None,
-            BatchAction::Dispatch(context) => Some(context.batch_type().map(str::to_owned)),
+            BatchAction::Consumed | BatchAction::Complete(_) => (false, None),
+            BatchAction::Dispatch(context) => (true, context.batch_type().map(str::to_owned)),
         }
     }
 
     #[test]
     fn resolves_nested_and_interleaved_batch_types() {
-        let mut batches = Batches::default();
-        assert_eq!(handle(&mut batches, "BATCH +outer vendor/sync"), None);
-        assert_eq!(handle(&mut batches, "BATCH +other vendor/other"), None);
-        assert_eq!(handle(&mut batches, "@batch=outer BATCH +i nested"), None);
+        let mut batches = Batches::new(&Config::default());
+        assert_eq!(
+            handle(&mut batches, "BATCH +outer vendor/sync"),
+            (false, None)
+        );
+        assert_eq!(
+            handle(&mut batches, "BATCH +other vendor/other"),
+            (false, None)
+        );
+        assert_eq!(
+            handle(&mut batches, "@batch=outer BATCH +i nested"),
+            (false, None)
+        );
         assert_eq!(
             handle(&mut batches, "@batch=i :irc.example NOTICE papo :nested"),
-            Some(Some("nested".into()))
+            (true, Some("nested".into()))
         );
         assert_eq!(
             handle(&mut batches, "@batch=other :irc.example NOTICE papo :other"),
-            Some(Some("vendor/other".into()))
+            (true, Some("vendor/other".into()))
         );
     }
 
     #[test]
     fn passes_through_invalid_envelopes() {
-        let mut batches = Batches::default();
-        assert_eq!(handle(&mut batches, "BATCH +bad_ref sync"), Some(None));
-        assert_eq!(handle(&mut batches, "BATCH -missing"), Some(None));
+        let mut batches = Batches::new(&Config::default());
+        assert_eq!(handle(&mut batches, "BATCH +bad_ref sync"), (true, None));
+        assert_eq!(handle(&mut batches, "BATCH -missing"), (true, None));
     }
 
     #[test]
     fn completes_history_with_its_members() {
-        let mut batches = Batches::default();
-        assert_eq!(handle(&mut batches, "BATCH +h chathistory #papo"), None);
+        let mut batches = Batches::new(&Config::default());
+        assert_eq!(
+            handle(&mut batches, "BATCH +h chathistory #papo"),
+            (false, None)
+        );
         assert_eq!(
             handle(&mut batches, "@batch=h :alice PRIVMSG #papo :hello"),
-            None
+            (false, None)
         );
         let close = MessageRef::parse("BATCH -h").unwrap();
         let BatchAction::Complete(events) = batches.handle(&close) else {

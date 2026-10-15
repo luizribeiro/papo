@@ -1,8 +1,8 @@
-//! Transcript coverage for IRCv3 batch routing.
+//! Transcript coverage for `IRCv3` batch routing.
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, Session};
+use papo_core::{BatchAbandonReason, Config, Event, Session};
 
 fn message(session: &mut Session) -> papo_core::ReceivedMessage {
     let Some(Event::Message(message)) = session.poll_event() else {
@@ -195,6 +195,24 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
         session.poll_event(),
         Some(Event::Netjoin { servers, joins })
             if servers == ["irc.example", "irc.remote"] && joins.len() == 2
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn rejects_a_batch_beyond_the_configured_open_limit() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_open_batches(2));
+    session.handle_line(now, b"BATCH +a vendor/one");
+    session.handle_line(now, b"BATCH +b vendor/two");
+    session.handle_line(now, b"BATCH +c chathistory #papo");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reference, batch_type, reason })
+            if reference == "c"
+                && batch_type == "chathistory"
+                && reason == BatchAbandonReason::OpenBatchLimit
     ));
     assert_eq!(session.poll_event(), None);
 }
