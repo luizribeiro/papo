@@ -15,7 +15,7 @@ use std::{
     time::Duration,
 };
 
-use libtest_mimic::{Arguments, Completion, Conclusion, Failed, Trial};
+use libtest_mimic::{Arguments, Completion, Conclusion, Failed, FormatSetting, Trial};
 use papo::{Client, Event, Events};
 use papo_core::{Capabilities, Sasl, Welcome};
 use papo_proto::{Advertised, Isupport};
@@ -104,6 +104,7 @@ pub fn run() -> ExitCode {
                 &probe,
                 known_failures.get(spec.name).cloned(),
                 server_name.clone(),
+                arguments.format == Some(FormatSetting::Json),
             )
         })
         .collect();
@@ -133,19 +134,79 @@ fn trial(
     probe: &Welcome,
     known_failure: Option<String>,
     server_name: String,
+    json: bool,
 ) -> Trial {
     if let Some(reason) = spec.requires.unsupported(&probe.caps, &probe.isupport) {
-        return Trial::ignorable_test(spec.name, move || Ok(Completion::ignored_with(reason)))
-            .with_kind(spec.doc);
+        return Trial::ignorable_test(spec.name, move || {
+            let result = Ok(Completion::ignored_with(reason));
+            report_scenario_status(spec.name, &result, None, json);
+            result
+        })
+        .with_kind(spec.doc);
     }
     Trial::ignorable_test(spec.name, move || {
         let result = runtime().block_on((spec.run)(Scenario {
             server,
             name: spec.name,
         }));
+        report_scenario_status(spec.name, &result, known_failure.as_deref(), json);
         known_failure_verdict(result, known_failure.as_deref(), &server_name)
     })
     .with_kind(spec.doc)
+}
+
+fn report_scenario_status(
+    name: &str,
+    result: &ScenarioResult,
+    known_failure: Option<&str>,
+    json: bool,
+) {
+    if !json {
+        return;
+    }
+    if let Some((event, reason)) = scenario_status(result, known_failure) {
+        let reason = reason.map_or_else(|| "null".into(), json_string);
+        println!(
+            r#"{{ "type": "scenario", "name": {}, "event": {}, "reason": {} }}"#,
+            json_string(name),
+            json_string(event),
+            reason
+        );
+    }
+}
+
+fn scenario_status<'a>(
+    result: &'a ScenarioResult,
+    known_failure: Option<&'a str>,
+) -> Option<(&'static str, Option<&'a str>)> {
+    match result {
+        Ok(Completion::Ignored { reason }) => Some(("ignored", reason.as_deref())),
+        Err(_) => known_failure.map(|reason| ("expected-failure", Some(reason))),
+        Ok(Completion::Completed) => None,
+    }
+}
+
+fn json_string(input: &str) -> String {
+    use std::fmt::Write as _;
+
+    let mut output = String::with_capacity(input.len() + 2);
+    output.push('"');
+    for character in input.chars() {
+        match character {
+            '"' => output.push_str("\\\""),
+            '\\' => output.push_str("\\\\"),
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\t' => output.push_str("\\t"),
+            character if character <= '\u{1f}' => {
+                write!(output, "\\u{:04x}", character as u32)
+                    .expect("writing to a String cannot fail");
+            }
+            character => output.push(character),
+        }
+    }
+    output.push('"');
+    output
 }
 
 impl<S> Scenario<S> {
@@ -459,9 +520,9 @@ mod tests {
     use libtest_mimic::{Arguments, Completion, Failed, Trial};
 
     use super::{
-        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event,
+        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event, json_string,
         known_failure_verdict, load_known_failures_from, required_environment_from, run_trials,
-        runtime,
+        runtime, scenario_status,
     };
 
     struct TestDirectory(PathBuf);
@@ -663,6 +724,25 @@ mod tests {
         assert_eq!(
             unexpected.message(),
             Some("unexpected pass; remove it from known-failures/ergo.toml")
+        );
+    }
+
+    #[test]
+    fn scenario_status_records_ignored_and_expected_failures() {
+        let ignored = Ok(Completion::ignored_with("PAPO_TEST_WS is not set up"));
+        assert_eq!(
+            scenario_status(&ignored, None),
+            Some(("ignored", Some("PAPO_TEST_WS is not set up")))
+        );
+        let failed = Err(Failed::from("server rejected METADATA"));
+        assert_eq!(
+            scenario_status(&failed, Some("server bug 417")),
+            Some(("expected-failure", Some("server bug 417")))
+        );
+        assert_eq!(scenario_status(&failed, None), None);
+        assert_eq!(
+            json_string("quote \" and\ncontrol\u{1f}"),
+            "\"quote \\\" and\\ncontrol\\u001f\""
         );
     }
 
