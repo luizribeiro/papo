@@ -5,7 +5,7 @@ use std::{
 
 use papo_proto::{MAX_MESSAGE_LEN, MessageRef, NAME_ALIASES, NameKind};
 
-use crate::{Capabilities, Config, Handled, Outbox, sasl::SaslSession};
+use crate::{Capabilities, Config, Event, Handled, Outbox, sasl::SaslSession};
 
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
 const MAX_IRC_BODY_LEN: usize = MAX_MESSAGE_LEN - 2;
@@ -38,13 +38,17 @@ impl Caps {
             };
             if subcommand.eq_ignore_ascii_case("LS") {
                 self.handle_ls(message, config, sasl, outbox);
+            } else if subcommand.eq_ignore_ascii_case("NEW") {
+                self.handle_new(message, config, outbox);
             } else if subcommand.eq_ignore_ascii_case("ACK") {
                 if message.param(2) != Some("*") {
                     if let Some(requested) = self.pending.pop_front() {
                         let sasl_acked = requested.iter().any(|name| name == "sasl");
+                        let mut added = Capabilities::new();
                         for name in requested {
                             let value = self.advertised.get(&name).cloned().flatten();
-                            self.enabled.insert(name, value);
+                            self.enabled.insert(name.clone(), value.clone());
+                            added.insert(name, value);
                         }
                         if sasl_acked {
                             sasl.handle_cap_ack(
@@ -52,6 +56,12 @@ impl Caps {
                                 self.enabled.get("sasl").and_then(Option::as_deref),
                                 outbox,
                             );
+                        }
+                        if self.ended {
+                            outbox.event(Event::CapsChanged {
+                                added,
+                                removed: Capabilities::new(),
+                            });
                         }
                     }
                     self.maybe_finish(sasl.is_finished(), outbox);
@@ -78,6 +88,51 @@ impl Caps {
             Handled::Yes
         } else {
             Handled::No
+        }
+    }
+
+    fn handle_new(&mut self, message: &MessageRef<'_>, config: &Config, outbox: &mut Outbox) {
+        let mut updated = Capabilities::new();
+        let mut announced = BTreeSet::new();
+        for token in message.param(2).unwrap_or("").split_whitespace() {
+            let (name, value) = token
+                .split_once('=')
+                .map_or((token, None), |(name, value)| (name, Some(value)));
+            if name.is_empty() {
+                continue;
+            }
+            let value = value.map(str::to_owned);
+            self.advertised.insert(name.to_owned(), value.clone());
+            announced.insert(name.to_owned());
+            if self.enabled.contains_key(name) {
+                self.enabled.insert(name.to_owned(), value.clone());
+                updated.insert(name.to_owned(), value);
+            }
+        }
+        if !updated.is_empty() {
+            outbox.event(Event::CapsChanged {
+                added: updated,
+                removed: Capabilities::new(),
+            });
+        }
+
+        let mut seen = BTreeSet::new();
+        let requested = config
+            .wanted_caps
+            .iter()
+            .filter(|wanted| wanted.as_str() != "ergo.chat/nope")
+            .filter_map(|wanted| self.advertised_spelling(wanted))
+            .filter(|name| announced.contains(*name))
+            .filter(|name| !self.enabled.contains_key(*name))
+            .filter(|name| seen.insert((*name).to_owned()))
+            .map(str::to_owned)
+            .collect();
+        for request in split_requests(requested) {
+            let mut line = b"CAP REQ :".to_vec();
+            line.extend_from_slice(request.join(" ").as_bytes());
+            line.extend_from_slice(b"\r\n");
+            outbox.transmit_raw(line);
+            self.pending.push_back(request);
         }
     }
 

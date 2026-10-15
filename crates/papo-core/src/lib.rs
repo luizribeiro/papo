@@ -259,6 +259,13 @@ pub enum Event {
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
     },
+    /// The capabilities enabled on an established connection changed.
+    CapsChanged {
+        /// Newly enabled capabilities and updated advertised values.
+        added: Capabilities,
+        /// Capabilities removed by the server.
+        removed: Capabilities,
+    },
 }
 
 /// Sans-I/O state for one IRC client session.

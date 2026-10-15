@@ -163,3 +163,32 @@ fn surfaces_unknown_command_for_commands_other_than_cap() {
             )
         });
 }
+
+#[test]
+fn enables_new_wanted_caps_and_updates_enabled_values() {
+    Transcript::new(Config::default().wanted_caps(["batch", "server-time"]))
+        .connect_default()
+        .server("CAP * LS :server-time=old")
+        .client("CAP REQ :server-time")
+        .server("CAP * ACK :server-time")
+        .client("CAP END")
+        .server("CAP papo NEW :batch server-time=latest")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { added, removed }
+            if added.get("server-time") == Some(&Some("latest".to_owned()))
+                && removed.is_empty())
+        })
+        .client("CAP REQ :batch")
+        .server("CAP papo ACK :batch")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { added, removed }
+            if added.get("batch") == Some(&None) && removed.is_empty())
+        })
+        .inspect(|session| {
+            assert_eq!(
+                session.caps().get("server-time"),
+                Some(&Some("latest".to_owned()))
+            );
+            assert!(session.caps().contains_key("batch"));
+        });
+}
