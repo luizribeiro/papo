@@ -8,6 +8,7 @@ mod keepalive;
 mod ratelimit;
 mod registration;
 mod sasl;
+mod state;
 pub mod sts;
 
 use std::{
@@ -26,6 +27,7 @@ use ratelimit::RateLimiter;
 use registration::Registration;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
+pub use state::State;
 use sts::ConnectionSecurity;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
@@ -356,6 +358,7 @@ pub struct Session {
     rate_limit: RateLimiter,
     registration: Registration,
     sasl: SaslSession,
+    state: State,
     outbox: Outbox,
 }
 
@@ -372,6 +375,7 @@ impl std::fmt::Debug for Session {
             .field("rate_limit", &self.rate_limit)
             .field("registration", &self.registration)
             .field("sasl", &self.sasl)
+            .field("state", &self.state)
             .field("outbox", &self.outbox)
             .finish()
     }
@@ -454,6 +458,7 @@ impl Session {
         let isupport = IsupportState::new(config.decoding);
         let sasl = SaslSession::new(&config, entropy);
         let rate_limit = RateLimiter::new(config.rate_limit);
+        let state = State::new(&config);
         Self {
             config,
             connection,
@@ -464,6 +469,7 @@ impl Session {
             rate_limit,
             registration,
             sasl,
+            state,
             outbox: Outbox::default(),
         }
     }
@@ -486,6 +492,7 @@ impl Session {
         self.caps.handle_connected(now);
         self.isupport.handle_connected();
         self.sasl.handle_connected();
+        self.state.reset(&self.config);
         self.keepalive
             .handle_connected(now, self.config.ping_interval, self.config.ping_timeout);
         self.registration
@@ -563,6 +570,7 @@ impl Session {
         self.registration.handle_disconnected();
         self.sasl.handle_disconnected();
         self.keepalive.handle_disconnected();
+        self.state.reset(&self.config);
     }
 
     /// Validates and queues a user-originated raw message for transmission.
@@ -628,6 +636,12 @@ impl Session {
     #[must_use]
     pub fn isupport(&self) -> &papo_proto::Isupport {
         self.isupport.value()
+    }
+
+    /// Returns the session's channel and user state.
+    #[must_use]
+    pub const fn state(&self) -> &State {
+        &self.state
     }
 
     /// Reports whether connection registration has completed.
