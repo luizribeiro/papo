@@ -5,6 +5,8 @@ pub use papo_core::sts::{MemoryStsStore, StoredPolicy, StsStore};
 #[cfg(feature = "sts-file")]
 use std::{
     collections::BTreeMap,
+    env,
+    ffi::OsString,
     fs, io,
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -48,6 +50,12 @@ impl FileStsStore {
             Err(error) => store.last_error = Some(error),
         }
         store
+    }
+
+    /// Returns the platform's default STS policy file, when its home is known.
+    #[must_use]
+    pub fn default_path() -> Option<PathBuf> {
+        default_path_with(|name| env::var_os(name), cfg!(target_os = "macos"))
     }
 
     /// Returns the most recent load or write error.
@@ -188,6 +196,29 @@ fn cap_entries(entries: &mut BTreeMap<String, DiskPolicy>) {
 }
 
 #[cfg(feature = "sts-file")]
+fn default_path_with(
+    mut lookup: impl FnMut(&str) -> Option<OsString>,
+    is_macos: bool,
+) -> Option<PathBuf> {
+    if is_macos {
+        return nonempty(lookup("HOME"))
+            .map(PathBuf::from)
+            .map(|home| home.join("Library/Application Support/papo/sts.json"));
+    }
+    if let Some(state) = nonempty(lookup("XDG_STATE_HOME")) {
+        return Some(PathBuf::from(state).join("papo/sts.json"));
+    }
+    nonempty(lookup("HOME"))
+        .map(PathBuf::from)
+        .map(|home| home.join(".local/state/papo/sts.json"))
+}
+
+#[cfg(feature = "sts-file")]
+fn nonempty(value: Option<OsString>) -> Option<OsString> {
+    value.filter(|value| !value.is_empty())
+}
+
+#[cfg(feature = "sts-file")]
 fn normalize_host(host: &str) -> String {
     let mut store = MemoryStsStore::new();
     store.put(StoredPolicy {
@@ -204,7 +235,7 @@ fn normalize_host(host: &str) -> String {
 mod tests {
     use std::{fs, io, path::PathBuf, time::Duration};
 
-    use super::{FileStsStore, StoredPolicy, StsStore};
+    use super::{FileStsStore, StoredPolicy, StsStore, default_path_with};
 
     fn test_dir(name: &str) -> PathBuf {
         let path = PathBuf::from("target/sts-file-tests").join(name);
@@ -354,5 +385,47 @@ mod tests {
         assert!(json.contains(r#""irc.example.net""#));
         assert!(!json.contains("IRC.Example.NET."));
         assert!(FileStsStore::open(path).get("IRC.EXAMPLE.NET.").is_some());
+    }
+
+    #[test]
+    fn locates_the_default_file_from_an_injected_environment() {
+        let path = |variables: &[(&str, &str)], macos| {
+            default_path_with(
+                |name| {
+                    variables
+                        .iter()
+                        .find_map(|(key, value)| (*key == name).then(|| (*value).into()))
+                },
+                macos,
+            )
+        };
+
+        assert_eq!(
+            path(
+                &[("XDG_STATE_HOME", "/state"), ("HOME", "/home/irc")],
+                false
+            ),
+            Some(PathBuf::from("/state/papo/sts.json"))
+        );
+        assert_eq!(
+            path(&[("XDG_STATE_HOME", "/state")], false),
+            Some(PathBuf::from("/state/papo/sts.json"))
+        );
+        assert_eq!(
+            path(&[("HOME", "/home/irc")], false),
+            Some(PathBuf::from("/home/irc/.local/state/papo/sts.json"))
+        );
+        assert_eq!(
+            path(
+                &[("XDG_STATE_HOME", "/state"), ("HOME", "/Users/irc")],
+                true
+            ),
+            Some(PathBuf::from(
+                "/Users/irc/Library/Application Support/papo/sts.json"
+            ))
+        );
+        assert_eq!(path(&[("XDG_STATE_HOME", "/state")], true), None);
+        assert_eq!(path(&[("XDG_STATE_HOME", ""), ("HOME", "")], false), None);
+        assert_eq!(path(&[], false), None);
     }
 }
