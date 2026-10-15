@@ -26,9 +26,19 @@ pub enum Decoding {
 
 /// Configuration for an IRC session.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Config {
     /// The policy used to decode incoming lines.
     pub decoding: Decoding,
+}
+
+impl Config {
+    /// Sets the incoming line decoding policy.
+    #[must_use]
+    pub const fn decoding(mut self, decoding: Decoding) -> Self {
+        self.decoding = decoding;
+        self
+    }
 }
 
 /// An event emitted by an IRC session.

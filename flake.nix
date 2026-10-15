@@ -244,9 +244,9 @@
           ]
           ++ gitHooks.enabledPackages;
           ERGO_BIN = pkgs.lib.getExe ergochat;
-          CARGO_TARGET_WASM32_WASIP1_RUNNER = "wasmtime run";
-          CARGO_TARGET_WASM32_WASIP2_RUNNER = "wasmtime run -S inherit-network -S allow-ip-name-lookup";
-          CARGO_TARGET_WASM32_WASIP3_RUNNER = "wasmtime run -S inherit-network -S allow-ip-name-lookup -S p3";
+          CARGO_TARGET_WASM32_WASIP1_RUNNER = "wasmtime run --dir=.";
+          CARGO_TARGET_WASM32_WASIP2_RUNNER = "wasmtime run --dir=. -S inherit-network -S allow-ip-name-lookup";
+          CARGO_TARGET_WASM32_WASIP3_RUNNER = "wasmtime run --dir=. -S inherit-network -S allow-ip-name-lookup -S p3";
           inherit (gitHooks) shellHook;
         };
       }

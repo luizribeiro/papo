@@ -55,9 +55,7 @@ fn falls_back_to_latin1_per_line() {
 #[test]
 fn reports_strict_utf8_and_parse_failures_with_original_bytes() {
     let now = Instant::now();
-    let mut session = Session::new(Config {
-        decoding: Decoding::Utf8,
-    });
+    let mut session = Session::new(Config::default().decoding(Decoding::Utf8));
     session.handle_line(now, b":irc.example NOTICE nick :caf\xe9");
     session.handle_line(now, b":ergo.test");
     assert_eq!(
