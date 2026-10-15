@@ -68,7 +68,9 @@ impl Client {
     /// Requests a clean disconnect and waits for the peer to close.
     ///
     /// The wait is limited to ten seconds. The driver still completes cleanly
-    /// when that limit is reached.
+    /// when that limit is reached. An I/O failure while waiting for closure
+    /// also resolves to `Ok(())`; its cause is available in the `reason`
+    /// field of [`Event::Disconnected`].
     ///
     /// # Errors
     ///
@@ -374,6 +376,10 @@ mod tests {
     use std::{
         io,
         pin::Pin,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
         task::{Context, Poll},
         time::Duration,
     };
@@ -388,7 +394,7 @@ mod tests {
 
     struct FailingStream {
         inner: DuplexStream,
-        read_error: bool,
+        read_error: Arc<AtomicBool>,
     }
 
     impl AsyncRead for FailingStream {
@@ -397,8 +403,7 @@ mod tests {
             context: &mut Context<'_>,
             buffer: &mut ReadBuf<'_>,
         ) -> Poll<io::Result<()>> {
-            if self.read_error {
-                self.read_error = false;
+            if self.read_error.swap(false, Ordering::Relaxed) {
                 Poll::Ready(Err(io::Error::other("original read failure")))
             } else {
                 Pin::new(&mut self.inner).poll_read(context, buffer)
@@ -444,7 +449,7 @@ mod tests {
         let (client_stream, server) = tokio::io::duplex(4096);
         let stream = FailingStream {
             inner: client_stream,
-            read_error,
+            read_error: Arc::new(AtomicBool::new(read_error)),
         };
         let (client, events, driver) = Driver::with_stream(stream, Session::new(config()));
         (server, client, events, driver)
@@ -726,6 +731,36 @@ mod tests {
             events.next().await,
             Some(Event::Disconnected { .. })
         ));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn quit_resolves_after_io_failure_and_reports_its_cause() {
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let read_error = Arc::new(AtomicBool::new(false));
+        let stream = FailingStream {
+            inner: client_stream,
+            read_error: Arc::clone(&read_error),
+        };
+        let (client, mut events, driver) = Driver::with_stream(stream, Session::new(config()));
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        let quit = tokio::spawn(async move { client.quit(None).await });
+        client_line(&mut server, b"QUIT\r\n").await;
+
+        read_error.store(true, Ordering::Relaxed);
+        server
+            .write_all(b":ergo.test NOTICE papo-driver :connection closing\r\n")
+            .await
+            .unwrap();
+
+        assert!(quit.await.unwrap().is_ok());
+        assert!(driver.await.unwrap().is_ok());
+        assert_eq!(
+            events.next().await,
+            Some(Event::Disconnected {
+                reason: "original read failure".into()
+            })
+        );
     }
 
     #[tokio::test(flavor = "current_thread", start_paused = true)]
