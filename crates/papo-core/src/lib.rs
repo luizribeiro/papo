@@ -27,7 +27,7 @@ use ratelimit::RateLimiter;
 use registration::Registration;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
-pub use state::State;
+pub use state::{Channel, Member, State};
 use sts::ConnectionSecurity;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
