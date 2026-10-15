@@ -205,60 +205,7 @@ impl SaslSession {
         message: &MessageRef<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
-        if message.command_is("900") {
-            if let Some(account) = message.param(2) {
-                self.account = Some(account.to_owned());
-            }
-            return Handled::Yes;
-        }
-        if message.command_is("901") {
-            self.account = None;
-            return Handled::Yes;
-        }
-        if message.command_is("903") || message.command_is("907") {
-            self.active = None;
-            self.awaiting_challenge = false;
-            self.deadline = None;
-            self.completion = Completion::Success;
-            return Handled::Yes;
-        }
-        if message.command_is("904") || message.command_is("905") {
-            self.record_active_failure(message.param(1).unwrap_or("SASL mechanism failed"));
-            self.start_next(now, outbox);
-            return Handled::Yes;
-        }
-        if message.command_is("908") {
-            if let Some(available) = message.param(1) {
-                self.retain_available(available);
-            }
-            return Handled::Yes;
-        }
-        if message.command_is("902") {
-            self.fail_all(message.param(1).unwrap_or("account is unavailable"), outbox);
-            return Handled::Yes;
-        }
-        if message.command_is("906") {
-            if self.aborting {
-                self.aborting = false;
-                self.start_next(now, outbox);
-            } else {
-                self.fail_all(
-                    message.param(1).unwrap_or("SASL exchange was aborted"),
-                    outbox,
-                );
-            }
-            return Handled::Yes;
-        }
-        if message.command_is("FAIL")
-            && message.param(0) == Some("*")
-            && message.param(1) == Some("ACCOUNT_REQUIRED")
-        {
-            self.completion = Completion::Failed;
-            self.deadline = None;
-            outbox.close(format!(
-                "SASL failed: {}",
-                message.param(2).unwrap_or("the server requires an account")
-            ));
+        if self.handle_status(now, message, outbox) {
             return Handled::Yes;
         }
         if !message.command_is("AUTHENTICATE") {
@@ -295,6 +242,58 @@ impl SaslSession {
         self.awaiting_challenge = false;
         self.deadline = Some(now + SASL_TIMEOUT);
         Handled::Yes
+    }
+
+    fn handle_status(
+        &mut self,
+        now: Instant,
+        message: &MessageRef<'_>,
+        outbox: &mut Outbox,
+    ) -> bool {
+        if message.command_is("900") {
+            if let Some(account) = message.param(2) {
+                self.account = Some(account.to_owned());
+            }
+        } else if message.command_is("901") {
+            self.account = None;
+        } else if message.command_is("903") || message.command_is("907") {
+            self.active = None;
+            self.awaiting_challenge = false;
+            self.deadline = None;
+            self.completion = Completion::Success;
+        } else if message.command_is("904") || message.command_is("905") {
+            self.record_active_failure(message.param(1).unwrap_or("SASL mechanism failed"));
+            self.start_next(now, outbox);
+        } else if message.command_is("908") {
+            if let Some(available) = message.param(1) {
+                self.retain_available(available);
+            }
+        } else if message.command_is("902") {
+            self.fail_all(message.param(1).unwrap_or("account is unavailable"), outbox);
+        } else if message.command_is("906") {
+            if self.aborting {
+                self.aborting = false;
+                self.start_next(now, outbox);
+            } else {
+                self.fail_all(
+                    message.param(1).unwrap_or("SASL exchange was aborted"),
+                    outbox,
+                );
+            }
+        } else if message.command_is("FAIL")
+            && message.param(0) == Some("*")
+            && message.param(1) == Some("ACCOUNT_REQUIRED")
+        {
+            self.completion = Completion::Failed;
+            self.deadline = None;
+            outbox.close(format!(
+                "SASL failed: {}",
+                message.param(2).unwrap_or("the server requires an account")
+            ));
+        } else {
+            return false;
+        }
+        true
     }
 
     pub(super) fn unavailable(&mut self, reason: &str, outbox: &mut Outbox) {
