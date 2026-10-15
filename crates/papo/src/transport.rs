@@ -21,6 +21,10 @@ use tokio::{
 #[cfg(tls)]
 use tokio_rustls::client::TlsStream;
 
+#[cfg(feature = "websocket")]
+#[allow(dead_code)]
+mod websocket;
+
 /// The security used for a connection.
 #[derive(Clone, Debug)]
 pub enum Security {
@@ -199,6 +203,10 @@ pub enum ConnectError {
     /// TLS support was not selected at compile time.
     #[error("TLS support is disabled; enable tls-ring or tls-aws-lc")]
     TlsUnavailable,
+    /// WebSocket URL parsing or negotiation failed.
+    #[cfg(feature = "websocket")]
+    #[error("WebSocket failed: {0}")]
+    WebSocket(#[source] tokio_tungstenite::tungstenite::Error),
 }
 
 /// Resolves a host and connects to each address in order until one succeeds.

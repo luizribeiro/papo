@@ -9,6 +9,7 @@ publish.workspace = true
 
 [features]
 default = ["tls-ring"]
+websocket = ["dep:tokio-tungstenite"]
 tls-aws-lc = [
   "dep:rustls",
   "dep:rustls-platform-verifier",
@@ -32,6 +33,7 @@ rustls-platform-verifier = { version = "0.7.1", optional = true }
 thiserror = "2.0.21"
 tokio = { version = "1.53.3", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
 tokio-rustls = { version = "0.26.6", default-features = false, features = ["tls12"], optional = true }
+tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"], optional = true }
 
 [dev-dependencies]
 papo-test-server = { path = "../papo-test-server", version = "=0.0.0" }
