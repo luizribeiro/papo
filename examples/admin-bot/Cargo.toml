@@ -16,5 +16,8 @@ papo = { path = "../../crates/papo", version = "=0.0.0", features = ["bot"] }
 papo-proto = { path = "../../crates/papo-proto", version = "=0.0.0" }
 tokio = { version = "1.53.3", features = ["macros", "rt"] }
 
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+tokio = { version = "1.53.3", features = ["signal"] }
+
 [lints]
 workspace = true

@@ -39,8 +39,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(not(target_os = "wasi"))]
 async fn run(
     client: Client,
+    mut events: Events,
+    config: &BotConfig,
+    admins: &[String],
+) -> Result<(), PapoError> {
+    let shutdown = shutdown_signal();
+    tokio::pin!(shutdown);
+    loop {
+        tokio::select! {
+            signal = &mut shutdown => {
+                signal?;
+                client.quit(Some("shutting down")).await?;
+                return Ok(());
+            }
+            event = events.next() => match event {
+                Some(event) => handle(&event, config, admins).await?,
+                None => return Ok(()),
+            },
+        }
+    }
+}
+
+#[cfg(all(target_os = "wasi", not(target_env = "p1")))]
+async fn run(
+    _client: Client,
     mut events: Events,
     config: &BotConfig,
     admins: &[String],
@@ -48,7 +73,6 @@ async fn run(
     while let Some(event) = events.next().await {
         handle(&event, config, admins).await?;
     }
-    drop(client);
     Ok(())
 }
 
@@ -96,6 +120,20 @@ async fn handle(event: &Event, config: &BotConfig, admins: &[String]) -> Result<
         _ => {}
     }
     Ok(())
+}
+
+#[cfg(unix)]
+async fn shutdown_signal() -> io::Result<()> {
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    tokio::select! {
+        result = tokio::signal::ctrl_c() => result,
+        _ = terminate.recv() => Ok(()),
+    }
+}
+
+#[cfg(all(not(unix), not(target_os = "wasi")))]
+async fn shutdown_signal() -> io::Result<()> {
+    tokio::signal::ctrl_c().await
 }
 
 fn required(name: &str) -> io::Result<String> {
