@@ -56,6 +56,22 @@ fn one_interval_refills_exactly_one_token() {
 }
 
 #[test]
+fn unconsumed_intervals_refill_the_whole_bucket() {
+    let mut transcript = Transcript::rate_limited(Config::default());
+    for index in 1..=10 {
+        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+    }
+    for index in 1..=5 {
+        transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
+    }
+    transcript = transcript.advance(Duration::from_millis(2_500));
+    for index in 6..=10 {
+        transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
+    }
+    transcript.no_client();
+}
+
+#[test]
 fn unlimited_rate_limit_never_schedules_a_token_deadline() {
     Transcript::rate_limited(Config::default().rate_limit(RateLimit::unlimited()))
         .send(Message::privmsg("#papo", "one"))
