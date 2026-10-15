@@ -128,3 +128,20 @@ fn generated_nicks_stay_within_the_default_30_byte_limit() {
     assert!(second.ends_with("__"));
     assert_ne!(first, second);
 }
+
+#[test]
+fn generated_nicks_honor_an_early_nicklen_advertisement() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("long-client-nickname"));
+    session.handle_connected(now);
+    for _ in 0..3 {
+        session.poll_transmit();
+    }
+    session.handle_line(
+        now,
+        b":ergo.test 005 * NICKLEN=12 :are supported by this server",
+    );
+    session.handle_line(now, b":ergo.test 433 * nick :Nickname is already in use");
+
+    assert_eq!(line(&mut session), "NICK long-client_");
+}

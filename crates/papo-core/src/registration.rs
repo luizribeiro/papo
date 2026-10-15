@@ -36,6 +36,7 @@ impl Registration {
         &mut self,
         message: &MessageRef<'_>,
         config: &Config,
+        nicklen: Option<usize>,
         outbox: &mut Outbox,
     ) -> Handled {
         if message.command_is("001") {
@@ -53,7 +54,7 @@ impl Registration {
                 nick.clone_into(&mut self.nick);
                 self.next_alt_nick += 1;
             } else {
-                self.nick = append_underscore(&self.nick, 30);
+                self.nick = append_underscore(&self.nick, nicklen.unwrap_or(30));
             }
             outbox.transmit("NICK", [&self.nick]);
             Handled::Yes

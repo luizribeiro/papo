@@ -3,6 +3,7 @@
 
 mod caps;
 mod framing;
+mod isupport;
 mod keepalive;
 mod registration;
 
@@ -15,6 +16,7 @@ use papo_proto::{BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, Mess
 
 use caps::Caps;
 use framing::Framer;
+use isupport::IsupportState;
 use keepalive::Keepalive;
 use registration::Registration;
 
@@ -185,6 +187,7 @@ pub struct Session {
     config: Config,
     caps: Caps,
     framer: Framer,
+    isupport: IsupportState,
     keepalive: Keepalive,
     registration: Registration,
     outbox: Outbox,
@@ -235,10 +238,12 @@ impl Session {
     #[must_use]
     pub fn new(config: Config) -> Self {
         let registration = Registration::new(&config);
+        let isupport = IsupportState::new(config.decoding);
         Self {
             config,
             caps: Caps::default(),
             framer: Framer::default(),
+            isupport,
             keepalive: Keepalive,
             registration,
             outbox: Outbox::default(),
@@ -250,6 +255,7 @@ impl Session {
         self.framer.reset();
         self.outbox.reset_connection();
         self.caps.handle_connected();
+        self.isupport.handle_connected();
         self.registration
             .handle_connected(now, &self.config, &mut self.outbox);
     }
@@ -285,7 +291,7 @@ impl Session {
 
         let decoded = match std::str::from_utf8(line) {
             Ok(line) => std::borrow::Cow::Borrowed(line),
-            Err(_) if self.config.decoding == Decoding::Utf8OrLatin1 => {
+            Err(_) if self.isupport.decoding() == Decoding::Utf8OrLatin1 => {
                 std::borrow::Cow::Owned(line.iter().map(|&byte| char::from(byte)).collect())
             }
             Err(_) => return self.malformed(line),
@@ -360,6 +366,12 @@ impl Session {
         self.caps.enabled()
     }
 
+    /// Returns the accumulated server features advertised through `005`.
+    #[must_use]
+    pub fn isupport(&self) -> &papo_proto::Isupport {
+        self.isupport.value()
+    }
+
     fn malformed(&mut self, line: &[u8]) {
         self.outbox.event(Event::Malformed {
             line: line.to_vec(),
@@ -367,9 +379,12 @@ impl Session {
     }
 
     fn dispatch_message(&mut self, now: Instant, message: &MessageRef<'_>) {
-        let handled = self
-            .registration
-            .handle_message(message, &self.config, &mut self.outbox);
+        let handled = self.registration.handle_message(
+            message,
+            &self.config,
+            self.isupport.value().nicklen(),
+            &mut self.outbox,
+        );
         let handled = if handled == Handled::No {
             self.caps.handle_message(
                 message,
@@ -377,6 +392,11 @@ impl Session {
                 self.registration.authentication_finished(),
                 &mut self.outbox,
             )
+        } else {
+            handled
+        };
+        let handled = if handled == Handled::No {
+            self.isupport.handle_message(message)
         } else {
             handled
         };
