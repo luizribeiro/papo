@@ -62,81 +62,58 @@ fn registration_timeout_is_the_first_deadline_and_closes_once() {
 
 #[test]
 fn tries_alternative_nicks_then_appends_bounded_underscores() {
-    let now = Instant::now();
-    let mut session = Session::new(
+    Transcript::new(
         Config::default()
             .nick("emily")
             .alt_nicks(["emily-away", "emily-work"]),
-    );
-    session.handle_connected(now);
-    for _ in 0..3 {
-        session.poll_transmit();
-    }
-
-    session.handle_line(now, b":ergo.test 433 * emily :Nickname is already in use");
-    assert_eq!(line(&mut session), "NICK emily-away");
-    session.handle_line(
-        now,
-        b":ergo.test 437 * emily-away :Nick/channel is temporarily unavailable",
-    );
-    assert_eq!(line(&mut session), "NICK emily-work");
-    session.handle_line(now, b":ergo.test 432 * emily-work :Erroneous nickname");
-    assert_eq!(line(&mut session), "NICK emily-work_");
-    session.handle_line(now, b":ergo.test 436 * emily-work_ :Nickname collision");
-    assert_eq!(line(&mut session), "NICK emily-work__");
-
-    session.handle_line(now, b":ergo.test 001 emily-work__ :Welcome");
-    session.handle_line(
-        now,
-        b":ergo.test 433 emily-work__ someone :Nickname is already in use",
-    );
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Message(message)) if message.as_ref().command_is("433")
-    ));
+    )
+    .connect()
+    .client("CAP LS 302")
+    .client("NICK emily")
+    .client("USER papo 0 * papo")
+    .server(":ergo.test 433 * emily :Nickname is already in use")
+    .client("NICK emily-away")
+    .server(":ergo.test 437 * emily-away :Nick/channel is temporarily unavailable")
+    .client("NICK emily-work")
+    .server(":ergo.test 432 * emily-work :Erroneous nickname")
+    .client("NICK emily-work_")
+    .server(":ergo.test 436 * emily-work_ :Nickname collision")
+    .client("NICK emily-work__")
+    .server(":ergo.test 001 emily-work__ :Welcome")
+    .server(":ergo.test 433 emily-work__ someone :Nickname is already in use")
+    .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("433")));
 }
 
 #[test]
 fn generated_nicks_stay_within_the_default_30_byte_limit() {
-    let now = Instant::now();
-    let mut session = Session::new(Config::default().nick("a-realistically-long-client-nick"));
-    session.handle_connected(now);
-    for _ in 0..3 {
-        session.poll_transmit();
-    }
-
-    session.handle_line(
-        now,
-        b":solanum.example 433 * nick :Nickname is already in use",
-    );
-    let first = line(&mut session);
+    let requested = "a-realistically-long-client-nick";
+    let first = format!("NICK {}_", &requested[..29]);
+    let second = format!("NICK {}__", &requested[..28]);
     assert_eq!(first.len(), "NICK ".len() + 30);
-    assert!(first.ends_with('_'));
-    session.handle_line(
-        now,
-        b":solanum.example 433 * nick :Nickname is already in use",
-    );
-    let second = line(&mut session);
     assert_eq!(second.len(), "NICK ".len() + 30);
-    assert!(second.ends_with("__"));
     assert_ne!(first, second);
+
+    Transcript::new(Config::default().nick(requested))
+        .connect()
+        .client("CAP LS 302")
+        .client(&format!("NICK {requested}"))
+        .client("USER papo 0 * papo")
+        .server(":solanum.example 433 * nick :Nickname is already in use")
+        .client(&first)
+        .server(":solanum.example 433 * nick :Nickname is already in use")
+        .client(&second);
 }
 
 #[test]
 fn generated_nicks_honor_an_early_nicklen_advertisement() {
-    let now = Instant::now();
-    let mut session = Session::new(Config::default().nick("long-client-nickname"));
-    session.handle_connected(now);
-    for _ in 0..3 {
-        session.poll_transmit();
-    }
-    session.handle_line(
-        now,
-        b":ergo.test 005 * NICKLEN=12 :are supported by this server",
-    );
-    session.handle_line(now, b":ergo.test 433 * nick :Nickname is already in use");
-
-    assert_eq!(line(&mut session), "NICK long-client_");
+    Transcript::new(Config::default().nick("long-client-nickname"))
+        .connect()
+        .client("CAP LS 302")
+        .client("NICK long-client-nickname")
+        .client("USER papo 0 * papo")
+        .server(":ergo.test 005 * NICKLEN=12 :are supported by this server")
+        .server(":ergo.test 433 * nick :Nickname is already in use")
+        .client("NICK long-client_");
 }
 
 #[test]
