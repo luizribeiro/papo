@@ -1335,7 +1335,10 @@ fn plan_with_stored_sts(
 }
 
 fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {
-    if close_kind == Some(papo_core::CloseKind::SaslFailed) {
+    if matches!(
+        close_kind,
+        Some(papo_core::CloseKind::SaslFailed | papo_core::CloseKind::AccountRequired)
+    ) {
         return true;
     }
     #[cfg(tls)]
