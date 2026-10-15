@@ -45,6 +45,7 @@ const DEFAULT_MAX_MEMBERS_PER_CHANNEL: usize = 100_000;
 const DEFAULT_MAX_OPEN_BATCHES: usize = 64;
 const DEFAULT_MAX_BATCH_LINES: usize = 10_000;
 const DEFAULT_BATCH_TIMEOUT: Duration = Duration::from_secs(120);
+const MAX_PENDING_REQUESTS: usize = 256;
 
 /// Capabilities requested by a default session when the server advertises them.
 pub const DEFAULT_WANTED_CAPS: &[&str] = &[
@@ -388,6 +389,44 @@ pub struct OwnedModeChange {
     pub kind: ModeKind,
 }
 
+/// Stable identifier assigned to one user-originated request.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct RequestId(u64);
+
+/// A failure to queue a request.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum RequestError {
+    /// The IRC message could not be represented on the wire.
+    Build(BuildError),
+    /// The session already has 256 labelled requests awaiting replies.
+    PendingLimit,
+}
+
+impl std::fmt::Display for RequestError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Build(error) => error.fmt(formatter),
+            Self::PendingLimit => formatter.write_str("too many labelled requests are pending"),
+        }
+    }
+}
+
+impl std::error::Error for RequestError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Build(error) => Some(error),
+            Self::PendingLimit => None,
+        }
+    }
+}
+
+impl From<BuildError> for RequestError {
+    fn from(error: BuildError) -> Self {
+        Self::Build(error)
+    }
+}
+
 impl From<ModeChange<'_>> for OwnedModeChange {
     fn from(change: ModeChange<'_>) -> Self {
         Self {
@@ -407,6 +446,11 @@ pub enum Event {
     Registered(Welcome),
     /// A parsed message not consumed by session protocol behavior.
     Message(ReceivedMessage),
+    /// A request was sent without protocol-level response correlation.
+    RequestUntracked {
+        /// Identifier assigned to the request.
+        id: RequestId,
+    },
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -681,6 +725,8 @@ pub struct Session {
     keepalive: Keepalive,
     monitor: Monitor,
     rate_limit: RateLimiter,
+    requests: BTreeMap<String, (RequestId, Instant)>,
+    next_request_id: u64,
     registration: Registration,
     sasl: SaslSession,
     state: State,
@@ -701,6 +747,8 @@ impl std::fmt::Debug for Session {
             .field("keepalive", &self.keepalive)
             .field("monitor", &self.monitor)
             .field("rate_limit", &self.rate_limit)
+            .field("requests", &self.requests)
+            .field("next_request_id", &self.next_request_id)
             .field("registration", &self.registration)
             .field("sasl", &self.sasl)
             .field("state", &self.state)
@@ -799,6 +847,8 @@ impl Session {
             keepalive: Keepalive::default(),
             monitor: Monitor::default(),
             rate_limit,
+            requests: BTreeMap::new(),
+            next_request_id: 0,
             registration,
             sasl,
             state,
@@ -822,6 +872,7 @@ impl Session {
         self.framer.reset();
         self.outbox.reset_connection();
         self.batches.reset();
+        self.requests.clear();
         self.rate_limit.reset(now);
         self.caps.handle_connected(now);
         self.isupport.handle_connected();
@@ -947,6 +998,41 @@ impl Session {
         drop(message);
         self.outbox.transmit_raw(line.into());
         Ok(())
+    }
+
+    /// Queues a message and assigns an identifier for its eventual response.
+    ///
+    /// When `labeled-response` is enabled, the message receives a fresh `label` tag and remains
+    /// pending. Otherwise it is sent unchanged and [`Event::RequestUntracked`] is emitted.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::PendingLimit`] when 256 labelled requests are already pending, or
+    /// [`RequestError::Build`] when the tagged message cannot be represented on the wire.
+    pub fn request(
+        &mut self,
+        now: Instant,
+        mut message: Message,
+    ) -> Result<RequestId, RequestError> {
+        self.rate_limit.advance(now);
+        let id = RequestId(self.next_request_id);
+        let labelled = self.caps.enabled().contains_key("labeled-response");
+        let label = labelled.then(|| encode_label(self.next_request_id));
+        if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
+            return Err(RequestError::PendingLimit);
+        }
+        if let Some(label) = &label {
+            message = message.with_tag("label", label);
+        }
+        let line = message.to_line()?;
+        self.next_request_id = self.next_request_id.wrapping_add(1);
+        if let Some(label) = label {
+            self.requests.insert(label, (id, now));
+        } else {
+            self.outbox.event(Event::RequestUntracked { id });
+        }
+        self.outbox.transmit_raw(line.into());
+        Ok(id)
     }
 
     /// Adds nicknames to the desired server-side monitor list.
@@ -1299,4 +1385,18 @@ fn bypasses_rate_limit(line: &[u8]) -> bool {
     ]
     .iter()
     .any(|exempt| command.eq_ignore_ascii_case(exempt))
+}
+
+fn encode_label(mut value: u64) -> String {
+    const ALPHABET: &[u8; 62] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    let mut buffer = [0_u8; 11];
+    let mut index = buffer.len();
+    loop {
+        index -= 1;
+        buffer[index] = ALPHABET[(value % 62) as usize];
+        value /= 62;
+        if value == 0 {
+            return String::from_utf8(buffer[index..].to_vec()).expect("labels are ASCII");
+        }
+    }
 }

@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
-use papo_core::{Config, DEFAULT_WANTED_CAPS, Event, RateLimit, Session};
+use papo_core::{Config, DEFAULT_WANTED_CAPS, Event, RateLimit, RequestError, Session};
 use papo_proto::{BuildError, Message};
 
 #[test]
@@ -145,4 +145,39 @@ fn annotates_echoes_with_the_active_casemapping() {
     };
     assert!(echo.is_echo());
     assert!(!received.is_echo());
+}
+
+#[test]
+fn requests_use_labels_only_when_negotiated() {
+    let now = Instant::now();
+    let mut labelled = Session::new(Config::default());
+    labelled.handle_connected(now);
+    labelled.handle_line(now, b"CAP * LS :labeled-response");
+    labelled.handle_line(now, b"CAP * ACK :labeled-response");
+    while labelled.poll_transmit().is_some() {}
+    let first = labelled.request(now, Message::new("WHOIS", ["alice"]));
+    let second = labelled.request(now, Message::privmsg("#papo", "hello"));
+    assert_ne!(first, second);
+    assert_eq!(
+        labelled.poll_transmit(),
+        Some(b"@label=0 WHOIS alice\r\n".to_vec())
+    );
+    assert_eq!(
+        labelled.poll_transmit(),
+        Some(b"@label=1 PRIVMSG #papo hello\r\n".to_vec())
+    );
+
+    let mut unlabelled = Session::new(Config::default());
+    let id = unlabelled
+        .request(now, Message::new("MODE", ["#papo"]))
+        .unwrap();
+    assert_eq!(unlabelled.poll_transmit(), Some(b"MODE #papo\r\n".to_vec()));
+    assert!(matches!(
+        unlabelled.poll_event(),
+        Some(Event::RequestUntracked { id: event_id }) if event_id == id
+    ));
+    assert_eq!(
+        unlabelled.request(now, Message::new("", ["broken"])),
+        Err(RequestError::Build(BuildError::InvalidCommand))
+    );
 }
