@@ -2225,6 +2225,60 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn secure_zero_duration_sts_removes_the_stored_policy() {
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let stream = Arc::new(Mutex::new(Some(
+            Box::new(client_stream) as super::BoxConnection
+        )));
+        let connector: super::Connector = Arc::new(move |_| {
+            let stream = stream.lock().unwrap().take().unwrap();
+            Box::pin(async move { Ok(stream) })
+        });
+        let mut store = SharedStsStore::default();
+        papo_core::sts::StsStore::put(
+            &mut store,
+            papo_core::sts::StoredPolicy {
+                host: "irc.example.net".to_owned(),
+                port: 6697,
+                expires_at: SystemTime::now() + Duration::from_secs(3600),
+                duration: Duration::from_secs(3600),
+            },
+        );
+        let inspection = store.clone();
+        let (_client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "ircs://irc.example.net:6697".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(
+                config()
+                    .connection_security(ConnectionSecurity::Secure)
+                    .host("irc.example.net")
+                    .wanted_caps(["sts"]),
+            ),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::never(),
+            256,
+            Box::new(store),
+            false,
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :sts=duration=0\r\n").await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::StsPolicy(StsAction::Remove { .. }))
+        ));
+        assert!(papo_core::sts::StsStore::get(&inspection, "irc.example.net").is_none());
+        client_line(&mut server, b"CAP END\r\n").await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn client_send_reaches_the_wire() {
         let (mut server, client, _events, driver) = scripted(config());
         let task = tokio::spawn(driver);
