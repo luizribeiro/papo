@@ -66,3 +66,90 @@ fn disconnect_forgets_open_batches() {
 
     assert_eq!(message(&mut session).batch_type(), None);
 }
+
+#[test]
+fn recorded_ergo_latest_batch_becomes_history() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(
+        now,
+        b"@draft/chathistory-end :ergo.test BATCH +c chathistory #papo",
+    );
+    for line in [
+        "@batch=c;time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw :alice!~a@cloak PRIVMSG #papo :first",
+        "@batch=c;time=2026-10-15T12:00:02.000Z;msgid=8sKY2A :bob!~b@cloak PRIVMSG #papo :second",
+        "@batch=c;time=2026-10-15T12:00:03.000Z;msgid=T1pQ6g :alice!~a@cloak PRIVMSG #papo :third",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert_eq!(session.poll_event(), None);
+    session.handle_line(now, b":ergo.test BATCH -c");
+
+    let Some(Event::History {
+        target,
+        messages,
+        end,
+    }) = session.poll_event()
+    else {
+        panic!("expected history")
+    };
+    assert_eq!(target, "#papo");
+    assert!(end);
+    assert_eq!(messages.len(), 3);
+    assert_eq!(messages[0].as_ref().tag("msgid").as_deref(), Some("RKi9Cw"));
+    assert_eq!(messages[1].as_ref().param(1), Some("second"));
+    assert_eq!(
+        messages[2].as_ref().tag("time").as_deref(),
+        Some("2026-10-15T12:00:03.000Z")
+    );
+}
+
+#[test]
+fn empty_and_draft_history_types_complete() {
+    for kind in [
+        "chathistory",
+        "draft/chathistory",
+        "draft/chathistory-targets",
+        "draft/event-playback",
+    ] {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        session.handle_line(now, format!("BATCH +h {kind} #papo").as_bytes());
+        session.handle_line(now, b"BATCH -h");
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::History { target, messages, end: false })
+                if target == "#papo" && messages.is_empty()
+        ));
+    }
+}
+
+#[test]
+fn nested_history_waits_for_the_outer_batch() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b"BATCH +reply labeled-response");
+    session.handle_line(now, b"@batch=reply BATCH +h chathistory #papo");
+    session.handle_line(now, b"@batch=h :alice!~a@cloak PRIVMSG #papo :from history");
+    session.handle_line(now, b"@batch=reply BATCH -h");
+    assert_eq!(session.poll_event(), None);
+    session.handle_line(now, b"BATCH -reply");
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::History { messages, .. }) if messages.len() == 1
+    ));
+}
+
+#[test]
+fn interleaved_histories_complete_independently() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b"BATCH +a chathistory #a");
+    session.handle_line(now, b"BATCH +b chathistory #b");
+    session.handle_line(now, b"@batch=a :alice PRIVMSG #a :one");
+    session.handle_line(now, b"@batch=b :bob PRIVMSG #b :two");
+    session.handle_line(now, b"BATCH -b");
+    session.handle_line(now, b"BATCH -a");
+    assert!(matches!(session.poll_event(), Some(Event::History { target, .. }) if target == "#b"));
+    assert!(matches!(session.poll_event(), Some(Event::History { target, .. }) if target == "#a"));
+}
