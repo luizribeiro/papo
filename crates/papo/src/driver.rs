@@ -151,6 +151,24 @@ impl Client {
         self.state(|state| state.nick().to_owned())
     }
 
+    /// Reports whether a capability or its ratified alias is enabled.
+    #[must_use]
+    pub fn has_cap(&self, name: &str) -> bool {
+        self.state(|state| state.has_cap(name))
+    }
+
+    /// Returns the latest accumulated server feature advertisement.
+    #[must_use]
+    pub fn isupport(&self) -> Arc<papo_proto::Isupport> {
+        self.state(|state| Arc::clone(&state.isupport))
+    }
+
+    /// Returns the canonical form of an IRC nickname or channel name.
+    #[must_use]
+    pub fn casemap(&self, name: &str) -> String {
+        self.state(|state| state.casemap(name))
+    }
+
     /// Validates and queues an IRC message for transmission.
     ///
     /// # Errors
@@ -2865,5 +2883,38 @@ mod tests {
         server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
         assert!(!client.snapshot().connected());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn client_exposes_capability_aliases_and_casemapping() {
+        let config = config().wanted_caps(["draft/no-implicit-names"]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :no-implicit-names\r\n").await;
+        client_line(&mut server, b"CAP REQ :no-implicit-names\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP papo-driver ACK :no-implicit-names\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test 005 papo-driver CASEMAPPING=ascii NICKLEN=27 :are supported\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+
+        assert!(client.has_cap("no-implicit-names"));
+        assert!(client.has_cap("draft/no-implicit-names"));
+        assert!(!client.has_cap("message-tags"));
+        assert_eq!(client.isupport().nicklen(), Some(27));
+        assert_eq!(client.casemap("#PAPO[dev]"), "#papo[dev]");
+        assert_ne!(client.casemap("#PAPO[dev]"), client.casemap("#papo{dev}"));
+        client.state(|state| assert!(state.has_cap("draft/no-implicit-names")));
+
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
 }

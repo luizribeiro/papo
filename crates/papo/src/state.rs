@@ -1,14 +1,14 @@
+use std::sync::Arc;
+
 use papo_core::{Capabilities, Channel, Session, User};
-use papo_proto::Isupport;
+use papo_proto::{Isupport, NAME_ALIASES, NameKind};
 
 /// An immutable snapshot of an IRC client's known state.
 #[derive(Clone, Debug)]
 pub struct State {
     core: papo_core::State,
-    #[allow(dead_code)]
     pub(crate) caps: Capabilities,
-    #[allow(dead_code)]
-    pub(crate) isupport: Isupport,
+    pub(crate) isupport: Arc<Isupport>,
     account: Option<String>,
     connected: bool,
     generation: u64,
@@ -19,7 +19,7 @@ impl State {
         Self {
             core: session.state().clone(),
             caps: session.caps().clone(),
-            isupport: session.isupport().clone(),
+            isupport: Arc::new(session.isupport().clone()),
             account: session.account().map(str::to_owned),
             connected,
             generation: session.state_generation(),
@@ -79,5 +79,34 @@ impl State {
     /// Iterates over users currently reported online through `MONITOR`.
     pub fn monitor_online(&self) -> impl Iterator<Item = &User> {
         self.core.monitor_online()
+    }
+
+    /// Returns the capabilities enabled on the current connection.
+    #[must_use]
+    pub const fn caps(&self) -> &Capabilities {
+        &self.caps
+    }
+
+    /// Reports whether a capability or its ratified alias is enabled.
+    #[must_use]
+    pub fn has_cap(&self, name: &str) -> bool {
+        self.caps.contains_key(name)
+            || NAME_ALIASES.iter().any(|&(kind, draft, ratified)| {
+                kind == NameKind::Capability
+                    && (name == draft || name == ratified)
+                    && (self.caps.contains_key(draft) || self.caps.contains_key(ratified))
+            })
+    }
+
+    /// Returns the accumulated server feature advertisement.
+    #[must_use]
+    pub fn isupport(&self) -> &Isupport {
+        &self.isupport
+    }
+
+    /// Returns the canonical form of an IRC nickname or channel name.
+    #[must_use]
+    pub fn casemap(&self, name: &str) -> String {
+        self.isupport.casemapping().fold(name).into_owned()
     }
 }
