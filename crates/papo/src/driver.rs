@@ -13,7 +13,7 @@ use std::{
 
 use papo_core::{
     Connection, Session,
-    sts::{ConnectionSecurity, StsStore},
+    sts::{ConnectionSecurity, StoredPolicy, StsAction, StsStore, reschedule_on_disconnect},
 };
 use papo_proto::Message;
 use tokio::{
@@ -516,6 +516,8 @@ async fn run_plan(
             &events.connected,
         )
         .await;
+        apply_sts_actions(sts_store.as_mut(), &plan, &end.sts);
+        reschedule_stored_policy(sts_store.as_mut(), &plan.address.host);
         if end.quit.is_some() {
             return finish(events, end, false);
         }
@@ -569,6 +571,32 @@ async fn run_plan(
         {
             return Ok(());
         }
+    }
+}
+
+fn apply_sts_actions(store: &mut dyn StsStore, plan: &ConnectionPlan, actions: &StsActions) {
+    for action in &actions.policies {
+        match action {
+            StsAction::Persist { host, duration } => {
+                let now = SystemTime::now();
+                if let Some(expires_at) = now.checked_add(*duration) {
+                    store.put(StoredPolicy {
+                        host: host.clone(),
+                        port: plan.address.port,
+                        expires_at,
+                        duration: *duration,
+                    });
+                }
+            }
+            StsAction::Remove { host } => store.remove(host),
+            _ => {}
+        }
+    }
+}
+
+fn reschedule_stored_policy(store: &mut dyn StsStore, host: &str) {
+    if let Some(policy) = store.get(host) {
+        store.put(reschedule_on_disconnect(policy, SystemTime::now()));
     }
 }
 
@@ -723,6 +751,7 @@ struct ConnectionEnd {
 #[derive(Default)]
 struct StsActions {
     upgrade: Option<u16>,
+    policies: Vec<StsAction>,
 }
 
 impl ConnectionEnd {
@@ -907,8 +936,10 @@ where
     {
         match event::from_core(core_event) {
             event::CoreEvent::Forward(mut event) => {
-                if let Event::StsUpgrade { port } = &event {
-                    sts.upgrade = Some(*port);
+                match &event {
+                    Event::StsUpgrade { port } => sts.upgrade = Some(*port),
+                    Event::StsPolicy(action) => sts.policies.push(action.clone()),
+                    _ => {}
                 }
                 if let Event::Registered(welcome) = &event {
                     after_registration(session, welcome, defaults)?;
@@ -1010,6 +1041,23 @@ mod tests {
     struct FailingStream {
         inner: DuplexStream,
         read_error: Arc<AtomicBool>,
+    }
+
+    #[derive(Clone, Default)]
+    struct SharedStsStore(Arc<Mutex<papo_core::sts::MemoryStsStore>>);
+
+    impl papo_core::sts::StsStore for SharedStsStore {
+        fn get(&self, host: &str) -> Option<papo_core::sts::StoredPolicy> {
+            papo_core::sts::StsStore::get(&*self.0.lock().unwrap(), host)
+        }
+
+        fn put(&mut self, policy: papo_core::sts::StoredPolicy) {
+            papo_core::sts::StsStore::put(&mut *self.0.lock().unwrap(), policy);
+        }
+
+        fn remove(&mut self, host: &str) {
+            papo_core::sts::StsStore::remove(&mut *self.0.lock().unwrap(), host);
+        }
     }
 
     impl AsyncRead for FailingStream {
@@ -1828,6 +1876,52 @@ mod tests {
         client_line(&mut server, b"CAP END\r\n").await;
         server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn secure_sts_persists_the_duration_and_connection_port() {
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let stream = Arc::new(Mutex::new(Some(
+            Box::new(client_stream) as super::BoxConnection
+        )));
+        let connector: super::Connector = Arc::new(move |_| {
+            let stream = stream.lock().unwrap().take().unwrap();
+            Box::pin(async move { Ok(stream) })
+        });
+        let store = SharedStsStore::default();
+        let inspection = store.clone();
+        let (_client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "ircs://irc.example.net:7443".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(
+                config()
+                    .connection_security(ConnectionSecurity::Secure)
+                    .host("irc.example.net")
+                    .wanted_caps(["sts"]),
+            ),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::never(),
+            256,
+            Box::new(store),
+            false,
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :sts=duration=3600\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::StsPolicy(_))));
+        client_line(&mut server, b"CAP END\r\n").await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+
+        let policy = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
+        assert_eq!(policy.port, 7443);
+        assert_eq!(policy.duration, Duration::from_secs(3600));
+        assert!(policy.expires_at > std::time::SystemTime::now());
     }
 
     #[tokio::test(flavor = "current_thread")]
