@@ -7,11 +7,16 @@ use std::{
     collections::BTreeMap,
     fs, io,
     path::{Path, PathBuf},
-    time::{Duration, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(feature = "sts-file")]
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "sts-file")]
+const MAX_FILE_BYTES: u64 = 1024 * 1024;
+#[cfg(feature = "sts-file")]
+const MAX_ENTRIES: usize = 1024;
 
 /// A write-through JSON file store for STS policies.
 #[cfg(feature = "sts-file")]
@@ -33,12 +38,13 @@ impl FileStsStore {
             entries: BTreeMap::new(),
             last_error: None,
         };
-        match fs::read(&store.path) {
-            Ok(bytes) => match serde_json::from_slice::<BTreeMap<String, DiskPolicy>>(&bytes) {
-                Ok(entries) => store.load(entries),
-                Err(error) => store.last_error = Some(invalid_data(error)),
-            },
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        match read_entries(&store.path) {
+            Ok(Some(entries)) => {
+                if let Err(error) = store.load(entries, SystemTime::now()) {
+                    store.last_error = Some(error);
+                }
+            }
+            Ok(None) => {}
             Err(error) => store.last_error = Some(error),
         }
         store
@@ -50,10 +56,20 @@ impl FileStsStore {
         self.last_error.as_ref()
     }
 
-    fn load(&mut self, entries: BTreeMap<String, DiskPolicy>) {
+    fn load(&mut self, entries: BTreeMap<String, DiskPolicy>, now: SystemTime) -> io::Result<()> {
+        let mut loaded = BTreeMap::new();
         for (host, entry) in entries {
-            self.entries.insert(normalize_host(&host), entry);
+            let host = normalize_host(&host);
+            let policy = entry
+                .to_stored(host.clone())
+                .ok_or_else(|| invalid_data("STS expiry is outside the system clock"))?;
+            if policy.is_active_at(now) {
+                loaded.insert(host, entry);
+            }
         }
+        cap_entries(&mut loaded);
+        self.entries = loaded;
+        Ok(())
     }
 
     fn persist(&mut self) {
@@ -76,6 +92,7 @@ impl StsStore for FileStsStore {
     fn put(&mut self, policy: StoredPolicy) {
         let host = normalize_host(&policy.host);
         self.entries.insert(host, DiskPolicy::from_stored(&policy));
+        cap_entries(&mut self.entries);
         self.persist();
     }
 
@@ -139,6 +156,38 @@ fn invalid_data(error: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> i
 }
 
 #[cfg(feature = "sts-file")]
+fn read_entries(path: &Path) -> io::Result<Option<BTreeMap<String, DiskPolicy>>> {
+    let metadata = match fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    if metadata.len() > MAX_FILE_BYTES {
+        return Err(invalid_data("STS file exceeds 1048576 bytes"));
+    }
+    let bytes = fs::read(path)?;
+    if bytes.len() as u64 > MAX_FILE_BYTES {
+        return Err(invalid_data("STS file exceeds 1048576 bytes"));
+    }
+    serde_json::from_slice(&bytes)
+        .map(Some)
+        .map_err(invalid_data)
+}
+
+#[cfg(feature = "sts-file")]
+fn cap_entries(entries: &mut BTreeMap<String, DiskPolicy>) {
+    let excess = entries.len().saturating_sub(MAX_ENTRIES);
+    let mut expiry_order: Vec<_> = entries
+        .iter()
+        .map(|(host, entry)| (entry.expires_at_unix, host.clone()))
+        .collect();
+    expiry_order.sort_unstable();
+    for (_, host) in expiry_order.into_iter().take(excess) {
+        entries.remove(&host);
+    }
+}
+
+#[cfg(feature = "sts-file")]
 fn normalize_host(host: &str) -> String {
     let mut store = MemoryStsStore::new();
     store.put(StoredPolicy {
@@ -153,7 +202,7 @@ fn normalize_host(host: &str) -> String {
 
 #[cfg(all(test, feature = "sts-file"))]
 mod tests {
-    use std::{fs, path::PathBuf, time::Duration};
+    use std::{fs, io, path::PathBuf, time::Duration};
 
     use super::{FileStsStore, StoredPolicy, StsStore};
 
@@ -212,5 +261,98 @@ mod tests {
         );
         assert_eq!(fs::read(&path).unwrap(), original);
         assert!(!PathBuf::from(format!("{}.tmp", path.display())).exists());
+    }
+
+    #[test]
+    fn drops_expired_entries_on_load() {
+        let path = test_dir("expired").join("sts.json");
+        fs::write(
+            &path,
+            r#"{"irc.expired.net":{"duration_secs":60,"expires_at_unix":1},"irc.example.net":{"duration_secs":15552000,"expires_at_unix":4000000000}}"#,
+        )
+        .unwrap();
+
+        let store = FileStsStore::open(path);
+        assert!(store.get("irc.expired.net").is_none());
+        assert_eq!(
+            store.get("irc.example.net"),
+            Some(policy("irc.example.net", 4_000_000_000))
+        );
+    }
+
+    #[test]
+    fn a_corrupt_file_loads_empty_and_reports_the_error() {
+        let path = test_dir("corrupt").join("sts.json");
+        fs::write(&path, b"{not valid JSON").unwrap();
+
+        let store = FileStsStore::open(path);
+        assert_eq!(
+            store.last_error().map(io::Error::kind),
+            Some(io::ErrorKind::InvalidData)
+        );
+        assert!(store.get("irc.example.net").is_none());
+    }
+
+    #[test]
+    fn accepts_one_mebibyte_but_rejects_one_byte_more() {
+        let path = test_dir("oversized").join("sts.json");
+        let mut bytes = b"{}".to_vec();
+        bytes.resize(1_048_576, b' ');
+        fs::write(&path, &bytes).unwrap();
+        assert!(FileStsStore::open(&path).last_error().is_none());
+
+        bytes.push(b' ');
+        fs::write(&path, bytes).unwrap();
+        let store = FileStsStore::open(path);
+        assert_eq!(
+            store.last_error().map(io::Error::kind),
+            Some(io::ErrorKind::InvalidData)
+        );
+        assert!(store.get("irc.example.net").is_none());
+    }
+
+    #[test]
+    fn keeps_the_1024_latest_expiries() {
+        let path = test_dir("entry-cap").join("sts.json");
+        let mut entries = std::collections::BTreeMap::new();
+        for index in 0..1025 {
+            entries.insert(
+                format!("irc-{index}.example.net"),
+                super::DiskPolicy {
+                    _port: None,
+                    duration_secs: 60,
+                    expires_at_unix: 4_000_000_000 + index,
+                },
+            );
+        }
+        fs::write(&path, serde_json::to_vec(&entries).unwrap()).unwrap();
+
+        let mut store = FileStsStore::open(&path);
+        assert!(store.get("irc-0.example.net").is_none());
+        assert!(store.get("irc-1.example.net").is_some());
+        assert!(store.get("irc-1024.example.net").is_some());
+        store.put(policy("irc-new.example.net", 4_100_000_000));
+        assert!(store.get("irc-1.example.net").is_none());
+        assert!(
+            FileStsStore::open(path)
+                .get("irc-new.example.net")
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn normalizes_hostnames_with_the_core_store() {
+        let path = test_dir("normalization").join("sts.json");
+        let mut store = FileStsStore::open(&path);
+        store.put(policy("IRC.Example.NET.", 4_000_000_000));
+
+        assert_eq!(
+            store.get("irc.example.net"),
+            Some(policy("irc.example.net", 4_000_000_000))
+        );
+        let json = fs::read_to_string(&path).unwrap();
+        assert!(json.contains(r#""irc.example.net""#));
+        assert!(!json.contains("IRC.Example.NET."));
+        assert!(FileStsStore::open(path).get("IRC.EXAMPLE.NET.").is_some());
     }
 }
