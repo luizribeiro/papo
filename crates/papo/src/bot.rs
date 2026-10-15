@@ -1,6 +1,66 @@
 //! Helpers for parsing and responding to IRC bot commands.
 
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
+
 use crate::{Event, MessageEvent, MessageKind};
+
+const MAX_RATE_TARGETS: usize = 1024;
+
+/// A shared sliding-window reply limiter keyed by message target.
+#[derive(Clone, Debug)]
+pub struct ReplyRateLimiter {
+    max: usize,
+    window: Duration,
+    targets: Arc<Mutex<HashMap<String, VecDeque<Instant>>>>,
+}
+
+impl ReplyRateLimiter {
+    /// Creates a limiter allowing `max` replies per target during `window`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `max` is zero or `window` is empty.
+    #[must_use]
+    pub fn new(max: usize, window: Duration) -> Self {
+        assert!(max > 0, "reply limit must be positive");
+        assert!(!window.is_zero(), "reply window must be positive");
+        Self {
+            max,
+            window,
+            targets: Arc::default(),
+        }
+    }
+
+    /// Consumes one reply slot for `target`, or reports that it is limited.
+    #[must_use]
+    pub fn check(&self, target: &str) -> bool {
+        self.check_at(target, Instant::now())
+    }
+
+    fn check_at(&self, target: &str, now: Instant) -> bool {
+        let mut targets = self
+            .targets
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        targets.retain(|_, replies| {
+            replies.retain(|sent| now.duration_since(*sent) < self.window);
+            !replies.is_empty()
+        });
+        if !targets.contains_key(target) && targets.len() == MAX_RATE_TARGETS {
+            return false;
+        }
+        let replies = targets.entry(target.to_owned()).or_default();
+        if replies.len() == self.max {
+            return false;
+        }
+        replies.push_back(now);
+        true
+    }
+}
 
 /// Command parsing and reply policy shared by bot helpers.
 #[derive(Clone, Debug)]
@@ -154,12 +214,12 @@ fn split_args(input: &str) -> Option<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::UNIX_EPOCH;
+    use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use papo_core::Capabilities;
     use papo_proto::{Isupport, Message};
 
-    use super::{BotConfig, Command, Event, MessageEvent};
+    use super::{BotConfig, Command, Event, MessageEvent, ReplyRateLimiter};
 
     fn event_as(command: &str, text: &str, nick: &str, source: &str) -> Event {
         Event::Message(
@@ -256,5 +316,27 @@ mod tests {
         assert!(
             Command::parse(&event_as("PRIVMSG", "!ping", "papo", "papo!u@h"), &config).is_none()
         );
+    }
+
+    #[test]
+    fn limits_each_target_at_the_literal_window_boundary() {
+        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5));
+        let start = Instant::now();
+        assert!(limiter.check_at("#papo", start));
+        assert!(limiter.check_at("#papo", start + Duration::from_secs(1)));
+        assert!(!limiter.check_at("#papo", start + Duration::from_millis(4_999)));
+        assert!(limiter.check_at("#elsewhere", start + Duration::from_millis(4_999)));
+        assert!(limiter.check_at("#papo", start + Duration::from_secs(5)));
+    }
+
+    #[test]
+    fn bounds_targets_under_unending_server_input() {
+        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5));
+        let now = Instant::now();
+        for index in 0..2048 {
+            let allowed = limiter.check_at(&format!("#papo-{index}"), now);
+            assert_eq!(allowed, index < 1024);
+        }
+        assert_eq!(limiter.targets.lock().unwrap().len(), 1024);
     }
 }
