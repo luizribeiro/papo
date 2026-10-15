@@ -112,12 +112,12 @@ pub fn decide(
             .map_or(StsAction::Ignore, |port| StsAction::UpgradeTo { port }),
         ConnectionSecurity::Secure => match directive.duration {
             Some(duration) if duration.is_zero() => StsAction::Remove {
-                host: host.to_owned(),
+                host: normalize_host(host),
             },
             Some(duration) => now
                 .checked_add(duration)
                 .map_or(StsAction::Ignore, |expires_at| StsAction::Persist {
-                    host: host.to_owned(),
+                    host: normalize_host(host),
                     expires_at,
                 }),
             None => StsAction::Ignore,
@@ -196,16 +196,21 @@ impl MemoryStsStore {
 
 impl StsStore for MemoryStsStore {
     fn get(&self, host: &str) -> Option<StoredPolicy> {
-        self.policies.get(host).cloned()
+        self.policies.get(&normalize_host(host)).cloned()
     }
 
-    fn put(&mut self, policy: StoredPolicy) {
+    fn put(&mut self, mut policy: StoredPolicy) {
+        policy.host = normalize_host(&policy.host);
         self.policies.insert(policy.host.clone(), policy);
     }
 
     fn remove(&mut self, host: &str) {
-        self.policies.remove(host);
+        self.policies.remove(&normalize_host(host));
     }
+}
+
+fn normalize_host(host: &str) -> String {
+    host.strip_suffix('.').unwrap_or(host).to_ascii_lowercase()
 }
 
 /// Refreshes a stored policy from the time its connection closed.
@@ -305,9 +310,12 @@ mod tests {
     fn persists_or_removes_only_from_a_secure_connection() {
         let now = UNIX_EPOCH + Duration::from_secs(1_000_000);
         let duration = StsPolicy::parse("duration=15552000,preload=consent").unwrap();
-        let StsAction::Persist { host, expires_at } =
-            decide(duration, ConnectionSecurity::Secure, "irc.example.net", now)
-        else {
+        let StsAction::Persist { host, expires_at } = decide(
+            duration,
+            ConnectionSecurity::Secure,
+            "IRC.Example.NET.",
+            now,
+        ) else {
             panic!("duration did not produce a persistent policy");
         };
         assert_eq!(host, "irc.example.net");
@@ -317,7 +325,7 @@ mod tests {
         );
         let remove = StsPolicy::parse("duration=0").unwrap();
         assert_eq!(
-            decide(remove, ConnectionSecurity::Secure, "irc.example.net", now),
+            decide(remove, ConnectionSecurity::Secure, "IRC.Example.NET.", now),
             StsAction::Remove {
                 host: "irc.example.net".to_owned(),
             }
@@ -359,6 +367,21 @@ mod tests {
         assert_eq!(store.get("irc.example.net"), Some(replacement));
         store.remove("irc.example.net");
         assert_eq!(store.get("irc.example.net"), None);
+    }
+
+    #[test]
+    fn normalizes_hostnames_at_the_store_boundary() {
+        let mut store = MemoryStsStore::new();
+        store.put(StoredPolicy {
+            host: "irc.Example.com".to_owned(),
+            expires_at: UNIX_EPOCH + Duration::from_secs(2_000_000),
+            duration: Duration::from_secs(60),
+        });
+
+        let policy = store.get("IRC.example.com.").unwrap();
+        assert_eq!(policy.host, "irc.example.com");
+        store.remove("IRC.example.com.");
+        assert_eq!(store.get("irc.example.com"), None);
     }
 
     #[test]
