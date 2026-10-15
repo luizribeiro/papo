@@ -60,6 +60,7 @@ struct EventSink {
     regular: mpsc::Sender<Event>,
     disconnected: oneshot::Sender<Event>,
     connected: Arc<AtomicBool>,
+    commands: mpsc::WeakSender<Command>,
 }
 
 struct Channels {
@@ -108,6 +109,11 @@ pub struct Client {
 }
 
 impl Client {
+    #[cfg(test)]
+    pub(crate) fn disconnected_for_test() -> Self {
+        channels(1).client
+    }
+
     /// Starts configuring a client for `address`.
     pub fn builder(address: &str) -> crate::Builder {
         crate::Builder::new(address)
@@ -164,6 +170,12 @@ impl Client {
             .await
             .map_err(|_| Error::Disconnected)?;
         receiver.await.map_err(|_| Error::Disconnected)?
+    }
+}
+
+impl std::fmt::Debug for Client {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Client").finish_non_exhaustive()
     }
 }
 
@@ -342,16 +354,18 @@ fn channels(capacity: usize) -> Channels {
     let (event_sender, event_receiver) = mpsc::channel(capacity);
     let (disconnect_sender, disconnect_receiver) = oneshot::channel();
     let connected = Arc::new(AtomicBool::new(false));
+    let client = Client {
+        commands: command_sender,
+        connected: Arc::clone(&connected),
+    };
     let events = EventSink {
         regular: event_sender,
         disconnected: disconnect_sender,
         connected: Arc::clone(&connected),
+        commands: client.commands.downgrade(),
     };
     Channels {
-        client: Client {
-            commands: command_sender,
-            connected,
-        },
+        client,
         events: Events {
             receiver: event_receiver,
             disconnected: Some(disconnect_receiver),
@@ -561,7 +575,7 @@ async fn run_planned_connection(
         stream,
         session,
         commands,
-        &events.regular,
+        events,
         registration,
         defaults,
         queued,
@@ -856,7 +870,7 @@ where
         stream,
         &mut session,
         &mut commands,
-        &events.regular,
+        &events,
         &mut registration,
         &defaults,
         &mut queued,
@@ -898,7 +912,7 @@ async fn run_connection<S>(
     mut stream: S,
     session: &mut Session,
     commands: &mut mpsc::Receiver<Command>,
-    events: &mpsc::Sender<Event>,
+    events: &EventSink,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
     queued: &mut VecDeque<Message>,
@@ -932,6 +946,7 @@ where
         match drain(
             &mut stream,
             session,
+            events,
             &mut pending_event,
             registration,
             defaults,
@@ -962,7 +977,7 @@ where
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
                 Err(error) => break (error.to_string(), Error::Io(error), false),
             },
-            permit = events.clone().reserve_owned(), if pending_event.is_some() => match permit {
+            permit = events.regular.clone().reserve_owned(), if pending_event.is_some() => match permit {
                 Ok(permit) => {
                     _ = permit.send(pending_event.take().expect("pending event is present"));
                 }
@@ -1056,6 +1071,7 @@ async fn wait_until(deadline: Option<Instant>) {
 async fn drain<S>(
     stream: &mut S,
     session: &mut Session,
+    events: &EventSink,
     pending_event: &mut Option<Event>,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
@@ -1077,13 +1093,21 @@ where
         match event::from_core(core_event) {
             event::CoreEvent::Forward(mut event) => {
                 if let Event::Raw(message) = event {
-                    event = crate::MessageEvent::new(
-                        message,
-                        session.isupport(),
-                        session.nick(),
-                        SystemTime::now(),
-                    )
-                    .map_or_else(Event::Raw, Event::Message);
+                    event = match events.commands.upgrade() {
+                        Some(commands) => crate::MessageEvent::new(
+                            message,
+                            session.isupport(),
+                            session.nick(),
+                            Client {
+                                commands,
+                                connected: Arc::clone(&events.connected),
+                            },
+                            session.caps(),
+                            SystemTime::now(),
+                        )
+                        .map_or_else(Event::Raw, Event::Message),
+                        None => Event::Raw(message),
+                    };
                 }
                 match &event {
                     Event::StsUpgrade { port } => sts.upgrade = Some(*port),

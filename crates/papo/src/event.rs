@@ -1,8 +1,13 @@
 use papo_core::{Capabilities, StateLimit, Welcome, sts::StsAction};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    fmt,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use papo_proto::{Ctcp, Isupport, Message, MessageRef, Source, strip_formatting};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
+use crate::Client;
 
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -33,8 +38,9 @@ pub enum Origin {
 }
 
 /// An incoming `PRIVMSG` or `NOTICE` with connection context.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct MessageEvent {
+    client: Client,
     raw: Message,
     text: String,
     kind: StoredKind,
@@ -45,6 +51,7 @@ pub struct MessageEvent {
     bot: bool,
     reply_to: Option<String>,
     origin: Origin,
+    caps: Capabilities,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -60,6 +67,8 @@ impl MessageEvent {
         raw: Message,
         isupport: &Isupport,
         nick: &str,
+        client: Client,
+        caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
         let message = raw.as_ref();
@@ -95,6 +104,7 @@ impl MessageEvent {
             _ => Origin::Live,
         };
         Ok(Self {
+            client,
             raw,
             text,
             kind,
@@ -105,6 +115,7 @@ impl MessageEvent {
             bot,
             reply_to,
             origin,
+            caps: caps.clone(),
         })
     }
 
@@ -210,6 +221,34 @@ impl MessageEvent {
     }
 }
 
+impl fmt::Debug for MessageEvent {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MessageEvent")
+            .field("client", &self.client)
+            .field("raw", &self.raw)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for MessageEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw == other.raw
+            && self.text == other.text
+            && self.kind == other.kind
+            && self.isupport == other.isupport
+            && self.msgid == other.msgid
+            && self.time == other.time
+            && self.account == other.account
+            && self.bot == other.bot
+            && self.reply_to == other.reply_to
+            && self.origin == other.origin
+            && self.caps == other.caps
+    }
+}
+
+impl Eq for MessageEvent {}
+
 fn tag_owned(message: &MessageRef<'_>, keys: &[&str]) -> Option<String> {
     keys.iter()
         .find_map(|key| message.tag(key).map(std::borrow::Cow::into_owned))
@@ -224,6 +263,8 @@ fn parse_server_time(value: &str) -> Option<SystemTime> {
 /// An event emitted by an IRC client.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
+// Message events carry bounded connection snapshots used by their accessors and reply helper.
+#[allow(clippy::large_enum_variant)]
 pub enum Event {
     /// Connection registration completed.
     Registered(Welcome),
@@ -379,17 +420,33 @@ mod tests {
     use std::time::{Duration, UNIX_EPOCH};
 
     use super::{CoreEvent, Event, MessageEvent, MessageKind, Origin, from_core};
-    use papo_core::StateLimit;
+    use papo_core::{Capabilities, StateLimit};
     use papo_proto::{Isupport, Message, Source};
 
-    fn chat(command: &str, text: &str) -> MessageEvent {
+    fn event(
+        message: Message,
+        isupport: &Isupport,
+        nick: &str,
+        received_at: std::time::SystemTime,
+    ) -> MessageEvent {
         MessageEvent::new(
+            message,
+            isupport,
+            nick,
+            crate::Client::disconnected_for_test(),
+            &Capabilities::new(),
+            received_at,
+        )
+        .unwrap()
+    }
+
+    fn chat(command: &str, text: &str) -> MessageEvent {
+        event(
             Message::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
             &Isupport::default(),
             "papo",
             UNIX_EPOCH,
         )
-        .unwrap()
     }
 
     #[test]
@@ -420,13 +477,12 @@ mod tests {
     fn routes_channels_and_private_messages_with_ergo_chantypes() {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CHANTYPES=#"]);
-        let channel = MessageEvent::new(
+        let channel = event(
             Message::privmsg("#papo", "hello").with_source("emily!~emily@localhost"),
             &isupport,
             "papo",
             UNIX_EPOCH,
-        )
-        .unwrap();
+        );
         assert!(!channel.is_private());
         assert_eq!(channel.target(), "#papo");
         assert_eq!(channel.reply_target(), "#papo");
@@ -439,13 +495,12 @@ mod tests {
             })
         );
 
-        let private = MessageEvent::new(
+        let private = event(
             Message::privmsg("papo", "hello").with_source("emily!~emily@localhost"),
             &isupport,
             "papo",
             UNIX_EPOCH,
-        )
-        .unwrap();
+        );
         assert!(private.is_private());
         assert_eq!(private.reply_target(), "emily");
     }
@@ -453,7 +508,7 @@ mod tests {
     #[test]
     fn exposes_message_tags_and_server_time() {
         let received = UNIX_EPOCH + Duration::from_secs(42);
-        let tagged = MessageEvent::new(
+        let tagged = event(
             Message::privmsg("#papo", "hello")
                 .with_tag("time", "2026-02-03T04:05:06.789Z")
                 .with_tag("msgid", "RfcBTzyxY120004")
@@ -463,8 +518,7 @@ mod tests {
             &Isupport::default(),
             "papo",
             received,
-        )
-        .unwrap();
+        );
         assert_eq!(
             tagged.time(),
             UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
@@ -480,9 +534,7 @@ mod tests {
                 message = message.with_tag("time", time);
             }
             assert_eq!(
-                MessageEvent::new(message, &Isupport::default(), "papo", received)
-                    .unwrap()
-                    .time(),
+                event(message, &Isupport::default(), "papo", received).time(),
                 received
             );
         }
@@ -490,20 +542,18 @@ mod tests {
 
     #[test]
     fn distinguishes_echoes_replays_and_live_messages() {
-        let event = |message| {
-            MessageEvent::new(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH).unwrap()
-        };
-        let echo = event(Message::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
+        let classify = |message| event(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH);
+        let echo = classify(Message::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
         assert_eq!(echo.origin(), Origin::Echo);
         assert!(!echo.is_live());
-        let replay = event(
+        let replay = classify(
             Message::privmsg("#papo", "earlier")
                 .with_source("emily!e@localhost")
                 .with_tag("batch", "history42"),
         );
         assert_eq!(replay.origin(), Origin::Replay);
         assert!(!replay.is_live());
-        let live = event(Message::privmsg("#papo", "now").with_source("emily!e@localhost"));
+        let live = classify(Message::privmsg("#papo", "now").with_source("emily!e@localhost"));
         assert_eq!(live.origin(), Origin::Live);
         assert!(live.is_live());
     }
