@@ -130,7 +130,12 @@ impl Monitor {
         S: AsRef<str>,
     {
         let mapping = isupport.casemapping();
-        let mut removed = Vec::new();
+        let limit = match isupport.monitor() {
+            Some(LimitValue::Limited(limit)) => limit,
+            Some(LimitValue::Unlimited) => usize::MAX,
+            None => 0,
+        };
+        let old: Vec<_> = self.desired.iter().take(limit).cloned().collect();
         for nick in nicks {
             let nick = nick.as_ref();
             if let Some(index) = self
@@ -138,13 +143,25 @@ impl Monitor {
                 .iter()
                 .position(|known| mapping.eq(known, nick))
             {
-                removed.push(self.desired.remove(index));
+                self.desired.remove(index);
                 self.presence
                     .retain(|presence| !mapping.eq(presence.nick(), nick));
             }
         }
-        if registered && isupport.monitor().is_some() && !removed.is_empty() {
+        if registered && isupport.monitor().is_some() {
+            let new: Vec<_> = self.desired.iter().take(limit).cloned().collect();
+            let removed: Vec<_> = old
+                .iter()
+                .filter(|nick| !new.iter().any(|new| mapping.eq(nick, new)))
+                .cloned()
+                .collect();
+            let added: Vec<_> = new
+                .iter()
+                .filter(|nick| !old.iter().any(|old| mapping.eq(nick, old)))
+                .cloned()
+                .collect();
             transmit_chunks("-", &removed, outbox);
+            transmit_chunks("+", &added, outbox);
         }
     }
 

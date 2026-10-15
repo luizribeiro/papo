@@ -28,6 +28,24 @@ fn adds_removes_and_clears_monitored_nicks() {
 }
 
 #[test]
+fn removing_a_monitored_nick_fills_the_advertised_slot() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo MONITOR=2 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| session.monitor_add(["alice", "bob", "carol"]))
+        .client("MONITOR + alice,bob")
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks } if nicks == &["carol"]))
+        .update(|session| session.monitor_remove(["alice"]))
+        .client("MONITOR - alice")
+        .client("MONITOR + carol")
+        .update(|session| session.monitor_remove(["zoe"]))
+        .no_client();
+}
+
+#[test]
 fn honors_the_advertised_monitor_limit_before_chunking() {
     let nicks: Vec<_> = (0..150).map(|index| format!("user{index:03}")).collect();
     let unavailable = nicks[100..].to_vec();
