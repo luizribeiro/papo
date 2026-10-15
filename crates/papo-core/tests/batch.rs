@@ -42,6 +42,27 @@ fn recorded_ergo_multiline_batch_joins_text_and_metadata() {
 }
 
 #[test]
+fn multiline_over_advertised_max_bytes_is_released() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b"CAP * LS :batch draft/multiline=max-bytes=10");
+    session.handle_line(now, b"CAP * ACK :batch draft/multiline");
+    session.handle_line(now, b"BATCH +m draft/multiline #papo");
+    session.handle_line(now, b"@batch=m :alice PRIVMSG #papo :12345");
+    session.handle_line(now, b"@batch=m :alice PRIVMSG #papo :67890");
+
+    assert_eq!(message(&mut session).as_ref().param(1), Some("12345"));
+    assert_eq!(message(&mut session).as_ref().param(1), Some("67890"));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reference, batch_type, reason })
+            if reference == "m"
+                && batch_type == "draft/multiline"
+                && reason == BatchAbandonReason::ByteLimit
+    ));
+}
+
+#[test]
 fn unknown_nested_and_interleaved_batches_flow_with_their_types() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());

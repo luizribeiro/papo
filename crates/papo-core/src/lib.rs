@@ -931,6 +931,8 @@ pub enum BatchAbandonReason {
     OpenBatchLimit,
     /// A batch exceeded its configured retained-line limit.
     LineLimit,
+    /// A multiline batch exceeded its negotiated text-byte limit.
+    ByteLimit,
     /// A batch did not close before its deadline.
     Timeout,
 }

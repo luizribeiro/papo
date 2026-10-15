@@ -26,6 +26,7 @@ struct OpenBatch {
     messages: Vec<Message>,
     completed: Vec<BatchEvent>,
     lines: usize,
+    bytes: usize,
     opened: Instant,
 }
 
@@ -103,10 +104,10 @@ impl Batches {
         &mut self,
         now: Instant,
         message: &MessageRef<'_>,
-        _multiline_max_bytes: usize,
+        multiline_max_bytes: usize,
     ) -> BatchAction {
         if !message.command_is("BATCH") {
-            return self.member(message);
+            return self.member(message, multiline_max_bytes);
         }
         let Some(reference) = message.param(0) else {
             return BatchAction::Dispatch(self.context(message));
@@ -154,6 +155,7 @@ impl Batches {
                 messages: Vec::new(),
                 completed: Vec::new(),
                 lines: 0,
+                bytes: 0,
                 opened: now,
             },
         );
@@ -202,7 +204,7 @@ impl Batches {
         }
     }
 
-    fn member(&mut self, message: &MessageRef<'_>) -> BatchAction {
+    fn member(&mut self, message: &MessageRef<'_>, multiline_max_bytes: usize) -> BatchAction {
         let context = self.context(message);
         let Some(reference) = message.tag("batch") else {
             return BatchAction::Dispatch(context);
@@ -211,6 +213,15 @@ impl Batches {
         for reference in &ancestors {
             let batch = self.open.get_mut(reference).expect("resolved ancestor");
             batch.lines = batch.lines.saturating_add(1);
+            if batch.kind == "draft/multiline" {
+                let concat = message
+                    .tags()
+                    .any(|(key, _)| key == "draft/multiline-concat");
+                batch.bytes = batch.bytes.saturating_add(
+                    message.param(1).map_or(0, str::len)
+                        + usize::from(!batch.messages.is_empty() && !concat),
+                );
+            }
         }
         let aggregates = message
             .tag("batch")
@@ -226,10 +237,19 @@ impl Batches {
         if let Some(reference) = ancestors
             .iter()
             .rev()
-            .find(|reference| self.open[*reference].lines > self.max_lines)
+            .find(|reference| {
+                self.open[*reference].lines > self.max_lines
+                    || (self.open[*reference].kind == "draft/multiline"
+                        && self.open[*reference].bytes > multiline_max_bytes)
+            })
             .cloned()
         {
-            let mut events = self.abandon(&reference, BatchAbandonReason::LineLimit);
+            let reason = if self.open[&reference].lines > self.max_lines {
+                BatchAbandonReason::LineLimit
+            } else {
+                BatchAbandonReason::ByteLimit
+            };
+            let mut events = self.abandon(&reference, reason);
             if aggregates.is_empty() {
                 let fallback = BatchEvent::Message {
                     message: message.to_owned(),
