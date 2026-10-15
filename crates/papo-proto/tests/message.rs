@@ -2,10 +2,7 @@
 
 use std::{borrow::Cow, collections::BTreeMap};
 
-use papo_proto::{
-    BuildError, MAX_CLIENT_TAG_DATA_LEN, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef,
-    ParseError,
-};
+use papo_proto::{BuildError, Message, MessageRef, ParseError};
 use proptest::{collection::vec, option, prelude::*};
 use serde_json::Value;
 
@@ -250,17 +247,17 @@ fn displays_each_parse_error() {
 
 #[test]
 fn enforces_tag_section_length_at_the_byte_boundary() {
-    let maximum = format!("@{} PING", "a".repeat(MAX_TAG_SECTION_LEN - 2));
+    let maximum = format!("@{} PING", "a".repeat(8191 - 2));
     assert!(MessageRef::parse(&maximum).is_ok());
 
-    let over_limit = format!("@{} PING", "a".repeat(MAX_TAG_SECTION_LEN - 1));
+    let over_limit = format!("@{} PING", "a".repeat(8191 - 1));
     assert_eq!(MessageRef::parse(&over_limit), Err(ParseError::TooLong));
 }
 
 #[test]
 fn enforces_message_length_at_the_byte_boundary() {
     let prefix = "PRIVMSG #papo :";
-    let maximum_body = format!("{prefix}{}", "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len()));
+    let maximum_body = format!("{prefix}{}", "x".repeat(512 - 2 - prefix.len()));
     let maximum = format!("@time=2026-10-14T20:15:42.123Z {maximum_body}\r\n");
     assert!(MessageRef::parse(&maximum).is_ok());
 
@@ -271,24 +268,21 @@ fn enforces_message_length_at_the_byte_boundary() {
 #[test]
 fn counts_canonical_crlf_for_a_bare_lf_line() {
     let prefix = "NOTICE papo-test :";
-    let line = format!(
-        "{prefix}{}\n",
-        "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len())
-    );
+    let line = format!("{prefix}{}\n", "x".repeat(512 - 2 - prefix.len()));
 
-    assert_eq!(line.len() + 1, MAX_MESSAGE_LEN);
+    assert_eq!(line.len() + 1, 512);
     assert!(MessageRef::parse(&line).is_ok());
 }
 
 #[test]
 fn enforces_both_limits_after_leading_spaces() {
-    let maximum_tags = format!("  @{} PING", "a".repeat(MAX_TAG_SECTION_LEN - 2));
+    let maximum_tags = format!("  @{} PING", "a".repeat(8191 - 2));
     assert!(MessageRef::parse(&maximum_tags).is_ok());
-    let excessive_tags = format!("  @{} PING", "a".repeat(MAX_TAG_SECTION_LEN - 1));
+    let excessive_tags = format!("  @{} PING", "a".repeat(8191 - 1));
     assert_eq!(MessageRef::parse(&excessive_tags), Err(ParseError::TooLong));
 
     let prefix = "PRIVMSG #papo :";
-    let maximum_body = format!("{prefix}{}", "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len()));
+    let maximum_body = format!("{prefix}{}", "x".repeat(512 - 2 - prefix.len()));
     let maximum_message = format!("  @time=2026-10-14T20:15:42.123Z {maximum_body}\r\n");
     assert!(MessageRef::parse(&maximum_message).is_ok());
     let excessive_message = format!("  @time=2026-10-14T20:15:42.123Z {maximum_body}x\r\n");
@@ -489,31 +483,24 @@ fn requires_middle_parameters_to_use_middle_form() {
 #[test]
 fn enforces_client_tag_data_length_at_the_byte_boundary() {
     let prefix_len = "+example.test/reply=".len();
-    let maximum = Message::tagmsg("#papo").with_tag(
-        "+example.test/reply",
-        "x".repeat(MAX_CLIENT_TAG_DATA_LEN - prefix_len),
-    );
+    let maximum =
+        Message::tagmsg("#papo").with_tag("+example.test/reply", "x".repeat(4094 - prefix_len));
     assert!(maximum.to_line().is_ok());
 
-    let over_limit = Message::tagmsg("#papo").with_tag(
-        "+example.test/reply",
-        "x".repeat(MAX_CLIENT_TAG_DATA_LEN - prefix_len + 1),
-    );
+    let over_limit =
+        Message::tagmsg("#papo").with_tag("+example.test/reply", "x".repeat(4094 - prefix_len + 1));
     assert_eq!(over_limit.to_line(), Err(BuildError::TagsTooLong));
 }
 
 #[test]
 fn enforces_serialized_body_length_at_the_byte_boundary() {
     let prefix = "PRIVMSG #papo ";
-    let maximum = Message::privmsg("#papo", "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len()))
-        .with_tag("+typing", "active");
+    let maximum =
+        Message::privmsg("#papo", "x".repeat(512 - 2 - prefix.len())).with_tag("+typing", "active");
     let maximum_line = maximum.to_line().unwrap();
-    assert_eq!(
-        maximum_line.split_once(' ').unwrap().1.len(),
-        MAX_MESSAGE_LEN
-    );
+    assert_eq!(maximum_line.split_once(' ').unwrap().1.len(), 512);
 
-    let over_limit = Message::privmsg("#papo", "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len() + 1))
+    let over_limit = Message::privmsg("#papo", "x".repeat(512 - 2 - prefix.len() + 1))
         .with_tag("+typing", "active");
     assert_eq!(over_limit.to_line(), Err(BuildError::MessageTooLong));
 }

@@ -15,7 +15,11 @@ pub const MAX_MESSAGE_LEN: usize = 512;
 pub const MAX_TAG_SECTION_LEN: usize = 8191;
 
 /// Maximum byte length of tags supplied by a client, excluding `@` and the trailing space.
-pub const MAX_CLIENT_TAG_DATA_LEN: usize = MAX_TAG_SECTION_LEN.div_ceil(2) - 2;
+///
+/// This limit is defined by the [IRCv3 message-tags specification].
+///
+/// [IRCv3 message-tags specification]: https://ircv3.net/specs/extensions/message-tags#size-limit
+pub const MAX_CLIENT_TAG_DATA_LEN: usize = 4094;
 
 /// A failure to parse an IRC message.
 ///
