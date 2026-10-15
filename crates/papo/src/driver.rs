@@ -16,7 +16,7 @@ use papo_core::{
     Connection, RequestError, RequestId, Response, ResponseMatcher, Session, TextKind,
     sts::{ConnectionSecurity, StoredPolicy, StsAction, StsStore, reschedule_on_disconnect},
 };
-use papo_proto::{Message, Typing};
+use papo_proto::{Message, Typing, time};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     sync::{mpsc, oneshot},
@@ -169,7 +169,7 @@ impl Sent {
     fn from_response(response: &Response) -> Self {
         response.sent().map_or_else(Self::default, |sent| Self {
             msgid: Some(sent.msgid),
-            time: sent.time.and_then(|time| event::parse_server_time(&time)),
+            time: sent.time.and_then(|value| time::parse(&value)),
         })
     }
 }
