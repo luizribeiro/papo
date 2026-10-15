@@ -70,6 +70,12 @@ impl TestServer {
         self.directory.path().join("ca.pem")
     }
 
+    /// Returns the Ergo child process identifier for lifecycle assertions.
+    #[must_use]
+    pub fn process_id(&self) -> u32 {
+        self.child.id()
+    }
+
     fn wait_until_ready(&mut self) -> io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(10);
         while Instant::now() < deadline {
@@ -125,7 +131,7 @@ mod tests {
         let mut greeting = [0; 4096];
         let count = connection.read(&mut greeting).unwrap();
         assert!(String::from_utf8_lossy(&greeting[..count]).contains(" 001 papo-fixture "));
-        let process = server.child.id();
+        let process = server.process_id();
         drop(server);
         assert!(!Path::new(&format!("/proc/{process}")).exists());
     }

@@ -14,20 +14,15 @@ static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 #[test]
 fn failing_live_binary_stops_the_server_and_preserves_101() {
     let directory = directory();
-    let stopped = directory.join("stopped");
-    let helper = executable(
-        &directory,
-        "helper",
-        "printf '127.0.0.1:6667\n127.0.0.1:6697\n/dev/null\n'; trap 'touch \"$STOPPED\"' EXIT; cat",
-    );
+    let pid_file = directory.join("ergo.pid");
     let binary = executable(&directory, "live_failure-deadbeef", "exit 101");
     let status = runner(&binary)
-        .env("PAPO_TEST_SERVER_BIN", helper)
-        .env("STOPPED", &stopped)
+        .env("PAPO_TEST_ERGO_PID_FILE", &pid_file)
         .status()
         .unwrap();
     assert_eq!(status.code(), Some(101));
-    assert!(stopped.is_file());
+    let pid = fs::read_to_string(pid_file).unwrap();
+    assert!(!Path::new(&format!("/proc/{}", pid.trim())).exists());
     fs::remove_dir_all(directory).unwrap();
 }
 
