@@ -8,13 +8,20 @@
 use std::fs;
 use std::{io, net::ToSocketAddrs};
 
+#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+use papo::transport::{ClientCertificate, TlsConfig, TlsRoots};
 use papo::transport::{ConnectError, Security, Stream, connect};
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
-use papo::transport::{TlsConfig, TlsRoots};
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
-use papo_test_server::ServerInfo;
 use papo_test_server::from_env;
+#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+use papo_test_server::{ServerInfo, unique};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+const CLIENT_CERTIFICATE: &[u8] = include_bytes!("data/client.pem");
+#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+const CLIENT_KEY: &[u8] = include_bytes!("data/client.key");
+#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+const CLIENT_CERTFP: &str = "60eb8e5dbf6aa3e388743d9250b29e3862759373b4610b9ba3c0ea2330b4bfc4";
 
 #[tokio::test(flavor = "current_thread")]
 async fn plaintext_cap_exchange() {
@@ -93,6 +100,35 @@ async fn tls_rejects_a_wrong_server_name() {
     assert_certificate_error(&error);
 }
 
+#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[tokio::test(flavor = "current_thread")]
+async fn tls_presents_a_client_certificate_seen_by_ergo() {
+    let server = from_env();
+    let mut config = tls_config(&server);
+    config.client_certificate = Some(ClientCertificate::new(CLIENT_CERTIFICATE, CLIENT_KEY));
+    let mut stream = connect(
+        "localhost",
+        server.tls_addr().port(),
+        &Security::Tls(config),
+    )
+    .await
+    .unwrap();
+    let nick = unique("papo-certfp");
+    stream
+        .write_all(format!("NICK {nick}\r\nUSER papo 0 * :papo transport test\r\n").as_bytes())
+        .await
+        .unwrap();
+    read_until(&mut stream, |line| line.contains(&format!(" 001 {nick} "))).await;
+    stream
+        .write_all(format!("WHOIS {nick}\r\n").as_bytes())
+        .await
+        .unwrap();
+    read_until(&mut stream, |line| {
+        line.contains(&format!(" 276 {nick} {nick} ")) && line.contains(CLIENT_CERTFP)
+    })
+    .await;
+}
+
 #[cfg(not(any(feature = "tls-ring", feature = "tls-aws-lc")))]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_without_a_provider_returns_a_clear_error() {
@@ -163,6 +199,17 @@ async fn assert_cap_exchange(mut stream: Stream) {
     stream.write_all(b"CAP LS 302\r\n").await.unwrap();
     let line = read_line(&mut stream).await.unwrap();
     assert!(line.starts_with(":ergo.test CAP * LS "), "{line:?}");
+}
+
+#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+async fn read_until(stream: &mut Stream, accepted: impl Fn(&str) -> bool) {
+    for _ in 0..128 {
+        let line = read_line(stream).await.unwrap();
+        if accepted(&line) {
+            return;
+        }
+    }
+    panic!("Ergo did not send the expected line");
 }
 
 async fn read_line(stream: &mut Stream) -> io::Result<String> {
