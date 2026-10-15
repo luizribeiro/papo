@@ -1379,6 +1379,16 @@ mod tests {
         server.write_all(line).await.unwrap();
     }
 
+    fn changed_snapshot(
+        client: &super::Client,
+        previous: &Arc<crate::State>,
+        change: &str,
+    ) -> Arc<crate::State> {
+        let current = client.snapshot();
+        assert!(!Arc::ptr_eq(previous, &current), "stale after {change}");
+        current
+    }
+
     async fn complete_registration(server: &mut DuplexStream, events: &mut super::Events) {
         registration_burst(server).await;
         server_line(server, b":ergo.test CAP * LS :\r\n").await;
@@ -2958,6 +2968,127 @@ mod tests {
         let snapshot = client.snapshot();
         assert_eq!(snapshot.nick(), "papo-driver");
         assert_eq!(snapshot.account(), Some("emily"));
+
+        server.shutdown().await.unwrap();
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[allow(clippy::too_many_lines)]
+    async fn every_state_change_replaces_the_snapshot() {
+        let config = config().wanted_caps(["extended-monitor"]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let driver = tokio::spawn(driver);
+        complete_extended_monitor_registration(&mut server, &mut events).await;
+        let mut previous = client.snapshot();
+
+        server_line(&mut server, b":papo-driver!papo@localhost JOIN #Papo\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Joined { .. })));
+        previous = changed_snapshot(&client, &previous, "JOIN");
+        assert!(previous.channel("#papo").is_some());
+
+        server_line(&mut server, b":ergo.test MODE papo-driver +i\r\n").await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::ModeChanged { .. })
+        ));
+        previous = changed_snapshot(&client, &previous, "MODE");
+        assert_eq!(previous.user_modes().collect::<Vec<_>>(), ['i']);
+
+        server_line(
+            &mut server,
+            b":emily!em@staff.example TOPIC #Papo :Release planning\r\n",
+        )
+        .await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::TopicChanged { .. })
+        ));
+        previous = changed_snapshot(&client, &previous, "TOPIC");
+        assert_eq!(
+            previous.channel("#papo").unwrap().topic(),
+            Some("Release planning")
+        );
+
+        server_line(
+            &mut server,
+            b":papo-driver!papo@localhost ACCOUNT emily\r\n",
+        )
+        .await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::AccountChanged { .. })
+        ));
+        previous = changed_snapshot(&client, &previous, "ACCOUNT");
+        assert_eq!(
+            previous.user("papo-driver").unwrap().account(),
+            &papo_core::Account::LoggedIn("emily".into())
+        );
+
+        server_line(
+            &mut server,
+            b":papo-driver!papo@localhost AWAY :Gone to lunch\r\n",
+        )
+        .await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::AwayChanged { .. })
+        ));
+        previous = changed_snapshot(&client, &previous, "AWAY");
+        assert_eq!(
+            previous.user("papo-driver").unwrap().away(),
+            Some("Gone to lunch")
+        );
+
+        server_line(
+            &mut server,
+            b":papo-driver!papo@localhost NICK papo-reader\r\n",
+        )
+        .await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::NickChanged { .. })
+        ));
+        previous = changed_snapshot(&client, &previous, "NICK");
+        assert_eq!(previous.nick(), "papo-reader");
+
+        server_line(
+            &mut server,
+            b":ergo.test 730 papo-reader :alice!~alice@cloak.example\r\n",
+        )
+        .await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::MonitorOnline { .. })
+        ));
+        previous = changed_snapshot(&client, &previous, "MONITOR online");
+        assert_eq!(previous.monitor_online().count(), 1);
+
+        server_line(&mut server, b":ergo.test 731 papo-reader :alice\r\n").await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::MonitorOffline { .. })
+        ));
+        previous = changed_snapshot(&client, &previous, "MONITOR offline");
+        assert_eq!(previous.monitor_online().count(), 0);
+
+        server_line(
+            &mut server,
+            b":ergo.test 005 papo-reader NICKLEN=31 :are supported\r\nPING :snapshot\r\n",
+        )
+        .await;
+        client_line(&mut server, b"PONG :snapshot\r\n").await;
+        previous = changed_snapshot(&client, &previous, "005");
+        assert_eq!(previous.isupport().nicklen(), Some(31));
+
+        server_line(
+            &mut server,
+            b":papo-reader!papo@localhost PART #Papo :Leaving\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Parted { .. })));
+        let current = changed_snapshot(&client, &previous, "PART");
+        assert!(current.channel("#papo").is_none());
 
         server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
