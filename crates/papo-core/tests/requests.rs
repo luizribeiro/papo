@@ -96,6 +96,29 @@ fn resolves_a_recorded_ergo_whois_batch_once() {
 }
 
 #[test]
+fn pending_non_history_batch_dispatches_protocol_state() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let id = request(&mut session, now, Message::join("#papo"));
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +join-42 labeled-response");
+    session.handle_line(
+        now,
+        b"@batch=join-42 :papo!~papo@localhost JOIN #papo papo :Papo Bot",
+    );
+    session.handle_line(now, b":ergo.test BATCH -join-42");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Joined { channel, nick }) if channel == "#papo" && nick == "papo"
+    ));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id && response.lines.len() == 1
+    ));
+    assert!(session.state().channel("#papo").is_some());
+}
+
+#[test]
 fn links_nested_chathistory_to_its_response() {
     let now = Instant::now();
     let mut session = labelled_session(now);
@@ -130,6 +153,68 @@ fn links_nested_chathistory_to_its_response() {
     assert_eq!(history.target, "#papo");
     assert_eq!(history.messages.len(), 1);
     assert!(history.end);
+}
+
+#[test]
+fn unclaimed_history_response_releases_its_messages() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    session.handle_line(
+        now,
+        b"@label=expired :ergo.test BATCH +reply-42 labeled-response",
+    );
+    session.handle_line(
+        now,
+        b"@batch=reply-42 :ergo.test BATCH +history-42 chathistory #papo",
+    );
+    session.handle_line(
+        now,
+        b"@batch=history-42;time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw :alice!~a@localhost PRIVMSG #papo :earlier",
+    );
+    session.handle_line(now, b"@batch=reply-42 :ergo.test BATCH -history-42");
+    session.handle_line(now, b":ergo.test BATCH -reply-42");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::History { target, messages, .. }) if target == "#papo" && messages.len() == 1
+    ));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Message(message))
+            if message.as_ref().command_is("PRIVMSG")
+                && message.batch_type() == Some("labeled-response")
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn unclaimed_response_batches_preserve_their_distinct_types() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    for (reference, label, batch_type, text) in [
+        ("sync-42", "expired-a", "vendor/sync", "sync complete"),
+        (
+            "reply-42",
+            "expired-b",
+            "labeled-response",
+            "request complete",
+        ),
+    ] {
+        session.handle_line(
+            now,
+            format!("@label={label} :ergo.test BATCH +{reference} {batch_type}").as_bytes(),
+        );
+        session.handle_line(
+            now,
+            format!("@batch={reference} :ergo.test NOTICE papo :{text}").as_bytes(),
+        );
+        session.handle_line(now, format!(":ergo.test BATCH -{reference}").as_bytes());
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::Message(message)) if message.batch_type() == Some(batch_type)
+        ));
+    }
+    assert_eq!(session.poll_event(), None);
 }
 
 #[test]

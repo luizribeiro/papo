@@ -184,3 +184,17 @@ fn requests_use_labels_only_when_negotiated() {
         Err(RequestError::Build(BuildError::InvalidCommand))
     );
 }
+
+#[test]
+fn request_errors_describe_the_failure_and_preserve_build_sources() {
+    let build = RequestError::Build(BuildError::InvalidCommand);
+    assert_eq!(build.to_string(), "IRC command is invalid");
+    assert_eq!(
+        std::error::Error::source(&build).and_then(|source| source.downcast_ref::<BuildError>()),
+        Some(&BuildError::InvalidCommand)
+    );
+
+    let limit = RequestError::PendingLimit;
+    assert_eq!(limit.to_string(), "too many labelled requests are pending");
+    assert!(std::error::Error::source(&limit).is_none());
+}
