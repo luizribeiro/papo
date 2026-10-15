@@ -1,6 +1,6 @@
 //! Typed state-notification message views.
 
-use papo_proto::{Account, Away, Join, MessageRef};
+use papo_proto::{Account, Away, Chghost, Join, MessageRef, Setname};
 
 #[test]
 fn parses_plain_and_extended_join_messages() {
@@ -83,5 +83,43 @@ fn rejects_account_and_away_wrong_commands_and_arities() {
         ":alice!~alice@user/alice AWAY lunch extra",
     ] {
         assert!(Away::parse(&MessageRef::parse(line).unwrap()).is_none());
+    }
+}
+
+#[test]
+fn parses_host_and_realname_changes() {
+    let chghost = MessageRef::parse(":alice!ident@old.example CHGHOST ~alice user/alice").unwrap();
+    assert_eq!(
+        Chghost::parse(&chghost),
+        Some(Chghost {
+            user: "~alice",
+            host: "user/alice",
+        })
+    );
+
+    let setname = MessageRef::parse(":alice!~alice@user/alice SETNAME :Alice Liddell").unwrap();
+    assert_eq!(
+        Setname::parse(&setname),
+        Some(Setname {
+            realname: "Alice Liddell",
+        })
+    );
+}
+
+#[test]
+fn rejects_chghost_and_setname_wrong_commands_and_arities() {
+    for line in [
+        ":alice!~alice@user/alice PART #papo",
+        ":alice!ident@old.example CHGHOST ~alice",
+        ":alice!ident@old.example CHGHOST ~alice user/alice extra",
+    ] {
+        assert!(Chghost::parse(&MessageRef::parse(line).unwrap()).is_none());
+    }
+    for line in [
+        ":alice!~alice@user/alice PART #papo",
+        ":alice!~alice@user/alice SETNAME",
+        ":alice!~alice@user/alice SETNAME Alice extra",
+    ] {
+        assert!(Setname::parse(&MessageRef::parse(line).unwrap()).is_none());
     }
 }

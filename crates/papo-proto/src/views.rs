@@ -80,6 +80,45 @@ impl<'a> Away<'a> {
     }
 }
 
+/// A typed view of a `CHGHOST` message.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Chghost<'a> {
+    /// The user's new username, including a possible `~` prefix.
+    pub user: &'a str,
+    /// The user's new hostname.
+    pub host: &'a str,
+}
+
+impl<'a> Chghost<'a> {
+    /// Parses a `CHGHOST` message with exactly two parameters.
+    #[must_use]
+    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
+        let mut params = exact_params(message, Command::Chghost, 2)?;
+        Some(Self {
+            user: params.next()?,
+            host: params.next()?,
+        })
+    }
+}
+
+/// A typed view of a `SETNAME` message.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Setname<'a> {
+    /// The user's new real name.
+    pub realname: &'a str,
+}
+
+impl<'a> Setname<'a> {
+    /// Parses a `SETNAME` message with exactly one parameter.
+    #[must_use]
+    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
+        let mut params = exact_params(message, Command::Setname, 1)?;
+        Some(Self {
+            realname: params.next()?,
+        })
+    }
+}
+
 fn exact_params<'a>(
     message: &MessageRef<'a>,
     command: Command<'a>,
