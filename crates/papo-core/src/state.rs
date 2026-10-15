@@ -84,29 +84,7 @@ impl State {
         let mapping = isupport.casemapping();
         self.casemapping = mapping;
         if let Some(join) = Join::parse(message) {
-            let Some(Source::User { nick, user, host }) = message.source() else {
-                return Handled::No;
-            };
-            if mapping.eq(nick, own_nick) {
-                nick.clone_into(&mut self.nick);
-                if let Some(user) = user {
-                    user.clone_into(&mut self.user);
-                }
-                if let Some(host) = host {
-                    self.host = Some(host.to_owned());
-                }
-                let key = CaseKey::new(join.channel, mapping);
-                if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
-                    self.warn_limit(StateLimit::Channels, outbox);
-                    return Handled::Yes;
-                }
-                self.channels.insert(
-                    key,
-                    Channel::new(join.channel, mapping, isupport, no_implicit_names),
-                );
-            }
-            self.add_member(join.channel, nick, user, host, Vec::new(), outbox);
-            return Handled::Yes;
+            return self.handle_join(message, join, own_nick, isupport, no_implicit_names, outbox);
         }
         if message.command() == Command::Part {
             let Some(Source::User { nick, .. }) = message.source() else {
@@ -179,6 +157,40 @@ impl State {
             return Handled::Yes;
         }
         Handled::No
+    }
+
+    fn handle_join(
+        &mut self,
+        message: &MessageRef<'_>,
+        join: Join<'_>,
+        own_nick: &str,
+        isupport: &Isupport,
+        no_implicit_names: bool,
+        outbox: &mut Outbox,
+    ) -> Handled {
+        let Some(Source::User { nick, user, host }) = message.source() else {
+            return Handled::No;
+        };
+        if self.casemapping.eq(nick, own_nick) {
+            nick.clone_into(&mut self.nick);
+            if let Some(user) = user {
+                user.clone_into(&mut self.user);
+            }
+            if let Some(host) = host {
+                self.host = Some(host.to_owned());
+            }
+            let key = CaseKey::new(join.channel, self.casemapping);
+            if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
+                self.warn_limit(StateLimit::Channels, outbox);
+                return Handled::Yes;
+            }
+            self.channels.insert(
+                key,
+                Channel::new(join.channel, self.casemapping, isupport, no_implicit_names),
+            );
+        }
+        self.add_member(join.channel, nick, user, host, Vec::new(), outbox);
+        Handled::Yes
     }
 
     fn finish_names(&mut self, message: &MessageRef<'_>) -> bool {
