@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
-use papo_core::{Config, DEFAULT_WANTED_CAPS, RateLimit, Session};
+use papo_core::{Config, DEFAULT_WANTED_CAPS, Event, RateLimit, Session};
 use papo_proto::{BuildError, Message};
 
 #[test]
@@ -128,4 +128,21 @@ fn state_generation_changes_only_with_snapshot_state() {
 
     session.handle_line(now, b":emily!em@localhost JOIN #papo");
     assert_eq!(session.state_generation(), 3);
+}
+
+#[test]
+fn annotates_echoes_with_the_active_casemapping() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("Papo[bot]"));
+    session.handle_line(now, b":papo{bot}!~papo@localhost PRIVMSG #papo :sent");
+    session.handle_line(now, b":alice!~a@localhost PRIVMSG #papo :received");
+
+    let Some(Event::Message(echo)) = session.poll_event() else {
+        panic!("expected echoed message")
+    };
+    let Some(Event::Message(received)) = session.poll_event() else {
+        panic!("expected received message")
+    };
+    assert!(echo.is_echo());
+    assert!(!received.is_echo());
 }

@@ -611,6 +611,7 @@ pub enum BatchAbandonReason {
 pub struct ReceivedMessage {
     message: Message,
     batch_type: Option<String>,
+    echo: bool,
 }
 
 impl ReceivedMessage {
@@ -626,10 +627,22 @@ impl ReceivedMessage {
         self.batch_type.as_deref()
     }
 
+    /// Reports whether the source matches the session's current nickname.
+    #[must_use]
+    pub const fn is_echo(&self) -> bool {
+        self.echo
+    }
+
     /// Removes the dispatch annotation and returns the parsed IRC message.
     #[must_use]
     pub fn into_message(self) -> Message {
         self.message
+    }
+
+    /// Splits the message into its wire value and dispatch annotations.
+    #[must_use]
+    pub fn into_parts(self) -> (Message, Option<String>, bool) {
+        (self.message, self.batch_type, self.echo)
     }
 }
 
@@ -1150,10 +1163,9 @@ impl Session {
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
         if !handled {
-            self.outbox.event(Event::Message(ReceivedMessage {
-                message: message.to_owned(),
-                batch_type: context.batch_type().map(str::to_owned),
-            }));
+            let received =
+                self.received_message(message.to_owned(), context.batch_type().map(str::to_owned));
+            self.outbox.event(Event::Message(received));
         }
         self.apply_close_request();
     }
@@ -1195,10 +1207,27 @@ impl Session {
             BatchEvent::Message {
                 message,
                 batch_type,
-            } => self.outbox.event(Event::Message(ReceivedMessage {
-                message,
-                batch_type,
-            })),
+            } => {
+                let received = self.received_message(message, batch_type);
+                self.outbox.event(Event::Message(received));
+            }
+        }
+    }
+
+    fn received_message(&self, message: Message, batch_type: Option<String>) -> ReceivedMessage {
+        let echo = message.as_ref().source().is_some_and(|source| {
+            let papo_proto::Source::User { nick, .. } = source else {
+                return false;
+            };
+            self.isupport
+                .value()
+                .casemapping()
+                .eq(nick, self.registration.nick())
+        });
+        ReceivedMessage {
+            message,
+            batch_type,
+            echo,
         }
     }
 
