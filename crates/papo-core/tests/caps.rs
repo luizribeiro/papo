@@ -192,3 +192,30 @@ fn enables_new_wanted_caps_and_updates_enabled_values() {
             assert!(session.caps().contains_key("batch"));
         });
 }
+
+#[test]
+fn drops_deleted_caps_without_requesting_disable_and_can_enable_them_again() {
+    Transcript::new(Config::default().wanted_caps(["server-time"]))
+        .connect_default()
+        .server("CAP * LS :server-time=2026")
+        .client("CAP REQ :server-time")
+        .server("CAP * ACK :server-time")
+        .client("CAP END")
+        .server("CAP papo DEL :server-time")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { added, removed }
+            if added.is_empty()
+                && removed.get("server-time") == Some(&Some("2026".to_owned())))
+        })
+        .inspect(|session| assert!(!session.caps().contains_key("server-time")))
+        .no_client()
+        .server("CAP papo NEW :server-time=2027")
+        .client("CAP REQ :server-time")
+        .server("CAP papo ACK :server-time")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { added, removed }
+            if added.get("server-time") == Some(&Some("2027".to_owned()))
+                && removed.is_empty())
+        })
+        .inspect(|session| assert!(session.caps().contains_key("server-time")));
+}

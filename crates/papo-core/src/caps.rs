@@ -40,6 +40,8 @@ impl Caps {
                 self.handle_ls(message, config, sasl, outbox);
             } else if subcommand.eq_ignore_ascii_case("NEW") {
                 self.handle_new(message, config, outbox);
+            } else if subcommand.eq_ignore_ascii_case("DEL") {
+                self.handle_del(message, outbox);
             } else if subcommand.eq_ignore_ascii_case("ACK") {
                 if message.param(2) != Some("*") {
                     if let Some(requested) = self.pending.pop_front() {
@@ -88,6 +90,25 @@ impl Caps {
             Handled::Yes
         } else {
             Handled::No
+        }
+    }
+
+    fn handle_del(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) {
+        let mut removed = Capabilities::new();
+        for name in message.param(2).unwrap_or("").split_whitespace() {
+            if name == "sts" {
+                continue;
+            }
+            self.advertised.remove(name);
+            if let Some(value) = self.enabled.remove(name) {
+                removed.insert(name.to_owned(), value);
+            }
+        }
+        if !removed.is_empty() {
+            outbox.event(Event::CapsChanged {
+                added: Capabilities::new(),
+                removed,
+            });
         }
     }
 
