@@ -331,6 +331,21 @@ impl Client {
         crate::requests::topic(&self.raw(Message::new("TOPIC", params)).await?)
     }
 
+    /// Lists visible channels matching `filter`.
+    ///
+    /// At most 10,000 entries are retained.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the server rejects the request or it cannot complete.
+    pub async fn list(&self, filter: crate::ListFilter) -> Result<Vec<crate::ListEntry>, Error> {
+        let response = match filter.parameter() {
+            Some(parameter) => self.raw(Message::new("LIST", [parameter])).await?,
+            None => self.raw(Message::new("LIST", Vec::<String>::new())).await?,
+        };
+        crate::requests::list(response)
+    }
+
     /// Requests a clean disconnect and waits for the peer to close.
     ///
     /// The wait is limited to ten seconds. The driver still completes cleanly
@@ -1739,6 +1754,19 @@ mod tests {
         )
         .await;
         part.await.unwrap().unwrap();
+
+        let list = tokio::spawn({
+            let client = client.clone();
+            async move { client.list(crate::ListFilter::default()).await }
+        });
+        client_line(server, b"@label=7 LIST\r\n").await;
+        server_line(server, b"@label=7 :ergo.test BATCH +list-42 labeled-response\r\n@batch=list-42 :ergo.test 321 papo-driver Channel :Users Name\r\n@batch=list-42 :ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n@batch=list-42 :ergo.test 322 papo-driver #rust 17 :The Rust Programming Language\r\n@batch=list-42 :ergo.test 323 papo-driver :End of /LIST\r\n:ergo.test BATCH -list-42\r\n").await;
+        let list = list.await.unwrap().unwrap();
+        assert_eq!((list.len(), list[0].name.as_str()), (2, "#papo"));
+        assert_eq!(
+            (list[1].members_count, list[1].topic.as_str()),
+            (17, "The Rust Programming Language")
+        );
     }
 
     async fn complete_extended_monitor_registration(
@@ -3057,10 +3085,10 @@ mod tests {
             let client = client.clone();
             async move { client.whois("missing-nick").await }
         });
-        client_line(&mut server, b"@label=7 WHOIS missing-nick\r\n").await;
+        client_line(&mut server, b"@label=8 WHOIS missing-nick\r\n").await;
         server_line(
             &mut server,
-            b"@label=7 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
+            b"@label=8 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
         )
         .await;
         assert!(matches!(
@@ -3072,13 +3100,13 @@ mod tests {
             let client = client.clone();
             async move { client.raw(Message::new("WHOIS", ["alice"])).await }
         });
-        client_line(&mut server, b"@label=8 WHOIS alice\r\n").await;
+        client_line(&mut server, b"@label=9 WHOIS alice\r\n").await;
         tokio::time::advance(Duration::from_secs(1)).await;
         assert!(matches!(timed_out.await.unwrap(), Err(Error::Timeout)));
 
         let aborted =
             tokio::spawn(async move { client.raw(Message::new("WHOIS", ["emily"])).await });
-        client_line(&mut server, b"@label=9 WHOIS emily\r\n").await;
+        client_line(&mut server, b"@label=A WHOIS emily\r\n").await;
         server.shutdown().await.unwrap();
         assert!(matches!(aborted.await.unwrap(), Err(Error::Disconnected)));
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));

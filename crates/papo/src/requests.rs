@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use papo_core::Response;
-use papo_proto::{Command, Isupport, Numeric, WhoxPresence, WhoxReply};
+use papo_proto::{Command, Isupport, Message, Numeric, WhoxPresence, WhoxReply};
 
 use crate::Error;
 
@@ -66,6 +66,40 @@ pub struct ChannelInfo {
     pub topic: Option<String>,
     /// Number of members present after initial synchronization.
     pub members_count: usize,
+}
+
+/// Optional channel names or masks supplied to `LIST`.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ListFilter {
+    channels: Vec<String>,
+}
+
+impl ListFilter {
+    /// Restricts the request to the supplied comma-separated channel masks.
+    #[must_use]
+    pub fn channels<I, S>(mut self, channels: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.channels = channels.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub(crate) fn parameter(&self) -> Option<String> {
+        (!self.channels.is_empty()).then(|| self.channels.join(","))
+    }
+}
+
+/// One channel returned by `LIST`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ListEntry {
+    /// Channel name.
+    pub name: String,
+    /// Number of visible members reported by the server.
+    pub members_count: usize,
+    /// Channel topic.
+    pub topic: String,
 }
 
 pub(crate) fn whois(response: Response, requested_nick: &str) -> Result<Whois, Error> {
@@ -209,4 +243,49 @@ pub(crate) fn topic(response: &Response) -> Result<Option<String>, Error> {
             }
         })
         .flatten())
+}
+
+pub(crate) fn list(response: Response) -> Result<Vec<ListEntry>, Error> {
+    if let Some(error) = response.error() {
+        return Err(Error::Server(error));
+    }
+    Ok(list_entries(response.lines))
+}
+
+fn list_entries(lines: impl IntoIterator<Item = Message>) -> Vec<ListEntry> {
+    lines
+        .into_iter()
+        .filter_map(|line| {
+            let message = line.as_ref();
+            if message.command() != Command::Numeric(Numeric::RPL_LIST) {
+                return None;
+            }
+            Some(ListEntry {
+                name: message.param(1)?.to_owned(),
+                members_count: message.param(2)?.parse().ok()?,
+                topic: message.param(3)?.to_owned(),
+            })
+        })
+        .take(10_000)
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use papo_proto::Message;
+
+    use super::list_entries;
+
+    #[test]
+    fn list_retains_at_most_the_literal_entry_limit() {
+        let lines = (0..10_001).map(|index| {
+            Message::new(
+                "322",
+                ["papo", &format!("#papo-{index}"), "42", "Ergonomic IRC"],
+            )
+        });
+        let entries = list_entries(lines);
+        assert_eq!(entries.len(), 10_000);
+        assert_eq!(entries.last().unwrap().name, "#papo-9999");
+    }
 }
