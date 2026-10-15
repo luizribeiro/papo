@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use papo_proto::MessageRef;
+use papo_proto::{MessageRef, NAME_ALIASES, NameKind};
 
 use crate::{Config, Handled, Outbox};
 
@@ -10,6 +10,7 @@ pub(super) type Capabilities = BTreeMap<String, Option<String>>;
 pub(super) struct Caps {
     advertised: Capabilities,
     enabled: Capabilities,
+    pending: Option<Vec<String>>,
     ended: bool,
 }
 
@@ -21,7 +22,7 @@ impl Caps {
     pub(super) fn handle_message(
         &mut self,
         message: &MessageRef<'_>,
-        _config: &Config,
+        config: &Config,
         authentication_finished: bool,
         outbox: &mut Outbox,
     ) -> Handled {
@@ -30,7 +31,18 @@ impl Caps {
                 return Handled::No;
             };
             if subcommand.eq_ignore_ascii_case("LS") {
-                self.handle_ls(message, authentication_finished, outbox);
+                self.handle_ls(message, config, authentication_finished, outbox);
+            } else if subcommand.eq_ignore_ascii_case("ACK") {
+                if let Some(requested) = self.pending.take() {
+                    for name in requested {
+                        let value = self.advertised.get(&name).cloned().flatten();
+                        self.enabled.insert(name, value);
+                    }
+                }
+                self.finish(authentication_finished, outbox);
+            } else if subcommand.eq_ignore_ascii_case("NAK") {
+                self.pending = None;
+                self.finish(authentication_finished, outbox);
             } else {
                 return Handled::No;
             }
@@ -50,6 +62,7 @@ impl Caps {
     fn handle_ls(
         &mut self,
         message: &MessageRef<'_>,
+        config: &Config,
         authentication_finished: bool,
         outbox: &mut Outbox,
     ) {
@@ -69,11 +82,42 @@ impl Caps {
         }
 
         self.enabled.insert("cap-notify".to_owned(), None);
-        self.finish(authentication_finished, outbox);
+        let mut seen = BTreeSet::new();
+        let requested = config
+            .wanted_caps
+            .iter()
+            // Ergo disconnects pre-registration clients that request this trap capability.
+            .filter(|wanted| wanted.as_str() != "ergo.chat/nope")
+            .filter_map(|wanted| self.advertised_spelling(wanted))
+            .filter(|name| seen.insert((*name).to_owned()))
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        if requested.is_empty() {
+            self.finish(authentication_finished, outbox);
+        } else {
+            outbox.transmit("CAP", ["REQ", &requested.join(" ")]);
+            self.pending = Some(requested);
+        }
+    }
+
+    fn advertised_spelling(&self, wanted: &str) -> Option<&str> {
+        if let Some((name, _)) = self.advertised.get_key_value(wanted) {
+            return Some(name);
+        }
+        NAME_ALIASES.iter().find_map(|&(kind, draft, ratified)| {
+            (kind == NameKind::Capability && (wanted == draft || wanted == ratified))
+                .then(|| {
+                    [draft, ratified].into_iter().find_map(|alias| {
+                        self.advertised.get_key_value(alias).map(|(name, _)| name)
+                    })
+                })
+                .flatten()
+                .map(String::as_str)
+        })
     }
 
     fn finish(&mut self, authentication_finished: bool, outbox: &mut Outbox) {
-        if authentication_finished && !self.ended {
+        if authentication_finished && self.pending.is_none() && !self.ended {
             outbox.transmit_raw(b"CAP END\r\n".to_vec());
             self.ended = true;
         }
