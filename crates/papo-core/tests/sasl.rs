@@ -172,3 +172,77 @@ fn already_authenticated_counts_as_success() {
         .server(":ergo.test 907 alice :You have already authenticated using SASL")
         .client("CAP END");
 }
+
+#[test]
+fn required_sasl_closes_when_unavailable_naked_or_failed() {
+    for transcript in [
+        Transcript::new(
+            Config::default()
+                .sasl(Sasl::plain("alice", "hunter2"))
+                .require_sasl(true),
+        )
+        .connect_default()
+        .server("CAP * LS :")
+        .event(|event| matches!(event, Event::Close { reason } if reason.contains("did not advertise"))),
+        Transcript::new(
+            Config::default()
+                .sasl(Sasl::plain("alice", "hunter2"))
+                .require_sasl(true),
+        )
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * NAK :sasl")
+        .event(|event| matches!(event, Event::Close { reason } if reason.contains("rejected"))),
+        Transcript::new(
+            Config::default()
+                .sasl(Sasl::plain("alice", "hunter2"))
+                .require_sasl(true),
+        )
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(":ergo.test 904 alice :SASL authentication failed")
+        .event(|event| matches!(event, Event::Close { reason } if reason.contains("PLAIN"))),
+    ] {
+        transcript.no_client();
+    }
+}
+
+#[test]
+fn terminal_sasl_numerics_do_not_try_another_mechanism() {
+    for numeric in ["902", "906"] {
+        Transcript::new(Config::default().sasl(Sasl::any("alice", "hunter2")))
+            .connect_default()
+            .server("CAP * LS :sasl=PLAIN")
+            .client("CAP REQ :sasl")
+            .server("CAP * ACK :sasl")
+            .client("AUTHENTICATE PLAIN")
+            .server(&format!(
+                ":ergo.test {numeric} alice :SASL authentication cannot continue"
+            ))
+            .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+            .client("CAP END");
+    }
+}
+
+#[test]
+fn account_required_closes_and_verification_note_surfaces() {
+    Transcript::new(
+        Config::default()
+            .sasl(Sasl::plain("alice", "hunter2"))
+            .require_sasl(true),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN standard-replies")
+    .client("CAP REQ :standard-replies sasl")
+    .server("CAP * ACK :standard-replies sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server(":ergo.test NOTE AUTHENTICATE VERIFICATION_REQUIRED alice :Verify your account")
+    .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTE")))
+    .server(":ergo.test FAIL * ACCOUNT_REQUIRED :Authentication required")
+    .event(|event| matches!(event, Event::Close { reason } if reason.contains("Authentication required")))
+    .no_client();
+}

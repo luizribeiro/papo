@@ -94,12 +94,20 @@ pub(super) struct SaslSession {
     remaining: VecDeque<Mechanism>,
     active: Option<Mechanism>,
     awaiting_challenge: bool,
-    finished: bool,
+    completion: Completion,
     account: Option<String>,
     device: Option<String>,
     challenge: String,
     entropy: Option<Box<dyn Entropy + Send>>,
+    require: bool,
     failures: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Completion {
+    Pending,
+    Success,
+    Failed,
 }
 
 impl std::fmt::Debug for SaslSession {
@@ -110,11 +118,12 @@ impl std::fmt::Debug for SaslSession {
             .field("remaining", &self.remaining)
             .field("active", &self.active)
             .field("awaiting_challenge", &self.awaiting_challenge)
-            .field("finished", &self.finished)
+            .field("completion", &self.completion)
             .field("account", &self.account)
             .field("device", &self.device)
             .field("challenge_len", &self.challenge.len())
             .field("has_entropy", &self.entropy.is_some())
+            .field("require", &self.require)
             .field("failures", &self.failures)
             .finish()
     }
@@ -130,12 +139,17 @@ impl SaslSession {
             remaining: configured.clone().into(),
             active: None,
             awaiting_challenge: false,
-            finished: configured.is_empty(),
+            completion: if configured.is_empty() {
+                Completion::Success
+            } else {
+                Completion::Pending
+            },
             configured,
             account: None,
             device: config.device.clone(),
             challenge: String::new(),
             entropy,
+            require: config.require_sasl,
             failures: Vec::new(),
         }
     }
@@ -144,7 +158,11 @@ impl SaslSession {
         self.remaining = self.configured.clone().into();
         self.active = None;
         self.awaiting_challenge = false;
-        self.finished = self.configured.is_empty();
+        self.completion = if self.configured.is_empty() {
+            Completion::Success
+        } else {
+            Completion::Pending
+        };
         self.account = None;
         self.challenge.clear();
         self.failures.clear();
@@ -156,7 +174,7 @@ impl SaslSession {
         advertised: Option<&str>,
         outbox: &mut Outbox,
     ) {
-        if self.finished {
+        if self.completion != Completion::Pending {
             return;
         }
         if let Some(advertised) = advertised {
@@ -188,7 +206,7 @@ impl SaslSession {
         if message.command_is("903") || message.command_is("907") {
             self.active = None;
             self.awaiting_challenge = false;
-            self.finished = true;
+            self.completion = Completion::Success;
             return Handled::Yes;
         }
         if message.command_is("904") || message.command_is("905") {
@@ -200,6 +218,28 @@ impl SaslSession {
             if let Some(available) = message.param(1) {
                 self.retain_available(available);
             }
+            return Handled::Yes;
+        }
+        if message.command_is("902") {
+            self.fail_all(message.param(1).unwrap_or("account is unavailable"), outbox);
+            return Handled::Yes;
+        }
+        if message.command_is("906") {
+            self.fail_all(
+                message.param(1).unwrap_or("SASL exchange was aborted"),
+                outbox,
+            );
+            return Handled::Yes;
+        }
+        if message.command_is("FAIL")
+            && message.param(0) == Some("*")
+            && message.param(1) == Some("ACCOUNT_REQUIRED")
+        {
+            self.completion = Completion::Failed;
+            outbox.close(format!(
+                "SASL failed: {}",
+                message.param(2).unwrap_or("the server requires an account")
+            ));
             return Handled::Yes;
         }
         if !message.command_is("AUTHENTICATE") {
@@ -227,14 +267,15 @@ impl SaslSession {
     }
 
     pub(super) fn unavailable(&mut self, reason: &str, outbox: &mut Outbox) {
-        if self.finished {
+        if self.completion != Completion::Pending {
             return;
         }
         self.fail_all(reason, outbox);
     }
 
     pub(super) const fn is_finished(&self) -> bool {
-        self.finished
+        matches!(self.completion, Completion::Success)
+            || (!self.require && matches!(self.completion, Completion::Failed))
     }
 
     pub(super) fn account(&self) -> Option<&str> {
@@ -278,10 +319,14 @@ impl SaslSession {
 
     fn fail_all(&mut self, reason: &str, outbox: &mut Outbox) {
         self.record_active_failure(reason);
-        self.finished = true;
+        self.completion = Completion::Failed;
         self.failures.push(reason.to_owned());
         let reason = format!("SASL failed: {}", self.failures.join("; "));
-        outbox.event(crate::Event::AuthenticationFailed { reason });
+        if self.require {
+            outbox.close(reason);
+        } else {
+            outbox.event(crate::Event::AuthenticationFailed { reason });
+        }
     }
 }
 
