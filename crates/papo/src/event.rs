@@ -637,6 +637,7 @@ mod tests {
         assert_eq!(tagged.account(), Some("emily"));
         assert!(tagged.is_bot());
         assert_eq!(tagged.reply_to(), Some("RfcBTzyxY120003"));
+        assert!(!chat("PRIVMSG", "human message").is_bot());
 
         for time in [None, Some("not-a-time")] {
             let mut message = Message::privmsg("#papo", "fallback");
