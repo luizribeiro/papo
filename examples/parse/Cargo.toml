@@ -1,0 +1,18 @@
+[package]
+name = "papo-parse-example"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "papo-parse"
+path = "src/main.rs"
+
+[dependencies]
+papo-proto = { path = "../../crates/papo-proto", version = "=0.0.0" }
+
+[lints]
+workspace = true
