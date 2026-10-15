@@ -645,6 +645,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-echo-bot"
+version = "0.0.0"
+dependencies = [
+ "papo",
+ "papo-test-server",
+ "tokio",
+]
+
+[[package]]
 name = "papo-lurker"
 version = "0.0.0"
 dependencies = [
