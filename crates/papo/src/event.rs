@@ -788,7 +788,10 @@ pub(crate) enum CoreEvent {
         messages: Vec<papo_core::HistoryMessage>,
         end: bool,
     },
-    Close(String),
+    Close {
+        kind: papo_core::CloseKind,
+        reason: String,
+    },
     Unknown,
 }
 
@@ -844,7 +847,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             reason,
         },
         papo_core::Event::Malformed { line } => Event::Malformed { line },
-        papo_core::Event::Close { reason, .. } => return CoreEvent::Close(reason),
+        papo_core::Event::Close { kind, reason } => return CoreEvent::Close { kind, reason },
         papo_core::Event::AuthenticationFailed { reason } => Event::AuthenticationFailed { reason },
         papo_core::Event::CapsChanged { added, removed } => Event::CapsChanged { added, removed },
         papo_core::Event::StsUpgrade { port } => Event::StsUpgrade { port },

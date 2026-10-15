@@ -1184,7 +1184,7 @@ fn triage_connection_end(
         return ControlFlow::Break((end, true));
     }
     *last_sts_upgrade = None;
-    if is_fatal_failure(&end.error, &end.reason) {
+    if is_fatal_failure(&end.error, end.close_kind) {
         return ControlFlow::Break((end, true));
     }
     if end
@@ -1227,7 +1227,7 @@ async fn connect_or_wait(
         Err(error) => error,
     };
     let reason = error.to_string();
-    if sts_required || is_fatal_failure(&error, &reason) || !reconnect.permits(attempts) {
+    if sts_required || is_fatal_failure(&error, None) || !reconnect.permits(attempts) {
         return ConnectionAttempt::Failed(error);
     }
     _ = events
@@ -1273,6 +1273,7 @@ fn finish_connection_failure(
         ConnectionEnd {
             reason,
             error,
+            close_kind: None,
             quit: None,
             quit_timed_out: false,
             registered_at: None,
@@ -1333,8 +1334,8 @@ fn plan_with_stored_sts(
     Ok(plan)
 }
 
-fn is_fatal_failure(error: &Error, reason: &str) -> bool {
-    if reason.starts_with("SASL failed:") {
+fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {
+    if close_kind == Some(papo_core::CloseKind::SaslFailed) {
         return true;
     }
     #[cfg(tls)]
@@ -1471,6 +1472,7 @@ where
 struct ConnectionEnd {
     reason: String,
     error: Error,
+    close_kind: Option<papo_core::CloseKind>,
     quit: Option<Quit>,
     quit_timed_out: bool,
     #[allow(dead_code)]
@@ -1531,7 +1533,7 @@ where
     let mut registered_at = None;
     let mut sts = StsActions::default();
     let mut buffer = [0; 4096];
-    let (mut reason, mut error, quit_timed_out) = loop {
+    let (mut reason, mut error, close_kind, quit_timed_out) = loop {
         match drain(
             &mut stream,
             session,
@@ -1551,9 +1553,9 @@ where
         )
         .await
         {
-            Ok(Some(reason)) => break (reason, Error::Disconnected, false),
+            Ok(Some((kind, reason))) => break (reason, Error::Disconnected, Some(kind), false),
             Ok(None) => {}
-            Err(error) => break (error.to_string(), Error::Io(error), false),
+            Err(error) => break (error.to_string(), Error::Io(error), None, false),
         }
         let deadline = [
             session.poll_timeout(),
@@ -1565,10 +1567,15 @@ where
         tokio::select! {
             read = stream.read(&mut buffer), if pending_event.is_none() => match read {
                 Ok(0) => {
-                    break ("server closed the connection".to_owned(), Error::Disconnected, false);
+                    break (
+                        "server closed the connection".to_owned(),
+                        Error::Disconnected,
+                        None,
+                        false,
+                    );
                 }
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
-                Err(error) => break (error.to_string(), Error::Io(error), false),
+                Err(error) => break (error.to_string(), Error::Io(error), None, false),
             },
             permit = events.regular.clone().reserve_owned(), if pending_event.is_some() => match permit {
                 Ok(permit) => {
@@ -1700,6 +1707,7 @@ where
                     break (
                         "QUIT was not acknowledged within 10 seconds".to_owned(),
                         Error::Timeout,
+                        None,
                         true,
                     );
                 }
@@ -1729,6 +1737,7 @@ where
     ConnectionEnd {
         reason,
         error,
+        close_kind,
         quit,
         quit_timed_out,
         registered_at,
@@ -1793,7 +1802,7 @@ async fn drain<S>(
     sts: &mut StsActions,
     sts_store: &mut Option<Box<dyn StsStore + Send>>,
     sts_port: u16,
-) -> io::Result<Option<String>>
+) -> io::Result<Option<(papo_core::CloseKind, String)>>
 where
     S: AsyncWrite + Unpin,
 {
@@ -1938,7 +1947,7 @@ where
                     end,
                 });
             }
-            event::CoreEvent::Close(reason) => return Ok(Some(reason)),
+            event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),
             event::CoreEvent::Unknown => {}
         }
     }
@@ -3598,7 +3607,7 @@ mod tests {
         let error = Error::Connect(crate::transport::ConnectError::Tls(
             rustls::Error::InvalidCertificate(rustls::CertificateError::UnknownIssuer),
         ));
-        assert!(super::is_fatal_failure(&error, &error.to_string()));
+        assert!(super::is_fatal_failure(&error, None));
     }
 
     #[tokio::test(flavor = "current_thread")]
