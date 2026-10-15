@@ -635,6 +635,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-lurker"
+version = "0.0.0"
+dependencies = [
+ "papo",
+ "tokio",
+]
+
+[[package]]
 name = "papo-parse-example"
 version = "0.0.0"
 dependencies = [
