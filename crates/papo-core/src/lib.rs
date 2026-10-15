@@ -10,6 +10,7 @@ mod isupport;
 mod keepalive;
 mod monitor;
 mod outgoing;
+mod persistence;
 mod ratelimit;
 mod registration;
 mod sasl;
