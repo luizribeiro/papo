@@ -1,6 +1,8 @@
 //! Raw ISUPPORT token accumulation behavior.
 
-use papo_proto::{Advertised, Casemapping, ChanModes, Isupport, MessageRef, Numeric, Prefix};
+use papo_proto::{
+    Advertised, Casemapping, ChanModes, Isupport, Limit, LimitValue, MessageRef, Numeric, Prefix,
+};
 
 #[test]
 fn accumulates_local_tokens_and_ignores_remote_isupport() {
@@ -157,6 +159,82 @@ fn channel_shape_honors_defaults_empty_values_and_malformed_prefixes() {
     assert_eq!(support.chanmodes(), None);
 }
 
+#[test]
+fn parses_ergo_limits_and_lengths() {
+    let mut support = Isupport::default();
+    support.apply_tokens([
+        "AWAYLEN=390",
+        "CHANLIMIT=#:100",
+        "CHANNELLEN=64",
+        "KICKLEN=390",
+        "MAXLIST=beI:100",
+        "MAXTARGETS=4",
+        "MODES",
+        "NAMELEN=150",
+        "NICKLEN=32",
+        "TARGMAX=NAMES:1,LIST:1,KICK:,WHOIS:1,USERHOST:10,PRIVMSG:4,TAGMSG:4,NOTICE:4,MONITOR:100",
+        "TOPICLEN=390",
+    ]);
+
+    assert_eq!(support.awaylen(), Some(390));
+    assert_eq!(support.chanlimit(), vec![limit("#", Some(100))]);
+    assert_eq!(support.channellen(), Some(64));
+    assert_eq!(support.kicklen(), Some(390));
+    assert_eq!(support.maxlist(), vec![limit("beI", Some(100))]);
+    assert_eq!(support.maxtargets(), Some(LimitValue::Limited(4)));
+    assert_eq!(support.modes(), None);
+    assert_eq!(support.namelen(), Some(150));
+    assert_eq!(support.nicklen(), Some(32));
+    assert_eq!(
+        support.targmax(),
+        vec![
+            limit("NAMES", Some(1)),
+            limit("LIST", Some(1)),
+            limit("KICK", None),
+            limit("WHOIS", Some(1)),
+            limit("USERHOST", Some(10)),
+            limit("PRIVMSG", Some(4)),
+            limit("TAGMSG", Some(4)),
+            limit("NOTICE", Some(4)),
+            limit("MONITOR", Some(100)),
+        ]
+    );
+    assert!(support.targmax()[5].name.eq_ignore_ascii_case("privmsg"));
+    assert_eq!(support.topiclen(), Some(390));
+}
+
+#[test]
+fn limits_apply_defaults_and_reject_malformed_values() {
+    let mut support = Isupport::default();
+    assert_eq!(support.modes(), Some(3));
+    assert_eq!(
+        support.targmax(),
+        vec![limit("JOIN", None), limit("PART", None)]
+    );
+
+    support.apply_tokens([
+        "TARGMAX=PRIVMSG:not-a-number",
+        "MAXTARGETS=0",
+        "MODES=invalid",
+        "CHANLIMIT=#:0",
+        "MAXLIST=beI:",
+        "NICKLEN=0",
+    ]);
+    assert_eq!(
+        support.targmax(),
+        vec![limit("JOIN", None), limit("PART", None)]
+    );
+    assert_eq!(support.maxtargets(), None);
+    assert_eq!(support.modes(), Some(3));
+    assert!(support.chanlimit().is_empty());
+    assert!(support.maxlist().is_empty());
+    assert_eq!(support.nicklen(), None);
+}
+
 fn prefix(mode: char, symbol: char, rank: usize) -> Prefix {
     Prefix { mode, symbol, rank }
+}
+
+fn limit(name: &str, limit: Option<usize>) -> Limit<'_> {
+    Limit { name, limit }
 }

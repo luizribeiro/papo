@@ -37,10 +37,40 @@ pub struct ChanModes<'a> {
     pub never: &'a str,
 }
 
+/// A named limit, where `None` means unlimited.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Limit<'a> {
+    /// The command, channel prefixes, or mode letters governed by the limit.
+    ///
+    /// Command names returned by [`Isupport::targmax`] compare case-insensitively.
+    pub name: &'a str,
+    /// The advertised maximum, or `None` when no maximum applies.
+    pub limit: Option<usize>,
+}
+
+/// A numeric server limit that may explicitly be unlimited.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LimitValue {
+    /// No maximum applies.
+    Unlimited,
+    /// The advertised maximum.
+    Limited(usize),
+}
+
 /// Accumulated server features advertised through `RPL_ISUPPORT` (`005`).
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Isupport {
     tokens: HashMap<String, Option<String>>,
+}
+
+macro_rules! length_accessors {
+    ($(#[$meta:meta] $name:ident => $key:literal,)+) => {$(
+        #[$meta]
+        #[must_use]
+        pub fn $name(&self) -> Option<usize> {
+            positive(self.value($key)?)
+        }
+    )+};
 }
 
 impl Isupport {
@@ -150,6 +180,63 @@ impl Isupport {
             .is_some_and(|prefix| self.chantypes().contains(prefix))
     }
 
+    /// Returns per-command target limits, defaulting to unlimited `JOIN` and `PART`.
+    ///
+    /// Command names compare case-insensitively.
+    #[must_use]
+    pub fn targmax(&self) -> Vec<Limit<'_>> {
+        self.value("TARGMAX")
+            .and_then(|value| parse_limits(value, true))
+            .unwrap_or_else(default_targmax)
+    }
+
+    /// Returns the legacy shared target limit.
+    #[must_use]
+    pub fn maxtargets(&self) -> Option<LimitValue> {
+        optional_limit(self.get("MAXTARGETS"), false)
+    }
+
+    /// Returns the variable-mode limit, where `None` means unlimited.
+    #[must_use]
+    pub fn modes(&self) -> Option<usize> {
+        match self.get("MODES") {
+            Advertised::Absent => Some(3),
+            Advertised::Bare | Advertised::Value("") => None,
+            Advertised::Value(value) => positive(value).or(Some(3)),
+        }
+    }
+
+    /// Returns limits grouped by channel-type prefixes.
+    #[must_use]
+    pub fn chanlimit(&self) -> Vec<Limit<'_>> {
+        self.value("CHANLIMIT")
+            .and_then(|value| parse_limits(value, true))
+            .unwrap_or_default()
+    }
+
+    /// Returns limits grouped by list-mode letters.
+    #[must_use]
+    pub fn maxlist(&self) -> Vec<Limit<'_>> {
+        self.value("MAXLIST")
+            .and_then(|value| parse_limits(value, false))
+            .unwrap_or_default()
+    }
+
+    length_accessors! {
+        /// Returns the maximum nickname length.
+        nicklen => "NICKLEN",
+        /// Returns the maximum channel-name length.
+        channellen => "CHANNELLEN",
+        /// Returns the maximum topic length.
+        topiclen => "TOPICLEN",
+        /// Returns the maximum kick-reason length.
+        kicklen => "KICKLEN",
+        /// Returns the maximum away-reason length.
+        awaylen => "AWAYLEN",
+        /// Returns the maximum real-name length.
+        namelen => "NAMELEN",
+    }
+
     fn value(&self, key: &str) -> Option<&str> {
         match self.get(key) {
             Advertised::Value(value) => Some(value),
@@ -174,6 +261,53 @@ fn parse_prefix(value: &str) -> Option<Vec<Prefix>> {
             .map(|(rank, (mode, symbol))| Prefix { mode, symbol, rank })
             .collect(),
     )
+}
+
+fn parse_limits(value: &str, empty_is_unlimited: bool) -> Option<Vec<Limit<'_>>> {
+    if value.is_empty() {
+        return None;
+    }
+    value
+        .split(',')
+        .map(|pair| {
+            let (name, value) = pair.split_once(':')?;
+            if name.is_empty() {
+                return None;
+            }
+            let limit = if value.is_empty() && empty_is_unlimited {
+                None
+            } else {
+                Some(positive(value)?)
+            };
+            Some(Limit { name, limit })
+        })
+        .collect()
+}
+
+fn default_targmax<'a>() -> Vec<Limit<'a>> {
+    vec![
+        Limit {
+            name: "JOIN",
+            limit: None,
+        },
+        Limit {
+            name: "PART",
+            limit: None,
+        },
+    ]
+}
+
+fn positive(value: &str) -> Option<usize> {
+    value.parse().ok().filter(|value| *value > 0)
+}
+
+fn optional_limit(value: Advertised<'_>, zero_is_unlimited: bool) -> Option<LimitValue> {
+    match value {
+        Advertised::Absent => None,
+        Advertised::Bare | Advertised::Value("") => Some(LimitValue::Unlimited),
+        Advertised::Value("0") if zero_is_unlimited => Some(LimitValue::Unlimited),
+        Advertised::Value(value) => positive(value).map(LimitValue::Limited),
+    }
 }
 
 fn unescape(value: &str) -> String {

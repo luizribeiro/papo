@@ -10,7 +10,7 @@ mod source;
 
 pub use casemapping::{CaseKey, Casemapping};
 pub use command::Command;
-pub use isupport::{Advertised, ChanModes, Isupport, Prefix};
+pub use isupport::{Advertised, ChanModes, Isupport, Limit, LimitValue, Prefix};
 pub use message::{
     BuildError, MAX_CLIENT_TAG_DATA_LEN, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef,
     Params, ParseError, Tags,
