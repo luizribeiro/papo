@@ -524,6 +524,27 @@ fn each_authenticate_step_renews_the_deadline() {
 }
 
 #[test]
+fn a_partial_server_challenge_renews_the_deadline() {
+    let first = "YWFh".repeat(100);
+    assert_eq!(first.len(), 400);
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .advance(std::time::Duration::from_secs(17))
+        .server(&format!("AUTHENTICATE {first}"))
+        .deadline(Some(std::time::Duration::from_secs(30)))
+        .advance(std::time::Duration::from_secs(29))
+        .no_client()
+        .server("AUTHENTICATE YQ==")
+        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+        .server(":ergo.test 903 alice :SASL authentication successful")
+        .client("CAP END");
+}
+
+#[test]
 fn aborts_a_challenge_without_a_payload() {
     Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
         .connect_default()
