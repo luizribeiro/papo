@@ -15,6 +15,7 @@ pub use driver::{Client, Driver, Events};
 pub use entropy::OsEntropy;
 pub use error::Error;
 pub use event::Event;
+pub use papo_core::{RateLimit, Sasl};
 
 /// TCP and TLS connections to IRC servers.
 pub mod transport;
