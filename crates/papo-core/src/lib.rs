@@ -2085,6 +2085,18 @@ impl Session {
                     }
                 }
                 if let Some((id, _, sent)) = request {
+                    let echoed = sent.then(|| {
+                        messages
+                            .iter()
+                            .filter(|message| {
+                                matches!(
+                                    message.as_ref().command(),
+                                    Command::Privmsg | Command::Notice
+                                ) && self.is_own_source(&message.as_ref())
+                            })
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    });
                     self.outbox.event(Event::Response(Response {
                         id,
                         sent: if sent {
@@ -2097,6 +2109,10 @@ impl Session {
                         lines: messages,
                         history,
                     }));
+                    for message in echoed.into_iter().flatten() {
+                        let received = self.received_message(message, None, true);
+                        self.outbox.event(Event::Message(received));
+                    }
                 }
             }
             BatchEvent::History {

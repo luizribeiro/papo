@@ -189,6 +189,36 @@ fn labels_distinguish_our_echo_from_another_session() {
 }
 
 #[test]
+fn labelled_response_batch_also_emits_its_message_echo() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo").wanted_caps([
+        "batch",
+        "echo-message",
+        "labeled-response",
+    ]));
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :batch echo-message labeled-response");
+    session.handle_line(now, b"CAP * ACK :batch echo-message labeled-response");
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+    session
+        .send_text(now, TextKind::Privmsg, "#papo", "from this device", &[])
+        .unwrap();
+    session.handle_line(now, b"@label=0 BATCH +response labeled-response");
+    session.handle_line(
+        now,
+        b"@batch=response;msgid=RfcBTzyxY120004 :papo!p@localhost PRIVMSG #papo :from this device",
+    );
+    session.handle_line(now, b"BATCH -response");
+
+    let echo = std::iter::from_fn(|| session.poll_event()).find_map(|event| match event {
+        Event::Message(message) => Some(message),
+        _ => None,
+    });
+    assert!(echo.is_some_and(|message| message.is_echo() && !message.is_other_session()));
+}
+
+#[test]
 fn requests_use_labels_only_when_negotiated() {
     let now = Instant::now();
     let mut labelled = Session::new(Config::default());
