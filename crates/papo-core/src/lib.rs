@@ -1144,16 +1144,11 @@ impl Session {
                 .handle_message(message, self.isupport.value(), &mut self.outbox)
                 == Handled::Yes;
         self.sync_monitored_state();
-        let no_implicit_names = self
-            .caps
-            .enabled()
-            .keys()
-            .any(|name| papo_proto::canonical(name) == "no-implicit-names");
         let state_handled = self.state.handle_message(
             message,
             self.registration.nick(),
             self.isupport.value(),
-            no_implicit_names,
+            self.no_implicit_names(),
             &mut self.outbox,
         ) == Handled::Yes;
         let handled = registration_handled
@@ -1238,17 +1233,12 @@ impl Session {
     }
 
     fn apply_aggregate_state(&mut self, message: &Message) {
-        let no_implicit_names = self
-            .caps
-            .enabled()
-            .keys()
-            .any(|name| papo_proto::canonical(name) == "no-implicit-names");
         let event_count = self.outbox.events.len();
         self.state.handle_message(
             &message.as_ref(),
             self.registration.nick(),
             self.isupport.value(),
-            no_implicit_names,
+            self.no_implicit_names(),
             &mut self.outbox,
         );
         let generated = self.outbox.events.split_off(event_count);
@@ -1257,6 +1247,13 @@ impl Session {
                 .into_iter()
                 .filter(|event| matches!(event, Event::StateLimitReached { .. })),
         );
+    }
+
+    fn no_implicit_names(&self) -> bool {
+        self.caps
+            .enabled()
+            .keys()
+            .any(|name| papo_proto::canonical(name) == "no-implicit-names")
     }
 
     fn close_for_long_line(&mut self) {

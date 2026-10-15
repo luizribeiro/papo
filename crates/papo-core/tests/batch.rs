@@ -492,3 +492,22 @@ fn only_live_membership_aggregates_change_channel_state() {
     );
     assert_eq!(session.poll_event(), None);
 }
+
+#[test]
+fn netjoin_for_our_nick_honors_no_implicit_names() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().wanted_caps(["no-implicit-names"]));
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :draft/no-implicit-names");
+    session.handle_line(now, b"CAP * ACK :draft/no-implicit-names");
+    session.handle_line(now, b"BATCH +join netjoin irc.example irc.remote");
+    session.handle_line(now, b"@batch=join :papo!papo@127.0.0.1 JOIN #papo");
+    session.handle_line(now, b"BATCH -join");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Netjoin { joins, .. }) if joins.len() == 1
+    ));
+    assert!(session.state().channel("#papo").unwrap().is_synced());
+    assert_eq!(session.poll_event(), None);
+}
