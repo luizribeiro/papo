@@ -46,6 +46,7 @@ const DEFAULT_MAX_MEMBERS_PER_CHANNEL: usize = 100_000;
 const DEFAULT_MAX_OPEN_BATCHES: usize = 64;
 const DEFAULT_MAX_BATCH_LINES: usize = 10_000;
 const DEFAULT_BATCH_TIMEOUT: Duration = Duration::from_secs(120);
+const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_PENDING_REQUESTS: usize = 256;
 
 /// Capabilities requested by a default session when the server advertises them.
@@ -149,6 +150,8 @@ pub struct Config {
     pub max_batch_lines: usize,
     /// Maximum time an incomplete batch remains open.
     pub batch_timeout: Duration,
+    /// Maximum time a labelled request remains pending.
+    pub request_timeout: Duration,
 }
 
 impl std::fmt::Debug for Config {
@@ -176,6 +179,7 @@ impl std::fmt::Debug for Config {
             .field("max_open_batches", &self.max_open_batches)
             .field("max_batch_lines", &self.max_batch_lines)
             .field("batch_timeout", &self.batch_timeout)
+            .field("request_timeout", &self.request_timeout)
             .finish()
     }
 }
@@ -216,6 +220,7 @@ impl Default for Config {
             max_open_batches: DEFAULT_MAX_OPEN_BATCHES,
             max_batch_lines: DEFAULT_MAX_BATCH_LINES,
             batch_timeout: DEFAULT_BATCH_TIMEOUT,
+            request_timeout: DEFAULT_REQUEST_TIMEOUT,
         }
     }
 }
@@ -375,6 +380,13 @@ impl Config {
         self.batch_timeout = timeout;
         self
     }
+
+    /// Sets how long a labelled request remains pending.
+    #[must_use]
+    pub const fn request_timeout(mut self, timeout: Duration) -> Self {
+        self.request_timeout = timeout;
+        self
+    }
 }
 
 /// An owned operation from an IRC mode string.
@@ -527,6 +539,16 @@ pub enum Event {
     },
     /// A labelled request received its complete logical response.
     Response(Response),
+    /// A labelled request did not receive a response before its deadline.
+    RequestTimedOut {
+        /// Identifier assigned to the request.
+        id: RequestId,
+    },
+    /// A labelled request was pending when the connection ended.
+    RequestAborted {
+        /// Identifier assigned to the request.
+        id: RequestId,
+    },
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -1025,6 +1047,21 @@ impl Session {
         for event in self.batches.handle_timeout(now) {
             self.dispatch_batch_event(now, event);
         }
+        let expired: Vec<_> = self
+            .requests
+            .iter()
+            .filter(|(_, (_, started))| {
+                started
+                    .checked_add(self.config.request_timeout)
+                    .is_some_and(|deadline| now >= deadline)
+            })
+            .map(|(label, _)| label.clone())
+            .collect();
+        for label in expired {
+            if let Some((id, _)) = self.requests.remove(&label) {
+                self.outbox.event(Event::RequestTimedOut { id });
+            }
+        }
         let was_registered = self.registration.is_registered();
         self.registration.handle_timeout(
             now,
@@ -1048,6 +1085,9 @@ impl Session {
         self.framer.close();
         self.outbox.reset_connection();
         self.batches.reset();
+        for (_, (id, _)) in std::mem::take(&mut self.requests) {
+            self.outbox.event(Event::RequestAborted { id });
+        }
         self.registration.handle_disconnected();
         self.sasl.handle_disconnected();
         self.keepalive.handle_disconnected();
@@ -1178,6 +1218,10 @@ impl Session {
             self.rate_limit
                 .next_deadline(!self.outbox.transmits.is_empty()),
             self.batches.next_deadline(),
+            self.requests
+                .values()
+                .filter_map(|(_, started)| started.checked_add(self.config.request_timeout))
+                .min(),
         ]
         .into_iter()
         .flatten()

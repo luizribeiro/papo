@@ -2,8 +2,8 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, RateLimit, RequestId, ServerError, Session};
-use papo_proto::{Message, Numeric};
+use papo_core::{Config, Event, RateLimit, RequestError, RequestId, ServerError, Session};
+use papo_proto::{Message, MessageRef, Numeric};
 
 fn labelled_session(now: Instant) -> Session {
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -179,4 +179,74 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
             ],
         })
     );
+}
+
+#[test]
+fn times_out_and_releases_a_label_for_late_delivery() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let id = request(&mut session, now, Message::new("WHOIS", ["alice"]));
+    assert_eq!(
+        session.poll_timeout(),
+        Some(now + std::time::Duration::from_secs(30))
+    );
+    session.handle_timeout(now + std::time::Duration::from_secs(29));
+    assert_eq!(session.poll_event(), None);
+    session.handle_timeout(now + std::time::Duration::from_secs(30));
+    assert!(
+        matches!(session.poll_event(), Some(Event::RequestTimedOut { id: expired }) if expired == id)
+    );
+    session.handle_line(
+        now + std::time::Duration::from_secs(31),
+        b"@label=0 :ergo.test 401 papo alice :No such nick/channel",
+    );
+    assert!(
+        matches!(session.poll_event(), Some(Event::Message(message)) if message.as_ref().command_is("401"))
+    );
+}
+
+#[test]
+fn aborts_pending_requests_on_disconnect() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let id = request(&mut session, now, Message::new("WHOIS", ["alice"]));
+    session.handle_disconnected(now);
+    assert!(
+        matches!(session.poll_event(), Some(Event::RequestAborted { id: aborted }) if aborted == id)
+    );
+}
+
+#[test]
+fn bounds_pending_requests_at_the_literal_limit() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    for nick in 0..256 {
+        session
+            .request(now, Message::new("WHOIS", [format!("user{nick}")]))
+            .unwrap();
+    }
+    assert_eq!(
+        session.request(now, Message::new("WHOIS", ["overflow"])),
+        Err(RequestError::PendingLimit)
+    );
+}
+
+#[test]
+fn generates_one_thousand_distinct_short_alphanumeric_labels() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let mut labels = std::collections::BTreeSet::new();
+    for nick in 0..1_000 {
+        session
+            .request(now, Message::new("WHOIS", [format!("user{nick}")]))
+            .unwrap();
+        let line = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
+        let message = MessageRef::parse(&line).unwrap();
+        let label = message.tag("label").unwrap().into_owned();
+        assert!(label.len() <= 64);
+        assert!(label.bytes().all(|byte| byte.is_ascii_alphanumeric()));
+        assert!(labels.insert(label.clone()));
+        session.handle_line(now, format!("@label={label} :ergo.test ACK").as_bytes());
+        assert!(matches!(session.poll_event(), Some(Event::Response(_))));
+    }
 }

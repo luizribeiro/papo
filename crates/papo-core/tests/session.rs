@@ -22,6 +22,7 @@ fn config_builders_set_registration_identity_and_timeout() {
         .max_open_batches(3)
         .max_batch_lines(5)
         .batch_timeout(Duration::from_secs(7))
+        .request_timeout(Duration::from_secs(11))
         .connection_security(ConnectionSecurity::Secure)
         .host("irc.example.net");
 
@@ -42,6 +43,7 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(config.max_open_batches, 3);
     assert_eq!(config.max_batch_lines, 5);
     assert_eq!(config.batch_timeout, Duration::from_secs(7));
+    assert_eq!(config.request_timeout, Duration::from_secs(11));
     assert_eq!(
         config.rate_limit,
         RateLimit::new(7, Duration::from_millis(250))
@@ -66,6 +68,7 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(config.max_open_batches, 64);
     assert_eq!(config.max_batch_lines, 10_000);
     assert_eq!(config.batch_timeout, Duration::from_secs(120));
+    assert_eq!(config.request_timeout, Duration::from_secs(30));
 }
 
 #[test]
