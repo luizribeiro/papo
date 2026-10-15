@@ -100,6 +100,16 @@ pub struct CtcpReplies {
     pub source: Option<String>,
 }
 
+/// Away state to announce when connecting.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum AwayOnConnect {
+    /// Announce this message. Without `draft/pre-away`, it is sent after registration.
+    Message(String),
+    /// Announce hidden away state with `AWAY *`. Without `draft/pre-away`, it is skipped.
+    Hidden,
+}
+
 impl Default for CtcpReplies {
     fn default() -> Self {
         Self {
@@ -192,6 +202,8 @@ pub struct Config {
     pub request_timeout: Duration,
     /// Automatic CTCP reply policy.
     pub ctcp: CtcpReplies,
+    /// Away state announced during or immediately after registration.
+    pub away_on_connect: Option<AwayOnConnect>,
 }
 
 impl std::fmt::Debug for Config {
@@ -221,6 +233,7 @@ impl std::fmt::Debug for Config {
             .field("batch_timeout", &self.batch_timeout)
             .field("request_timeout", &self.request_timeout)
             .field("ctcp", &self.ctcp)
+            .field("away_on_connect", &self.away_on_connect)
             .finish()
     }
 }
@@ -263,6 +276,7 @@ impl Default for Config {
             batch_timeout: DEFAULT_BATCH_TIMEOUT,
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
             ctcp: CtcpReplies::default(),
+            away_on_connect: None,
         }
     }
 }
@@ -434,6 +448,16 @@ impl Config {
     #[must_use]
     pub fn ctcp(mut self, replies: CtcpReplies) -> Self {
         self.ctcp = replies;
+        self
+    }
+
+    /// Sets away state to announce while connecting.
+    ///
+    /// With `draft/pre-away`, both variants are sent before `CAP END`. Without it, a message is
+    /// sent after registration completes and hidden away state is skipped.
+    #[must_use]
+    pub fn away_on_connect(mut self, away: Option<AwayOnConnect>) -> Self {
+        self.away_on_connect = away;
         self
     }
 }
@@ -1329,6 +1353,7 @@ pub enum StateLimit {
 /// Sans-I/O state for one IRC client session.
 pub struct Session {
     account_registration: AccountRegistration,
+    away_on_connect_sent: bool,
     batches: Batches,
     config: Config,
     connection: Connection,
@@ -1354,6 +1379,7 @@ impl std::fmt::Debug for Session {
         formatter
             .debug_struct("Session")
             .field("account_registration", &self.account_registration)
+            .field("away_on_connect_sent", &self.away_on_connect_sent)
             .field("batches", &self.batches)
             .field("config", &self.config)
             .field("connection", &self.connection)
@@ -1436,6 +1462,16 @@ impl Outbox {
         self.transmit_raw(line.into());
     }
 
+    fn transmit_immediate<const N: usize>(&mut self, command: &str, params: [&str; N]) {
+        if self.close_requested {
+            return;
+        }
+        let line = Message::new(command, params)
+            .to_line()
+            .expect("protocol-generated IRC messages are valid");
+        self.immediate.push_back(line.into());
+    }
+
     fn event(&mut self, event: Event) {
         self.events.push_back(event);
     }
@@ -1484,6 +1520,7 @@ impl Session {
         let batches = Batches::new(&config);
         Self {
             account_registration: AccountRegistration::default(),
+            away_on_connect_sent: false,
             batches,
             config,
             connection,
@@ -1525,6 +1562,7 @@ impl Session {
         self.unlabelled_requests.clear();
         self.rate_limit.reset(now);
         self.account_registration.handle_disconnected();
+        self.away_on_connect_sent = false;
         self.caps.handle_connected(now);
         self.isupport.handle_connected();
         self.sasl.handle_connected();
@@ -2172,6 +2210,26 @@ impl Session {
         });
     }
 
+    fn maybe_send_away_on_connect(&mut self) {
+        if self.away_on_connect_sent {
+            return;
+        }
+        let pre_away = self.caps.enabled().contains_key("draft/pre-away");
+        if !pre_away && !self.registration.is_registered() {
+            return;
+        }
+        let parameter = match &self.config.away_on_connect {
+            Some(AwayOnConnect::Message(message)) => message.as_str(),
+            Some(AwayOnConnect::Hidden) if pre_away => "*",
+            Some(AwayOnConnect::Hidden) | None => {
+                self.away_on_connect_sent = true;
+                return;
+            }
+        };
+        self.outbox.transmit_immediate("AWAY", [parameter]);
+        self.away_on_connect_sent = true;
+    }
+
     fn snapshot_values(&self) -> (State, Capabilities, papo_proto::Isupport, Option<String>) {
         (
             self.state.clone(),
@@ -2211,6 +2269,7 @@ impl Session {
             .account_registration
             .handle_message(message, &mut self.outbox)
             == Handled::Yes;
+        self.maybe_send_away_on_connect();
         let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
         if !was_registered && self.registration.is_registered() {
             self.monitor
