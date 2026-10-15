@@ -374,6 +374,18 @@ pub enum Event {
         /// The state collection that rejected another entry.
         limit: StateLimit,
     },
+    /// A user joined a channel shared with the session.
+    Joined {
+        /// The channel that was joined.
+        channel: String,
+        /// The joining user's nickname.
+        nick: String,
+    },
+    /// Initial channel membership synchronization completed.
+    ChannelSynced {
+        /// The synchronized channel.
+        channel: String,
+    },
 }
 
 /// A bounded server-controlled state collection.

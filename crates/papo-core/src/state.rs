@@ -153,7 +153,7 @@ impl State {
             }
             return Handled::Yes;
         }
-        if self.finish_names(message) {
+        if self.finish_names(message, outbox) {
             return Handled::Yes;
         }
         Handled::No
@@ -171,7 +171,12 @@ impl State {
         let Some(Source::User { nick, user, host }) = message.source() else {
             return Handled::No;
         };
-        if self.casemapping.eq(nick, own_nick) {
+        outbox.event(Event::Joined {
+            channel: join.channel.to_owned(),
+            nick: nick.to_owned(),
+        });
+        let ours = self.casemapping.eq(nick, own_nick);
+        if ours {
             nick.clone_into(&mut self.nick);
             if let Some(user) = user {
                 user.clone_into(&mut self.user);
@@ -190,18 +195,28 @@ impl State {
             );
         }
         self.add_member(join.channel, nick, user, host, Vec::new(), outbox);
+        if ours && no_implicit_names {
+            outbox.event(Event::ChannelSynced {
+                channel: join.channel.to_owned(),
+            });
+        }
         Handled::Yes
     }
 
-    fn finish_names(&mut self, message: &MessageRef<'_>) -> bool {
+    fn finish_names(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
         if message.command() != Command::Numeric(Numeric::RPL_ENDOFNAMES) {
             return false;
         }
-        if let Some(channel) = message
-            .param(1)
-            .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
+        let name = message.param(1);
+        if let Some(channel) =
+            name.and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
         {
             channel.synced = true;
+        }
+        if let Some(channel) = name {
+            outbox.event(Event::ChannelSynced {
+                channel: channel.to_owned(),
+            });
         }
         true
     }

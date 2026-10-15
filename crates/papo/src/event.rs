@@ -35,6 +35,18 @@ pub enum Event {
     },
     /// An STS persistence action for the client to store.
     StsPolicy(StsAction),
+    /// A user joined a channel shared with the client.
+    Joined {
+        /// The joined channel.
+        channel: String,
+        /// The joining user's nickname.
+        nick: String,
+    },
+    /// Initial channel membership synchronization completed.
+    ChannelSynced {
+        /// The synchronized channel.
+        channel: String,
+    },
     /// Server input exceeded a configured state-retention bound.
     StateLimitReached {
         /// The state collection that rejected another entry.
@@ -44,7 +56,7 @@ pub enum Event {
     Disconnected {
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
-        /// Whether another connection attempt is planned, possibly immediately.
+        /// Whether the client will try to connect again.
         will_retry: bool,
     },
 }
@@ -65,6 +77,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::CapsChanged { added, removed } => Event::CapsChanged { added, removed },
         papo_core::Event::StsUpgrade { port } => Event::StsUpgrade { port },
         papo_core::Event::StsPolicy(action) => Event::StsPolicy(action),
+        papo_core::Event::Joined { channel, nick } => Event::Joined { channel, nick },
+        papo_core::Event::ChannelSynced { channel } => Event::ChannelSynced { channel },
         papo_core::Event::StateLimitReached { limit } => Event::StateLimitReached { limit },
         _ => return CoreEvent::Unknown,
     })
@@ -80,6 +94,32 @@ mod tests {
             panic!("event was not forwarded")
         };
         event
+    }
+
+    #[test]
+    fn maps_joined() {
+        assert_eq!(
+            forwarded(papo_core::Event::Joined {
+                channel: "#papo".into(),
+                nick: "emily".into()
+            }),
+            Event::Joined {
+                channel: "#papo".into(),
+                nick: "emily".into()
+            }
+        );
+    }
+
+    #[test]
+    fn maps_channel_synced() {
+        assert_eq!(
+            forwarded(papo_core::Event::ChannelSynced {
+                channel: "#papo".into()
+            }),
+            Event::ChannelSynced {
+                channel: "#papo".into()
+            }
+        );
     }
 
     #[test]

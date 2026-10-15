@@ -38,6 +38,7 @@ fn plays_trace_file_contents() {
         .send(Message::new("NICK", ["tester"]))
         .play(include_str!("data/harness.irc"))
         .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")))
+        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "tester"))
         .no_client();
 }
 
@@ -48,6 +49,7 @@ fn loads_trace_files() {
         .send(Message::new("NICK", ["tester"]))
         .load("tests/data/harness.irc")
         .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")))
+        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "tester"))
         .no_client();
 }
 

@@ -26,7 +26,8 @@ fn tracks_our_join_and_another_member_with_rfc1459_keys() {
             let channel = session.state().channel("#PAPO{DEV}").unwrap();
             assert_eq!(channel.member("EMILY").unwrap().nick(), "emily");
             assert_eq!(channel.member("dan").unwrap().nick(), "dan");
-        });
+        })
+        .ignore_rest();
 }
 
 #[test]
@@ -42,7 +43,8 @@ fn tracks_userhost_and_shared_channels_from_joins() {
             assert_eq!(dan.username(), Some("~dan"));
             assert_eq!(dan.host(), Some("cloak.example"));
             assert_eq!(dan.channels().count(), 2);
-        });
+        })
+        .ignore_rest();
 }
 
 #[test]
@@ -53,6 +55,9 @@ fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
         .server(":ergo.test 353 emily = #papo :@+emily!em@127.0.0.1 dan!~dan@cloak.example")
         .server(":ergo.test 353 emily = #papo :+alice!alice@staff.example")
         .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .event_until(
+            |event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"),
+        )
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert!(channel.is_synced());
@@ -65,7 +70,8 @@ fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
                 session.state().user("dan").unwrap().host(),
                 Some("cloak.example")
             );
-        });
+        })
+        .no_event();
 }
 
 #[test]
@@ -77,7 +83,10 @@ fn no_implicit_names_marks_our_join_synced_without_366() {
         .server("CAP * ACK :draft/no-implicit-names")
         .client("CAP END")
         .server(":papo!papo@127.0.0.1 JOIN #papo")
-        .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()));
+        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "papo"))
+        .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+        .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()))
+        .no_event();
 }
 
 #[test]
@@ -115,7 +124,8 @@ fn removes_other_members_on_part_kick_and_multi_channel_quit() {
                     .member("dan")
                     .is_none()
             );
-        });
+        })
+        .ignore_rest();
 }
 
 #[test]
@@ -129,7 +139,8 @@ fn our_part_and_kick_remove_channels_and_orphaned_users() {
         .inspect(|session| {
             assert_eq!(session.state().channels().count(), 0);
             assert!(session.state().user("dan").is_none());
-        });
+        })
+        .ignore_rest();
 }
 
 #[test]
@@ -147,7 +158,8 @@ fn rekeys_another_users_nick_across_shared_channels() {
                 assert!(channel.member("dan").is_none());
                 assert!(channel.member("dan-away").is_some());
             }
-        });
+        })
+        .ignore_rest();
 }
 
 #[test]
@@ -160,7 +172,8 @@ fn follows_our_own_nick_change() {
             let channel = session.state().channel("#papo").unwrap();
             assert!(channel.member("emily").is_none());
             assert!(channel.member("EMILY_").is_some());
-        });
+        })
+        .ignore_rest();
 }
 
 #[test]
@@ -173,7 +186,7 @@ fn bounds_channels_and_members_with_one_warning_each() {
     )
     .server(":emily!em@127.0.0.1 JOIN #papo")
     .server(":emily!em@127.0.0.1 JOIN #rust")
-    .event(|event| {
+    .event_until(|event| {
         matches!(
             event,
             Event::StateLimitReached {
@@ -184,7 +197,7 @@ fn bounds_channels_and_members_with_one_warning_each() {
     .server(":emily!em@127.0.0.1 JOIN #bots")
     .server(":dan!dan@cloak.example JOIN #papo")
     .server(":alice!alice@staff.example JOIN #papo")
-    .event(|event| {
+    .event_until(|event| {
         matches!(
             event,
             Event::StateLimitReached {
@@ -199,5 +212,6 @@ fn bounds_channels_and_members_with_one_warning_each() {
         assert_eq!(channel.members().count(), 2);
         assert!(channel.member("alice").is_none());
         assert!(channel.member("bob").is_none());
-    });
+    })
+    .ignore_rest();
 }

@@ -34,6 +34,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
                 .unwrap();
 
         wait_registered(&mut events, &account).await;
+        wait_joined(&mut events, &account, &channel).await;
 
         client
             .send(Message::new("WHOIS", [account.clone()]))
@@ -47,6 +48,22 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
     })
     .await
     .expect("builder live test did not finish within 10 seconds");
+}
+
+async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
+    loop {
+        match events.next().await {
+            Some(Event::Joined {
+                channel: joined,
+                nick: joined_nick,
+            }) if joined == channel && joined_nick == nick => return,
+            Some(Event::Disconnected { reason, .. }) => {
+                panic!("disconnected while waiting for JOIN: {reason}")
+            }
+            Some(_) => {}
+            None => panic!("driver stopped while waiting for JOIN"),
+        }
+    }
 }
 
 #[cfg(feature = "websocket")]
