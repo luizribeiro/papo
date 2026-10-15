@@ -1,7 +1,8 @@
 //! Raw ISUPPORT token accumulation behavior.
 
 use papo_proto::{
-    Advertised, Casemapping, ChanModes, Isupport, Limit, LimitValue, MessageRef, Numeric, Prefix,
+    Advertised, Casemapping, ChanModes, Extban, Isupport, Limit, LimitValue, MessageRef, Numeric,
+    Prefix,
 };
 
 #[test]
@@ -229,6 +230,108 @@ fn limits_apply_defaults_and_reject_malformed_values() {
     assert!(support.chanlimit().is_empty());
     assert!(support.maxlist().is_empty());
     assert_eq!(support.nicklen(), None);
+}
+
+#[test]
+fn parses_ergo_list_ban_history_and_flag_tokens() {
+    let mut support = Isupport::default();
+    support.apply_tokens([
+        "BOT=B",
+        "CHATHISTORY=1000",
+        "draft/CHATHISTORY=1000",
+        "ELIST=U",
+        "EXCEPTS",
+        "EXTBAN=,m",
+        "INVEX",
+        "MSGREFTYPES=msgid,timestamp",
+        "MONITOR=100",
+        "NETWORK=ErgoTest",
+        "SAFELIST",
+        "UTF8ONLY",
+        "WHOX",
+    ]);
+
+    assert_eq!(support.bot_mode(), Some('B'));
+    assert_eq!(support.chathistory(), Some(LimitValue::Limited(1000)));
+    assert_eq!(support.elist(), Some("U"));
+    assert_eq!(support.excepts(), Some('e'));
+    assert_eq!(
+        support.extban(),
+        Some(Extban {
+            prefix: None,
+            types: "m",
+        })
+    );
+    assert_eq!(support.invex(), Some('I'));
+    assert_eq!(support.msgreftypes(), vec!["msgid", "timestamp"]);
+    assert_eq!(support.monitor(), Some(LimitValue::Limited(100)));
+    assert_eq!(support.network(), Some("ErgoTest"));
+    assert!(support.safelist());
+    assert!(support.utf8only());
+    assert!(support.whox());
+}
+
+#[test]
+fn parses_solanum_libera_advertisements() {
+    let mut support = Isupport::default();
+    support.apply_tokens([
+        "CASEMAPPING=rfc1459",
+        "CHANLIMIT=#:250",
+        "CHANMODES=eIbq,k,flj,CFLMPQScgimnprstuz,ignored",
+        "CHANNELLEN=50",
+        "CHANTYPES=#",
+        "ELIST=CMNTU",
+        "EXCEPTS=e",
+        "EXTBAN=$,ajrxz",
+        "INVEX=I",
+        "MAXLIST=bqeI:100",
+        "MODES=4",
+        "NETWORK=Libera.Chat",
+        "NICKLEN=16",
+        "PREFIX=(ov)@+",
+        "SAFELIST",
+        "STATUSMSG=@+",
+        "TARGMAX=NAMES:1,LIST:1,KICK:1,WHOIS:1,PRIVMSG:4,NOTICE:4,ACCEPT:,MONITOR:",
+        "TOPICLEN=390",
+    ]);
+
+    assert_eq!(support.casemapping(), Casemapping::Rfc1459);
+    assert_eq!(support.chanlimit(), vec![limit("#", Some(250))]);
+    assert_eq!(support.chanmodes().unwrap().never, "CFLMPQScgimnprstuz");
+    assert_eq!(support.extban().unwrap().prefix, Some('$'));
+    assert_eq!(support.maxlist(), vec![limit("bqeI", Some(100))]);
+    assert_eq!(support.modes(), Some(4));
+    assert_eq!(support.network(), Some("Libera.Chat"));
+    assert_eq!(support.nicklen(), Some(16));
+    assert_eq!(support.statusmsg(), Some("@+"));
+    assert_eq!(support.topiclen(), Some(390));
+}
+
+#[test]
+fn extension_defaults_and_policies_are_typed() {
+    let mut support = Isupport::default();
+    assert_eq!(support.msgreftypes(), vec!["msgid", "timestamp"]);
+    assert!(!support.account_required());
+    assert!(!support.clienttagdeny().denies("+typing"));
+
+    support.apply_tokens([
+        "CLIENTTAGDENY=*,-typing,-example/react",
+        "draft/ACCOUNTREQUIRED",
+        "draft/CHATHISTORY=0",
+        "ACCOUNTEXTBAN=$a,~a",
+        "MONITOR",
+    ]);
+    assert!(support.account_required());
+    assert_eq!(support.chathistory(), Some(LimitValue::Unlimited));
+    assert_eq!(support.monitor(), Some(LimitValue::Unlimited));
+    assert_eq!(support.accountextban(), vec!["$a", "~a"]);
+    assert!(!support.clienttagdeny().denies("+typing"));
+    assert!(!support.clienttagdeny().denies("example/react"));
+    assert!(support.clienttagdeny().denies("+draft/reply"));
+
+    support.apply_tokens(["CLIENTTAGDENY=typing"]);
+    assert!(support.clienttagdeny().denies("+typing"));
+    assert!(!support.clienttagdeny().denies("+draft/reply"));
 }
 
 fn prefix(mode: char, symbol: char, rank: usize) -> Prefix {

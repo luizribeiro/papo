@@ -57,6 +57,36 @@ pub enum LimitValue {
     Limited(usize),
 }
 
+/// The prefix and type letters used for extended bans.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Extban<'a> {
+    /// The optional character introducing an extended ban.
+    pub prefix: Option<char>,
+    /// The supported extended-ban type letters.
+    pub types: &'a str,
+}
+
+/// A parsed `CLIENTTAGDENY` policy.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ClientTagDeny<'a> {
+    deny_all: bool,
+    blocked: Vec<&'a str>,
+    allowed: Vec<&'a str>,
+}
+
+impl ClientTagDeny<'_> {
+    /// Reports whether the named client-only tag is blocked.
+    #[must_use]
+    pub fn denies(&self, tag: &str) -> bool {
+        let tag = tag.strip_prefix('+').unwrap_or(tag);
+        if self.deny_all {
+            !self.allowed.contains(&tag)
+        } else {
+            self.blocked.contains(&tag)
+        }
+    }
+}
+
 /// Accumulated server features advertised through `RPL_ISUPPORT` (`005`).
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Isupport {
@@ -69,6 +99,16 @@ macro_rules! length_accessors {
         #[must_use]
         pub fn $name(&self) -> Option<usize> {
             positive(self.value($key)?)
+        }
+    )+};
+}
+
+macro_rules! flag_accessors {
+    ($(#[$meta:meta] $name:ident => $key:literal,)+) => {$(
+        #[$meta]
+        #[must_use]
+        pub fn $name(&self) -> bool {
+            !matches!(self.get($key), Advertised::Absent)
         }
     )+};
 }
@@ -237,6 +277,116 @@ impl Isupport {
         namelen => "NAMELEN",
     }
 
+    /// Returns the advertised network name.
+    #[must_use]
+    pub fn network(&self) -> Option<&str> {
+        self.value("NETWORK")
+    }
+
+    flag_accessors! {
+        /// Reports whether the server accepts only UTF-8 messages.
+        utf8only => "UTF8ONLY",
+        /// Reports whether extended `WHO` syntax is available.
+        whox => "WHOX",
+        /// Reports whether authentication is required.
+        account_required => "DRAFT/ACCOUNTREQUIRED",
+        /// Reports whether safe `LIST` behavior is available.
+        safelist => "SAFELIST",
+    }
+
+    /// Returns the user mode used to identify bots.
+    #[must_use]
+    pub fn bot_mode(&self) -> Option<char> {
+        one_char(self.value("BOT")?)
+    }
+
+    /// Returns the monitor-list limit.
+    #[must_use]
+    pub fn monitor(&self) -> Option<LimitValue> {
+        optional_limit(self.get("MONITOR"), true)
+    }
+
+    /// Returns the history request limit, accepting either token spelling.
+    #[must_use]
+    pub fn chathistory(&self) -> Option<LimitValue> {
+        let value = match self.get("CHATHISTORY") {
+            Advertised::Absent => self.get("DRAFT/CHATHISTORY"),
+            advertised => advertised,
+        };
+        optional_limit(value, true)
+    }
+
+    /// Returns supported message-reference types in preference order.
+    ///
+    /// When the token is absent, the specification states no preference; the
+    /// returned default uses Ergo's `msgid, timestamp` order.
+    #[must_use]
+    pub fn msgreftypes(&self) -> Vec<&str> {
+        self.value("MSGREFTYPES").map_or_else(
+            || vec!["msgid", "timestamp"],
+            |value| value.split(',').filter(|part| !part.is_empty()).collect(),
+        )
+    }
+
+    /// Returns the server's client-only tag filtering policy.
+    #[must_use]
+    pub fn clienttagdeny(&self) -> ClientTagDeny<'_> {
+        let Some(value) = self.value("CLIENTTAGDENY") else {
+            return ClientTagDeny::default();
+        };
+        let mut policy = ClientTagDeny::default();
+        for item in value.split(',').filter(|item| !item.is_empty()) {
+            if item == "*" {
+                policy.deny_all = true;
+            } else if let Some(tag) = item.strip_prefix('-') {
+                policy.allowed.push(tag);
+            } else {
+                policy.blocked.push(item);
+            }
+        }
+        policy
+    }
+
+    /// Returns the ban-exception mode, using `e` for a bare token.
+    #[must_use]
+    pub fn excepts(&self) -> Option<char> {
+        optional_mode(self.get("EXCEPTS"), 'e')
+    }
+
+    /// Returns the invite-exception mode, using `I` for a bare token.
+    #[must_use]
+    pub fn invex(&self) -> Option<char> {
+        optional_mode(self.get("INVEX"), 'I')
+    }
+
+    /// Returns the extended-ban prefix and supported types.
+    #[must_use]
+    pub fn extban(&self) -> Option<Extban<'_>> {
+        let (prefix, types) = self.value("EXTBAN")?.split_once(',')?;
+        Some(Extban {
+            prefix: if prefix.is_empty() {
+                None
+            } else {
+                Some(one_char(prefix)?)
+            },
+            types,
+        })
+    }
+
+    /// Returns extended-ban names that refer to accounts.
+    #[must_use]
+    pub fn accountextban(&self) -> Vec<&str> {
+        self.value("ACCOUNTEXTBAN")
+            .map(|value| value.split(',').filter(|part| !part.is_empty()).collect())
+            .unwrap_or_default()
+    }
+
+    /// Returns the case-insensitive `LIST` search extension letters.
+    #[must_use]
+    pub fn elist(&self) -> Option<&str> {
+        self.value("ELIST")
+    }
+
     fn value(&self, key: &str) -> Option<&str> {
         match self.get(key) {
             Advertised::Value(value) => Some(value),
@@ -308,6 +458,20 @@ fn optional_limit(value: Advertised<'_>, zero_is_unlimited: bool) -> Option<Limi
         Advertised::Value("0") if zero_is_unlimited => Some(LimitValue::Unlimited),
         Advertised::Value(value) => positive(value).map(LimitValue::Limited),
     }
+}
+
+fn optional_mode(value: Advertised<'_>, default: char) -> Option<char> {
+    match value {
+        Advertised::Absent => None,
+        Advertised::Bare | Advertised::Value("") => Some(default),
+        Advertised::Value(value) => one_char(value),
+    }
+}
+
+fn one_char(value: &str) -> Option<char> {
+    let mut chars = value.chars();
+    let character = chars.next()?;
+    chars.next().is_none().then_some(character)
 }
 
 fn unescape(value: &str) -> String {
