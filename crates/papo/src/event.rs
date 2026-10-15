@@ -478,6 +478,29 @@ pub enum Event {
         /// The state collection that rejected another entry.
         limit: StateLimit,
     },
+    /// A monitored nickname came online or changed its userhost.
+    MonitorOnline {
+        /// The monitored nickname.
+        nick: String,
+        /// The user's current username.
+        user: String,
+        /// The user's current hostname.
+        host: String,
+    },
+    /// A monitored nickname went offline.
+    MonitorOffline {
+        /// The monitored nickname.
+        nick: String,
+    },
+    /// The server rejected nicknames because its monitor list was full.
+    MonitorListFull {
+        /// The server's advertised monitor-list limit.
+        limit: usize,
+        /// Nicknames the server did not add.
+        nicks: Vec<String>,
+    },
+    /// The server does not advertise MONITOR support.
+    MonitorUnsupported,
     /// The connection ended.
     Disconnected {
         /// A human-readable explanation suitable for diagnostics.
@@ -560,6 +583,14 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             Event::TopicChanged { channel, topic, by }
         }
         papo_core::Event::StateLimitReached { limit } => Event::StateLimitReached { limit },
+        papo_core::Event::MonitorOnline { nick, user, host } => {
+            Event::MonitorOnline { nick, user, host }
+        }
+        papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline { nick },
+        papo_core::Event::MonitorListFull { limit, nicks } => {
+            Event::MonitorListFull { limit, nicks }
+        }
+        papo_core::Event::MonitorUnsupported => Event::MonitorUnsupported,
         _ => return CoreEvent::Unknown,
     })
 }
@@ -967,6 +998,49 @@ mod tests {
             Event::StateLimitReached {
                 limit: StateLimit::Members
             }
+        ));
+    }
+
+    #[test]
+    fn maps_monitor_online() {
+        assert!(matches!(
+            forwarded(papo_core::Event::MonitorOnline {
+                nick: "alice".into(),
+                user: "~alice".into(),
+                host: "cloak.example".into(),
+            }),
+            Event::MonitorOnline { nick, user, host }
+                if nick == "alice" && user == "~alice" && host == "cloak.example"
+        ));
+    }
+
+    #[test]
+    fn maps_monitor_offline() {
+        assert!(matches!(
+            forwarded(papo_core::Event::MonitorOffline {
+                nick: "alice".into(),
+            }),
+            Event::MonitorOffline { nick } if nick == "alice"
+        ));
+    }
+
+    #[test]
+    fn maps_monitor_list_full() {
+        assert!(matches!(
+            forwarded(papo_core::Event::MonitorListFull {
+                limit: 100,
+                nicks: vec!["alice".into(), "bob".into()],
+            }),
+            Event::MonitorListFull { limit, nicks }
+                if limit == 100 && nicks == ["alice", "bob"]
+        ));
+    }
+
+    #[test]
+    fn maps_monitor_unsupported() {
+        assert!(matches!(
+            forwarded(papo_core::Event::MonitorUnsupported),
+            Event::MonitorUnsupported
         ));
     }
 }
