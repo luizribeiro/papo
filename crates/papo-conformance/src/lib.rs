@@ -68,6 +68,16 @@ struct RegisteredClient {
     welcome: Welcome,
 }
 
+trait EventSource {
+    fn next_event(&mut self) -> impl Future<Output = Option<Event>>;
+}
+
+impl EventSource for Events {
+    fn next_event(&mut self) -> impl Future<Output = Option<Event>> {
+        self.next()
+    }
+}
+
 /// Runs the live conformance test binary.
 #[must_use]
 pub fn run() -> ExitCode {
@@ -172,22 +182,30 @@ impl Scenario {
     async fn expect(
         &self,
         events: &mut Events,
-        mut matcher: impl FnMut(&Event) -> bool,
+        matcher: impl FnMut(&Event) -> bool,
         limit: Duration,
     ) -> Result<Event, Failed> {
-        timeout(limit, async {
-            loop {
-                match events.next().await {
-                    Some(event) if matcher(&event) => return Ok(event),
-                    Some(Event::Disconnected { reason }) => return Err(reason.clone().into()),
-                    Some(_) => {}
-                    None => return Err("driver stopped while waiting for an event".into()),
-                }
-            }
-        })
-        .await
-        .map_err(|_| Failed::from("timed out waiting for an event"))?
+        expect_event(events, matcher, limit).await
     }
+}
+
+async fn expect_event(
+    events: &mut impl EventSource,
+    mut matcher: impl FnMut(&Event) -> bool,
+    limit: Duration,
+) -> Result<Event, Failed> {
+    timeout(limit, async {
+        loop {
+            match events.next_event().await {
+                Some(event) if matcher(&event) => return Ok(event),
+                Some(Event::Disconnected { reason }) => return Err(reason.into()),
+                Some(_) => {}
+                None => return Err("driver stopped while waiting for an event".into()),
+            }
+        }
+    })
+    .await
+    .map_err(|_| Failed::from("timed out waiting for an event"))?
 }
 
 impl RegisteredClient {
@@ -375,14 +393,76 @@ fn startup_error(error: &str) -> ! {
 
 #[cfg(test)]
 mod tests {
+    use std::{collections::VecDeque, future, time::Duration};
+
     use papo_core::Capabilities;
-    use papo_proto::Isupport;
+    use papo_proto::{Isupport, Message};
 
     use libtest_mimic::{Arguments, Completion, Failed, Trial};
 
     use super::{
-        CapRequirement, Requirements, known_failure_verdict, parse_known_failures, run_trials,
+        CapRequirement, Event, EventSource, Requirements, expect_event, known_failure_verdict,
+        parse_known_failures, run_trials, runtime,
     };
+
+    struct ScriptedEvents {
+        events: VecDeque<Event>,
+    }
+
+    impl EventSource for ScriptedEvents {
+        fn next_event(&mut self) -> impl Future<Output = Option<Event>> {
+            let event = self.events.pop_front();
+            async move {
+                match event {
+                    Some(event) => Some(event),
+                    None => future::pending().await,
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn expect_skips_non_matching_events() {
+        let mut events = ScriptedEvents {
+            events: [
+                Event::Message(
+                    Message::new("401", ["papo", "missing", "No such nick"])
+                        .with_source("ergo.test"),
+                ),
+                Event::Message(
+                    Message::new("330", ["papo", "alice", "alice", "is logged in as"])
+                        .with_source("ergo.test"),
+                ),
+            ]
+            .into(),
+        };
+        let event = runtime()
+            .block_on(expect_event(
+                &mut events,
+                |event| matches!(event, Event::Message(message) if message.as_ref().command_is("330")),
+                Duration::from_secs(1),
+            ))
+            .unwrap();
+        assert!(matches!(event, Event::Message(message) if message.as_ref().command_is("330")));
+    }
+
+    #[test]
+    fn expect_times_out_after_only_non_matching_events() {
+        let mut events = ScriptedEvents {
+            events: [Event::Message(
+                Message::new("401", ["papo", "missing", "No such nick"]).with_source("ergo.test"),
+            )]
+            .into(),
+        };
+        let error = runtime()
+            .block_on(expect_event(
+                &mut events,
+                |_| false,
+                Duration::from_millis(1),
+            ))
+            .unwrap_err();
+        assert_eq!(error.message(), Some("timed out waiting for an event"));
+    }
 
     #[test]
     fn harness_rejects_an_empty_trial_list() {
