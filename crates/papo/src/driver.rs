@@ -30,6 +30,7 @@ use crate::{
 
 pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const STABLE_CONNECTION: std::time::Duration = std::time::Duration::from_secs(60);
 
 pub(crate) trait ConnectionIo: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> ConnectionIo for T {}
@@ -548,6 +549,12 @@ async fn run_plan(
         if is_fatal_failure(&end.error, &end.reason) {
             registration.failed(end.registration_error());
             return finish(events, end, false);
+        }
+        if end
+            .registered_at
+            .is_some_and(|at| now().saturating_duration_since(at) >= STABLE_CONNECTION)
+        {
+            attempts = 0;
         }
         if !reconnect.permits(attempts) {
             registration.failed(end.registration_error());
@@ -1457,6 +1464,79 @@ mod tests {
             (Duration::from_millis(1600)..=Duration::from_millis(2400))
                 .contains(&(attempts[2] - attempts[1]))
         );
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn stable_registration_resets_the_backoff() {
+        let (first_stream, mut first_server) = tokio::io::duplex(4096);
+        let (second_stream, mut second_server) = tokio::io::duplex(4096);
+        let (third_stream, mut third_server) = tokio::io::duplex(4096);
+        let streams = Arc::new(Mutex::new(VecDeque::from([
+            Box::new(first_stream) as super::BoxConnection,
+            Box::new(second_stream) as super::BoxConnection,
+            Box::new(third_stream) as super::BoxConnection,
+        ])));
+        let attempts = Arc::new(Mutex::new(Vec::new()));
+        let connector: super::Connector = Arc::new({
+            let attempts = Arc::clone(&attempts);
+            move |_| {
+                attempts.lock().unwrap().push(tokio::time::Instant::now());
+                let stream = streams.lock().unwrap().pop_front().unwrap();
+                Box::pin(async move { Ok(stream) })
+            }
+        });
+        let (client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential(),
+            256,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        complete_registration(&mut first_server, &mut events).await;
+        first_server.shutdown().await.unwrap();
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected { .. })
+        ));
+
+        registration_burst(&mut second_server).await;
+        server_line(&mut second_server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(&mut second_server, b"CAP END\r\n").await;
+        server_line(
+            &mut second_server,
+            b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
+        tokio::time::advance(Duration::from_secs(60)).await;
+        let disconnected_at = tokio::time::Instant::now();
+        second_server.shutdown().await.unwrap();
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected { .. })
+        ));
+
+        registration_burst(&mut third_server).await;
+        let delay = {
+            let attempts = attempts.lock().unwrap();
+            assert_eq!(attempts.len(), 3);
+            attempts[2] - disconnected_at
+        };
+        assert!((Duration::from_millis(800)..=Duration::from_millis(1200)).contains(&delay));
+        let quit = tokio::spawn(async move { client.quit(None).await });
+        client_line(&mut third_server, b"QUIT\r\n").await;
+        third_server.shutdown().await.unwrap();
+        assert!(quit.await.unwrap().is_ok());
+        assert!(driver.await.unwrap().is_ok());
     }
 
     #[tokio::test(flavor = "current_thread")]
