@@ -5,11 +5,11 @@ mod framing;
 
 use std::{collections::VecDeque, time::Instant};
 
-use papo_proto::{Message, MessageRef};
+use papo_proto::{MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef};
 
 use framing::Framer;
 
-const MAX_INCOMING_LINE_LEN: usize = 8191 + 512;
+const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
 
 /// Policy for decoding incoming IRC lines.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
