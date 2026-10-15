@@ -1,6 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
-use papo_proto::{CaseKey, Casemapping, Isupport, Join, MessageRef, Source};
+use papo_proto::{
+    CaseKey, Casemapping, Command, Isupport, Join, MessageRef, NamesEntry, Numeric, Source,
+    parse_353,
+};
 
 use crate::{Config, Handled};
 
@@ -23,6 +29,7 @@ pub struct Channel {
     members: HashMap<CaseKey, Member>,
     topic: Option<String>,
     synced: bool,
+    prefix_order: Arc<[char]>,
 }
 
 /// State known about a channel member.
@@ -30,6 +37,7 @@ pub struct Channel {
 pub struct Member {
     nick: String,
     prefixes: Vec<char>,
+    prefix_order: Arc<[char]>,
 }
 
 /// State known about a user sharing at least one channel with the session.
@@ -63,33 +71,67 @@ impl State {
         own_nick: &str,
         isupport: &Isupport,
     ) -> Handled {
-        let Some(join) = Join::parse(message) else {
-            return Handled::No;
-        };
-        let Some(Source::User { nick, user, host }) = message.source() else {
-            return Handled::No;
-        };
         let mapping = isupport.casemapping();
         self.casemapping = mapping;
-        if mapping.eq(nick, own_nick) {
-            nick.clone_into(&mut self.nick);
-            if let Some(user) = user {
-                user.clone_into(&mut self.user);
+        if let Some(join) = Join::parse(message) {
+            let Some(Source::User { nick, user, host }) = message.source() else {
+                return Handled::No;
+            };
+            if mapping.eq(nick, own_nick) {
+                nick.clone_into(&mut self.nick);
+                if let Some(user) = user {
+                    user.clone_into(&mut self.user);
+                }
+                if let Some(host) = host {
+                    self.host = Some(host.to_owned());
+                }
+                self.channels.insert(
+                    CaseKey::new(join.channel, mapping),
+                    Channel::new(join.channel, mapping, isupport),
+                );
             }
-            if let Some(host) = host {
-                self.host = Some(host.to_owned());
-            }
-            self.channels.insert(
-                CaseKey::new(join.channel, mapping),
-                Channel::new(join.channel, mapping),
-            );
+            self.add_member(join.channel, nick, user, host, Vec::new());
+            return Handled::Yes;
         }
-        if let Some(channel) = self.channels.get_mut(&CaseKey::new(join.channel, mapping)) {
+        if let Some((_, channel, entries)) = parse_353(message) {
+            for raw in entries {
+                let entry = NamesEntry::parse(raw, isupport);
+                if !entry.nick.is_empty() {
+                    self.add_member(channel, entry.nick, entry.user, entry.host, entry.prefixes);
+                }
+            }
+            return Handled::Yes;
+        }
+        if message.command() == Command::Numeric(Numeric::RPL_ENDOFNAMES) {
+            if let Some(channel) = message
+                .param(1)
+                .and_then(|name| self.channels.get_mut(&CaseKey::new(name, mapping)))
+            {
+                channel.synced = true;
+            }
+            return Handled::Yes;
+        }
+        Handled::No
+    }
+
+    fn add_member(
+        &mut self,
+        channel_name: &str,
+        nick: &str,
+        user: Option<&str>,
+        host: Option<&str>,
+        mut prefixes: Vec<char>,
+    ) {
+        let mapping = self.casemapping;
+        if let Some(channel) = self.channels.get_mut(&CaseKey::new(channel_name, mapping)) {
+            prefixes.sort_by_key(|symbol| channel.prefix_order.iter().position(|p| p == symbol));
+            prefixes.dedup();
             channel.members.insert(
                 CaseKey::new(nick, mapping),
                 Member {
                     nick: nick.to_owned(),
-                    prefixes: Vec::new(),
+                    prefixes,
+                    prefix_order: Arc::clone(&channel.prefix_order),
                 },
             );
             let shared = self
@@ -97,9 +139,8 @@ impl State {
                 .entry(CaseKey::new(nick, mapping))
                 .or_insert_with(|| User::new(nick, user, host));
             shared.update_userhost(user, host);
-            shared.channels.insert(CaseKey::new(join.channel, mapping));
+            shared.channels.insert(CaseKey::new(channel_name, mapping));
         }
-        Handled::Yes
     }
 
     /// Returns the session's current nickname.
@@ -139,13 +180,18 @@ impl State {
 }
 
 impl Channel {
-    fn new(name: &str, casemapping: Casemapping) -> Self {
+    fn new(name: &str, casemapping: Casemapping, isupport: &Isupport) -> Self {
         Self {
             name: name.to_owned(),
             casemapping,
             members: HashMap::new(),
             topic: None,
             synced: false,
+            prefix_order: isupport
+                .prefix()
+                .into_iter()
+                .map(|prefix| prefix.symbol)
+                .collect(),
         }
     }
 
@@ -190,6 +236,28 @@ impl Member {
     #[must_use]
     pub fn prefixes(&self) -> &[char] {
         &self.prefixes
+    }
+
+    /// Reports whether the member has the named prefix or any higher-ranked prefix.
+    #[must_use]
+    pub fn has_prefix_at_least(&self, prefix: char) -> bool {
+        self.prefix_order
+            .iter()
+            .position(|item| *item == prefix)
+            .is_some_and(|required| {
+                self.prefixes.iter().any(|owned| {
+                    self.prefix_order
+                        .iter()
+                        .position(|item| item == owned)
+                        .is_some_and(|rank| rank <= required)
+                })
+            })
+    }
+
+    /// Reports whether the member has operator rank or higher.
+    #[must_use]
+    pub fn is_op(&self) -> bool {
+        self.has_prefix_at_least('@')
     }
 }
 

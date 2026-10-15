@@ -44,3 +44,26 @@ fn tracks_userhost_and_shared_channels_from_joins() {
             assert_eq!(dan.channels().count(), 2);
         });
 }
+
+#[test]
+fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily PREFIX=(qaohv)~&@%+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":ergo.test 353 emily = #papo :@+emily!em@127.0.0.1 dan!~dan@cloak.example")
+        .server(":ergo.test 353 emily = #papo :+alice!alice@staff.example")
+        .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert!(channel.is_synced());
+            assert_eq!(channel.members().count(), 3);
+            let emily = channel.member("emily").unwrap();
+            assert_eq!(emily.prefixes(), ['@', '+']);
+            assert!(emily.is_op());
+            assert!(!channel.member("alice").unwrap().is_op());
+            assert_eq!(
+                session.state().user("dan").unwrap().host(),
+                Some("cloak.example")
+            );
+        });
+}
