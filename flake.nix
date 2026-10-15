@@ -59,7 +59,11 @@
             export RUSTDOC=${nightlyToolchain}/bin/rustdoc
             case "''${1-}" in
               --version|-V) exec ${nightlyToolchain}/bin/cargo "$@" ;;
-              *) exec ${nightlyToolchain}/bin/cargo "$@" --target wasm32-wasip3 ;;
+              *)
+                subcommand="$1"
+                shift
+                exec ${nightlyToolchain}/bin/cargo "$subcommand" --target wasm32-wasip3 "$@"
+                ;;
             esac
           '';
         };
