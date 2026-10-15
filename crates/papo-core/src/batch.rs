@@ -155,7 +155,7 @@ impl Batches {
         let mut batch = self.open.remove(reference).expect("validated above");
         let mut completed = std::mem::take(&mut batch.completed);
         if is_aggregate(&batch.kind) && !self.has_aggregate_ancestor(batch.parent.as_deref()) {
-            completed.push(complete(&mut batch));
+            completed.extend(complete(&mut batch));
         }
         if let Some(parent) = batch.parent {
             self.open
@@ -349,34 +349,44 @@ fn is_aggregate(kind: &str) -> bool {
     is_history(kind) || matches!(kind, "netsplit" | "netjoin")
 }
 
-fn complete(batch: &mut OpenBatch) -> BatchEvent {
+fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
     let servers = || {
         [
             batch.params.first().cloned().unwrap_or_default(),
             batch.params.get(1).cloned().unwrap_or_default(),
         ]
     };
-    match batch.kind.as_str() {
-        "netsplit" => BatchEvent::Netsplit {
+    let expected_command = match batch.kind.as_str() {
+        "netsplit" => "QUIT",
+        "netjoin" => "JOIN",
+        _ => {
+            return vec![BatchEvent::History {
+                target: batch.params.first().cloned().unwrap_or_default(),
+                messages: std::mem::take(&mut batch.messages),
+                end: batch.end,
+            }];
+        }
+    };
+    let (members, others): (Vec<_>, Vec<_>) = std::mem::take(&mut batch.messages)
+        .into_iter()
+        .partition(|message| message.as_ref().command_is(expected_command));
+    let aggregate = if expected_command == "QUIT" {
+        BatchEvent::Netsplit {
             servers: servers(),
-            quits: std::mem::take(&mut batch.messages)
-                .into_iter()
-                .filter(|message| message.as_ref().command_is("QUIT"))
-                .collect(),
-        },
-        "netjoin" => BatchEvent::Netjoin {
+            quits: members,
+        }
+    } else {
+        BatchEvent::Netjoin {
             servers: servers(),
-            joins: std::mem::take(&mut batch.messages)
-                .into_iter()
-                .filter(|message| message.as_ref().command_is("JOIN"))
-                .collect(),
-        },
-        _ => BatchEvent::History {
-            target: batch.params.first().cloned().unwrap_or_default(),
-            messages: std::mem::take(&mut batch.messages),
-            end: batch.end,
-        },
-    }
+            joins: members,
+        }
+    };
+    std::iter::once(aggregate)
+        .chain(others.into_iter().map(|message| BatchEvent::Message {
+            message,
+            batch_type: Some(batch.kind.clone()),
+        }))
+        .collect()
 }
 
 fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {

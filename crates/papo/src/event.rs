@@ -478,6 +478,9 @@ pub enum Event {
         end: bool,
     },
     /// Users departed because connectivity between two servers was lost.
+    ///
+    /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
+    /// separate [`Event::Message`] values.
     Netsplit {
         /// The servers on either side of the lost link.
         servers: [String; 2],
@@ -485,6 +488,9 @@ pub enum Event {
         quits: Vec<Message>,
     },
     /// Users returned after connectivity between two servers was restored.
+    ///
+    /// This event is emitted for an empty batch. Non-`JOIN` lines are delivered as
+    /// separate [`Event::Message`] values.
     Netjoin {
         /// The servers on either side of the restored link.
         servers: [String; 2],

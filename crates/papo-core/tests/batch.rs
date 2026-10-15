@@ -141,6 +141,65 @@ fn nested_history_waits_for_the_outer_batch() {
 }
 
 #[test]
+fn abandoned_outer_batch_flattens_completed_history_exactly() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .batch_timeout(Duration::from_secs(2)),
+    );
+    session.handle_connected(now);
+    session.handle_line(now, b"BATCH +reply labeled-response");
+    session.handle_line(now, b"@batch=reply BATCH +h chathistory #papo");
+    session.handle_line(
+        now,
+        b"@batch=h;time=2026-10-15T12:00:01.000Z :alice!~a@cloak PRIVMSG #papo :from history",
+    );
+    session.handle_line(now, b"@batch=reply BATCH -h");
+    session.handle_timeout(now + Duration::from_secs(2));
+
+    let fallback = message(&mut session);
+    assert_eq!(fallback.batch_type(), None);
+    assert_eq!(
+        fallback.into_message().to_line().unwrap(),
+        "@batch=h;time=2026-10-15T12:00:01.000Z :alice!~a@cloak PRIVMSG #papo :from history\r\n"
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reference, batch_type, reason })
+            if reference == "reply"
+                && batch_type == "labeled-response"
+                && reason == BatchAbandonReason::Timeout
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn outermost_aggregate_groups_its_commands_and_releases_others() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b"BATCH +split netsplit irc.example irc.remote");
+    session.handle_line(now, b"@batch=split BATCH +h chathistory #papo");
+    session.handle_line(now, b"@batch=h :alice!~a@remote.example QUIT :link lost");
+    session.handle_line(now, b"@batch=h :irc.example NOTICE * :split metadata");
+    session.handle_line(now, b"@batch=split BATCH -h");
+    session.handle_line(now, b"BATCH -split");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Netsplit { servers, quits })
+            if servers == ["irc.example", "irc.remote"]
+                && quits.len() == 1
+                && quits[0].as_ref().param(0) == Some("link lost")
+    ));
+    let extra = message(&mut session);
+    assert_eq!(extra.batch_type(), Some("netsplit"));
+    assert!(extra.as_ref().command_is("NOTICE"));
+    assert_eq!(extra.as_ref().param(1), Some("split metadata"));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
 fn interleaved_histories_complete_independently() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
@@ -170,7 +229,6 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
         now,
         b"@batch=split :bob!~b@remote.example QUIT :irc.example irc.remote",
     );
-    session.handle_line(now, b"@batch=split :irc.example NOTICE * :link lost");
     session.handle_line(now, b":irc.example BATCH -split");
     session.handle_line(
         now,
@@ -195,6 +253,26 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
         session.poll_event(),
         Some(Event::Netjoin { servers, joins })
             if servers == ["irc.example", "irc.remote"] && joins.len() == 2
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn empty_membership_aggregates_are_observable() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b"BATCH +split netsplit irc.example irc.remote");
+    session.handle_line(now, b"BATCH -split");
+    session.handle_line(now, b"BATCH +join netjoin irc.example irc.remote");
+    session.handle_line(now, b"BATCH -join");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Netsplit { quits, .. }) if quits.is_empty()
+    ));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Netjoin { joins, .. }) if joins.is_empty()
     ));
     assert_eq!(session.poll_event(), None);
 }
