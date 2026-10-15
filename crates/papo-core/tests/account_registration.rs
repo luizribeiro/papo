@@ -81,39 +81,89 @@ fn types_every_registered_account_failure_code() {
     use AccountRegistrationError as E;
 
     let cases = [
-        ("REGISTER", "ACCOUNT_EXISTS", E::AccountExists),
-        ("REGISTER", "BAD_ACCOUNT_NAME", E::BadAccountName),
         (
-            "REGISTER",
+            "ACCOUNT_EXISTS",
+            E::AccountExists,
+            &["REGISTER"][..],
+            "VERIFY",
+        ),
+        (
+            "BAD_ACCOUNT_NAME",
+            E::BadAccountName,
+            &["REGISTER"][..],
+            "VERIFY",
+        ),
+        (
             "ACCOUNT_NAME_MUST_BE_NICK",
             E::AccountNameMustBeNick,
-        ),
-        ("REGISTER", "NEED_NICK", E::NeedNick),
-        ("VERIFY", "ALREADY_AUTHENTICATED", E::AlreadyAuthenticated),
-        ("REGISTER", "WEAK_PASSWORD", E::WeakPassword),
-        ("REGISTER", "UNACCEPTABLE_PASSWORD", E::UnacceptablePassword),
-        ("REGISTER", "INVALID_EMAIL", E::InvalidEmail),
-        ("REGISTER", "UNACCEPTABLE_EMAIL", E::UnacceptableEmail),
-        (
+            &["REGISTER"][..],
             "VERIFY",
+        ),
+        ("NEED_NICK", E::NeedNick, &["REGISTER"][..], "VERIFY"),
+        (
+            "ALREADY_AUTHENTICATED",
+            E::AlreadyAuthenticated,
+            &["REGISTER", "VERIFY"][..],
+            "PERSISTENCE",
+        ),
+        (
+            "WEAK_PASSWORD",
+            E::WeakPassword,
+            &["REGISTER"][..],
+            "VERIFY",
+        ),
+        (
+            "UNACCEPTABLE_PASSWORD",
+            E::UnacceptablePassword,
+            &["REGISTER"][..],
+            "VERIFY",
+        ),
+        (
+            "INVALID_EMAIL",
+            E::InvalidEmail,
+            &["REGISTER"][..],
+            "VERIFY",
+        ),
+        (
+            "UNACCEPTABLE_EMAIL",
+            E::UnacceptableEmail,
+            &["REGISTER"][..],
+            "VERIFY",
+        ),
+        (
             "COMPLETE_CONNECTION_REQUIRED",
             E::CompleteConnectionRequired,
+            &["REGISTER", "VERIFY"][..],
+            "PERSISTENCE",
         ),
-        ("VERIFY", "INVALID_CODE", E::InvalidCode),
+        ("INVALID_CODE", E::InvalidCode, &["VERIFY"][..], "REGISTER"),
         (
-            "VERIFY",
             "TEMPORARILY_UNAVAILABLE",
             E::TemporarilyUnavailable,
+            &["REGISTER", "VERIFY"][..],
+            "PERSISTENCE",
         ),
     ];
-    for (command, code, expected) in cases {
+    for (code, expected, valid_commands, invalid_command) in cases {
+        for command in valid_commands {
+            registered()
+                .server(&format!(
+                    ":ergo.test FAIL {command} {code} alice :Account request rejected"
+                ))
+                .event(|event| {
+                    matches!(event, Event::StandardReply(reply)
+                        if reply.account_registration_error() == Some(expected))
+                });
+        }
         registered()
             .server(&format!(
-                ":ergo.test FAIL {command} {code} alice :Account request rejected"
+                ":ergo.test FAIL {invalid_command} {code} alice :Account request rejected"
             ))
             .event(|event| {
                 matches!(event, Event::StandardReply(reply)
-                    if reply.account_registration_error() == Some(expected))
+                    if reply.command == invalid_command
+                        && reply.code == code
+                        && reply.account_registration_error().is_none())
             });
     }
 }
