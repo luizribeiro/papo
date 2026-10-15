@@ -63,6 +63,11 @@ enum StoredKind {
 
 impl MessageEvent {
     #[cfg(feature = "bot")]
+    pub(crate) const fn client(&self) -> &Client {
+        &self.client
+    }
+
+    #[cfg(feature = "bot")]
     pub(crate) fn client_nick(&self) -> String {
         self.client.nick()
     }

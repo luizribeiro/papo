@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{Event, MessageEvent, MessageKind};
+use crate::{Client, Error, Event, MessageEvent, MessageKind};
 
 const MAX_RATE_TARGETS: usize = 1024;
 
@@ -67,6 +67,7 @@ impl ReplyRateLimiter {
 pub struct BotConfig {
     prefix: String,
     mention: bool,
+    replies: ReplyRateLimiter,
 }
 
 impl BotConfig {
@@ -76,6 +77,7 @@ impl BotConfig {
         Self {
             prefix: prefix.into(),
             mention: true,
+            replies: ReplyRateLimiter::new(2, Duration::from_secs(5)),
         }
     }
 
@@ -85,6 +87,22 @@ impl BotConfig {
         self.mention = enabled;
         self
     }
+
+    /// Replaces the reply limiter shared by commands parsed with this configuration.
+    #[must_use]
+    pub fn reply_limiter(mut self, limiter: ReplyRateLimiter) -> Self {
+        self.replies = limiter;
+        self
+    }
+}
+
+/// Whether a bot response was sent or dropped by its rate limiter.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReplyStatus {
+    /// The response was accepted by the client driver.
+    Sent,
+    /// The response exceeded the per-target rate limit.
+    Dropped,
 }
 
 /// A parsed command from a live private message.
@@ -94,6 +112,7 @@ pub struct Command {
     name: String,
     args: Vec<String>,
     account: Option<String>,
+    replies: ReplyRateLimiter,
 }
 
 impl Command {
@@ -118,6 +137,7 @@ impl Command {
             name,
             args: words,
             account,
+            replies: config.replies.clone(),
         })
     }
 
@@ -157,6 +177,32 @@ impl Command {
                 .into_iter()
                 .any(|allowed| account.eq_ignore_ascii_case(allowed.as_ref()))
         })
+    }
+
+    /// Returns the client that received this command.
+    #[must_use]
+    pub const fn client(&self) -> &Client {
+        self.message.client()
+    }
+
+    /// Returns the channel where the command was sent, if it was not private.
+    #[must_use]
+    pub fn channel(&self) -> Option<&str> {
+        (!self.message.is_private()).then(|| self.message.target())
+    }
+
+    /// Sends a threaded reply unless the target has exhausted its reply budget.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the response is invalid or the driver has stopped.
+    pub async fn reply(&self, text: &str) -> Result<ReplyStatus, Error> {
+        let target = self.client().casemap(self.message.reply_target());
+        if !self.replies.check(&target) {
+            return Ok(ReplyStatus::Dropped);
+        }
+        self.message.reply(text).await?;
+        Ok(ReplyStatus::Sent)
     }
 }
 
@@ -338,5 +384,19 @@ mod tests {
             assert_eq!(allowed, index < 1024);
         }
         assert_eq!(limiter.targets.lock().unwrap().len(), 1024);
+    }
+
+    #[tokio::test]
+    async fn parsed_commands_share_the_configured_reply_budget() {
+        let config = BotConfig::new("!");
+        let first = Command::parse(&event("!ping"), &config).unwrap();
+        let second = Command::parse(&event("!ping"), &config).unwrap();
+        let third = Command::parse(&event("!ping"), &config).unwrap();
+        assert!(first.reply("pong").await.is_err());
+        assert!(second.reply("pong").await.is_err());
+        assert_eq!(
+            third.reply("pong").await.unwrap(),
+            super::ReplyStatus::Dropped
+        );
     }
 }
