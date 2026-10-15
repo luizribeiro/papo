@@ -646,6 +646,7 @@ name = "papo-ping-bot"
 version = "0.0.0"
 dependencies = [
  "papo",
+ "papo-test-server",
  "tokio",
 ]
 
