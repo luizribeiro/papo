@@ -1,5 +1,59 @@
 use crate::{Command, MessageRef, Params};
 
+/// Severity of an `IRCv3` standard reply.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum StandardReplyKind {
+    /// The requested operation failed.
+    Fail,
+    /// The requested operation completed with a warning.
+    Warn,
+    /// The server supplied informational context.
+    Note,
+}
+
+/// A typed view of an `IRCv3` standard reply.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StandardReply<'a> {
+    /// Reply severity.
+    pub kind: StandardReplyKind,
+    /// Command associated with the reply, or `*` when unspecified.
+    pub command: &'a str,
+    /// Case-insensitive reply code in its original spelling.
+    pub code: &'a str,
+    /// Additional parameters supplied for diagnostics.
+    pub context: Vec<&'a str>,
+    /// Human-readable reply description.
+    pub description: &'a str,
+}
+
+impl<'a> StandardReply<'a> {
+    /// Parses a `FAIL`, `WARN`, or `NOTE` with at least three parameters.
+    #[must_use]
+    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
+        let kind = match message.command() {
+            Command::Fail => StandardReplyKind::Fail,
+            Command::Warn => StandardReplyKind::Warn,
+            Command::Note => StandardReplyKind::Note,
+            _ => return None,
+        };
+        let mut params: Vec<_> = message.params().collect();
+        if params.len() < 3 {
+            return None;
+        }
+        let description = params.pop()?;
+        let command = params.remove(0);
+        let code = params.remove(0);
+        Some(Self {
+            kind,
+            command,
+            code,
+            context: params,
+            description,
+        })
+    }
+}
+
 /// A typed view of a plain or extended `JOIN` message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Join<'a> {

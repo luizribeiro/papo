@@ -1,6 +1,54 @@
 //! Typed state-notification message views.
 
-use papo_proto::{Account, Away, Chghost, Join, MessageRef, Setname};
+use papo_proto::{
+    Account, Away, Chghost, Join, MessageRef, Setname, StandardReply, StandardReplyKind,
+};
+
+#[test]
+fn parses_standard_replies_with_context() {
+    let fail = MessageRef::parse(
+        ":ergo.test FAIL CHATHISTORY INVALID_PARAMS #papo timestamp :Invalid parameters",
+    )
+    .unwrap();
+    assert_eq!(
+        StandardReply::parse(&fail),
+        Some(StandardReply {
+            kind: StandardReplyKind::Fail,
+            command: "CHATHISTORY",
+            code: "INVALID_PARAMS",
+            context: vec!["#papo", "timestamp"],
+            description: "Invalid parameters",
+        })
+    );
+
+    for (line, kind) in [
+        (
+            ":ergo.test warn * rate_limited :Please slow down",
+            StandardReplyKind::Warn,
+        ),
+        (
+            ":ergo.test NoTe SETNAME REALNAME_OK :Realname changed",
+            StandardReplyKind::Note,
+        ),
+    ] {
+        let message = MessageRef::parse(line).unwrap();
+        let reply = StandardReply::parse(&message).unwrap();
+        assert_eq!(reply.kind, kind);
+        assert!(reply.context.is_empty());
+    }
+}
+
+#[test]
+fn rejects_malformed_standard_replies() {
+    for line in [
+        ":ergo.test PRIVMSG papo :FAIL WHOIS NO_SUCH_NICK",
+        ":ergo.test FAIL",
+        ":ergo.test FAIL WHOIS",
+        ":ergo.test FAIL WHOIS NO_SUCH_NICK",
+    ] {
+        assert!(StandardReply::parse(&MessageRef::parse(line).unwrap()).is_none());
+    }
+}
 
 #[test]
 fn parses_plain_and_extended_join_messages() {
