@@ -413,29 +413,19 @@ impl Session {
             self.caps.enabled(),
             self.isupport.value(),
             &mut self.outbox,
-        );
-        let handled = if handled == Handled::No {
-            self.caps.handle_message(
+        ) == Handled::Yes
+            || self.caps.handle_message(
                 message,
                 &self.config,
                 self.registration.authentication_finished(),
                 &mut self.outbox,
-            )
-        } else {
-            handled
-        };
-        let handled = if handled == Handled::No {
-            self.isupport.handle_message(message)
-        } else {
-            handled
-        };
-        let handled = if handled == Handled::No {
-            self.keepalive
+            ) == Handled::Yes
+            || self.isupport.handle_message(message) == Handled::Yes
+            || self
+                .keepalive
                 .handle_message(now, message, &mut self.outbox)
-        } else {
-            handled
-        };
-        if handled == Handled::No {
+                == Handled::Yes;
+        if !handled {
             self.outbox.event(Event::Message(message.to_owned()));
         }
         self.apply_close_request();

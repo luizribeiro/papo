@@ -1,12 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeSet, VecDeque};
 
-use papo_proto::{MessageRef, NAME_ALIASES, NameKind};
+use papo_proto::{MAX_MESSAGE_LEN, MessageRef, NAME_ALIASES, NameKind};
 
-use crate::{Config, Handled, Outbox};
+use crate::{Capabilities, Config, Handled, Outbox};
 
-pub(super) type Capabilities = BTreeMap<String, Option<String>>;
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
-const MAX_IRC_BODY_LEN: usize = 510;
+const MAX_IRC_BODY_LEN: usize = MAX_MESSAGE_LEN - 2;
 
 #[derive(Debug, Default)]
 pub(super) struct Caps {
