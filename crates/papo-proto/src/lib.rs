@@ -3,6 +3,7 @@
 
 mod casemapping;
 mod command;
+mod ctcp;
 mod formatting;
 mod isupport;
 mod message;
@@ -11,6 +12,7 @@ mod source;
 
 pub use casemapping::{CaseKey, Casemapping};
 pub use command::Command;
+pub use ctcp::Ctcp;
 pub use formatting::{Color, FormatBuilder, Formatted, Span, Style, strip_formatting};
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, Extban, Isupport, Limit, LimitValue, Prefix,
