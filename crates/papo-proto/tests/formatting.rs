@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use papo_proto::{Color, Formatted, Span, Style, strip};
+use papo_proto::{Color, FormatBuilder, Formatted, Span, Style, strip_formatting};
 
 fn spans(text: &str) -> Vec<Span<'_>> {
     Formatted::new(text).collect()
@@ -27,7 +27,7 @@ fn parses_the_formatting_spec_examples() {
     ];
 
     for (input, expected) in cases {
-        assert_eq!(strip(input), expected);
+        assert_eq!(strip_formatting(input), expected);
         assert_eq!(
             spans(input)
                 .iter()
@@ -119,12 +119,89 @@ fn preserves_background_when_only_foreground_changes() {
 fn handles_empty_and_control_only_input() {
     assert!(spans("").is_empty());
     assert!(spans("\x02\x1d\x03\x04\x0f").is_empty());
-    assert!(matches!(strip(""), Cow::Borrowed(_)));
-    assert_eq!(strip("\x02\x1d\x03"), "");
+    assert!(matches!(strip_formatting(""), Cow::Borrowed(_)));
+    assert_eq!(strip_formatting("\x02\x1d\x03"), "");
 }
 
 #[test]
 fn strip_borrows_only_unformatted_text() {
-    assert!(matches!(strip("hello from Ergo"), Cow::Borrowed(_)));
-    assert!(matches!(strip("hello \x02from Ergo"), Cow::Owned(_)));
+    assert!(matches!(
+        strip_formatting("hello from Ergo"),
+        Cow::Borrowed(_)
+    ));
+    assert!(matches!(
+        strip_formatting("hello \x02from Ergo"),
+        Cow::Owned(_)
+    ));
+}
+
+#[test]
+fn built_text_round_trips_through_the_span_parser() {
+    let mut builder = FormatBuilder::new();
+    builder
+        .text("IRC ")
+        .bold()
+        .italics()
+        .underline()
+        .strikethrough()
+        .monospace()
+        .reverse()
+        .color(4, Some(12))
+        .text("formatted")
+        .hex_color(0x00ff_0080, Some(0x0000_ff00))
+        .text(" RGB")
+        .reset_colors()
+        .text(" plain colors")
+        .reset()
+        .text(" done");
+
+    let output = builder.finish();
+    let parsed = spans(&output);
+    assert_eq!(
+        strip_formatting(&output),
+        "IRC formatted RGB plain colors done"
+    );
+    assert_eq!(parsed[1].style.fg, Some(Color::Palette(4)));
+    assert_eq!(parsed[1].style.bg, Some(Color::Palette(12)));
+    assert!(parsed[1].style.bold && parsed[1].style.italics);
+    assert_eq!(parsed[2].style.fg, Some(Color::Hex(0x00ff_0080)));
+    assert_eq!(parsed[2].style.bg, Some(Color::Hex(0x0000_ff00)));
+    assert_eq!(parsed[3].style.fg, None);
+    assert!(parsed[3].style.bold);
+    assert_eq!(parsed[4].style, Style::default());
+}
+
+#[test]
+fn builder_writes_two_digit_palette_colors_before_digit_text() {
+    let mut builder = FormatBuilder::new();
+    builder.color(3, Some(7)).text("13 channels");
+
+    assert_eq!(builder.as_str(), "\x0303,0713 channels");
+    assert_eq!(spans(builder.as_str())[0].text, "13 channels");
+    assert_eq!(spans(builder.as_str())[0].style.fg, Some(Color::Palette(3)));
+    assert_eq!(spans(builder.as_str())[0].style.bg, Some(Color::Palette(7)));
+}
+
+#[test]
+#[should_panic(expected = "IRC palette colors are at most 99")]
+fn builder_rejects_palette_colors_outside_two_digits() {
+    FormatBuilder::new().color(100, None);
+}
+
+#[test]
+#[should_panic(expected = "IRC palette colors are at most 99")]
+fn builder_rejects_palette_backgrounds_outside_two_digits() {
+    FormatBuilder::new().color(3, Some(100));
+}
+
+#[test]
+#[should_panic(expected = "RGB colors are 24-bit values")]
+fn builder_rejects_hex_colors_larger_than_six_digits() {
+    FormatBuilder::new().hex_color(0x0100_0000, None);
+}
+
+#[test]
+#[should_panic(expected = "RGB colors are 24-bit values")]
+fn builder_rejects_hex_backgrounds_larger_than_six_digits() {
+    FormatBuilder::new().hex_color(0x00ff_0080, Some(0x0100_0000));
 }

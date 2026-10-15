@@ -10,6 +10,9 @@ The project is early in development; the API is not yet stable.
 - `papo-core` implements deterministic sans-I/O IRC session behavior.
 - `papo` provides the tokio driver, transports, client handles, and event stream.
 
+Use `papo_proto::strip_formatting` when IRC formatting controls should be removed while
+preserving the message text.
+
 ## WASI
 
 `wasm32-wasip2` and `wasm32-wasip3` need `--cfg tokio_unstable`; this repository sets it for

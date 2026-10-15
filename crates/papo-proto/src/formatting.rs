@@ -1,4 +1,4 @@
-use std::{borrow::Cow, iter::FusedIterator};
+use std::{borrow::Cow, fmt::Write as _, iter::FusedIterator};
 
 const BOLD: u8 = 0x02;
 const COLOR: u8 = 0x03;
@@ -150,11 +150,130 @@ impl FusedIterator for Formatted<'_> {}
 ///
 /// The input is borrowed when it contains no recognized formatting control byte.
 #[must_use]
-pub fn strip(text: &str) -> Cow<'_, str> {
+pub fn strip_formatting(text: &str) -> Cow<'_, str> {
     if !text.bytes().any(is_control) {
         return Cow::Borrowed(text);
     }
     Cow::Owned(Formatted::new(text).map(|span| span.text).collect())
+}
+
+/// A builder for IRC-formatted text.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct FormatBuilder {
+    output: String,
+}
+
+impl FormatBuilder {
+    /// Creates an empty formatted-text builder.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            output: String::new(),
+        }
+    }
+
+    /// Appends text without changing the active formatting.
+    pub fn text(&mut self, text: impl AsRef<str>) -> &mut Self {
+        self.output.push_str(text.as_ref());
+        self
+    }
+
+    /// Toggles bold text.
+    pub fn bold(&mut self) -> &mut Self {
+        self.control(BOLD)
+    }
+
+    /// Toggles italic text.
+    pub fn italics(&mut self) -> &mut Self {
+        self.control(ITALICS)
+    }
+
+    /// Toggles underlined text.
+    pub fn underline(&mut self) -> &mut Self {
+        self.control(UNDERLINE)
+    }
+
+    /// Toggles struck-through text.
+    pub fn strikethrough(&mut self) -> &mut Self {
+        self.control(STRIKETHROUGH)
+    }
+
+    /// Toggles monospace text.
+    pub fn monospace(&mut self) -> &mut Self {
+        self.control(MONOSPACE)
+    }
+
+    /// Toggles reversed foreground and background colors.
+    pub fn reverse(&mut self) -> &mut Self {
+        self.control(REVERSE)
+    }
+
+    /// Selects palette foreground and optional background colors.
+    ///
+    /// Both values must be in the IRC palette range `0..=99`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when either value is greater than 99.
+    pub fn color(&mut self, foreground: u8, background: Option<u8>) -> &mut Self {
+        assert!(foreground <= 99, "IRC palette colors are at most 99");
+        assert!(
+            background.is_none_or(|color| color <= 99),
+            "IRC palette colors are at most 99"
+        );
+        self.output.push(char::from(COLOR));
+        write!(self.output, "{foreground:02}").expect("writing to a String cannot fail");
+        if let Some(background) = background {
+            write!(self.output, ",{background:02}").expect("writing to a String cannot fail");
+        }
+        self
+    }
+
+    /// Selects six-digit RGB foreground and optional background colors.
+    ///
+    /// # Panics
+    ///
+    /// Panics when either value is greater than `0xffffff`.
+    pub fn hex_color(&mut self, foreground: u32, background: Option<u32>) -> &mut Self {
+        assert!(foreground <= 0x00ff_ffff, "RGB colors are 24-bit values");
+        assert!(
+            background.is_none_or(|color| color <= 0x00ff_ffff),
+            "RGB colors are 24-bit values"
+        );
+        self.output.push(char::from(HEX_COLOR));
+        write!(self.output, "{foreground:06x}").expect("writing to a String cannot fail");
+        if let Some(background) = background {
+            write!(self.output, ",{background:06x}").expect("writing to a String cannot fail");
+        }
+        self
+    }
+
+    /// Resets the foreground and background colors.
+    pub fn reset_colors(&mut self) -> &mut Self {
+        self.control(COLOR)
+    }
+
+    /// Resets every active style and color.
+    pub fn reset(&mut self) -> &mut Self {
+        self.control(RESET)
+    }
+
+    /// Returns the formatted text built so far.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.output
+    }
+
+    /// Finishes the builder and returns its formatted text.
+    #[must_use]
+    pub fn finish(self) -> String {
+        self.output
+    }
+
+    fn control(&mut self, control: u8) -> &mut Self {
+        self.output.push(char::from(control));
+        self
+    }
 }
 
 fn is_control(byte: u8) -> bool {
