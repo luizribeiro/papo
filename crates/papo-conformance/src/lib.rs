@@ -63,6 +63,7 @@ struct Connection {
 
 struct RegisteredClient {
     client: Client,
+    events: Events,
     driver: JoinHandle<Result<(), papo::Error>>,
     welcome: Welcome,
 }
@@ -129,17 +130,49 @@ impl Scenario {
     }
 
     async fn client(&self, nick: &str) -> Result<RegisteredClient, Failed> {
-        let config = Config::default()
+        self.client_with(nick, None).await
+    }
+
+    async fn client_with(
+        &self,
+        nick: &str,
+        sasl: Option<papo_core::Sasl>,
+    ) -> Result<RegisteredClient, Failed> {
+        let mut config = Config::default()
             .nick(nick)
             .username("papo")
             .realname("papo conformance client");
+        if let Some(sasl) = sasl {
+            config = config.sasl(sasl).require_sasl(true);
+        }
         let mut connection = connect_client(&self.server, config).await?;
         let welcome = wait_for_registration(&mut connection.events).await?;
         Ok(RegisteredClient {
             client: connection.client,
+            events: connection.events,
             driver: connection.driver,
             welcome,
         })
+    }
+
+    async fn expect(
+        &self,
+        events: &mut Events,
+        mut matcher: impl FnMut(&Event) -> bool,
+        limit: Duration,
+    ) -> Result<Event, Failed> {
+        timeout(limit, async {
+            loop {
+                match events.next().await {
+                    Some(event) if matcher(&event) => return Ok(event),
+                    Some(Event::Disconnected { reason }) => return Err(reason.clone().into()),
+                    Some(_) => {}
+                    None => return Err("driver stopped while waiting for an event".into()),
+                }
+            }
+        })
+        .await
+        .map_err(|_| Failed::from("timed out waiting for an event"))?
     }
 }
 
