@@ -70,6 +70,7 @@ impl State {
         message: &MessageRef<'_>,
         own_nick: &str,
         isupport: &Isupport,
+        no_implicit_names: bool,
     ) -> Handled {
         let mapping = isupport.casemapping();
         self.casemapping = mapping;
@@ -87,7 +88,7 @@ impl State {
                 }
                 self.channels.insert(
                     CaseKey::new(join.channel, mapping),
-                    Channel::new(join.channel, mapping, isupport),
+                    Channel::new(join.channel, mapping, isupport, no_implicit_names),
                 );
             }
             self.add_member(join.channel, nick, user, host, Vec::new());
@@ -180,13 +181,13 @@ impl State {
 }
 
 impl Channel {
-    fn new(name: &str, casemapping: Casemapping, isupport: &Isupport) -> Self {
+    fn new(name: &str, casemapping: Casemapping, isupport: &Isupport, synced: bool) -> Self {
         Self {
             name: name.to_owned(),
             casemapping,
             members: HashMap::new(),
             topic: None,
-            synced: false,
+            synced,
             prefix_order: isupport
                 .prefix()
                 .into_iter()
@@ -208,6 +209,9 @@ impl Channel {
     }
 
     /// Returns whether initial member synchronization is complete.
+    ///
+    /// A channel is immediately synchronized when `no-implicit-names` is enabled,
+    /// because that capability suppresses the automatic `353` and `366` replies.
     #[must_use]
     pub const fn is_synced(&self) -> bool {
         self.synced

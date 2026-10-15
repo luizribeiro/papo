@@ -67,3 +67,15 @@ fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
             );
         });
 }
+
+#[test]
+fn no_implicit_names_marks_our_join_synced_without_366() {
+    Transcript::new(Config::default().wanted_caps(["no-implicit-names"]))
+        .connect_default()
+        .server("CAP * LS :draft/no-implicit-names")
+        .client("CAP REQ :draft/no-implicit-names")
+        .server("CAP * ACK :draft/no-implicit-names")
+        .client("CAP END")
+        .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()));
+}
