@@ -461,6 +461,12 @@ impl Session {
         self.registration.is_registered()
     }
 
+    /// Returns the account name reported by the server, when authenticated.
+    #[must_use]
+    pub fn account(&self) -> Option<&str> {
+        self.sasl.account()
+    }
+
     fn malformed(&mut self, line: &[u8]) {
         self.outbox.event(Event::Malformed {
             line: line.to_vec(),

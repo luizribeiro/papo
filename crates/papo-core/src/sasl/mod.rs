@@ -3,6 +3,7 @@ pub(crate) mod scram;
 
 use std::{collections::VecDeque, time::Instant};
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::MessageRef;
 
 use crate::{Config, Handled, Outbox};
@@ -90,7 +91,10 @@ pub(super) struct SaslSession {
     configured: Vec<Mechanism>,
     remaining: VecDeque<Mechanism>,
     active: Option<Mechanism>,
+    awaiting_challenge: bool,
     finished: bool,
+    account: Option<String>,
+    device: Option<String>,
     #[allow(dead_code)]
     entropy: Option<Box<dyn Entropy + Send>>,
 }
@@ -102,7 +106,10 @@ impl std::fmt::Debug for SaslSession {
             .field("configured", &self.configured)
             .field("remaining", &self.remaining)
             .field("active", &self.active)
+            .field("awaiting_challenge", &self.awaiting_challenge)
             .field("finished", &self.finished)
+            .field("account", &self.account)
+            .field("device", &self.device)
             .field("has_entropy", &self.entropy.is_some())
             .finish()
     }
@@ -117,8 +124,11 @@ impl SaslSession {
         Self {
             remaining: configured.clone().into(),
             active: None,
+            awaiting_challenge: false,
             finished: configured.is_empty(),
             configured,
+            account: None,
+            device: config.device.clone(),
             entropy,
         }
     }
@@ -126,7 +136,9 @@ impl SaslSession {
     pub(super) fn handle_connected(&mut self) {
         self.remaining = self.configured.clone().into();
         self.active = None;
+        self.awaiting_challenge = false;
         self.finished = self.configured.is_empty();
+        self.account = None;
     }
 
     pub(super) fn handle_cap_ack(
@@ -152,14 +164,38 @@ impl SaslSession {
         &mut self,
         _now: Instant,
         message: &MessageRef<'_>,
-        _outbox: &mut Outbox,
+        outbox: &mut Outbox,
     ) -> Handled {
+        if message.command_is("900") {
+            if let Some(account) = message.param(2) {
+                self.account = Some(account.to_owned());
+            }
+            return Handled::Yes;
+        }
+        if message.command_is("901") {
+            self.account = None;
+            return Handled::Yes;
+        }
         if message.command_is("903") || message.command_is("907") {
             self.active = None;
+            self.awaiting_challenge = false;
             self.finished = true;
             return Handled::Yes;
         }
-        Handled::No
+        if !message.command_is("AUTHENTICATE") {
+            return Handled::No;
+        }
+        let Some(Mechanism::Plain { username, password }) = self.active.as_ref() else {
+            return Handled::No;
+        };
+        if !self.awaiting_challenge || message.param(0) != Some("+") {
+            return Handled::No;
+        }
+        let authcid = with_device(username, self.device.as_deref());
+        let response = STANDARD.encode(format!("\0{authcid}\0{password}"));
+        outbox.transmit("AUTHENTICATE", [&response]);
+        self.awaiting_challenge = false;
+        Handled::Yes
     }
 
     pub(super) fn unavailable(&mut self, reason: &str, outbox: &mut Outbox) {
@@ -174,13 +210,25 @@ impl SaslSession {
         self.finished
     }
 
+    pub(super) fn account(&self) -> Option<&str> {
+        self.account.as_deref()
+    }
+
     fn start_next(&mut self, outbox: &mut Outbox) {
         let Some(mechanism) = self.remaining.pop_front() else {
             return self.unavailable("server offers none of the configured mechanisms", outbox);
         };
         outbox.transmit("AUTHENTICATE", [mechanism.name()]);
         self.active = Some(mechanism);
+        self.awaiting_challenge = true;
     }
+}
+
+fn with_device(username: &str, device: Option<&str>) -> String {
+    device.map_or_else(
+        || username.to_owned(),
+        |device| format!("{username}@{device}"),
+    )
 }
 
 impl Mechanism {
