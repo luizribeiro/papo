@@ -399,6 +399,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
         Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
     );
     for line in [
+        ":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z",
         ":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:41.999Z",
         ":ergo.test MARKREAD #papo timestamp=*",
     ] {
