@@ -3,6 +3,7 @@
 use std::time::Instant;
 
 use papo_core::{Config, RateLimit, RequestError, Session, TextKind};
+use papo_proto::Message;
 
 fn multiline_session(now: Instant, value: &str, labels: bool) -> Session {
     let config = Config::default()
@@ -113,4 +114,27 @@ fn max_lines_sends_several_bounded_batches() {
     assert_eq!(lines[3], "BATCH +b0-1 draft/multiline #papo\r\n");
     assert_eq!(lines[5], "BATCH -b0-1\r\n");
     assert!(!lines[1].contains("multiline-concat"));
+}
+
+#[test]
+fn interleaved_traffic_waits_for_the_batch_close() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", false);
+    session
+        .send_text(now, TextKind::Privmsg, "#papo", &"a".repeat(600), &[])
+        .unwrap();
+    assert_eq!(
+        String::from_utf8(session.poll_transmit().unwrap()).unwrap(),
+        "BATCH +b0-0 draft/multiline #papo\r\n"
+    );
+    session
+        .send(now, Message::privmsg("#elsewhere", "queued later"))
+        .unwrap();
+    session.handle_line(now, b"PING :keepalive");
+    let remaining = drain(&mut session);
+    assert!(remaining[0].starts_with("@batch=b0-0;draft/multiline-concat"));
+    assert!(remaining[1].starts_with("@batch=b0-0 PRIVMSG"));
+    assert_eq!(remaining[2], "BATCH -b0-0\r\n");
+    assert_eq!(remaining[3], "PONG :keepalive\r\n");
+    assert_eq!(remaining[4], "PRIVMSG #elsewhere :queued later\r\n");
 }

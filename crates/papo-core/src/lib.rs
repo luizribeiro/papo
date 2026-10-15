@@ -1037,10 +1037,28 @@ enum Handled {
 
 #[derive(Debug, Default)]
 struct Outbox {
-    transmits: VecDeque<Vec<u8>>,
+    transmits: VecDeque<Transmission>,
     immediate: VecDeque<Vec<u8>>,
     events: VecDeque<Event>,
     close_requested: bool,
+}
+
+#[derive(Debug)]
+enum Transmission {
+    Line(Vec<u8>),
+    Batch {
+        lines: VecDeque<Vec<u8>>,
+        started: bool,
+    },
+}
+
+impl Transmission {
+    fn line_count(&self) -> usize {
+        match self {
+            Self::Line(_) => 1,
+            Self::Batch { lines, .. } => lines.len(),
+        }
+    }
 }
 
 impl Outbox {
@@ -1051,7 +1069,16 @@ impl Outbox {
         if bypasses_rate_limit(&line) {
             self.immediate.push_back(line);
         } else {
-            self.transmits.push_back(line);
+            self.transmits.push_back(Transmission::Line(line));
+        }
+    }
+
+    fn transmit_batch(&mut self, lines: Vec<Vec<u8>>) {
+        if !self.close_requested && !lines.is_empty() {
+            self.transmits.push_back(Transmission::Batch {
+                lines: lines.into(),
+                started: false,
+            });
         }
     }
 
@@ -1310,6 +1337,7 @@ impl Session {
     ///
     /// Context tags (`+reply`, `+draft/reply`, `+channel-context`, and its draft alias) apply
     /// only to the first fallback line. Other supplied tags are copied to every line.
+    /// Each client batch is one atomic queue entry, so no other line is transmitted inside it.
     /// A `FAIL BATCH MULTILINE_*` is surfaced as an error or reply without automatic retry.
     ///
     /// # Errors
@@ -1409,8 +1437,12 @@ impl Session {
         if let Some(label) = label {
             self.requests.insert(label, (id, now));
         }
-        for line in lines {
-            self.outbox.transmit_raw(line);
+        if batch_count == 0 {
+            for line in lines {
+                self.outbox.transmit_raw(line);
+            }
+        } else {
+            self.outbox.transmit_batch(lines);
         }
         Ok(labelled.then_some(id))
     }
@@ -1531,13 +1563,29 @@ impl Session {
 
     /// Returns the next CRLF-terminated wire line to transmit.
     pub fn poll_transmit(&mut self) -> Option<Vec<u8>> {
-        if let Some(line) = self.outbox.immediate.pop_front() {
+        let batch_open = matches!(
+            self.outbox.transmits.front(),
+            Some(Transmission::Batch { started: true, .. })
+        );
+        if !batch_open && let Some(line) = self.outbox.immediate.pop_front() {
             return Some(line);
         }
         if self.outbox.transmits.is_empty() || !self.rate_limit.take() {
             return None;
         }
-        self.outbox.transmits.pop_front()
+        match self.outbox.transmits.pop_front()? {
+            Transmission::Line(line) => Some(line),
+            Transmission::Batch { mut lines, .. } => {
+                let line = lines.pop_front();
+                if !lines.is_empty() {
+                    self.outbox.transmits.push_front(Transmission::Batch {
+                        lines,
+                        started: true,
+                    });
+                }
+                line
+            }
+        }
     }
 
     /// Returns the next session event.
@@ -1623,7 +1671,13 @@ impl Session {
     /// queue through [`Session::poll_transmit`].
     #[must_use]
     pub fn queued_len(&self) -> usize {
-        self.outbox.transmits.len() + self.outbox.immediate.len()
+        self.outbox.immediate.len()
+            + self
+                .outbox
+                .transmits
+                .iter()
+                .map(Transmission::line_count)
+                .sum::<usize>()
     }
 
     /// Starts another SASL exchange with the configured credentials.
