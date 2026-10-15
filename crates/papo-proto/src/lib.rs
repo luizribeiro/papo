@@ -13,6 +13,7 @@ mod names;
 mod numeric;
 mod source;
 mod text;
+pub mod time;
 mod views;
 mod whox;
 
