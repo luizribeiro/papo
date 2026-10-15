@@ -18,6 +18,14 @@ fn starts_with_configured_identity_and_empty_shared_state() {
 }
 
 #[test]
+fn welcome_adopts_the_server_assigned_nick_in_state() {
+    Transcript::new(Config::default().nick("oldnick"))
+        .server(":irc.example 001 account :Welcome to the network")
+        .inspect(|session| assert_eq!(session.state().nick(), "account"))
+        .no_event();
+}
+
+#[test]
 fn tracks_our_join_and_another_member_with_rfc1459_keys() {
     Transcript::new(Config::default().nick("emily").username("em"))
         .server(":emily!em@127.0.0.1 JOIN #Papo[dev]")
@@ -75,6 +83,28 @@ fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
 }
 
 #[test]
+fn ranks_names_prefixes_independently_of_wire_order() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily PREFIX=(qaohv)~&@%+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+        .server(":ergo.test 353 emily = #papo :+@emily!em@127.0.0.1")
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .channel("#papo")
+                    .unwrap()
+                    .member("emily")
+                    .unwrap()
+                    .prefixes(),
+                ['@', '+']
+            );
+        })
+        .no_event();
+}
+
+#[test]
 fn no_implicit_names_marks_our_join_synced_without_366() {
     Transcript::new(Config::default().wanted_caps(["no-implicit-names"]))
         .connect_default()
@@ -85,6 +115,23 @@ fn no_implicit_names_marks_our_join_synced_without_366() {
         .server(":papo!papo@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "papo"))
         .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+        .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()))
+        .no_event();
+}
+
+#[test]
+fn another_capability_waits_for_end_of_names_before_syncing() {
+    Transcript::new(Config::default().wanted_caps(["multi-prefix"]))
+        .connect_default()
+        .server("CAP * LS :multi-prefix")
+        .client("CAP REQ :multi-prefix")
+        .server("CAP * ACK :multi-prefix")
+        .client("CAP END")
+        .server(":papo!papo@127.0.0.1 JOIN #Papo")
+        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#Papo" && nick == "papo"))
+        .inspect(|session| assert!(!session.state().channel("#papo").unwrap().is_synced()))
+        .server(":ergo.test 366 papo #Papo :End of NAMES list")
+        .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#Papo"))
         .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()))
         .no_event();
 }
