@@ -6,12 +6,12 @@ use std::{
 use papo_proto::{
     Account as AccountNotify, Away, CaseKey, Casemapping, Chghost, Command, Isupport, Join,
     MessageRef, ModeChanges, ModeKind, NamesEntry, Numeric, Setname, Source, WhoxFlags,
-    WhoxPresence, WhoxReply, parse_353,
+    WhoxPresence, WhoxReply, parse_353, time,
 };
 
 use crate::{
     Config, Event, Handled, LastSeen, Outbox, OwnedModeChange, ReadMarker, StateLimit,
-    history::parse_timestamp, monitor::Monitor,
+    monitor::Monitor,
 };
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
@@ -271,7 +271,7 @@ impl State {
         let time = match value {
             "*" | "timestamp=*" => None,
             value => {
-                let Some(time) = value.strip_prefix("timestamp=").and_then(parse_timestamp) else {
+                let Some(time) = value.strip_prefix("timestamp=").and_then(time::parse) else {
                     return false;
                 };
                 Some(time)
@@ -306,9 +306,7 @@ impl State {
         let (Some(mut target), Some(msgid), Some(time)) = (
             message.param(0),
             message.tag("msgid"),
-            message
-                .tag("time")
-                .and_then(|value| parse_timestamp(&value)),
+            message.tag("time").and_then(|value| time::parse(&value)),
         ) else {
             return;
         };

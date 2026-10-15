@@ -3,9 +3,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use papo_proto::{Message, MessageRef};
+use papo_proto::{Message, MessageRef, time};
 
-use crate::{BatchAbandonReason, Config, HistoryMessage, HistoryPage, history::parse_timestamp};
+use crate::{BatchAbandonReason, Config, HistoryMessage, HistoryPage};
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -438,7 +438,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
                 }
                 Some((
                     message.param(1)?.to_owned(),
-                    parse_timestamp(message.param(2)?)?,
+                    time::parse(message.param(2)?)?,
                 ))
             })
             .collect();
