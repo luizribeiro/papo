@@ -301,6 +301,21 @@ mod tests {
         event_as("PRIVMSG", text, "papo", "emily!~emily@localhost")
     }
 
+    fn event_to(target: &str, text: &str, isupport: &Isupport) -> Event {
+        let session = papo_core::Session::new(papo_core::Config::default().nick("papo{bot}"));
+        Event::Message(
+            MessageEvent::new(
+                Message::privmsg(target, text).with_source("emily!~emily@localhost"),
+                isupport,
+                "papo{bot}",
+                crate::Client::from_session_for_test(&session),
+                &Capabilities::new(),
+                UNIX_EPOCH,
+            )
+            .unwrap(),
+        )
+    }
+
     #[test]
     fn parses_prefixed_live_privmsg() {
         let command = Command::parse(&event("!EcHo hello world"), &BotConfig::new("!")).unwrap();
@@ -365,6 +380,40 @@ mod tests {
         let command = Command::parse(&event, &BotConfig::new("!")).unwrap();
         assert_eq!(command.name(), "echo");
         assert_eq!(command.args(), ["Ergo Chat", "one two", ""]);
+    }
+
+    #[test]
+    fn honors_the_captured_casemapping_for_mentions() {
+        let mut ascii = Isupport::default();
+        ascii.apply_tokens(["CASEMAPPING=ascii"]);
+        assert!(
+            Command::parse(
+                &event_to("#papo", "papo[bot]: ping", &ascii),
+                &BotConfig::new("!"),
+            )
+            .is_none()
+        );
+        assert!(
+            Command::parse(
+                &event_to("#papo", "papo[bot]: ping", &Isupport::default()),
+                &BotConfig::new("!"),
+            )
+            .is_some()
+        );
+    }
+
+    #[test]
+    fn reports_a_channel_only_for_channel_commands() {
+        let channel = Command::parse(&event("!ping"), &BotConfig::new("!")).unwrap();
+        assert_eq!(channel.channel(), Some("#papo"));
+
+        let private = Command::parse(
+            &event_to("papo", "!ping", &Isupport::default()),
+            &BotConfig::new("!"),
+        )
+        .unwrap();
+        assert_eq!(private.channel(), None);
+        assert_ne!(channel.channel(), Some(""));
     }
 
     #[test]
@@ -434,5 +483,11 @@ mod tests {
             third.reply("pong").await.unwrap(),
             super::ReplyStatus::Dropped
         );
+    }
+
+    #[tokio::test]
+    async fn private_notices_consume_the_reply_budget_before_sending() {
+        let command = Command::parse(&event("!ping"), &BotConfig::new("!")).unwrap();
+        assert!(command.private_notice("pong").await.is_err());
     }
 }
