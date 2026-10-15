@@ -1,8 +1,12 @@
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 
 use papo_core::{Config, RateLimit, Sasl};
 
-use crate::{AddressError, address::ServerAddress};
+use crate::{
+    AddressError, Error,
+    address::ServerAddress,
+    transport::{ClientCertificate, TlsConfig, TlsRoots},
+};
 
 /// Configures an IRC client before it is built or connected.
 #[must_use]
@@ -10,6 +14,7 @@ pub struct Builder {
     pub(crate) address: Result<ServerAddress, AddressError>,
     pub(crate) config: Config,
     pub(crate) event_capacity: usize,
+    pub(crate) tls: TlsConfig,
     username_set: bool,
     realname_set: bool,
 }
@@ -20,6 +25,7 @@ impl Builder {
             address: address.parse(),
             config: Config::default(),
             event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
+            tls: TlsConfig::default(),
             username_set: false,
             realname_set: false,
         }
@@ -145,6 +151,57 @@ impl Builder {
     pub fn plaintext(self) -> Self {
         self.tls(false)
     }
+
+    /// Trusts only the certificates in a PEM document.
+    pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
+        self.tls.roots = TlsRoots::Ca(pem.into());
+        self
+    }
+
+    /// Reads a PEM trust document from `path`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ReadFile`] when the file cannot be read.
+    pub fn tls_ca_file(self, path: impl AsRef<Path>) -> Result<Self, Error> {
+        self.read_file(path)
+            .map(|(builder, pem)| builder.tls_ca_pem(pem))
+    }
+
+    /// Sets a PEM-encoded TLS client certificate chain and private key.
+    pub fn tls_client_cert(
+        mut self,
+        certificate: impl Into<Vec<u8>>,
+        key: impl Into<Vec<u8>>,
+    ) -> Self {
+        self.tls.client_certificate = Some(ClientCertificate::new(certificate, key));
+        self
+    }
+
+    /// Reads a TLS client certificate chain and private key from PEM files.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ReadFile`] when either file cannot be read.
+    pub fn tls_client_cert_files(
+        self,
+        certificate: impl AsRef<Path>,
+        key: impl AsRef<Path>,
+    ) -> Result<Self, Error> {
+        let (builder, certificate) = self.read_file(certificate)?;
+        let (builder, key) = builder.read_file(key)?;
+        Ok(builder.tls_client_cert(certificate, key))
+    }
+
+    fn read_file(self, path: impl AsRef<Path>) -> Result<(Self, Vec<u8>), Error> {
+        let path = path.as_ref();
+        std::fs::read(path)
+            .map(|contents| (self, contents))
+            .map_err(|source| Error::ReadFile {
+                path: path.to_owned(),
+                source,
+            })
+    }
 }
 
 #[cfg(test)]
@@ -154,7 +211,7 @@ mod tests {
     use papo_core::{RateLimit, Sasl};
 
     use super::Builder;
-    use crate::address::Protocol;
+    use crate::{Error, address::Protocol, transport::TlsRoots};
 
     #[test]
     fn fills_every_session_configuration_field() {
@@ -233,5 +290,23 @@ mod tests {
             .address
             .unwrap();
         assert_eq!(explicit.port, 7000);
+    }
+
+    #[test]
+    fn configures_tls_material_and_names_file_errors() {
+        let builder = Builder::new("irc.example.net")
+            .tls_ca_pem(b"test CA".to_vec())
+            .tls_client_cert(b"certificate".to_vec(), b"private key".to_vec());
+        assert!(matches!(builder.tls.roots, TlsRoots::Ca(pem) if pem == b"test CA"));
+        assert!(builder.tls.client_certificate.is_some());
+
+        let error = Builder::new("irc.example.net")
+            .tls_ca_file("missing-papo-builder-ca.pem")
+            .err()
+            .unwrap();
+        assert!(
+            matches!(&error, Error::ReadFile { path, .. } if path == std::path::Path::new("missing-papo-builder-ca.pem"))
+        );
+        assert!(error.to_string().contains("missing-papo-builder-ca.pem"));
     }
 }
