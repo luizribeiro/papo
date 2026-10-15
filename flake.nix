@@ -175,6 +175,7 @@
             text = ''
               cargo nextest run --workspace --locked
               cargo nextest run -p papo-proto --features precis --locked
+              cargo nextest run -p papo --lib --all-features --locked
             '';
             stages = [ "pre-push" ];
           };

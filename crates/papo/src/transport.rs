@@ -439,4 +439,21 @@ mod tests {
                 if message.starts_with("invalid certificate PEM:")
         ));
     }
+
+    #[cfg(all(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[test]
+    fn ring_wins_when_both_providers_are_enabled() {
+        let groups = |provider: &rustls::crypto::CryptoProvider| {
+            provider
+                .kx_groups
+                .iter()
+                .map(|group| group.name())
+                .collect::<Vec<_>>()
+        };
+        let selected = super::tls_provider();
+        let ring = rustls::crypto::ring::default_provider();
+        let aws_lc = rustls::crypto::aws_lc_rs::default_provider();
+        assert_ne!(groups(&ring), groups(&aws_lc));
+        assert_eq!(groups(&selected), groups(&ring));
+    }
 }
