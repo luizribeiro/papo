@@ -1,4 +1,6 @@
-use papo_core::{Account, Capabilities, OwnedModeChange, StateLimit, Welcome, sts::StsAction};
+use papo_core::{
+    Account, BatchAbandonReason, Capabilities, OwnedModeChange, StateLimit, Welcome, sts::StsAction,
+};
 use std::{
     fmt,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -466,6 +468,38 @@ pub enum Event {
     Message(MessageEvent),
     /// A parsed message without a typed event variant.
     Raw(Message),
+    /// A completed history or playback batch.
+    History {
+        /// The history target named by the batch.
+        target: String,
+        /// Messages in server delivery order.
+        messages: Vec<Message>,
+        /// Whether the server reported that no further page exists.
+        end: bool,
+    },
+    /// Users departed because connectivity between two servers was lost.
+    Netsplit {
+        /// The servers on either side of the lost link.
+        servers: [String; 2],
+        /// The grouped `QUIT` messages.
+        quits: Vec<Message>,
+    },
+    /// Users returned after connectivity between two servers was restored.
+    Netjoin {
+        /// The servers on either side of the restored link.
+        servers: [String; 2],
+        /// The grouped `JOIN` messages.
+        joins: Vec<Message>,
+    },
+    /// A server batch exceeded a retention bound or deadline.
+    BatchAbandoned {
+        /// The opaque batch reference.
+        reference: String,
+        /// The batch type from its opening line.
+        batch_type: String,
+        /// The bound that was reached.
+        reason: BatchAbandonReason,
+    },
     /// A line from the server could not be decoded or parsed.
     Malformed {
         /// The original bytes, excluding the line ending.
@@ -636,6 +670,26 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Registered(welcome) => Event::Registered(welcome),
         papo_core::Event::Message(message) => return CoreEvent::Message(message),
+        papo_core::Event::History {
+            target,
+            messages,
+            end,
+        } => Event::History {
+            target,
+            messages,
+            end,
+        },
+        papo_core::Event::Netsplit { servers, quits } => Event::Netsplit { servers, quits },
+        papo_core::Event::Netjoin { servers, joins } => Event::Netjoin { servers, joins },
+        papo_core::Event::BatchAbandoned {
+            reference,
+            batch_type,
+            reason,
+        } => Event::BatchAbandoned {
+            reference,
+            batch_type,
+            reason,
+        },
         papo_core::Event::Malformed { line } => Event::Malformed { line },
         papo_core::Event::Close { reason } => return CoreEvent::Close(reason),
         papo_core::Event::AuthenticationFailed { reason } => Event::AuthenticationFailed { reason },
@@ -716,7 +770,9 @@ mod tests {
     use super::{
         CoreEvent, Event, MessageEvent, MessageKind, Origin, from_core, parse_server_time,
     };
-    use papo_core::{Account, Capabilities, Config, OwnedModeChange, Session, StateLimit};
+    use papo_core::{
+        Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session, StateLimit,
+    };
     use papo_proto::{Isupport, Message, ModeKind, Source};
 
     fn event(
@@ -1207,5 +1263,70 @@ mod tests {
             forwarded(papo_core::Event::MonitorUnsupported),
             Event::MonitorUnsupported
         ));
+    }
+
+    #[test]
+    fn maps_history() {
+        let message = Message::privmsg("#papo", "earlier");
+        let Event::History {
+            target,
+            messages,
+            end,
+        } = forwarded(papo_core::Event::History {
+            target: "#papo".into(),
+            messages: vec![message.clone()],
+            end: true,
+        })
+        else {
+            panic!("history was not forwarded")
+        };
+        assert_eq!(target, "#papo");
+        assert_eq!(messages, vec![message]);
+        assert!(end);
+    }
+
+    #[test]
+    fn maps_netsplit() {
+        let quit = Message::new("QUIT", ["irc.example irc.remote"]);
+        let Event::Netsplit { servers, quits } = forwarded(papo_core::Event::Netsplit {
+            servers: ["irc.example".into(), "irc.remote".into()],
+            quits: vec![quit.clone()],
+        }) else {
+            panic!("netsplit was not forwarded")
+        };
+        assert_eq!(servers, ["irc.example", "irc.remote"]);
+        assert_eq!(quits, vec![quit]);
+    }
+
+    #[test]
+    fn maps_netjoin() {
+        let join = Message::join("#papo").with_source("alice!~a@remote.example");
+        let Event::Netjoin { servers, joins } = forwarded(papo_core::Event::Netjoin {
+            servers: ["irc.example".into(), "irc.remote".into()],
+            joins: vec![join.clone()],
+        }) else {
+            panic!("netjoin was not forwarded")
+        };
+        assert_eq!(servers, ["irc.example", "irc.remote"]);
+        assert_eq!(joins, vec![join]);
+    }
+
+    #[test]
+    fn maps_batch_abandoned() {
+        let Event::BatchAbandoned {
+            reference,
+            batch_type,
+            reason,
+        } = forwarded(papo_core::Event::BatchAbandoned {
+            reference: "history42".into(),
+            batch_type: "chathistory".into(),
+            reason: BatchAbandonReason::Timeout,
+        })
+        else {
+            panic!("abandonment was not forwarded")
+        };
+        assert_eq!(reference, "history42");
+        assert_eq!(batch_type, "chathistory");
+        assert_eq!(reason, BatchAbandonReason::Timeout);
     }
 }

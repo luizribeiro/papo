@@ -1493,6 +1493,10 @@ mod tests {
         server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
         assert_eq!(next_message(&mut events).await.origin(), Origin::Echo);
         assert_eq!(next_message(&mut events).await.origin(), Origin::Replay);
+        assert!(matches!(
+            events.next().await,
+            Some(Event::BatchAbandoned { .. })
+        ));
 
         let before = SystemTime::now();
         server_line(&mut server, b":dan!d@localhost PRIVMSG #papo :no time\r\n@time=invalid :dan!d@localhost PRIVMSG #papo :bad time\r\n").await;
