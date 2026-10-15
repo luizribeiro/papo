@@ -880,7 +880,7 @@ mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
-        CoreEvent, Event, MessageEvent, MessageKind, Origin, from_core, parse_server_time,
+        CoreEvent, Event, MessageEvent, MessageKind, Origin, TagMsg, from_core, parse_server_time,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session, StandardReply,
@@ -1184,12 +1184,40 @@ mod tests {
                 ("+reply".into(), Some("RKi9Cw".into())),
             ],
         };
-        assert!(matches!(
-            forwarded(papo_core::Event::TagMessage(tag)),
-            Event::TagMsg(tag) if tag.source() == Some("alice!~a@cloak")
-                && tag.target() == "#papo" && tag.typing() == Some(Typing::Paused)
-                && tag.reaction().is_some_and(|reaction| reaction.reply_to == "RKi9Cw")
-        ));
+        let Event::TagMsg(tag) = forwarded(papo_core::Event::TagMessage(tag)) else {
+            panic!("expected tag message")
+        };
+        assert_eq!(tag.source(), Some("alice!~a@cloak"));
+        assert_eq!(tag.target(), "#papo");
+        assert_eq!(
+            tag.tags(),
+            [
+                ("+typing".into(), Some("paused".into())),
+                ("+draft/react".into(), Some("👍".into())),
+                ("+reply".into(), Some("RKi9Cw".into())),
+            ]
+        );
+        assert_eq!(tag.typing(), Some(Typing::Paused));
+        assert!(
+            tag.reaction()
+                .is_some_and(|reaction| reaction.reply_to == "RKi9Cw")
+        );
+    }
+
+    #[test]
+    fn distinguishes_every_typing_tag_value() {
+        let typing = |value: &str| {
+            TagMsg {
+                source: None,
+                target: "#papo".into(),
+                tags: vec![("+typing".into(), Some(value.into()))],
+            }
+            .typing()
+        };
+        assert_eq!(typing("active"), Some(Typing::Active));
+        assert_eq!(typing("paused"), Some(Typing::Paused));
+        assert_eq!(typing("done"), Some(Typing::Done));
+        assert_eq!(typing("composing"), None);
     }
 
     #[test]
