@@ -566,6 +566,18 @@ mod tests {
     }
 
     #[test]
+    fn debug_hides_connection_internals() {
+        let client = crate::Client::disconnected_for_test();
+        assert_eq!(format!("{client:?}"), "Client { .. }");
+
+        let rendered = format!("{:?}", chat("PRIVMSG", "hello from Ergo"));
+        assert!(rendered.contains("client: Client { .. }"));
+        for field in ["commands:", "connected:", "isupport:", "caps:", "reply_to:"] {
+            assert!(!rendered.contains(field), "{rendered}");
+        }
+    }
+
+    #[test]
     fn routes_channels_and_private_messages_with_ergo_chantypes() {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CHANTYPES=#"]);
