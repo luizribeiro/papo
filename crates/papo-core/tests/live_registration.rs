@@ -4,8 +4,9 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
+mod support;
+
 use std::{
-    io::{Read, Write},
     net::TcpStream,
     time::{Duration, Instant},
 };
@@ -13,6 +14,7 @@ use std::{
 use papo_core::{Config, Event, RateLimit, Session};
 use papo_proto::Casemapping;
 use papo_test_server::{from_env, unique};
+use support::drive_until;
 
 #[test]
 fn registers_with_live_ergo() {
@@ -31,28 +33,13 @@ fn registers_with_live_ergo() {
     );
     session.handle_connected(Instant::now());
 
-    let mut registered = false;
-    for _ in 0..64 {
-        while let Some(bytes) = session.poll_transmit() {
-            stream.write_all(&bytes).unwrap();
-        }
-        while let Some(event) = session.poll_event() {
-            match event {
-                Event::Registered(_) => registered = true,
-                Event::Close { reason } => panic!("session closed: {reason}"),
-                _ => {}
-            }
-        }
-        if registered {
-            break;
-        }
-        let mut bytes = [0; 16 * 1024];
-        let count = stream.read(&mut bytes).unwrap();
-        assert_ne!(count, 0, "Ergo closed before registration");
-        session.handle_bytes(Instant::now(), &bytes[..count]);
+    let event = drive_until(&mut session, &mut stream, 64, |event| {
+        matches!(event, Event::Registered(_) | Event::Close { .. })
+    })
+    .expect("registration did not complete");
+    if let Event::Close { reason } = event {
+        panic!("session closed: {reason}");
     }
-
-    assert!(registered, "registration did not complete");
     assert_eq!(session.nick(), nick);
     assert!(session.caps().contains_key("message-tags"));
     assert!(session.caps().contains_key("server-time"));

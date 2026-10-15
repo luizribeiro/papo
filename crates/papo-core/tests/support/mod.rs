@@ -3,12 +3,37 @@
 
 use std::{
     fs,
+    io::{Read, Write},
     path::Path,
     time::{Duration, Instant},
 };
 
 use papo_core::{Config, Connection, Entropy, Event, RateLimit, Session};
 use papo_proto::Message;
+
+/// Drives a live stream until an event matches `finished`.
+pub fn drive_until(
+    session: &mut Session,
+    stream: &mut (impl Read + Write),
+    attempts: usize,
+    mut finished: impl FnMut(&Event) -> bool,
+) -> Option<Event> {
+    for _ in 0..attempts {
+        while let Some(bytes) = session.poll_transmit() {
+            stream.write_all(&bytes).unwrap();
+        }
+        while let Some(event) = session.poll_event() {
+            if finished(&event) {
+                return Some(event);
+            }
+        }
+        let mut bytes = [0; 16 * 1024];
+        let count = stream.read(&mut bytes).unwrap();
+        assert_ne!(count, 0, "server closed before the awaited event");
+        session.handle_bytes(Instant::now(), &bytes[..count]);
+    }
+    None
+}
 
 /// A fluent driver for a [`Session`] with a manually advanced clock.
 pub struct Transcript {

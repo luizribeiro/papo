@@ -4,14 +4,16 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
+mod support;
+
 use std::{
-    io::{Read, Write},
     net::TcpStream,
     time::{Duration, Instant},
 };
 
 use papo_core::{Config, Entropy, Event, RateLimit, Sasl, Session};
 use papo_test_server::{ServerInfo, from_env, register_account, unique};
+use support::drive_until;
 
 struct FixedEntropy;
 
@@ -68,21 +70,13 @@ fn authenticate(
     let mut session = Session::with_entropy(config, Box::new(FixedEntropy));
     session.handle_connected(Instant::now());
 
-    for _ in 0..128 {
-        while let Some(bytes) = session.poll_transmit() {
-            stream.write_all(&bytes).unwrap();
-        }
-        while let Some(event) = session.poll_event() {
-            match event {
-                Event::Registered(_) => return Ok(session),
-                Event::Close { reason } => return Err(reason),
-                _ => {}
-            }
-        }
-        let mut bytes = [0; 16 * 1024];
-        let count = stream.read(&mut bytes).unwrap();
-        assert_ne!(count, 0, "Ergo closed during SASL for {account}");
-        session.handle_bytes(Instant::now(), &bytes[..count]);
+    let event = drive_until(&mut session, &mut stream, 128, |event| {
+        matches!(event, Event::Registered(_) | Event::Close { .. })
+    })
+    .unwrap_or_else(|| panic!("Ergo did not finish SASL for {account}"));
+    match event {
+        Event::Registered(_) => Ok(session),
+        Event::Close { reason } => Err(reason),
+        _ => unreachable!("drive predicate only accepts terminal events"),
     }
-    panic!("Ergo did not finish SASL for {account}");
 }

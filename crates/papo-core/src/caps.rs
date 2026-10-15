@@ -174,13 +174,7 @@ impl Caps {
             .filter(|name| seen.insert((*name).to_owned()))
             .map(str::to_owned)
             .collect();
-        for request in split_requests(requested) {
-            let mut line = b"CAP REQ :".to_vec();
-            line.extend_from_slice(request.join(" ").as_bytes());
-            line.extend_from_slice(b"\r\n");
-            outbox.transmit_raw(line);
-            self.pending.push_back(request);
-        }
+        self.send_requests(split_requests(requested), outbox);
     }
 
     fn handle_ls(
@@ -232,13 +226,17 @@ impl Caps {
         if requests.is_empty() {
             self.maybe_finish(sasl.is_finished(), outbox);
         } else {
-            for request in &requests {
-                let mut line = b"CAP REQ :".to_vec();
-                line.extend_from_slice(request.join(" ").as_bytes());
-                line.extend_from_slice(b"\r\n");
-                outbox.transmit_raw(line);
-            }
-            self.pending = requests.into();
+            self.send_requests(requests, outbox);
+        }
+    }
+
+    fn send_requests(&mut self, requests: Vec<Vec<String>>, outbox: &mut Outbox) {
+        for request in requests {
+            let mut line = b"CAP REQ :".to_vec();
+            line.extend_from_slice(request.join(" ").as_bytes());
+            line.extend_from_slice(b"\r\n");
+            outbox.transmit_raw(line);
+            self.pending.push_back(request);
         }
     }
 
