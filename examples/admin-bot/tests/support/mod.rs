@@ -2,6 +2,7 @@
 
 use std::{path::PathBuf, time::Duration};
 
+use papo::{Client, Event, Events, MessageEvent, Sasl};
 use papo_test_server::ServerInfo;
 use tokio::time::{sleep, timeout};
 
@@ -54,5 +55,68 @@ impl Drop for AdminBot {
         let _ = self.child.kill();
         let _ = self.child.wait();
         let _ = std::fs::remove_file(&self.password);
+    }
+}
+
+pub(super) async fn connect(
+    server: &ServerInfo,
+    nick: &str,
+    channels: &[String],
+    authenticated: bool,
+) -> (Client, Events) {
+    let address = format!("irc://{}", server.plaintext_addr());
+    let mut builder = Client::builder(&address).nick(nick).channels(channels);
+    if authenticated {
+        builder = builder
+            .sasl(Sasl::plain(nick, PASSWORD))
+            .require_sasl(true);
+    }
+    let (client, mut events) = builder.connect().await.unwrap();
+    wait_synced(&mut events, channels).await;
+    (client, events)
+}
+
+pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
+    let mut pending = channels.to_vec();
+    while !pending.is_empty() {
+        match events.next().await {
+            Some(Event::ChannelSynced { channel }) => {
+                if let Some(index) = pending.iter().position(|item| item == &channel) {
+                    pending.swap_remove(index);
+                }
+            }
+            Some(Event::Disconnected { reason, .. }) => panic!("join failed: {reason}"),
+            Some(_) => {}
+            None => panic!("driver stopped while joining"),
+        }
+    }
+}
+
+pub(super) async fn wait_message(events: &mut Events, text: &str) -> MessageEvent {
+    loop {
+        match events.next().await {
+            Some(Event::Message(message)) if message.text() == text => return message,
+            Some(Event::Disconnected { reason, .. }) => panic!("message failed: {reason}"),
+            Some(_) => {}
+            None => panic!("driver stopped while waiting for {text}"),
+        }
+    }
+}
+
+pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
+    loop {
+        match events.next().await {
+            Some(Event::ModeChanged { target, changes, .. })
+                if target == channel
+                    && changes.iter().any(|change| {
+                        change.set && change.mode == 'o' && change.arg.as_deref() == Some(nick)
+                    }) =>
+            {
+                return;
+            }
+            Some(Event::Disconnected { reason, .. }) => panic!("mode failed: {reason}"),
+            Some(_) => {}
+            None => panic!("driver stopped while waiting for +o {nick}"),
+        }
     }
 }
