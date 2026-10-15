@@ -199,6 +199,85 @@ async fn rejects_a_partial_line_at_shutdown() {
     assert_eq!(error.kind(), io::ErrorKind::InvalidData);
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn bounds_outgoing_complete_and_partial_lines() {
+    let server = from_env();
+    let mut complete = connect_websocket(server.websocket_url(), None)
+        .await
+        .unwrap();
+    let mut accepted = vec![b'x'; 8191 + 512];
+    accepted.extend_from_slice(b"\r\n");
+    complete.write_all(&accepted).await.unwrap();
+
+    let mut complete = connect_websocket(server.websocket_url(), None)
+        .await
+        .unwrap();
+    let mut rejected = vec![b'x'; 8191 + 512 + 1];
+    rejected.extend_from_slice(b"\r\n");
+    assert_eq!(
+        complete.write_all(&rejected).await.unwrap_err().kind(),
+        io::ErrorKind::InvalidData
+    );
+
+    let mut partial = connect_websocket(server.websocket_url(), None)
+        .await
+        .unwrap();
+    partial
+        .write_all(&vec![b'x'; 8191 + 512 + 1])
+        .await
+        .unwrap();
+    assert_eq!(
+        partial.write_all(b"x").await.unwrap_err().kind(),
+        io::ErrorKind::InvalidData
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[allow(clippy::result_large_err)]
+async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (connection, _) = listener.accept().await.unwrap();
+        let mut socket = accept_hdr_async(
+            connection,
+            |_request: &Request, mut response: Response| -> Result<Response, ErrorResponse> {
+                response.headers_mut().insert(
+                    SEC_WEBSOCKET_PROTOCOL,
+                    HeaderValue::from_static("text.ircv3.net"),
+                );
+                Ok(response)
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            socket.next().await.unwrap().unwrap(),
+            Message::text("PING :utf8-✓")
+        );
+        socket
+            .send(Message::text(":text.example PONG :utf8-✓"))
+            .await
+            .unwrap();
+        socket.send(Message::Close(None)).await.unwrap();
+    });
+
+    let mut stream = connect_websocket(&format!("ws://{address}/text"), None)
+        .await
+        .unwrap();
+    assert_eq!(stream.websocket_subprotocol(), Some("text.ircv3.net"));
+    stream
+        .write_all("PING :utf8-✓\r\n".as_bytes())
+        .await
+        .unwrap();
+    assert_eq!(
+        read_line(&mut stream).await.unwrap(),
+        ":text.example PONG :utf8-✓\r\n"
+    );
+    assert_eq!(stream.read(&mut [0; 1]).await.unwrap(), 0);
+    server.await.unwrap();
+}
+
 async fn read_line(stream: &mut Stream) -> io::Result<String> {
     let mut line = Vec::new();
     for _ in 0..8191 {

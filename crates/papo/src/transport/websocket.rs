@@ -201,7 +201,7 @@ impl AsyncWrite for WebSocket {
         buffer: &[u8],
     ) -> Poll<io::Result<usize>> {
         let Some(newline) = buffer.iter().position(|byte| *byte == b'\n') else {
-            if self.write_buffer.len() + buffer.len() > MAX_MESSAGE_SIZE + 1 {
+            if self.write_buffer.len().saturating_add(buffer.len()) > MAX_MESSAGE_SIZE + 1 {
                 return Poll::Ready(Err(io::Error::new(
                     io::ErrorKind::InvalidData,
                     "partial IRC line exceeds the WebSocket message limit",
@@ -214,6 +214,18 @@ impl AsyncWrite for WebSocket {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(Err(error)) => return Poll::Ready(Err(Self::io_error(error))),
             Poll::Ready(Ok(())) => {}
+        }
+        let line_length = self.write_buffer.len().saturating_add(newline);
+        let ends_with_cr = if newline == 0 {
+            self.write_buffer.last() == Some(&b'\r')
+        } else {
+            buffer[newline - 1] == b'\r'
+        };
+        if line_length - usize::from(ends_with_cr) > MAX_MESSAGE_SIZE {
+            return Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "IRC line exceeds the WebSocket message limit",
+            )));
         }
         self.write_buffer.extend_from_slice(&buffer[..newline]);
         if self.write_buffer.last() == Some(&b'\r') {
