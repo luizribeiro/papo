@@ -278,6 +278,9 @@
             pkgs.cargo-fuzz
             pkgs.cargo-llvm-cov
             wasiSdk
+            pkgs.cmake
+            pkgs.ninja
+            pkgs.perl
             pkgs.openssl
             pkgs.taplo
             pkgs.git-absorb

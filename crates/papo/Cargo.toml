@@ -9,6 +9,12 @@ publish.workspace = true
 
 [features]
 default = ["tls-ring"]
+tls-aws-lc = [
+  "dep:rustls",
+  "dep:rustls-platform-verifier",
+  "dep:tokio-rustls",
+  "rustls/aws-lc-rs",
+]
 tls-ring = [
   "dep:rustls",
   "dep:rustls-platform-verifier",
