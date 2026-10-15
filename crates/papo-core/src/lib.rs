@@ -16,7 +16,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use papo_proto::{BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef};
+use papo_proto::{
+    BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef, ModeChange, ModeKind,
+};
 
 use caps::Caps;
 use framing::Framer;
@@ -332,6 +334,30 @@ impl Config {
     }
 }
 
+/// An owned operation from an IRC mode string.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OwnedModeChange {
+    /// Whether the mode is being set rather than removed.
+    pub set: bool,
+    /// The mode letter.
+    pub mode: char,
+    /// The mode argument, when one was required and supplied.
+    pub arg: Option<String>,
+    /// The mode's advertised parameter behavior.
+    pub kind: ModeKind,
+}
+
+impl From<ModeChange<'_>> for OwnedModeChange {
+    fn from(change: ModeChange<'_>) -> Self {
+        Self {
+            set: change.set,
+            mode: change.mode,
+            arg: change.arg.map(str::to_owned),
+            kind: change.kind,
+        }
+    }
+}
+
 /// An event emitted by an IRC session.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -421,6 +447,24 @@ pub enum Event {
         old: String,
         /// The new nickname.
         new: String,
+    },
+    /// A user or channel mode changed.
+    ModeChanged {
+        /// The mode target.
+        target: String,
+        /// The user or server that changed the modes.
+        by: String,
+        /// Parsed mode operations in wire order.
+        changes: Vec<OwnedModeChange>,
+    },
+    /// A channel topic changed live.
+    TopicChanged {
+        /// The affected channel.
+        channel: String,
+        /// The new topic, or `None` when it was cleared.
+        topic: Option<String>,
+        /// The user or server that changed the topic.
+        by: String,
     },
 }
 

@@ -8,7 +8,7 @@ use papo_proto::{
     Numeric, Source, parse_353,
 };
 
-use crate::{Config, Event, Handled, Outbox, StateLimit};
+use crate::{Config, Event, Handled, Outbox, OwnedModeChange, StateLimit};
 
 /// The known channel and user state for a session.
 #[derive(Debug)]
@@ -158,12 +158,12 @@ impl State {
             });
             return Handled::Yes;
         }
-        if self.handle_channel_mode(message, isupport) {
-            return Handled::Yes;
-        }
-        if self.handle_channel_metadata(message, isupport)
+        let mode_reported = Self::report_mode_change(message, isupport, outbox);
+        if self.handle_channel_mode(message, isupport)
+            || self.handle_channel_metadata(message, isupport)
             || self.handle_user_modes(message)
-            || self.handle_topic(message)
+            || self.handle_topic(message, outbox)
+            || mode_reported
         {
             return Handled::Yes;
         }
@@ -203,6 +203,37 @@ impl State {
         {
             channel.apply_modes(modestring, message.params().skip(2), isupport, false);
         }
+        true
+    }
+
+    fn report_mode_change(
+        message: &MessageRef<'_>,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> bool {
+        let (Some(target), Some(modestring), Some(by)) = (
+            message
+                .param(0)
+                .filter(|_| message.command() == Command::Mode),
+            message.param(1),
+            source_name(message),
+        ) else {
+            return false;
+        };
+        let changes = if isupport.is_channel(target) {
+            ModeChanges::parse(modestring, message.params().skip(2), isupport)
+                .map(OwnedModeChange::from)
+                .collect()
+        } else {
+            ModeChanges::parse(modestring, message.params().skip(2), &Isupport::default())
+                .map(OwnedModeChange::from)
+                .collect()
+        };
+        outbox.event(Event::ModeChanged {
+            target: target.to_owned(),
+            by: by.to_owned(),
+            changes,
+        });
         true
     }
 
@@ -256,7 +287,7 @@ impl State {
         true
     }
 
-    fn handle_topic(&mut self, message: &MessageRef<'_>) -> bool {
+    fn handle_topic(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
         let (channel_name, topic, live) = match message.command() {
             Command::Numeric(Numeric::RPL_TOPIC) => (message.param(1), message.param(2), false),
             Command::Topic => (message.param(0), message.param(1), true),
@@ -273,6 +304,13 @@ impl State {
             }
             _ => return false,
         };
+        if live && let (Some(channel), Some(by)) = (channel_name, source_name(message)) {
+            outbox.event(Event::TopicChanged {
+                channel: channel.to_owned(),
+                topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
+                by: by.to_owned(),
+            });
+        }
         let Some(channel) = channel_name
             .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
         else {
@@ -564,6 +602,13 @@ impl State {
     pub fn user(&self, nick: &str) -> Option<&User> {
         self.users.get(&CaseKey::new(nick, self.casemapping))
     }
+}
+
+fn source_name<'a>(message: &'a MessageRef<'_>) -> Option<&'a str> {
+    Some(match message.source()? {
+        Source::Server(name) => name,
+        Source::User { nick, .. } => nick,
+    })
 }
 
 impl Channel {

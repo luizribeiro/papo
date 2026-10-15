@@ -2,7 +2,8 @@
 
 mod support;
 
-use papo_core::{Config, Event, StateLimit};
+use papo_core::{Config, Event, OwnedModeChange, StateLimit};
+use papo_proto::ModeKind;
 use support::Transcript;
 
 #[test]
@@ -172,6 +173,7 @@ fn ignores_membership_modes_for_unknown_channels_and_members() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
         .server(":alice!alice@staff.example MODE #unknown +o emily")
         .server(":alice!alice@staff.example MODE #papo +o dan")
         .inspect(|session| {
@@ -194,6 +196,7 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
         .server(":ergo.test 324 emily #papo +kln swordfish 10")
         .server(":ergo.test 329 emily #papo 1723501539")
         .server(":ergo.test 332 emily #papo :Welcome to the papo channel")
@@ -208,6 +211,7 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
             assert_eq!(channel.topic_set_by(), Some("alice"));
             assert_eq!(channel.topic_set_at(), Some(1_723_501_612));
         })
+        .no_event()
         .server(":alice!alice@staff.example MODE #papo -k")
         .server(":alice!alice@staff.example MODE #papo -l+mb *!*@gateway/tor-sasl")
         .inspect(|session| {
@@ -226,7 +230,9 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
 fn tracks_live_topic_changes_and_clearing() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
         .server(":alice!alice@staff.example TOPIC #papo :Rust 1.90 is out")
+        .event(|event| matches!(event, Event::TopicChanged { channel, topic, by } if channel == "#papo" && topic.as_deref() == Some("Rust 1.90 is out") && by == "alice"))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), Some("Rust 1.90 is out"));
@@ -234,12 +240,36 @@ fn tracks_live_topic_changes_and_clearing() {
             assert_eq!(channel.topic_set_at(), None);
         })
         .server(":alice!alice@staff.example TOPIC #papo :")
+        .event(|event| matches!(event, Event::TopicChanged { channel, topic, by } if channel == "#papo" && topic.is_none() && by == "alice"))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), None);
             assert_eq!(channel.topic_set_by(), Some("alice"));
         })
-        .ignore_rest();
+        .no_event();
+}
+
+#[test]
+fn reports_mixed_channel_and_user_mode_changes() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":alice!alice@staff.example MODE #papo +o-b emily *!*@gateway/tor-sasl")
+        .event(|event| match event {
+            Event::ModeChanged { target, by, changes } => {
+                target == "#papo"
+                    && by == "alice"
+                    && changes == &vec![
+                        OwnedModeChange { set: true, mode: 'o', arg: Some("emily".into()), kind: ModeKind::Prefix(0) },
+                        OwnedModeChange { set: false, mode: 'b', arg: Some("*!*@gateway/tor-sasl".into()), kind: ModeKind::List },
+                    ]
+            }
+            _ => false,
+        })
+        .server(":ergo.test MODE emily +i")
+        .event(|event| matches!(event, Event::ModeChanged { target, by, changes } if target == "emily" && by == "ergo.test" && changes == &vec![OwnedModeChange { set: true, mode: 'i', arg: None, kind: ModeKind::Unknown }]))
+        .no_event();
 }
 
 #[test]
