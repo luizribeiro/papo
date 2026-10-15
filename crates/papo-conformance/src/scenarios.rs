@@ -1,10 +1,11 @@
 use std::time::Duration;
 
-use libtest_mimic::Failed;
+use libtest_mimic::{Completion, Failed};
 use papo::Event;
 use papo_core::Sasl;
-use papo_proto::Message;
+use papo_proto::{Message, MessageRef};
 use papo_test_server::register_account;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::{CapRequirement, Requirements, Scenario, ScenarioFuture, ScenarioResult, ScenarioSpec};
 
@@ -45,6 +46,15 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 isupport: &[],
             },
             run: sasl_scram_sha_256,
+        },
+        ScenarioSpec {
+            name: "ping",
+            doc: "answers a client PING with the matching PONG",
+            requires: Requirements {
+                caps: &[],
+                isupport: &[],
+            },
+            run: ping,
         },
     ]
 }
@@ -98,4 +108,42 @@ async fn authenticate(context: Scenario, scram: bool) -> ScenarioResult {
         )
         .await?;
     connection.close().await
+}
+
+fn ping(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let address = context.server.plaintext_addr();
+        let mut stream = papo::transport::connect(
+            &address.ip().to_string(),
+            address.port(),
+            &papo::transport::Security::Plaintext,
+        )
+        .await
+        .map_err(Failed::from)?;
+        let token = context.unique();
+        stream
+            .write_all(format!("PING :{token}\r\n").as_bytes())
+            .await
+            .map_err(Failed::from)?;
+        let line = tokio::time::timeout(EXPECT_TIMEOUT, read_line(&mut stream))
+            .await
+            .map_err(|_| Failed::from("timed out waiting for PONG"))??;
+        let message = MessageRef::parse_bytes(&line).map_err(Failed::from)?;
+        if !message.command_is("PONG") || message.params().last() != Some(token.as_str()) {
+            return Err("server PONG did not contain the PING token".into());
+        }
+        Ok(Completion::Completed)
+    })
+}
+
+async fn read_line(stream: &mut papo::transport::Stream) -> Result<Vec<u8>, Failed> {
+    let mut line = Vec::with_capacity(512);
+    for _ in 0..8703 {
+        let byte = stream.read_u8().await.map_err(Failed::from)?;
+        line.push(byte);
+        if byte == b'\n' {
+            return Ok(line);
+        }
+    }
+    Err("server line exceeds the IRC wire limits".into())
 }

@@ -13,7 +13,7 @@ papo = { path = "../papo", version = "=0.0.0", default-features = false }
 papo-core = { path = "../papo-core", version = "=0.0.0" }
 papo-proto = { path = "../papo-proto", version = "=0.0.0" }
 papo-test-server = { path = "../papo-test-server", version = "=0.0.0" }
-tokio = { version = "1.53.3", features = ["rt", "time"] }
+tokio = { version = "1.53.3", features = ["io-util", "rt", "time"] }
 toml = { version = "1.1.8", default-features = false, features = ["parse", "serde"] }
 
 [[test]]
