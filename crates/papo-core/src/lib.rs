@@ -5,6 +5,7 @@ mod caps;
 mod framing;
 mod isupport;
 mod keepalive;
+mod ratelimit;
 mod registration;
 mod sasl;
 pub mod sts;
@@ -20,6 +21,7 @@ use caps::Caps;
 use framing::Framer;
 use isupport::IsupportState;
 use keepalive::Keepalive;
+pub use ratelimit::RateLimit;
 use registration::Registration;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
@@ -94,6 +96,8 @@ pub struct Config {
     pub ping_interval: Duration,
     /// Maximum silence before the session closes the connection.
     pub ping_timeout: Duration,
+    /// Outbound line rate limit.
+    pub rate_limit: RateLimit,
     /// Capability names to request when advertised by the server.
     pub wanted_caps: Vec<String>,
     /// Alternative nicknames to try when registration collides.
@@ -118,6 +122,7 @@ impl std::fmt::Debug for Config {
             .field("registration_timeout", &self.registration_timeout)
             .field("ping_interval", &self.ping_interval)
             .field("ping_timeout", &self.ping_timeout)
+            .field("rate_limit", &self.rate_limit)
             .field("wanted_caps", &self.wanted_caps)
             .field("alt_nicks", &self.alt_nicks)
             .field("sasl", &self.sasl)
@@ -147,6 +152,7 @@ impl Default for Config {
             registration_timeout: DEFAULT_REGISTRATION_TIMEOUT,
             ping_interval: DEFAULT_PING_INTERVAL,
             ping_timeout: DEFAULT_PING_TIMEOUT,
+            rate_limit: RateLimit::default(),
             wanted_caps: DEFAULT_WANTED_CAPS
                 .iter()
                 .map(|name| (*name).to_owned())
@@ -213,6 +219,13 @@ impl Config {
     #[must_use]
     pub const fn ping_timeout(mut self, timeout: Duration) -> Self {
         self.ping_timeout = timeout;
+        self
+    }
+
+    /// Sets the outbound line rate limit.
+    #[must_use]
+    pub const fn rate_limit(mut self, rate_limit: RateLimit) -> Self {
+        self.rate_limit = rate_limit;
         self
     }
 

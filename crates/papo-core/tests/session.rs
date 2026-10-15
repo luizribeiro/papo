@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{Config, DEFAULT_WANTED_CAPS, Session};
+use papo_core::{Config, DEFAULT_WANTED_CAPS, RateLimit, Session};
 use papo_proto::{BuildError, Message};
 
 #[test]
@@ -14,7 +14,8 @@ fn config_builders_set_registration_identity_and_timeout() {
         .password("correct horse battery staple")
         .registration_timeout(Duration::from_secs(23))
         .ping_interval(Duration::from_secs(41))
-        .ping_timeout(Duration::from_secs(82));
+        .ping_timeout(Duration::from_secs(82))
+        .rate_limit(RateLimit::new(7, Duration::from_millis(250)));
 
     assert_eq!(config.nick, "emily");
     assert_eq!(config.username, "em");
@@ -26,6 +27,10 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(config.registration_timeout, Duration::from_secs(23));
     assert_eq!(config.ping_interval, Duration::from_secs(41));
     assert_eq!(config.ping_timeout, Duration::from_secs(82));
+    assert_eq!(
+        config.rate_limit,
+        RateLimit::new(7, Duration::from_millis(250))
+    );
     assert_eq!(
         config.wanted_caps,
         DEFAULT_WANTED_CAPS
