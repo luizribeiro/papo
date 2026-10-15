@@ -10,7 +10,7 @@ use std::{
     time::Instant,
 };
 
-use papo_core::{Connection, Session};
+use papo_core::{Connection, Session, sts::ConnectionSecurity};
 use papo_proto::Message;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -364,8 +364,8 @@ impl Future for Driver {
 #[allow(clippy::too_many_arguments)]
 async fn run_plan(
     plan: Result<ConnectionPlan, AddressError>,
-    session: Session,
-    commands: mpsc::Receiver<Command>,
+    mut session: Session,
+    mut commands: mpsc::Receiver<Command>,
     events: EventSink,
     mut registration: RegistrationWait,
     defaults: PostRegistration,
@@ -422,7 +422,29 @@ async fn run_plan(
             }
         }
     };
-    run(stream, session, commands, events, registration, defaults).await
+    let security = if plan.address.is_secure() {
+        ConnectionSecurity::Secure
+    } else {
+        ConnectionSecurity::Plaintext
+    };
+    let mut registered = false;
+    let end = run_connection(
+        stream,
+        &mut session,
+        &mut commands,
+        &events.regular,
+        &mut registration,
+        &defaults,
+        &mut registered,
+        Some(Connection {
+            host: plan.address.host,
+            security,
+        }),
+        &events.connected,
+    )
+    .await;
+    registration.failed(end.registration_error());
+    finish(events, end, false)
 }
 
 async fn sleep_before_retry(reconnect: Reconnect, attempts: usize) {
@@ -511,15 +533,9 @@ where
         )
         .await
         {
-            Ok(Some(reason)) => {
-                registration.failed(Error::Registration(reason.clone()));
-                break (reason, Error::Disconnected, false);
-            }
+            Ok(Some(reason)) => break (reason, Error::Disconnected, false),
             Ok(None) => {}
-            Err(error) => {
-                registration.failed(Error::Registration(error.to_string()));
-                break (error.to_string(), Error::Io(error), false);
-            }
+            Err(error) => break (error.to_string(), Error::Io(error), false),
         }
         let deadline = [
             session.poll_timeout(),
@@ -531,14 +547,10 @@ where
         tokio::select! {
             read = stream.read(&mut buffer), if pending_event.is_none() => match read {
                 Ok(0) => {
-                    registration.failed(Error::Disconnected);
                     break ("server closed the connection".to_owned(), Error::Disconnected, false);
                 }
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
-                Err(error) => {
-                    registration.failed(Error::Registration(error.to_string()));
-                    break (error.to_string(), Error::Io(error), false);
-                }
+                Err(error) => break (error.to_string(), Error::Io(error), false),
             },
             permit = events.clone().reserve_owned(), if pending_event.is_some() => match permit {
                 Ok(permit) => {
@@ -561,7 +573,6 @@ where
             () = wait_until(deadline) => {
                 let current = now();
                 if quit.as_ref().is_some_and(|quit| current >= quit.deadline) {
-                    registration.failed(Error::Timeout);
                     break (
                         "QUIT was not acknowledged within 10 seconds".to_owned(),
                         Error::Timeout,
