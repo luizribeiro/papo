@@ -137,7 +137,10 @@
           cargo-nextest = cargoHook {
             name = "cargo-nextest-hook";
             runtimeInputs = [ pkgs.cargo-nextest ];
-            text = "cargo nextest run --workspace --locked";
+            text = ''
+              cargo nextest run --workspace --locked
+              cargo nextest run -p papo-proto --features precis --locked
+            '';
             stages = [ "pre-push" ];
           };
           wasip2-tests = cargoHook {

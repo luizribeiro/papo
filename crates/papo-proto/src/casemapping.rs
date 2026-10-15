@@ -3,6 +3,9 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+#[cfg(feature = "precis")]
+use precis_profiles::{UsernameCaseMapped, precis_core::profile::PrecisFastInvocation as _};
+
 /// A server's rules for comparing IRC nicknames and channel names.
 ///
 /// The default is [`Rfc1459`](Self::Rfc1459), as required when a server has not
@@ -16,6 +19,9 @@ pub enum Casemapping {
     Rfc1459,
     /// ASCII letters and `[]\\` are equivalent to `{}|`.
     Rfc1459Strict,
+    /// Unicode names are folded with the RFC 8265 `UsernameCaseMapped` profile.
+    #[cfg(feature = "precis")]
+    Precis,
 }
 
 impl Casemapping {
@@ -26,6 +32,8 @@ impl Casemapping {
             "ascii" => Some(Self::Ascii),
             "rfc1459" => Some(Self::Rfc1459),
             "rfc1459-strict" => Some(Self::Rfc1459Strict),
+            #[cfg(feature = "precis")]
+            "rfc7613" => Some(Self::Precis),
             _ => None,
         }
     }
@@ -33,6 +41,11 @@ impl Casemapping {
     /// Returns the canonical spelling used to compare an IRC name.
     #[must_use]
     pub fn fold(self, name: &str) -> Cow<'_, str> {
+        #[cfg(feature = "precis")]
+        if matches!(self, Self::Precis) {
+            return UsernameCaseMapped::enforce(name).unwrap_or(Cow::Borrowed(name));
+        }
+
         let changed = name
             .chars()
             .any(|character| self.fold_char(character) != character);
@@ -110,7 +123,11 @@ impl Hash for CaseKey {
 
 #[cfg(test)]
 mod tests {
-    use std::{borrow::Cow, collections::HashMap};
+    use std::{
+        borrow::Cow,
+        collections::{HashMap, hash_map::DefaultHasher},
+        hash::{Hash, Hasher},
+    };
 
     use super::{CaseKey, Casemapping};
 
@@ -159,5 +176,27 @@ mod tests {
         assert_eq!(users.get(&lookup), Some(&1));
         assert_eq!(users.keys().next().unwrap().original(), "Alice[bot]");
         assert_eq!(users.keys().next().unwrap().folded(), "alice{bot}");
+
+        let other = CaseKey::new("Bob", Casemapping::Rfc1459);
+        assert_ne!(lookup, other);
+        let mut lookup_hash = DefaultHasher::new();
+        lookup.hash(&mut lookup_hash);
+        let mut other_hash = DefaultHasher::new();
+        other.hash(&mut other_hash);
+        assert_ne!(lookup_hash.finish(), other_hash.finish());
+    }
+
+    #[cfg(feature = "precis")]
+    #[test]
+    fn folds_unicode_nicks_with_ergo_precis_rules() {
+        assert_eq!(Casemapping::parse("rfc7613"), Some(Casemapping::Precis));
+        assert_eq!(Casemapping::Precis.fold("Ünïcode"), "ünïcode");
+        assert_eq!(Casemapping::Precis.fold("İstanbul"), "i\u{307}stanbul");
+        assert!(Casemapping::Precis.eq("ÜNÏCODE", "ünïcode"));
+        assert!(!Casemapping::Precis.eq("İstanbul", "istanbul"));
+        assert!(matches!(
+            Casemapping::Precis.fold("ünïcode"),
+            Cow::Borrowed(_)
+        ));
     }
 }
