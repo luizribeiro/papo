@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use thiserror::Error;
 
+const REJECTED_ADDRESS_CHARACTERS: [char; 5] = ['?', '#', '@', ' ', '\t'];
+
 /// An error in an IRC server address.
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 #[non_exhaustive]
@@ -60,7 +62,9 @@ impl FromStr for ServerAddress {
         if !websocket && (!path.is_empty() || remainder.ends_with('/')) {
             return Err(AddressError::UnexpectedPath);
         }
-        if authority.contains(['?', '#', '@']) || path.contains(['#', ' ']) {
+        if authority.contains(REJECTED_ADDRESS_CHARACTERS)
+            || path.contains(REJECTED_ADDRESS_CHARACTERS)
+        {
             return Err(AddressError::InvalidHost);
         }
         let default_port = default_port(protocol);
@@ -130,7 +134,7 @@ const fn default_port(protocol: Protocol) -> u16 {
 fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), AddressError> {
     let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
         let (host, suffix) = rest.split_once(']').ok_or(AddressError::InvalidHost)?;
-        let port = suffix.strip_prefix(':').filter(|_| !suffix.is_empty());
+        let port = suffix.strip_prefix(':');
         if host.is_empty() || (!suffix.is_empty() && port.is_none()) {
             return Err(AddressError::InvalidHost);
         }
@@ -299,5 +303,28 @@ mod tests {
             hostname.websocket_url().as_deref(),
             Some("ws://irc.example.net:80/")
         );
+    }
+
+    #[test]
+    fn rejects_the_same_characters_in_authorities_and_paths() {
+        for character in ['?', '#', '@', ' ', '\t'] {
+            for input in [
+                format!("ws://irc{character}example.net/irc"),
+                format!("ws://irc.example.net/irc{character}gateway"),
+            ] {
+                assert_eq!(
+                    input.parse::<ServerAddress>(),
+                    Err(AddressError::InvalidHost),
+                    "accepted {input:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "server port must be positive")]
+    fn setting_port_zero_panics() {
+        let mut address: ServerAddress = "irc.example.net".parse().unwrap();
+        address.set_port(0);
     }
 }
