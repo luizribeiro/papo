@@ -1410,6 +1410,55 @@ mod tests {
         assert_eq!(calls.load(Ordering::Relaxed), 1);
     }
 
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn failed_connects_back_off_until_the_attempt_limit() {
+        let attempts = Arc::new(Mutex::new(Vec::new()));
+        let connector: super::Connector = Arc::new({
+            let attempts = Arc::clone(&attempts);
+            move |_| {
+                attempts.lock().unwrap().push(tokio::time::Instant::now());
+                Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+            }
+        });
+        let (_client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential().max_attempts(3),
+            256,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+
+        for expected in [true, true, false] {
+            assert!(matches!(
+                events.next().await,
+                Some(Event::Disconnected { will_retry, .. }) if will_retry == expected
+            ));
+        }
+        assert!(matches!(
+            driver.await.unwrap(),
+            Err(Error::Unsupported("scripted connection failure"))
+        ));
+        let attempts = attempts.lock().unwrap();
+        assert_eq!(attempts.len(), 3);
+        assert!(
+            (Duration::from_millis(800)..=Duration::from_millis(1200))
+                .contains(&(attempts[1] - attempts[0]))
+        );
+        assert!(
+            (Duration::from_millis(1600)..=Duration::from_millis(2400))
+                .contains(&(attempts[2] - attempts[1]))
+        );
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn stored_sts_policy_upgrades_the_connection_plan() {
         let (client_stream, mut server) = tokio::io::duplex(4096);
