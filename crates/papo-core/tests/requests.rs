@@ -242,11 +242,11 @@ fn whois_targets_and_casemapping_separate_concurrent_replies() {
 fn who_rows_attach_only_to_the_named_concurrent_mask() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
-    let papo = session
+    let alice = session
         .request_with_matcher(
             now,
-            Message::new("WHO", ["#Papo["]),
-            ResponseMatcher::Who("#Papo[".into()),
+            Message::new("WHO", ["Alice["]),
+            ResponseMatcher::Who("Alice[".into()),
         )
         .unwrap();
     let rust = session
@@ -259,18 +259,18 @@ fn who_rows_attach_only_to_the_named_concurrent_mask() {
     for line in [
         ":ergo.test 354 papo 0 #rust ~bob users.example bob H account :Bob Example",
         ":ergo.test 403 papo #unknown :No such channel",
-        ":ergo.test 352 papo #papo{ ~alice staff.example ergo.test alice H@ :0 Alice Example",
+        ":ergo.test 352 papo #papo ~alice staff.example ergo.test alice{ H@ :0 Alice Example",
         ":ergo.test 315 papo #rust :End of WHO list",
-        ":ergo.test 315 papo #papo{ :End of WHO list",
+        ":ergo.test 315 papo alice{ :End of WHO list",
     ] {
         session.handle_line(now, line.as_bytes());
     }
 
     let (responses, messages) = response_lines(&mut session);
     assert!(responses[&rust][0].as_ref().command_is("354"));
-    assert!(responses[&papo][0].as_ref().command_is("352"));
+    assert!(responses[&alice][0].as_ref().command_is("352"));
     assert_eq!(responses[&rust].len(), 2);
-    assert_eq!(responses[&papo].len(), 2);
+    assert_eq!(responses[&alice].len(), 2);
     assert!(
         messages
             .iter()
@@ -297,6 +297,7 @@ fn join_sync_and_errors_use_the_named_concurrent_channel() {
         )
         .unwrap();
     for line in [
+        ":alice!alice@staff.example JOIN #papo{ alice :Alice Example",
         ":papo!papo@localhost JOIN #papo{ * :Papo Client",
         ":ergo.test 471 papo #unknown :Cannot join channel (+l)",
         ":ergo.test 473 papo #invite :Cannot join channel (+i)",
@@ -383,6 +384,7 @@ fn mode_echoes_and_errors_use_the_named_concurrent_target() {
     for line in [
         ":ergo.test 482 papo #unknown :You're not a channel operator",
         ":ergo.test 482 papo #rust :You're not a channel operator",
+        ":alice!alice@staff.example MODE #unknown +m",
         ":papo!papo@localhost MODE #papo{ +t",
     ] {
         session.handle_line(now, line.as_bytes());
@@ -419,6 +421,7 @@ fn topic_replies_use_the_named_concurrent_channel() {
     for line in [
         ":ergo.test 332 papo #rust :The Rust Programming Language",
         ":ergo.test 403 papo #unknown :No such channel",
+        ":alice!alice@staff.example TOPIC #unknown :Unrelated topic",
         ":alice!alice@staff.example TOPIC #papo{ :Requests in Rust",
     ] {
         session.handle_line(now, line.as_bytes());
