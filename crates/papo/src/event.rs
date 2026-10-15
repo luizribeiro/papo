@@ -75,18 +75,19 @@ impl MessageEvent {
         let Some(raw_text) = message.param(0).and_then(|_| message.param(1)) else {
             return Err(raw);
         };
-        let (kind, displayed) = match (message.raw_command(), Ctcp::parse(raw_text)) {
-            (_, Some(ctcp)) if ctcp.command.eq_ignore_ascii_case("ACTION") => {
+        let plain = if message.command_is("PRIVMSG") {
+            StoredKind::Privmsg
+        } else if message.command_is("NOTICE") {
+            StoredKind::Notice
+        } else {
+            return Err(raw);
+        };
+        let (kind, displayed) = match Ctcp::parse(raw_text) {
+            Some(ctcp) if ctcp.command.eq_ignore_ascii_case("ACTION") => {
                 (StoredKind::Action, ctcp.params.unwrap_or(""))
             }
-            (_, Some(ctcp)) => (StoredKind::Ctcp(ctcp.command.to_owned()), raw_text),
-            (command, None) if command.eq_ignore_ascii_case("PRIVMSG") => {
-                (StoredKind::Privmsg, raw_text)
-            }
-            (command, None) if command.eq_ignore_ascii_case("NOTICE") => {
-                (StoredKind::Notice, raw_text)
-            }
-            _ => return Err(raw),
+            Some(ctcp) => (StoredKind::Ctcp(ctcp.command.to_owned()), raw_text),
+            None => (plain, raw_text),
         };
         let text = strip_formatting(displayed).into_owned();
         let msgid = tag_owned(&message, &["msgid"]);
@@ -308,7 +309,7 @@ pub enum Event {
     Registered(Welcome),
     /// A replacement connection completed registration.
     Reconnected(Welcome),
-    /// A parsed message not consumed by protocol behavior.
+    /// An incoming `PRIVMSG` or `NOTICE`.
     Message(MessageEvent),
     /// A parsed message without a typed event variant.
     Raw(Message),
@@ -498,6 +499,17 @@ mod tests {
         assert_eq!(
             chat("PRIVMSG", "\x01VERSION\x01").kind(),
             MessageKind::Ctcp("VERSION")
+        );
+        assert!(
+            MessageEvent::new(
+                Message::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]),
+                &Isupport::default(),
+                "papo",
+                crate::Client::disconnected_for_test(),
+                &Capabilities::new(),
+                UNIX_EPOCH,
+            )
+            .is_err()
         );
     }
 
