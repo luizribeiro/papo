@@ -604,6 +604,7 @@ dependencies = [
  "libtest-mimic",
  "papo",
  "papo-core",
+ "papo-proto",
  "papo-test-server",
  "tokio",
 ]
