@@ -402,6 +402,27 @@ pub enum Event {
         /// The state collection that rejected another entry.
         limit: StateLimit,
     },
+    /// A monitored nickname came online or changed its userhost.
+    MonitorOnline {
+        /// The monitored nickname.
+        nick: String,
+        /// The user's current username.
+        user: String,
+        /// The user's current hostname.
+        host: String,
+    },
+    /// A monitored nickname went offline.
+    MonitorOffline {
+        /// The monitored nickname.
+        nick: String,
+    },
+    /// The server rejected nicknames because its monitor list was full.
+    MonitorListFull {
+        /// The server's advertised monitor-list limit.
+        limit: usize,
+        /// Nicknames the server did not add.
+        nicks: Vec<String>,
+    },
     /// A user joined a channel shared with the session.
     Joined {
         /// The channel that was joined.
@@ -909,6 +930,10 @@ impl Session {
         ) == Handled::Yes;
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
         let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
+        let monitor_handled =
+            self.monitor
+                .handle_message(message, self.isupport.value(), &mut self.outbox)
+                == Handled::Yes;
         let no_implicit_names = self
             .caps
             .enabled()
@@ -924,6 +949,7 @@ impl Session {
         let handled = registration_handled
             || caps_handled
             || sasl_handled
+            || monitor_handled
             || state_handled
             || isupport_handled
             || self

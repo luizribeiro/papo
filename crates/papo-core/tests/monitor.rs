@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::Config;
+use papo_core::{Config, Event};
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -49,4 +49,23 @@ fn chunks_monitor_targets_at_the_literal_512_byte_boundary() {
         .client(&exact)
         .client(&format!("MONITOR + {third}"))
         .no_client();
+}
+
+#[test]
+fn tracks_online_offline_and_list_full_replies() {
+    registered()
+        .update(|session| session.monitor_add(["alice", "bob", "carol"]))
+        .client("MONITOR + alice,bob,carol")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob!bob@users.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "alice" && user == "~alice" && host == "cloak.example"))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "bob" && user == "bob" && host == "users.example"))
+        .server(":ergo.test 730 papo :ALICE!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "ALICE"))
+        .server(":ergo.test 731 papo :alice")
+        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .server(":ergo.test 731 papo :alice")
+        .no_event()
+        .server(":ergo.test 734 papo 100 carol :Monitor list is full")
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks } if nicks == &["carol"]))
+        .no_event();
 }
