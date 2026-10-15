@@ -20,7 +20,7 @@ pub use driver::{Client, Driver, Events};
 pub use entropy::OsEntropy;
 pub use error::Error;
 pub use event::{Event, MessageEvent, MessageKind, Origin};
-pub use papo_core::{Account, Capabilities, Channel, Member, User};
+pub use papo_core::{Account, Capabilities, Channel, Member, Response, ServerError, User};
 pub use papo_core::{RateLimit, Sasl};
 pub use reconnect::Reconnect;
 pub use state::State;

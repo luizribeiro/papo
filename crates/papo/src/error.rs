@@ -45,6 +45,9 @@ pub enum Error {
     /// An outbound IRC message is not valid on the wire.
     #[error("invalid IRC message: {0}")]
     Build(#[from] BuildError),
+    /// The connection already has 256 requests awaiting replies.
+    #[error("too many IRC requests are awaiting replies")]
+    RequestLimit,
     /// Registration ended before the server welcomed the client.
     #[error("IRC registration failed: {0}")]
     Registration(String),

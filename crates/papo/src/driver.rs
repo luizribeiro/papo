@@ -1,5 +1,5 @@
 use std::{
-    collections::VecDeque,
+    collections::{BTreeMap, VecDeque},
     future::Future,
     io,
     ops::ControlFlow,
@@ -13,7 +13,7 @@ use std::{
 };
 
 use papo_core::{
-    Connection, Session,
+    Connection, RequestError, RequestId, Response, Session,
     sts::{ConnectionSecurity, StoredPolicy, StsAction, StsStore, reschedule_on_disconnect},
 };
 use papo_proto::Message;
@@ -45,6 +45,10 @@ enum Command {
     Send {
         message: Message,
         result: oneshot::Sender<Result<(), Error>>,
+    },
+    Request {
+        message: Message,
+        result: oneshot::Sender<Result<Response, Error>>,
     },
     Quit {
         reason: Option<String>,
@@ -187,6 +191,33 @@ impl Client {
             .await
             .map_err(|_| Error::Disconnected)?;
         receiver.await.map_err(|_| Error::Disconnected)?
+    }
+
+    /// Sends an IRC message and waits for its labelled response.
+    ///
+    /// A server failure remains part of the successful [`Response`]. Use
+    /// [`Response::error`] to inspect it.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message is invalid, the request limit is reached,
+    /// the response times out, or the driver disconnects.
+    pub async fn raw(&self, message: Message) -> Result<Response, Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::Request { message, result })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        receiver.await.map_err(|_| Error::Disconnected)?
+    }
+
+    /// Sends an IRC message without waiting for a correlated response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message is invalid or the driver has stopped.
+    pub async fn raw_unlabeled(&self, message: Message) -> Result<(), Error> {
+        self.send(message).await
     }
 
     /// Sends a private message to a user or channel.
@@ -897,6 +928,10 @@ fn handle_disconnected_command(
             _ = result.send(response);
             true
         }
+        Some(Command::Request { result, .. }) => {
+            _ = result.send(Err(Error::Disconnected));
+            true
+        }
         Some(Command::Quit { result, .. }) => {
             _ = result.send(Ok(()));
             false
@@ -992,6 +1027,7 @@ where
     let mut commands_open = true;
     let mut quit = None;
     let mut pending_event = None;
+    let mut requests = BTreeMap::new();
     let mut registered_at = None;
     let mut sts = StsActions::default();
     let mut buffer = [0; 4096];
@@ -1001,6 +1037,7 @@ where
             session,
             events,
             &mut pending_event,
+            &mut requests,
             registration,
             defaults,
             registered,
@@ -1040,6 +1077,24 @@ where
                 Some(Command::Send { message, result }) => {
                     _ = result.send(session.send(now(), message).map_err(Error::Build));
                 }
+                Some(Command::Request { message, result }) => {
+                    if !session.caps().contains_key("labeled-response") {
+                        _ = result.send(Err(Error::Unsupported("labeled-response")));
+                        continue;
+                    }
+                    match session.request(now(), message) {
+                        Ok(id) => {
+                            requests.insert(id, result);
+                        }
+                        Err(error) => {
+                            let error = match error {
+                                RequestError::Build(error) => Error::Build(error),
+                                _ => Error::RequestLimit,
+                            };
+                            _ = result.send(Err(error));
+                        }
+                    }
+                }
                 Some(Command::Quit { reason, result }) => {
                     request_quit(session, &mut quit, reason, Some(result));
                 }
@@ -1062,6 +1117,9 @@ where
         }
     };
     session.handle_disconnected(now());
+    for (_, result) in requests {
+        _ = result.send(Err(Error::Disconnected));
+    }
     connected.store(false, Ordering::Relaxed);
     publish_state(events, session, false);
     let close_error = stream.flush().await.err().or(stream.shutdown().await.err());
@@ -1127,6 +1185,7 @@ async fn drain<S>(
     session: &mut Session,
     events: &EventSink,
     pending_event: &mut Option<Event>,
+    requests: &mut BTreeMap<RequestId, oneshot::Sender<Result<Response, Error>>>,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
     registered: &mut bool,
@@ -1147,6 +1206,30 @@ where
     {
         match event::from_core(core_event) {
             event::CoreEvent::Forward(mut event) => {
+                event = match event {
+                    Event::Response(response) => {
+                        if let Some(result) = requests.remove(&response.id) {
+                            _ = result.send(Ok(response));
+                            continue;
+                        }
+                        Event::Response(response)
+                    }
+                    Event::RequestTimedOut { id } => {
+                        if let Some(result) = requests.remove(&id) {
+                            _ = result.send(Err(Error::Timeout));
+                            continue;
+                        }
+                        Event::RequestTimedOut { id }
+                    }
+                    Event::RequestAborted { id } => {
+                        if let Some(result) = requests.remove(&id) {
+                            _ = result.send(Err(Error::Disconnected));
+                            continue;
+                        }
+                        Event::RequestAborted { id }
+                    }
+                    event => event,
+                };
                 if let Event::Raw(message) = event {
                     event = match events.commands.upgrade() {
                         Some(commands) => crate::MessageEvent::new(
@@ -1417,6 +1500,20 @@ mod tests {
         server_line(server, b":ergo.test CAP * LS :\r\n").await;
         client_line(server, b"CAP END\r\n").await;
         server_line(server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    }
+
+    async fn complete_labelled_registration(server: &mut DuplexStream, events: &mut super::Events) {
+        registration_burst(server).await;
+        server_line(server, b":ergo.test CAP * LS :labeled-response\r\n").await;
+        client_line(server, b"CAP REQ :labeled-response\r\n").await;
+        server_line(server, b":ergo.test CAP * ACK :labeled-response\r\n").await;
+        client_line(server, b"CAP END\r\n").await;
+        server_line(
+            server,
+            b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n",
+        )
+        .await;
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
     }
 
@@ -2659,7 +2756,7 @@ mod tests {
         let task = tokio::spawn(driver);
         registration_burst(&mut server).await;
         client
-            .send(papo_proto::Message::new("WHOIS", ["emily"]))
+            .raw_unlabeled(papo_proto::Message::new("WHOIS", ["emily"]))
             .await
             .unwrap();
         let mut whois = [0; 13];
@@ -2667,6 +2764,47 @@ mod tests {
         assert_eq!(&whois, b"WHOIS emily\r\n");
         server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn raw_requests_resolve_fail_time_out_and_abort() {
+        let (mut server, client, mut events, driver) = scripted(
+            config()
+                .wanted_caps(["labeled-response"])
+                .request_timeout(Duration::from_secs(1)),
+        );
+        let driver = tokio::spawn(driver);
+        complete_labelled_registration(&mut server, &mut events).await;
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.raw(Message::new("WHOIS", ["missing-nick"])).await }
+        });
+        client_line(&mut server, b"@label=0 WHOIS missing-nick\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=0 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
+        )
+        .await;
+        assert!(matches!(
+            request.await.unwrap().unwrap().error(),
+            Some(papo_core::ServerError::Numeric { numeric, .. }) if numeric.code() == 401
+        ));
+
+        let timed_out = tokio::spawn({
+            let client = client.clone();
+            async move { client.raw(Message::new("WHOIS", ["alice"])).await }
+        });
+        client_line(&mut server, b"@label=1 WHOIS alice\r\n").await;
+        tokio::time::advance(Duration::from_secs(1)).await;
+        assert!(matches!(timed_out.await.unwrap(), Err(Error::Timeout)));
+
+        let aborted =
+            tokio::spawn(async move { client.raw(Message::new("WHOIS", ["emily"])).await });
+        client_line(&mut server, b"@label=2 WHOIS emily\r\n").await;
+        server.shutdown().await.unwrap();
+        assert!(matches!(aborted.await.unwrap(), Err(Error::Disconnected)));
+        assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
     }
 
     enum ReplyKind {
