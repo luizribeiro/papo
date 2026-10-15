@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, RateLimit, RequestError, Session, TextKind};
+use papo_core::{Config, Event, RateLimit, RequestError, ServerError, Session, TextKind};
 use papo_proto::Message;
 
 fn multiline_session(now: Instant, value: &str, labels: bool) -> Session {
@@ -137,4 +137,29 @@ fn interleaved_traffic_waits_for_the_batch_close() {
     assert_eq!(remaining[2], "BATCH -b0-0\r\n");
     assert_eq!(remaining[3], "PONG :keepalive\r\n");
     assert_eq!(remaining[4], "PRIVMSG #elsewhere :queued later\r\n");
+}
+
+#[test]
+fn multiline_failure_is_a_response_error_without_retry() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", true);
+    let id = session
+        .send_text(now, TextKind::Privmsg, "#papo", "hello everyone", &[])
+        .unwrap()
+        .unwrap();
+    drain(&mut session);
+    session.handle_line(
+        now,
+        b"@label=0 :ergo.test FAIL BATCH MULTILINE_MAX_LINES #papo :Too many lines",
+    );
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected labelled failure response")
+    };
+    assert_eq!(response.id, id);
+    assert!(matches!(
+        response.error(),
+        Some(ServerError::Standard { command, code, .. })
+            if command == "BATCH" && code == "MULTILINE_MAX_LINES"
+    ));
+    assert_eq!(session.poll_transmit(), None);
 }
