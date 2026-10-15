@@ -39,6 +39,20 @@ fn tracks_our_join_and_another_member_with_rfc1459_keys() {
 }
 
 #[test]
+fn exposes_our_host_and_original_channel_metadata() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #Papo")
+        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#Papo" && nick == "emily"))
+        .inspect(|session| {
+            assert_eq!(session.state().host(), Some("127.0.0.1"));
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.name(), "#Papo");
+            assert_eq!(channel.topic(), None);
+        })
+        .no_event();
+}
+
+#[test]
 fn tracks_userhost_and_shared_channels_from_joins() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
@@ -53,6 +67,27 @@ fn tracks_userhost_and_shared_channels_from_joins() {
             assert_eq!(dan.channels().count(), 2);
         })
         .ignore_rest();
+}
+
+#[test]
+fn a_later_join_fills_a_bare_names_userhost() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+        .server(":ergo.test 353 emily = #papo :dan")
+        .inspect(|session| {
+            let dan = session.state().user("dan").unwrap();
+            assert_eq!(dan.username(), None);
+            assert_eq!(dan.host(), None);
+        })
+        .server(":dan!~dan@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "dan"))
+        .inspect(|session| {
+            let dan = session.state().user("dan").unwrap();
+            assert_eq!(dan.username(), Some("~dan"));
+            assert_eq!(dan.host(), Some("cloak.example"));
+        })
+        .no_event();
 }
 
 #[test]
