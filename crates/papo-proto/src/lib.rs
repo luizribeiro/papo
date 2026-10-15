@@ -11,6 +11,7 @@ mod modes;
 mod names;
 mod numeric;
 mod source;
+mod views;
 mod whox;
 
 pub use casemapping::{CaseKey, Casemapping};
@@ -28,4 +29,5 @@ pub use modes::{ModeChange, ModeChanges, ModeKind};
 pub use names::{NAME_ALIASES, NameKind, NamesEntry, canonical, parse_353};
 pub use numeric::Numeric;
 pub use source::Source;
+pub use views::Join;
 pub use whox::{WhoxFlags, WhoxPresence, WhoxReply};
