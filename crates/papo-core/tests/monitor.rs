@@ -59,6 +59,54 @@ fn removing_a_monitored_nick_fills_the_advertised_slot() {
 }
 
 #[test]
+fn removal_distinguishes_unknown_active_and_unsent_nicks() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo MONITOR=1 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| session.monitor_add(["alice", "bob"]))
+        .client("MONITOR + alice")
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 1, nicks } if nicks == &["bob"]))
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .update(|session| session.monitor_remove(["zoe"]))
+        .no_client()
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .no_event()
+        .update(|session| session.monitor_remove(["bob"]))
+        .no_client()
+        .update(|session| session.monitor_remove(["alice"]))
+        .client("MONITOR - alice")
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .no_event();
+}
+
+#[test]
+fn removing_before_registration_or_without_support_sends_nothing() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test 005 * MONITOR=100 :are supported")
+        .update(|session| session.monitor_add(["alice"]))
+        .update(|session| session.monitor_remove(["alice"]))
+        .no_client();
+
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":solanum.example 001 papo :Welcome")
+        .server(":solanum.example 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| session.monitor_add(["alice"]))
+        .event(|event| matches!(event, Event::MonitorUnsupported))
+        .update(|session| session.monitor_remove(["alice"]))
+        .no_client();
+}
+
+#[test]
 fn honors_the_advertised_monitor_limit_before_chunking() {
     let nicks: Vec<_> = (0..150).map(|index| format!("user{index:03}")).collect();
     let unavailable = nicks[100..].to_vec();
@@ -83,6 +131,16 @@ fn chunks_monitor_targets_at_the_literal_512_byte_boundary() {
         .client(&exact)
         .client(&format!("MONITOR + {third}"))
         .no_client();
+
+    let first = "a".repeat(249);
+    let second = "b".repeat(251);
+    let over = format!("MONITOR + {first},{second}");
+    assert_eq!(over.len() + 2, 513);
+    registered()
+        .update(|session| session.monitor_add([first.clone(), second.clone()]))
+        .client(&format!("MONITOR + {first}"))
+        .client(&format!("MONITOR + {second}"))
+        .no_client();
 }
 
 #[test]
@@ -103,6 +161,22 @@ fn tracks_online_offline_and_list_full_replies() {
         .no_event()
         .server(":ergo.test 734 papo 100 carol :Monitor list is full")
         .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks } if nicks == &["carol"]))
+        .no_event();
+}
+
+#[test]
+fn list_full_forgets_only_the_rejected_presence() {
+    registered()
+        .update(|session| session.monitor_add(["alice", "bob"]))
+        .client("MONITOR + alice,bob")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob!bob@users.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "bob"))
+        .server(":ergo.test 734 papo 100 alice :Monitor list is full")
+        .event(|event| matches!(event, Event::MonitorListFull { nicks, .. } if nicks == &["alice"]))
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .server(":ergo.test 730 papo :bob!bob@users.example")
         .no_event();
 }
 
