@@ -41,6 +41,21 @@ fn releases_five_lines_then_one_every_500_milliseconds() {
 }
 
 #[test]
+fn one_interval_refills_exactly_one_token() {
+    let mut transcript = Transcript::rate_limited(Config::default());
+    for index in 1..=6 {
+        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+    }
+    for index in 1..=5 {
+        transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
+    }
+    transcript
+        .advance(Duration::from_millis(500))
+        .client("PRIVMSG #papo :message 6")
+        .no_client();
+}
+
+#[test]
 fn unlimited_rate_limit_never_schedules_a_token_deadline() {
     Transcript::rate_limited(Config::default().rate_limit(RateLimit::unlimited()))
         .send(Message::privmsg("#papo", "one"))
