@@ -27,6 +27,8 @@ pub enum AddressError {
 pub(crate) enum Protocol {
     Irc,
     Ircs,
+    Ws,
+    Wss,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -34,6 +36,7 @@ pub(crate) struct ServerAddress {
     pub(crate) protocol: Protocol,
     pub(crate) host: String,
     pub(crate) port: u16,
+    pub(crate) websocket_url: Option<String>,
 }
 
 impl FromStr for ServerAddress {
@@ -43,38 +46,53 @@ impl FromStr for ServerAddress {
         if input.is_empty() {
             return Err(AddressError::Empty);
         }
-        let (protocol, remainder) = match input.split_once("://") {
-            Some(("irc", rest)) => (Protocol::Irc, rest),
-            Some(("ircs", rest)) => (Protocol::Ircs, rest),
+        let (protocol, remainder, websocket) = match input.split_once("://") {
+            Some(("irc", rest)) => (Protocol::Irc, rest, false),
+            Some(("ircs", rest)) => (Protocol::Ircs, rest, false),
+            Some(("ws", rest)) => (Protocol::Ws, rest, true),
+            Some(("wss", rest)) => (Protocol::Wss, rest, true),
             Some((scheme, _)) => return Err(AddressError::UnsupportedScheme(scheme.to_owned())),
-            None => (Protocol::Ircs, input),
+            None => (Protocol::Ircs, input, false),
         };
-        if remainder.contains('/') {
+        let (authority, path) = remainder.split_once('/').unwrap_or((remainder, ""));
+        if !websocket && (!path.is_empty() || remainder.ends_with('/')) {
             return Err(AddressError::UnexpectedPath);
         }
-        if remainder.contains(['?', '#', '@']) {
+        if authority.contains(['?', '#', '@']) || path.contains(['#', ' ']) {
             return Err(AddressError::InvalidHost);
         }
         let default_port = match protocol {
             Protocol::Irc => 6667,
             Protocol::Ircs => 6697,
+            Protocol::Ws => 80,
+            Protocol::Wss => 443,
         };
-        let (host, port) = parse_authority(remainder, default_port)?;
+        let (host, port) = parse_authority(authority, default_port)?;
         Ok(Self {
             protocol,
             host,
             port,
+            websocket_url: websocket.then(|| input.to_owned()),
         })
     }
 }
 
 fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), AddressError> {
-    if authority.matches(':').count() > 1 {
-        return Err(AddressError::InvalidHost);
-    }
-    let (host, port) = authority
-        .split_once(':')
-        .map_or((authority, None), |(host, port)| (host, Some(port)));
+    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
+        let (host, suffix) = rest.split_once(']').ok_or(AddressError::InvalidHost)?;
+        let port = suffix.strip_prefix(':').filter(|_| !suffix.is_empty());
+        if host.is_empty() || (!suffix.is_empty() && port.is_none()) {
+            return Err(AddressError::InvalidHost);
+        }
+        (host, port)
+    } else {
+        if authority.matches(':').count() > 1 {
+            return Err(AddressError::InvalidHost);
+        }
+        authority
+            .split_once(':')
+            .map_or((authority, None), |(host, port)| (host, Some(port)))
+    };
     if host.is_empty() || host.contains(['[', ']', ' ', '\t']) {
         return Err(AddressError::InvalidHost);
     }
@@ -113,12 +131,29 @@ mod tests {
                 "irc.example.net",
                 6667,
             ),
+            ("[2001:db8::1]:6697", Protocol::Ircs, "2001:db8::1", 6697),
+            (
+                "ws://irc.example.net/webirc",
+                Protocol::Ws,
+                "irc.example.net",
+                80,
+            ),
+            (
+                "wss://[2001:db8::2]:8443/irc",
+                Protocol::Wss,
+                "2001:db8::2",
+                8443,
+            ),
         ];
         for (input, protocol, host, port) in cases {
             let address: ServerAddress = input.parse().unwrap();
             assert_eq!(
                 (address.protocol, address.host.as_str(), address.port),
                 (protocol, host, port)
+            );
+            assert_eq!(
+                address.websocket_url.is_some(),
+                matches!(protocol, Protocol::Ws | Protocol::Wss)
             );
         }
     }
@@ -128,6 +163,7 @@ mod tests {
         for input in [
             "",
             "irc://",
+            "[::1",
             "::1",
             "irc://host/path",
             "host:0",
