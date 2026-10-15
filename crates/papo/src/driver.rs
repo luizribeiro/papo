@@ -835,12 +835,19 @@ fn after_registration(
             )
             .map_err(io::Error::other)?;
     }
-    for channel in &defaults.channels {
-        session
-            .send(now(), Message::new("JOIN", [channel.clone()]))
-            .map_err(io::Error::other)?;
+    if should_rejoin(welcome) {
+        for channel in &defaults.channels {
+            session
+                .send(now(), Message::new("JOIN", [channel.clone()]))
+                .map_err(io::Error::other)?;
+        }
     }
     Ok(())
+}
+
+fn should_rejoin(_welcome: &papo_core::Welcome) -> bool {
+    // Core does not yet expose whether draft/persistence restored channel membership.
+    true
 }
 
 fn finish(events: EventSink, end: ConnectionEnd, will_retry: bool) -> Result<(), Error> {
@@ -1109,7 +1116,10 @@ mod tests {
             Session::new(config()),
             super::DEFAULT_CHANNEL_CAPACITY,
             None,
-            super::PostRegistration::default(),
+            super::PostRegistration {
+                bot: false,
+                channels: vec!["#papo".into()],
+            },
             Reconnect::exponential(),
             256,
             connector,
@@ -1117,6 +1127,7 @@ mod tests {
         let driver = tokio::spawn(driver);
 
         complete_registration(&mut first_server, &mut events).await;
+        client_line(&mut first_server, b"JOIN #papo\r\n").await;
         assert!(client.is_connected());
         first_server.shutdown().await.unwrap();
         assert!(matches!(
@@ -1138,6 +1149,7 @@ mod tests {
         )
         .await;
         assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
+        client_line(&mut second_server, b"JOIN #papo\r\n").await;
         assert!(client.is_connected());
 
         let quit = tokio::spawn(async move { client.quit(None).await });
