@@ -29,7 +29,7 @@ use papo_proto::{
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 use framing::Framer;
-pub use history::{HistoryQuery, MsgRef};
+pub use history::{HistoryQuery, MsgRef, ReadMarker};
 use isupport::IsupportState;
 use keepalive::Keepalive;
 use monitor::Monitor;
@@ -869,6 +869,8 @@ pub enum Event {
     },
     /// Targets that received messages during a requested time range.
     HistoryTargets(Vec<(String, std::time::SystemTime)>),
+    /// A target's read marker advanced or was first reported.
+    ReadMarker(ReadMarker),
     /// Users departed because connectivity between two servers was lost.
     ///
     /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as

@@ -18,6 +18,15 @@ pub enum MsgRef {
     Any,
 }
 
+/// The newest server read marker known for one target.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReadMarker {
+    /// Channel or nickname to which the marker applies.
+    pub target: String,
+    /// Marker time, or `None` when the server reports `*`.
+    pub time: Option<SystemTime>,
+}
+
 /// A history query supported by `CHATHISTORY`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

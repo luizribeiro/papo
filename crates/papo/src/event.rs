@@ -617,6 +617,8 @@ pub enum Event {
     },
     /// Targets that received messages during a requested time range.
     HistoryTargets(Vec<(String, SystemTime)>),
+    /// A target's read marker advanced or was first reported.
+    ReadMarker(papo_core::ReadMarker),
     /// Users departed because connectivity between two servers was lost.
     ///
     /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
@@ -849,6 +851,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             end,
         },
         papo_core::Event::HistoryTargets(targets) => Event::HistoryTargets(targets),
+        papo_core::Event::ReadMarker(marker) => Event::ReadMarker(marker),
         papo_core::Event::Netsplit { servers, quits } => Event::Netsplit { servers, quits },
         papo_core::Event::Netjoin { servers, joins } => Event::Netjoin { servers, joins },
         papo_core::Event::BatchAbandoned {
@@ -1629,6 +1632,18 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::HistoryTargets(targets.clone())),
             Event::HistoryTargets(mapped) if mapped == targets
+        ));
+    }
+
+    #[test]
+    fn maps_read_markers() {
+        let marker = papo_core::ReadMarker {
+            target: "#papo".into(),
+            time: Some(UNIX_EPOCH + Duration::from_secs(42)),
+        };
+        assert!(matches!(
+            forwarded(papo_core::Event::ReadMarker(marker.clone())),
+            Event::ReadMarker(mapped) if mapped == marker
         ));
     }
 

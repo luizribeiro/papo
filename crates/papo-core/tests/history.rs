@@ -276,3 +276,57 @@ fn rejects_read_markers_without_the_capability() {
         Err(RequestError::Unsupported("read-marker"))
     );
 }
+
+#[test]
+fn tracks_read_markers_monotonically_through_join_bursts() {
+    let (mut session, now) = read_marker_session();
+    session.handle_line(
+        now,
+        b"@label=remote :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z",
+    );
+    let Some(Event::ReadMarker(marker)) = session.poll_event() else {
+        panic!("expected read marker")
+    };
+    assert_eq!(marker.target, "#papo");
+    assert_eq!(
+        marker.time,
+        Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
+    );
+    for line in [
+        ":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:41.999Z",
+        ":ergo.test MARKREAD #papo timestamp=*",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert_eq!(session.poll_event(), None);
+    assert_eq!(
+        session
+            .state()
+            .read_marker("#PAPO")
+            .and_then(|marker| marker.time),
+        marker.time
+    );
+
+    session.handle_line(now, b":papo!~papo@localhost JOIN #joined * :Papo Client");
+    assert!(matches!(session.poll_event(), Some(Event::Joined { .. })));
+    session.handle_line(now, b":ergo.test MARKREAD #joined *");
+    assert!(
+        matches!(session.poll_event(), Some(Event::ReadMarker(marker)) if marker.target == "#joined" && marker.time.is_none())
+    );
+    session.handle_line(now, b":ergo.test 366 papo #joined :End of /NAMES list");
+    assert!(
+        matches!(session.poll_event(), Some(Event::ChannelSynced { channel }) if channel == "#joined")
+    );
+}
+
+#[test]
+fn markread_failures_remain_standard_replies() {
+    let mut session = Session::new(Config::default());
+    session.handle_line(
+        Instant::now(),
+        b":ergo.test FAIL MARKREAD INVALID_PARAMS #papo :Invalid parameters",
+    );
+    assert!(
+        matches!(session.poll_event(), Some(Event::StandardReply(reply)) if reply.command == "MARKREAD" && reply.code == "INVALID_PARAMS")
+    );
+}

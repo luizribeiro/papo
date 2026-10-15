@@ -9,7 +9,10 @@ use papo_proto::{
     WhoxPresence, WhoxReply, parse_353,
 };
 
-use crate::{Config, Event, Handled, Outbox, OwnedModeChange, StateLimit, monitor::Monitor};
+use crate::{
+    Config, Event, Handled, Outbox, OwnedModeChange, ReadMarker, StateLimit,
+    history::parse_timestamp, monitor::Monitor,
+};
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
@@ -27,6 +30,7 @@ pub struct State {
     channels: HashMap<CaseKey, Channel>,
     users: HashMap<CaseKey, User>,
     who_sweeps: HashSet<CaseKey>,
+    read_markers: HashMap<CaseKey, ReadMarker>,
     max_channels: usize,
     max_members_per_channel: usize,
     channel_limit_warned: bool,
@@ -103,6 +107,7 @@ impl State {
             channels: HashMap::new(),
             users: HashMap::new(),
             who_sweeps: HashSet::new(),
+            read_markers: HashMap::new(),
             max_channels: config.max_channels,
             max_members_per_channel: config.max_members_per_channel,
             channel_limit_warned: false,
@@ -130,6 +135,7 @@ impl State {
             .retain(|_, user| user.monitored || !user.channels.is_empty());
     }
 
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn handle_message(
         &mut self,
         message: &MessageRef<'_>,
@@ -139,6 +145,9 @@ impl State {
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = self.prepare_message(message, own_nick, isupport, outbox);
+        if self.handle_read_marker(message, outbox) {
+            return Handled::Yes;
+        }
         if let Some(join) = Join::parse(message) {
             return self.handle_join(message, join, isupport, no_implicit_names, outbox);
         }
@@ -237,6 +246,44 @@ impl State {
             return Handled::Yes;
         }
         Handled::No
+    }
+
+    fn handle_read_marker(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
+        let (Some(target), Some(value)) = (
+            message.param(0).filter(|_| message.command_is("MARKREAD")),
+            message.param(1).filter(|_| message.len() == 2),
+        ) else {
+            return false;
+        };
+        let time = match value {
+            "*" | "timestamp=*" => None,
+            value => {
+                let Some(time) = value.strip_prefix("timestamp=").and_then(parse_timestamp) else {
+                    return false;
+                };
+                Some(time)
+            }
+        };
+        let key = CaseKey::new(target, self.casemapping);
+        let advances = match (self.read_markers.get(&key), time) {
+            (None, _) | (Some(ReadMarker { time: None, .. }), Some(_)) => true,
+            (
+                Some(ReadMarker {
+                    time: Some(old), ..
+                }),
+                Some(new),
+            ) => new > *old,
+            (Some(_), None) => false,
+        };
+        if advances {
+            let marker = ReadMarker {
+                target: target.to_owned(),
+                time,
+            };
+            self.read_markers.insert(key, marker.clone());
+            outbox.event(Event::ReadMarker(marker));
+        }
+        true
     }
 
     fn handle_channel_mode(&mut self, message: &MessageRef<'_>, isupport: &Isupport) -> bool {
@@ -1022,6 +1069,13 @@ impl State {
     #[must_use]
     pub fn user(&self, nick: &str) -> Option<&User> {
         self.users.get(&CaseKey::new(nick, self.casemapping))
+    }
+
+    /// Returns the newest read marker reported for a target.
+    #[must_use]
+    pub fn read_marker(&self, target: &str) -> Option<&ReadMarker> {
+        self.read_markers
+            .get(&CaseKey::new(target, self.casemapping))
     }
 
     /// Iterates over users currently reported online through `MONITOR`.
