@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use papo_core::{Config, Event, Session};
+use papo_core::{Config, Entropy, Event, Session};
 use papo_proto::Message;
 
 /// A fluent driver for a [`Session`] with a manually advanced clock.
@@ -21,8 +21,17 @@ pub struct Transcript {
 impl Transcript {
     /// Creates a transcript at an arbitrary fixed starting instant.
     pub fn new(config: Config) -> Self {
+        Self::from_session(Session::new(config))
+    }
+
+    /// Creates a transcript with an explicit entropy source.
+    pub fn with_entropy(config: Config, entropy: Box<dyn Entropy + Send>) -> Self {
+        Self::from_session(Session::with_entropy(config, entropy))
+    }
+
+    fn from_session(session: Session) -> Self {
         Self {
-            session: Session::new(config),
+            session,
             now: Instant::now(),
             sent: Vec::new(),
             ignore_rest: false,

@@ -226,6 +226,11 @@ pub enum Event {
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
     },
+    /// Configured authentication failed and registration is continuing.
+    AuthenticationFailed {
+        /// A human-readable explanation suitable for diagnostics.
+        reason: String,
+    },
 }
 
 /// Sans-I/O state for one IRC client session.

@@ -98,8 +98,8 @@ pub(super) struct SaslSession {
     account: Option<String>,
     device: Option<String>,
     challenge: String,
-    #[allow(dead_code)]
     entropy: Option<Box<dyn Entropy + Send>>,
+    failures: Vec<String>,
 }
 
 impl std::fmt::Debug for SaslSession {
@@ -115,6 +115,7 @@ impl std::fmt::Debug for SaslSession {
             .field("device", &self.device)
             .field("challenge_len", &self.challenge.len())
             .field("has_entropy", &self.entropy.is_some())
+            .field("failures", &self.failures)
             .finish()
     }
 }
@@ -135,6 +136,7 @@ impl SaslSession {
             device: config.device.clone(),
             challenge: String::new(),
             entropy,
+            failures: Vec::new(),
         }
     }
 
@@ -145,6 +147,7 @@ impl SaslSession {
         self.finished = self.configured.is_empty();
         self.account = None;
         self.challenge.clear();
+        self.failures.clear();
     }
 
     pub(super) fn handle_cap_ack(
@@ -188,6 +191,17 @@ impl SaslSession {
             self.finished = true;
             return Handled::Yes;
         }
+        if message.command_is("904") || message.command_is("905") {
+            self.record_active_failure(message.param(1).unwrap_or("SASL mechanism failed"));
+            self.start_next(outbox);
+            return Handled::Yes;
+        }
+        if message.command_is("908") {
+            if let Some(available) = message.param(1) {
+                self.retain_available(available);
+            }
+            return Handled::Yes;
+        }
         if !message.command_is("AUTHENTICATE") {
             return Handled::No;
         }
@@ -201,7 +215,7 @@ impl SaslSession {
             Ok(Some(challenge)) => challenge,
             Ok(None) => return Handled::Yes,
             Err(()) => {
-                self.unavailable("the server sent an invalid SASL challenge", outbox);
+                self.fail_all("the server sent an invalid SASL challenge", outbox);
                 return Handled::Yes;
             }
         };
@@ -216,8 +230,7 @@ impl SaslSession {
         if self.finished {
             return;
         }
-        self.finished = true;
-        let _ = (reason, outbox);
+        self.fail_all(reason, outbox);
     }
 
     pub(super) const fn is_finished(&self) -> bool {
@@ -229,13 +242,46 @@ impl SaslSession {
     }
 
     fn start_next(&mut self, outbox: &mut Outbox) {
-        let Some(mechanism) = self.remaining.pop_front() else {
-            return self.unavailable("server offers none of the configured mechanisms", outbox);
-        };
-        outbox.transmit("AUTHENTICATE", [mechanism.name()]);
-        self.active = Some(mechanism);
-        self.awaiting_challenge = true;
-        self.challenge.clear();
+        loop {
+            let Some(mechanism) = self.remaining.pop_front() else {
+                return self.fail_all("every configured SASL mechanism failed", outbox);
+            };
+            if matches!(mechanism, Mechanism::ScramSha256 { .. }) && self.entropy.is_none() {
+                self.failures.push(
+                    "SCRAM-SHA-256 skipped because no entropy source was provided".to_owned(),
+                );
+                continue;
+            }
+            outbox.transmit("AUTHENTICATE", [mechanism.name()]);
+            self.active = Some(mechanism);
+            self.awaiting_challenge = true;
+            self.challenge.clear();
+            return;
+        }
+    }
+
+    fn record_active_failure(&mut self, reason: &str) {
+        if let Some(mechanism) = self.active.take() {
+            self.failures
+                .push(format!("{}: {reason}", mechanism.name()));
+        }
+        self.awaiting_challenge = false;
+    }
+
+    fn retain_available(&mut self, available: &str) {
+        self.remaining.retain(|mechanism| {
+            available
+                .split(',')
+                .any(|name| name.eq_ignore_ascii_case(mechanism.name()))
+        });
+    }
+
+    fn fail_all(&mut self, reason: &str, outbox: &mut Outbox) {
+        self.record_active_failure(reason);
+        self.finished = true;
+        self.failures.push(reason.to_owned());
+        let reason = format!("SASL failed: {}", self.failures.join("; "));
+        outbox.event(crate::Event::AuthenticationFailed { reason });
     }
 }
 

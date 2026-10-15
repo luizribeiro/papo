@@ -3,7 +3,7 @@
 mod support;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use papo_core::{Config, Entropy, Sasl, Session};
+use papo_core::{Config, Entropy, Event, Sasl, Session};
 use support::Transcript;
 
 struct FixedEntropy;
@@ -120,5 +120,55 @@ fn chunks_plain_responses_at_literal_400_bytes() {
         .client(&format!("AUTHENTICATE {first}"))
         .client(&format!("AUTHENTICATE {last}"))
         .server(":ergo.test 903 emersion :SASL authentication successful")
+        .client("CAP END");
+}
+
+#[test]
+fn falls_back_and_honors_the_server_mechanism_list() {
+    Transcript::with_entropy(
+        Config::default().sasl(Sasl::any("alice", "hunter2")),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server(":ergo.test 908 alice PLAIN :are available SASL mechanisms")
+    .no_client()
+    .server(":ergo.test 904 alice :SASL authentication failed")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+    .server(":ergo.test 903 alice :SASL authentication successful")
+    .client("CAP END");
+}
+
+#[test]
+fn reports_every_failed_mechanism_and_continues_when_optional() {
+    Transcript::new(Config::default().sasl(Sasl::any("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(":ergo.test 905 alice :SASL message too long")
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason }
+                if reason.contains("SCRAM-SHA-256 skipped because no entropy")
+                    && reason.contains("PLAIN"))
+        })
+        .client("CAP END");
+}
+
+#[test]
+fn already_authenticated_counts_as_success() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(":ergo.test 907 alice :You have already authenticated using SASL")
         .client("CAP END");
 }
