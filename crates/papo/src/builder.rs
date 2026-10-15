@@ -1,6 +1,6 @@
 use std::{path::Path, time::Duration};
 
-use papo_core::sts::ConnectionSecurity;
+use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
 use papo_core::{Config, RateLimit, Sasl};
 #[cfg(feature = "spawn")]
 use tokio::sync::oneshot;
@@ -21,6 +21,7 @@ pub struct Builder {
     pub(crate) tls: TlsConfig,
     reconnect: Reconnect,
     disconnected_queue_capacity: usize,
+    sts_store: Box<dyn StsStore + Send>,
     bot: bool,
     channels: Vec<String>,
     username_set: bool,
@@ -36,6 +37,7 @@ impl Builder {
             tls: TlsConfig::default(),
             reconnect: Reconnect::default(),
             disconnected_queue_capacity: 256,
+            sts_store: Box::new(MemoryStsStore::new()),
             bot: false,
             channels: Vec::new(),
             username_set: false,
@@ -176,6 +178,12 @@ impl Builder {
         self.tls(false)
     }
 
+    /// Sets the store used for IRC Strict Transport Security policies.
+    pub fn sts_store(mut self, store: impl StsStore + Send + 'static) -> Self {
+        self.sts_store = Box::new(store);
+        self
+    }
+
     /// Trusts only the certificates in a PEM document.
     pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
         self.tls.roots = TlsRoots::Ca(pem.into());
@@ -282,6 +290,7 @@ impl Builder {
             defaults,
             self.reconnect,
             self.disconnected_queue_capacity,
+            self.sts_store,
         )
     }
 

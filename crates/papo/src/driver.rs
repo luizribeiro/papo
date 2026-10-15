@@ -8,10 +8,13 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     task,
-    time::Instant,
+    time::{Instant, SystemTime},
 };
 
-use papo_core::{Connection, Session, sts::ConnectionSecurity};
+use papo_core::{
+    Connection, Session,
+    sts::{ConnectionSecurity, StsStore},
+};
 use papo_proto::Message;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -238,6 +241,7 @@ impl Driver {
         (channels.client, channels.events, Self { inner })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn with_plan(
         plan: Result<ConnectionPlan, AddressError>,
         session: Session,
@@ -246,6 +250,7 @@ impl Driver {
         defaults: PostRegistration,
         reconnect: Reconnect,
         disconnected_queue_capacity: usize,
+        sts_store: Box<dyn StsStore + Send>,
     ) -> (Client, Events, Self) {
         Self::with_connector(
             plan,
@@ -255,6 +260,7 @@ impl Driver {
             defaults,
             reconnect,
             disconnected_queue_capacity,
+            sts_store,
             Arc::new(|plan| {
                 Box::pin(async move {
                     open_connection(plan)
@@ -274,6 +280,7 @@ impl Driver {
         defaults: PostRegistration,
         reconnect: Reconnect,
         disconnected_queue_capacity: usize,
+        sts_store: Box<dyn StsStore + Send>,
         connector: Connector,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity);
@@ -286,6 +293,7 @@ impl Driver {
             defaults,
             reconnect,
             disconnected_queue_capacity,
+            sts_store,
             connector,
         ));
         (channels.client, channels.events, Self { inner })
@@ -376,9 +384,10 @@ async fn run_plan(
     defaults: PostRegistration,
     reconnect: Reconnect,
     disconnected_queue_capacity: usize,
+    mut sts_store: Box<dyn StsStore + Send>,
     connector: Connector,
 ) -> Result<(), Error> {
-    let plan = match plan {
+    let base_plan = match plan {
         Ok(plan) => plan,
         Err(error) => {
             if registration.0.is_some() {
@@ -393,6 +402,32 @@ async fn run_plan(
     let mut queued = VecDeque::new();
     loop {
         attempts = attempts.saturating_add(1);
+        let plan = match plan_with_stored_sts(&base_plan, sts_store.as_mut()) {
+            Ok(plan) => plan,
+            Err(error) => {
+                let reason = error.to_string();
+                if registration.0.is_some() {
+                    registration.failed(error);
+                    drop(events.regular);
+                    _ = events.disconnected.send(Event::Disconnected {
+                        reason,
+                        will_retry: false,
+                    });
+                    return Ok(());
+                }
+                return finish(
+                    events,
+                    ConnectionEnd {
+                        reason,
+                        error,
+                        quit: None,
+                        quit_timed_out: false,
+                        registered_at: None,
+                    },
+                    false,
+                );
+            }
+        };
         let Some(connection_result) = connect_while_disconnected(
             connector(plan.clone()),
             &mut commands,
@@ -501,6 +536,27 @@ async fn run_plan(
             return Ok(());
         }
     }
+}
+
+#[allow(clippy::unnecessary_wraps)]
+fn plan_with_stored_sts(
+    base: &ConnectionPlan,
+    store: &mut dyn StsStore,
+) -> Result<ConnectionPlan, Error> {
+    let Some(policy) = store.get(&base.address.host) else {
+        return Ok(base.clone());
+    };
+    if !policy.is_active_at(SystemTime::now()) {
+        store.remove(&base.address.host);
+        return Ok(base.clone());
+    }
+    if base.address.is_secure() {
+        return Ok(base.clone());
+    }
+    let mut plan = base.clone();
+    plan.address.set_tls(true);
+    plan.address.set_port(policy.port);
+    Ok(plan)
 }
 
 fn is_fatal_failure(error: &Error, reason: &str) -> bool {
@@ -1074,6 +1130,7 @@ mod tests {
             super::PostRegistration::default(),
             crate::Reconnect::exponential().max_attempts(2),
             256,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1122,6 +1179,7 @@ mod tests {
             },
             Reconnect::exponential(),
             256,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1181,6 +1239,7 @@ mod tests {
             super::PostRegistration::default(),
             Reconnect::exponential(),
             1,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1229,6 +1288,7 @@ mod tests {
             super::PostRegistration::default(),
             Reconnect::exponential(),
             256,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1243,6 +1303,51 @@ mod tests {
         assert!(driver.await.unwrap().is_ok());
         tokio::time::advance(Duration::from_secs(10)).await;
         assert_eq!(calls.load(Ordering::Relaxed), 1);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn stored_sts_policy_upgrades_the_connection_plan() {
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let stream = Arc::new(Mutex::new(Some(
+            Box::new(client_stream) as super::BoxConnection
+        )));
+        let connector: super::Connector = Arc::new(move |plan| {
+            assert!(plan.address.is_secure());
+            assert_eq!(plan.address.port, 7443);
+            let stream = stream.lock().unwrap().take().unwrap();
+            Box::pin(async move { Ok(stream) })
+        });
+        let mut store = papo_core::sts::MemoryStsStore::new();
+        papo_core::sts::StsStore::put(
+            &mut store,
+            papo_core::sts::StoredPolicy {
+                host: "irc.example.net".into(),
+                port: 7443,
+                expires_at: std::time::SystemTime::now() + Duration::from_secs(3600),
+                duration: Duration::from_secs(3600),
+            },
+        );
+        let (client, _events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration::default(),
+            Reconnect::exponential(),
+            256,
+            Box::new(store),
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        let quit = tokio::spawn(async move { client.quit(None).await });
+        client_line(&mut server, b"QUIT\r\n").await;
+        server.shutdown().await.unwrap();
+        assert!(quit.await.unwrap().is_ok());
+        assert!(driver.await.unwrap().is_ok());
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -1407,6 +1512,7 @@ mod tests {
             super::PostRegistration::default(),
             Reconnect::exponential(),
             256,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
             connector,
         );
         let driver = tokio::spawn(driver);
