@@ -681,8 +681,29 @@ mod tests {
             "202é-02-03T04:05:06Z",
             "2026-02-03T04:05:06.Z",
             "2026-02-03T04:05:06.1234567890Z",
+            "2026/02-03T04:05:06Z",
+            "2026-02/03T04:05:06Z",
+            "2026-02-03 04:05:06Z",
+            "2026-02-03T04-05:06Z",
+            "2026-02-03T04:05-06Z",
         ] {
             assert_eq!(parse_server_time(input), None, "{input}");
+        }
+    }
+
+    #[test]
+    fn accepts_the_last_day_of_thirty_day_months() {
+        for (input, seconds) in [
+            ("2026-04-30T00:00:00Z", 1_777_507_200),
+            ("2026-06-30T00:00:00Z", 1_782_777_600),
+            ("2026-09-30T00:00:00Z", 1_790_726_400),
+            ("2026-11-30T00:00:00Z", 1_795_996_800),
+        ] {
+            assert_eq!(
+                parse_server_time(input),
+                Some(UNIX_EPOCH + Duration::from_secs(seconds)),
+                "{input}"
+            );
         }
     }
 
