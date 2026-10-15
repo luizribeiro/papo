@@ -280,3 +280,49 @@ fn unescape_tag(value: &str) -> Cow<'_, str> {
     }
     Cow::Owned(unescaped)
 }
+
+#[allow(dead_code)]
+fn escape_tag(value: &str) -> Cow<'_, str> {
+    if !value
+        .chars()
+        .any(|character| matches!(character, ';' | ' ' | '\\' | '\r' | '\n'))
+    {
+        return Cow::Borrowed(value);
+    }
+
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            ';' => escaped.push_str(r"\:"),
+            ' ' => escaped.push_str(r"\s"),
+            '\\' => escaped.push_str(r"\\"),
+            '\r' => escaped.push_str(r"\r"),
+            '\n' => escaped.push_str(r"\n"),
+            other => escaped.push(other),
+        }
+    }
+    Cow::Owned(escaped)
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::{escape_tag, unescape_tag};
+
+    proptest! {
+        #[test]
+        fn escaping_round_trips(value in any::<String>()) {
+            let escaped = escape_tag(&value);
+            prop_assert_eq!(unescape_tag(&escaped), value.as_str());
+        }
+    }
+
+    #[test]
+    fn escapes_each_special_character() {
+        assert_eq!(
+            escape_tag("semi; space \\ cr\r lf\n"),
+            r"semi\:\sspace\s\\\scr\r\slf\n"
+        );
+    }
+}
