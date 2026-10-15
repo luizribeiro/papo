@@ -40,6 +40,11 @@ pub struct Client {
 }
 
 impl Client {
+    /// Starts configuring a client for `address`.
+    pub fn builder(address: &str) -> crate::Builder {
+        crate::Builder::new(address)
+    }
+
     /// Validates and queues an IRC message for transmission.
     ///
     /// # Errors
