@@ -173,6 +173,22 @@ fn rejects_history_without_its_capability() {
 }
 
 #[test]
+fn rejects_open_ended_bounded_queries() {
+    let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+    assert_eq!(
+        session.chathistory(
+            now,
+            HistoryQuery::Before {
+                target: "#papo".into(),
+                before: MsgRef::Any,
+                limit: 50,
+            }
+        ),
+        Err(RequestError::InvalidMessageReference)
+    );
+}
+
+#[test]
 fn assembles_deduplicated_context_aware_pages() {
     let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
     session

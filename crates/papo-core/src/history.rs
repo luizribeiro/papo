@@ -199,17 +199,21 @@ impl HistoryQuery {
 
     fn into_params(self, limit: usize, supported: &[&str]) -> Result<Vec<String>, RequestError> {
         let encode = |reference| encode_reference(reference, supported);
+        let bound = |reference| match reference {
+            MsgRef::Any => Err(RequestError::InvalidMessageReference),
+            reference => encode(reference),
+        };
         let (command, mut params) = match self {
             Self::Latest { target, after, .. } => (
                 "LATEST",
                 vec![target, encode(after.unwrap_or(MsgRef::Any))?],
             ),
-            Self::Before { target, before, .. } => ("BEFORE", vec![target, encode(before)?]),
-            Self::After { target, after, .. } => ("AFTER", vec![target, encode(after)?]),
-            Self::Around { target, around, .. } => ("AROUND", vec![target, encode(around)?]),
+            Self::Before { target, before, .. } => ("BEFORE", vec![target, bound(before)?]),
+            Self::After { target, after, .. } => ("AFTER", vec![target, bound(after)?]),
+            Self::Around { target, around, .. } => ("AROUND", vec![target, bound(around)?]),
             Self::Between {
                 target, start, end, ..
-            } => ("BETWEEN", vec![target, encode(start)?, encode(end)?]),
+            } => ("BETWEEN", vec![target, bound(start)?, bound(end)?]),
             Self::Targets { from, to, .. } => (
                 "TARGETS",
                 vec![format_timestamp(from)?, format_timestamp(to)?],
