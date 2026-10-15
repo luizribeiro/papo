@@ -137,7 +137,7 @@ fn distinguishes_empty_lines_from_missing_commands() {
 }
 
 #[test]
-fn parses_twenty_parameters_without_allocating_storage() {
+fn parses_many_parameters_with_irregular_spacing() {
     let input = format!(
         "COMMAND {}",
         (1..=20)
