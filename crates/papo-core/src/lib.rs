@@ -1534,7 +1534,7 @@ impl Session {
                 for (offset, segment) in segments[start..end].iter().enumerate() {
                     let mut inner =
                         Message::new(kind.command(), [target, segment.text]).with_tag("batch", &id);
-                    if offset + start + 1 < end && segment.concat {
+                    if offset > 0 && segments[offset + start - 1].concat {
                         inner = inner.with_tag("draft/multiline-concat", "");
                     }
                     lines.push(inner.to_line()?.into_bytes());

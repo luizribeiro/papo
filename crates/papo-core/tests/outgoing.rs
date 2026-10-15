@@ -99,11 +99,11 @@ fn sends_six_hundred_bytes_as_one_labelled_multiline_batch() {
         drain(&mut session),
         [
             "@+reply=RKi9Cw;label=0 BATCH +b0-0 draft/multiline #papo\r\n".into(),
+            format!("@batch=b0-0 PRIVMSG #papo {}\r\n", "a".repeat(420)),
             format!(
                 "@batch=b0-0;draft/multiline-concat PRIVMSG #papo {}\r\n",
-                "a".repeat(420)
+                "a".repeat(180)
             ),
-            format!("@batch=b0-0 PRIVMSG #papo {}\r\n", "a".repeat(180)),
             "BATCH -b0-0\r\n".into(),
         ]
     );
@@ -156,7 +156,8 @@ fn concat_omits_the_joining_newline_from_max_bytes() {
         .unwrap();
     let lines = drain(&mut concat);
     assert_eq!(lines.len(), 4);
-    assert!(lines[1].contains("draft/multiline-concat"));
+    assert!(!lines[1].contains("draft/multiline-concat"));
+    assert!(lines[2].contains("draft/multiline-concat"));
 
     let mut joined = multiline_session(now, "max-bytes=800,max-lines=3", false);
     let text = format!("{}\n{}", "a".repeat(420), "b".repeat(380));
@@ -272,10 +273,11 @@ fn later_batches_mark_only_internal_concat_segments() {
         .unwrap();
     let lines = drain(&mut session);
     assert_eq!(lines.len(), 15);
-    for line in &lines[7..10] {
+    assert!(!lines[7].contains("draft/multiline-concat"));
+    for line in &lines[8..11] {
         assert!(line.contains("draft/multiline-concat"));
     }
-    assert!(!lines[10].contains("draft/multiline-concat"));
+    assert!(!lines[13].contains("draft/multiline-concat"));
 }
 
 #[test]
@@ -324,8 +326,8 @@ fn interleaved_traffic_waits_for_the_batch_close() {
         .unwrap();
     session.handle_line(now, b"PING :keepalive");
     let remaining = drain(&mut session);
-    assert!(remaining[0].starts_with("@batch=b0-0;draft/multiline-concat"));
-    assert!(remaining[1].starts_with("@batch=b0-0 PRIVMSG"));
+    assert!(remaining[0].starts_with("@batch=b0-0 PRIVMSG"));
+    assert!(remaining[1].starts_with("@batch=b0-0;draft/multiline-concat"));
     assert_eq!(remaining[2], "BATCH -b0-0\r\n");
     assert_eq!(remaining[3], "PONG :keepalive\r\n");
     assert_eq!(remaining[4], "PRIVMSG #elsewhere :queued later\r\n");

@@ -3666,7 +3666,7 @@ mod tests {
         client_line(&mut server, b"CAP END\r\n").await;
         client.privmsg("#papo", &"a".repeat(600)).await.unwrap();
         let batch = format!(
-            "BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0;draft/multiline-concat PRIVMSG #papo {}\r\n@batch=b0-0 PRIVMSG #papo {}\r\nBATCH -b0-0\r\n",
+            "BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0 PRIVMSG #papo {}\r\n@batch=b0-0;draft/multiline-concat PRIVMSG #papo {}\r\nBATCH -b0-0\r\n",
             "a".repeat(413),
             "a".repeat(187)
         );
