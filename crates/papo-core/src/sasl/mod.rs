@@ -287,6 +287,21 @@ impl SaslSession {
             }
         } else if message.command_is("901") {
             self.account = None;
+        } else if message.command_is("903")
+            && matches!(self.active, Some(Mechanism::ScramSha256 { .. }))
+            && self.scram_step != ScramStep::None
+        {
+            self.abort(
+                now,
+                "SCRAM succeeded without a verified server proof",
+                outbox,
+            );
+            if self.require {
+                self.completion = Completion::Failed;
+                self.aborting = false;
+                self.deadline = None;
+                outbox.close(format!("SASL failed: {}", self.failures.join("; ")));
+            }
         } else if message.command_is("903") || message.command_is("907") {
             self.active = None;
             self.awaiting_challenge = false;

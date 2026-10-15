@@ -308,9 +308,11 @@ fn authenticates_with_external_empty_and_explicit_authzids() {
     }
 }
 
-fn scram_until_server_final(server_final: &str) -> Transcript {
+fn scram_start(require_sasl: bool) -> Transcript {
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::scram_sha256("user", "pencil")),
+        Config::default()
+            .sasl(Sasl::scram_sha256("user", "pencil"))
+            .require_sasl(require_sasl),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -318,19 +320,48 @@ fn scram_until_server_final(server_final: &str) -> Transcript {
     .client("CAP REQ :sasl")
     .server("CAP * ACK :sasl")
     .client("AUTHENTICATE SCRAM-SHA-256")
-    .server("AUTHENTICATE +")
-    .client("AUTHENTICATE biwsbj11c2VyLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBh")
-    .server(concat!(
-        "AUTHENTICATE ",
-        "cj1XbHBhV2xwYVdscGFXbHBhV2xwYVdscGElaHZZRHBXVWEyUmFUQ0FmdXhGSWxqKWhObEYkazAs",
-        "cz1XMjJaYUowU05ZN3NvRXNVRWpiNmdRPT0saT00MDk2"
-    ))
-    .client(concat!(
-        "AUTHENTICATE ",
-        "Yz1iaXdzLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBhJWh2WURwV1VhMlJhVENBZnV4Rklsailo",
-        "TmxGJGswLHA9M2dCTVFERWRxdS9jM2FoSjkzMUwrSWl5d0N6QWpoMm92cWFaZExhYjkrWT0="
-    ))
-    .server(server_final)
+}
+
+fn scram_after_client_first(require_sasl: bool) -> Transcript {
+    scram_start(require_sasl)
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE biwsbj11c2VyLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBh")
+}
+
+fn scram_after_client_final(require_sasl: bool) -> Transcript {
+    scram_after_client_first(require_sasl)
+        .server(concat!(
+            "AUTHENTICATE ",
+            "cj1XbHBhV2xwYVdscGFXbHBhV2xwYVdscGElaHZZRHBXVWEyUmFUQ0FmdXhGSWxqKWhObEYkazAs",
+            "cz1XMjJaYUowU05ZN3NvRXNVRWpiNmdRPT0saT00MDk2"
+        ))
+        .client(concat!(
+            "AUTHENTICATE ",
+            "Yz1iaXdzLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBhJWh2WURwV1VhMlJhVENBZnV4Rklsailo",
+            "TmxGJGswLHA9M2dCTVFERWRxdS9jM2FoSjkzMUwrSWl5d0N6QWpoMm92cWFaZExhYjkrWT0="
+        ))
+}
+
+fn scram_until_server_final(server_final: &str) -> Transcript {
+    scram_after_client_final(false).server(server_final)
+}
+
+#[test]
+fn rejects_scram_success_without_a_verified_server_proof() {
+    for transcript in [
+        scram_start(true),
+        scram_after_client_first(true),
+        scram_after_client_final(true),
+    ] {
+        transcript
+            .server(":ergo.test 903 user :SASL authentication successful")
+            .client("AUTHENTICATE *")
+            .event(|event| {
+                matches!(event, Event::Close { reason }
+                    if reason.contains("without a verified server proof"))
+            })
+            .no_client();
+    }
 }
 
 #[test]
