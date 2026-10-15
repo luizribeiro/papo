@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, collections::BTreeMap};
 
-use papo_proto::{MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, MessageRef, ParseError};
+use papo_proto::{MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef, ParseError};
 use serde_json::Value;
 
 #[test]
@@ -229,4 +229,61 @@ fn enforces_both_limits_after_leading_spaces() {
         MessageRef::parse(&excessive_message),
         Err(ParseError::TooLong)
     );
+}
+
+#[test]
+fn owns_parsed_messages_without_reparsing() {
+    let parsed = MessageRef::parse(
+        r"@+draft/reply=old;+typing=active;+draft/reply=new\svalue :papo-test!~papo@example.test PRIVMSG #papo :hello there",
+    )
+    .unwrap();
+    let message = parsed.to_owned();
+    let borrowed = message.as_ref();
+
+    assert_eq!(borrowed.source(), Some("papo-test!~papo@example.test"));
+    assert_eq!(borrowed.command(), "PRIVMSG");
+    assert_eq!(
+        borrowed.params().collect::<Vec<_>>(),
+        ["#papo", "hello there"]
+    );
+    assert_eq!(
+        borrowed.tags().collect::<Vec<_>>(),
+        [
+            ("+draft/reply", Some(Cow::Borrowed("new value"))),
+            ("+typing", Some(Cow::Borrowed("active"))),
+        ]
+    );
+}
+
+#[test]
+fn builds_common_client_commands() {
+    let tagged = Message::privmsg("#papo", "hello there")
+        .with_tag("+draft/reply", "abcDEF123")
+        .with_tag("+typing", "active")
+        .with_tag("+draft/reply", "new-id")
+        .with_source("papo-test!~papo@example.test");
+    assert_eq!(
+        tagged.as_ref().tags().collect::<Vec<_>>(),
+        [
+            ("+draft/reply", Some(Cow::Borrowed("new-id"))),
+            ("+typing", Some(Cow::Borrowed("active"))),
+        ]
+    );
+
+    let cases = [
+        (
+            Message::notice("papo-test", "maintenance soon"),
+            "NOTICE",
+            2,
+        ),
+        (Message::tagmsg("#papo"), "TAGMSG", 1),
+        (Message::join("#papo"), "JOIN", 1),
+        (Message::part("#papo"), "PART", 1),
+        (Message::part_with_reason("#papo", "leaving now"), "PART", 2),
+        (Message::raw("CAP", ["REQ", "message-tags"]), "CAP", 2),
+    ];
+    for (message, command, param_count) in cases {
+        assert_eq!(message.as_ref().command(), command);
+        assert_eq!(message.as_ref().len(), param_count);
+    }
 }
