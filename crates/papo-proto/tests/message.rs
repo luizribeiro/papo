@@ -341,7 +341,7 @@ fn builds_common_client_commands() {
         (Message::join("#papo"), "JOIN", 1),
         (Message::part("#papo"), "PART", 1),
         (Message::part_with_reason("#papo", "leaving now"), "PART", 2),
-        (Message::raw("CAP", ["REQ", "message-tags"]), "CAP", 2),
+        (Message::new("CAP", ["REQ", "message-tags"]), "CAP", 2),
     ];
     for (message, command, param_count) in cases {
         assert_eq!(message.as_ref().command(), command);
@@ -384,11 +384,11 @@ fn serializes_realistic_client_lines() {
 
     let chunk = "dGVzdABwYXBvLXRlc3QAc2VjcmV0".repeat(12);
     assert_eq!(
-        Message::raw("AUTHENTICATE", [&chunk]).to_line().unwrap(),
+        Message::new("AUTHENTICATE", [&chunk]).to_line().unwrap(),
         format!("AUTHENTICATE {chunk}\r\n")
     );
     assert_eq!(
-        Message::raw(
+        Message::new(
             "CAP",
             ["REQ", "message-tags server-time batch labeled-response"]
         )
@@ -402,7 +402,7 @@ fn serializes_realistic_client_lines() {
 fn rejects_forbidden_command_and_parameter_bytes() {
     for command in ["", "PRIV MSG", "PRIV\rMSG", "PRIV\nMSG", "PRIV\0MSG"] {
         assert_eq!(
-            Message::raw(command, ["#papo", "hello"]).to_line(),
+            Message::new(command, ["#papo", "hello"]).to_line(),
             Err(BuildError::InvalidCommand)
         );
     }
@@ -424,7 +424,7 @@ fn rejects_fields_that_could_change_wire_structure() {
         "bad\0source",
     ] {
         assert_eq!(
-            Message::raw("NOTICE", ["papo-test", "maintenance"])
+            Message::new("NOTICE", ["papo-test", "maintenance"])
                 .with_source(source)
                 .to_line(),
             Err(BuildError::InvalidSource)
@@ -457,25 +457,25 @@ fn rejects_fields_that_could_change_wire_structure() {
 fn requires_middle_parameters_to_use_middle_form() {
     for invalid in ["", "two words", ":prefixed"] {
         assert_eq!(
-            Message::raw("COMMAND", [invalid, "last"]).to_line(),
+            Message::new("COMMAND", [invalid, "last"]).to_line(),
             Err(BuildError::InvalidParam(0))
         );
     }
 
     assert_eq!(
-        Message::raw("COMMAND", [""]).to_line().unwrap(),
+        Message::new("COMMAND", [""]).to_line().unwrap(),
         "COMMAND :\r\n"
     );
     assert_eq!(
-        Message::raw("COMMAND", ["two words"]).to_line().unwrap(),
+        Message::new("COMMAND", ["two words"]).to_line().unwrap(),
         "COMMAND :two words\r\n"
     );
     assert_eq!(
-        Message::raw("COMMAND", [":prefixed"]).to_line().unwrap(),
+        Message::new("COMMAND", [":prefixed"]).to_line().unwrap(),
         "COMMAND ::prefixed\r\n"
     );
     assert_eq!(
-        Message::raw("COMMAND", ["ordinary"]).to_line().unwrap(),
+        Message::new("COMMAND", ["ordinary"]).to_line().unwrap(),
         "COMMAND ordinary\r\n"
     );
 }

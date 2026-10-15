@@ -312,16 +312,6 @@ impl Message {
         Self::new("PART", [channels.into(), reason.into()])
     }
 
-    /// Creates a message for an arbitrary command.
-    pub fn raw<C, P, S>(command: C, params: P) -> Self
-    where
-        C: Into<String>,
-        P: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        Self::new(command, params)
-    }
-
     /// Adds or replaces a tag, retaining its first insertion position.
     #[must_use]
     pub fn with_tag(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
