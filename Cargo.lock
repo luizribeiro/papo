@@ -610,6 +610,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-admin-bot"
+version = "0.0.0"
+dependencies = [
+ "papo",
+ "papo-proto",
+ "tokio",
+]
+
+[[package]]
 name = "papo-conformance"
 version = "0.0.0"
 dependencies = [

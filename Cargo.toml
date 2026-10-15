@@ -9,6 +9,7 @@ members = [
   "examples/parse",
   "examples/ping-bot",
   "examples/lurker",
+  "examples/admin-bot",
 ]
 exclude = ["fuzz"]
 
