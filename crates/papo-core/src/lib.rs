@@ -42,6 +42,9 @@ const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(120);
 const DEFAULT_MAX_CHANNELS: usize = 10_000;
 const DEFAULT_MAX_MEMBERS_PER_CHANNEL: usize = 100_000;
+const DEFAULT_MAX_OPEN_BATCHES: usize = 64;
+const DEFAULT_MAX_BATCH_LINES: usize = 10_000;
+const DEFAULT_BATCH_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Capabilities requested by a default session when the server advertises them.
 pub const DEFAULT_WANTED_CAPS: &[&str] = &[
@@ -138,6 +141,12 @@ pub struct Config {
     pub max_channels: usize,
     /// Maximum number of members retained for one channel.
     pub max_members_per_channel: usize,
+    /// Maximum number of batches retained at once.
+    pub max_open_batches: usize,
+    /// Maximum number of server lines retained in one batch.
+    pub max_batch_lines: usize,
+    /// Maximum time an incomplete batch remains open.
+    pub batch_timeout: Duration,
 }
 
 impl std::fmt::Debug for Config {
@@ -162,6 +171,9 @@ impl std::fmt::Debug for Config {
             .field("device", &self.device)
             .field("max_channels", &self.max_channels)
             .field("max_members_per_channel", &self.max_members_per_channel)
+            .field("max_open_batches", &self.max_open_batches)
+            .field("max_batch_lines", &self.max_batch_lines)
+            .field("batch_timeout", &self.batch_timeout)
             .finish()
     }
 }
@@ -199,6 +211,9 @@ impl Default for Config {
             device: None,
             max_channels: DEFAULT_MAX_CHANNELS,
             max_members_per_channel: DEFAULT_MAX_MEMBERS_PER_CHANNEL,
+            max_open_batches: DEFAULT_MAX_OPEN_BATCHES,
+            max_batch_lines: DEFAULT_MAX_BATCH_LINES,
+            batch_timeout: DEFAULT_BATCH_TIMEOUT,
         }
     }
 }
@@ -335,6 +350,27 @@ impl Config {
     #[must_use]
     pub const fn max_members_per_channel(mut self, maximum: usize) -> Self {
         self.max_members_per_channel = maximum;
+        self
+    }
+
+    /// Sets the maximum number of batches retained at once.
+    #[must_use]
+    pub const fn max_open_batches(mut self, maximum: usize) -> Self {
+        self.max_open_batches = maximum;
+        self
+    }
+
+    /// Sets the maximum number of server lines retained in one batch.
+    #[must_use]
+    pub const fn max_batch_lines(mut self, maximum: usize) -> Self {
+        self.max_batch_lines = maximum;
+        self
+    }
+
+    /// Sets how long an incomplete batch remains open.
+    #[must_use]
+    pub const fn batch_timeout(mut self, timeout: Duration) -> Self {
+        self.batch_timeout = timeout;
         self
     }
 }
