@@ -620,6 +620,8 @@ pub struct Response {
     pub lines: Vec<Message>,
     /// A typed history page nested in this response, when present.
     pub history: Option<HistoryPage>,
+    /// Targets nested in a completed `CHATHISTORY TARGETS` response.
+    pub history_targets: Option<Vec<(String, std::time::SystemTime)>>,
     sent: Option<SentInfo>,
 }
 
@@ -2059,6 +2061,7 @@ impl Session {
             sent: if sent { sent_info(message) } else { None },
             lines,
             history: None,
+            history_targets: None,
         }));
         true
     }
@@ -2087,6 +2090,7 @@ impl Session {
                 sent: None,
                 lines: request.lines,
                 history: None,
+                history_targets: None,
             }));
         }
         true
@@ -2113,6 +2117,7 @@ impl Session {
                 messages,
                 batch_type,
                 history,
+                history_targets,
             } => {
                 let request = self.requests.remove(&label);
                 let context = DispatchContext::from_batch_type(batch_type);
@@ -2145,6 +2150,7 @@ impl Session {
                         },
                         lines: messages,
                         history,
+                        history_targets,
                     }));
                     for message in echoed.into_iter().flatten() {
                         let received = self.received_message(message, None, true);

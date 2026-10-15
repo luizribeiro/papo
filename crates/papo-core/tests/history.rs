@@ -266,6 +266,10 @@ fn reports_targets_with_parsed_server_times() {
         targets[0].1,
         UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
     );
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected targets response")
+    };
+    assert_eq!(response.history_targets.unwrap(), targets);
 }
 
 #[test]

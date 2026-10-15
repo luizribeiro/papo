@@ -60,6 +60,7 @@ pub(crate) enum BatchEvent {
         messages: Vec<Message>,
         batch_type: String,
         history: Option<HistoryPage>,
+        history_targets: Option<Vec<(String, std::time::SystemTime)>>,
     },
     History {
         target: String,
@@ -186,11 +187,16 @@ impl Batches {
         }
         if let Some(label) = batch.label.take() {
             let history = completed.iter().find_map(history_from_event);
+            let history_targets = completed.iter().find_map(|event| match event {
+                BatchEvent::HistoryTargets(targets) => Some(targets.clone()),
+                _ => None,
+            });
             completed.push(BatchEvent::Response {
                 label,
                 messages: response_messages.expect("label captured response messages"),
                 batch_type: batch.kind.clone(),
                 history,
+                history_targets,
             });
         }
         if let Some(parent) = batch.parent {
