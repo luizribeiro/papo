@@ -47,30 +47,29 @@ impl Caps {
             } else if subcommand.eq_ignore_ascii_case("DEL") {
                 self.handle_del(message, sasl, outbox);
             } else if subcommand.eq_ignore_ascii_case("ACK") {
-                if message.param(2) != Some("*") {
-                    if let Some(requested) = self.pending.pop_front() {
-                        let sasl_acked = requested.iter().any(|name| name == "sasl");
-                        let mut added = Capabilities::new();
-                        for name in requested {
-                            let value = self.advertised.get(&name).cloned().flatten();
-                            self.enabled.insert(name.clone(), value.clone());
-                            added.insert(name, value);
-                        }
-                        if sasl_acked {
-                            sasl.handle_cap_ack(
-                                now,
-                                self.enabled.get("sasl").and_then(Option::as_deref),
-                                outbox,
-                            );
-                        }
-                        if self.ended {
-                            outbox.event(Event::CapsChanged {
-                                added,
-                                removed: Capabilities::new(),
-                            });
-                        }
+                if message.param(2) != Some("*")
+                    && let Some(requested) = self.pending.pop_front()
+                {
+                    let sasl_acked = requested.iter().any(|name| name == "sasl");
+                    let mut added = Capabilities::new();
+                    for name in requested {
+                        let value = self.advertised.get(&name).cloned().flatten();
+                        self.enabled.insert(name.clone(), value.clone());
+                        added.insert(name, value);
                     }
-                    self.maybe_finish(sasl.is_finished(), outbox);
+                    if sasl_acked {
+                        sasl.handle_cap_ack(
+                            now,
+                            self.enabled.get("sasl").and_then(Option::as_deref),
+                            outbox,
+                        );
+                    }
+                    if self.ended {
+                        outbox.event(Event::CapsChanged {
+                            added,
+                            removed: Capabilities::new(),
+                        });
+                    }
                 }
             } else if subcommand.eq_ignore_ascii_case("NAK") {
                 if self
@@ -80,7 +79,6 @@ impl Caps {
                 {
                     sasl.unavailable("the server rejected the sasl capability", outbox);
                 }
-                self.maybe_finish(sasl.is_finished(), outbox);
             } else {
                 return Handled::No;
             }
@@ -225,9 +223,7 @@ impl Caps {
         if config.sasl.is_some() && !self.advertised.contains_key("sasl") {
             sasl.unavailable("the server did not advertise sasl", outbox);
         }
-        if requests.is_empty() {
-            self.maybe_finish(sasl.is_finished(), outbox);
-        } else {
+        if !requests.is_empty() {
             self.send_requests(requests, outbox);
         }
     }
