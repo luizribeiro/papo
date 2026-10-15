@@ -1,8 +1,12 @@
 //! Transcript and deadline tests for connection registration.
 
+mod support;
+
 use std::time::{Duration, Instant};
 
 use papo_core::{Config, Event, Session};
+use papo_proto::Isupport;
+use support::Transcript;
 
 fn line(session: &mut Session) -> String {
     String::from_utf8(session.poll_transmit().expect("client line"))
@@ -217,4 +221,42 @@ fn completes_ten_seconds_after_welcome_when_motd_never_finishes() {
     assert!(session.is_registered());
     assert!(matches!(session.poll_event(), Some(Event::Registered(_))));
     assert_eq!(session.poll_timeout(), None);
+}
+
+#[test]
+fn reconnect_resets_all_registration_state() {
+    Transcript::new(
+        Config::default()
+            .alt_nicks(["papo-away"])
+            .wanted_caps(["server-time"]),
+    )
+    .connect_default()
+    .server("CAP * LS :server-time")
+    .client("CAP REQ :server-time")
+    .server("CAP * ACK :server-time")
+    .client("CAP END")
+    .server(":ergo.test 433 * papo :Nickname is already in use")
+    .client("NICK papo-away")
+    .server(":ergo.test 005 * NICKLEN=32 NETWORK=ErgoTest :are supported by this server")
+    .server(":ergo.test 001 papo-away :Welcome to Ergo")
+    .server(":ergo.test 422 papo-away :MOTD File is missing")
+    .event(|event| matches!(event, Event::Registered(_)))
+    .inspect(|session| {
+        assert!(session.is_registered());
+        assert!(session.caps().contains_key("server-time"));
+        assert_eq!(session.isupport().network(), Some("ErgoTest"));
+        assert_eq!(session.nick(), "papo-away");
+    })
+    .disconnect()
+    .inspect(|session| {
+        assert!(!session.is_registered());
+        assert_eq!(session.poll_timeout(), None);
+    })
+    .connect_default()
+    .inspect(|session| {
+        assert!(session.caps().is_empty());
+        assert_eq!(session.isupport(), &Isupport::default());
+        assert_eq!(session.nick(), "papo");
+        assert!(session.poll_timeout().is_some());
+    });
 }

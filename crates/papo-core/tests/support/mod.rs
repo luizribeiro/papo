@@ -88,6 +88,18 @@ impl Transcript {
         self
     }
 
+    /// Disconnects the session at the current transcript time.
+    pub fn disconnect(mut self) -> Self {
+        self.session.handle_disconnected(self.now);
+        self
+    }
+
+    /// Inspects session state without changing it.
+    pub fn inspect(self, inspect: impl FnOnce(&Session)) -> Self {
+        inspect(&self.session);
+        self
+    }
+
     /// Plays directives from a transcript trace file.
     pub fn load(mut self, path: impl AsRef<Path>) -> Self {
         let path = path.as_ref();
