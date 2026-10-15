@@ -3,7 +3,9 @@
 
 use std::{collections::VecDeque, time::Instant};
 
-use papo_proto::Message;
+use papo_proto::{Message, MessageRef};
+
+const MAX_INCOMING_LINE_LEN: usize = 8191 + 512;
 
 /// Policy for decoding incoming IRC lines.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -44,35 +46,89 @@ pub enum Event {
 /// Sans-I/O state for one IRC client session.
 #[derive(Debug)]
 pub struct Session {
+    config: Config,
+    incoming: Vec<u8>,
     transmits: VecDeque<Message>,
     events: VecDeque<Event>,
+    closing: bool,
 }
 
 impl Session {
     /// Creates a session with no active connection.
     #[must_use]
-    pub fn new(_config: Config) -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
+            config,
+            incoming: Vec::new(),
             transmits: VecDeque::new(),
             events: VecDeque::new(),
+            closing: false,
         }
     }
 
     /// Marks the transport as connected at `now`.
-    pub fn handle_connected(&mut self, _now: Instant) {}
+    pub fn handle_connected(&mut self, _now: Instant) {
+        self.incoming.clear();
+        self.closing = false;
+    }
 
     /// Supplies bytes read from a stream transport at `now`.
-    pub fn handle_bytes(&mut self, _now: Instant, _bytes: &[u8]) {}
+    pub fn handle_bytes(&mut self, now: Instant, bytes: &[u8]) {
+        if self.closing {
+            return;
+        }
+        self.incoming.extend_from_slice(bytes);
+        while let Some(end) = self.incoming.iter().position(|&byte| byte == b'\n') {
+            let mut line = self.incoming.drain(..=end).collect::<Vec<_>>();
+            line.pop();
+            self.handle_line(now, &line);
+            if self.closing {
+                return;
+            }
+        }
+        let trailing_cr = self.incoming.len() == MAX_INCOMING_LINE_LEN + 1
+            && self.incoming.last() == Some(&b'\r');
+        if self.incoming.len() > MAX_INCOMING_LINE_LEN && !trailing_cr {
+            self.close_for_long_line();
+        }
+    }
 
     /// Supplies one line from a transport that performs its own framing.
-    pub fn handle_line(&mut self, _now: Instant, _line: &[u8]) {}
+    pub fn handle_line(&mut self, _now: Instant, line: &[u8]) {
+        if self.closing {
+            return;
+        }
+        let line = line.strip_suffix(b"\n").unwrap_or(line);
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        if line.is_empty() {
+            return;
+        }
+        if line.len() > MAX_INCOMING_LINE_LEN {
+            self.close_for_long_line();
+            return;
+        }
+
+        let decoded = match std::str::from_utf8(line) {
+            Ok(line) => std::borrow::Cow::Borrowed(line),
+            Err(_) if self.config.decoding == Decoding::Utf8OrLatin1 => {
+                std::borrow::Cow::Owned(line.iter().map(|&byte| char::from(byte)).collect())
+            }
+            Err(_) => return self.malformed(line),
+        };
+        match MessageRef::parse(&decoded) {
+            Ok(message) => self.events.push_back(Event::Message(message.to_owned())),
+            Err(_) => self.malformed(line),
+        }
+    }
 
     /// Notifies the session that its current deadline was reached.
     pub fn handle_timeout(&mut self, _now: Instant) {}
 
     /// Marks the transport as disconnected and drops per-connection state.
     pub fn handle_disconnected(&mut self, _now: Instant) {
+        self.incoming.clear();
         self.transmits.clear();
+        self.closing = false;
     }
 
     /// Queues a user-originated raw message for transmission.
@@ -103,5 +159,19 @@ impl Session {
     #[must_use]
     pub const fn poll_timeout(&self) -> Option<Instant> {
         None
+    }
+
+    fn malformed(&mut self, line: &[u8]) {
+        self.events.push_back(Event::Malformed {
+            line: line.to_vec(),
+        });
+    }
+
+    fn close_for_long_line(&mut self) {
+        self.incoming.clear();
+        self.closing = true;
+        self.events.push_back(Event::Close {
+            reason: "incoming IRC line exceeds 8703 bytes".to_owned(),
+        });
     }
 }
