@@ -1,4 +1,14 @@
-use std::{future::Future, io, pin::Pin, task, time::Instant};
+use std::{
+    future::Future,
+    io,
+    pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    task,
+    time::Instant,
+};
 
 use papo_core::Session;
 use papo_proto::Message;
@@ -36,6 +46,7 @@ struct Quit {
 struct EventSink {
     regular: mpsc::Sender<Event>,
     disconnected: oneshot::Sender<Event>,
+    connected: Arc<AtomicBool>,
 }
 
 struct Channels {
@@ -79,12 +90,19 @@ pub(crate) struct PostRegistration {
 #[derive(Clone)]
 pub struct Client {
     commands: mpsc::Sender<Command>,
+    connected: Arc<AtomicBool>,
 }
 
 impl Client {
     /// Starts configuring a client for `address`.
     pub fn builder(address: &str) -> crate::Builder {
         crate::Builder::new(address)
+    }
+
+    /// Reports whether an IRC transport is currently connected.
+    #[must_use]
+    pub fn is_connected(&self) -> bool {
+        self.connected.load(Ordering::Relaxed)
     }
 
     /// Validates and queues an IRC message for transmission.
@@ -260,13 +278,16 @@ fn channels(capacity: usize) -> Channels {
     let (command_sender, command_receiver) = mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
     let (event_sender, event_receiver) = mpsc::channel(capacity);
     let (disconnect_sender, disconnect_receiver) = oneshot::channel();
+    let connected = Arc::new(AtomicBool::new(false));
     let events = EventSink {
         regular: event_sender,
         disconnected: disconnect_sender,
+        connected: Arc::clone(&connected),
     };
     Channels {
         client: Client {
             commands: command_sender,
+            connected,
         },
         events: Events {
             receiver: event_receiver,
@@ -339,6 +360,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     session.handle_connected(now());
+    events.connected.store(true, Ordering::Relaxed);
     let mut commands_open = true;
     let mut quit = None;
     let mut pending_event = None;
@@ -536,6 +558,7 @@ where
     S: AsyncWrite + Unpin,
 {
     session.handle_disconnected(now());
+    events.connected.store(false, Ordering::Relaxed);
     let close_error = stream.flush().await.err().or(stream.shutdown().await.err());
     if let Some(error) = close_error
         && !matches!(result, Error::Io(_))
@@ -740,9 +763,11 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn registration_is_forwarded() {
-        let (mut server, _client, mut events, driver) = scripted(config());
+        let (mut server, client, mut events, driver) = scripted(config());
+        assert!(!client.is_connected());
         let task = tokio::spawn(driver);
         registration_burst(&mut server).await;
+        assert!(client.is_connected());
         server
             .write_all(b":ergo.test CAP * LS :\r\n")
             .await
@@ -757,6 +782,7 @@ mod tests {
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
         server.shutdown().await.unwrap();
         assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+        assert!(!client.is_connected());
     }
 
     #[tokio::test(flavor = "current_thread")]
