@@ -5,6 +5,7 @@ members = [
   "crates/papo-core",
   "crates/papo",
 ]
+exclude = ["fuzz"]
 
 [workspace.package]
 edition = "2024"

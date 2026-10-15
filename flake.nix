@@ -175,6 +175,18 @@
             '';
             stages = [ "pre-push" ];
           };
+          fuzz = cargoHook {
+            name = "fuzz-hook";
+            runtimeInputs = [
+              pkgs.cargo-fuzz
+              nightlyToolchain
+            ];
+            text = ''
+              cd fuzz
+              RUSTC=${nightlyToolchain}/bin/rustc ${nightlyToolchain}/bin/cargo fuzz run message -- -max_total_time=30 -verbosity=0
+            '';
+            stages = [ "pre-push" ];
+          };
         };
         gitHooks = git-hooks.lib.${system}.run {
           src = ./.;
@@ -223,10 +235,12 @@
             pkgs.cargo-nextest
             pkgs.cargo-deny
             pkgs.cargo-mutants
+            pkgs.cargo-fuzz
             pkgs.cargo-llvm-cov
             pkgs.taplo
             pkgs.git-absorb
             ergochat
+            nightlyToolchain
           ]
           ++ gitHooks.enabledPackages;
           ERGO_BIN = pkgs.lib.getExe ergochat;
