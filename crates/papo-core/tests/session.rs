@@ -218,6 +218,57 @@ fn labelled_response_batch_also_emits_its_message_echo() {
     assert!(echo.is_some_and(|message| message.is_echo() && !message.is_other_session()));
 }
 
+fn pending_labelled_echo(now: Instant) -> Session {
+    let mut session = Session::new(Config::default().nick("papo").wanted_caps([
+        "batch",
+        "echo-message",
+        "labeled-response",
+    ]));
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :batch echo-message labeled-response");
+    session.handle_line(now, b"CAP * ACK :batch echo-message labeled-response");
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+    session
+        .send_text(now, TextKind::Privmsg, "#papo", "hello from papo", &[])
+        .unwrap();
+    session
+}
+
+#[test]
+fn labelled_echo_batch_does_not_turn_our_tagmsg_into_a_message() {
+    let now = Instant::now();
+    let mut session = pending_labelled_echo(now);
+    session.handle_line(now, b"@label=0 BATCH +response labeled-response");
+    session.handle_line(
+        now,
+        b"@batch=response;+typing=active :papo!p@localhost TAGMSG #papo",
+    );
+    session.handle_line(now, b"BATCH -response");
+
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .all(|event| !matches!(event, Event::Message(_)))
+    );
+}
+
+#[test]
+fn labelled_echo_batch_does_not_dispatch_another_users_message() {
+    let now = Instant::now();
+    let mut session = pending_labelled_echo(now);
+    session.handle_line(now, b"@label=0 BATCH +response labeled-response");
+    session.handle_line(
+        now,
+        b"@batch=response;msgid=RfcBTzyxY120005 :alice!a@localhost PRIVMSG #papo :hello from Alice",
+    );
+    session.handle_line(now, b"BATCH -response");
+
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .all(|event| !matches!(event, Event::Message(_)))
+    );
+}
+
 #[test]
 fn requests_use_labels_only_when_negotiated() {
     let now = Instant::now();
