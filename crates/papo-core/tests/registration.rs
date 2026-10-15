@@ -183,7 +183,7 @@ fn completes_ten_seconds_after_welcome_when_motd_never_finishes() {
         .advance(Duration::from_secs(1))
         .inspect(|session| assert!(session.is_registered()))
         .event(|event| matches!(event, Event::Registered(_)))
-        .deadline(None);
+        .deadline(Some(Duration::from_secs(50)));
 }
 
 #[test]

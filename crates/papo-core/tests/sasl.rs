@@ -266,7 +266,7 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
             matches!(event, Event::AuthenticationFailed { reason }
             if reason.contains("disappeared"))
         })
-        .deadline(None)
+        .deadline(Some(std::time::Duration::from_secs(60)))
         .server("CAP * NEW :sasl")
         .client("CAP REQ :sasl")
         .server("CAP * ACK :sasl")

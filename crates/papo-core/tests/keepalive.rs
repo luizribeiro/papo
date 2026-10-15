@@ -2,6 +2,8 @@
 
 mod support;
 
+use std::time::Duration;
+
 use papo_core::{Config, Event};
 use support::Transcript;
 
@@ -46,4 +48,26 @@ fn does_not_answer_invalid_pings() {
         .server("PING :bad\rtoken")
         .event(|event| matches!(event, Event::Malformed { line } if line.as_slice() == b"PING :bad\rtoken"))
         .no_client();
+}
+
+#[test]
+fn pings_after_sixty_idle_seconds_and_measures_matching_pongs() {
+    Transcript::new(Config::default().registration_timeout(Duration::from_secs(300)))
+        .connect_default()
+        .deadline(Some(Duration::from_secs(60)))
+        .advance(Duration::from_secs(59))
+        .no_client()
+        .server(":ergo.test")
+        .event(|event| matches!(event, Event::Malformed { .. }))
+        .advance(Duration::from_secs(59))
+        .no_client()
+        .advance(Duration::from_secs(1))
+        .client("PING :papo-0")
+        .server(":ergo.test PONG ergo.test :another-token")
+        .inspect(|session| assert_eq!(session.lag(), None))
+        .advance(Duration::from_millis(250))
+        .server(":ergo.test PONG ergo.test :papo-0")
+        .inspect(|session| assert_eq!(session.lag(), Some(Duration::from_millis(250))))
+        .advance(Duration::from_secs(60))
+        .client("PING :papo-1");
 }

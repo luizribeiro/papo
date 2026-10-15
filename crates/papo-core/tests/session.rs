@@ -12,7 +12,8 @@ fn config_builders_set_registration_identity_and_timeout() {
         .username("em")
         .realname("Emily Example")
         .password("correct horse battery staple")
-        .registration_timeout(Duration::from_secs(23));
+        .registration_timeout(Duration::from_secs(23))
+        .ping_interval(Duration::from_secs(41));
 
     assert_eq!(config.nick, "emily");
     assert_eq!(config.username, "em");
@@ -22,6 +23,7 @@ fn config_builders_set_registration_identity_and_timeout() {
         Some("correct horse battery staple")
     );
     assert_eq!(config.registration_timeout, Duration::from_secs(23));
+    assert_eq!(config.ping_interval, Duration::from_secs(41));
     assert_eq!(
         config.wanted_caps,
         DEFAULT_WANTED_CAPS

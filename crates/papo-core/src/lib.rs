@@ -26,6 +26,7 @@ pub use sasl::{Entropy, Sasl};
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
 const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
+const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(60);
 
 /// Capabilities requested by a default session when the server advertises them.
 pub const DEFAULT_WANTED_CAPS: &[&str] = &[
@@ -88,6 +89,8 @@ pub struct Config {
     pub password: Option<String>,
     /// The maximum time to wait for the welcome numeric.
     pub registration_timeout: Duration,
+    /// Idle time after which the client probes the server with `PING`.
+    pub ping_interval: Duration,
     /// Capability names to request when advertised by the server.
     pub wanted_caps: Vec<String>,
     /// Alternative nicknames to try when registration collides.
@@ -110,6 +113,7 @@ impl std::fmt::Debug for Config {
             .field("realname", &self.realname)
             .field("password", &self.password.as_ref().map(|_| Redacted))
             .field("registration_timeout", &self.registration_timeout)
+            .field("ping_interval", &self.ping_interval)
             .field("wanted_caps", &self.wanted_caps)
             .field("alt_nicks", &self.alt_nicks)
             .field("sasl", &self.sasl)
@@ -137,6 +141,7 @@ impl Default for Config {
             realname: "papo".to_owned(),
             password: None,
             registration_timeout: DEFAULT_REGISTRATION_TIMEOUT,
+            ping_interval: DEFAULT_PING_INTERVAL,
             wanted_caps: DEFAULT_WANTED_CAPS
                 .iter()
                 .map(|name| (*name).to_owned())
@@ -189,6 +194,13 @@ impl Config {
     #[must_use]
     pub const fn registration_timeout(mut self, timeout: Duration) -> Self {
         self.registration_timeout = timeout;
+        self
+    }
+
+    /// Sets the idle interval before sending a keepalive probe.
+    #[must_use]
+    pub const fn ping_interval(mut self, interval: Duration) -> Self {
+        self.ping_interval = interval;
         self
     }
 
@@ -358,7 +370,7 @@ impl Session {
             caps: Caps::default(),
             framer: Framer::default(),
             isupport,
-            keepalive: Keepalive,
+            keepalive: Keepalive::default(),
             registration,
             sasl,
             outbox: Outbox::default(),
@@ -372,6 +384,8 @@ impl Session {
         self.caps.handle_connected();
         self.isupport.handle_connected();
         self.sasl.handle_connected();
+        self.keepalive
+            .handle_connected(now, self.config.ping_interval);
         self.registration
             .handle_connected(now, &self.config, &mut self.outbox);
     }
@@ -404,6 +418,7 @@ impl Session {
             self.close_for_long_line();
             return;
         }
+        self.keepalive.handle_incoming(now);
 
         let decoded = match std::str::from_utf8(line) {
             Ok(line) => std::borrow::Cow::Borrowed(line),
@@ -443,6 +458,7 @@ impl Session {
         self.outbox.reset_connection();
         self.registration.handle_disconnected();
         self.sasl.handle_disconnected();
+        self.keepalive.handle_disconnected();
     }
 
     /// Validates and queues a user-originated raw message for transmission.
@@ -510,6 +526,12 @@ impl Session {
         self.sasl.account()
     }
 
+    /// Returns the most recently measured keepalive round-trip time.
+    #[must_use]
+    pub const fn lag(&self) -> Option<Duration> {
+        self.keepalive.lag()
+    }
+
     /// Starts another SASL exchange with the configured credentials.
     pub fn reauthenticate(&mut self, now: Instant) {
         let available = self.caps.enabled().contains_key("sasl");
@@ -570,6 +592,7 @@ impl Session {
     fn apply_close_request(&mut self) {
         if self.outbox.close_requested {
             self.framer.close();
+            self.keepalive.handle_disconnected();
         }
     }
 }
