@@ -35,6 +35,8 @@ pub struct Channel {
     modes: HashMap<char, Option<String>>,
     created_at: Option<u64>,
     topic: Option<String>,
+    topic_set_by: Option<String>,
+    topic_set_at: Option<u64>,
     synced: bool,
     prefix_order: Arc<[char]>,
 }
@@ -159,10 +161,10 @@ impl State {
         if self.handle_channel_mode(message, isupport) {
             return Handled::Yes;
         }
-        if self.handle_channel_metadata(message, isupport) {
-            return Handled::Yes;
-        }
-        if self.handle_user_modes(message) {
+        if self.handle_channel_metadata(message, isupport)
+            || self.handle_user_modes(message)
+            || self.handle_topic(message)
+        {
             return Handled::Yes;
         }
         if let Some((_, channel, entries)) = parse_353(message) {
@@ -251,6 +253,41 @@ impl State {
                 _ => _ = self.user_modes.remove(&mode),
             }
         }
+        true
+    }
+
+    fn handle_topic(&mut self, message: &MessageRef<'_>) -> bool {
+        let (channel_name, topic, live) = match message.command() {
+            Command::Numeric(Numeric::RPL_TOPIC) => (message.param(1), message.param(2), false),
+            Command::Topic => (message.param(0), message.param(1), true),
+            Command::Numeric(Numeric::RPL_TOPICWHOTIME) => {
+                let Some(channel) = message
+                    .param(1)
+                    .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
+                else {
+                    return true;
+                };
+                channel.topic_set_by = message.param(2).map(str::to_owned);
+                channel.topic_set_at = message.param(3).and_then(|value| value.parse().ok());
+                return true;
+            }
+            _ => return false,
+        };
+        let Some(channel) = channel_name
+            .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
+        else {
+            return true;
+        };
+        channel.topic = topic.filter(|topic| !topic.is_empty()).map(str::to_owned);
+        channel.topic_set_by = if live {
+            message.source().map(|source| match source {
+                Source::Server(name) => name.to_owned(),
+                Source::User { nick, .. } => nick.to_owned(),
+            })
+        } else {
+            None
+        };
+        channel.topic_set_at = None;
         true
     }
 
@@ -538,6 +575,8 @@ impl Channel {
             modes: HashMap::new(),
             created_at: None,
             topic: None,
+            topic_set_by: None,
+            topic_set_at: None,
             synced,
             prefix_order: isupport
                 .prefix()
@@ -602,6 +641,18 @@ impl Channel {
     #[must_use]
     pub fn topic(&self) -> Option<&str> {
         self.topic.as_deref()
+    }
+
+    /// Returns who set the current topic when known.
+    #[must_use]
+    pub fn topic_set_by(&self) -> Option<&str> {
+        self.topic_set_by.as_deref()
+    }
+
+    /// Returns when the current topic was set, in seconds since the Unix epoch.
+    #[must_use]
+    pub const fn topic_set_at(&self) -> Option<u64> {
+        self.topic_set_at
     }
 
     /// Returns a stored non-list mode's argument, distinguishing flags from absent modes.

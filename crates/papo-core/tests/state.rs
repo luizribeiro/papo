@@ -190,18 +190,23 @@ fn ignores_membership_modes_for_unknown_channels_and_members() {
 }
 
 #[test]
-fn tracks_channel_mode_snapshots_live_changes_and_creation_time() {
+fn tracks_the_channel_join_burst_and_live_mode_changes() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":ergo.test 324 emily #papo +kln swordfish 10")
         .server(":ergo.test 329 emily #papo 1723501539")
+        .server(":ergo.test 332 emily #papo :Welcome to the papo channel")
+        .server(":ergo.test 333 emily #papo alice 1723501612")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.mode('k'), Some(Some("swordfish")));
             assert_eq!(channel.mode('l'), Some(Some("10")));
             assert_eq!(channel.mode('n'), Some(None));
             assert_eq!(channel.created_at(), Some(1_723_501_539));
+            assert_eq!(channel.topic(), Some("Welcome to the papo channel"));
+            assert_eq!(channel.topic_set_by(), Some("alice"));
+            assert_eq!(channel.topic_set_at(), Some(1_723_501_612));
         })
         .server(":alice!alice@staff.example MODE #papo -k")
         .server(":alice!alice@staff.example MODE #papo -l+mb *!*@gateway/tor-sasl")
@@ -214,6 +219,26 @@ fn tracks_channel_mode_snapshots_live_changes_and_creation_time() {
         })
         .server(":ergo.test 324 emily #papo +n")
         .inspect(|session| assert_eq!(session.state().channel("#papo").unwrap().modes().count(), 1))
+        .ignore_rest();
+}
+
+#[test]
+fn tracks_live_topic_changes_and_clearing() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":alice!alice@staff.example TOPIC #papo :Rust 1.90 is out")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.topic(), Some("Rust 1.90 is out"));
+            assert_eq!(channel.topic_set_by(), Some("alice"));
+            assert_eq!(channel.topic_set_at(), None);
+        })
+        .server(":alice!alice@staff.example TOPIC #papo :")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.topic(), None);
+            assert_eq!(channel.topic_set_by(), Some("alice"));
+        })
         .ignore_rest();
 }
 
