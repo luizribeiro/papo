@@ -31,5 +31,8 @@ thiserror = "2.0.21"
 tokio = { version = "1.53.3", features = ["io-util", "macros", "net", "rt", "time"] }
 tokio-rustls = { version = "0.26.6", default-features = false, features = ["tls12"], optional = true }
 
+[dev-dependencies]
+papo-test-server = { path = "../papo-test-server", version = "=0.0.0" }
+
 [lints]
 workspace = true
