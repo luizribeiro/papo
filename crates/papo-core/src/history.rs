@@ -126,9 +126,11 @@ impl Session {
             Some(LimitValue::Limited(limit)) => limit,
             Some(LimitValue::Unlimited) | None => LOCAL_HISTORY_LIMIT,
         };
+        let supported = self.isupport.value().msgreftypes();
+        let query = query.with_timestamp_fallback(&self.state, &supported)?;
         let params = query.into_params(
             requested.min(advertised).min(LOCAL_HISTORY_LIMIT),
-            &self.isupport.value().msgreftypes(),
+            &supported,
         )?;
         self.request(now, Message::new("CHATHISTORY", params))
     }
@@ -217,6 +219,86 @@ impl HistoryQuery {
         params.push(limit.to_string());
         Ok(params)
     }
+
+    fn with_timestamp_fallback(
+        self,
+        state: &crate::State,
+        supported: &[&str],
+    ) -> Result<Self, RequestError> {
+        let replace =
+            |target: &str, reference| fallback_reference(state, supported, target, reference);
+        Ok(match self {
+            Self::Latest {
+                target,
+                after,
+                limit,
+            } => Self::Latest {
+                after: after
+                    .map(|reference| replace(&target, reference))
+                    .transpose()?,
+                target,
+                limit,
+            },
+            Self::Before {
+                target,
+                before,
+                limit,
+            } => Self::Before {
+                before: replace(&target, before)?,
+                target,
+                limit,
+            },
+            Self::After {
+                target,
+                after,
+                limit,
+            } => Self::After {
+                after: replace(&target, after)?,
+                target,
+                limit,
+            },
+            Self::Around {
+                target,
+                around,
+                limit,
+            } => Self::Around {
+                around: replace(&target, around)?,
+                target,
+                limit,
+            },
+            Self::Between {
+                target,
+                start,
+                end,
+                limit,
+            } => Self::Between {
+                start: replace(&target, start)?,
+                end: replace(&target, end)?,
+                target,
+                limit,
+            },
+            targets @ Self::Targets { .. } => targets,
+        })
+    }
+}
+
+fn fallback_reference(
+    state: &crate::State,
+    supported: &[&str],
+    target: &str,
+    reference: MsgRef,
+) -> Result<MsgRef, RequestError> {
+    let MsgRef::Msgid(msgid) = reference else {
+        return Ok(reference);
+    };
+    if supported.contains(&"msgid") {
+        return Ok(MsgRef::Msgid(msgid));
+    }
+    state
+        .last_seen(target)
+        .filter(|seen| supported.contains(&"timestamp") && seen.msgid == msgid)
+        .map(|seen| MsgRef::Timestamp(seen.time))
+        .ok_or(RequestError::InvalidMessageReference)
 }
 
 fn encode_reference(reference: MsgRef, supported: &[&str]) -> Result<String, RequestError> {

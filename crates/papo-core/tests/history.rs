@@ -106,6 +106,24 @@ fn uses_timestamps_when_they_are_the_only_reference_type() {
         ),
         Err(RequestError::InvalidMessageReference)
     );
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T11:55:43.000Z;msgid=2Zl7JeYG6I8fG9q1lJ55BQ :alice!~a@cloak PRIVMSG #papo :live",
+    );
+    session
+        .chathistory(
+            now,
+            HistoryQuery::Before {
+                target: "#papo".into(),
+                before: MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
+                limit: 50,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        transmitted(&mut session),
+        "@label=1 CHATHISTORY BEFORE #papo timestamp=2025-10-15T11:55:43.000Z 50"
+    );
 }
 
 #[test]
