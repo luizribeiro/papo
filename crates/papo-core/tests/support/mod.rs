@@ -105,6 +105,15 @@ impl Transcript {
         self
     }
 
+    /// Asserts the next deadline relative to the current transcript time.
+    pub fn deadline(self, after: Option<Duration>) -> Self {
+        assert_eq!(
+            self.session.poll_timeout(),
+            after.map(|after| self.now + after)
+        );
+        self
+    }
+
     /// Plays directives from a transcript trace file.
     pub fn load(mut self, path: impl AsRef<Path>) -> Self {
         let path = path.as_ref();
