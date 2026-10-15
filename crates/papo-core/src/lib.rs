@@ -19,8 +19,8 @@ use std::{
 };
 
 use papo_proto::{
-    BuildError, Command, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef, ModeChange,
-    ModeKind, Numeric, StandardReply as StandardReplyView, StandardReplyKind,
+    BuildError, Casemapping, Command, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef,
+    ModeChange, ModeKind, Numeric, StandardReply as StandardReplyView, StandardReplyKind,
 };
 
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
@@ -405,6 +405,55 @@ pub struct OwnedModeChange {
 /// Stable identifier assigned to one user-originated request.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct RequestId(u64);
+
+/// Response boundary used when a server does not support `labeled-response`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ResponseMatcher {
+    /// A `WHOIS` reply ending at `318` or an error naming this nickname.
+    Whois(String),
+}
+
+impl ResponseMatcher {
+    fn matches(&self, message: &MessageRef<'_>, mapping: Casemapping) -> Option<bool> {
+        match self {
+            Self::Whois(nick) => {
+                if StandardReplyView::parse(message)
+                    .is_some_and(|reply| reply.command.eq_ignore_ascii_case("WHOIS"))
+                {
+                    return Some(true);
+                }
+                let Command::Numeric(numeric) = message.command() else {
+                    return None;
+                };
+                let relevant = matches!(
+                    numeric,
+                    Numeric::RPL_AWAY
+                        | Numeric::RPL_WHOISUSER
+                        | Numeric::RPL_WHOISSERVER
+                        | Numeric::RPL_WHOISIDLE
+                        | Numeric::RPL_ENDOFWHOIS
+                        | Numeric::RPL_WHOISCHANNELS
+                        | Numeric::RPL_WHOISACCOUNT
+                        | Numeric::RPL_WHOISBOT
+                        | Numeric::RPL_WHOISSECURE
+                ) || numeric.is_error();
+                (relevant
+                    && message
+                        .param(1)
+                        .is_some_and(|reply| mapping.eq(reply, nick)))
+                .then_some(numeric == Numeric::RPL_ENDOFWHOIS || numeric.is_error())
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+struct UnlabelledRequest {
+    id: RequestId,
+    matcher: ResponseMatcher,
+    lines: Vec<Message>,
+}
 
 /// Completed response to a labelled request.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -841,6 +890,7 @@ pub struct Session {
     monitor: Monitor,
     rate_limit: RateLimiter,
     requests: BTreeMap<String, (RequestId, Instant)>,
+    unlabelled_requests: VecDeque<UnlabelledRequest>,
     next_request_id: u64,
     registration: Registration,
     sasl: SaslSession,
@@ -863,6 +913,7 @@ impl std::fmt::Debug for Session {
             .field("monitor", &self.monitor)
             .field("rate_limit", &self.rate_limit)
             .field("requests", &self.requests)
+            .field("unlabelled_requests", &self.unlabelled_requests)
             .field("next_request_id", &self.next_request_id)
             .field("registration", &self.registration)
             .field("sasl", &self.sasl)
@@ -963,6 +1014,7 @@ impl Session {
             monitor: Monitor::default(),
             rate_limit,
             requests: BTreeMap::new(),
+            unlabelled_requests: VecDeque::new(),
             next_request_id: 0,
             registration,
             sasl,
@@ -988,6 +1040,7 @@ impl Session {
         self.outbox.reset_connection();
         self.batches.reset();
         self.requests.clear();
+        self.unlabelled_requests.clear();
         self.rate_limit.reset(now);
         self.caps.handle_connected(now);
         self.isupport.handle_connected();
@@ -1160,6 +1213,39 @@ impl Session {
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
+        self.outbox.transmit_raw(line.into());
+        Ok(id)
+    }
+
+    /// Queues a request with a fallback response boundary for unlabelled servers.
+    ///
+    /// Label correlation is still preferred whenever `labeled-response` is enabled.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::PendingLimit`] when 256 requests are already pending, or
+    /// [`RequestError::Build`] when the message cannot be represented on the wire.
+    pub fn request_with_matcher(
+        &mut self,
+        now: Instant,
+        message: Message,
+        matcher: ResponseMatcher,
+    ) -> Result<RequestId, RequestError> {
+        if self.caps.enabled().contains_key("labeled-response") {
+            return self.request(now, message);
+        }
+        self.rate_limit.advance(now);
+        if self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
+            return Err(RequestError::PendingLimit);
+        }
+        let line = message.to_line()?;
+        let id = RequestId(self.next_request_id);
+        self.next_request_id = self.next_request_id.wrapping_add(1);
+        self.unlabelled_requests.push_back(UnlabelledRequest {
+            id,
+            matcher,
+            lines: Vec::new(),
+        });
         self.outbox.transmit_raw(line.into());
         Ok(id)
     }
@@ -1382,7 +1468,7 @@ impl Session {
                 .keepalive
                 .handle_message(now, message, &mut self.outbox)
                 == Handled::Yes;
-        let response = self.resolve_message(message);
+        let response = self.resolve_message(message) || self.resolve_unlabelled(message);
         let standard_reply = !response && emit_unhandled && self.report_standard_reply(message);
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
@@ -1414,6 +1500,34 @@ impl Session {
             lines,
             history: None,
         }));
+        true
+    }
+
+    fn resolve_unlabelled(&mut self, message: &MessageRef<'_>) -> bool {
+        let mapping = self.isupport.value().casemapping();
+        let Some((index, complete)) =
+            self.unlabelled_requests
+                .iter()
+                .enumerate()
+                .find_map(|(index, request)| {
+                    request
+                        .matcher
+                        .matches(message, mapping)
+                        .map(|done| (index, done))
+                })
+        else {
+            return false;
+        };
+        let request = self.unlabelled_requests.get_mut(index).unwrap();
+        request.lines.push(message.to_owned());
+        if complete {
+            let request = self.unlabelled_requests.remove(index).unwrap();
+            self.outbox.event(Event::Response(Response {
+                id: request.id,
+                lines: request.lines,
+                history: None,
+            }));
+        }
         true
     }
 

@@ -2,7 +2,9 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, RateLimit, RequestError, RequestId, ServerError, Session};
+use papo_core::{
+    Config, Event, RateLimit, RequestError, RequestId, ResponseMatcher, ServerError, Session,
+};
 use papo_proto::{Message, MessageRef, Numeric};
 
 fn labelled_session(now: Instant) -> Session {
@@ -16,6 +18,29 @@ fn labelled_session(now: Instant) -> Session {
 
 fn request(session: &mut Session, now: Instant, message: Message) -> RequestId {
     session.request(now, message).unwrap()
+}
+
+#[test]
+fn matches_an_unlabelled_whois_through_its_end_numeric() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let id = session
+        .request_with_matcher(
+            now,
+            Message::new("WHOIS", ["Alice["]),
+            ResponseMatcher::Whois("Alice[".into()),
+        )
+        .unwrap();
+    session.handle_line(
+        now,
+        b":ergo.test 311 papo alice{ ~alice localhost * :Alice Example",
+    );
+    session.handle_line(now, b":ergo.test 318 papo alice{ :End of /WHOIS list");
+
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected a response")
+    };
+    assert_eq!((response.id, response.lines.len()), (id, 2));
 }
 
 #[test]
