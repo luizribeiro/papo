@@ -13,6 +13,30 @@ pub enum Advertised<'a> {
     Value(&'a str),
 }
 
+/// One ranked channel-membership mode and its visible prefix.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Prefix {
+    /// The membership mode letter.
+    pub mode: char,
+    /// The symbol shown before a nickname.
+    pub symbol: char,
+    /// The zero-based rank, with zero being the highest privilege.
+    pub rank: usize,
+}
+
+/// The four standard channel-mode parameter groups.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ChanModes<'a> {
+    /// List modes that always take a parameter.
+    pub list: &'a str,
+    /// Non-list modes that always take a parameter.
+    pub always: &'a str,
+    /// Modes taking a parameter only when set.
+    pub when_set: &'a str,
+    /// Modes that never take a parameter.
+    pub never: &'a str,
+}
+
 /// Accumulated server features advertised through `RPL_ISUPPORT` (`005`).
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Isupport {
@@ -82,12 +106,74 @@ impl Isupport {
             .unwrap_or_default()
     }
 
+    /// Returns the channel-type prefix characters.
+    #[must_use]
+    pub fn chantypes(&self) -> &str {
+        match self.get("CHANTYPES") {
+            Advertised::Absent => "#&",
+            Advertised::Bare => "",
+            Advertised::Value(value) => value,
+        }
+    }
+
+    /// Returns channel membership prefixes from highest to lowest rank.
+    #[must_use]
+    pub fn prefix(&self) -> Vec<Prefix> {
+        parse_prefix(self.value("PREFIX").unwrap_or("(ov)@+"))
+            .or_else(|| parse_prefix("(ov)@+"))
+            .unwrap_or_default()
+    }
+
+    /// Returns the four standard `CHANMODES` groups, ignoring any later groups.
+    #[must_use]
+    pub fn chanmodes(&self) -> Option<ChanModes<'_>> {
+        let mut groups = self.value("CHANMODES")?.split(',');
+        Some(ChanModes {
+            list: groups.next()?,
+            always: groups.next()?,
+            when_set: groups.next()?,
+            never: groups.next()?,
+        })
+    }
+
+    /// Returns the prefixes accepted before channel message targets.
+    #[must_use]
+    pub fn statusmsg(&self) -> Option<&str> {
+        self.value("STATUSMSG")
+    }
+
+    /// Reports whether a target starts with an advertised channel-type prefix.
+    #[must_use]
+    pub fn is_channel(&self, name: &str) -> bool {
+        name.chars()
+            .next()
+            .is_some_and(|prefix| self.chantypes().contains(prefix))
+    }
+
     fn value(&self, key: &str) -> Option<&str> {
         match self.get(key) {
             Advertised::Value(value) => Some(value),
             Advertised::Absent | Advertised::Bare => None,
         }
     }
+}
+
+fn parse_prefix(value: &str) -> Option<Vec<Prefix>> {
+    if value.is_empty() {
+        return Some(Vec::new());
+    }
+    let (modes, symbols) = value.strip_prefix('(')?.split_once(')')?;
+    if modes.chars().count() != symbols.chars().count() {
+        return None;
+    }
+    Some(
+        modes
+            .chars()
+            .zip(symbols.chars())
+            .enumerate()
+            .map(|(rank, (mode, symbol))| Prefix { mode, symbol, rank })
+            .collect(),
+    )
 }
 
 fn unescape(value: &str) -> String {

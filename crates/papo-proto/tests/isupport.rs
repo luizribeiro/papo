@@ -1,6 +1,6 @@
 //! Raw ISUPPORT token accumulation behavior.
 
-use papo_proto::{Advertised, Casemapping, Isupport, MessageRef, Numeric};
+use papo_proto::{Advertised, Casemapping, ChanModes, Isupport, MessageRef, Numeric, Prefix};
 
 #[test]
 fn accumulates_local_tokens_and_ignores_remote_isupport() {
@@ -97,4 +97,66 @@ fn ergo_utf8mapping_keeps_ascii_without_precis() {
     let mut support = Isupport::default();
     support.apply_tokens(["CASEMAPPING=ascii", "UTF8MAPPING=rfc8265"]);
     assert_eq!(support.casemapping(), Casemapping::Ascii);
+}
+
+#[test]
+fn parses_ergo_channel_shape_and_ranked_prefixes() {
+    let mut support = Isupport::default();
+    support.apply_tokens([
+        "CHANTYPES=#",
+        "PREFIX=(qaohv)~&@%+",
+        "CHANMODES=Ibe,k,fl,CEMRUimnstu,ignored",
+        "STATUSMSG=~&@%+",
+    ]);
+
+    assert_eq!(support.chantypes(), "#");
+    assert!(support.is_channel("#ergo"));
+    assert!(!support.is_channel("&local"));
+    assert_eq!(
+        support.prefix(),
+        vec![
+            prefix('q', '~', 0),
+            prefix('a', '&', 1),
+            prefix('o', '@', 2),
+            prefix('h', '%', 3),
+            prefix('v', '+', 4),
+        ]
+    );
+    assert_eq!(
+        support.chanmodes(),
+        Some(ChanModes {
+            list: "Ibe",
+            always: "k",
+            when_set: "fl",
+            never: "CEMRUimnstu",
+        })
+    );
+    assert_eq!(support.statusmsg(), Some("~&@%+"));
+}
+
+#[test]
+fn channel_shape_honors_defaults_empty_values_and_malformed_prefixes() {
+    let mut support = Isupport::default();
+    assert_eq!(support.chantypes(), "#&");
+    assert!(support.is_channel("&local"));
+    assert_eq!(
+        support.prefix(),
+        vec![prefix('o', '@', 0), prefix('v', '+', 1)]
+    );
+
+    support.apply_tokens(["CHANTYPES=", "PREFIX="]);
+    assert_eq!(support.chantypes(), "");
+    assert!(!support.is_channel("#empty"));
+    assert!(support.prefix().is_empty());
+
+    support.apply_tokens(["PREFIX=(ov)@", "CHANMODES=a,b,c"]);
+    assert_eq!(
+        support.prefix(),
+        vec![prefix('o', '@', 0), prefix('v', '+', 1)]
+    );
+    assert_eq!(support.chanmodes(), None);
+}
+
+fn prefix(mode: char, symbol: char, rank: usize) -> Prefix {
+    Prefix { mode, symbol, rank }
 }
