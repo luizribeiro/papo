@@ -1202,7 +1202,7 @@ mod tests {
             atomic::{AtomicBool, AtomicUsize, Ordering},
         },
         task::{Context, Poll},
-        time::{Duration, SystemTime},
+        time::{Duration, SystemTime, UNIX_EPOCH},
     };
 
     use papo_core::{
@@ -1213,7 +1213,7 @@ mod tests {
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf};
 
     use super::{ConnectionPlan, Driver, Error, Event, Session};
-    use crate::{Reconnect, transport::TlsConfig};
+    use crate::{MessageEvent, MessageKind, Origin, Reconnect, transport::TlsConfig};
 
     struct FailingStream {
         inner: DuplexStream,
@@ -1318,6 +1318,71 @@ mod tests {
         client_line(server, b"CAP END\r\n").await;
         server_line(server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    }
+
+    async fn next_message(events: &mut super::Events) -> MessageEvent {
+        let Some(Event::Message(message)) = events.next().await else {
+            panic!("expected message event")
+        };
+        message
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn message_accessors_use_captured_session_facts() {
+        let (mut server, _client, mut events, driver) = scripted(config());
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(&mut server, b":ergo.test 005 papo-driver CHANTYPES=# CASEMAPPING=rfc1459 :are supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+
+        server_line(&mut server, b"@time=2026-02-03T04:05:06.789Z;msgid=RfcBTzyxY120004;account=emily;bot;+draft/reply=RfcBTzyxY120003 :emily!~e@localhost PRIVMSG #papo :hello \x02from Ergo\x02\r\n").await;
+        let message = next_message(&mut events).await;
+        assert_eq!(message.kind(), MessageKind::Privmsg);
+        assert_eq!(message.text(), "hello from Ergo");
+        assert_eq!(message.raw_text(), "hello \x02from Ergo\x02");
+        assert_eq!(message.target(), "#papo");
+        assert!(!message.is_private());
+        assert_eq!(message.reply_target(), "#papo");
+        assert_eq!(message.msgid(), Some("RfcBTzyxY120004"));
+        assert_eq!(message.account(), Some("emily"));
+        assert!(message.is_bot());
+        assert_eq!(message.reply_to(), Some("RfcBTzyxY120003"));
+        assert_eq!(
+            message.time(),
+            UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
+        );
+        assert_eq!(message.origin(), Origin::Live);
+        assert!(message.is_live());
+
+        server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION waves\x01\r\n:emily!~e@localhost PRIVMSG #papo :\x01VERSION\x01\r\n").await;
+        let notice = next_message(&mut events).await;
+        assert_eq!(notice.kind(), MessageKind::Notice);
+        assert!(notice.is_private());
+        assert_eq!(notice.reply_target(), "emily");
+        let action = next_message(&mut events).await;
+        assert_eq!(action.kind(), MessageKind::Action);
+        assert_eq!(action.text(), "waves");
+        assert_eq!(
+            next_message(&mut events).await.kind(),
+            MessageKind::Ctcp("VERSION")
+        );
+
+        server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
+        assert_eq!(next_message(&mut events).await.origin(), Origin::Echo);
+        assert_eq!(next_message(&mut events).await.origin(), Origin::Replay);
+
+        let before = SystemTime::now();
+        server_line(&mut server, b":dan!d@localhost PRIVMSG #papo :no time\r\n@time=invalid :dan!d@localhost PRIVMSG #papo :bad time\r\n").await;
+        let absent = next_message(&mut events).await.time();
+        let malformed = next_message(&mut events).await.time();
+        let after = SystemTime::now();
+        assert!((before..=after).contains(&absent));
+        assert!((before..=after).contains(&malformed));
+
+        server.shutdown().await.unwrap();
+        assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
     }
 
     async fn assert_registration_output(
