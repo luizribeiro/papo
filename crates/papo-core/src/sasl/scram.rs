@@ -36,12 +36,6 @@ impl ScramClient {
     pub(crate) fn handle_server_first(&mut self, server_first: &str) -> Result<String, ScramError> {
         let attributes = Attributes::parse(server_first)?;
         let nonce = attributes.nonce.ok_or(ScramError::MalformedMessage)?;
-        let Some(extension) = nonce.strip_prefix(&self.client_nonce) else {
-            return Err(ScramError::InvalidServerNonce);
-        };
-        if extension.is_empty() {
-            return Err(ScramError::InvalidServerNonce);
-        }
         let salt = STANDARD
             .decode(attributes.salt.ok_or(ScramError::MalformedMessage)?)
             .map_err(|_| ScramError::MalformedMessage)?;
@@ -50,6 +44,12 @@ impl ScramClient {
             .ok_or(ScramError::MalformedMessage)?
             .parse()
             .map_err(|_| ScramError::MalformedMessage)?;
+        let Some(extension) = nonce.strip_prefix(&self.client_nonce) else {
+            return Err(ScramError::InvalidServerNonce);
+        };
+        if extension.is_empty() {
+            return Err(ScramError::InvalidServerNonce);
+        }
         if iterations < 4096 {
             return Err(ScramError::IterationCountTooLow);
         }
@@ -67,6 +67,9 @@ impl ScramClient {
 
     pub(crate) fn handle_server_final(&mut self, server_final: &str) -> Result<(), ScramError> {
         let attributes = Attributes::parse(server_final)?;
+        if attributes.error.is_some() == attributes.verifier.is_some() {
+            return Err(ScramError::MalformedMessage);
+        }
         if let Some(error) = attributes.error {
             return Err(ScramError::Server(error.to_owned()));
         }
@@ -108,6 +111,9 @@ impl<'a> Attributes<'a> {
             let (key, value) = attribute
                 .split_once('=')
                 .ok_or(ScramError::MalformedMessage)?;
+            if key.len() != 1 || !key.as_bytes()[0].is_ascii_alphabetic() || value.is_empty() {
+                return Err(ScramError::MalformedMessage);
+            }
             let target = match key {
                 "r" => &mut parsed.nonce,
                 "s" => &mut parsed.salt,
@@ -117,7 +123,7 @@ impl<'a> Attributes<'a> {
                 "m" => return Err(ScramError::MalformedMessage),
                 _ => continue,
             };
-            if value.is_empty() || target.replace(value).is_some() {
+            if target.replace(value).is_some() {
                 return Err(ScramError::MalformedMessage);
             }
         }
@@ -151,19 +157,24 @@ fn keyed_hash(key: &[u8], value: &[u8]) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use super::ScramClient;
+    use super::{ScramClient, ScramError};
+
+    const SERVER_FIRST: &str = concat!(
+        "r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,",
+        "s=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096"
+    );
+
+    fn rfc_client() -> ScramClient {
+        ScramClient::new("user", "pencil", "rOprNGfwEbeRWgbNEkqO").unwrap()
+    }
 
     #[test]
     fn matches_rfc_7677_exchange() {
-        let mut client = ScramClient::new("user", "pencil", "rOprNGfwEbeRWgbNEkqO").unwrap();
+        let mut client = rfc_client();
         let client_first = client.client_first();
         assert_eq!(client_first, "n,,n=user,r=rOprNGfwEbeRWgbNEkqO");
 
-        let server_first = concat!(
-            "r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,",
-            "s=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096"
-        );
-        let client_final = client.handle_server_first(server_first).unwrap();
+        let client_final = client.handle_server_first(SERVER_FIRST).unwrap();
         assert_eq!(
             client_final,
             concat!(
@@ -174,5 +185,81 @@ mod tests {
         client
             .handle_server_final("v=6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=")
             .unwrap();
+    }
+
+    #[test]
+    fn rejects_tampered_server_signature() {
+        let mut client = rfc_client();
+        client.handle_server_first(SERVER_FIRST).unwrap();
+        assert_eq!(
+            client.handle_server_final("v=7rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4="),
+            Err(ScramError::ServerSignatureMismatch)
+        );
+    }
+
+    #[test]
+    fn rejects_nonce_that_does_not_strictly_extend_the_client_nonce() {
+        for nonce in ["different", "rOprNGfwEbeRWgbNEkqO"] {
+            let mut client = rfc_client();
+            let first = format!("r={nonce},s=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096");
+            assert_eq!(
+                client.handle_server_first(&first),
+                Err(ScramError::InvalidServerNonce)
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_iteration_count_below_4096() {
+        let mut client = rfc_client();
+        let first = concat!(
+            "r=rOprNGfwEbeRWgbNEkqO-server,s=W22ZaJ0SNY7soEsUEjb6gQ==,",
+            "i=4095"
+        );
+        assert_eq!(
+            client.handle_server_first(first),
+            Err(ScramError::IterationCountTooLow)
+        );
+    }
+
+    #[test]
+    fn reports_server_error() {
+        let mut client = rfc_client();
+        assert_eq!(
+            client.handle_server_final("e=invalid-proof"),
+            Err(ScramError::Server("invalid-proof".to_owned()))
+        );
+    }
+
+    #[test]
+    fn rejects_malformed_attributes() {
+        for first in [
+            "",
+            "r=nonce-without-other-fields",
+            "r=rOprNGfwEbeRWgbNEkqO-server,s=not_base64!,i=4096",
+            "r=rOprNGfwEbeRWgbNEkqO-server,s=c2FsdA==,i=4096,i=8192",
+            "r=rOprNGfwEbeRWgbNEkqO-server,s=c2FsdA==,i=many",
+            "m=required,r=rOprNGfwEbeRWgbNEkqO-server,s=c2FsdA==,i=4096",
+        ] {
+            assert_eq!(
+                rfc_client().handle_server_first(first),
+                Err(ScramError::MalformedMessage),
+                "accepted {first:?}"
+            );
+        }
+        assert_eq!(
+            rfc_client().handle_server_final("v=valid,e=also-present"),
+            Err(ScramError::MalformedMessage)
+        );
+    }
+
+    #[test]
+    fn escapes_username_and_rejects_non_ascii() {
+        let escaped = ScramClient::new("user=name,admin", "pencil", "nonce").unwrap();
+        assert_eq!(escaped.client_first(), "n,,n=user=3Dname=2Cadmin,r=nonce");
+        assert!(matches!(
+            ScramClient::new("J\u{00fc}rgen", "pencil", "nonce"),
+            Err(ScramError::NonAsciiUsername)
+        ));
     }
 }
