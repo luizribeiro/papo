@@ -2,6 +2,9 @@
 
 mod support;
 
+use std::time::{Duration, SystemTime};
+
+use papo_core::sts::{ConnectionSecurity, StsAction};
 use papo_core::{Config, Event, Session};
 use support::Transcript;
 
@@ -218,4 +221,51 @@ fn drops_deleted_caps_without_requesting_disable_and_can_enable_them_again() {
                 && removed.is_empty())
         })
         .inspect(|session| assert!(session.caps().contains_key("server-time")));
+}
+
+#[test]
+fn sts_on_plaintext_closes_for_a_tls_upgrade_without_more_output() {
+    Transcript::new(
+        Config::default()
+            .host("irc.example.net")
+            .wanted_caps(["sts", "batch"]),
+    )
+    .connect_default()
+    .server("CAP * LS :sts=port=6697,duration=86400 batch")
+    .event(|event| matches!(event, Event::StsUpgrade { port: 6697 }))
+    .event(|event| matches!(event, Event::Close { reason } if reason == "sts upgrade"))
+    .no_client();
+}
+
+#[test]
+fn sts_on_tls_surfaces_persist_refresh_and_remove_actions() {
+    let anchor = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000);
+    Transcript::new(
+        Config::default()
+            .connection_security(ConnectionSecurity::Secure)
+            .host("IRC.Example.NET.")
+            .sts_time(anchor)
+            .wanted_caps(["sts"]),
+    )
+    .connect_default()
+    .server("CAP * LS :sts=duration=3600,preload")
+    .event(|event| {
+        matches!(event, Event::StsPolicy(StsAction::Persist { host, expires_at })
+        if host == "irc.example.net"
+            && *expires_at == anchor + Duration::from_secs(3_600))
+    })
+    .client("CAP END")
+    .server("CAP papo NEW :sts=duration=7200")
+    .event(|event| {
+        matches!(event, Event::StsPolicy(StsAction::Persist { expires_at, .. })
+        if *expires_at == anchor + Duration::from_secs(7_200))
+    })
+    .server("CAP papo NEW :sts=duration=0")
+    .event(|event| {
+        matches!(event, Event::StsPolicy(StsAction::Remove { host })
+        if host == "irc.example.net")
+    })
+    .server("CAP papo DEL :sts")
+    .no_event()
+    .no_client();
 }

@@ -338,6 +338,13 @@ pub enum Event {
         /// Capabilities removed by the server.
         removed: Capabilities,
     },
+    /// A plaintext connection must be replaced with TLS on `port`.
+    StsUpgrade {
+        /// The advertised TLS port.
+        port: u16,
+    },
+    /// An STS persistence action for the transport shell to store.
+    StsPolicy(sts::StsAction),
 }
 
 /// Sans-I/O state for one IRC client session.
@@ -386,6 +393,9 @@ struct Outbox {
 
 impl Outbox {
     fn transmit_raw(&mut self, line: Vec<u8>) {
+        if self.close_requested {
+            return;
+        }
         if bypasses_rate_limit(&line) {
             self.immediate.push_back(line);
         } else {
@@ -407,6 +417,12 @@ impl Outbox {
     fn close(&mut self, reason: String) {
         self.close_requested = true;
         self.event(Event::Close { reason });
+    }
+
+    fn close_and_discard(&mut self, reason: String) {
+        self.transmits.clear();
+        self.immediate.clear();
+        self.close(reason);
     }
 
     fn reset_connection(&mut self) {
@@ -452,7 +468,7 @@ impl Session {
         self.framer.reset();
         self.outbox.reset_connection();
         self.rate_limit.reset(now);
-        self.caps.handle_connected();
+        self.caps.handle_connected(now);
         self.isupport.handle_connected();
         self.sasl.handle_connected();
         self.keepalive
