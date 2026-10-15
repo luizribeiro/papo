@@ -20,22 +20,27 @@ impl<'a> Source<'a> {
             return Self::Server(source);
         }
 
-        let (nick, user, host) = if let Some((nick, remainder)) = source.split_once('!') {
-            let (user, host) = remainder
-                .split_once('@')
-                .map_or((Some(remainder), None), |(user, host)| {
-                    (Some(user), Some(host))
-                });
-            (nick, user, host)
-        } else if let Some((nick, host)) = source.split_once('@') {
-            (nick, None, Some(host))
-        } else {
-            (source, None, None)
-        };
-        Self::User {
-            nick,
-            user: user.filter(|user| !user.is_empty()),
-            host: host.filter(|host| !host.is_empty()),
-        }
+        let (nick, user, host) = split_user(source);
+        Self::User { nick, user, host }
     }
+}
+
+pub(crate) fn split_user(source: &str) -> (&str, Option<&str>, Option<&str>) {
+    let (nick, user, host) = if let Some((nick, remainder)) = source.split_once('!') {
+        let (user, host) = remainder
+            .split_once('@')
+            .map_or((Some(remainder), None), |(user, host)| {
+                (Some(user), Some(host))
+            });
+        (nick, user, host)
+    } else if let Some((nick, host)) = source.split_once('@') {
+        (nick, None, Some(host))
+    } else {
+        (source, None, None)
+    };
+    (
+        nick,
+        user.filter(|user| !user.is_empty()),
+        host.filter(|host| !host.is_empty()),
+    )
 }

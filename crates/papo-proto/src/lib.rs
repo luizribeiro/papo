@@ -24,6 +24,6 @@ pub use message::{
     Params, ParseError, Tags,
 };
 pub use modes::{ModeChange, ModeChanges, ModeKind};
-pub use names::{NAME_ALIASES, NameKind, canonical};
+pub use names::{NAME_ALIASES, NameKind, NamesEntry, canonical, parse_353};
 pub use numeric::Numeric;
 pub use source::Source;
