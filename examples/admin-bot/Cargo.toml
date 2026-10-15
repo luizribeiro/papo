@@ -19,5 +19,9 @@ tokio = { version = "1.53.3", features = ["macros", "rt"] }
 [target.'cfg(not(target_os = "wasi"))'.dependencies]
 tokio = { version = "1.53.3", features = ["signal"] }
 
+[dev-dependencies]
+papo-test-server = { path = "../../crates/papo-test-server", version = "=0.0.0" }
+tokio = { version = "1.53.3", features = ["time"] }
+
 [lints]
 workspace = true
