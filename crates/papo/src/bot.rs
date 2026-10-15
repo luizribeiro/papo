@@ -9,8 +9,10 @@ use std::{
 use crate::{Client, Error, Event, MessageEvent, MessageKind};
 
 mod extractors;
+mod router;
 
 pub use extractors::{Admins, Args, Handler, Msg, RequireAccount};
+pub use router::Bot;
 
 const MAX_RATE_TARGETS: usize = 1024;
 
@@ -285,7 +287,7 @@ mod tests {
     use papo_core::Capabilities;
     use papo_proto::{Isupport, Message};
 
-    use super::{BotConfig, Command, Event, MessageEvent, ReplyRateLimiter};
+    use super::{Bot, BotConfig, Command, Event, MessageEvent, ReplyRateLimiter};
 
     fn event_as(command: &str, text: &str, nick: &str, source: &str) -> Event {
         Event::Message(
@@ -418,5 +420,14 @@ mod tests {
             third.reply("pong").await.unwrap(),
             super::ReplyStatus::Dropped
         );
+    }
+
+    #[test]
+    fn extractor_bot_keeps_its_client_alive() {
+        let bot = Bot::new(crate::Client::disconnected_for_test())
+            .prefix(".")
+            .mention(false)
+            .reply_limiter(ReplyRateLimiter::new(3, Duration::from_secs(10)));
+        assert_eq!(format!("{:?}", bot.client()), "Client { .. }");
     }
 }
