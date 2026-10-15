@@ -390,3 +390,59 @@ fn replays_recorded_ergo_scram_login() {
         assert_eq!(session.nick(), "paposasl");
     });
 }
+
+#[test]
+fn rejects_unoffered_and_908_removed_mechanisms() {
+    Transcript::new(Config::default().sasl(Sasl::external()))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+        .client("CAP END");
+
+    Transcript::with_entropy(
+        Config::default().sasl(Sasl::any("alice", "hunter2")),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server(":ergo.test 908 alice SCRAM-SHA-256 :are available SASL mechanisms")
+    .server(":ergo.test 904 alice :SASL authentication failed")
+    .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+    .client("CAP END");
+}
+
+#[test]
+fn each_authenticate_step_renews_the_deadline() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .advance(std::time::Duration::from_secs(29))
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+        .deadline(Some(std::time::Duration::from_secs(30)))
+        .server(":ergo.test 903 alice :SASL authentication successful")
+        .client("CAP END");
+}
+
+#[test]
+fn aborts_a_challenge_without_a_payload() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE")
+        .client("AUTHENTICATE *")
+        .server(":ergo.test 906 alice :SASL authentication aborted")
+        .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+        .client("CAP END");
+}

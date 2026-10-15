@@ -231,8 +231,12 @@ impl SaslSession {
         let Some(mechanism) = self.active.as_ref() else {
             return Handled::No;
         };
-        let Some(chunk) = message.param(0).filter(|_| self.awaiting_challenge) else {
+        if !self.awaiting_challenge {
             return Handled::No;
+        }
+        let Some(chunk) = message.param(0) else {
+            self.abort(now, "the server omitted the SASL challenge payload", outbox);
+            return Handled::Yes;
         };
         let challenge = match receive_challenge(&mut self.challenge, chunk) {
             Ok(Some(challenge)) => challenge,
@@ -529,10 +533,13 @@ mod chunk_tests {
     #[test]
     fn reassembles_literal_400_byte_server_chunks() {
         let mut buffer = String::new();
-        let first = "YQ==".repeat(100);
+        let first = "YWFh".repeat(100);
         assert_eq!(first.len(), 400);
         assert_eq!(receive_challenge(&mut buffer, &first), Ok(None));
-        assert!(receive_challenge(&mut buffer, "+").is_err());
+        assert_eq!(
+            receive_challenge(&mut buffer, "+").unwrap().unwrap().len(),
+            300
+        );
 
         let mut buffer = String::new();
         let first = "YWFh".repeat(100);
@@ -550,5 +557,6 @@ mod chunk_tests {
     #[test]
     fn rejects_server_chunks_over_literal_400_bytes() {
         assert!(receive_challenge(&mut String::new(), &"A".repeat(401)).is_err());
+        assert!(receive_challenge(&mut String::new(), "not+base64!").is_err());
     }
 }
