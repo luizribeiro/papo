@@ -59,6 +59,13 @@ fn ends_immediately_when_no_advertised_cap_is_wanted() {
 
 #[test]
 fn capability_alias_resolution_stays_in_its_namespace() {
+    Transcript::new(Config::default().wanted_caps(["draft/chathistory"]))
+        .connect_default()
+        .server("CAP * LS :chathistory")
+        .client("CAP REQ :chathistory")
+        .server("CAP * ACK :chathistory")
+        .client("CAP END");
+
     Transcript::new(Config::default().wanted_caps(["batch"]))
         .connect_default()
         .server("CAP * LS :no-implicit-names")

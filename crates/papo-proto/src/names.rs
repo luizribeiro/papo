@@ -20,6 +20,7 @@ pub const NAME_ALIASES: &[(NameKind, &str, &str)] = &[
         "draft/no-implicit-names",
         "no-implicit-names",
     ),
+    (NameKind::Capability, "draft/chathistory", "chathistory"),
     (NameKind::Isupport, "draft/CHATHISTORY", "CHATHISTORY"),
 ];
 
