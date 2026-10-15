@@ -6,6 +6,8 @@ mod framing;
 mod isupport;
 mod keepalive;
 mod registration;
+#[allow(dead_code)]
+pub(crate) mod sasl;
 
 use std::{
     collections::{BTreeMap, VecDeque},
