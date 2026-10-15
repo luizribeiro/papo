@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Command, MessageRef, Numeric};
+use crate::{Casemapping, Command, MessageRef, Numeric};
 
 /// Whether an ISUPPORT token is absent, bare, or carries a value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,6 +67,25 @@ impl Isupport {
             None => Advertised::Absent,
             Some(None) => Advertised::Bare,
             Some(Some(value)) => Advertised::Value(value),
+        }
+    }
+
+    /// Returns the server's name casemapping.
+    #[must_use]
+    pub fn casemapping(&self) -> Casemapping {
+        #[cfg(feature = "precis")]
+        if self.value("UTF8MAPPING") == Some("rfc8265") {
+            return Casemapping::Precis;
+        }
+        self.value("CASEMAPPING")
+            .and_then(Casemapping::parse)
+            .unwrap_or_default()
+    }
+
+    fn value(&self, key: &str) -> Option<&str> {
+        match self.get(key) {
+            Advertised::Value(value) => Some(value),
+            Advertised::Absent | Advertised::Bare => None,
         }
     }
 }
