@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Casemapping, Command, MessageRef, Numeric};
+use crate::{Casemapping, Command, MessageRef, Numeric, canonical};
 
 /// Whether an ISUPPORT token is absent, bare, or carries a value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -142,14 +142,15 @@ impl Isupport {
         for token in tokens {
             let token = token.as_ref();
             if let Some(key) = token.strip_prefix('-') {
-                self.tokens.remove(&key.to_ascii_uppercase());
+                self.tokens.remove(&canonical(key).to_ascii_uppercase());
             } else if let Some((key, value)) = token.split_once('=') {
                 if !key.is_empty() {
                     self.tokens
-                        .insert(key.to_ascii_uppercase(), Some(unescape(value)));
+                        .insert(canonical(key).to_ascii_uppercase(), Some(unescape(value)));
                 }
             } else if !token.is_empty() {
-                self.tokens.insert(token.to_ascii_uppercase(), None);
+                self.tokens
+                    .insert(canonical(token).to_ascii_uppercase(), None);
             }
         }
     }
@@ -157,7 +158,7 @@ impl Isupport {
     /// Returns whether a token is absent, bare, or has a value.
     #[must_use]
     pub fn get(&self, key: &str) -> Advertised<'_> {
-        match self.tokens.get(&key.to_ascii_uppercase()) {
+        match self.tokens.get(&canonical(key).to_ascii_uppercase()) {
             None => Advertised::Absent,
             Some(None) => Advertised::Bare,
             Some(Some(value)) => Advertised::Value(value),
@@ -306,14 +307,10 @@ impl Isupport {
         optional_limit(self.get("MONITOR"), true)
     }
 
-    /// Returns the history request limit, accepting either token spelling.
+    /// Returns the history request limit.
     #[must_use]
     pub fn chathistory(&self) -> Option<LimitValue> {
-        let value = match self.get("CHATHISTORY") {
-            Advertised::Absent => self.get("DRAFT/CHATHISTORY"),
-            advertised => advertised,
-        };
-        optional_limit(value, true)
+        optional_limit(self.get("CHATHISTORY"), true)
     }
 
     /// Returns supported message-reference types in preference order.
