@@ -18,6 +18,20 @@ pub enum MessageKind<'a> {
     Ctcp(&'a str),
 }
 
+/// How an incoming message relates to the current session.
+///
+/// Replay detection is refined when typed batches and labeled requests are available.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Origin {
+    /// A newly received message from another user.
+    Live,
+    /// An echo of a message sent by this client.
+    Echo,
+    /// A message associated with a server batch.
+    Replay,
+}
+
 /// An incoming `PRIVMSG` or `NOTICE` with connection context.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MessageEvent {
@@ -30,6 +44,7 @@ pub struct MessageEvent {
     account: Option<String>,
     bot: bool,
     reply_to: Option<String>,
+    origin: Origin,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -44,6 +59,7 @@ impl MessageEvent {
     pub(crate) fn new(
         raw: Message,
         isupport: &Isupport,
+        nick: &str,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
         let message = raw.as_ref();
@@ -71,6 +87,13 @@ impl MessageEvent {
         let account = tag_owned(&message, &["account"]);
         let bot = message.tags().any(|(key, _)| key == "bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]);
+        let origin = match message.source() {
+            Some(Source::User { nick: source, .. }) if isupport.casemapping().eq(source, nick) => {
+                Origin::Echo
+            }
+            _ if message.tags().any(|(key, _)| key == "batch") => Origin::Replay,
+            _ => Origin::Live,
+        };
         Ok(Self {
             raw,
             text,
@@ -81,6 +104,7 @@ impl MessageEvent {
             account,
             bot,
             reply_to,
+            origin,
         })
     }
 
@@ -165,6 +189,18 @@ impl MessageEvent {
     #[must_use]
     pub fn reply_to(&self) -> Option<&str> {
         self.reply_to.as_deref()
+    }
+
+    /// Returns whether this message is live, an echo, or a replay.
+    #[must_use]
+    pub fn origin(&self) -> Origin {
+        self.origin
+    }
+
+    /// Reports whether a bot may treat this as a newly received message.
+    #[must_use]
+    pub fn is_live(&self) -> bool {
+        self.origin == Origin::Live
     }
 
     /// Borrows the underlying IRC message.
@@ -342,7 +378,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 mod tests {
     use std::time::{Duration, UNIX_EPOCH};
 
-    use super::{CoreEvent, Event, MessageEvent, MessageKind, from_core};
+    use super::{CoreEvent, Event, MessageEvent, MessageKind, Origin, from_core};
     use papo_core::StateLimit;
     use papo_proto::{Isupport, Message, Source};
 
@@ -350,6 +386,7 @@ mod tests {
         MessageEvent::new(
             Message::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
             &Isupport::default(),
+            "papo",
             UNIX_EPOCH,
         )
         .unwrap()
@@ -386,6 +423,7 @@ mod tests {
         let channel = MessageEvent::new(
             Message::privmsg("#papo", "hello").with_source("emily!~emily@localhost"),
             &isupport,
+            "papo",
             UNIX_EPOCH,
         )
         .unwrap();
@@ -404,6 +442,7 @@ mod tests {
         let private = MessageEvent::new(
             Message::privmsg("papo", "hello").with_source("emily!~emily@localhost"),
             &isupport,
+            "papo",
             UNIX_EPOCH,
         )
         .unwrap();
@@ -422,6 +461,7 @@ mod tests {
                 .with_tag("bot", "")
                 .with_tag("+draft/reply", "RfcBTzyxY120003"),
             &Isupport::default(),
+            "papo",
             received,
         )
         .unwrap();
@@ -440,12 +480,32 @@ mod tests {
                 message = message.with_tag("time", time);
             }
             assert_eq!(
-                MessageEvent::new(message, &Isupport::default(), received)
+                MessageEvent::new(message, &Isupport::default(), "papo", received)
                     .unwrap()
                     .time(),
                 received
             );
         }
+    }
+
+    #[test]
+    fn distinguishes_echoes_replays_and_live_messages() {
+        let event = |message| {
+            MessageEvent::new(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH).unwrap()
+        };
+        let echo = event(Message::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
+        assert_eq!(echo.origin(), Origin::Echo);
+        assert!(!echo.is_live());
+        let replay = event(
+            Message::privmsg("#papo", "earlier")
+                .with_source("emily!e@localhost")
+                .with_tag("batch", "history42"),
+        );
+        assert_eq!(replay.origin(), Origin::Replay);
+        assert!(!replay.is_live());
+        let live = event(Message::privmsg("#papo", "now").with_source("emily!e@localhost"));
+        assert_eq!(live.origin(), Origin::Live);
+        assert!(live.is_live());
     }
 
     fn forwarded(event: papo_core::Event) -> Event {

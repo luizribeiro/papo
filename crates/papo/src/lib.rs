@@ -15,7 +15,7 @@ pub use builder::Builder;
 pub use driver::{Client, Driver, Events};
 pub use entropy::OsEntropy;
 pub use error::Error;
-pub use event::{Event, MessageEvent, MessageKind};
+pub use event::{Event, MessageEvent, MessageKind, Origin};
 pub use papo_core::{RateLimit, Sasl};
 pub use reconnect::Reconnect;
 
