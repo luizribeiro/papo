@@ -98,3 +98,19 @@ fn sends_six_hundred_bytes_as_one_labelled_multiline_batch() {
         ]
     );
 }
+
+#[test]
+fn max_lines_sends_several_bounded_batches() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=4096,max-lines=1", false);
+    session
+        .send_text(now, TextKind::Notice, "#papo", &"a".repeat(600), &[])
+        .unwrap();
+    let lines = drain(&mut session);
+    assert_eq!(lines.len(), 6);
+    assert_eq!(lines[0], "BATCH +b0-0 draft/multiline #papo\r\n");
+    assert_eq!(lines[2], "BATCH -b0-0\r\n");
+    assert_eq!(lines[3], "BATCH +b0-1 draft/multiline #papo\r\n");
+    assert_eq!(lines[5], "BATCH -b0-1\r\n");
+    assert!(!lines[1].contains("multiline-concat"));
+}
