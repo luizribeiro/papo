@@ -552,6 +552,9 @@ impl Session {
 
     /// Validates and queues a user-originated raw message for transmission.
     ///
+    /// The caller paces transmission by draining the intentionally unbounded
+    /// outbound queue through [`Session::poll_transmit`].
+    ///
     /// # Errors
     ///
     /// Returns [`BuildError`] if `message` cannot be represented as a valid IRC wire line.
@@ -631,6 +634,9 @@ impl Session {
     }
 
     /// Returns the number of lines waiting to be transmitted.
+    ///
+    /// The caller paces transmission by draining this intentionally unbounded
+    /// queue through [`Session::poll_transmit`].
     #[must_use]
     pub fn queued_len(&self) -> usize {
         self.outbox.transmits.len() + self.outbox.immediate.len()
