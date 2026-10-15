@@ -1,9 +1,13 @@
 //! Sans-I/O IRC session state and protocol behavior.
 //! Time and randomness enter through explicit inputs.
 
+mod framing;
+
 use std::{collections::VecDeque, time::Instant};
 
 use papo_proto::{Message, MessageRef};
+
+use framing::Framer;
 
 const MAX_INCOMING_LINE_LEN: usize = 8191 + 512;
 
@@ -47,10 +51,9 @@ pub enum Event {
 #[derive(Debug)]
 pub struct Session {
     config: Config,
-    incoming: Vec<u8>,
+    framer: Framer,
     transmits: VecDeque<Transmit>,
     events: VecDeque<Event>,
-    closing: bool,
 }
 
 #[derive(Debug)]
@@ -65,43 +68,34 @@ impl Session {
     pub fn new(config: Config) -> Self {
         Self {
             config,
-            incoming: Vec::new(),
+            framer: Framer::default(),
             transmits: VecDeque::new(),
             events: VecDeque::new(),
-            closing: false,
         }
     }
 
     /// Marks the transport as connected at `now`.
     pub fn handle_connected(&mut self, _now: Instant) {
-        self.incoming.clear();
-        self.closing = false;
+        self.framer.reset();
     }
 
     /// Supplies bytes read from a stream transport at `now`.
     pub fn handle_bytes(&mut self, now: Instant, bytes: &[u8]) {
-        if self.closing {
-            return;
-        }
-        self.incoming.extend_from_slice(bytes);
-        while let Some(end) = self.incoming.iter().position(|&byte| byte == b'\n') {
-            let mut line = self.incoming.drain(..=end).collect::<Vec<_>>();
-            line.pop();
+        let frames = self.framer.push(bytes);
+        for line in frames.lines {
             self.handle_line(now, &line);
-            if self.closing {
+            if self.framer.is_closed() {
                 return;
             }
         }
-        let trailing_cr = self.incoming.len() == MAX_INCOMING_LINE_LEN + 1
-            && self.incoming.last() == Some(&b'\r');
-        if self.incoming.len() > MAX_INCOMING_LINE_LEN && !trailing_cr {
+        if frames.too_long {
             self.close_for_long_line();
         }
     }
 
     /// Supplies one line from a transport that performs its own framing.
     pub fn handle_line(&mut self, _now: Instant, line: &[u8]) {
-        if self.closing {
+        if self.framer.is_closed() {
             return;
         }
         let line = line.strip_suffix(b"\n").unwrap_or(line);
@@ -151,9 +145,8 @@ impl Session {
 
     /// Marks the transport as disconnected and drops per-connection state.
     pub fn handle_disconnected(&mut self, _now: Instant) {
-        self.incoming.clear();
+        self.framer.reset();
         self.transmits.clear();
-        self.closing = false;
     }
 
     /// Queues a user-originated raw message for transmission.
@@ -198,8 +191,7 @@ impl Session {
     }
 
     fn close(&mut self, reason: String) {
-        self.incoming.clear();
-        self.closing = true;
+        self.framer.close();
         self.events.push_back(Event::Close { reason });
     }
 }
