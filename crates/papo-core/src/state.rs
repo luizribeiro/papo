@@ -477,7 +477,7 @@ impl State {
             user.realname = join.realname.map(str::to_owned);
         }
         if ours && no_implicit_names {
-            self.start_whox(join.channel, isupport, outbox);
+            self.start_who(join.channel, isupport, outbox);
             outbox.event(Event::ChannelSynced {
                 channel: join.channel.to_owned(),
             });
@@ -503,7 +503,7 @@ impl State {
             });
         if let Some(channel) = name {
             if joined {
-                self.start_whox(channel, isupport, outbox);
+                self.start_who(channel, isupport, outbox);
             }
             outbox.event(Event::ChannelSynced {
                 channel: channel.to_owned(),
@@ -645,7 +645,7 @@ impl State {
         self.handle_account(message)
             .or_else(|| self.handle_away(message))
             .or_else(|| self.handle_identity_change(message))
-            .or_else(|| self.handle_whox(message, isupport, outbox))
+            .or_else(|| self.handle_who(message, isupport, outbox))
     }
 
     fn handle_identity_change(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
@@ -672,7 +672,7 @@ impl State {
         Some(Handled::Yes)
     }
 
-    fn handle_whox(
+    fn handle_who(
         &mut self,
         message: &MessageRef<'_>,
         isupport: &Isupport,
@@ -682,8 +682,10 @@ impl State {
             let channel = CaseKey::new(message.param(1)?, self.casemapping);
             return self.who_sweeps.remove(&channel).then_some(Handled::Yes);
         }
-        let reply = WhoxReply::parse(message, WHOX_FIELDS)?;
-        self.handle_whox_reply(&reply, isupport, outbox)
+        if let Some(reply) = WhoxReply::parse(message, WHOX_FIELDS) {
+            return self.handle_whox_reply(&reply, isupport, outbox);
+        }
+        self.handle_plain_who(message, isupport, outbox)
     }
 
     fn handle_whox_reply(
@@ -743,10 +745,70 @@ impl State {
         }
     }
 
-    fn start_whox(&mut self, channel: &str, isupport: &Isupport, outbox: &mut Outbox) {
+    fn handle_plain_who(
+        &mut self,
+        message: &MessageRef<'_>,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> Option<Handled> {
+        if message.command() != Command::Numeric(Numeric::RPL_WHOREPLY) {
+            return None;
+        }
+        let (channel, user, host, nick, raw_flags, hopcount_realname) = (
+            message.param(1)?,
+            message.param(2)?,
+            message.param(3)?,
+            message.param(5)?,
+            message.param(6)?,
+            message.param(7)?,
+        );
+        if !self
+            .who_sweeps
+            .contains(&CaseKey::new(channel, self.casemapping))
+        {
+            return None;
+        }
+        let realname = hopcount_realname.split_once(' ')?.1;
+        let flags = WhoxFlags {
+            presence: raw_flags.chars().find_map(|flag| match flag {
+                'H' => Some(WhoxPresence::Here),
+                'G' => Some(WhoxPresence::Gone),
+                _ => None,
+            }),
+            oper: raw_flags.contains('*'),
+            bot: raw_flags.contains('B')
+                || isupport
+                    .bot_mode()
+                    .is_some_and(|mode| raw_flags.contains(mode)),
+            prefixes: isupport
+                .prefix()
+                .into_iter()
+                .filter_map(|prefix| raw_flags.contains(prefix.symbol).then_some(prefix.symbol))
+                .collect(),
+        };
+        self.apply_who_user(
+            WhoUser {
+                channel,
+                nick,
+                username: Some(user),
+                host: Some(host),
+                realname: Some(realname),
+            },
+            flags,
+            outbox,
+        );
+        Some(Handled::Yes)
+    }
+
+    fn start_who(&mut self, channel: &str, isupport: &Isupport, outbox: &mut Outbox) {
         let key = CaseKey::new(channel, self.casemapping);
-        if isupport.whox() && self.who_sweeps.insert(key) {
+        if !self.who_sweeps.insert(key) {
+            return;
+        }
+        if isupport.whox() {
             outbox.transmit("WHO", [channel, WHOX_FIELDS]);
+        } else {
+            outbox.transmit("WHO", [channel]);
         }
     }
 

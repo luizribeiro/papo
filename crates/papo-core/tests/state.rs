@@ -266,6 +266,7 @@ fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
         .event_until(
             |event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"),
         )
+        .client("WHO #papo")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert!(channel.is_synced());
@@ -530,6 +531,7 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
         .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#Papo" && nick == "papo"))
         .inspect(|session| assert!(!session.state().channel("#papo").unwrap().is_synced()))
         .server(":ergo.test 366 papo #Papo :End of NAMES list")
+        .client("WHO #Papo")
         .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#Papo"))
         .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()))
         .no_event();
@@ -707,6 +709,42 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
         assert!(dan.is_bot());
     })
     .no_event();
+}
+
+#[test]
+fn falls_back_to_plain_who_without_whox() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily BOT=B PREFIX=(ov)@+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+        .server(":ergo.test 353 emily = #papo :emily!em@127.0.0.1 +dan!~dan@cloak.example")
+        .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("WHO #papo")
+        .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+        .server(":ergo.test 352 emily #papo ~dan account/dan ergo.test dan GB+ :0 Daniel Garcia")
+        .server(":ergo.test 315 emily #papo :End of WHO list")
+        .inspect(|session| {
+            let dan = session.state().user("dan").unwrap();
+            assert_eq!(dan.account(), &Account::Unknown);
+            assert_eq!(dan.username(), Some("~dan"));
+            assert_eq!(dan.host(), Some("account/dan"));
+            assert_eq!(dan.realname(), Some("Daniel Garcia"));
+            assert_eq!(dan.away(), Some(""));
+            assert!(dan.is_bot());
+        })
+        .no_event();
+}
+
+#[test]
+fn user_requested_who_replies_remain_messages() {
+    Transcript::new(Config::default().nick("emily"))
+        .send(Message::new("WHO", ["#rust"]))
+        .client("WHO #rust")
+        .server(":ergo.test 352 emily #rust ferris user/ferris ergo.test ferris H :0 Ferris Crab")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "352"))
+        .server(":ergo.test 315 emily #rust :End of WHO list")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "315"))
+        .no_event();
 }
 
 #[test]
