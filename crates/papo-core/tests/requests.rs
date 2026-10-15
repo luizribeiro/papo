@@ -1,6 +1,6 @@
 //! Transcript coverage for labelled request correlation.
 
-use std::time::Instant;
+use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
     Config, Event, RateLimit, RequestError, RequestId, ResponseMatcher, ServerError, Session,
@@ -97,6 +97,21 @@ fn response_id(session: &mut Session) -> RequestId {
         .unwrap()
 }
 
+fn response_lines(session: &mut Session) -> (BTreeMap<RequestId, Vec<Message>>, Vec<Message>) {
+    let mut responses = BTreeMap::new();
+    let mut messages = Vec::new();
+    while let Some(event) = session.poll_event() {
+        match event {
+            Event::Response(response) => {
+                responses.insert(response.id, response.lines);
+            }
+            Event::Message(message) => messages.push(message.into_message()),
+            _ => {}
+        }
+    }
+    (responses, messages)
+}
+
 fn unlabelled_whois(session: &mut Session, now: Instant, nick: &str) -> RequestId {
     session
         .request_with_matcher(
@@ -182,6 +197,84 @@ fn concurrent_unlabelled_whois_uses_targets_then_fifo_order() {
     assert_eq!(
         (response_id(&mut session), response_id(&mut session)),
         (first, second)
+    );
+}
+
+#[test]
+fn whois_targets_and_casemapping_separate_concurrent_replies() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let alice = unlabelled_whois(&mut session, now, "Alice[");
+    let bob = unlabelled_whois(&mut session, now, "bob");
+    for line in [
+        ":ergo.test 311 papo bob ~bob users.example * :Bob Example",
+        ":ergo.test 401 papo mallory :No such nick/channel",
+        ":ergo.test 311 papo alice{ ~alice staff.example * :Alice Example",
+        ":ergo.test 318 papo bob :End of /WHOIS list",
+        ":ergo.test 318 papo alice{ :End of /WHOIS list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let (responses, messages) = response_lines(&mut session);
+    assert_eq!(
+        responses[&bob]
+            .iter()
+            .map(|line| line.as_ref().param(1).unwrap())
+            .collect::<Vec<_>>(),
+        ["bob", "bob"]
+    );
+    assert_eq!(
+        responses[&alice]
+            .iter()
+            .map(|line| line.as_ref().param(1).unwrap())
+            .collect::<Vec<_>>(),
+        ["alice{", "alice{"]
+    );
+    assert!(
+        messages
+            .iter()
+            .any(|line| line.as_ref().param(1) == Some("mallory"))
+    );
+}
+
+#[test]
+fn who_rows_attach_only_to_the_named_concurrent_mask() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let papo = session
+        .request_with_matcher(
+            now,
+            Message::new("WHO", ["#Papo["]),
+            ResponseMatcher::Who("#Papo[".into()),
+        )
+        .unwrap();
+    let rust = session
+        .request_with_matcher(
+            now,
+            Message::new("WHO", ["#rust"]),
+            ResponseMatcher::Who("#rust".into()),
+        )
+        .unwrap();
+    for line in [
+        ":ergo.test 354 papo 0 #rust ~bob users.example bob H account :Bob Example",
+        ":ergo.test 403 papo #unknown :No such channel",
+        ":ergo.test 352 papo #papo{ ~alice staff.example ergo.test alice H@ :0 Alice Example",
+        ":ergo.test 315 papo #rust :End of WHO list",
+        ":ergo.test 315 papo #papo{ :End of WHO list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let (responses, messages) = response_lines(&mut session);
+    assert!(responses[&rust][0].as_ref().command_is("354"));
+    assert!(responses[&papo][0].as_ref().command_is("352"));
+    assert_eq!(responses[&rust].len(), 2);
+    assert_eq!(responses[&papo].len(), 2);
+    assert!(
+        messages
+            .iter()
+            .any(|line| line.as_ref().param(1) == Some("#unknown"))
     );
 }
 

@@ -525,14 +525,19 @@ impl ResponseMatcher {
                     return Some(true);
                 }
                 numeric.and_then(|numeric| {
-                    let target = if numeric == Numeric::RPL_WHOSPCRPL {
-                        2
-                    } else {
-                        1
+                    let row_matches = match numeric {
+                        Numeric::RPL_WHOREPLY => {
+                            Self::target_is(message, 1, mask, mapping)
+                                || Self::target_is(message, 5, mask, mapping)
+                        }
+                        Numeric::RPL_WHOSPCRPL => {
+                            Self::target_is(message, 2, mask, mapping)
+                                || Self::target_is(message, 5, mask, mapping)
+                        }
+                        _ => false,
                     };
-                    (matches!(numeric, Numeric::RPL_WHOREPLY | Numeric::RPL_WHOSPCRPL)
-                        || Self::target_is(message, target, mask, mapping))
-                    .then_some(numeric == Numeric::RPL_ENDOFWHO || numeric.is_error())
+                    (row_matches || Self::target_is(message, 1, mask, mapping))
+                        .then_some(numeric == Numeric::RPL_ENDOFWHO || numeric.is_error())
                 })
             }
             Self::Join(channel) => {
