@@ -173,6 +173,7 @@ dependencies = [
  "base64",
  "hmac",
  "papo-proto",
+ "papo-test-server",
  "pbkdf2",
  "sha2",
 ]
