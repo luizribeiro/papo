@@ -412,6 +412,17 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
             .and_then(|marker| marker.time),
         marker.time
     );
+    session.handle_line(
+        now,
+        b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:43.000Z",
+    );
+    let Some(Event::ReadMarker(newer)) = session.poll_event() else {
+        panic!("expected newer read marker")
+    };
+    assert_eq!(
+        newer.time,
+        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_343))
+    );
 
     session.handle_line(now, b":papo!~papo@localhost JOIN #joined * :Papo Client");
     assert!(matches!(session.poll_event(), Some(Event::Joined { .. })));
@@ -463,9 +474,26 @@ fn remembers_live_messages_but_not_history_pages() {
     assert!(matches!(session.poll_event(), Some(Event::History { .. })));
     assert_eq!(session.state().last_seen("#papo").unwrap().msgid, "RKi9Cw");
 
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T11:55:41.999Z;msgid=OlderErgoMessage :carol!~c@cloak PRIVMSG #papo :late delivery",
+    );
+    assert_eq!(session.state().last_seen("#papo").unwrap().msgid, "RKi9Cw");
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T11:55:44.000Z;msgid=NewerErgoMessage :dan!~d@cloak PRIVMSG #papo :new live message",
+    );
+    assert_eq!(
+        session.state().last_seen("#papo").unwrap().msgid,
+        "NewerErgoMessage"
+    );
+
     session.handle_disconnected(now);
     session.handle_connected(now);
-    assert_eq!(session.state().last_seen("#papo").unwrap().msgid, "RKi9Cw");
+    assert_eq!(
+        session.state().last_seen("#papo").unwrap().msgid,
+        "NewerErgoMessage"
+    );
     session.handle_line(
         now,
         b"@time=2025-10-15T11:55:44.000Z;msgid=8sKY2A :alice!~a@cloak NOTICE papo :private",
@@ -477,7 +505,7 @@ fn remembers_live_messages_but_not_history_pages() {
 fn bounds_last_seen_to_one_thousand_recent_targets() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
-    let mut deliver = |target: usize, msgid: &str| {
+    let deliver = |session: &mut Session, target: usize, msgid: &str| {
         session.handle_line(
             now,
             format!(
@@ -488,10 +516,13 @@ fn bounds_last_seen_to_one_thousand_recent_targets() {
         let _ = session.poll_event();
     };
     for target in 0..1_000 {
-        deliver(target, &format!("ErgoMessage{target:04}"));
+        deliver(&mut session, target, &format!("ErgoMessage{target:04}"));
     }
-    deliver(0, "ErgoMessageRefresh");
-    deliver(1_000, "ErgoMessage1000");
+    assert!(session.state().last_seen("#room0000").is_some());
+    assert!(session.state().last_seen("#room0999").is_some());
+    deliver(&mut session, 0, "ErgoMessageRefresh");
+    assert!(session.state().last_seen("#room0001").is_some());
+    deliver(&mut session, 1_000, "ErgoMessage1000");
 
     assert_eq!(
         session.state().last_seen("#room0000").unwrap().msgid,
