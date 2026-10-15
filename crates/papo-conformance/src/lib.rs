@@ -22,6 +22,8 @@ use papo_proto::{Advertised, Isupport};
 use papo_test_server::{ServerInfo, from_env};
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 
+mod scenarios;
+
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 type ScenarioResult = Result<Completion, Failed>;
@@ -49,13 +51,20 @@ struct CapRequirement {
 
 #[derive(Clone)]
 struct Scenario {
-    _server: ServerInfo,
+    server: ServerInfo,
+    name: &'static str,
 }
 
 struct Connection {
     client: Client,
     events: Events,
     driver: JoinHandle<Result<(), papo::Error>>,
+}
+
+struct RegisteredClient {
+    client: Client,
+    driver: JoinHandle<Result<(), papo::Error>>,
+    welcome: Welcome,
 }
 
 /// Runs the live conformance test binary.
@@ -90,7 +99,7 @@ pub fn run() {
 }
 
 fn scenario_specs() -> &'static [ScenarioSpec] {
-    &[]
+    scenarios::all()
 }
 
 fn trial(
@@ -105,10 +114,47 @@ fn trial(
             .with_kind(spec.doc);
     }
     Trial::ignorable_test(spec.name, move || {
-        let result = runtime().block_on((spec.run)(Scenario { _server: server }));
+        let result = runtime().block_on((spec.run)(Scenario {
+            server,
+            name: spec.name,
+        }));
         known_failure_verdict(result, known_failure.as_deref(), &server_name)
     })
     .with_kind(spec.doc)
+}
+
+impl Scenario {
+    fn unique(&self) -> String {
+        papo_test_server::unique(self.name)
+    }
+
+    async fn client(&self, nick: &str) -> Result<RegisteredClient, Failed> {
+        let config = Config::default()
+            .nick(nick)
+            .username("papo")
+            .realname("papo conformance client");
+        let mut connection = connect_client(&self.server, config).await?;
+        let welcome = wait_for_registration(&mut connection.events).await?;
+        Ok(RegisteredClient {
+            client: connection.client,
+            driver: connection.driver,
+            welcome,
+        })
+    }
+}
+
+impl RegisteredClient {
+    async fn close(self) -> ScenarioResult {
+        self.client
+            .quit(Some("conformance scenario complete"))
+            .await
+            .map_err(Failed::from)?;
+        self.driver
+            .await
+            .map_err(Failed::from)?
+            .map_err(Failed::from)?;
+        Ok(Completion::Completed)
+    }
 }
 
 fn load_known_failures(
