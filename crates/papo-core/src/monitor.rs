@@ -1,8 +1,9 @@
-use papo_proto::{Isupport, LimitValue};
+use papo_proto::{Isupport, LimitValue, MAX_MESSAGE_LEN};
 
 use crate::Outbox;
 
 const MAX_DESIRED: usize = 10_000;
+const MONITOR_PAYLOAD_LEN: usize = MAX_MESSAGE_LEN - "MONITOR + \r\n".len();
 
 #[derive(Debug, Default)]
 pub(super) struct Monitor {
@@ -39,7 +40,7 @@ impl Monitor {
             self.desired.push(nick);
         }
         if !added.is_empty() {
-            outbox.transmit("MONITOR", ["+", &added.join(",")]);
+            transmit_chunks("+", &added, outbox);
         }
     }
 
@@ -65,7 +66,7 @@ impl Monitor {
             }
         }
         if registered && isupport.monitor().is_some() && !removed.is_empty() {
-            outbox.transmit("MONITOR", ["-", &removed.join(",")]);
+            transmit_chunks("-", &removed, outbox);
         }
     }
 
@@ -74,5 +75,25 @@ impl Monitor {
         if supported {
             outbox.transmit("MONITOR", ["C"]);
         }
+    }
+}
+
+fn transmit_chunks(operation: &str, nicks: &[String], outbox: &mut Outbox) {
+    let mut joined = String::new();
+    for nick in nicks
+        .iter()
+        .filter(|nick| nick.len() <= MONITOR_PAYLOAD_LEN)
+    {
+        if !joined.is_empty() && joined.len() + 1 + nick.len() > MONITOR_PAYLOAD_LEN {
+            outbox.transmit("MONITOR", [operation, &joined]);
+            joined.clear();
+        }
+        if !joined.is_empty() {
+            joined.push(',');
+        }
+        joined.push_str(nick);
+    }
+    if !joined.is_empty() {
+        outbox.transmit("MONITOR", [operation, &joined]);
     }
 }
