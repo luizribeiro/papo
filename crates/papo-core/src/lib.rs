@@ -2008,3 +2008,19 @@ fn encode_label(mut value: u64) -> String {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Outbox;
+
+    #[test]
+    fn batch_queue_rejects_empty_and_closed_transmissions() {
+        let mut outbox = Outbox::default();
+        outbox.transmit_batch(Vec::new());
+        assert!(outbox.transmits.is_empty());
+
+        outbox.close_requested = true;
+        outbox.transmit_batch(vec![b"BATCH +papo draft/multiline #papo\r\n".to_vec()]);
+        assert!(outbox.transmits.is_empty());
+    }
+}

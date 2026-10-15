@@ -1,14 +1,23 @@
 //! Transcript tests for outgoing text messages.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use papo_core::{Config, Event, RateLimit, RequestError, ServerError, Session, TextKind};
 use papo_proto::Message;
 
 fn multiline_session(now: Instant, value: &str, labels: bool) -> Session {
+    multiline_session_with_rate_limit(now, value, labels, RateLimit::unlimited())
+}
+
+fn multiline_session_with_rate_limit(
+    now: Instant,
+    value: &str,
+    labels: bool,
+    rate_limit: RateLimit,
+) -> Session {
     let config = Config::default()
         .wanted_caps(["batch", "draft/multiline", "labeled-response"])
-        .rate_limit(RateLimit::unlimited());
+        .rate_limit(rate_limit);
     let mut session = Session::new(config);
     session.handle_connected(now);
     let labels = if labels { " labeled-response" } else { "" };
@@ -175,12 +184,21 @@ fn max_lines_accepts_three_lines_and_splits_the_fourth() {
     assert_eq!(lines[4], "BATCH -b0-0\r\n");
 
     let mut over = multiline_session(now, "max-bytes=40,max-lines=3", false);
-    over.send_text(now, TextKind::Notice, "#papo", "one\ntwo\nthree\nfour", &[])
-        .unwrap();
+    let tags = [("+reply", "RKi9Cw"), ("+example.com/device", "web")];
+    over.send_text(
+        now,
+        TextKind::Notice,
+        "#papo",
+        "one\ntwo\nthree\nfour",
+        &tags,
+    )
+    .unwrap();
     let lines = drain(&mut over);
     assert_eq!(lines.len(), 8);
+    assert!(lines[0].starts_with("@+reply=RKi9Cw;+example.com/device=web BATCH"));
     assert_eq!(lines[4], "BATCH -b0-0\r\n");
-    assert_eq!(lines[5], "BATCH +b0-1 draft/multiline #papo\r\n");
+    assert!(lines[5].starts_with("@+example.com/device=web BATCH +b0-1"));
+    assert!(!lines[5].contains("+reply"));
     assert_eq!(lines[7], "BATCH -b0-1\r\n");
 }
 
@@ -225,6 +243,69 @@ fn invalid_multiline_limits_fall_back_to_plain_lines() {
             "capability value: {value}"
         );
     }
+
+    let mut labelled = multiline_session(now, "max-bytes=many,max-lines=3", true);
+    labelled
+        .send_text(
+            now,
+            TextKind::Privmsg,
+            "#papo",
+            "hello everyone\nwelcome back",
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        drain(&mut labelled),
+        [
+            "@label=0 PRIVMSG #papo :hello everyone\r\n",
+            "PRIVMSG #papo :welcome back\r\n",
+        ]
+    );
+}
+
+#[test]
+fn later_batches_mark_only_internal_concat_segments() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=1680,max-lines=4", false);
+    session
+        .send_text(now, TextKind::Privmsg, "#papo", &"a".repeat(3361), &[])
+        .unwrap();
+    let lines = drain(&mut session);
+    assert_eq!(lines.len(), 15);
+    for line in &lines[7..10] {
+        assert!(line.contains("draft/multiline-concat"));
+    }
+    assert!(!lines[10].contains("draft/multiline-concat"));
+}
+
+#[test]
+fn every_batch_wire_line_consumes_one_rate_limit_token() {
+    let now = Instant::now();
+    let mut session = multiline_session_with_rate_limit(
+        now,
+        "max-bytes=40,max-lines=3",
+        false,
+        RateLimit::new(4, Duration::from_millis(500)),
+    );
+    session
+        .send_text(now, TextKind::Privmsg, "#papo", "one\ntwo\nthree", &[])
+        .unwrap();
+    assert_eq!(session.queued_len(), 5);
+    for (expected, remaining) in [
+        ("BATCH +b0-0 draft/multiline #papo\r\n", 4),
+        ("@batch=b0-0 PRIVMSG #papo one\r\n", 3),
+        ("@batch=b0-0 PRIVMSG #papo two\r\n", 2),
+        ("@batch=b0-0 PRIVMSG #papo three\r\n", 1),
+    ] {
+        assert_eq!(session.poll_transmit(), Some(expected.as_bytes().to_vec()));
+        assert_eq!(session.queued_len(), remaining);
+    }
+    assert_eq!(session.poll_transmit(), None);
+    assert_eq!(session.queued_len(), 1);
+
+    session.handle_timeout(now + Duration::from_millis(500));
+    assert_eq!(session.poll_transmit(), Some(b"BATCH -b0-0\r\n".to_vec()));
+    assert_eq!(session.queued_len(), 0);
 }
 
 #[test]
