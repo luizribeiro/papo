@@ -229,11 +229,7 @@ impl SaslSession {
             return;
         }
         if let Some(advertised) = advertised {
-            self.remaining.retain(|mechanism| {
-                advertised
-                    .split(',')
-                    .any(|name| name.eq_ignore_ascii_case(mechanism.name()))
-            });
+            self.retain_available(advertised);
         }
         self.start_next(now, outbox);
     }
