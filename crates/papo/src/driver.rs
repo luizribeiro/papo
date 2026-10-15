@@ -349,7 +349,7 @@ impl Future for Driver {
 }
 
 async fn run<S>(
-    mut stream: S,
+    stream: S,
     mut session: Session,
     mut commands: mpsc::Receiver<Command>,
     events: EventSink,
@@ -359,30 +359,63 @@ async fn run<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    let end = run_connection(
+        stream,
+        &mut session,
+        &mut commands,
+        &events.regular,
+        &mut registration,
+        &defaults,
+        &events.connected,
+    )
+    .await;
+    finish(events, end)
+}
+
+struct ConnectionEnd {
+    reason: String,
+    error: Error,
+    quit: Option<Quit>,
+    quit_timed_out: bool,
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_connection<S>(
+    mut stream: S,
+    session: &mut Session,
+    commands: &mut mpsc::Receiver<Command>,
+    events: &mpsc::Sender<Event>,
+    registration: &mut RegistrationWait,
+    defaults: &PostRegistration,
+    connected: &AtomicBool,
+) -> ConnectionEnd
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     session.handle_connected(now());
-    events.connected.store(true, Ordering::Relaxed);
+    connected.store(true, Ordering::Relaxed);
     let mut commands_open = true;
     let mut quit = None;
     let mut pending_event = None;
     let mut buffer = [0; 4096];
-    let terminal = loop {
+    let (mut reason, mut error, quit_timed_out) = loop {
         match drain(
             &mut stream,
-            &mut session,
+            session,
             &mut pending_event,
-            &mut registration,
-            &defaults,
+            registration,
+            defaults,
         )
         .await
         {
             Ok(Some(reason)) => {
                 registration.failed(Error::Registration(reason.clone()));
-                break reason;
+                break (reason, Error::Disconnected, false);
             }
             Ok(None) => {}
             Err(error) => {
                 registration.failed(Error::Registration(error.to_string()));
-                return finish_io(stream, session, events, error, quit).await;
+                break (error.to_string(), Error::Io(error), false);
             }
         }
         let deadline = [
@@ -396,15 +429,15 @@ where
             read = stream.read(&mut buffer), if pending_event.is_none() => match read {
                 Ok(0) => {
                     registration.failed(Error::Disconnected);
-                    break "server closed the connection".to_owned();
+                    break ("server closed the connection".to_owned(), Error::Disconnected, false);
                 }
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
                 Err(error) => {
                     registration.failed(Error::Registration(error.to_string()));
-                    return finish_io(stream, session, events, error, quit).await;
+                    break (error.to_string(), Error::Io(error), false);
                 }
             },
-            permit = events.regular.clone().reserve_owned(), if pending_event.is_some() => match permit {
+            permit = events.clone().reserve_owned(), if pending_event.is_some() => match permit {
                 Ok(permit) => {
                     _ = permit.send(pending_event.take().expect("pending event is present"));
                 }
@@ -415,41 +448,42 @@ where
                     _ = result.send(session.send(now(), message));
                 }
                 Some(Command::Quit { reason, result }) => {
-                    request_quit(&mut session, &mut quit, reason, Some(result));
+                    request_quit(session, &mut quit, reason, Some(result));
                 }
                 None => {
                     commands_open = false;
-                    request_quit(&mut session, &mut quit, None, None);
+                    request_quit(session, &mut quit, None, None);
                 }
             },
             () = wait_until(deadline) => {
                 let current = now();
                 if quit.as_ref().is_some_and(|quit| current >= quit.deadline) {
                     registration.failed(Error::Timeout);
-                    return finish(
-                        stream,
-                        session,
-                        events,
+                    break (
                         "QUIT was not acknowledged within 10 seconds".to_owned(),
                         Error::Timeout,
-                        quit,
                         true,
-                    ).await;
+                    );
                 }
                 session.handle_timeout(current);
             },
         }
     };
-    finish(
-        stream,
-        session,
-        events,
-        terminal,
-        Error::Disconnected,
+    session.handle_disconnected(now());
+    connected.store(false, Ordering::Relaxed);
+    let close_error = stream.flush().await.err().or(stream.shutdown().await.err());
+    if let Some(close_error) = close_error
+        && !matches!(error, Error::Io(_))
+    {
+        reason = close_error.to_string();
+        error = Error::Io(close_error);
+    }
+    ConnectionEnd {
+        reason,
+        error,
         quit,
-        false,
-    )
-    .await
+        quit_timed_out,
+    }
 }
 
 fn request_quit(
@@ -545,32 +579,14 @@ fn after_registration(
     Ok(())
 }
 
-async fn finish<S>(
-    mut stream: S,
-    mut session: Session,
-    events: EventSink,
-    mut reason: String,
-    mut result: Error,
-    quit: Option<Quit>,
-    quit_timed_out: bool,
-) -> Result<(), Error>
-where
-    S: AsyncWrite + Unpin,
-{
-    session.handle_disconnected(now());
-    events.connected.store(false, Ordering::Relaxed);
-    let close_error = stream.flush().await.err().or(stream.shutdown().await.err());
-    if let Some(error) = close_error
-        && !matches!(result, Error::Io(_))
-    {
-        reason = error.to_string();
-        result = Error::Io(error);
-    }
+fn finish(events: EventSink, end: ConnectionEnd) -> Result<(), Error> {
     drop(events.regular);
-    _ = events.disconnected.send(Event::Disconnected { reason });
-    if let Some(quit) = quit {
+    _ = events
+        .disconnected
+        .send(Event::Disconnected { reason: end.reason });
+    if let Some(quit) = end.quit {
         for response in quit.results {
-            _ = response.send(if quit_timed_out {
+            _ = response.send(if end.quit_timed_out {
                 Err(Error::Timeout)
             } else {
                 Ok(())
@@ -578,31 +594,8 @@ where
         }
         Ok(())
     } else {
-        Err(result)
+        Err(end.error)
     }
-}
-
-async fn finish_io<S>(
-    stream: S,
-    session: Session,
-    events: EventSink,
-    error: io::Error,
-    quit: Option<Quit>,
-) -> Result<(), Error>
-where
-    S: AsyncWrite + Unpin,
-{
-    let reason = error.to_string();
-    finish(
-        stream,
-        session,
-        events,
-        reason,
-        Error::Io(error),
-        quit,
-        false,
-    )
-    .await
 }
 
 fn now() -> Instant {
