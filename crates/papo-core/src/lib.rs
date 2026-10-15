@@ -56,6 +56,7 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "setname",
     "away-notify",
     "account-notify",
+    "extended-monitor",
     "invite-notify",
     "standard-replies",
     "labeled-response",
@@ -808,6 +809,7 @@ impl Session {
             self.registration.is_registered(),
             &mut self.outbox,
         );
+        self.sync_monitored_state();
     }
 
     /// Clears the desired server-side monitor list.
@@ -815,6 +817,7 @@ impl Session {
         let supported =
             self.registration.is_registered() && self.isupport.value().monitor().is_some();
         self.monitor.clear(supported, &mut self.outbox);
+        self.sync_monitored_state();
     }
 
     /// Returns the next CRLF-terminated wire line to transmit.
@@ -945,6 +948,7 @@ impl Session {
             self.monitor
                 .handle_message(message, self.isupport.value(), &mut self.outbox)
                 == Handled::Yes;
+        self.sync_monitored_state();
         let no_implicit_names = self
             .caps
             .enabled()
@@ -977,6 +981,16 @@ impl Session {
 
     fn close_for_long_line(&mut self) {
         self.close("incoming IRC line exceeds 8703 bytes".to_owned());
+    }
+
+    fn sync_monitored_state(&mut self) {
+        let enabled = self
+            .caps
+            .enabled()
+            .keys()
+            .any(|name| papo_proto::canonical(name) == "extended-monitor");
+        self.state
+            .sync_monitored(&self.monitor, enabled, self.isupport.value());
     }
 
     fn close(&mut self, reason: String) {

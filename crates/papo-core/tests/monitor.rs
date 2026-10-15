@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event};
+use papo_core::{Account, Config, Event};
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -86,5 +86,43 @@ fn restores_the_desired_list_and_resets_presence_after_reconnect() {
         .client("MONITOR + alice,bob,carol")
         .server(":ergo.test 731 papo :alice")
         .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .no_event();
+}
+
+#[test]
+fn extended_monitor_updates_an_unshared_users_record() {
+    Transcript::new(Config::default().wanted_caps(["extended-monitor"]))
+        .connect_default()
+        .server("CAP * LS :extended-monitor")
+        .client("CAP REQ :extended-monitor")
+        .server("CAP * ACK :extended-monitor")
+        .client("CAP END")
+        .server(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo MONITOR=100 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .server(":alice!~alice@cloak.example AWAY :Gone to lunch")
+        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "alice" && message.as_deref() == Some("Gone to lunch")))
+        .server(":alice!~alice@cloak.example ACCOUNT alice")
+        .event(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "alice" && account == &Account::LoggedIn("alice".into())))
+        .server(":alice!~alice@cloak.example CHGHOST alice account/alice")
+        .event(|event| matches!(event, Event::HostChanged { nick, .. } if nick == "alice"))
+        .server(":alice!alice@account/alice SETNAME :Alice Smith")
+        .event(|event| matches!(event, Event::RealnameChanged { nick, .. } if nick == "alice"))
+        .inspect(|session| {
+            let alice = session.state().user("alice").unwrap();
+            assert_eq!(alice.channels().count(), 0);
+            assert_eq!(alice.away(), Some("Gone to lunch"));
+            assert_eq!(alice.account(), &Account::LoggedIn("alice".into()));
+            assert_eq!(alice.host(), Some("account/alice"));
+            assert_eq!(alice.realname(), Some("Alice Smith"));
+        })
+        .server(":ergo.test 731 papo :alice")
+        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .inspect(|session| assert!(session.state().user("alice").is_none()))
         .no_event();
 }

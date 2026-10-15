@@ -9,7 +9,7 @@ use papo_proto::{
     WhoxPresence, WhoxReply, parse_353,
 };
 
-use crate::{Config, Event, Handled, Outbox, OwnedModeChange, StateLimit};
+use crate::{Config, Event, Handled, Outbox, OwnedModeChange, StateLimit, monitor::Monitor};
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
@@ -56,7 +56,7 @@ pub struct Member {
     prefix_order: Arc<[char]>,
 }
 
-/// State known about a user sharing at least one channel with the session.
+/// State known about a user sharing a channel or followed through MONITOR.
 #[derive(Debug)]
 pub struct User {
     nick: String,
@@ -66,6 +66,7 @@ pub struct User {
     away: Option<String>,
     realname: Option<String>,
     is_bot: bool,
+    monitored: bool,
     channels: HashSet<CaseKey>,
 }
 
@@ -111,6 +112,24 @@ impl State {
 
     pub(crate) fn reset(&mut self, config: &Config) {
         *self = Self::new(config);
+    }
+
+    pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, enabled: bool, isupport: &Isupport) {
+        self.update_casemapping(isupport.casemapping());
+        for user in self.users.values_mut() {
+            user.monitored = false;
+        }
+        if enabled {
+            for (nick, username, host) in monitor.online() {
+                let user = self
+                    .users
+                    .entry(CaseKey::new(nick, self.casemapping))
+                    .or_insert_with(|| User::new(nick, Some(username), Some(host)));
+                user.monitored = true;
+            }
+        }
+        self.users
+            .retain(|_, user| user.monitored || !user.channels.is_empty());
     }
 
     pub(crate) fn handle_message(
@@ -883,7 +902,8 @@ impl State {
                 user.channels.remove(&key);
             }
         }
-        self.users.retain(|_, user| !user.channels.is_empty());
+        self.users
+            .retain(|_, user| user.monitored || !user.channels.is_empty());
     }
 
     fn remove_member(&mut self, channel: &str, nick: &str) {
@@ -894,7 +914,7 @@ impl State {
         }
         if let Some(user) = self.users.get_mut(&nick) {
             user.channels.remove(&channel);
-            if user.channels.is_empty() {
+            if user.channels.is_empty() && !user.monitored {
                 self.users.remove(&nick);
             }
         }
@@ -1165,6 +1185,7 @@ impl User {
             away: None,
             realname: None,
             is_bot: false,
+            monitored: false,
             channels: HashSet::new(),
         }
     }

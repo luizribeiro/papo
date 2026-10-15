@@ -22,6 +22,15 @@ enum Presence {
 }
 
 impl Monitor {
+    pub(super) fn online(&self) -> impl Iterator<Item = (&str, &str, &str)> {
+        self.presence.iter().filter_map(|presence| match presence {
+            Presence::Online { nick, user, host } => {
+                Some((nick.as_str(), user.as_str(), host.as_str()))
+            }
+            Presence::Offline(_) => None,
+        })
+    }
+
     pub(super) fn handle_disconnected(&mut self) {
         self.presence.clear();
     }
@@ -84,12 +93,15 @@ impl Monitor {
         let mapping = isupport.casemapping();
         let mut removed = Vec::new();
         for nick in nicks {
+            let nick = nick.as_ref();
             if let Some(index) = self
                 .desired
                 .iter()
-                .position(|known| mapping.eq(known, nick.as_ref()))
+                .position(|known| mapping.eq(known, nick))
             {
                 removed.push(self.desired.remove(index));
+                self.presence
+                    .retain(|presence| !mapping.eq(presence.nick(), nick));
             }
         }
         if registered && isupport.monitor().is_some() && !removed.is_empty() {
