@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, collections::BTreeMap};
 
-use papo_proto::{MessageRef, ParseError};
+use papo_proto::{MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, MessageRef, ParseError};
 use serde_json::Value;
 
 #[test]
@@ -146,4 +146,24 @@ fn rejects_non_utf8_bytes() {
         MessageRef::parse_bytes(b"PRIVMSG #papo :invalid \xff"),
         Err(ParseError::InvalidUtf8)
     );
+}
+
+#[test]
+fn enforces_tag_section_length_at_the_byte_boundary() {
+    let maximum = format!("@{} PING", "a".repeat(MAX_TAG_SECTION_LEN - 2));
+    assert!(MessageRef::parse(&maximum).is_ok());
+
+    let over_limit = format!("@{} PING", "a".repeat(MAX_TAG_SECTION_LEN - 1));
+    assert_eq!(MessageRef::parse(&over_limit), Err(ParseError::TooLong));
+}
+
+#[test]
+fn enforces_message_length_at_the_byte_boundary() {
+    let prefix = "PRIVMSG #papo :";
+    let maximum_body = format!("{prefix}{}", "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len()));
+    let maximum = format!("@time=2026-10-14T20:15:42.123Z {maximum_body}\r\n");
+    assert!(MessageRef::parse(&maximum).is_ok());
+
+    let over_limit = format!("{maximum_body}x\r\n");
+    assert_eq!(MessageRef::parse(&over_limit), Err(ParseError::TooLong));
 }

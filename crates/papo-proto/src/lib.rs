@@ -3,4 +3,4 @@
 
 mod message;
 
-pub use message::{MessageRef, Params, ParseError, Tags};
+pub use message::{MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, MessageRef, Params, ParseError, Tags};

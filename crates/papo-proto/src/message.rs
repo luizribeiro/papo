@@ -1,5 +1,19 @@
 use std::{borrow::Cow, error::Error, fmt, iter::FusedIterator, str::Utf8Error};
 
+/// Maximum byte length of an IRC message excluding its tag section but including CRLF.
+///
+/// This limit is defined by the [Modern IRC client protocol].
+///
+/// [Modern IRC client protocol]: https://modern.ircdocs.horse/#message-format
+pub const MAX_MESSAGE_LEN: usize = 512;
+
+/// Maximum byte length of a received IRC tag section, including `@` and its trailing space.
+///
+/// This limit is defined by the [IRCv3 message-tags specification].
+///
+/// [IRCv3 message-tags specification]: https://ircv3.net/specs/extensions/message-tags#size-limit
+pub const MAX_TAG_SECTION_LEN: usize = 8191;
+
 /// A failure to parse an IRC message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ParseError {
@@ -9,6 +23,8 @@ pub enum ParseError {
     MissingCommand,
     /// The byte input is not valid UTF-8.
     InvalidUtf8,
+    /// The tag section or the rest of the message exceeds its wire limit.
+    TooLong,
 }
 
 impl fmt::Display for ParseError {
@@ -17,6 +33,7 @@ impl fmt::Display for ParseError {
             Self::EmptyLine => "IRC line is empty",
             Self::MissingCommand => "IRC line has no command",
             Self::InvalidUtf8 => "IRC line is not valid UTF-8",
+            Self::TooLong => "IRC line exceeds its wire length limit",
         })
     }
 }
@@ -46,12 +63,14 @@ impl<'a> MessageRef<'a> {
     /// # Errors
     ///
     /// Returns [`ParseError::EmptyLine`] for an empty line and
-    /// [`ParseError::MissingCommand`] when no command is present.
+    /// [`ParseError::MissingCommand`] when no command is present, and
+    /// [`ParseError::TooLong`] when either wire length limit is exceeded.
     pub fn parse(input: &'a str) -> Result<Self, ParseError> {
         let line = input
             .strip_suffix("\r\n")
             .or_else(|| input.strip_suffix('\n'))
             .unwrap_or(input);
+        check_wire_lengths(line)?;
         if line.is_empty() {
             return Err(ParseError::EmptyLine);
         }
@@ -215,6 +234,17 @@ impl<'a> Iterator for Params<'a> {
 }
 
 impl FusedIterator for Params<'_> {}
+
+fn check_wire_lengths(line: &str) -> Result<(), ParseError> {
+    let tag_section_len = line.strip_prefix('@').map_or(0, |tagged| {
+        tagged.find(' ').map_or(0, |separator| separator + 2)
+    });
+    let message_len = line.len() - tag_section_len + 2;
+    if tag_section_len > MAX_TAG_SECTION_LEN || message_len > MAX_MESSAGE_LEN {
+        return Err(ParseError::TooLong);
+    }
+    Ok(())
+}
 
 fn unescape_tag(value: &str) -> Cow<'_, str> {
     if !value.contains('\\') {
