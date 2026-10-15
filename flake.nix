@@ -84,6 +84,14 @@
           '';
         };
         ergochat = pkgs.callPackage ./nix/ergochat.nix { };
+        ergoConfig = pkgs.runCommand "ergo.yaml" { nativeBuildInputs = [ pkgs.yq-go ]; } ''
+          yq eval-all '
+            (select(fi == 0) | del(.server.listeners, .server.webirc, .opers))
+              * select(fi == 1)
+            | ... comments = ""
+            | . style = ""
+          ' ${ergochat.src}/default.yaml ${(pkgs.formats.yaml { }).generate "empty.yaml" { }} > $out
+        '';
         cargoHook =
           {
             name,
@@ -254,6 +262,7 @@
             pkgs.cargo-fuzz
             pkgs.cargo-llvm-cov
             wasiSdk
+            pkgs.openssl
             pkgs.taplo
             pkgs.git-absorb
             ergochat
@@ -261,6 +270,8 @@
           ]
           ++ gitHooks.enabledPackages;
           ERGO_BIN = pkgs.lib.getExe ergochat;
+          ERGO_CONFIG = ergoConfig;
+          ERGO_LANGUAGES = "${ergochat.src}/languages";
           CC_wasm32_wasip1 = "${wasiSdk}/bin/wasm32-wasip1-clang";
           CC_wasm32_wasip2 = "${wasiSdk}/bin/wasm32-wasip2-clang";
           CC_wasm32_wasip3 = "${wasiSdk}/bin/wasm32-wasip3-clang";
