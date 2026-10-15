@@ -2,18 +2,11 @@
 
 mod support;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use papo_core::{Config, Event, Session};
+use papo_core::{Config, Event};
 use papo_proto::Isupport;
 use support::Transcript;
-
-fn line(session: &mut Session) -> String {
-    String::from_utf8(session.poll_transmit().expect("client line"))
-        .unwrap()
-        .trim_end()
-        .to_owned()
-}
 
 #[test]
 fn sends_registration_in_protocol_order() {
@@ -118,75 +111,66 @@ fn generated_nicks_honor_an_early_nicklen_advertisement() {
 
 #[test]
 fn completes_after_motd_with_capabilities_and_isupport() {
-    let now = Instant::now();
-    let mut session = Session::new(
+    Transcript::new(
         Config::default()
             .nick("requested")
             .wanted_caps(["server-time"]),
-    );
-    session.handle_connected(now);
-    for _ in 0..3 {
-        session.poll_transmit();
-    }
-    session.handle_line(now, b"CAP * LS :server-time=iso8601");
-    assert_eq!(line(&mut session), "CAP REQ :server-time");
-    session.handle_line(now, b"CAP * ACK :server-time");
-    assert_eq!(line(&mut session), "CAP END");
-    session.handle_line(now, b":ergo.test 001 account :Welcome to Ergo");
-    session.handle_line(
-        now,
-        b":ergo.test 005 account CASEMAPPING=ascii NICKLEN=32 :are supported by this server",
-    );
-    session.handle_line(
-        now,
-        b":ergo.test 005 account NETWORK=Ergo UTF8ONLY :are supported by this server",
-    );
-    session.handle_line(now, b":ergo.test 376 account :End of MOTD");
-
-    assert!(session.is_registered());
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Registered(welcome))
-            if welcome.nick == "account"
-                && welcome.caps.get("server-time") == Some(&Some("iso8601".to_owned()))
-                && welcome.isupport.network() == Some("Ergo")
-                && welcome.isupport.utf8only()
-    ));
+    )
+    .connect()
+    .client("CAP LS 302")
+    .client("NICK requested")
+    .client("USER papo 0 * papo")
+    .server("CAP * LS :server-time=iso8601")
+    .client("CAP REQ :server-time")
+    .server("CAP * ACK :server-time")
+    .client("CAP END")
+    .server(":ergo.test 001 account :Welcome to Ergo")
+    .server(":ergo.test 005 account CASEMAPPING=ascii NICKLEN=32 :are supported by this server")
+    .server(":ergo.test 005 account NETWORK=Ergo UTF8ONLY :are supported by this server")
+    .server(":ergo.test 376 account :End of MOTD")
+    .inspect(|session| assert!(session.is_registered()))
+    .event(|event| {
+        matches!(
+            event,
+            Event::Registered(welcome)
+                if welcome.nick == "account"
+                    && welcome.caps.get("server-time") == Some(&Some("iso8601".to_owned()))
+                    && welcome.isupport.network() == Some("Ergo")
+                    && welcome.isupport.utf8only()
+        )
+    });
 }
 
 #[test]
 fn no_motd_numeric_completes_registration() {
-    let now = Instant::now();
-    let mut session = Session::new(Config::default());
-    session.handle_connected(now);
-    for _ in 0..3 {
-        session.poll_transmit();
-    }
-    session.handle_line(now, b":solanum.example 001 papo :Welcome");
-    session.handle_line(now, b":solanum.example 422 papo :MOTD File is missing");
-
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Registered(welcome)) if welcome.nick == "papo" && welcome.caps.is_empty()
-    ));
-    assert!(session.is_registered());
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":solanum.example 001 papo :Welcome")
+        .server(":solanum.example 422 papo :MOTD File is missing")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Registered(welcome)
+                    if welcome.nick == "papo" && welcome.caps.is_empty()
+            )
+        })
+        .inspect(|session| assert!(session.is_registered()));
 }
 
 #[test]
 fn completes_ten_seconds_after_welcome_when_motd_never_finishes() {
-    let now = Instant::now();
-    let mut session = Session::new(Config::default());
-    session.handle_connected(now);
-    session.handle_line(now, b":soju.example 001 papo :Welcome");
-    assert_eq!(session.poll_timeout(), Some(now + Duration::from_secs(10)));
-
-    session.handle_timeout(now + Duration::from_secs(9));
-    assert!(!session.is_registered());
-    assert_eq!(session.poll_event(), None);
-    session.handle_timeout(now + Duration::from_secs(10));
-    assert!(session.is_registered());
-    assert!(matches!(session.poll_event(), Some(Event::Registered(_))));
-    assert_eq!(session.poll_timeout(), None);
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":soju.example 001 papo :Welcome")
+        .deadline(Some(Duration::from_secs(10)))
+        .advance(Duration::from_secs(9))
+        .inspect(|session| assert!(!session.is_registered()))
+        .no_event()
+        .deadline(Some(Duration::from_secs(1)))
+        .advance(Duration::from_secs(1))
+        .inspect(|session| assert!(session.is_registered()))
+        .event(|event| matches!(event, Event::Registered(_)))
+        .deadline(None);
 }
 
 #[test]
