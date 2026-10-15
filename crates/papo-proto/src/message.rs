@@ -76,25 +76,8 @@ impl<'a> MessageRef<'a> {
 
         let mut rest = line.trim_start_matches(' ');
         check_wire_lengths(rest)?;
-        let tags = if let Some(tagged) = rest.strip_prefix('@') {
-            let Some((tags, after_tags)) = tagged.split_once(' ') else {
-                return Err(ParseError::MissingCommand);
-            };
-            rest = after_tags.trim_start_matches(' ');
-            Some(tags)
-        } else {
-            None
-        };
-
-        let source = if let Some(prefixed) = rest.strip_prefix(':') {
-            let Some((source, after_source)) = prefixed.split_once(' ') else {
-                return Err(ParseError::MissingCommand);
-            };
-            rest = after_source.trim_start_matches(' ');
-            Some(source)
-        } else {
-            None
-        };
+        let tags = take_field(&mut rest, '@')?;
+        let source = take_field(&mut rest, ':')?;
 
         if rest.is_empty() {
             return Err(ParseError::MissingCommand);
@@ -234,6 +217,17 @@ impl<'a> Iterator for Params<'a> {
 }
 
 impl FusedIterator for Params<'_> {}
+
+fn take_field<'a>(rest: &mut &'a str, prefix: char) -> Result<Option<&'a str>, ParseError> {
+    let Some(prefixed) = rest.strip_prefix(prefix) else {
+        return Ok(None);
+    };
+    let Some((field, after_field)) = prefixed.split_once(' ') else {
+        return Err(ParseError::MissingCommand);
+    };
+    *rest = after_field.trim_start_matches(' ');
+    Ok(Some(field))
+}
 
 fn check_wire_lengths(line: &str) -> Result<(), ParseError> {
     let tag_section_len = line.strip_prefix('@').map_or(0, |tagged| {

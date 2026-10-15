@@ -84,6 +84,21 @@ fn parses_realistic_ergo_lines() {
 }
 
 #[test]
+fn parses_tags_and_source_with_irregular_spacing() {
+    let message = MessageRef::parse(
+        "@time=2026-10-14T20:15:42.123Z   :alice!~u@example.test   PRIVMSG #papo :hello",
+    )
+    .unwrap();
+
+    assert_eq!(
+        message.tag("time"),
+        Some(Cow::Borrowed("2026-10-14T20:15:42.123Z"))
+    );
+    assert_eq!(message.source(), Some("alice!~u@example.test"));
+    assert_eq!(message.command(), "PRIVMSG");
+}
+
+#[test]
 fn unescapes_tags_and_uses_the_last_duplicate() {
     let message = MessageRef::parse(
         r"@draft/example=semi\:colon\sand\\slash\r\nknown\q;account=;batch;batch=42;Case=UP PRIVMSG #papo :tagged",
