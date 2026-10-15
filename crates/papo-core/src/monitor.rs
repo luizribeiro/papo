@@ -1,4 +1,6 @@
-use papo_proto::{Isupport, LimitValue, MAX_MESSAGE_LEN, MessageRef};
+use std::collections::HashSet;
+
+use papo_proto::{CaseKey, Isupport, LimitValue, MAX_MESSAGE_LEN, MessageRef};
 
 use crate::{Event, Handled, Outbox};
 
@@ -9,6 +11,7 @@ const MONITOR_PAYLOAD_LEN: usize = MAX_MESSAGE_LEN - "MONITOR + \r\n".len();
 pub(super) struct Monitor {
     desired: Vec<String>,
     presence: Vec<Presence>,
+    unsupported_warned: bool,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -38,6 +41,9 @@ impl Monitor {
     pub(super) fn restore(&mut self, isupport: &Isupport, outbox: &mut Outbox) {
         self.presence.clear();
         let Some(limit) = isupport.monitor() else {
+            if !self.desired.is_empty() {
+                self.warn_unsupported(outbox);
+            }
             return;
         };
         let limit = match limit {
@@ -45,6 +51,12 @@ impl Monitor {
             LimitValue::Unlimited => usize::MAX,
         };
         transmit_chunks("+", &self.desired[..self.desired.len().min(limit)], outbox);
+        if self.desired.len() > limit {
+            outbox.event(Event::MonitorListFull {
+                limit,
+                nicks: self.desired[limit..].to_vec(),
+            });
+        }
     }
 
     pub(super) fn add<I, S>(
@@ -58,25 +70,52 @@ impl Monitor {
         S: Into<String>,
     {
         let mapping = isupport.casemapping();
-        let limit = match isupport.monitor() {
+        let support = isupport.monitor();
+        let limit = match support {
             Some(LimitValue::Limited(limit)) => limit,
             Some(LimitValue::Unlimited) => usize::MAX,
             None => 0,
         };
         let mut added = Vec::new();
+        let mut unavailable = Vec::new();
+        let mut full = Vec::new();
+        let mut known: HashSet<_> = self
+            .desired
+            .iter()
+            .map(|nick| CaseKey::new(nick, mapping))
+            .collect();
         for nick in nicks.into_iter().map(Into::into) {
-            if self.desired.len() == MAX_DESIRED
-                || self.desired.iter().any(|known| mapping.eq(known, &nick))
-            {
+            if !known.insert(CaseKey::new(&nick, mapping)) {
+                continue;
+            }
+            if self.desired.len() == MAX_DESIRED {
+                full.push(nick);
                 continue;
             }
             if registered && self.desired.len() < limit {
                 added.push(nick.clone());
+            } else if registered && support.is_some() {
+                unavailable.push(nick.clone());
             }
             self.desired.push(nick);
         }
         if !added.is_empty() {
             transmit_chunks("+", &added, outbox);
+        }
+        if registered && support.is_none() {
+            self.warn_unsupported(outbox);
+        }
+        if !unavailable.is_empty() {
+            outbox.event(Event::MonitorListFull {
+                limit,
+                nicks: unavailable,
+            });
+        }
+        if !full.is_empty() {
+            outbox.event(Event::MonitorListFull {
+                limit: MAX_DESIRED,
+                nicks: full,
+            });
         }
     }
 
@@ -190,6 +229,13 @@ impl Monitor {
             self.presence.push(next);
         }
         true
+    }
+
+    fn warn_unsupported(&mut self, outbox: &mut Outbox) {
+        if !self.unsupported_warned {
+            self.unsupported_warned = true;
+            outbox.event(Event::MonitorUnsupported);
+        }
     }
 }
 

@@ -424,6 +424,8 @@ pub enum Event {
         /// Nicknames the server did not add.
         nicks: Vec<String>,
     },
+    /// The server does not advertise MONITOR support.
+    MonitorUnsupported,
     /// A user joined a channel shared with the session.
     Joined {
         /// The channel that was joined.

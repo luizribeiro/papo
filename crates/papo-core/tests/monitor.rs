@@ -3,6 +3,7 @@
 mod support;
 
 use papo_core::{Account, Config, Event};
+use papo_proto::Message;
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -29,12 +30,14 @@ fn adds_removes_and_clears_monitored_nicks() {
 #[test]
 fn honors_the_advertised_monitor_limit_before_chunking() {
     let nicks: Vec<_> = (0..150).map(|index| format!("user{index:03}")).collect();
+    let unavailable = nicks[100..].to_vec();
     let lines = [0..62, 62..100].map(|range| format!("MONITOR + {}", nicks[range].join(",")));
     registered()
         .update(|session| session.monitor_add(nicks))
         .client(&lines[0])
         .client(&lines[1])
-        .no_client();
+        .no_client()
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks } if nicks == &unavailable));
 }
 
 #[test]
@@ -124,5 +127,46 @@ fn extended_monitor_updates_an_unshared_users_record() {
         .server(":ergo.test 731 papo :alice")
         .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
         .inspect(|session| assert!(session.state().user("alice").is_none()))
+        .no_event();
+}
+
+#[test]
+fn reports_unsupported_monitor_only_once() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":solanum.example 001 papo :Welcome")
+        .server(":solanum.example 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| session.monitor_add(["alice"]))
+        .event(|event| matches!(event, Event::MonitorUnsupported))
+        .no_client()
+        .update(|session| session.monitor_add(["bob"]))
+        .no_event()
+        .no_client();
+}
+
+#[test]
+fn caps_the_desired_monitor_list_at_ten_thousand() {
+    let nicks = (0..10_001).map(|index| format!("user{index:05}"));
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test 001 papo :Welcome")
+        .server(":ergo.test 005 papo MONITOR :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| session.monitor_add(nicks))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 10_000, nicks } if nicks == &["user10000"]))
+        .ignore_rest();
+}
+
+#[test]
+fn user_requested_monitor_list_replies_remain_messages() {
+    registered()
+        .send(Message::new("MONITOR", ["L"]))
+        .client("MONITOR L")
+        .server(":ergo.test 732 papo :alice,bob")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "732"))
+        .server(":ergo.test 733 papo :End of MONITOR list")
+        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "733"))
         .no_event();
 }
