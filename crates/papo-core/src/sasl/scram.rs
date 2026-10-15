@@ -276,6 +276,7 @@ mod tests {
             "r=rOprNGfwEbeRWgbNEkqO-server,s=c2FsdA==,i=many",
             "m=required,r=rOprNGfwEbeRWgbNEkqO-server,s=c2FsdA==,i=4096",
             "1=4096,s=c2FsdA==,i=4096",
+            "r=rOprNGfwEbeRWgbNEkqO-server,s=c2FsdA==,i=4096,1=x",
         ] {
             assert_eq!(
                 rfc_client().handle_server_first(first),
