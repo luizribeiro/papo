@@ -226,6 +226,19 @@ fn load_known_failures(
     server: &str,
     scenarios: &[ScenarioSpec],
 ) -> Result<BTreeMap<String, String>, String> {
+    load_known_failures_from(
+        Path::new("known-failures"),
+        server,
+        scenarios.iter().map(|scenario| scenario.name),
+    )
+}
+
+/// A missing file means that the server has no recorded conformance exceptions.
+fn load_known_failures_from<'a>(
+    directory: &Path,
+    server: &str,
+    scenarios: impl IntoIterator<Item = &'a str>,
+) -> Result<BTreeMap<String, String>, String> {
     if server.is_empty()
         || !server
             .bytes()
@@ -233,12 +246,15 @@ fn load_known_failures(
     {
         return Err(format!("invalid PAPO_TEST_SERVER value {server:?}"));
     }
-    let path = Path::new("known-failures")
-        .join(server)
-        .with_extension("toml");
-    let input = fs::read_to_string(&path)
-        .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-    parse_known_failures(&input, scenarios.iter().map(|scenario| scenario.name))
+    let path = directory.join(server).with_extension("toml");
+    let input = match fs::read_to_string(&path) {
+        Ok(input) => input,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(BTreeMap::new());
+        }
+        Err(error) => return Err(format!("failed to read {}: {error}", path.display())),
+    };
+    parse_known_failures(&input, scenarios)
 }
 
 fn parse_known_failures<'a>(
@@ -393,7 +409,12 @@ fn startup_error(error: &str) -> ! {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::VecDeque, future, time::Duration};
+    use std::{
+        collections::VecDeque,
+        fs, future,
+        path::{Path, PathBuf},
+        time::Duration,
+    };
 
     use papo_core::Capabilities;
     use papo_proto::{Isupport, Message};
@@ -402,8 +423,30 @@ mod tests {
 
     use super::{
         CapRequirement, Event, EventSource, Requirements, expect_event, known_failure_verdict,
-        parse_known_failures, run_trials, runtime,
+        load_known_failures_from, run_trials, runtime,
     };
+
+    struct TestDirectory(PathBuf);
+
+    impl TestDirectory {
+        fn create() -> Self {
+            let path = Path::new("target")
+                .join("papo-conformance-tests")
+                .join(papo_test_server::unique("known-failures"));
+            fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+
+        fn write(&self, input: &str) {
+            fs::write(self.0.join("ergo.toml"), input).unwrap();
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).unwrap();
+        }
+    }
 
     struct ScriptedEvents {
         events: VecDeque<Event>,
@@ -534,23 +577,35 @@ mod tests {
     }
 
     #[test]
-    fn known_failures_require_reasons_and_known_scenarios() {
-        let parsed = parse_known_failures(
-            "[registration]\nreason = 'server bug 417'\n",
-            ["registration"],
-        )
-        .unwrap();
+    fn known_failure_loader_reads_and_validates_real_files() {
+        let directory = TestDirectory::create();
+        let scenarios = ["registration", "ping"];
+
+        let missing = load_known_failures_from(&directory.0, "ergo", scenarios).unwrap();
+        assert!(missing.is_empty());
+        assert!(load_known_failures_from(&directory.0, "", scenarios).is_err());
+        assert!(load_known_failures_from(&directory.0, "../ergo", scenarios).is_err());
+
+        directory
+            .write("[registration]\nreason = 'server bug 417'\n[ping]\nreason = 'missing PONG'\n");
+        let parsed = load_known_failures_from(&directory.0, "ergo", scenarios).unwrap();
+        assert_eq!(parsed.len(), 2);
         assert_eq!(parsed["registration"], "server bug 417");
-        assert!(
-            parse_known_failures("[registration]\nnote = 'missing'\n", ["registration"])
-                .unwrap_err()
-                .contains("missing a reason")
-        );
-        assert!(
-            parse_known_failures("[ghost]\nreason = 'stale'\n", ["registration"])
-                .unwrap_err()
-                .contains("unknown scenario")
-        );
+        assert_eq!(parsed["ping"], "missing PONG");
+
+        for (input, expected) in [
+            ("[registration]\nnote = 'missing'\n", "missing a reason"),
+            ("[registration]\nreason = ''\n", "missing a reason"),
+            ("[ghost]\nreason = 'stale'\n", "unknown scenario"),
+            (
+                "[registration\nreason = 'broken'\n",
+                "invalid known-failures TOML",
+            ),
+        ] {
+            directory.write(input);
+            let error = load_known_failures_from(&directory.0, "ergo", scenarios).unwrap_err();
+            assert!(error.contains(expected), "{error:?}");
+        }
     }
 
     #[test]
