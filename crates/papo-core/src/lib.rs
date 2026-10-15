@@ -19,7 +19,8 @@ use std::{
 };
 
 use papo_proto::{
-    BuildError, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef, ModeChange, ModeKind,
+    BuildError, Command, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef, ModeChange,
+    ModeKind, Numeric, StandardReply, StandardReplyKind,
 };
 
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
@@ -402,6 +403,57 @@ pub struct Response {
     pub lines: Vec<Message>,
     /// A typed history page nested in this response, when present.
     pub history: Option<ResponseHistory>,
+}
+
+impl Response {
+    /// Returns the first standard failure or error numeric in this response.
+    #[must_use]
+    pub fn error(&self) -> Option<ServerError> {
+        self.lines.iter().find_map(|message| {
+            let message = message.as_ref();
+            if let Some(reply) = StandardReply::parse(&message)
+                && reply.kind == StandardReplyKind::Fail
+            {
+                return Some(ServerError::Standard {
+                    command: reply.command.to_ascii_uppercase(),
+                    code: reply.code.to_ascii_uppercase(),
+                    context: reply.context.into_iter().map(str::to_owned).collect(),
+                    description: reply.description.to_owned(),
+                });
+            }
+            let Command::Numeric(numeric) = message.command() else {
+                return None;
+            };
+            numeric.is_error().then(|| ServerError::Numeric {
+                numeric,
+                params: message.params().map(str::to_owned).collect(),
+            })
+        })
+    }
+}
+
+/// Error reported by an IRC server while processing a request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ServerError {
+    /// An `IRCv3` `FAIL` standard reply.
+    Standard {
+        /// Command associated with the failure.
+        command: String,
+        /// Case-normalized failure code.
+        code: String,
+        /// Additional diagnostic parameters.
+        context: Vec<String>,
+        /// Human-readable failure description.
+        description: String,
+    },
+    /// A classic error numeric.
+    Numeric {
+        /// Numeric error code.
+        numeric: Numeric,
+        /// Numeric parameters in wire order.
+        params: Vec<String>,
+    },
 }
 
 /// History page attached to a completed response.

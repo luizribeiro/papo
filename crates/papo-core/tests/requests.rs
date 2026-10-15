@@ -2,8 +2,8 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, RateLimit, RequestId, Session};
-use papo_proto::Message;
+use papo_core::{Config, Event, RateLimit, RequestId, ServerError, Session};
+use papo_proto::{Message, Numeric};
 
 fn labelled_session(now: Instant) -> Session {
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -130,4 +130,53 @@ fn links_nested_chathistory_to_its_response() {
     assert_eq!(history.target, "#papo");
     assert_eq!(history.messages.len(), 1);
     assert!(history.end);
+}
+
+#[test]
+fn labelled_fail_and_numeric_responses_expose_errors() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    request(
+        &mut session,
+        now,
+        Message::new("CHATHISTORY", ["LATEST", "#papo", "bad", "50"]),
+    );
+    request(&mut session, now, Message::new("WHOIS", ["missing"]));
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +failure labeled-response");
+    session.handle_line(
+        now,
+        b"@batch=failure :ergo.test FAIL CHATHISTORY INVALID_PARAMS #papo bad :Invalid message reference",
+    );
+    session.handle_line(now, b":ergo.test BATCH -failure");
+    session.handle_line(
+        now,
+        b"@label=1 :ergo.test 401 papo missing :No such nick/channel",
+    );
+
+    let Some(Event::Response(fail)) = session.poll_event() else {
+        panic!("expected standard failure response")
+    };
+    assert_eq!(
+        fail.error(),
+        Some(ServerError::Standard {
+            command: "CHATHISTORY".into(),
+            code: "INVALID_PARAMS".into(),
+            context: vec!["#papo".into(), "bad".into()],
+            description: "Invalid message reference".into(),
+        })
+    );
+    let Some(Event::Response(numeric)) = session.poll_event() else {
+        panic!("expected numeric failure response")
+    };
+    assert_eq!(
+        numeric.error(),
+        Some(ServerError::Numeric {
+            numeric: Numeric::ERR_NOSUCHNICK,
+            params: vec![
+                "papo".into(),
+                "missing".into(),
+                "No such nick/channel".into()
+            ],
+        })
+    );
 }
