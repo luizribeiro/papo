@@ -28,6 +28,11 @@ struct Quit {
     results: Vec<oneshot::Sender<Result<(), Error>>>,
 }
 
+struct EventSink {
+    regular: mpsc::Sender<Event>,
+    disconnected: oneshot::Sender<Event>,
+}
+
 /// A cheap, cloneable handle to a running IRC client.
 #[derive(Clone)]
 pub struct Client {
@@ -84,16 +89,20 @@ impl Client {
 
 /// The events produced by a running IRC client.
 ///
-/// Delivery is bounded. If events are not consumed, the driver waits and
-/// applies backpressure to socket reads.
+/// Delivery is bounded. If events are not consumed, socket reads stall while
+/// client commands and session timers continue to be served.
 pub struct Events {
     receiver: mpsc::Receiver<Event>,
+    disconnected: Option<oneshot::Receiver<Event>>,
 }
 
 impl Events {
     /// Waits for the next event, or returns `None` after the driver stops.
     pub async fn next(&mut self) -> Option<Event> {
-        self.receiver.recv().await
+        if let Some(event) = self.receiver.recv().await {
+            return Some(event);
+        }
+        self.disconnected.take()?.await.ok()
     }
 }
 
@@ -113,15 +122,32 @@ impl Driver {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        Self::with_stream_and_capacity(stream, session, DEFAULT_CHANNEL_CAPACITY)
+    }
+
+    fn with_stream_and_capacity<S>(
+        stream: S,
+        session: Session,
+        capacity: usize,
+    ) -> (Client, Events, Self)
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
         let (command_sender, command_receiver) = mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
-        let (event_sender, event_receiver) = mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
-        let inner = Box::pin(run(stream, session, command_receiver, event_sender));
+        let (event_sender, event_receiver) = mpsc::channel(capacity);
+        let (disconnect_sender, disconnect_receiver) = oneshot::channel();
+        let events = EventSink {
+            regular: event_sender,
+            disconnected: disconnect_sender,
+        };
+        let inner = Box::pin(run(stream, session, command_receiver, events));
         (
             Client {
                 commands: command_sender,
             },
             Events {
                 receiver: event_receiver,
+                disconnected: Some(disconnect_receiver),
             },
             Self { inner },
         )
@@ -140,7 +166,7 @@ async fn run<S>(
     mut stream: S,
     mut session: Session,
     mut commands: mpsc::Receiver<Command>,
-    events: mpsc::Sender<Event>,
+    events: EventSink,
 ) -> Result<(), Error>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -148,9 +174,10 @@ where
     session.handle_connected(now());
     let mut commands_open = true;
     let mut quit = None;
+    let mut pending_event = None;
     let mut buffer = [0; 4096];
     let terminal = loop {
-        match drain(&mut stream, &mut session, &events).await {
+        match drain(&mut stream, &mut session, &mut pending_event).await {
             Ok(Some(reason)) => break reason,
             Ok(None) => {}
             Err(error) => {
@@ -174,10 +201,16 @@ where
         .flatten()
         .min();
         tokio::select! {
-            read = stream.read(&mut buffer) => match read {
+            read = stream.read(&mut buffer), if pending_event.is_none() => match read {
                 Ok(0) => break "server closed the connection".to_owned(),
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
                 Err(error) => return finish(stream, session, events, error.to_string(), Error::Io(error), quit, false).await,
+            },
+            permit = events.regular.clone().reserve_owned(), if pending_event.is_some() => match permit {
+                Ok(permit) => {
+                    _ = permit.send(pending_event.take().expect("pending event is present"));
+                }
+                Err(_) => pending_event = None,
             },
             command = commands.recv(), if commands_open => match command {
                 Some(Command::Send { message, result }) => {
@@ -262,7 +295,7 @@ async fn wait_until(deadline: Option<Instant>) {
 async fn drain<S>(
     stream: &mut S,
     session: &mut Session,
-    events: &mpsc::Sender<Event>,
+    pending_event: &mut Option<Event>,
 ) -> io::Result<Option<String>>
 where
     S: AsyncWrite + Unpin,
@@ -270,9 +303,11 @@ where
     while let Some(line) = session.poll_transmit() {
         stream.write_all(&line).await?;
     }
-    while let Some(core_event) = session.poll_event() {
+    while pending_event.is_none()
+        && let Some(core_event) = session.poll_event()
+    {
         match event::from_core(core_event) {
-            event::CoreEvent::Forward(event) => _ = events.send(event).await,
+            event::CoreEvent::Forward(event) => *pending_event = Some(event),
             event::CoreEvent::Close(reason) => return Ok(Some(reason)),
             event::CoreEvent::Unknown => {}
         }
@@ -283,7 +318,7 @@ where
 async fn finish<S>(
     mut stream: S,
     mut session: Session,
-    events: mpsc::Sender<Event>,
+    events: EventSink,
     mut reason: String,
     mut result: Error,
     quit: Option<Quit>,
@@ -300,7 +335,8 @@ where
         reason = error.to_string();
         result = Error::Io(error);
     }
-    _ = events.send(Event::Disconnected { reason }).await;
+    drop(events.regular);
+    _ = events.disconnected.send(Event::Disconnected { reason });
     if let Some(quit) = quit {
         for response in quit.results {
             _ = response.send(if quit_timed_out {
@@ -329,8 +365,16 @@ mod tests {
     use super::{Driver, Error, Event, Session};
 
     fn scripted(config: Config) -> (DuplexStream, super::Client, super::Events, Driver) {
+        scripted_with_capacity(config, super::DEFAULT_CHANNEL_CAPACITY)
+    }
+
+    fn scripted_with_capacity(
+        config: Config,
+        capacity: usize,
+    ) -> (DuplexStream, super::Client, super::Events, Driver) {
         let (client_stream, server) = tokio::io::duplex(4096);
-        let (client, events, driver) = Driver::with_stream(client_stream, Session::new(config));
+        let (client, events, driver) =
+            Driver::with_stream_and_capacity(client_stream, Session::new(config), capacity);
         (server, client, events, driver)
     }
 
@@ -468,6 +512,30 @@ mod tests {
         assert_eq!(&line, b"QUIT\r\n");
         server.shutdown().await.unwrap();
         assert!(driver.await.unwrap().is_ok());
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn full_event_channel_still_serves_quit_and_its_timer() {
+        let (mut server, client, events, driver) = scripted_with_capacity(config(), 1);
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server
+            .write_all(b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :still queued\r\n")
+            .await
+            .unwrap();
+        while events.receiver.len() != 1 {
+            tokio::task::yield_now().await;
+        }
+
+        let quit = tokio::spawn(async move { client.quit(None).await });
+        let mut line = [0; 6];
+        server.read_exact(&mut line).await.unwrap();
+        assert_eq!(&line, b"QUIT\r\n");
+        tokio::time::advance(Duration::from_secs(10)).await;
+
+        assert!(matches!(quit.await.unwrap(), Err(Error::Timeout)));
+        assert!(driver.await.unwrap().is_ok());
+        assert_eq!(events.receiver.len(), 1);
     }
 
     #[tokio::test(flavor = "current_thread", start_paused = true)]
