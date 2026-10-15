@@ -149,6 +149,9 @@
           wasi-checks = cargoHook {
             name = "wasi-checks-hook";
             text = ''
+              export CC_wasm32_wasip1=${wasiSdk}/bin/wasm32-wasip1-clang
+              export CC_wasm32_wasip2=${wasiSdk}/bin/wasm32-wasip2-clang
+              export WASI_SDK_PATH=${wasiSdk}
               cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip1 --locked
               cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip2 --locked
               cargo check -p papo-proto --all-targets --all-features --target wasm32-wasip2 --locked
@@ -159,6 +162,8 @@
           wasip3-checks = cargoHook {
             name = "wasip3-checks-hook";
             text = ''
+              export CC_wasm32_wasip3=${wasiSdk}/bin/wasm32-wasip3-clang
+              export WASI_SDK_PATH=${wasiSdk}
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto -p papo-core --all-targets --locked
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto --all-targets --all-features --locked
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo --locked
