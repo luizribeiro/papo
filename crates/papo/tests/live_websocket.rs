@@ -9,15 +9,15 @@
 
 #[cfg(tls)]
 use std::fs;
-use std::io;
+use std::{io, time::Duration};
 
 use futures_util::{SinkExt, StreamExt};
-use papo::transport::{Stream, connect_websocket};
+use papo::transport::{ConnectError, Stream, connect_websocket};
 #[cfg(tls)]
 use papo::transport::{TlsConfig, TlsRoots};
 use papo_test_server::from_env;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, time::timeout};
 use tokio_tungstenite::{
     accept_hdr_async,
     tungstenite::{
@@ -132,6 +132,47 @@ async fn retries_without_subprotocols_when_a_legacy_server_rejects_them() {
         read_line(&mut stream).await.unwrap(),
         ":legacy.example PONG legacy\r\n"
     );
+    server.await.unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[allow(clippy::result_large_err)]
+async fn does_not_retry_an_unrelated_handshake_failure() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (connection, _) = listener.accept().await.unwrap();
+        let error = accept_hdr_async(
+            connection,
+            |_request: &Request, _response: Response| -> Result<Response, ErrorResponse> {
+                Err(tokio_tungstenite::tungstenite::http::Response::builder()
+                    .status(StatusCode::SERVICE_UNAVAILABLE)
+                    .body(Some("maintenance".into()))
+                    .unwrap())
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            tokio_tungstenite::tungstenite::Error::Http(response)
+                if response.status() == StatusCode::SERVICE_UNAVAILABLE
+        ));
+        assert!(
+            timeout(Duration::from_millis(100), listener.accept())
+                .await
+                .is_err()
+        );
+    });
+
+    let error = connect_websocket(&format!("ws://{address}/maintenance"), None)
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        ConnectError::WebSocket(tokio_tungstenite::tungstenite::Error::Http(response))
+            if response.status() == StatusCode::SERVICE_UNAVAILABLE
+    ));
     server.await.unwrap();
 }
 
