@@ -34,6 +34,8 @@ const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
 const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
 const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(120);
+const DEFAULT_MAX_CHANNELS: usize = 10_000;
+const DEFAULT_MAX_MEMBERS_PER_CHANNEL: usize = 100_000;
 
 /// Capabilities requested by a default session when the server advertises them.
 pub const DEFAULT_WANTED_CAPS: &[&str] = &[
@@ -125,6 +127,10 @@ pub struct Config {
     pub require_sasl: bool,
     /// Ergo multiclient device identifier appended to the authentication identity.
     pub device: Option<String>,
+    /// Maximum number of channels retained in session state.
+    pub max_channels: usize,
+    /// Maximum number of members retained for one channel.
+    pub max_members_per_channel: usize,
 }
 
 impl std::fmt::Debug for Config {
@@ -147,6 +153,8 @@ impl std::fmt::Debug for Config {
             .field("sasl", &self.sasl)
             .field("require_sasl", &self.require_sasl)
             .field("device", &self.device)
+            .field("max_channels", &self.max_channels)
+            .field("max_members_per_channel", &self.max_members_per_channel)
             .finish()
     }
 }
@@ -182,6 +190,8 @@ impl Default for Config {
             sasl: None,
             require_sasl: false,
             device: None,
+            max_channels: DEFAULT_MAX_CHANNELS,
+            max_members_per_channel: DEFAULT_MAX_MEMBERS_PER_CHANNEL,
         }
     }
 }
@@ -304,6 +314,20 @@ impl Config {
     #[must_use]
     pub fn device(mut self, device: impl Into<String>) -> Self {
         self.device = Some(device.into());
+        self
+    }
+
+    /// Sets the maximum number of channels retained in session state.
+    #[must_use]
+    pub const fn max_channels(mut self, maximum: usize) -> Self {
+        self.max_channels = maximum;
+        self
+    }
+
+    /// Sets the maximum members retained for each channel in session state.
+    #[must_use]
+    pub const fn max_members_per_channel(mut self, maximum: usize) -> Self {
+        self.max_members_per_channel = maximum;
         self
     }
 }

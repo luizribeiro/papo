@@ -17,6 +17,8 @@ fn config_builders_set_registration_identity_and_timeout() {
         .ping_interval(Duration::from_secs(41))
         .ping_timeout(Duration::from_secs(82))
         .rate_limit(RateLimit::new(7, Duration::from_millis(250)))
+        .max_channels(17)
+        .max_members_per_channel(23)
         .connection_security(ConnectionSecurity::Secure)
         .host("irc.example.net");
 
@@ -32,6 +34,8 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(config.registration_timeout, Duration::from_secs(23));
     assert_eq!(config.ping_interval, Duration::from_secs(41));
     assert_eq!(config.ping_timeout, Duration::from_secs(82));
+    assert_eq!(config.max_channels, 17);
+    assert_eq!(config.max_members_per_channel, 23);
     assert_eq!(
         config.rate_limit,
         RateLimit::new(7, Duration::from_millis(250))
@@ -49,6 +53,10 @@ fn config_builders_set_registration_identity_and_timeout() {
 
     let config = Config::default().alt_nicks(["emily_", "emily__"]);
     assert_eq!(config.alt_nicks, ["emily_", "emily__"]);
+
+    let config = Config::default();
+    assert_eq!(config.max_channels, 10_000);
+    assert_eq!(config.max_members_per_channel, 100_000);
 }
 
 #[test]
