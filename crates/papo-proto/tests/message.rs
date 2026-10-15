@@ -167,3 +167,21 @@ fn enforces_message_length_at_the_byte_boundary() {
     let over_limit = format!("{maximum_body}x\r\n");
     assert_eq!(MessageRef::parse(&over_limit), Err(ParseError::TooLong));
 }
+
+#[test]
+fn enforces_both_limits_after_leading_spaces() {
+    let maximum_tags = format!("  @{} PING", "a".repeat(MAX_TAG_SECTION_LEN - 2));
+    assert!(MessageRef::parse(&maximum_tags).is_ok());
+    let excessive_tags = format!("  @{} PING", "a".repeat(MAX_TAG_SECTION_LEN - 1));
+    assert_eq!(MessageRef::parse(&excessive_tags), Err(ParseError::TooLong));
+
+    let prefix = "PRIVMSG #papo :";
+    let maximum_body = format!("{prefix}{}", "x".repeat(MAX_MESSAGE_LEN - 2 - prefix.len()));
+    let maximum_message = format!("  @time=2026-10-14T20:15:42.123Z {maximum_body}\r\n");
+    assert!(MessageRef::parse(&maximum_message).is_ok());
+    let excessive_message = format!("  @time=2026-10-14T20:15:42.123Z {maximum_body}x\r\n");
+    assert_eq!(
+        MessageRef::parse(&excessive_message),
+        Err(ParseError::TooLong)
+    );
+}

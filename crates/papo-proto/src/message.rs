@@ -70,12 +70,12 @@ impl<'a> MessageRef<'a> {
             .strip_suffix("\r\n")
             .or_else(|| input.strip_suffix('\n'))
             .unwrap_or(input);
-        check_wire_lengths(line)?;
         if line.is_empty() {
             return Err(ParseError::EmptyLine);
         }
 
         let mut rest = line.trim_start_matches(' ');
+        check_wire_lengths(rest)?;
         let tags = if let Some(tagged) = rest.strip_prefix('@') {
             let Some((tags, after_tags)) = tagged.split_once(' ') else {
                 return Err(ParseError::MissingCommand);
