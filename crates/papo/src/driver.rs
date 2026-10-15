@@ -1414,7 +1414,7 @@ mod tests {
             None,
             super::PostRegistration::default(),
             Reconnect::exponential(),
-            1,
+            3,
             Box::new(papo_core::sts::MemoryStsStore::new()),
             false,
             connector,
@@ -1429,6 +1429,11 @@ mod tests {
         ));
 
         client.send(Message::new("WHOIS", ["emily"])).await.unwrap();
+        client
+            .privmsg("#papo", "queued during reconnect")
+            .await
+            .unwrap();
+        client.send(Message::new("MODE", ["#papo"])).await.unwrap();
         assert!(matches!(
             client.privmsg("#papo", "queue overflow").await,
             Err(Error::Disconnected)
@@ -1437,6 +1442,8 @@ mod tests {
         tokio::time::advance(Duration::from_secs(2)).await;
         registration_burst(&mut server).await;
         client_line(&mut server, b"WHOIS emily\r\n").await;
+        client_line(&mut server, b"PRIVMSG #papo :queued during reconnect\r\n").await;
+        client_line(&mut server, b"MODE #papo\r\n").await;
         let quit = tokio::spawn(async move { client.quit(None).await });
         client_line(&mut server, b"QUIT\r\n").await;
         server.shutdown().await.unwrap();
