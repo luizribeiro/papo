@@ -32,6 +32,10 @@ impl<'a> Source<'a> {
         } else {
             (source, None, None)
         };
-        Self::User { nick, user, host }
+        Self::User {
+            nick,
+            user: user.filter(|user| !user.is_empty()),
+            host: host.filter(|host| !host.is_empty()),
+        }
     }
 }

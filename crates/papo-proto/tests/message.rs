@@ -148,6 +148,41 @@ fn parses_ergo_user_sources_and_server_names() {
 }
 
 #[test]
+fn normalizes_empty_user_source_parts() {
+    let cases = [
+        (
+            "nick!",
+            Source::User {
+                nick: "nick",
+                user: None,
+                host: None,
+            },
+        ),
+        (
+            "nick!@host",
+            Source::User {
+                nick: "nick",
+                user: None,
+                host: Some("host"),
+            },
+        ),
+        (
+            "nick@",
+            Source::User {
+                nick: "nick",
+                user: None,
+                host: None,
+            },
+        ),
+    ];
+
+    for (raw, expected) in cases {
+        let line = format!(":{raw} NOTICE papo-test :maintenance");
+        assert_eq!(MessageRef::parse(&line).unwrap().source(), Some(expected));
+    }
+}
+
+#[test]
 fn source_free_ircdocs_lines_round_trip_through_serialization() {
     let corpus: Value =
         serde_json::from_str(include_str!("data/parser-tests/msg-split.json")).unwrap();
