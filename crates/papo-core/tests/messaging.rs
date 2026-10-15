@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, Session};
+use papo_core::{Config, CtcpReplies, Event, RateLimit, Session};
 use papo_proto::{Message, Reaction, Typing};
 
 fn tag_message(line: &str) -> papo_core::TagMessage {
@@ -84,4 +84,55 @@ fn reports_redactions_with_and_without_a_reason() {
         assert!(matches!(redacted.msgid.as_str(), "RKi9Cw" | "8sKY2A"));
         assert_eq!(redacted.reason.as_deref(), expected_reason);
     }
+}
+
+fn wire(session: &mut Session) -> Option<String> {
+    session
+        .poll_transmit()
+        .map(|line| String::from_utf8(line).unwrap())
+}
+
+#[test]
+fn answers_supported_ctcp_queries_and_applies_safety_rules() {
+    let now = Instant::now();
+    let replies = CtcpReplies {
+        version: Some("papo test build".into()),
+        ping: true,
+        time: None,
+        source: Some("https://example.invalid/papo".into()),
+    };
+    let mut session = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .ctcp(replies),
+    );
+
+    session.handle_line(now, b":alice!~a@cloak PRIVMSG papo :\x01VERSION\x01");
+    assert_eq!(
+        wire(&mut session).as_deref(),
+        Some("NOTICE alice :\x01VERSION papo test build\x01\r\n")
+    );
+    session.handle_line(
+        now,
+        b":alice!~a@cloak PRIVMSG papo :\x01PING 1731513600\x01",
+    );
+    assert_eq!(wire(&mut session), None);
+    session.handle_line(
+        now + std::time::Duration::from_secs(2),
+        b":alice!~a@cloak PRIVMSG papo :\x01PING 1731513600\x01",
+    );
+    assert_eq!(
+        wire(&mut session).as_deref(),
+        Some("NOTICE alice :\x01PING 1731513600\x01\r\n")
+    );
+
+    session.handle_line(now, b":bob!~b@cloak PRIVMSG papo :\x01TIME\x01");
+    session.handle_line(now, b":carol!~c@cloak NOTICE papo :\x01VERSION\x01");
+    assert_eq!(wire(&mut session), None);
+
+    session.handle_line(now, b":dave!~d@cloak PRIVMSG #papo :\x01SOURCE\x01");
+    assert_eq!(
+        wire(&mut session).as_deref(),
+        Some("NOTICE dave :\x01SOURCE https://example.invalid/papo\x01\r\n")
+    );
 }

@@ -20,8 +20,9 @@ use std::{
 };
 
 use papo_proto::{
-    BuildError, Casemapping, Command, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef,
-    ModeChange, ModeKind, Numeric, Source, StandardReply as StandardReplyView, StandardReplyKind,
+    BuildError, Casemapping, Command, Ctcp, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message,
+    MessageRef, ModeChange, ModeKind, Numeric, Source, StandardReply as StandardReplyView,
+    StandardReplyKind,
 };
 
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
@@ -50,6 +51,8 @@ const DEFAULT_MAX_BATCH_LINES: usize = 10_000;
 const DEFAULT_BATCH_TIMEOUT: Duration = Duration::from_secs(120);
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_PENDING_REQUESTS: usize = 256;
+const MAX_CTCP_SOURCES: usize = 1024;
+const CTCP_REPLY_INTERVAL: Duration = Duration::from_secs(2);
 
 /// Capabilities requested by a default session when the server advertises them.
 pub const DEFAULT_WANTED_CAPS: &[&str] = &[
@@ -75,6 +78,30 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
 
 /// Enabled `IRCv3` capability names and their advertised values.
 pub type Capabilities = BTreeMap<String, Option<String>>;
+
+/// Automatic replies to private CTCP queries.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CtcpReplies {
+    /// VERSION reply, or `None` to disable it.
+    pub version: Option<String>,
+    /// Whether PING parameters are echoed.
+    pub ping: bool,
+    /// TIME reply supplied by a shell with access to a wall clock.
+    pub time: Option<String>,
+    /// SOURCE reply, or `None` to disable it.
+    pub source: Option<String>,
+}
+
+impl Default for CtcpReplies {
+    fn default() -> Self {
+        Self {
+            version: Some(format!("papo {}", env!("CARGO_PKG_VERSION"))),
+            ping: true,
+            time: None,
+            source: None,
+        }
+    }
+}
 
 /// Registration state captured when a session becomes ready for use.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -155,6 +182,8 @@ pub struct Config {
     pub batch_timeout: Duration,
     /// Maximum time a labelled request remains pending.
     pub request_timeout: Duration,
+    /// Automatic CTCP reply policy.
+    pub ctcp: CtcpReplies,
 }
 
 impl std::fmt::Debug for Config {
@@ -183,6 +212,7 @@ impl std::fmt::Debug for Config {
             .field("max_batch_lines", &self.max_batch_lines)
             .field("batch_timeout", &self.batch_timeout)
             .field("request_timeout", &self.request_timeout)
+            .field("ctcp", &self.ctcp)
             .finish()
     }
 }
@@ -224,6 +254,7 @@ impl Default for Config {
             max_batch_lines: DEFAULT_MAX_BATCH_LINES,
             batch_timeout: DEFAULT_BATCH_TIMEOUT,
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
+            ctcp: CtcpReplies::default(),
         }
     }
 }
@@ -388,6 +419,13 @@ impl Config {
     #[must_use]
     pub const fn request_timeout(mut self, timeout: Duration) -> Self {
         self.request_timeout = timeout;
+        self
+    }
+
+    /// Sets automatic CTCP replies. Channel queries receive a private reply.
+    #[must_use]
+    pub fn ctcp(mut self, replies: CtcpReplies) -> Self {
+        self.ctcp = replies;
         self
     }
 }
@@ -1029,6 +1067,7 @@ pub struct Session {
     config: Config,
     connection: Connection,
     caps: Caps,
+    ctcp_sources: VecDeque<(String, Instant)>,
     framer: Framer,
     isupport: IsupportState,
     keepalive: Keepalive,
@@ -1052,6 +1091,7 @@ impl std::fmt::Debug for Session {
             .field("config", &self.config)
             .field("connection", &self.connection)
             .field("caps", &self.caps)
+            .field("ctcp_sources", &self.ctcp_sources)
             .field("framer", &self.framer)
             .field("isupport", &self.isupport)
             .field("keepalive", &self.keepalive)
@@ -1180,6 +1220,7 @@ impl Session {
             config,
             connection,
             caps: Caps::default(),
+            ctcp_sources: VecDeque::new(),
             framer: Framer::default(),
             isupport,
             keepalive: Keepalive::default(),
@@ -1211,6 +1252,7 @@ impl Session {
         self.framer.reset();
         self.outbox.reset_connection();
         self.batches.reset();
+        self.ctcp_sources.clear();
         self.requests.clear();
         self.unlabelled_requests.clear();
         self.rate_limit.reset(now);
@@ -1796,6 +1838,7 @@ impl Session {
             self.no_implicit_names(),
             &mut self.outbox,
         ) == Handled::Yes;
+        self.handle_ctcp(now, message);
         let handled = registration_handled
             || caps_handled
             || sasl_handled
@@ -1826,6 +1869,47 @@ impl Session {
         if before != self.snapshot_values() {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
+    }
+
+    fn handle_ctcp(&mut self, now: Instant, message: &MessageRef<'_>) -> bool {
+        let (Some(Source::User { nick, .. }), Some(text)) = (message.source(), message.param(1))
+        else {
+            return false;
+        };
+        let Some(query) = message
+            .command_is("PRIVMSG")
+            .then(|| Ctcp::parse(text))
+            .flatten()
+        else {
+            return false;
+        };
+        let response = match query.command.to_ascii_uppercase().as_str() {
+            "VERSION" => self.config.ctcp.version.as_deref(),
+            "PING" if self.config.ctcp.ping => query.params,
+            "TIME" => self.config.ctcp.time.as_deref(),
+            "SOURCE" => self.config.ctcp.source.as_deref(),
+            _ => None,
+        };
+        let Some(response) = response else {
+            return true;
+        };
+        self.ctcp_sources.retain(|(_, replied)| {
+            replied
+                .checked_add(CTCP_REPLY_INTERVAL)
+                .is_some_and(|deadline| now < deadline)
+        });
+        if self.ctcp_sources.iter().any(|(source, _)| source == nick) {
+            return true;
+        }
+        if self.ctcp_sources.len() == MAX_CTCP_SOURCES {
+            self.ctcp_sources.pop_front();
+        }
+        self.ctcp_sources.push_back((nick.to_owned(), now));
+        self.outbox.transmit(
+            "NOTICE",
+            [nick, Ctcp::build(query.command, Some(response)).as_str()],
+        );
+        true
     }
 
     fn report_tag_message(&mut self, message: &MessageRef<'_>) -> bool {
