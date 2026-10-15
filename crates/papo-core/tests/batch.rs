@@ -442,6 +442,7 @@ fn only_live_membership_aggregates_change_channel_state() {
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
     session.handle_line(now, b":alice!~a@remote.example JOIN #papo");
     while session.poll_event().is_some() {}
+    let generation = session.state_generation();
 
     session.handle_line(now, b"BATCH +history chathistory #papo");
     session.handle_line(
@@ -450,6 +451,7 @@ fn only_live_membership_aggregates_change_channel_state() {
     );
     session.handle_line(now, b"BATCH -history");
     assert!(matches!(session.poll_event(), Some(Event::History { .. })));
+    assert_eq!(session.state_generation(), generation);
     assert!(
         session
             .state()
@@ -466,6 +468,7 @@ fn only_live_membership_aggregates_change_channel_state() {
     );
     session.handle_line(now, b"BATCH -split");
     assert!(matches!(session.poll_event(), Some(Event::Netsplit { .. })));
+    assert_eq!(session.state_generation(), generation + 1);
     assert!(
         session
             .state()
@@ -482,6 +485,7 @@ fn only_live_membership_aggregates_change_channel_state() {
     );
     session.handle_line(now, b"BATCH -join");
     assert!(matches!(session.poll_event(), Some(Event::Netjoin { .. })));
+    assert_eq!(session.state_generation(), generation + 2);
     assert!(
         session
             .state()

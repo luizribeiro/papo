@@ -18,6 +18,7 @@ pub(crate) struct Batches {
 #[derive(Debug)]
 struct OpenBatch {
     kind: String,
+    label: Option<String>,
     parent: Option<String>,
     params: Vec<String>,
     end: bool,
@@ -36,6 +37,12 @@ impl DispatchContext {
     pub(crate) fn batch_type(&self) -> Option<&str> {
         self.batch_type.as_deref()
     }
+
+    pub(crate) fn from_batch_type(batch_type: String) -> Self {
+        Self {
+            batch_type: Some(batch_type),
+        }
+    }
 }
 
 pub(crate) enum BatchAction {
@@ -46,6 +53,11 @@ pub(crate) enum BatchAction {
 
 #[derive(Debug)]
 pub(crate) enum BatchEvent {
+    Response {
+        label: String,
+        messages: Vec<Message>,
+        batch_type: String,
+    },
     History {
         target: String,
         messages: Vec<Message>,
@@ -124,6 +136,7 @@ impl Batches {
             reference.to_owned(),
             OpenBatch {
                 kind: kind.to_owned(),
+                label: message.tag("label").map(std::borrow::Cow::into_owned),
                 parent,
                 params: message.params().skip(2).map(str::to_owned).collect(),
                 end: message
@@ -154,7 +167,7 @@ impl Batches {
         }
         let mut batch = self.open.remove(reference).expect("validated above");
         let mut completed = std::mem::take(&mut batch.completed);
-        if is_aggregate(&batch.kind) && !self.has_aggregate_ancestor(batch.parent.as_deref()) {
+        if batch.is_aggregate() && !self.has_aggregate_ancestor(batch.parent.as_deref()) {
             completed.extend(complete(&mut batch));
         }
         if let Some(parent) = batch.parent {
@@ -308,7 +321,7 @@ impl Batches {
         let mut current = Some(reference);
         while let Some(reference) = current {
             let batch = self.open.get(reference)?;
-            if is_aggregate(&batch.kind) {
+            if batch.is_aggregate() {
                 aggregate = Some(reference.to_owned());
             }
             current = batch.parent.as_deref();
@@ -321,7 +334,7 @@ impl Batches {
             let Some(batch) = self.open.get(reference) else {
                 return false;
             };
-            if is_aggregate(&batch.kind) {
+            if batch.is_aggregate() {
                 return true;
             }
             parent = batch.parent.as_deref();
@@ -349,7 +362,20 @@ fn is_aggregate(kind: &str) -> bool {
     is_history(kind) || matches!(kind, "netsplit" | "netjoin")
 }
 
+impl OpenBatch {
+    fn is_aggregate(&self) -> bool {
+        self.label.is_some() || is_aggregate(&self.kind)
+    }
+}
+
 fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
+    if let Some(label) = batch.label.take() {
+        return vec![BatchEvent::Response {
+            label,
+            messages: std::mem::take(&mut batch.messages),
+            batch_type: batch.kind.clone(),
+        }];
+    }
     let servers = || {
         [
             batch.params.first().cloned().unwrap_or_default(),
@@ -391,7 +417,10 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
 
 fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
     match event {
-        BatchEvent::History {
+        BatchEvent::Response {
+            messages: batch, ..
+        }
+        | BatchEvent::History {
             messages: batch, ..
         } => messages.extend(batch),
         BatchEvent::Netsplit { quits, .. } => messages.extend(quits),

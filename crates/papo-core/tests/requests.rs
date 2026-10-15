@@ -68,3 +68,29 @@ fn labelled_join_updates_state_before_resolving() {
     ));
     assert!(session.state().channel("#papo").is_some());
 }
+
+#[test]
+fn resolves_a_recorded_ergo_whois_batch_once() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let id = request(&mut session, now, Message::new("WHOIS", ["alice"]));
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +whois-42 labeled-response");
+    for line in [
+        "@batch=whois-42 :ergo.test 311 papo alice ~alice localhost * :Alice Example",
+        "@batch=whois-42 :ergo.test 312 papo alice ergo.test :Ergo Test Network",
+        "@batch=whois-42 :ergo.test 318 papo alice :End of /WHOIS list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert_eq!(session.poll_event(), None);
+    session.handle_line(now, b":ergo.test BATCH -whois-42");
+
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected one response")
+    };
+    assert_eq!(response.id, id);
+    assert_eq!(response.lines.len(), 3);
+    assert!(response.lines[0].as_ref().command_is("311"));
+    assert!(response.lines[2].as_ref().command_is("318"));
+    assert_eq!(session.poll_event(), None);
+}

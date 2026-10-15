@@ -943,15 +943,11 @@ impl Session {
                 BatchAction::Consumed => {}
                 BatchAction::Complete(events) => {
                     for event in events {
-                        self.dispatch_batch_event(event);
+                        self.dispatch_batch_event(now, event);
                     }
                 }
                 BatchAction::Dispatch(context) => {
-                    let before = self.snapshot_values();
-                    self.dispatch_message(now, &message, &context);
-                    if before != self.snapshot_values() {
-                        self.state_generation = self.state_generation.wrapping_add(1);
-                    }
+                    self.dispatch_message(now, &message, &context, true);
                 }
             },
             Err(_) => self.malformed(line),
@@ -962,7 +958,7 @@ impl Session {
     pub fn handle_timeout(&mut self, now: Instant) {
         self.rate_limit.advance(now);
         for event in self.batches.handle_timeout(now) {
-            self.dispatch_batch_event(event);
+            self.dispatch_batch_event(now, event);
         }
         let was_registered = self.registration.is_registered();
         self.registration.handle_timeout(
@@ -1212,7 +1208,9 @@ impl Session {
         now: Instant,
         message: &MessageRef<'_>,
         context: &DispatchContext,
+        emit_unhandled: bool,
     ) {
+        let before = self.snapshot_values();
         let was_registered = self.registration.is_registered();
         let registration_handled = self.registration.handle_message(
             now,
@@ -1261,12 +1259,15 @@ impl Session {
         let response = self.resolve_message(message);
         self.caps
             .maybe_finish(self.sasl.is_finished(), &mut self.outbox);
-        if !handled && !response {
+        if !handled && !response && emit_unhandled {
             let received =
                 self.received_message(message.to_owned(), context.batch_type().map(str::to_owned));
             self.outbox.event(Event::Message(received));
         }
         self.apply_close_request();
+        if before != self.snapshot_values() {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
     }
 
     fn resolve_message(&mut self, message: &MessageRef<'_>) -> bool {
@@ -1285,8 +1286,25 @@ impl Session {
         true
     }
 
-    fn dispatch_batch_event(&mut self, event: BatchEvent) {
+    fn dispatch_batch_event(&mut self, now: Instant, event: BatchEvent) {
         match event {
+            BatchEvent::Response {
+                label,
+                messages,
+                batch_type,
+            } => {
+                let request = self.requests.remove(&label);
+                let context = DispatchContext::from_batch_type(batch_type);
+                for message in &messages {
+                    self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
+                }
+                if let Some((id, _)) = request {
+                    self.outbox.event(Event::Response(Response {
+                        id,
+                        lines: messages,
+                    }));
+                }
+            }
             BatchEvent::History {
                 target,
                 messages,
@@ -1347,6 +1365,7 @@ impl Session {
     }
 
     fn apply_aggregate_state(&mut self, message: &Message) {
+        let before = self.state.clone();
         let event_count = self.outbox.events.len();
         self.state.handle_message(
             &message.as_ref(),
@@ -1361,6 +1380,9 @@ impl Session {
                 .into_iter()
                 .filter(|event| matches!(event, Event::StateLimitReached { .. })),
         );
+        if before != self.state {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
     }
 
     fn no_implicit_names(&self) -> bool {
