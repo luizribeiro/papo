@@ -359,7 +359,14 @@ impl Requirements {
 ///
 /// Returns a runtime-ignore completion when the named variable is unavailable.
 pub fn required_environment(name: &str) -> Result<String, Completion> {
-    env::var(name).map_err(|_| Completion::ignored_with(format!("{name} is not set up")))
+    required_environment_from(name, |name| env::var(name))
+}
+
+fn required_environment_from(
+    name: &str,
+    lookup: impl FnOnce(&str) -> Result<String, env::VarError>,
+) -> Result<String, Completion> {
+    lookup(name).map_err(|_| Completion::ignored_with(format!("{name} is not set up")))
 }
 
 async fn connect_client(server: &ServerInfo, config: Config) -> Result<Connection, String> {
@@ -423,7 +430,7 @@ mod tests {
 
     use super::{
         CapRequirement, Event, EventSource, Requirements, expect_event, known_failure_verdict,
-        load_known_failures_from, run_trials, runtime,
+        load_known_failures_from, required_environment_from, run_trials, runtime,
     };
 
     struct TestDirectory(PathBuf);
@@ -626,5 +633,26 @@ mod tests {
             unexpected.message(),
             Some("unexpected pass; remove it from known-failures/ergo.toml")
         );
+    }
+
+    #[test]
+    fn required_environment_distinguishes_set_and_unset_values() {
+        let configured = required_environment_from("PAPO_TEST_OPER", |name| {
+            assert_eq!(name, "PAPO_TEST_OPER");
+            Ok("oper-name:correct horse battery staple".into())
+        });
+        let Ok(configured) = configured else {
+            panic!("a configured setup variable must return its value")
+        };
+        assert_eq!(configured, "oper-name:correct horse battery staple");
+
+        let missing =
+            required_environment_from("PAPO_TEST_OPER", |_| Err(std::env::VarError::NotPresent));
+        match missing {
+            Err(Completion::Ignored {
+                reason: Some(reason),
+            }) => assert_eq!(reason, "PAPO_TEST_OPER is not set up"),
+            _ => panic!("an unset setup variable must ignore the scenario with a reason"),
+        }
     }
 }
