@@ -104,9 +104,93 @@ where
     }
 }
 
+impl<F, Fut> Handler<(Msg, Args<String>)> for F
+where
+    F: Fn(Msg, Args<String>) -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = Result<(), Error>> + Send + 'static,
+{
+    fn call(
+        &self,
+        command: Command,
+        _admins: &Admins,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+        let [argument] = command.args() else {
+            return Box::pin(async move {
+                command
+                    .private_notice("expected exactly one command argument")
+                    .await?;
+                Ok(())
+            });
+        };
+        Box::pin((self)(Msg::new(command.clone()), Args(argument.clone())))
+    }
+}
+
+impl<F, Fut> Handler<(Msg, Args<String>, RequireAccount<Admins>)> for F
+where
+    F: Fn(Msg, Args<String>, RequireAccount<Admins>) -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = Result<(), Error>> + Send + 'static,
+{
+    fn call(
+        &self,
+        command: Command,
+        admins: &Admins,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+        let [argument] = command.args() else {
+            return Box::pin(async move {
+                command
+                    .private_notice("expected exactly one command argument")
+                    .await?;
+                Ok(())
+            });
+        };
+        if !command
+            .account()
+            .is_some_and(|account| admins.contains(account))
+        {
+            return Box::pin(async move {
+                command
+                    .private_notice("permission denied: authenticated account required")
+                    .await?;
+                Ok(())
+            });
+        }
+        Box::pin((self)(
+            Msg::new(command.clone()),
+            Args(argument.clone()),
+            RequireAccount(PhantomData),
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::Admins;
+    use std::time::UNIX_EPOCH;
+
+    use papo_core::Capabilities;
+    use papo_proto::{Isupport, Message};
+
+    use super::{Admins, Args, Handler, Msg, RequireAccount};
+    use crate::{Event, MessageEvent, bot::BotConfig};
+
+    fn command(text: &str, account: Option<&str>) -> super::Command {
+        let mut message = Message::privmsg("#papo", text).with_source("emily!e@localhost");
+        if let Some(account) = account {
+            message = message.with_tag("account", account);
+        }
+        let event = Event::Message(
+            MessageEvent::new(
+                message,
+                &Isupport::default(),
+                "papo",
+                crate::Client::disconnected_for_test(),
+                &Capabilities::new(),
+                UNIX_EPOCH,
+            )
+            .unwrap(),
+        );
+        super::Command::parse(&event, &BotConfig::new("!")).unwrap()
+    }
 
     #[test]
     fn admin_accounts_are_normalized_once() {
@@ -114,5 +198,27 @@ mod tests {
         assert!(admins.contains("emily"));
         assert!(admins.contains("ALICE"));
         assert!(!admins.contains("carol"));
+    }
+
+    #[tokio::test]
+    async fn extracts_one_argument_and_requires_an_admin_account() {
+        let admins = Admins::new(["emily"]);
+        let handler = |_: Msg, Args(nick): Args<String>, _: RequireAccount<Admins>| async move {
+            assert_eq!(nick, "alice");
+            Ok(())
+        };
+        Handler::call(&handler, command("!op alice", Some("Emily")), &admins)
+            .await
+            .unwrap();
+        assert!(
+            Handler::call(&handler, command("!op", Some("emily")), &admins)
+                .await
+                .is_err()
+        );
+        assert!(
+            Handler::call(&handler, command("!op alice", None), &admins)
+                .await
+                .is_err()
+        );
     }
 }
