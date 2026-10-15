@@ -110,6 +110,7 @@ async fn wait_for(
     loop {
         match events.next().await {
             Some(Event::Message(message)) if accepted(&message.as_ref()) => return,
+            Some(Event::Raw(message)) if accepted(&message.as_ref()) => return,
             Some(Event::Disconnected { reason, .. }) => {
                 panic!("disconnected while waiting: {reason}")
             }

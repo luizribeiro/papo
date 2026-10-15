@@ -567,11 +567,11 @@ mod tests {
     fn expect_skips_non_matching_events() {
         let mut events = ScriptedEvents {
             events: [
-                Event::Message(
+                Event::Raw(
                     Message::new("401", ["papo", "missing", "No such nick"])
                         .with_source("ergo.test"),
                 ),
-                Event::Message(
+                Event::Raw(
                     Message::new("330", ["papo", "alice", "alice", "is logged in as"])
                         .with_source("ergo.test"),
                 ),
@@ -581,17 +581,17 @@ mod tests {
         let event = runtime()
             .block_on(expect_event(
                 &mut events,
-                |event| matches!(event, Event::Message(message) if message.as_ref().command_is("330")),
+                |event| matches!(event, Event::Raw(message) if message.as_ref().command_is("330")),
                 Duration::from_secs(1),
             ))
             .unwrap();
-        assert!(matches!(event, Event::Message(message) if message.as_ref().command_is("330")));
+        assert!(matches!(event, Event::Raw(message) if message.as_ref().command_is("330")));
     }
 
     #[test]
     fn expect_times_out_after_only_non_matching_events() {
         let mut events = ScriptedEvents {
-            events: [Event::Message(
+            events: [Event::Raw(
                 Message::new("401", ["papo", "missing", "No such nick"]).with_source("ergo.test"),
             )]
             .into(),

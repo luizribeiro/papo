@@ -1,5 +1,88 @@
 use papo_core::{Capabilities, StateLimit, Welcome, sts::StsAction};
-use papo_proto::Message;
+use papo_proto::{Ctcp, Message, strip_formatting};
+
+/// The semantic kind of an incoming chat message.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum MessageKind<'a> {
+    /// A regular `PRIVMSG`.
+    Privmsg,
+    /// A regular `NOTICE`.
+    Notice,
+    /// A CTCP `ACTION`.
+    Action,
+    /// Another CTCP command.
+    Ctcp(&'a str),
+}
+
+/// An incoming `PRIVMSG` or `NOTICE` with connection context.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MessageEvent {
+    raw: Message,
+    text: String,
+    kind: StoredKind,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum StoredKind {
+    Privmsg,
+    Notice,
+    Action,
+    Ctcp(String),
+}
+
+impl MessageEvent {
+    pub(crate) fn new(raw: Message) -> Result<Self, Message> {
+        let message = raw.as_ref();
+        let Some(raw_text) = message.param(0).and_then(|_| message.param(1)) else {
+            return Err(raw);
+        };
+        let (kind, displayed) = match (message.raw_command(), Ctcp::parse(raw_text)) {
+            (_, Some(ctcp)) if ctcp.command.eq_ignore_ascii_case("ACTION") => {
+                (StoredKind::Action, ctcp.params.unwrap_or(""))
+            }
+            (_, Some(ctcp)) => (StoredKind::Ctcp(ctcp.command.to_owned()), raw_text),
+            (command, None) if command.eq_ignore_ascii_case("PRIVMSG") => {
+                (StoredKind::Privmsg, raw_text)
+            }
+            (command, None) if command.eq_ignore_ascii_case("NOTICE") => {
+                (StoredKind::Notice, raw_text)
+            }
+            _ => return Err(raw),
+        };
+        let text = strip_formatting(displayed).into_owned();
+        Ok(Self { raw, text, kind })
+    }
+
+    /// Returns the semantic kind of this message.
+    #[must_use]
+    pub fn kind(&self) -> MessageKind<'_> {
+        match &self.kind {
+            StoredKind::Privmsg => MessageKind::Privmsg,
+            StoredKind::Notice => MessageKind::Notice,
+            StoredKind::Action => MessageKind::Action,
+            StoredKind::Ctcp(command) => MessageKind::Ctcp(command),
+        }
+    }
+
+    /// Returns the display text with IRC formatting removed.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Returns the text parameter exactly as received.
+    #[must_use]
+    pub fn raw_text(&self) -> &str {
+        self.raw.as_ref().param(1).unwrap_or("")
+    }
+
+    /// Borrows the underlying IRC message.
+    #[must_use]
+    pub fn as_ref(&self) -> papo_proto::MessageRef<'_> {
+        self.raw.as_ref()
+    }
+}
 
 /// An event emitted by an IRC client.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,7 +93,9 @@ pub enum Event {
     /// A replacement connection completed registration.
     Reconnected(Welcome),
     /// A parsed message not consumed by protocol behavior.
-    Message(Message),
+    Message(MessageEvent),
+    /// A parsed message without a typed event variant.
+    Raw(Message),
     /// A line from the server could not be decoded or parsed.
     Malformed {
         /// The original bytes, excluding the line ending.
@@ -106,7 +191,7 @@ pub(crate) enum CoreEvent {
 pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Registered(welcome) => Event::Registered(welcome),
-        papo_core::Event::Message(message) => Event::Message(message),
+        papo_core::Event::Message(raw) => Event::Raw(raw),
         papo_core::Event::Malformed { line } => Event::Malformed { line },
         papo_core::Event::Close { reason } => return CoreEvent::Close(reason),
         papo_core::Event::AuthenticationFailed { reason } => Event::AuthenticationFailed { reason },
@@ -152,8 +237,40 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 
 #[cfg(test)]
 mod tests {
-    use super::{CoreEvent, Event, from_core};
+    use super::{CoreEvent, Event, MessageEvent, MessageKind, from_core};
     use papo_core::StateLimit;
+    use papo_proto::Message;
+
+    fn chat(command: &str, text: &str) -> MessageEvent {
+        MessageEvent::new(
+            Message::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn classifies_chat_and_ctcp_messages() {
+        assert_eq!(chat("PRIVMSG", "hello").kind(), MessageKind::Privmsg);
+        assert_eq!(chat("NOTICE", "hello").kind(), MessageKind::Notice);
+        assert_eq!(
+            chat("PRIVMSG", "\x01ACTION waves\x01").kind(),
+            MessageKind::Action
+        );
+        assert_eq!(
+            chat("PRIVMSG", "\x01VERSION\x01").kind(),
+            MessageKind::Ctcp("VERSION")
+        );
+    }
+
+    #[test]
+    fn exposes_raw_and_display_text_once() {
+        let formatted = chat("PRIVMSG", "hello \x02from Ergo\x02");
+        assert_eq!(formatted.raw_text(), "hello \x02from Ergo\x02");
+        assert_eq!(formatted.text(), "hello from Ergo");
+        let action = chat("PRIVMSG", "\x01ACTION writes the specification\x01");
+        assert_eq!(action.raw_text(), "\x01ACTION writes the specification\x01");
+        assert_eq!(action.text(), "writes the specification");
+    }
 
     fn forwarded(event: papo_core::Event) -> Event {
         let CoreEvent::Forward(event) = from_core(event) else {

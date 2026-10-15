@@ -175,7 +175,7 @@ async fn authenticate(context: Scenario, scram: bool) -> ScenarioResult {
         .expect(
             &mut connection.events,
             |event| match event {
-                Event::Message(message) => {
+                Event::Raw(message) => {
                     let message = message.as_ref();
                     message.command_is("900") || message.command_is("330")
                 }
@@ -184,7 +184,7 @@ async fn authenticate(context: Scenario, scram: bool) -> ScenarioResult {
             EXPECT_TIMEOUT,
         )
         .await?;
-    let Event::Message(message) = event else {
+    let Event::Raw(message) = event else {
         return Err("account matcher returned a non-message event".into());
     };
     validate_account_reply(&message.as_ref(), &account)?;
