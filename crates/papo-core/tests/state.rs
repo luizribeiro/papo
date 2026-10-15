@@ -2,8 +2,10 @@
 
 mod support;
 
-use papo_core::{Account, Config, Event, OwnedModeChange, StateLimit};
-use papo_proto::ModeKind;
+use std::time::Duration;
+
+use papo_core::{Account, Config, Event, OwnedModeChange, RateLimit, StateLimit};
+use papo_proto::{Message, ModeKind};
 use support::Transcript;
 
 #[test]
@@ -507,7 +509,9 @@ fn no_implicit_names_marks_our_join_synced_without_366() {
         .client("CAP REQ :draft/no-implicit-names")
         .server("CAP * ACK :draft/no-implicit-names")
         .client("CAP END")
+        .server(":ergo.test 005 papo WHOX :are supported")
         .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .client("WHO #papo %tcuhnfar,152")
         .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "papo"))
         .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
         .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()))
@@ -666,6 +670,43 @@ fn bot_tag_marks_a_shared_user() {
         .server("@bot :papo-bot!bot@services.example PRIVMSG #papo :status green")
         .inspect(|session| assert!(session.state().user("papo-bot").unwrap().is_bot()))
         .ignore_rest();
+}
+
+#[test]
+fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
+    Transcript::rate_limited(
+        Config::default()
+            .nick("emily")
+            .rate_limit(RateLimit::new(1, Duration::from_millis(500))),
+    )
+    .connect()
+    .client("CAP LS 302")
+    .client("NICK emily")
+    .client("USER papo 0 * papo")
+    .send(Message::privmsg("#papo", "warmup"))
+    .client("PRIVMSG #papo warmup")
+    .server(":ergo.test 005 emily WHOX BOT=B PREFIX=(ov)@+ :are supported")
+    .server(":emily!em@127.0.0.1 JOIN #papo")
+    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+    .server(":ergo.test 353 emily = #papo :@emily!em@127.0.0.1 +dan!~dan@cloak.example")
+    .server(":ergo.test 366 emily #papo :End of NAMES list")
+    .no_client()
+    .advance(Duration::from_millis(500))
+    .client("WHO #papo %tcuhnfar,152")
+    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+    .server(":ergo.test 354 emily 152 #papo em 127.0.0.1 emily H@ emily :Emily Garcia")
+    .server(":ergo.test 354 emily 152 #papo ~dan account/dan dan GB+ dan :Daniel Garcia")
+    .server(":ergo.test 315 emily #papo :End of WHO list")
+    .inspect(|session| {
+        let dan = session.state().user("dan").unwrap();
+        assert_eq!(dan.account(), &Account::LoggedIn("dan".into()));
+        assert_eq!(dan.username(), Some("~dan"));
+        assert_eq!(dan.host(), Some("account/dan"));
+        assert_eq!(dan.realname(), Some("Daniel Garcia"));
+        assert_eq!(dan.away(), Some(""));
+        assert!(dan.is_bot());
+    })
+    .no_event();
 }
 
 #[test]

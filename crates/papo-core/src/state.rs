@@ -5,10 +5,14 @@ use std::{
 
 use papo_proto::{
     Account as AccountNotify, Away, CaseKey, Casemapping, Chghost, Command, Isupport, Join,
-    MessageRef, ModeChanges, ModeKind, NamesEntry, Numeric, Setname, Source, parse_353,
+    MessageRef, ModeChanges, ModeKind, NamesEntry, Numeric, Setname, Source, WhoxPresence,
+    WhoxReply, parse_353,
 };
 
 use crate::{Config, Event, Handled, Outbox, OwnedModeChange, StateLimit};
+
+const WHOX_FIELDS: &str = "%tcuhnfar,152";
+const WHOX_TOKEN: &str = "152";
 
 /// The known channel and user state for a session.
 #[derive(Debug)]
@@ -22,6 +26,7 @@ pub struct State {
     casemapping: Casemapping,
     channels: HashMap<CaseKey, Channel>,
     users: HashMap<CaseKey, User>,
+    who_sweeps: HashSet<CaseKey>,
     max_channels: usize,
     max_members_per_channel: usize,
     channel_limit_warned: bool,
@@ -87,6 +92,7 @@ impl State {
             casemapping: Casemapping::default(),
             channels: HashMap::new(),
             users: HashMap::new(),
+            who_sweeps: HashSet::new(),
             max_channels: config.max_channels,
             max_members_per_channel: config.max_members_per_channel,
             channel_limit_warned: false,
@@ -110,7 +116,7 @@ impl State {
         if let Some(join) = Join::parse(message) {
             return self.handle_join(message, join, isupport, no_implicit_names, outbox);
         }
-        if let Some(handled) = self.handle_user_update(message) {
+        if let Some(handled) = self.handle_user_update(message, isupport, outbox) {
             return handled;
         }
         if message.command() == Command::Part {
@@ -201,7 +207,7 @@ impl State {
             }
             return Handled::Yes;
         }
-        if self.finish_names(message, outbox) {
+        if self.finish_names(message, isupport, outbox) {
             return Handled::Yes;
         }
         Handled::No
@@ -374,6 +380,10 @@ impl State {
                 (CaseKey::new(&user.nick, mapping), user)
             })
             .collect();
+        self.who_sweeps = std::mem::take(&mut self.who_sweeps)
+            .into_iter()
+            .map(|channel| CaseKey::new(channel.original(), mapping))
+            .collect();
         self.casemapping = mapping;
     }
 
@@ -406,6 +416,7 @@ impl State {
         if ours {
             self.channels.clear();
             self.users.clear();
+            self.who_sweeps.clear();
         } else {
             self.remove_user(nick);
         }
@@ -457,6 +468,7 @@ impl State {
             user.realname = join.realname.map(str::to_owned);
         }
         if ours && no_implicit_names {
+            self.start_whox(join.channel, isupport, outbox);
             outbox.event(Event::ChannelSynced {
                 channel: join.channel.to_owned(),
             });
@@ -464,17 +476,26 @@ impl State {
         Handled::Yes
     }
 
-    fn finish_names(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
+    fn finish_names(
+        &mut self,
+        message: &MessageRef<'_>,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> bool {
         if message.command() != Command::Numeric(Numeric::RPL_ENDOFNAMES) {
             return false;
         }
         let name = message.param(1);
-        if let Some(channel) =
-            name.and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
-        {
-            channel.synced = true;
-        }
+        let joined = name
+            .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
+            .is_some_and(|channel| {
+                channel.synced = true;
+                true
+            });
         if let Some(channel) = name {
+            if joined {
+                self.start_whox(channel, isupport, outbox);
+            }
             outbox.event(Event::ChannelSynced {
                 channel: channel.to_owned(),
             });
@@ -606,10 +627,16 @@ impl State {
         Some(Handled::Yes)
     }
 
-    fn handle_user_update(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
+    fn handle_user_update(
+        &mut self,
+        message: &MessageRef<'_>,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> Option<Handled> {
         self.handle_account(message)
             .or_else(|| self.handle_away(message))
             .or_else(|| self.handle_identity_change(message))
+            .or_else(|| self.handle_whox(message, isupport, outbox))
     }
 
     fn handle_identity_change(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
@@ -636,8 +663,59 @@ impl State {
         Some(Handled::Yes)
     }
 
+    fn handle_whox(
+        &mut self,
+        message: &MessageRef<'_>,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> Option<Handled> {
+        if message.command() == Command::Numeric(Numeric::RPL_ENDOFWHO) {
+            let channel = CaseKey::new(message.param(1)?, self.casemapping);
+            return self.who_sweeps.remove(&channel).then_some(Handled::Yes);
+        }
+        let reply = WhoxReply::parse(message, WHOX_FIELDS)?;
+        let (Some(channel), Some(nick)) = (reply.channel, reply.nick) else {
+            return Some(Handled::No);
+        };
+        if reply.token != Some(WHOX_TOKEN)
+            || !self
+                .who_sweeps
+                .contains(&CaseKey::new(channel, self.casemapping))
+        {
+            return None;
+        }
+        let flags = reply.flags(isupport)?;
+        self.add_member(
+            channel,
+            nick,
+            reply.user,
+            reply.host,
+            flags.prefixes,
+            outbox,
+        );
+        if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
+            user.account = Account::from_notify(reply.account);
+            user.realname = reply.realname.map(str::to_owned);
+            user.away = match flags.presence {
+                Some(WhoxPresence::Gone) => Some(String::new()),
+                Some(WhoxPresence::Here) => None,
+                None => user.away.take(),
+            };
+            user.is_bot = flags.bot;
+        }
+        Some(Handled::Yes)
+    }
+
+    fn start_whox(&mut self, channel: &str, isupport: &Isupport, outbox: &mut Outbox) {
+        let key = CaseKey::new(channel, self.casemapping);
+        if isupport.whox() && self.who_sweeps.insert(key) {
+            outbox.transmit("WHO", [channel, WHOX_FIELDS]);
+        }
+    }
+
     fn remove_channel(&mut self, name: &str) {
         let key = CaseKey::new(name, self.casemapping);
+        self.who_sweeps.remove(&key);
         let Some(channel) = self.channels.remove(&key) else {
             return;
         };
