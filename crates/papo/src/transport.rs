@@ -5,7 +5,7 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 use std::net::SocketAddr;
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 use std::sync::Arc;
 use std::{
     fmt, io,
@@ -18,7 +18,7 @@ use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::TcpStream,
 };
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 use tokio_rustls::client::TlsStream;
 
 /// The security used for a connection.
@@ -102,7 +102,7 @@ pub struct Stream {
 #[derive(Debug)]
 enum StreamInner {
     Tcp(TcpStream),
-    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(tls)]
     Tls(Box<TlsStream<TcpStream>>),
 }
 
@@ -112,7 +112,7 @@ impl Stream {
     pub const fn is_secure(&self) -> bool {
         match &self.inner {
             StreamInner::Tcp(_) => false,
-            #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+            #[cfg(tls)]
             StreamInner::Tls(_) => true,
         }
     }
@@ -126,7 +126,7 @@ impl AsyncRead for Stream {
     ) -> Poll<io::Result<()>> {
         match &mut self.inner {
             StreamInner::Tcp(stream) => Pin::new(stream).poll_read(context, buffer),
-            #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+            #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_read(context, buffer),
         }
     }
@@ -140,7 +140,7 @@ impl AsyncWrite for Stream {
     ) -> Poll<Result<usize, io::Error>> {
         match &mut self.inner {
             StreamInner::Tcp(stream) => Pin::new(stream).poll_write(context, buffer),
-            #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+            #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_write(context, buffer),
         }
     }
@@ -148,7 +148,7 @@ impl AsyncWrite for Stream {
     fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut self.inner {
             StreamInner::Tcp(stream) => Pin::new(stream).poll_flush(context),
-            #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+            #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_flush(context),
         }
     }
@@ -156,7 +156,7 @@ impl AsyncWrite for Stream {
     fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut self.inner {
             StreamInner::Tcp(stream) => Pin::new(stream).poll_shutdown(context),
-            #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+            #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_shutdown(context),
         }
     }
@@ -181,15 +181,15 @@ pub enum ConnectError {
     #[error("TCP connection failed: {0}")]
     Tcp(#[source] io::Error),
     /// TLS configuration or negotiation failed.
-    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(tls)]
     #[error("TLS failed: {0}")]
     Tls(#[source] rustls::Error),
     /// The configured TLS server name is invalid.
-    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(tls)]
     #[error("invalid TLS server name: {0}")]
     InvalidServerName(String),
     /// PEM-encoded TLS configuration was invalid or empty.
-    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(tls)]
     #[error("invalid TLS configuration: {0}")]
     InvalidTlsConfiguration(String),
     /// TLS support was not selected at compile time.
@@ -210,12 +210,12 @@ pub enum ConnectError {
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 pub async fn connect(host: &str, port: u16, security: &Security) -> Result<Stream, ConnectError> {
-    #[cfg(not(any(feature = "tls-ring", feature = "tls-aws-lc")))]
+    #[cfg(not(tls))]
     if matches!(security, Security::Tls(_)) {
         return Err(ConnectError::TlsUnavailable);
     }
     let addresses = resolve(host, port).await?;
-    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(tls)]
     let tls = match security {
         Security::Plaintext => None,
         Security::Tls(config) => Some(tls_connector(host, config)?),
@@ -227,7 +227,7 @@ pub async fn connect(host: &str, port: u16, security: &Security) -> Result<Strea
     for address in addresses {
         match connect_address(address).await {
             Ok(stream) => {
-                #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+                #[cfg(tls)]
                 if let Some((connector, server_name)) = &tls {
                     match connector.connect(server_name.clone(), stream).await {
                         Ok(stream) => {
@@ -252,7 +252,7 @@ pub async fn connect(host: &str, port: u16, security: &Security) -> Result<Strea
     Err(last_error)
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 fn tls_connector(
     host: &str,
     settings: &TlsConfig,
@@ -322,7 +322,7 @@ fn tls_provider() -> Arc<rustls::crypto::CryptoProvider> {
     Arc::new(rustls::crypto::aws_lc_rs::default_provider())
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 fn certificates(
     pem: &[u8],
 ) -> Result<Vec<rustls::pki_types::CertificateDer<'static>>, ConnectError> {
@@ -339,12 +339,12 @@ fn certificates(
     Ok(certificates)
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 fn invalid_pem(kind: &str, error: impl fmt::Display) -> ConnectError {
     ConnectError::InvalidTlsConfiguration(format!("invalid {kind} PEM: {error}"))
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 fn rustls_error(error: &io::Error) -> Option<rustls::Error> {
     error
         .get_ref()
@@ -392,7 +392,7 @@ async fn connect_address(address: SocketAddr) -> io::Result<TcpStream> {
 #[cfg(test)]
 mod tests {
     use super::{ClientCertificate, TlsConfig};
-    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(tls)]
     use super::{ConnectError, TlsRoots, tls_connector};
 
     #[test]
@@ -410,7 +410,7 @@ mod tests {
         assert!(!output.contains("private key material"));
     }
 
-    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(tls)]
     #[test]
     fn empty_ca_document_is_rejected() {
         let config = TlsConfig {
@@ -424,7 +424,7 @@ mod tests {
         ));
     }
 
-    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(tls)]
     #[test]
     fn malformed_ca_document_is_rejected() {
         let config = TlsConfig {

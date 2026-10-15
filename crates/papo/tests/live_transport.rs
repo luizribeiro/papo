@@ -4,24 +4,24 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 use std::fs;
 use std::{io, net::ToSocketAddrs, time::Duration};
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 use papo::transport::{ClientCertificate, TlsConfig, TlsRoots};
 use papo::transport::{ConnectError, Security, Stream, connect};
 use papo_test_server::from_env;
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 use papo_test_server::{ServerInfo, unique};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 const CLIENT_CERTIFICATE: &[u8] = include_bytes!("data/client.pem");
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 const CLIENT_KEY: &[u8] = include_bytes!("data/client.key");
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 const CLIENT_CERTFP: &str = "60eb8e5dbf6aa3e388743d9250b29e3862759373b4610b9ba3c0ea2330b4bfc4";
 
 #[tokio::test(flavor = "current_thread")]
@@ -51,7 +51,7 @@ async fn plaintext_shutdown_reaches_ergo() {
     assert_clean_shutdown(stream).await;
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_cap_exchange_trusts_the_test_ca() {
     let server = from_env();
@@ -66,7 +66,7 @@ async fn tls_cap_exchange_trusts_the_test_ca() {
     assert_cap_exchange(stream).await;
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_shutdown_reaches_ergo() {
     let server = from_env();
@@ -80,7 +80,7 @@ async fn tls_shutdown_reaches_ergo() {
     assert_clean_shutdown(stream).await;
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_can_trust_only_the_test_ca() {
     let server = from_env();
@@ -98,7 +98,7 @@ async fn tls_can_trust_only_the_test_ca() {
     assert_cap_exchange(stream).await;
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_rejects_the_untrusted_test_ca() {
     let server = from_env();
@@ -112,7 +112,7 @@ async fn tls_rejects_the_untrusted_test_ca() {
     assert_certificate_error(&error);
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_rejects_a_wrong_server_name() {
     let server = from_env();
@@ -128,7 +128,7 @@ async fn tls_rejects_a_wrong_server_name() {
     assert_certificate_error(&error);
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_presents_a_client_certificate_seen_by_ergo() {
     let server = from_env();
@@ -157,7 +157,7 @@ async fn tls_presents_a_client_certificate_seen_by_ergo() {
     .await;
 }
 
-#[cfg(not(any(feature = "tls-ring", feature = "tls-aws-lc")))]
+#[cfg(not(tls))]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_without_a_provider_returns_a_clear_error() {
     let error = connect(
@@ -206,7 +206,7 @@ async fn localhost_falls_back_to_the_ipv4_listener() {
     assert_cap_exchange(stream).await;
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 fn tls_config(server: &ServerInfo) -> TlsConfig {
     TlsConfig {
         roots: TlsRoots::PlatformAndCa(fs::read(server.ca_pem_path()).unwrap()),
@@ -215,7 +215,7 @@ fn tls_config(server: &ServerInfo) -> TlsConfig {
     }
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 fn assert_certificate_error(error: &ConnectError) {
     assert!(matches!(
         error,
@@ -259,7 +259,7 @@ async fn assert_clean_shutdown(mut stream: Stream) {
     );
 }
 
-#[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+#[cfg(tls)]
 async fn read_until(stream: &mut Stream, accepted: impl Fn(&str) -> bool) {
     for _ in 0..128 {
         let line = read_line(stream).await.unwrap();
