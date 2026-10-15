@@ -85,6 +85,10 @@ fn extended_join_distinguishes_accounts_from_logged_out_users() {
                 session.state().user("alice").unwrap().account(),
                 &Account::LoggedOut
             );
+            assert_eq!(
+                session.state().user("dan").unwrap().realname(),
+                Some("Daniel Garcia")
+            );
         })
         .ignore_rest();
 }
@@ -188,6 +192,44 @@ fn away_numerics_track_our_own_state() {
         .server(":ergo.test 305 emily :You are no longer marked as being away")
         .inspect(|session| assert!(!session.state().away()))
         .no_event();
+}
+
+#[test]
+fn chghost_updates_shared_and_own_userhosts() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":dan!~dan@cloak.example JOIN #papo")
+        .server(":dan!~dan@cloak.example CHGHOST dan account/dan")
+        .server(":emily!em@127.0.0.1 CHGHOST ~em users/emily")
+        .inspect(|session| {
+            let dan = session.state().user("dan").unwrap();
+            assert_eq!(dan.username(), Some("dan"));
+            assert_eq!(dan.host(), Some("account/dan"));
+            assert_eq!(session.state().username(), "~em");
+            assert_eq!(session.state().host(), Some("users/emily"));
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn setname_updates_other_and_own_realnames() {
+    Transcript::new(Config::default().nick("emily").realname("Emily Garcia"))
+        .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily Garcia")
+        .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
+        .server(":dan!~dan@cloak.example SETNAME :Dan Garcia")
+        .server(":emily!em@127.0.0.1 SETNAME :Emily Smith")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().realname(),
+                Some("Dan Garcia")
+            );
+            assert_eq!(session.state().realname(), "Emily Smith");
+            assert_eq!(
+                session.state().user("emily").unwrap().realname(),
+                Some("Emily Smith")
+            );
+        })
+        .ignore_rest();
 }
 
 #[test]

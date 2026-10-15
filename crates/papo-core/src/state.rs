@@ -4,8 +4,8 @@ use std::{
 };
 
 use papo_proto::{
-    Account as AccountNotify, Away, CaseKey, Casemapping, Command, Isupport, Join, MessageRef,
-    ModeChanges, ModeKind, NamesEntry, Numeric, Source, parse_353,
+    Account as AccountNotify, Away, CaseKey, Casemapping, Chghost, Command, Isupport, Join,
+    MessageRef, ModeChanges, ModeKind, NamesEntry, Numeric, Setname, Source, parse_353,
 };
 
 use crate::{Config, Event, Handled, Outbox, OwnedModeChange, StateLimit};
@@ -16,6 +16,7 @@ pub struct State {
     nick: String,
     user: String,
     host: Option<String>,
+    realname: String,
     away: bool,
     user_modes: HashSet<char>,
     casemapping: Casemapping,
@@ -58,6 +59,7 @@ pub struct User {
     host: Option<String>,
     account: Account,
     away: Option<String>,
+    realname: Option<String>,
     channels: HashSet<CaseKey>,
 }
 
@@ -78,6 +80,7 @@ impl State {
             nick: config.nick.clone(),
             user: config.username.clone(),
             host: None,
+            realname: config.realname.clone(),
             away: false,
             user_modes: HashSet::new(),
             casemapping: Casemapping::default(),
@@ -432,6 +435,9 @@ impl State {
             if let Some(host) = host {
                 self.host = Some(host.to_owned());
             }
+            if let Some(realname) = join.realname {
+                realname.clone_into(&mut self.realname);
+            }
             let key = CaseKey::new(join.channel, self.casemapping);
             if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
                 self.warn_limit(StateLimit::Channels, outbox);
@@ -447,6 +453,7 @@ impl State {
             && join.realname.is_some()
         {
             user.account = Account::from_notify(join.account);
+            user.realname = join.realname.map(str::to_owned);
         }
         if ours && no_implicit_names {
             outbox.event(Event::ChannelSynced {
@@ -595,6 +602,31 @@ impl State {
     fn handle_user_update(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
         self.handle_account(message)
             .or_else(|| self.handle_away(message))
+            .or_else(|| self.handle_identity_change(message))
+    }
+
+    fn handle_identity_change(&mut self, message: &MessageRef<'_>) -> Option<Handled> {
+        let Source::User { nick, .. } = message.source()? else {
+            return None;
+        };
+        if let Some(change) = Chghost::parse(message) {
+            if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
+                user.update_userhost(Some(change.user), Some(change.host));
+            }
+            if self.casemapping.eq(nick, &self.nick) {
+                change.user.clone_into(&mut self.user);
+                self.host = Some(change.host.to_owned());
+            }
+            return Some(Handled::Yes);
+        }
+        let change = Setname::parse(message)?;
+        if let Some(user) = self.users.get_mut(&CaseKey::new(nick, self.casemapping)) {
+            user.realname = Some(change.realname.to_owned());
+        }
+        if self.casemapping.eq(nick, &self.nick) {
+            change.realname.clone_into(&mut self.realname);
+        }
+        Some(Handled::Yes)
     }
 
     fn remove_channel(&mut self, name: &str) {
@@ -670,6 +702,12 @@ impl State {
     #[must_use]
     pub fn host(&self) -> Option<&str> {
         self.host.as_deref()
+    }
+
+    /// Returns the session's real name.
+    #[must_use]
+    pub fn realname(&self) -> &str {
+        &self.realname
     }
 
     /// Returns whether the session is marked away.
@@ -881,6 +919,7 @@ impl User {
             host: host.map(str::to_owned),
             account: Account::Unknown,
             away: None,
+            realname: None,
             channels: HashSet::new(),
         }
     }
@@ -922,6 +961,12 @@ impl User {
     #[must_use]
     pub fn away(&self) -> Option<&str> {
         self.away.as_deref()
+    }
+
+    /// Returns the user's real name when known.
+    #[must_use]
+    pub fn realname(&self) -> Option<&str> {
+        self.realname.as_deref()
     }
 
     /// Iterates over shared channel names in unspecified order.
