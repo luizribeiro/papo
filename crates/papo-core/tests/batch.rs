@@ -44,7 +44,7 @@ fn recorded_ergo_multiline_batch_joins_text_and_metadata() {
 #[test]
 fn multiline_over_advertised_max_bytes_is_released() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default());
+    let mut session = Session::new(Config::default().max_batch_lines(2));
     session.handle_line(now, b"CAP * LS :batch draft/multiline=max-bytes=10");
     session.handle_line(now, b"CAP * ACK :batch draft/multiline");
     session.handle_line(now, b"BATCH +m draft/multiline #papo");
