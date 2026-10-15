@@ -113,6 +113,9 @@ pub(crate) struct PostRegistration {
 }
 
 /// A cheap, cloneable handle to a running IRC client.
+///
+/// Typed requests use server labels when available and otherwise match protocol
+/// reply boundaries. Concurrent identical unlabelled requests resolve in FIFO order.
 #[derive(Clone)]
 pub struct Client {
     commands: mpsc::Sender<Command>,
