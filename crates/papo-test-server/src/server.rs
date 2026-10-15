@@ -67,6 +67,43 @@ impl TestServer {
         self.child.id()
     }
 
+    /// Stops Ergo while retaining its configuration and data directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the process status cannot be read or Ergo cannot be stopped.
+    pub fn stop(&mut self) -> io::Result<()> {
+        if self.child.try_wait()?.is_none() {
+            self.child.kill()?;
+            self.child.wait()?;
+        }
+        Ok(())
+    }
+
+    /// Restarts Ergo on the same listener addresses and waits until it is ready.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if Ergo cannot be stopped, spawned, or made ready.
+    pub fn restart(&mut self) -> io::Result<()> {
+        self.stop()?;
+        let config = Configuration::at_addresses(
+            &self.directory,
+            [
+                self.plaintext,
+                self.tls,
+                self.websocket,
+                self.secure_websocket,
+            ],
+        );
+        self.child = config
+            .command("run", &self.directory)?
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+        self.wait_until_ready()
+    }
+
     fn start_with(
         mut configuration: impl FnMut(&TemporaryDirectory) -> io::Result<Configuration>,
     ) -> io::Result<Self> {

@@ -28,7 +28,6 @@ impl Configuration {
         ))
     }
 
-    #[cfg(test)]
     pub(crate) fn at_addresses(
         directory: &TemporaryDirectory,
         addresses: [std::net::SocketAddr; 4],
