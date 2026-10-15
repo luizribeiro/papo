@@ -27,6 +27,12 @@ pub enum Error {
     /// Opening the connection failed.
     #[error("connection failed: {0}")]
     Connect(#[from] ConnectError),
+    /// A stored STS policy conflicts with explicitly forced plaintext.
+    #[error("STS requires TLS for {host}, but plaintext was explicitly selected")]
+    StsRequiresTls {
+        /// The hostname protected by the stored policy.
+        host: String,
+    },
     /// The requested transport is not available in this build.
     #[error("unsupported transport: {0}")]
     Unsupported(&'static str),

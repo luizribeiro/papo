@@ -251,6 +251,7 @@ impl Driver {
         reconnect: Reconnect,
         disconnected_queue_capacity: usize,
         sts_store: Box<dyn StsStore + Send>,
+        force_plaintext: bool,
     ) -> (Client, Events, Self) {
         Self::with_connector(
             plan,
@@ -261,6 +262,7 @@ impl Driver {
             reconnect,
             disconnected_queue_capacity,
             sts_store,
+            force_plaintext,
             Arc::new(|plan| {
                 Box::pin(async move {
                     open_connection(plan)
@@ -281,6 +283,7 @@ impl Driver {
         reconnect: Reconnect,
         disconnected_queue_capacity: usize,
         sts_store: Box<dyn StsStore + Send>,
+        force_plaintext: bool,
         connector: Connector,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity);
@@ -294,6 +297,7 @@ impl Driver {
             reconnect,
             disconnected_queue_capacity,
             sts_store,
+            force_plaintext,
             connector,
         ));
         (channels.client, channels.events, Self { inner })
@@ -385,6 +389,7 @@ async fn run_plan(
     reconnect: Reconnect,
     disconnected_queue_capacity: usize,
     mut sts_store: Box<dyn StsStore + Send>,
+    force_plaintext: bool,
     connector: Connector,
 ) -> Result<(), Error> {
     let base_plan = match plan {
@@ -402,7 +407,7 @@ async fn run_plan(
     let mut queued = VecDeque::new();
     loop {
         attempts = attempts.saturating_add(1);
-        let plan = match plan_with_stored_sts(&base_plan, sts_store.as_mut()) {
+        let plan = match plan_with_stored_sts(&base_plan, sts_store.as_mut(), force_plaintext) {
             Ok(plan) => plan,
             Err(error) => {
                 let reason = error.to_string();
@@ -538,10 +543,10 @@ async fn run_plan(
     }
 }
 
-#[allow(clippy::unnecessary_wraps)]
 fn plan_with_stored_sts(
     base: &ConnectionPlan,
     store: &mut dyn StsStore,
+    force_plaintext: bool,
 ) -> Result<ConnectionPlan, Error> {
     let Some(policy) = store.get(&base.address.host) else {
         return Ok(base.clone());
@@ -552,6 +557,11 @@ fn plan_with_stored_sts(
     }
     if base.address.is_secure() {
         return Ok(base.clone());
+    }
+    if force_plaintext {
+        return Err(Error::StsRequiresTls {
+            host: base.address.host.clone(),
+        });
     }
     let mut plan = base.clone();
     plan.address.set_tls(true);
@@ -1131,6 +1141,7 @@ mod tests {
             crate::Reconnect::exponential().max_attempts(2),
             256,
             Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1180,6 +1191,7 @@ mod tests {
             Reconnect::exponential(),
             256,
             Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1240,6 +1252,7 @@ mod tests {
             Reconnect::exponential(),
             1,
             Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1289,6 +1302,7 @@ mod tests {
             Reconnect::exponential(),
             256,
             Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1339,6 +1353,7 @@ mod tests {
             Reconnect::exponential(),
             256,
             Box::new(store),
+            false,
             connector,
         );
         let driver = tokio::spawn(driver);
@@ -1513,6 +1528,7 @@ mod tests {
             Reconnect::exponential(),
             256,
             Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
             connector,
         );
         let driver = tokio::spawn(driver);

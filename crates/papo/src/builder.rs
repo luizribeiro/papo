@@ -22,10 +22,17 @@ pub struct Builder {
     reconnect: Reconnect,
     disconnected_queue_capacity: usize,
     sts_store: Box<dyn StsStore + Send>,
+    plaintext: Plaintext,
     bot: bool,
     channels: Vec<String>,
     username_set: bool,
     realname_set: bool,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Plaintext {
+    Upgradeable,
+    Forced,
 }
 
 impl Builder {
@@ -38,6 +45,7 @@ impl Builder {
             reconnect: Reconnect::default(),
             disconnected_queue_capacity: 256,
             sts_store: Box::new(MemoryStsStore::new()),
+            plaintext: Plaintext::Upgradeable,
             bot: false,
             channels: Vec::new(),
             username_set: false,
@@ -170,6 +178,11 @@ impl Builder {
         if let Ok(address) = &mut self.address {
             address.set_tls(enabled);
         }
+        self.plaintext = if enabled {
+            Plaintext::Upgradeable
+        } else {
+            Plaintext::Forced
+        };
         self
     }
 
@@ -291,6 +304,7 @@ impl Builder {
             self.reconnect,
             self.disconnected_queue_capacity,
             self.sts_store,
+            self.plaintext == Plaintext::Forced,
         )
     }
 
@@ -316,9 +330,12 @@ fn apply_address(config: &mut Config, address: &ServerAddress) {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::time::{Duration, SystemTime};
 
-    use papo_core::{RateLimit, Sasl, sts::ConnectionSecurity};
+    use papo_core::{
+        RateLimit, Sasl,
+        sts::{ConnectionSecurity, MemoryStsStore, StoredPolicy, StsStore},
+    };
 
     use super::{Builder, apply_address};
     use crate::{Error, address::Protocol, transport::TlsRoots};
@@ -409,6 +426,23 @@ mod tests {
             .address
             .unwrap();
         assert_eq!((address.protocol, address.port), (Protocol::Irc, 6697));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn forced_plaintext_rejects_an_active_sts_policy() {
+        let mut store = MemoryStsStore::new();
+        store.put(StoredPolicy {
+            host: "irc.example.net".into(),
+            port: 6697,
+            expires_at: SystemTime::now() + Duration::from_secs(3600),
+            duration: Duration::from_secs(3600),
+        });
+        let (_client, _events, driver) = Builder::new("irc://irc.example.net")
+            .plaintext()
+            .sts_store(store)
+            .build();
+
+        assert!(matches!(driver.await, Err(Error::StsRequiresTls { .. })));
     }
 
     #[test]
