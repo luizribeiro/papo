@@ -1,0 +1,24 @@
+# Recorded from Ergo 2.19.1 on a loopback plaintext listener.
+C: CAP LS 302
+C: NICK papo-fixture
+C: USER papo 0 * :papo registration fixture
+S: :ergo.test CAP * LS * :account-notify account-tag away-notify batch cap-notify chghost draft/account-registration=before-connect draft/channel-rename draft/chathistory draft/event-playback draft/extended-isupport draft/languages=1,en draft/metadata-2=before-connect,max-subs=100,max-keys=100 draft/metadata-3=before-connect,max-subs=100,max-keys=100 draft/multiline=max-bytes=4096,max-lines=100 draft/persistence draft/pre-away draft/read-marker draft/relaymsg=/ draft/whoami echo-message ergo.chat/nope
+S: :ergo.test CAP * LS :extended-join extended-monitor invite-notify labeled-response message-tags multi-prefix no-implicit-names sasl=PLAIN,EXTERNAL,SCRAM-SHA-256 server-time setname standard-replies userhost-in-names znc.in/playback znc.in/self-message
+C: CAP REQ :cap-notify message-tags server-time batch echo-message account-tag extended-join multi-prefix userhost-in-names chghost setname away-notify account-notify invite-notify standard-replies labeled-response
+S: @time=2026-10-15T06:09:33.641Z :ergo.test CAP * ACK :cap-notify message-tags server-time batch echo-message account-tag extended-join multi-prefix userhost-in-names chghost setname away-notify account-notify invite-notify standard-replies labeled-response
+C: CAP END
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 001 papo-fixture :Welcome to the ErgoTest IRC Network papo-fixture
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 002 papo-fixture :Your host is ergo.test, running version ergo-2.19.1
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 003 papo-fixture :This server was created Thu, 15 Oct 2026 06:09:07 UTC
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 004 papo-fixture ergo.test ergo-2.19.1 BERTZios CEIMRUabefhiklmnoqstuv Iabefhkloqv
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 005 papo-fixture AWAYLEN=390 BOT=B CASEMAPPING=ascii CHANLIMIT=#:100 CHANMODES=Ibe,k,fl,CEMRUimnstu CHANNELLEN=64 CHANTYPES=# CHATHISTORY=1000 ELIST=U EXCEPTS EXTBAN=,m FORWARD=f INVEX :are supported by this server
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 005 papo-fixture KICKLEN=390 MAXLIST=beI:100 MAXTARGETS=4 MODES MONITOR=100 MSGREFTYPES=msgid,timestamp NETWORK=ErgoTest NICKLEN=32 PREFIX=(qaohv)~&@%+ SAFELIST SAFERATE STATUSMSG=~&@%+ TARGMAX=NAMES:1,LIST:1,KICK:,WHOIS:1,USERHOST:10,PRIVMSG:4,TAGMSG:4,NOTICE:4,MONITOR:100 :are supported by this server
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 005 papo-fixture TOPICLEN=390 UTF8ONLY WHOX draft/CHATHISTORY=1000 :are supported by this server
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 251 papo-fixture :There are 0 users and 1 invisible on 1 server(s)
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 252 papo-fixture 0 :IRC Operators online
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 253 papo-fixture 0 :unregistered connections
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 254 papo-fixture 0 :channels formed
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 255 papo-fixture :I have 1 clients and 0 servers
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 265 papo-fixture 1 1 :Current local users 1, max 1
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 266 papo-fixture 1 1 :Current global users 1, max 1
+S: @time=2026-10-15T06:09:33.648Z :ergo.test 422 papo-fixture :MOTD File is missing
