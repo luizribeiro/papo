@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use papo_core::{Config, Event, Session};
+use papo_core::{Config, Event, RateLimit, Session};
 use papo_proto::Casemapping;
 use papo_test_server::{from_env, unique};
 
@@ -26,7 +26,8 @@ fn registers_with_live_ergo() {
         Config::default()
             .nick(nick.clone())
             .username("papo")
-            .realname("papo live registration test"),
+            .realname("papo live registration test")
+            .rate_limit(RateLimit::unlimited()),
     );
     session.handle_connected(Instant::now());
 

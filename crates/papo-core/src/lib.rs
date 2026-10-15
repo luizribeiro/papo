@@ -22,6 +22,7 @@ use framing::Framer;
 use isupport::IsupportState;
 use keepalive::Keepalive;
 pub use ratelimit::RateLimit;
+use ratelimit::RateLimiter;
 use registration::Registration;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
@@ -312,6 +313,7 @@ pub struct Session {
     framer: Framer,
     isupport: IsupportState,
     keepalive: Keepalive,
+    rate_limit: RateLimiter,
     registration: Registration,
     sasl: SaslSession,
     outbox: Outbox,
@@ -326,6 +328,7 @@ impl std::fmt::Debug for Session {
             .field("framer", &self.framer)
             .field("isupport", &self.isupport)
             .field("keepalive", &self.keepalive)
+            .field("rate_limit", &self.rate_limit)
             .field("registration", &self.registration)
             .field("sasl", &self.sasl)
             .field("outbox", &self.outbox)
@@ -390,12 +393,14 @@ impl Session {
         let registration = Registration::new(&config);
         let isupport = IsupportState::new(config.decoding);
         let sasl = SaslSession::new(&config, entropy);
+        let rate_limit = RateLimiter::new(config.rate_limit);
         Self {
             config,
             caps: Caps::default(),
             framer: Framer::default(),
             isupport,
             keepalive: Keepalive::default(),
+            rate_limit,
             registration,
             sasl,
             outbox: Outbox::default(),
@@ -406,6 +411,7 @@ impl Session {
     pub fn handle_connected(&mut self, now: Instant) {
         self.framer.reset();
         self.outbox.reset_connection();
+        self.rate_limit.reset(now);
         self.caps.handle_connected();
         self.isupport.handle_connected();
         self.sasl.handle_connected();
@@ -434,6 +440,7 @@ impl Session {
         if self.framer.is_closed() {
             return;
         }
+        self.rate_limit.advance(now);
         let line = line.strip_suffix(b"\n").unwrap_or(line);
         let line = line.strip_suffix(b"\r").unwrap_or(line);
         if line.is_empty() {
@@ -464,6 +471,7 @@ impl Session {
 
     /// Notifies the session that its current deadline was reached.
     pub fn handle_timeout(&mut self, now: Instant) {
+        self.rate_limit.advance(now);
         self.registration.handle_timeout(
             now,
             self.caps.enabled(),
@@ -491,7 +499,8 @@ impl Session {
     /// # Errors
     ///
     /// Returns [`BuildError`] if `message` cannot be represented as a valid IRC wire line.
-    pub fn send(&mut self, _now: Instant, message: Message) -> Result<(), BuildError> {
+    pub fn send(&mut self, now: Instant, message: Message) -> Result<(), BuildError> {
+        self.rate_limit.advance(now);
         let line = message.to_line()?;
         drop(message);
         self.outbox.transmit_raw(line.into());
@@ -500,6 +509,9 @@ impl Session {
 
     /// Returns the next CRLF-terminated wire line to transmit.
     pub fn poll_transmit(&mut self) -> Option<Vec<u8>> {
+        if self.outbox.transmits.is_empty() || !self.rate_limit.take() {
+            return None;
+        }
         self.outbox.transmits.pop_front()
     }
 
@@ -515,6 +527,8 @@ impl Session {
             self.registration.next_deadline(),
             self.sasl.next_deadline(),
             self.keepalive.next_deadline(),
+            self.rate_limit
+                .next_deadline(!self.outbox.transmits.is_empty()),
         ]
         .into_iter()
         .flatten()
@@ -555,6 +569,12 @@ impl Session {
     #[must_use]
     pub const fn lag(&self) -> Option<Duration> {
         self.keepalive.lag()
+    }
+
+    /// Returns the number of lines waiting to be transmitted.
+    #[must_use]
+    pub fn queued_len(&self) -> usize {
+        self.outbox.transmits.len()
     }
 
     /// Starts another SASL exchange with the configured credentials.

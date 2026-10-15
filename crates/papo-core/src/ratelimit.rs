@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Outbound token-bucket configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -33,6 +33,62 @@ impl RateLimit {
 impl Default for RateLimit {
     fn default() -> Self {
         Self::new(5, Duration::from_millis(500))
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct RateLimiter {
+    config: RateLimit,
+    tokens: usize,
+    next_token: Option<Instant>,
+    now: Option<Instant>,
+}
+
+impl RateLimiter {
+    pub(super) const fn new(config: RateLimit) -> Self {
+        Self {
+            tokens: config.burst,
+            config,
+            next_token: None,
+            now: None,
+        }
+    }
+
+    pub(super) fn reset(&mut self, now: Instant) {
+        self.tokens = self.config.burst;
+        self.next_token = None;
+        self.now = Some(now);
+    }
+
+    pub(super) fn advance(&mut self, now: Instant) {
+        self.now = Some(now);
+        while self
+            .next_token
+            .is_some_and(|deadline| now >= deadline && self.tokens < self.config.burst)
+        {
+            self.tokens += 1;
+            self.next_token = self.next_token.and_then(|deadline| {
+                (self.tokens < self.config.burst).then(|| deadline + self.config.refill)
+            });
+        }
+    }
+
+    pub(super) fn take(&mut self) -> bool {
+        if self.config.burst == usize::MAX {
+            return true;
+        }
+        if self.tokens == 0 {
+            return false;
+        }
+        self.tokens -= 1;
+        if self.next_token.is_none() && self.tokens < self.config.burst {
+            self.next_token = self.now.map(|now| now + self.config.refill);
+        }
+        true
+    }
+
+    pub(super) const fn next_deadline(&self, queued: bool) -> Option<Instant> {
+        if queued { self.next_token } else { None }
     }
 }
 
