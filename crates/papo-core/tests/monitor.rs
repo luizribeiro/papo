@@ -144,6 +144,62 @@ fn restores_the_desired_list_and_resets_presence_after_reconnect() {
 }
 
 #[test]
+fn disconnect_resets_a_confirmed_online_state() {
+    registered()
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .disconnect()
+        .connect_default()
+        .server(":ergo.test 001 papo :Welcome back")
+        .server(":ergo.test 005 papo MONITOR=100 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .client("MONITOR + alice")
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .no_event();
+}
+
+#[test]
+fn restore_distinguishes_the_literal_monitor_limit_boundary() {
+    let register = |nicks| {
+        Transcript::new(Config::default())
+            .connect_default()
+            .server(":ergo.test 001 papo :Welcome")
+            .server(":ergo.test 005 papo MONITOR=2 :are supported")
+            .server(":ergo.test 376 papo :End of MOTD")
+            .event(|event| matches!(event, Event::Registered(_)))
+            .update(|session| session.monitor_add(nicks))
+    };
+
+    register(vec!["alice", "bob"])
+        .client("MONITOR + alice,bob")
+        .disconnect()
+        .connect_default()
+        .server(":ergo.test 001 papo :Welcome back")
+        .server(":ergo.test 005 papo MONITOR=2 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .client("MONITOR + alice,bob")
+        .no_event();
+
+    register(vec!["alice", "bob", "carol"])
+        .client("MONITOR + alice,bob")
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks } if nicks == &["carol"]))
+        .disconnect()
+        .connect_default()
+        .server(":ergo.test 001 papo :Welcome back")
+        .server(":ergo.test 005 papo MONITOR=2 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .client("MONITOR + alice,bob")
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks } if nicks == &["carol"]))
+        .no_event();
+}
+
+#[test]
 fn extended_monitor_updates_an_unshared_users_record() {
     extended_registered()
         .update(|session| session.monitor_add(["alice"]))
