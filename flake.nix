@@ -292,10 +292,10 @@
           CC_wasm32_wasip2 = "${wasiSdk}/bin/wasm32-wasip2-clang";
           CC_wasm32_wasip3 = "${wasiSdk}/bin/wasm32-wasip3-clang";
           WASI_SDK_PATH = wasiSdk;
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = "./nix/test-runner";
-          CARGO_TARGET_WASM32_WASIP1_RUNNER = "./nix/test-runner";
-          CARGO_TARGET_WASM32_WASIP2_RUNNER = "./nix/test-runner";
-          CARGO_TARGET_WASM32_WASIP3_RUNNER = "./nix/test-runner";
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
+          CARGO_TARGET_WASM32_WASIP1_RUNNER = nixTestRunner;
+          CARGO_TARGET_WASM32_WASIP2_RUNNER = nixTestRunner;
+          CARGO_TARGET_WASM32_WASIP3_RUNNER = nixTestRunner;
           inherit (gitHooks) shellHook;
         };
       }
