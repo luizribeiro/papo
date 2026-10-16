@@ -96,6 +96,17 @@ pub papo::event::Source::User::nick: alloc::string::String
 pub papo::event::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
+#[non_exhaustive] pub struct papo::event::CapsChanged
+pub papo::event::CapsChanged::added: papo_core::Capabilities
+pub papo::event::CapsChanged::removed: papo_core::Capabilities
+#[non_exhaustive] pub struct papo::event::Disconnected
+pub papo::event::Disconnected::reason: alloc::string::String
+pub papo::event::Disconnected::will_retry: bool
+#[non_exhaustive] pub struct papo::event::Registered
+pub papo::event::Registered::caps: papo_core::Capabilities
+pub papo::event::Registered::nick: alloc::string::String
+pub papo::event::Registered::reconnected: bool
+pub papo::event::Registered::text: alloc::string::String
 pub struct papo::event::TagMsg
 impl papo::event::TagMsg
 pub fn papo::event::TagMsg::reaction(&self) -> core::option::Option<papo_proto::client_tags::Reaction>

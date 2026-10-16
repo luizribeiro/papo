@@ -11,9 +11,12 @@ use papo_proto::{Ctcp, Isupport, Message, MessageRef, Reaction, Typing, strip_fo
 
 use crate::{Client, Error};
 
+#[path = "event/connection.rs"]
+mod connection;
 #[path = "event/source.rs"]
 mod source;
 
+pub use connection::{CapsChanged, Disconnected, Registered};
 pub use source::Source;
 
 /// The semantic kind of an incoming chat message.
