@@ -69,6 +69,12 @@ pub enum Error {
     /// The IRC server rejected a metadata operation.
     #[error("metadata operation failed: {0:?}")]
     Metadata(papo_core::MetadataError),
+    /// The IRC server rejected a channel rename.
+    #[error("channel rename failed: {0:?}")]
+    ChannelRename(papo_core::ChannelRenameError),
+    /// The IRC server rejected a relayed message.
+    #[error("relay message failed: {0:?}")]
+    Relay(papo_core::RelayError),
     /// The IRC server rejected a Web Push operation.
     #[error("Web Push operation failed: {0:?}")]
     WebPush(papo_core::WebPushError),
