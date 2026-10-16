@@ -13,6 +13,72 @@ pub struct MetadataValue {
     pub visibility: String,
 }
 
+/// A typed `FAIL METADATA` code.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum MetadataError {
+    /// The target is not valid for metadata operations.
+    InvalidTarget,
+    /// The key does not follow the metadata key syntax.
+    KeyInvalid,
+    /// The client cannot modify the key.
+    KeyNoPermission,
+    /// The requested key is not set.
+    KeyNotSet,
+    /// A server metadata limit was reached.
+    LimitReached,
+    /// Metadata changes are temporarily rate limited.
+    RateLimited {
+        /// Target named by the failure.
+        target: String,
+        /// Key named by the failure.
+        key: String,
+        /// Delay before retrying, or `None` when the server sent `*`.
+        retry_after: Option<std::time::Duration>,
+    },
+    /// The subscription limit interrupted ordered processing.
+    TooManySubscriptions {
+        /// First key the server did not process.
+        first_unprocessed_key: String,
+    },
+    /// The metadata subcommand is not recognized.
+    SubcommandInvalid,
+    /// The supplied metadata value is invalid.
+    ValueInvalid,
+}
+
+impl MetadataError {
+    pub(crate) fn parse(command: &str, code: &str, context: &[String]) -> Option<Self> {
+        if !command.eq_ignore_ascii_case("METADATA") {
+            return None;
+        }
+        match code.to_ascii_uppercase().as_str() {
+            "INVALID_TARGET" => Some(Self::InvalidTarget),
+            "KEY_INVALID" => Some(Self::KeyInvalid),
+            "KEY_NO_PERMISSION" => Some(Self::KeyNoPermission),
+            "KEY_NOT_SET" => Some(Self::KeyNotSet),
+            "LIMIT_REACHED" => Some(Self::LimitReached),
+            "RATE_LIMITED" => {
+                let retry_after = match context.get(2)?.as_str() {
+                    "*" => None,
+                    seconds => Some(std::time::Duration::from_secs(seconds.parse().ok()?)),
+                };
+                Some(Self::RateLimited {
+                    target: context.first()?.clone(),
+                    key: context.get(1)?.clone(),
+                    retry_after,
+                })
+            }
+            "TOO_MANY_SUBS" => Some(Self::TooManySubscriptions {
+                first_unprocessed_key: context.first()?.clone(),
+            }),
+            "SUBCOMMAND_INVALID" => Some(Self::SubcommandInvalid),
+            "VALUE_INVALID" => Some(Self::ValueInvalid),
+            _ => None,
+        }
+    }
+}
+
 /// A `METADATA` operation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

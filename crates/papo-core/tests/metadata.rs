@@ -2,7 +2,10 @@
 
 mod support;
 
-use papo_core::{Config, Event, MetadataCommand, MetadataLimits, RequestError, StateLimit};
+use papo_core::{
+    Config, Event, MetadataCommand, MetadataError, MetadataLimits, RequestError, StateLimit,
+};
+use std::time::Duration;
 use support::Transcript;
 
 fn registered(value: &str) -> Transcript {
@@ -82,7 +85,16 @@ fn prefers_metadata_3_and_reads_known_limits() {
     .event(|event| matches!(event, Event::MetadataChanged { key, value: None, .. }
         if key == "avatar"))
     .event(|event| matches!(event, Event::Response(_)))
-    .inspect(|session| assert!(session.state().metadata("alice").is_none()));
+    .inspect(|session| assert!(session.state().metadata("alice").is_none()))
+    .update(|session| {
+        session.metadata(std::time::Instant::now(), MetadataCommand::Clear {
+            target: "alice".into(),
+        }).unwrap();
+    })
+    .client("@label=2 METADATA alice CLEAR")
+    .server("@label=2 :ergo.test FAIL METADATA VALUE_INVALID :Metadata value is invalid")
+    .event(|event| matches!(event, Event::Response(response)
+        if response.metadata_error() == Some(MetadataError::ValueInvalid)));
 }
 
 #[test]
@@ -281,4 +293,39 @@ fn tracks_sub_subs_and_unsub_replies() {
         .client("METADATA * UNSUB avatar status pronouns")
         .server(":ergo.test 771 alice avatar status")
         .inspect(|session| assert!(session.state().metadata_subscriptions().is_empty()));
+}
+
+#[test]
+fn types_contextual_metadata_failures() {
+    for (line, expected) in [
+        (
+            ":ergo.test FAIL METADATA RATE_LIMITED alice avatar 45 :Metadata update rate limit exceeded",
+            MetadataError::RateLimited {
+                target: "alice".into(),
+                key: "avatar".into(),
+                retry_after: Some(Duration::from_secs(45)),
+            },
+        ),
+        (
+            ":ergo.test FAIL METADATA RATE_LIMITED alice pronouns * :Metadata update rate limit exceeded",
+            MetadataError::RateLimited {
+                target: "alice".into(),
+                key: "pronouns".into(),
+                retry_after: None,
+            },
+        ),
+        (
+            ":ergo.test FAIL METADATA TOO_MANY_SUBS status :Too many metadata subscriptions",
+            MetadataError::TooManySubscriptions {
+                first_unprocessed_key: "status".into(),
+            },
+        ),
+    ] {
+        registered("max-subs=100,max-keys=100")
+            .server(line)
+            .event(|event| {
+                matches!(event, Event::StandardReply(reply)
+                if reply.metadata_error() == Some(expected))
+            });
+    }
 }

@@ -39,7 +39,7 @@ use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
 use keepalive::Keepalive;
-pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue};
+pub use metadata::{MetadataCommand, MetadataError, MetadataLimits, MetadataValue};
 use monitor::Monitor;
 pub use outgoing::TextKind;
 pub use ratelimit::RateLimit;
@@ -695,6 +695,12 @@ impl Response {
     pub fn account_registration_error(&self) -> Option<AccountRegistrationError> {
         self.error()?.account_registration_error()
     }
+
+    /// Returns a typed metadata failure from this response.
+    #[must_use]
+    pub fn metadata_error(&self) -> Option<MetadataError> {
+        self.error()?.metadata_error()
+    }
 }
 
 /// A standardized `REGISTER` or `VERIFY` failure code.
@@ -793,6 +799,20 @@ impl ServerError {
             Self::Numeric { .. } => None,
         }
     }
+
+    /// Returns the typed metadata code when this is a matching standard failure.
+    #[must_use]
+    pub fn metadata_error(&self) -> Option<MetadataError> {
+        match self {
+            Self::Standard {
+                command,
+                code,
+                context,
+                ..
+            } => MetadataError::parse(command, code, context),
+            Self::Numeric { .. } => None,
+        }
+    }
 }
 
 /// Owned `IRCv3` standard reply received outside a correlated request.
@@ -858,6 +878,14 @@ impl StandardReply {
     pub fn account_registration_error(&self) -> Option<AccountRegistrationError> {
         (self.kind == StandardReplyKind::Fail)
             .then(|| AccountRegistrationError::parse(&self.command, &self.code))
+            .flatten()
+    }
+
+    /// Returns the typed metadata code when this is a matching failure.
+    #[must_use]
+    pub fn metadata_error(&self) -> Option<MetadataError> {
+        (self.kind == StandardReplyKind::Fail)
+            .then(|| MetadataError::parse(&self.command, &self.code, &self.context))
             .flatten()
     }
 }
