@@ -23,6 +23,7 @@ pub mod sts;
 mod webpush;
 
 pub use secret::Secret;
+pub use webpush::WebPushError;
 
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -735,6 +736,12 @@ impl Response {
     pub fn relay_error(&self) -> Option<RelayError> {
         self.error()?.relay_error()
     }
+
+    /// Returns a typed Web Push failure from this response.
+    #[must_use]
+    pub fn webpush_error(&self) -> Option<WebPushError> {
+        self.error()?.webpush_error()
+    }
 }
 
 /// A standardized `REGISTER` or `VERIFY` failure code.
@@ -865,6 +872,15 @@ impl ServerError {
             Self::Numeric { .. } => None,
         }
     }
+
+    /// Returns the typed Web Push code when this is a matching standard failure.
+    #[must_use]
+    pub fn webpush_error(&self) -> Option<WebPushError> {
+        match self {
+            Self::Standard { command, code, .. } => WebPushError::parse(command, code),
+            Self::Numeric { .. } => None,
+        }
+    }
 }
 
 /// Owned `IRCv3` standard reply received outside a correlated request.
@@ -954,6 +970,14 @@ impl StandardReply {
     pub fn relay_error(&self) -> Option<RelayError> {
         (self.kind == StandardReplyKind::Fail)
             .then(|| RelayError::parse(&self.command, &self.code))
+            .flatten()
+    }
+
+    /// Returns the typed Web Push code when this is a matching failure.
+    #[must_use]
+    pub fn webpush_error(&self) -> Option<WebPushError> {
+        (self.kind == StandardReplyKind::Fail)
+            .then(|| WebPushError::parse(&self.command, &self.code))
             .flatten()
     }
 }

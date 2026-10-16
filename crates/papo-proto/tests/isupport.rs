@@ -86,6 +86,14 @@ fn expands_the_network_icon_size_template() {
 }
 
 #[test]
+fn reads_the_webpush_vapid_key() {
+    let mut support = Isupport::default();
+    assert_eq!(support.vapid(), None);
+    support.apply_tokens(["VAPID=BN2Zr6VZlaXr1w"]);
+    assert_eq!(support.vapid(), Some("BN2Zr6VZlaXr1w"));
+}
+
+#[test]
 fn empty_and_malformed_tokens_do_not_create_keys() {
     let mut support = Isupport::default();
     support.apply_tokens(std::iter::empty::<&str>());

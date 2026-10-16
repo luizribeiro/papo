@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, RequestError, Session};
+use papo_core::{Config, Event, RequestError, Session, WebPushError};
 use support::Transcript;
 
 const ENDPOINT: &str = "https://push.example.net/message/ErgoTest/alice";
@@ -65,4 +65,28 @@ fn rejects_invalid_endpoints_and_keys_before_queueing() {
             }
         })
         .no_client();
+}
+
+#[test]
+fn types_every_webpush_failure() {
+    for (code, expected) in [
+        ("INVALID_PARAMS", WebPushError::InvalidParams),
+        ("INTERNAL_ERROR", WebPushError::InternalError),
+        ("MAX_REGISTRATIONS", WebPushError::MaxRegistrations),
+    ] {
+        registered("draft/webpush")
+            .server(&format!(
+                ":ergo.test FAIL WEBPUSH {code} :Web push request rejected"
+            ))
+            .event(|event| {
+                matches!(event, Event::StandardReply(reply)
+                if reply.webpush_error() == Some(expected))
+            });
+    }
+    registered("draft/webpush")
+        .server(":ergo.test FAIL REGISTER INVALID_PARAMS :Registration rejected")
+        .event(|event| {
+            matches!(event, Event::StandardReply(reply)
+            if reply.webpush_error().is_none())
+        });
 }

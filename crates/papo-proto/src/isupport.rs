@@ -303,6 +303,12 @@ impl Isupport {
         }
     }
 
+    /// Returns the server's Web Push VAPID public key.
+    #[must_use]
+    pub fn vapid(&self) -> Option<&str> {
+        self.value("VAPID")
+    }
+
     flag_accessors! {
         /// Reports whether the server accepts only UTF-8 messages.
         utf8only => "UTF8ONLY",
