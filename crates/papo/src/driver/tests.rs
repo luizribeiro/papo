@@ -309,7 +309,9 @@ async fn eof_reconnects_and_emits_reconnected() {
         b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
+    assert!(
+        matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
+    );
     client_line(&mut second_server, b"JOIN #papo\r\n").await;
     assert!(
         tokio::time::timeout(Duration::from_millis(1), second_server.read_u8())
@@ -438,7 +440,9 @@ async fn explicit_reconnect_redials_without_backoff() {
         b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
+    assert!(
+        matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
+    );
 
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut second_server, b"QUIT\r\n").await;
@@ -513,7 +517,9 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     .await;
     client_line(&mut second_server, b"CAP END\r\n").await;
     server_line(&mut second_server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome back\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
+    assert!(
+        matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
+    );
     client_line(&mut second_server, b"JOIN #papo\r\n").await;
     client_line(
         &mut second_server,

@@ -582,9 +582,7 @@ impl TagMsg {
 #[allow(clippy::large_enum_variant)]
 pub enum Event {
     /// Connection registration completed.
-    Registered(Welcome),
-    /// A replacement connection completed registration.
-    Reconnected(Welcome),
+    Registered(Registered),
     /// An incoming `PRIVMSG` or `NOTICE`.
     Message(MessageEvent),
     /// A parsed message without a typed event variant.
@@ -862,6 +860,7 @@ pub enum Event {
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum CoreEvent {
     Forward(Event),
+    Registered(Welcome),
     Message(papo_core::ReceivedMessage),
     History {
         target: String,
@@ -883,7 +882,7 @@ pub(crate) enum CoreEvent {
 #[allow(clippy::too_many_lines)]
 pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
     CoreEvent::Forward(match event {
-        papo_core::Event::Registered(welcome) => Event::Registered(welcome),
+        papo_core::Event::Registered(welcome) => return CoreEvent::Registered(welcome),
         papo_core::Event::Message(message) => {
             if message.as_ref().command_is("001") {
                 return CoreEvent::Unknown;

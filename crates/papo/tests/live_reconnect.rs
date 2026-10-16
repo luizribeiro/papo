@@ -81,7 +81,11 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         server.restart().unwrap();
         let poster = post_during_outage(&server, &channel).await;
 
-        wait_for(&mut events, |event| matches!(event, Event::Reconnected(_))).await;
+        wait_for(
+            &mut events,
+            |event| matches!(event, Event::Registered(registered) if registered.reconnected),
+        )
+        .await;
         wait_for(&mut events, |event| joined(event, &nick, &channel)).await;
         let messages = wait_history(&mut events, &channel).await;
         let missed = messages

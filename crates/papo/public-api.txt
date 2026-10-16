@@ -255,9 +255,8 @@ pub papo::Event::ReadMarker(papo_core::history::ReadMarker)
 pub papo::Event::RealnameChanged
 pub papo::Event::RealnameChanged::nick: alloc::string::String
 pub papo::Event::RealnameChanged::realname: alloc::string::String
-pub papo::Event::Reconnected(papo_core::Welcome)
 pub papo::Event::Redacted(papo_core::Redacted)
-pub papo::Event::Registered(papo_core::Welcome)
+pub papo::Event::Registered(papo::event::Registered)
 pub papo::Event::RequestAborted
 pub papo::Event::RequestAborted::id: papo_core::RequestId
 pub papo::Event::RequestTimedOut

@@ -119,7 +119,11 @@ async fn persistent_server_restores_channels_without_a_client_join() {
             )
         })
         .await;
-        wait_for(&mut events, |event| matches!(event, Event::Reconnected(_))).await;
+        wait_for(
+            &mut events,
+            |event| matches!(event, Event::Registered(registered) if registered.reconnected),
+        )
+        .await;
         wait_for(&mut events, |event| {
             matches!(
                 event,

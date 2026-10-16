@@ -248,7 +248,7 @@ impl Scenario {
             Some(wanted_caps),
             None,
         )?;
-        let welcome = wait_for_registration(&mut connection.events).await?;
+        let welcome = wait_for_registration(&connection.client, &mut connection.events).await?;
         Ok(RegisteredClient {
             client: connection.client,
             events: connection.events,
@@ -283,7 +283,7 @@ impl Scenario {
             None,
             sasl,
         )?;
-        let welcome = wait_for_registration(&mut connection.events).await?;
+        let welcome = wait_for_registration(&connection.client, &mut connection.events).await?;
         Ok(RegisteredClient {
             client: connection.client,
             events: connection.events,
@@ -433,7 +433,7 @@ async fn probe(
         Some(wanted_caps),
         None,
     )?;
-    let welcome = wait_for_registration(&mut connection.events).await?;
+    let welcome = wait_for_registration(&connection.client, &mut connection.events).await?;
     connection
         .client
         .quit(Some("conformance probe complete"))
@@ -525,11 +525,18 @@ fn connect_client(
     })
 }
 
-async fn wait_for_registration(events: &mut Events) -> Result<Welcome, String> {
+async fn wait_for_registration(client: &Client, events: &mut Events) -> Result<Welcome, String> {
     timeout(TIMEOUT, async {
         loop {
             match events.next().await {
-                Some(Event::Registered(welcome)) => return Ok(welcome),
+                Some(Event::Registered(registered)) => {
+                    return Ok(Welcome {
+                        nick: registered.nick,
+                        text: registered.text,
+                        caps: registered.caps,
+                        isupport: client.state().isupport().clone(),
+                    });
+                }
                 Some(Event::Disconnected { reason, .. }) => return Err(reason),
                 Some(_) => {}
                 None => return Err("driver stopped during registration".into()),

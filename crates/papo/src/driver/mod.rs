@@ -1047,17 +1047,29 @@ where
                 if matches!(event, Event::VerificationRequired { .. }) {
                     registration.succeeded();
                 }
-                if let Event::Registered(welcome) = &event {
-                    after_registration(session, welcome, defaults)?;
-                    registration.succeeded();
-                    *registered_at = Some(now());
-                    if *registered {
-                        begin_catchup(session, defaults, catchups);
-                        event = Event::Reconnected(welcome.clone());
-                    } else {
-                        *registered = true;
-                    }
+                if !enqueue_event(events, pending_events, event) {
+                    return Ok(Some((
+                        papo_core::CloseKind::Other,
+                        SLOW_CONSUMER_REASON.to_owned(),
+                    )));
                 }
+            }
+            event::CoreEvent::Registered(welcome) => {
+                after_registration(session, &welcome, defaults)?;
+                registration.succeeded();
+                *registered_at = Some(now());
+                let reconnected = *registered;
+                if reconnected {
+                    begin_catchup(session, defaults, catchups);
+                } else {
+                    *registered = true;
+                }
+                let event = Event::Registered(event::Registered {
+                    nick: welcome.nick,
+                    text: welcome.text,
+                    caps: welcome.caps,
+                    reconnected,
+                });
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,
