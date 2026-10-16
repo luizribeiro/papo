@@ -66,6 +66,7 @@
             path: type:
             (craneLib.filterCargoSources path type)
             || pkgs.lib.hasInfix "/tests/data/" path
+            || pkgs.lib.hasInfix "/known-failures/" path
             || pkgs.lib.hasSuffix "/nix" path
             || pkgs.lib.hasSuffix "/nix/test-runner" path;
         };
@@ -295,6 +296,24 @@
               CARGO_TARGET_WASM32_WASIP1_RUNNER = nixTestRunner;
               CARGO_TARGET_WASM32_WASIP2_RUNNER = nixTestRunner;
               CARGO_TARGET_WASM32_WASIP3_RUNNER = nixTestRunner;
+            }
+          );
+          conformance-unrealircd = craneLib.cargoTest (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "-p papo-conformance";
+              nativeBuildInputs = [
+                pkgs.openssl
+                pkgs.atheme
+                unrealircd
+              ];
+              PAPO_TEST_SERVER = "unrealircd";
+              ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
+              ATHEME_MODULES = "${pkgs.atheme}/modules";
+              UNREALIRCD_BIN = pkgs.lib.getExe' unrealircd "unrealircd";
+              UNREALIRCD_CONFIG = "${unrealircd}/share/unrealircd/conf";
+              CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
             }
           );
         };
