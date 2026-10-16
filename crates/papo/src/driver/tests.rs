@@ -198,6 +198,53 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn registration_disconnect_does_not_enter_reconnect_backoff() {
+    let (stream, mut server) = tokio::io::duplex(4096);
+    let stream = Arc::new(Mutex::new(Some(Box::new(stream) as super::BoxConnection)));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let connector: super::Connector = Arc::new({
+        let calls = Arc::clone(&calls);
+        move |_| {
+            calls.fetch_add(1, Ordering::Relaxed);
+            let stream = stream.lock().unwrap().take().unwrap();
+            Box::pin(async move { Ok(stream) })
+        }
+    });
+    let (registration, waiting) = tokio::sync::oneshot::channel();
+    let (_client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        Some(registration),
+        super::PostRegistration::default(),
+        Reconnect::exponential(),
+        256,
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    within(server.shutdown()).await.unwrap();
+
+    assert!(matches!(
+        within(waiting).await.unwrap(),
+        Err(Error::Registration(_))
+    ));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected {
+            will_retry: false,
+            ..
+        })
+    ));
+    assert!(within(driver).await.unwrap().is_err());
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn eof_reconnects_and_emits_reconnected() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);

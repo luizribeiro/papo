@@ -75,7 +75,6 @@ pub(super) async fn run_plan(
     };
     let mut attempts = 0_usize;
     let mut registered = false;
-    let mut opened_connection = false;
     let mut queued = VecDeque::new();
     let mut pending_events = VecDeque::new();
     let mut sts_required = false;
@@ -91,7 +90,7 @@ pub(super) async fn run_plan(
             disconnected_queue_capacity,
             &events,
             &mut pending_events,
-            registration.0.is_some() && !opened_connection,
+            registration.0.is_some(),
             sts_required,
             reconnect,
             attempts,
@@ -99,10 +98,7 @@ pub(super) async fn run_plan(
         )
         .await
         {
-            ConnectionAttempt::Connected(stream) => {
-                opened_connection = true;
-                stream
-            }
+            ConnectionAttempt::Connected(stream) => stream,
             ConnectionAttempt::Retry => continue,
             ConnectionAttempt::Stop => {
                 events.finish(pending_events);
@@ -137,6 +133,7 @@ pub(super) async fn run_plan(
         let (end, upgrade_port) = match triage_connection_end(
             end,
             &plan,
+            registration.0.is_some(),
             reconnect,
             &mut attempts,
             &mut last_sts_upgrade,
@@ -256,6 +253,7 @@ pub(super) async fn run_planned_connection(
 fn triage_connection_end(
     mut end: ConnectionEnd,
     plan: &ConnectionPlan,
+    awaiting_registration: bool,
     reconnect: Reconnect,
     attempts: &mut usize,
     last_sts_upgrade: &mut Option<String>,
@@ -276,6 +274,9 @@ fn triage_connection_end(
         } else if reconnect.permits(*attempts) {
             return ControlFlow::Continue((end, Some(port)));
         }
+        return ControlFlow::Break((end, true));
+    }
+    if awaiting_registration {
         return ControlFlow::Break((end, true));
     }
     *last_sts_upgrade = None;
