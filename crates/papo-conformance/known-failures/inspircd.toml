@@ -1,0 +1,5 @@
+[invite_notify]
+reason = "InspIRCd advertises invite-notify but does not notify the fixture's channel-operator observer of a successful INVITE"
+
+[standard_replies]
+reason = "InspIRCd advertises standard-replies but answers an unsupported BATCH command with legacy numeric 421 instead of a FAIL reply"
