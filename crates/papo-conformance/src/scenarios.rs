@@ -2,7 +2,7 @@ use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
-use papo_proto::{Message, StandardReplyKind};
+use papo_proto::Message;
 use papo_test_server::register_account;
 
 use super::{Scenario, ScenarioResult, ScenarioSpec, required_environment};
@@ -11,6 +11,7 @@ use support::{EXPECT_TIMEOUT, PASSWORD, close_pair, history_page, join, joined_p
 mod auth;
 mod connection;
 mod messaging;
+mod requests;
 mod support;
 
 pub(super) fn all() -> Vec<ScenarioSpec> {
@@ -427,22 +428,6 @@ const fn scenario_table() -> &'static [ScenarioSpec] {
     ]
 }
 
-/// correlates a labelled WHOIS response
-#[scenario(requires(caps = ["labeled-response"]))]
-async fn labeled_response(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let connection = context.client(&nick).await?;
-    let whois = connection
-        .client
-        .whois(&connection.welcome.nick)
-        .await
-        .map_err(Failed::from)?;
-    if whois.nick != connection.welcome.nick {
-        return Err("labelled WHOIS resolved for the wrong nickname".into());
-    }
-    connection.close().await
-}
-
 /// delivers an authenticated sender account
 #[scenario(requires(caps = ["account-tag", "account-notify"]))]
 async fn account_notify(context: Scenario) -> ScenarioResult {
@@ -700,12 +685,6 @@ async fn chghost(context: Scenario) -> ScenarioResult {
     close_pair(observer, operator).await
 }
 
-/// delivers channel history in a batch
-#[scenario(requires(caps = ["batch", "draft/chathistory"]))]
-async fn batch(context: Scenario) -> ScenarioResult {
-    history_page(context).await
-}
-
 /// retrieves a channel history page
 #[scenario(requires(caps = ["batch", "draft/chathistory"]))]
 async fn draft_chathistory(context: Scenario) -> ScenarioResult {
@@ -784,33 +763,6 @@ async fn draft_channel_rename(context: Scenario) -> ScenarioResult {
             .expect(
                 &mut connection.events,
                 |event| matches!(event, Event::ChannelRenamed { old: renamed, new: replacement, .. } if renamed == &old && replacement == &new),
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-    connection.close().await
-}
-
-/// rejects an invalid real name with a standard failure
-#[scenario(requires(caps = ["standard-replies", "setname"]))]
-async fn standard_replies(context: Scenario) -> ScenarioResult {
-    if std::env::var("PAPO_TEST_SERVER").is_ok_and(|server| server != "ergo") {
-        return Ok(libtest_mimic::Completion::ignored_with(
-            "portable standard-replies failure is not set up",
-        ));
-    }
-    let nick = context.unique();
-    let mut connection = context.client(&nick).await?;
-    connection
-        .client
-        .send(Message::new("SETNAME", [""]))
-        .await
-        .map_err(Failed::from)?;
-    context
-            .expect(
-                &mut connection.events,
-                |event| {
-                    matches!(event, Event::StandardReply(reply) if reply.kind == StandardReplyKind::Fail && reply.command == "SETNAME" && reply.code == "INVALID_REALNAME")
-                },
                 EXPECT_TIMEOUT,
             )
             .await?;
