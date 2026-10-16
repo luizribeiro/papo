@@ -593,13 +593,11 @@ pub enum Event {
     ReadMarker(ReadMarker),
     /// Users departed because connectivity between two servers was lost.
     ///
-    /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
-    /// separate [`Event::Message`] values.
+    /// Non-`QUIT` lines in the batch are delivered as separate [`Event::Message`] values.
     Netsplit(Netsplit),
     /// Users returned after connectivity between two servers was restored.
     ///
-    /// This event is emitted for an empty batch. Non-`JOIN` lines are delivered as
-    /// separate [`Event::Message`] values.
+    /// Non-`JOIN` lines in the batch are delivered as separate [`Event::Message`] values.
     Netjoin(Netjoin),
     /// A server batch exceeded a retention bound or deadline.
     Warning(Warning),
@@ -1509,6 +1507,13 @@ mod tests {
                     && changed.value.as_deref() == Some("they/them")
                     && changed.visibility == "members"
         ));
+        assert!(matches!(
+            from_core(papo_core::Event::MetadataSyncLater {
+                target: "alice".into(),
+                retry_after: Some(Duration::from_secs(90)),
+            }),
+            CoreEvent::Unknown
+        ));
     }
 
     #[test]
@@ -1580,7 +1585,8 @@ mod tests {
                 reason: Some("Leaving for lunch".into()),
             }),
             Event::Parted(parted)
-                if parted.channel == "#papo" && parted.nick == "emily"
+                if parted.channel == "#papo"
+                    && parted.nick == "emily"
                     && parted.reason.as_deref() == Some("Leaving for lunch")
         ));
     }
@@ -1595,8 +1601,9 @@ mod tests {
                 reason: Some("Flooding".into()),
             }),
             Event::Kicked(kicked)
-                if kicked.channel == "#papo" && kicked.nick == "emily"
-                    && kicked.by == Source::User { nick: "alice".into(), user: None, host: None }
+                if kicked.channel == "#papo"
+                    && kicked.nick == "emily"
+                    && kicked.by.nick() == Some("alice")
                     && kicked.reason.as_deref() == Some("Flooding")
         ));
     }
@@ -1710,7 +1717,7 @@ mod tests {
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")
-                    && changed.by == Source::User { nick: "alice".into(), user: None, host: None }
+                    && changed.by.nick() == Some("alice")
         ));
     }
 
@@ -1811,6 +1818,15 @@ mod tests {
     }
 
     #[test]
+    fn keeps_history_targets_internal() {
+        let targets = vec![("#papo".into(), UNIX_EPOCH + Duration::from_secs(42))];
+        assert!(matches!(
+            from_core(papo_core::Event::HistoryTargets(targets)),
+            CoreEvent::Unknown
+        ));
+    }
+
+    #[test]
     fn maps_read_markers() {
         let marker = papo_core::ReadMarker {
             target: "#papo".into(),
@@ -1855,6 +1871,65 @@ mod tests {
         assert_eq!(netjoin.joins.len(), 1);
         assert_eq!(netjoin.joins[0].channel, "#papo");
         assert_eq!(netjoin.joins[0].nick, "alice");
+    }
+
+    #[test]
+    fn identifies_self_membership_and_nick_events_with_server_casemapping() {
+        let by = Source::Server {
+            name: "ergo.test".to_owned(),
+        };
+        let mut events = [
+            Event::Joined(super::Joined {
+                channel: "#papo".to_owned(),
+                nick: "Papo[Bot]".to_owned(),
+                is_self: false,
+            }),
+            Event::Parted(super::Parted {
+                channel: "#papo".to_owned(),
+                nick: "Papo[Bot]".to_owned(),
+                reason: None,
+                is_self: false,
+            }),
+            Event::Kicked(super::Kicked {
+                channel: "#papo".to_owned(),
+                nick: "Papo[Bot]".to_owned(),
+                by: by.clone(),
+                reason: None,
+                is_self: false,
+            }),
+            Event::Invited(super::Invited {
+                channel: "#papo".to_owned(),
+                nick: "Papo[Bot]".to_owned(),
+                by,
+                is_self: false,
+            }),
+            Event::NickChanged(super::NickChanged {
+                old: "Papo[Bot]".to_owned(),
+                new: "papo-away".to_owned(),
+                is_self: false,
+            }),
+            Event::Netjoin(super::Netjoin {
+                servers: ["irc.example".to_owned(), "irc.remote".to_owned()],
+                joins: vec![super::Joined {
+                    channel: "#papo".to_owned(),
+                    nick: "Papo[Bot]".to_owned(),
+                    is_self: false,
+                }],
+            }),
+        ];
+
+        for event in &mut events {
+            event.mark_self("papo{bot}", papo_proto::Casemapping::Rfc1459);
+        }
+        assert!(events[0].as_joined().unwrap().is_self);
+        assert!(events[1].as_parted().unwrap().is_self);
+        assert!(events[2].as_kicked().unwrap().is_self);
+        assert!(events[3].as_invited().unwrap().is_self);
+        assert!(events[4].as_nick_changed().unwrap().is_self);
+        assert!(events[5].as_netjoin().unwrap().joins[0].is_self);
+
+        events[0].mark_self("someone-else", papo_proto::Casemapping::Rfc1459);
+        assert!(!events[0].as_joined().unwrap().is_self);
     }
 
     #[test]
