@@ -1,5 +1,5 @@
 use libtest_mimic::Failed;
-use papo::Event;
+use papo::{AccountRegistration, Event};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
 use papo_proto::Message;
@@ -83,10 +83,9 @@ async fn draft_account_registration(context: Scenario) -> ScenarioResult {
         .expect(
             &mut connection.events,
             |event| match event {
-                Event::AccountRegistered {
+                Event::AccountRegistration(AccountRegistration::Registered {
                     account: registered,
-                    logged_in: true,
-                } => registered == &account,
+                }) => registered == &account,
                 Event::Raw(message) => {
                     message.command().eq_ignore_ascii_case("REGISTER")
                         && message

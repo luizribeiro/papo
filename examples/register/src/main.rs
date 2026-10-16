@@ -2,7 +2,7 @@
 
 use std::{env, error::Error, io};
 
-use papo::{Client, Endpoint, Event, NewAccount};
+use papo::{AccountRegistration, Client, Endpoint, Event, NewAccount};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -28,16 +28,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut logged_in = None;
     while let Some(event) = events.next().await {
         match event {
-            Event::VerificationRequired { account, message } => {
+            Event::AccountRegistration(AccountRegistration::VerificationRequired {
+                account,
+                message,
+            }) => {
                 eprintln!("{message}");
                 let mut code = String::new();
                 io::stdin().read_line(&mut code)?;
                 client.verify(&account, code.trim()).await?;
             }
-            Event::AccountRegistered {
-                account,
-                logged_in: true,
-            } => logged_in = Some(account),
+            Event::AccountRegistration(AccountRegistration::Registered { account }) => {
+                logged_in = Some(account);
+            }
             Event::Registered(_) => registered = true,
             Event::Disconnected(papo::event::Disconnected { reason, .. }) => {
                 return Err(reason.into());

@@ -275,7 +275,7 @@ impl papo_core::sts::StsStore for papo::sts::FileStsStore
 pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo_core::sts::StsPolicy>
 pub fn papo::sts::FileStsStore::put(&mut self, papo_core::sts::StsPolicy)
 pub fn papo::sts::FileStsStore::remove(&mut self, &str)
-pub enum papo::AccountRegistration
+#[non_exhaustive] pub enum papo::AccountRegistration
 pub papo::AccountRegistration::Registered
 pub papo::AccountRegistration::Registered::account: alloc::string::String
 pub papo::AccountRegistration::VerificationRequired
@@ -311,9 +311,7 @@ pub papo::Error::Timeout
 pub papo::Error::Unsupported(papo_core::features::Unsupported)
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
-pub papo::Event::AccountRegistered
-pub papo::Event::AccountRegistered::account: alloc::string::String
-pub papo::Event::AccountRegistered::logged_in: bool
+pub papo::Event::AccountRegistration(papo::AccountRegistration)
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
 pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
@@ -362,9 +360,6 @@ pub papo::Event::StsUpgrade::port: u16
 pub papo::Event::TagMsg(papo::event::TagMsg)
 pub papo::Event::TopicChanged(papo::event::TopicChanged)
 pub papo::Event::TypingChanged(papo::event::TypingChanged)
-pub papo::Event::VerificationRequired
-pub papo::Event::VerificationRequired::account: alloc::string::String
-pub papo::Event::VerificationRequired::message: alloc::string::String
 pub papo::Event::Warning(papo::event::Warning)
 impl papo::Event
 pub const fn papo::Event::as_caps_changed(&self) -> core::option::Option<&papo::event::CapsChanged>

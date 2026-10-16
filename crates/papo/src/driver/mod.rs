@@ -1028,7 +1028,12 @@ where
                     _ => {}
                 }
                 update_rejoin_channels(session, defaults, &event);
-                if matches!(event, Event::VerificationRequired { .. }) {
+                if matches!(
+                    event,
+                    Event::AccountRegistration(
+                        crate::AccountRegistration::VerificationRequired { .. }
+                    )
+                ) {
                     registration.succeeded();
                 }
                 if !enqueue_event(events, pending_events, event) {

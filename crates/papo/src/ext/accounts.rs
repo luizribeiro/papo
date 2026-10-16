@@ -45,6 +45,7 @@ impl NewAccount {
 
 /// Outcome of an account registration request.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum AccountRegistration {
     /// The account was created and authenticated.
     Registered {

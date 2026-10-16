@@ -583,19 +583,7 @@ pub enum Event {
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
     /// Account creation completed and the connection is authenticated.
-    AccountRegistered {
-        /// The registered account name.
-        account: String,
-        /// Whether the server authenticated the connection to the account.
-        logged_in: bool,
-    },
-    /// Account creation requires a verification step.
-    VerificationRequired {
-        /// The account awaiting verification.
-        account: String,
-        /// Human-readable instructions from the server.
-        message: String,
-    },
+    AccountRegistration(crate::AccountRegistration),
     /// The server reported the account's persistence state.
     PersistenceChanged(PersistenceChanged),
     /// A target's cached metadata changed.
@@ -828,11 +816,14 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             context: reply.context,
             description: reply.description,
         }),
-        papo_core::Event::AccountRegistered { account, logged_in } => {
-            Event::AccountRegistered { account, logged_in }
+        papo_core::Event::AccountRegistered { account, .. } => {
+            Event::AccountRegistration(crate::AccountRegistration::Registered { account })
         }
         papo_core::Event::VerificationRequired { account, message } => {
-            Event::VerificationRequired { account, message }
+            Event::AccountRegistration(crate::AccountRegistration::VerificationRequired {
+                account,
+                message,
+            })
         }
         papo_core::Event::PersistenceStatus { setting, effective } => {
             Event::PersistenceChanged(PersistenceChanged {
@@ -1448,14 +1439,18 @@ mod tests {
                 account: "alice".into(),
                 logged_in: true,
             }),
-            Event::AccountRegistered { account, logged_in: true } if account == "alice"
+            Event::AccountRegistration(crate::AccountRegistration::Registered { account })
+                if account == "alice"
         ));
         assert!(matches!(
             forwarded(papo_core::Event::VerificationRequired {
                 account: "alice".into(),
                 message: "Verification code sent".into(),
             }),
-            Event::VerificationRequired { account, message }
+            Event::AccountRegistration(crate::AccountRegistration::VerificationRequired {
+                account,
+                message,
+            })
                 if account == "alice" && message == "Verification code sent"
         ));
     }

@@ -625,30 +625,25 @@ mod tests {
     fn expect_skips_non_matching_events() {
         let mut events = ScriptedEvents {
             events: [
-                Event::AccountRegistered {
+                Event::AccountRegistration(papo::AccountRegistration::Registered {
                     account: "first".to_owned(),
-                    logged_in: true,
-                },
-                Event::Warning(papo::event::Warning::MonitorUnsupported),
+                }),
+                Event::AccountRegistration(papo::AccountRegistration::Registered {
+                    account: "second".to_owned(),
+                }),
             ]
             .into(),
         };
         let event = runtime()
             .block_on(expect_event(
                 &mut events,
-                |event| {
-                    matches!(
-                        event,
-                        Event::Warning(papo::event::Warning::MonitorUnsupported)
-                    )
-                },
+                |event| matches!(event, Event::AccountRegistration(papo::AccountRegistration::Registered { account }) if account == "second"),
                 Duration::from_secs(1),
             ))
             .unwrap();
-        assert!(matches!(
-            event,
-            Event::Warning(papo::event::Warning::MonitorUnsupported)
-        ));
+        assert!(
+            matches!(event, Event::AccountRegistration(papo::AccountRegistration::Registered { account }) if account == "second")
+        );
     }
 
     #[test]
