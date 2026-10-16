@@ -14,7 +14,9 @@ async fn registers_and_logs_in_during_connection_setup() {
         let password = std::env::temp_dir().join(format!("{account}.password"));
         std::fs::write(&password, "q7Hx-2mZp_9vLcT4wRfB\n").unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_register"))
-            .env("IRC_SERVER", format!("irc://{}", server.plaintext_addr()))
+            .env("IRC_SERVER", server.plaintext_addr().ip().to_string())
+            .env("IRC_PORT", server.plaintext_addr().port().to_string())
+            .env("IRC_PLAINTEXT", "1")
             .env("IRC_ACCOUNT", &account)
             .env("IRC_PASSWORD_FILE", &password)
             .output()

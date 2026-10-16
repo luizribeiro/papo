@@ -3,7 +3,7 @@
 
 use std::{process::Command, time::Duration};
 
-use papo::{Client, Event, Sasl};
+use papo::{Client, Endpoint, Event, Sasl};
 use papo_test_server::{from_env, register_account, unique};
 use tokio::time::timeout;
 
@@ -13,13 +13,16 @@ const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 async fn prints_three_unread_messages_and_advances_the_marker() {
     timeout(Duration::from_secs(20), async {
         let server = from_env();
-        let address = format!("irc://{}", server.plaintext_addr());
+        let endpoint = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
         let channel = format!("#{}", unique("papo-catchup"));
         let account = unique("papo-catchup");
         let poster_nick = unique("papo-poster");
         register_account(&server, &account, PASSWORD).unwrap();
 
-        let (poster, mut poster_events) = Client::builder(address.as_str())
+        let (poster, mut poster_events) = Client::builder(endpoint.clone())
             .nick(&poster_nick)
             .channels([&channel])
             .connect()
@@ -39,7 +42,9 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         let password = std::env::temp_dir().join(format!("{account}.password"));
         std::fs::write(&password, format!("{PASSWORD}\n")).unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_catchup"))
-            .env("IRC_SERVER", &address)
+            .env("IRC_SERVER", server.plaintext_addr().ip().to_string())
+            .env("IRC_PORT", server.plaintext_addr().port().to_string())
+            .env("IRC_PLAINTEXT", "1")
             .env("IRC_NICK", &account)
             .env("IRC_PASSWORD_FILE", &password)
             .env("IRC_CHANNELS", &channel)
@@ -59,7 +64,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             texts.map(|text| format!("{channel} {text}"))
         );
 
-        let (reader, mut reader_events) = Client::builder(address.as_str())
+        let (reader, mut reader_events) = Client::builder(endpoint)
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
             .require_sasl(true)
