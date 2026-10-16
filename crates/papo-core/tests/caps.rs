@@ -137,6 +137,20 @@ fn capability_alias_resolution_stays_in_its_namespace() {
 }
 
 #[test]
+fn explicitly_disabled_caps_are_never_requested() {
+    Transcript::new(
+        Config::default()
+            .without_caps(["chathistory", "server-time"])
+            .wanted_caps(["draft/chathistory", "server-time", "batch"]),
+    )
+    .connect_default()
+    .server("CAP * LS :chathistory server-time batch")
+    .client("CAP REQ :batch")
+    .server("CAP * ACK :batch")
+    .client("CAP END");
+}
+
+#[test]
 fn drops_a_rejected_request_and_ends_negotiation() {
     Transcript::new(Config::default().wanted_caps(["batch", "server-time"]))
         .connect_default()

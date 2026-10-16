@@ -181,6 +181,7 @@ impl Caps {
             .chain(config.sasl.as_ref().map(|_| "sasl"))
             .filter(|wanted| *wanted != "ergo.chat/nope")
             .filter(|wanted| *wanted != "sts")
+            .filter(|wanted| !config.cap_disabled(wanted))
             .filter(|wanted| *wanted != "metadata-notify" || !modern_metadata)
             .filter_map(|wanted| self.advertised_spelling(wanted))
             .filter(|name| announced.contains(*name))
@@ -236,6 +237,7 @@ impl Caps {
             // Ergo disconnects pre-registration clients that request this trap capability.
             .filter(|wanted| *wanted != "ergo.chat/nope")
             .filter(|wanted| *wanted != "sts")
+            .filter(|wanted| !config.cap_disabled(wanted))
             .filter(|wanted| *wanted != "metadata-notify" || !modern_metadata)
             .filter_map(|wanted| self.advertised_spelling(wanted))
             .filter(|name| seen.insert((*name).to_owned()))

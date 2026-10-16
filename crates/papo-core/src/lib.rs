@@ -223,6 +223,8 @@ pub struct Config {
     pub host: String,
     /// Capability names to request when advertised by the server.
     pub wanted_caps: Vec<String>,
+    /// Capability names explicitly disabled by the client.
+    pub disabled_caps: Vec<String>,
     /// Alternative nicknames to try when registration collides.
     pub alt_nicks: Vec<String>,
     /// SASL mechanisms to try in preference order.
@@ -267,6 +269,7 @@ impl std::fmt::Debug for Config {
             .field("connection_security", &self.connection_security)
             .field("host", &self.host)
             .field("wanted_caps", &self.wanted_caps)
+            .field("disabled_caps", &self.disabled_caps)
             .field("alt_nicks", &self.alt_nicks)
             .field("sasl", &self.sasl)
             .field("device", &self.device)
@@ -312,6 +315,7 @@ impl Default for Config {
                 .iter()
                 .map(|name| (*name).to_owned())
                 .collect(),
+            disabled_caps: Vec::new(),
             alt_nicks: Vec::new(),
             sasl: None,
             device: None,
@@ -439,6 +443,27 @@ impl Config {
     {
         self.wanted_caps = caps.into_iter().map(Into::into).collect();
         self
+    }
+
+    /// Prevents the named capabilities from being requested.
+    #[must_use]
+    pub fn without_caps<I, S>(mut self, caps: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        for cap in caps.into_iter().map(Into::into) {
+            if !self.cap_disabled(&cap) {
+                self.disabled_caps.push(cap);
+            }
+        }
+        self
+    }
+
+    fn cap_disabled(&self, name: &str) -> bool {
+        self.disabled_caps
+            .iter()
+            .any(|disabled| papo_proto::canonical(disabled) == papo_proto::canonical(name))
     }
 
     /// Sets the alternative nicknames tried during registration.
