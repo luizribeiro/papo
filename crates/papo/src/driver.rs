@@ -1518,6 +1518,7 @@ where
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
                         Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
                         Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
+                        Err(RequestError::InvalidMessageReference) => { _ = result.send(Err(Error::Unsupported("message reference"))); }
                         Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
                     }
                 }

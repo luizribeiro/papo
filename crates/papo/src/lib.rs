@@ -22,7 +22,7 @@ pub use driver::{Client, Driver, Events, Sent};
 pub use entropy::OsEntropy;
 pub use error::Error;
 pub use event::{Event, MessageEvent, MessageKind, Origin};
-pub use history::{History, HistoryPage};
+pub use history::{History, HistoryPage, HistoryReference, HistoryRequest};
 pub use papo_core::{Account, Capabilities, Channel, Member, Response, ServerError, User};
 pub use papo_core::{RateLimit, Sasl};
 pub use papo_proto::Typing;
