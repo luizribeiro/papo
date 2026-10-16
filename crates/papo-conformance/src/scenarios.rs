@@ -2,7 +2,7 @@ use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
-use papo_proto::{Message, Source, StandardReplyKind, Typing};
+use papo_proto::{Message, StandardReplyKind, Typing};
 use papo_test_server::register_account;
 
 use super::{Scenario, ScenarioResult, ScenarioSpec, required_environment};
@@ -10,6 +10,7 @@ use support::{EXPECT_TIMEOUT, PASSWORD, close_pair, history_page, join, joined_p
 
 mod auth;
 mod connection;
+mod messaging;
 mod support;
 
 pub(super) fn all() -> Vec<ScenarioSpec> {
@@ -424,57 +425,6 @@ const fn scenario_table() -> &'static [ScenarioSpec] {
             run: __papo_scenario_whox,
         },
     ]
-}
-
-/// echoes a channel PRIVMSG to its sender
-#[scenario(requires(caps = ["echo-message"]))]
-async fn echo_message(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let text = format!("echo from {}", context.unique());
-    let mut connection = context.client(&nick).await?;
-    let registered_nick = connection.welcome.nick.clone();
-    connection
-        .client
-        .send(Message::join(&channel))
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut connection.events,
-            |event| {
-                matches!(
-                    event,
-                    Event::Joined {
-                        channel: joined,
-                        nick: joined_nick,
-                    } if joined == &channel && joined_nick == &registered_nick
-                )
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    connection
-        .client
-        .privmsg(&channel, &text)
-        .await
-        .map_err(Failed::from)?;
-    context
-            .expect(
-                &mut connection.events,
-                |event| {
-                    matches!(event, Event::Message(message) if {
-                        let message = message.as_ref();
-                        message.command_is("PRIVMSG")
-                            && message.param(0) == Some(channel.as_str())
-                            && message.param(1) == Some(text.as_str())
-                            && matches!(message.source(), Some(Source::User { nick, .. }) if nick == registered_nick)
-                    })
-                },
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-    connection.close().await
 }
 
 /// correlates a labelled WHOIS response
