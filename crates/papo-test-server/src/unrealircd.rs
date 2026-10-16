@@ -60,7 +60,7 @@ link services.papo.test {{ incoming {{ mask 127.0.0.1; }} password "papo-link"; 
 ulines {{ services.papo.test; }}
 set {{
  sasl-server services.papo.test;
- tls {{ certificate "{cert}"; key "{key}"; sts-policy {{ port {tls}; duration 3600; }} }}
+ tls {{ certificate "{cert}"; key "{key}"; }}
  modes-on-join "+ntH 100:1d";
  kline-address "papo@example.invalid"; network-name "papo"; default-server "irc.papo.test"; help-channel "#help";
  options {{ identd-check; }}
@@ -280,6 +280,7 @@ mod tests {
         assert!(unreal.contains("/unreal/conf/modules.default.conf"));
         assert!(unreal.contains(&format!("port {};", config.tls.port())));
         assert!(unreal.contains("modes-on-join \"+ntH 100:1d\""));
+        assert!(!unreal.contains("sts-policy"));
         let atheme = fs::read_to_string(directory.path().join("atheme.conf")).unwrap();
         assert!(atheme.contains("/atheme/modules/protocol/unreal4"));
         assert!(atheme.contains(&format!("port = {}", config.services.port())));
