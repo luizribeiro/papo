@@ -2,7 +2,6 @@ use std::{path::Path, time::Duration};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
 use papo_core::{Config, RateLimit, Sasl};
-use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -292,16 +291,6 @@ impl Builder {
         self.build_with_registration(None)
     }
 
-    /// Builds handles and a lazy driver over an already-connected stream.
-    ///
-    /// Custom streams are driven once and are never reconnected after they close.
-    pub fn build_with<S>(self, stream: S) -> (crate::Client, crate::Events, crate::Driver)
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        self.build_tokio_stream_with_registration(stream, None)
-    }
-
     /// Connects in a spawned driver and waits for IRC registration.
     ///
     /// The [`crate::Event::Registered`] event remains available from the
@@ -316,61 +305,6 @@ impl Builder {
         crate::rt::spawn(driver);
         receiver.await.map_err(|_| Error::Disconnected)??;
         Ok((client, events))
-    }
-
-    /// Spawns a driver over an already-connected stream and waits for IRC registration.
-    ///
-    /// The stream is driven once and is never reconnected after it closes. The
-    /// [`crate::Event::Registered`] event remains available from the returned event stream.
-    ///
-    /// # Errors
-    ///
-    /// Returns address or registration errors that occur before welcome.
-    pub async fn connect_with<S>(self, stream: S) -> Result<(crate::Client, crate::Events), Error>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        let (sender, receiver) = oneshot::channel();
-        let (client, events, driver) =
-            self.build_tokio_stream_with_registration(stream, Some(sender));
-        crate::rt::spawn(driver);
-        receiver.await.map_err(|_| Error::Disconnected)??;
-        Ok((client, events))
-    }
-
-    fn build_tokio_stream_with_registration<S>(
-        mut self,
-        stream: S,
-        registration: Option<crate::driver::RegistrationSender>,
-    ) -> (crate::Client, crate::Events, crate::Driver)
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        if let Ok(address) = &self.address {
-            apply_address(&mut self.config, address);
-        }
-        let address_error = self.address.err();
-        let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
-        if let Some(error) = address_error {
-            drop(stream);
-            return crate::Driver::failed(
-                &session,
-                self.event_capacity,
-                registration,
-                Error::InvalidInput(error),
-            );
-        }
-        crate::Driver::with_stream_and_registration(
-            stream,
-            session,
-            self.event_capacity,
-            registration,
-            PostRegistration {
-                bot: self.bot,
-                channels: self.channels,
-                history_on_reconnect: self.history_on_reconnect,
-            },
-        )
     }
 
     fn build_stream_with_registration(

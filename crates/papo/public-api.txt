@@ -266,11 +266,9 @@ impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::bot(self) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
-pub fn papo::Builder::build_with<S>(self, S) -> (papo::Client, papo::Events, papo::Driver) where S: tokio::io::async_read::AsyncRead + tokio::io::async_write::AsyncWrite + core::marker::Unpin + core::marker::Send + 'static
 pub fn papo::Builder::caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>
-pub async fn papo::Builder::connect_with<S>(self, S) -> core::result::Result<(papo::Client, papo::Events), papo::Error> where S: tokio::io::async_read::AsyncRead + tokio::io::async_write::AsyncWrite + core::marker::Unpin + core::marker::Send + 'static
 pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::disconnected_queue_capacity(self, usize) -> Self
 pub fn papo::Builder::event_capacity(self, usize) -> Self
