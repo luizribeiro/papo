@@ -8,7 +8,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Event, MessageEvent, Origin, Sasl};
+use papo::{Client, Endpoint, Event, MessageEvent, Origin, Sasl};
 use papo_proto::Source;
 use papo_test_server::{from_env, register_account, unique};
 
@@ -16,12 +16,15 @@ use papo_test_server::{from_env, register_account, unique};
 async fn reply_between_two_clients_carries_the_original_msgid() {
     within(async {
         let server = from_env();
-        let address = format!("irc://{}", server.plaintext_addr());
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
         let channel = format!("#{}", unique("papo-reply"));
         let nick_a = unique("papo-sender");
         let nick_b = unique("papo-replier");
 
-        let (client_a, mut events_a) = Client::builder(address.as_str())
+        let (client_a, mut events_a) = Client::builder(address.clone())
             .nick(&nick_a)
             .channels([&channel])
             .connect()
@@ -29,7 +32,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
             .unwrap();
         wait_ready(&mut events_a, &nick_a, &channel).await;
 
-        let (client_b, mut events_b) = Client::builder(address.as_str())
+        let (client_b, mut events_b) = Client::builder(address)
             .nick(&nick_b)
             .channels([&channel])
             .connect()
@@ -69,13 +72,17 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
 async fn same_account_sessions_distinguish_echoes() {
     within(async {
         let server = from_env();
-        let address = format!("irc://{}", server.plaintext_addr());
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
         let account = unique("papo-multiclient");
         let channel = format!("#{}", unique("papo-multiclient"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
         register_account(&server, &account, password).unwrap();
-        let (client_a, mut events_a) = account_client(&address, &account, password, &channel).await;
-        let (client_b, mut events_b) = account_client(&address, &account, password, &channel).await;
+        let (client_a, mut events_a) =
+            account_client(address.clone(), &account, password, &channel).await;
+        let (client_b, mut events_b) = account_client(address, &account, password, &channel).await;
 
         client_a
             .privmsg(&channel, "from this device")
@@ -109,10 +116,14 @@ async fn same_account_sessions_distinguish_echoes() {
 async fn reactions_reach_another_client_with_reply_context() {
     within(async {
         let server = from_env();
-        let address = format!("irc://{}", server.plaintext_addr());
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
         let channel = format!("#{}", unique("papo-react"));
-        let (client_a, mut events_a) = client(&address, &unique("papo-react-a"), &channel).await;
-        let (client_b, mut events_b) = client(&address, &unique("papo-react-b"), &channel).await;
+        let (client_a, mut events_a) =
+            client(address.clone(), &unique("papo-react-a"), &channel).await;
+        let (client_b, mut events_b) = client(address, &unique("papo-react-b"), &channel).await;
 
         client_a.privmsg(&channel, "excellent news").await.unwrap();
         let incoming =
@@ -132,10 +143,14 @@ async fn reactions_reach_another_client_with_reply_context() {
 async fn multiline_delivers_a_thousand_byte_message_whole() {
     within(async {
         let server = from_env();
-        let address = format!("irc://{}", server.plaintext_addr());
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
         let channel = format!("#{}", unique("papo-multiline"));
-        let (client_a, _events_a) = client(&address, &unique("papo-multi-a"), &channel).await;
-        let (client_b, mut events_b) = client(&address, &unique("papo-multi-b"), &channel).await;
+        let (client_a, _events_a) =
+            client(address.clone(), &unique("papo-multi-a"), &channel).await;
+        let (client_b, mut events_b) = client(address, &unique("papo-multi-b"), &channel).await;
         let text = "é".repeat(500);
 
         let sender = client_a.clone();
@@ -158,7 +173,7 @@ async fn multiline_delivers_a_thousand_byte_message_whole() {
     .await;
 }
 
-async fn client(address: &str, nick: &str, channel: &str) -> (Client, papo::Events) {
+async fn client(address: Endpoint, nick: &str, channel: &str) -> (Client, papo::Events) {
     let (client, mut events) = Client::builder(address)
         .nick(nick)
         .channels([channel])
@@ -170,7 +185,7 @@ async fn client(address: &str, nick: &str, channel: &str) -> (Client, papo::Even
 }
 
 async fn account_client(
-    address: &str,
+    address: Endpoint,
     account: &str,
     password: &str,
     channel: &str,

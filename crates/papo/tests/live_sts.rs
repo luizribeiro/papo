@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Event};
+use papo::{Client, Endpoint, Event};
 use papo_test_server::{TestServer, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -13,9 +13,9 @@ async fn connect_waits_for_registration_after_an_sts_upgrade() {
     within(async {
         let server = TestServer::start_with_sts().unwrap();
         let nick = unique("papo-sts");
-        let (client, mut events) = Client::builder(format!(
-            "irc://localhost:{}",
-            server.plaintext_addr().port()
+        let (client, mut events) = Client::builder(Endpoint::plaintext(
+            "localhost",
+            server.plaintext_addr().port(),
         ))
         .nick(&nick)
         .caps(["sts"])

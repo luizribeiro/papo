@@ -8,17 +8,20 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Error, Event, ListFilter, ServerError};
+use papo::{Client, Endpoint, Error, Event, ListFilter, ServerError};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
 async fn typed_requests_round_trip_against_ergo() {
     within(async {
         let server = from_env();
-        let address = format!("irc://{}", server.plaintext_addr());
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
         let nick = unique("papo-requests");
         let channel = format!("#{}", unique("papo-requests"));
-        let (client, mut events) = Client::builder(address.as_str())
+        let (client, mut events) = Client::builder(address)
             .nick(&nick)
             .connect()
             .await

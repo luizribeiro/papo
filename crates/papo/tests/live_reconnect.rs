@@ -7,7 +7,7 @@ use support::within;
 
 use std::time::Duration;
 
-use papo::{Client, Event, Origin, Reconnect, Sasl};
+use papo::{Client, Endpoint, Event, Origin, Reconnect, Sasl};
 use papo_test_server::{TestServer, register_account_at, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -19,9 +19,9 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         let channel = format!("#{}", unique("papo-reconnect"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
         register_account_at(server.plaintext_addr(), &nick, password).unwrap();
-        let (client, mut events) = Client::builder(format!(
-            "irc://localhost:{}",
-            server.plaintext_addr().port()
+        let (client, mut events) = Client::builder(Endpoint::plaintext(
+            "localhost",
+            server.plaintext_addr().port(),
         ))
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password))
@@ -102,9 +102,9 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
 
 async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
     let poster_nick = unique("papo-reconnect-poster");
-    let (poster, mut events) = Client::builder(format!(
-        "irc://localhost:{}",
-        server.plaintext_addr().port()
+    let (poster, mut events) = Client::builder(Endpoint::plaintext(
+        "localhost",
+        server.plaintext_addr().port(),
     ))
     .nick(&poster_nick)
     .channels([channel])
