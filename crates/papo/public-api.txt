@@ -306,13 +306,7 @@ pub papo::Event::AccountChanged(papo::event::AccountChanged)
 pub papo::Event::AccountRegistered
 pub papo::Event::AccountRegistered::account: alloc::string::String
 pub papo::Event::AccountRegistered::logged_in: bool
-pub papo::Event::AuthenticationFailed
-pub papo::Event::AuthenticationFailed::reason: alloc::string::String
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
-pub papo::Event::BatchAbandoned
-pub papo::Event::BatchAbandoned::batch_type: alloc::string::String
-pub papo::Event::BatchAbandoned::reason: papo_core::BatchAbandonReason
-pub papo::Event::BatchAbandoned::reference: alloc::string::String
 pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
 pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
@@ -326,20 +320,14 @@ pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
-pub papo::Event::Malformed
-pub papo::Event::Malformed::line: alloc::vec::Vec<u8>
 pub papo::Event::Message(papo::MessageEvent)
 pub papo::Event::MetadataChanged(papo::event::MetadataChanged)
 pub papo::Event::MetadataSyncLater
 pub papo::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
 pub papo::Event::MetadataSyncLater::target: alloc::string::String
 pub papo::Event::ModeChanged(papo::event::ModeChanged)
-pub papo::Event::MonitorListFull
-pub papo::Event::MonitorListFull::limit: usize
-pub papo::Event::MonitorListFull::nicks: alloc::vec::Vec<alloc::string::String>
 pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
 pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
-pub papo::Event::MonitorUnsupported
 pub papo::Event::Netjoin(papo::event::Netjoin)
 pub papo::Event::Netsplit(papo::event::Netsplit)
 pub papo::Event::NickChanged(papo::event::NickChanged)
@@ -360,8 +348,6 @@ pub papo::Event::RequestUntracked
 pub papo::Event::RequestUntracked::id: papo_core::RequestId
 pub papo::Event::Response(papo_core::Response)
 pub papo::Event::StandardReply(papo::event::StandardReply)
-pub papo::Event::StateLimitReached
-pub papo::Event::StateLimitReached::limit: papo_core::StateLimit
 pub papo::Event::StsPolicy(papo_core::sts::StsAction)
 pub papo::Event::StsUpgrade
 pub papo::Event::StsUpgrade::port: u16
@@ -371,6 +357,7 @@ pub papo::Event::TypingChanged(papo::event::TypingChanged)
 pub papo::Event::VerificationRequired
 pub papo::Event::VerificationRequired::account: alloc::string::String
 pub papo::Event::VerificationRequired::message: alloc::string::String
+pub papo::Event::Warning(papo::event::Warning)
 impl papo::Event
 pub const fn papo::Event::as_caps_changed(&self) -> core::option::Option<&papo::event::CapsChanged>
 pub const fn papo::Event::as_disconnected(&self) -> core::option::Option<&papo::event::Disconnected>

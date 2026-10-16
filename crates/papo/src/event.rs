@@ -1,7 +1,4 @@
-use papo_core::{
-    Account, BatchAbandonReason as CoreBatchAbandonReason, Capabilities, RequestId, Response,
-    StateLimit as CoreStateLimit, Welcome, sts::StsAction,
-};
+use papo_core::{Account, Capabilities, RequestId, Response, Welcome, sts::StsAction};
 use std::{
     fmt,
     time::{Duration, SystemTime},
@@ -628,24 +625,7 @@ pub enum Event {
     /// separate [`Event::Message`] values.
     Netjoin(Netjoin),
     /// A server batch exceeded a retention bound or deadline.
-    BatchAbandoned {
-        /// The opaque batch reference.
-        reference: String,
-        /// The batch type from its opening line.
-        batch_type: String,
-        /// The bound that was reached.
-        reason: CoreBatchAbandonReason,
-    },
-    /// A line from the server could not be decoded or parsed.
-    Malformed {
-        /// The original bytes, excluding the line ending.
-        line: Vec<u8>,
-    },
-    /// Configured authentication failed and registration is continuing.
-    AuthenticationFailed {
-        /// A human-readable explanation suitable for diagnostics.
-        reason: String,
-    },
+    Warning(Warning),
     /// The capabilities enabled on an established connection changed.
     CapsChanged(CapsChanged),
     /// A plaintext connection must be replaced with TLS on `port`.
@@ -684,23 +664,11 @@ pub enum Event {
     /// A channel topic changed live.
     TopicChanged(TopicChanged),
     /// Server input exceeded a configured state-retention bound.
-    StateLimitReached {
-        /// The state collection that rejected another entry.
-        limit: CoreStateLimit,
-    },
     /// A monitored nickname came online or changed its userhost.
     MonitorOnline(MonitorOnline),
     /// A monitored nickname went offline.
     MonitorOffline(MonitorOffline),
     /// The server rejected nicknames because its monitor list was full.
-    MonitorListFull {
-        /// The server's advertised monitor-list limit.
-        limit: usize,
-        /// Nicknames the server did not add.
-        nicks: Vec<String>,
-    },
-    /// The server does not advertise MONITOR support.
-    MonitorUnsupported,
     /// The connection ended.
     Disconnected(Disconnected),
 }
@@ -942,14 +910,22 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             reference,
             batch_type,
             reason,
-        } => Event::BatchAbandoned {
+        } => Event::Warning(Warning::BatchAbandoned {
             reference,
             batch_type,
-            reason,
-        },
-        papo_core::Event::Malformed { line } => Event::Malformed { line },
+            reason: match reason {
+                papo_core::BatchAbandonReason::OpenBatchLimit => BatchAbandonReason::OpenBatchLimit,
+                papo_core::BatchAbandonReason::LineLimit => BatchAbandonReason::LineLimit,
+                papo_core::BatchAbandonReason::ByteLimit => BatchAbandonReason::ByteLimit,
+                papo_core::BatchAbandonReason::Timeout => BatchAbandonReason::Timeout,
+                _ => return CoreEvent::Unknown,
+            },
+        }),
+        papo_core::Event::Malformed { line } => Event::Warning(Warning::Malformed { line }),
         papo_core::Event::Close { kind, reason } => return CoreEvent::Close { kind, reason },
-        papo_core::Event::AuthenticationFailed { reason } => Event::AuthenticationFailed { reason },
+        papo_core::Event::AuthenticationFailed { reason } => {
+            Event::Warning(Warning::AuthenticationFailed { reason })
+        }
         papo_core::Event::CapsChanged { added, removed } => {
             Event::CapsChanged(CapsChanged { added, removed })
         }
@@ -1043,15 +1019,25 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                 by: Source::from_name(by),
             })
         }
-        papo_core::Event::StateLimitReached { limit } => Event::StateLimitReached { limit },
+        papo_core::Event::StateLimitReached { limit } => {
+            Event::Warning(Warning::StateLimitReached {
+                limit: match limit {
+                    papo_core::StateLimit::Channels => StateLimit::Channels,
+                    papo_core::StateLimit::Members => StateLimit::Members,
+                    papo_core::StateLimit::MetadataTargets => StateLimit::MetadataTargets,
+                    papo_core::StateLimit::MetadataKeys => StateLimit::MetadataKeys,
+                    _ => return CoreEvent::Unknown,
+                },
+            })
+        }
         papo_core::Event::MonitorOnline { nick, user, host } => {
             Event::MonitorOnline(MonitorOnline { nick, user, host })
         }
         papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline { nick }),
         papo_core::Event::MonitorListFull { limit, nicks } => {
-            Event::MonitorListFull { limit, nicks }
+            Event::Warning(Warning::MonitorListFull { limit, nicks })
         }
-        papo_core::Event::MonitorUnsupported => Event::MonitorUnsupported,
+        papo_core::Event::MonitorUnsupported => Event::Warning(Warning::MonitorUnsupported),
         _ => return CoreEvent::Unknown,
     })
 }
@@ -1062,7 +1048,7 @@ mod tests {
 
     use super::{
         CoreEvent, Event, MessageEvent, MessageKind, Origin, PersistenceSetting, Source,
-        StandardReplyKind, from_core,
+        StandardReplyKind, Warning, from_core,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Session,
@@ -1727,9 +1713,9 @@ mod tests {
             forwarded(papo_core::Event::StateLimitReached {
                 limit: StateLimit::Members
             }),
-            Event::StateLimitReached {
-                limit: StateLimit::Members
-            }
+            Event::Warning(Warning::StateLimitReached {
+                limit: super::StateLimit::Members
+            })
         ));
     }
 
@@ -1773,7 +1759,7 @@ mod tests {
                 limit: 100,
                 nicks: vec!["alice".into(), "bob".into()],
             }),
-            Event::MonitorListFull { limit, nicks }
+            Event::Warning(Warning::MonitorListFull { limit, nicks })
                 if limit == 100 && nicks == ["alice", "bob"]
         ));
     }
@@ -1782,7 +1768,7 @@ mod tests {
     fn maps_monitor_unsupported() {
         assert!(matches!(
             forwarded(papo_core::Event::MonitorUnsupported),
-            Event::MonitorUnsupported
+            Event::Warning(Warning::MonitorUnsupported)
         ));
     }
 
@@ -1875,11 +1861,11 @@ mod tests {
 
     #[test]
     fn maps_batch_abandoned() {
-        let Event::BatchAbandoned {
+        let Event::Warning(Warning::BatchAbandoned {
             reference,
             batch_type,
             reason,
-        } = forwarded(papo_core::Event::BatchAbandoned {
+        }) = forwarded(papo_core::Event::BatchAbandoned {
             reference: "history42".into(),
             batch_type: "chathistory".into(),
             reason: BatchAbandonReason::Timeout,
@@ -1889,6 +1875,6 @@ mod tests {
         };
         assert_eq!(reference, "history42");
         assert_eq!(batch_type, "chathistory");
-        assert_eq!(reason, BatchAbandonReason::Timeout);
+        assert_eq!(reason, super::BatchAbandonReason::Timeout);
     }
 }

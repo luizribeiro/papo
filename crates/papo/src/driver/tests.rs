@@ -74,7 +74,7 @@ async fn message_accessors_use_captured_session_facts() {
     assert_eq!(next_message(&mut events).await.origin(), Origin::Replay);
     assert!(matches!(
         events.next().await,
-        Some(Event::BatchAbandoned { .. })
+        Some(Event::Warning(crate::event::Warning::BatchAbandoned { .. }))
     ));
 
     let before = SystemTime::now();
@@ -1087,7 +1087,8 @@ async fn malformed_line_preserves_exact_bytes() {
         .unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Malformed { line }) if line == b":ergo.test NOTICE * :caf\xe9"
+        Some(Event::Warning(crate::event::Warning::Malformed { line }))
+            if line == b":ergo.test NOTICE * :caf\xe9"
     ));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -1109,7 +1110,9 @@ async fn sasl_nak_forwards_authentication_failure() {
     server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
     assert!(matches!(
         events.next().await,
-        Some(Event::AuthenticationFailed { .. })
+        Some(Event::Warning(
+            crate::event::Warning::AuthenticationFailed { .. }
+        ))
     ));
     client_line(&mut server, b"CAP END\r\n").await;
     within(server.shutdown()).await.unwrap();

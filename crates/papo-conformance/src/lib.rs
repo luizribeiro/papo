@@ -649,10 +649,7 @@ mod tests {
     #[test]
     fn expect_times_out_after_only_non_matching_events() {
         let mut events = ScriptedEvents {
-            events: [Event::Raw(
-                Message::new("401", ["papo", "missing", "No such nick"]).with_source("ergo.test"),
-            )]
-            .into(),
+            events: [Event::Warning(papo::event::Warning::MonitorUnsupported)].into(),
         };
         let error = runtime()
             .block_on(expect_event(
