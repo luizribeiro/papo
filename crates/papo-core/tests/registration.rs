@@ -4,7 +4,7 @@ mod support;
 
 use std::time::Duration;
 
-use papo_core::{BatchAbandonReason, CloseKind, Config, Event};
+use papo_core::{BatchAbandonReason, CloseKind, Config, Event, Session};
 use papo_proto::Isupport;
 use support::Transcript;
 
@@ -165,6 +165,29 @@ fn incomplete_isupport_batch_does_not_change_state() {
         } if batch_type == "draft/isupport")
     })
     .inspect(|session| assert_eq!(session.isupport().nicklen(), None));
+}
+
+#[test]
+fn isupport_batches_change_generation_only_when_state_changes() {
+    let now = std::time::Instant::now();
+    let mut session = Session::new(Config::default());
+    let generation = session.state_generation();
+
+    for reference in ["first", "same"] {
+        session.handle_line(now, format!("BATCH +{reference} draft/isupport").as_bytes());
+        session.handle_line(
+            now,
+            format!("@batch={reference} :ergo.test 005 * CASEMAPPING=ascii :are supported")
+                .as_bytes(),
+        );
+        session.handle_line(now, format!("BATCH -{reference}").as_bytes());
+    }
+
+    assert_eq!(
+        session.isupport().casemapping(),
+        papo_proto::Casemapping::Ascii
+    );
+    assert_eq!(session.state_generation(), generation + 1);
 }
 
 #[test]

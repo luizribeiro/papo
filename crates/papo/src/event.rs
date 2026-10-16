@@ -1429,6 +1429,19 @@ mod tests {
     }
 
     #[test]
+    fn maps_channel_renames() {
+        assert!(matches!(
+            forwarded(papo_core::Event::ChannelRenamed {
+                old: "#rust".into(),
+                new: "#rust-lang".into(),
+                reason: "Project renamed".into(),
+            }),
+            Event::ChannelRenamed { old, new, reason }
+                if old == "#rust" && new == "#rust-lang" && reason == "Project renamed"
+        ));
+    }
+
+    #[test]
     fn maps_persistence_status() {
         assert!(matches!(
             forwarded(papo_core::Event::PersistenceStatus {

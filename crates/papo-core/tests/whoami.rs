@@ -21,7 +21,7 @@ fn welcomed(realname: &str) -> Transcript {
     .client("CAP REQ :draft/whoami")
     .server("CAP * ACK :draft/whoami")
     .client("CAP END")
-    .server(":ergo.test 001 Alice :Welcome to Ergo")
+    .server(":ergo.test 001 alice :Welcome to Ergo")
 }
 
 #[test]
@@ -57,5 +57,36 @@ fn whoami_reports_an_actual_realname_change() {
         .event(|event| {
             matches!(event, Event::RealnameChanged { nick, realname }
             if nick == "Alice" && realname == "Alice Example")
+        });
+}
+
+#[test]
+fn setname_without_whoami_does_not_supply_connection_identity() {
+    Transcript::new(Config::default().nick("alice").username("client"))
+        .connect()
+        .client("CAP LS 302")
+        .client("NICK alice")
+        .client("USER client 0 * papo")
+        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .server(":Alice!~alice@users/alice SETNAME :Alice Example")
+        .event(|event| matches!(event, Event::RealnameChanged { .. }))
+        .inspect(|session| {
+            assert_eq!(session.nick(), "alice");
+            assert_eq!(session.state().username(), "client");
+            assert_eq!(session.state().host(), None);
+        });
+}
+
+#[test]
+fn setname_after_welcome_burst_does_not_act_as_whoami() {
+    welcomed("Alice Example")
+        .server(":ergo.test 422 alice :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .server(":Alice!~alice@users/alice SETNAME :Alice Example")
+        .event(|event| matches!(event, Event::RealnameChanged { .. }))
+        .inspect(|session| {
+            assert_eq!(session.nick(), "alice");
+            assert_eq!(session.state().username(), "client");
+            assert_eq!(session.state().host(), None);
         });
 }
