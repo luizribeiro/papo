@@ -151,11 +151,12 @@ pub(super) async fn run_plan(
             base_plan.address.set_port(port);
             sts_required = true;
         }
+        let reconnect_now = end.reconnect_now;
         pending_events = match enqueue_retry_event(&events, end) {
             Ok(pending) => pending,
             Err(end) => return finish(events, *end, false),
         };
-        if upgrade_port.is_some() {
+        if upgrade_port.is_some() || reconnect_now {
             continue;
         }
         if !wait_before_retry(
@@ -246,6 +247,7 @@ pub(super) async fn run_planned_connection(
         plan.address.port,
         pending_events,
         &events.connected,
+        true,
     )
     .await
 }
@@ -263,6 +265,9 @@ fn triage_connection_end(
     }
     if end.quit.is_some() {
         return ControlFlow::Break((end, false));
+    }
+    if end.reconnect_now {
+        return ControlFlow::Continue((end, None));
     }
     if end.registered_at.is_some() {
         *last_sts_upgrade = None;
@@ -401,6 +406,7 @@ fn finish_connection_failure(
             sts: StsActions::default(),
             sts_store: None,
             pending_events: VecDeque::new(),
+            reconnect_now: false,
         },
         false,
     )
@@ -424,6 +430,7 @@ fn finish_slow_consumer(
             sts: StsActions::default(),
             sts_store: None,
             pending_events,
+            reconnect_now: false,
         },
         false,
     )
@@ -539,8 +546,16 @@ async fn wait_before_retry(
                 Err(_) => pending_events.clear(),
             },
             command = commands.recv() => {
-                if !handle_disconnected_command(command, queued, capacity) {
-                    return false;
+                match command {
+                    Some(Command::Reconnect { result }) => {
+                        _ = result.send(Ok(()));
+                        return true;
+                    }
+                    command => {
+                        if !handle_disconnected_command(command, queued, capacity) {
+                            return false;
+                        }
+                    }
                 }
             }
         }
@@ -584,6 +599,10 @@ fn handle_disconnected_command(
         }
         Some(Command::Typing { result, .. } | Command::WaitChannelSync { result, .. }) => {
             _ = result.send(Err(Error::Disconnected));
+            true
+        }
+        Some(Command::Reconnect { result }) => {
+            _ = result.send(Ok(()));
             true
         }
         Some(Command::Quit { result, .. }) => {

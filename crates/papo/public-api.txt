@@ -281,6 +281,7 @@ pub async fn papo::Client::quit(&self, core::option::Option<&str>) -> core::resu
 pub async fn papo::Client::raw(&self, papo_proto::message::Message) -> core::result::Result<papo_core::Response, papo::Error>
 pub async fn papo::Client::raw_unlabeled(&self, papo_proto::message::Message) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::react(&self, &papo::MessageEvent, &str) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::reconnect(&self) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::redact(&self, &str, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::send(&self, papo_proto::message::Message) -> core::result::Result<(), papo::Error>
 pub fn papo::Client::snapshot(&self) -> alloc::rcs::arc::Arc<papo::State>

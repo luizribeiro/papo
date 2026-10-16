@@ -606,6 +606,7 @@ mod tests {
             events.next().await,
             Some(crate::Event::Registered(_))
         ));
+        assert!(matches!(client.reconnect().await, Err(Error::Disconnected)));
         within(server.shutdown()).await.unwrap();
         assert!(matches!(
             events.next().await,

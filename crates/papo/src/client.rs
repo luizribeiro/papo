@@ -122,6 +122,30 @@ impl Client {
         self.state(|state| state.casemap(name))
     }
 
+    /// Disconnects the current transport and starts a new connection immediately.
+    ///
+    /// This skips any reconnect backoff. A builder configured with
+    /// [`crate::Builder::stream`] cannot create another custom stream.
+    ///
+    /// ```no_run
+    /// # async fn resume(client: &papo::Client) -> Result<(), papo::Error> {
+    /// client.reconnect().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Disconnected`] for a custom stream or after the driver stops.
+    pub async fn reconnect(&self) -> Result<(), Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::Reconnect { result })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        receiver.await.map_err(|_| Error::Disconnected)?
+    }
+
     /// Validates and queues an IRC message for transmission.
     ///
     /// # Errors

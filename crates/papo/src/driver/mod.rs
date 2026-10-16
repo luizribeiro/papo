@@ -164,6 +164,9 @@ pub(crate) enum Command {
         channel: String,
         result: oneshot::Sender<Result<(), Error>>,
     },
+    Reconnect {
+        result: oneshot::Sender<Result<(), Error>>,
+    },
     Quit {
         reason: Option<String>,
         result: oneshot::Sender<Result<(), Error>>,
@@ -531,6 +534,7 @@ where
         0,
         VecDeque::new(),
         &events.connected,
+        false,
     )
     .await;
     registration.failed(end.registration_error());
@@ -548,6 +552,7 @@ struct ConnectionEnd {
     sts: StsActions,
     sts_store: Option<Box<dyn StsStore + Send>>,
     pending_events: VecDeque<Event>,
+    reconnect_now: bool,
 }
 
 #[derive(Default)]
@@ -576,6 +581,7 @@ async fn run_connection<S>(
     sts_port: u16,
     mut pending_events: VecDeque<Event>,
     connected: &AtomicBool,
+    reconnectable: bool,
 ) -> ConnectionEnd
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -601,6 +607,7 @@ where
     let mut catchups = BTreeMap::new();
     let mut registered_at = None;
     let mut sts = StsActions::default();
+    let mut reconnect_now = false;
     let mut buffer = [0; 4096];
     let (mut reason, mut error, close_kind, quit_timed_out) = loop {
         match drain(
@@ -775,6 +782,19 @@ where
                         sync_waiters.push((channel, result));
                     }
                 }
+                Some(Command::Reconnect { result }) => {
+                    if reconnectable {
+                        _ = result.send(Ok(()));
+                        reconnect_now = true;
+                        break (
+                            "reconnect requested".to_owned(),
+                            Error::Disconnected,
+                            None,
+                            false,
+                        );
+                    }
+                    _ = result.send(Err(Error::Disconnected));
+                }
                 Some(Command::Quit { reason, result }) => {
                     request_quit(session, &mut quit, reason, Some(result));
                 }
@@ -826,6 +846,7 @@ where
         sts,
         sts_store,
         pending_events,
+        reconnect_now,
     }
 }
 

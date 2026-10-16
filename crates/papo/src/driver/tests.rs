@@ -335,6 +335,60 @@ async fn eof_reconnects_and_emits_reconnected() {
     assert!(within(driver).await.unwrap().is_ok());
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn explicit_reconnect_redials_without_backoff() {
+    let (first_stream, mut first_server) = tokio::io::duplex(4096);
+    let (second_stream, mut second_server) = tokio::io::duplex(4096);
+    let streams = Arc::new(Mutex::new(VecDeque::from([
+        Box::new(first_stream) as super::BoxConnection,
+        Box::new(second_stream) as super::BoxConnection,
+    ])));
+    let connector: super::Connector = Arc::new(move |_| {
+        let stream = streams.lock().unwrap().pop_front().unwrap();
+        Box::pin(async move { Ok(stream) })
+    });
+    let (client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostRegistration::default(),
+        Reconnect::exponential(),
+        256,
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut first_server, &mut events).await;
+
+    within(client.reconnect()).await.unwrap();
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected {
+            will_retry: true,
+            ..
+        })
+    ));
+    registration_burst(&mut second_server).await;
+    server_line(&mut second_server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut second_server, b"CAP END\r\n").await;
+    server_line(
+        &mut second_server,
+        b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
+
+    let quit = tokio::spawn(async move { client.quit(None).await });
+    client_line(&mut second_server, b"QUIT\r\n").await;
+    within(second_server.shutdown()).await.unwrap();
+    within(quit).await.unwrap().unwrap();
+    within(driver).await.unwrap().unwrap();
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
