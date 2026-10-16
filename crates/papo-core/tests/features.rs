@@ -2,7 +2,8 @@
 
 mod support;
 
-use papo_core::{Config, Feature, Session, Unsupported, UnsupportedReason};
+use papo_core::{Config, Event, Feature, Session, Unsupported, UnsupportedReason};
+use support::Transcript;
 
 const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response";
 
@@ -172,4 +173,55 @@ fn unsupported_messages_name_the_feature_and_reason() {
             format!("reactions unavailable: {expected}")
         );
     }
+}
+
+#[test]
+fn reports_capability_and_isupport_feature_changes_after_registration() {
+    Transcript::new(Config::default().wanted_caps(["message-tags"]))
+        .connect_default()
+        .server("CAP * LS :message-tags")
+        .client("CAP REQ :message-tags")
+        .server("CAP * ACK :message-tags")
+        .client("CAP END")
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo MONITOR=100 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .server("CAP papo DEL :message-tags")
+        .event(|event| matches!(event, Event::CapsChanged { .. }))
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, removed }
+                if added.is_empty()
+                    && removed == &[Feature::Replies, Feature::Reactions, Feature::Typing])
+        })
+        .server("CAP papo NEW :message-tags")
+        .client("CAP REQ :message-tags")
+        .server("CAP papo ACK :message-tags")
+        .event(|event| matches!(event, Event::CapsChanged { .. }))
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, removed }
+                if added == &[Feature::Replies, Feature::Reactions, Feature::Typing]
+                    && removed.is_empty())
+        })
+        .server(":irc.solanum.example 005 papo CLIENTTAGDENY=draft/react :are supported")
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, removed }
+                if added.is_empty() && removed == &[Feature::Reactions])
+        })
+        .server(":irc.solanum.example 005 papo -CLIENTTAGDENY :are supported")
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, removed }
+                if added == &[Feature::Reactions] && removed.is_empty())
+        })
+        .server(":irc.unreal.example 005 papo MONITOR=0 :are supported")
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, removed }
+                if added.is_empty() && removed == &[Feature::Monitor])
+        })
+        .server(":irc.unreal.example 005 papo MONITOR=100 :are supported")
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, removed }
+                if added == &[Feature::Monitor] && removed.is_empty())
+        })
+        .no_event();
 }

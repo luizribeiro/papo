@@ -1567,6 +1567,13 @@ pub enum Event {
         /// Capabilities removed by the server.
         removed: Capabilities,
     },
+    /// Optional behaviors available on an established connection changed.
+    FeaturesChanged {
+        /// Behaviors that became available.
+        added: Vec<Feature>,
+        /// Behaviors that became unavailable.
+        removed: Vec<Feature>,
+    },
     /// A plaintext connection must be replaced with TLS on `port`.
     StsUpgrade {
         /// The advertised TLS port.
@@ -2755,6 +2762,7 @@ impl Session {
     ) {
         let before = self.snapshot_values();
         let was_registered = self.registration.is_registered();
+        let before_features = was_registered.then(|| self.supported_features());
         let registration_handled = self.registration.handle_message(
             now,
             message,
@@ -2847,8 +2855,30 @@ impl Session {
             self.outbox.event(Event::Message(received));
         }
         self.apply_close_request();
+        self.report_feature_changes(before_features);
         if before != self.snapshot_values() {
             self.state_generation = self.state_generation.wrapping_add(1);
+        }
+    }
+
+    fn report_feature_changes(
+        &mut self,
+        before_features: Option<std::collections::BTreeSet<Feature>>,
+    ) {
+        let Some(before_features) = before_features else {
+            return;
+        };
+        let after_features = self.supported_features();
+        let added: Vec<_> = after_features
+            .difference(&before_features)
+            .copied()
+            .collect();
+        let removed: Vec<_> = before_features
+            .difference(&after_features)
+            .copied()
+            .collect();
+        if !added.is_empty() || !removed.is_empty() {
+            self.outbox.event(Event::FeaturesChanged { added, removed });
         }
     }
 

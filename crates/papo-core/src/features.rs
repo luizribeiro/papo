@@ -43,6 +43,26 @@ pub enum Feature {
 }
 
 impl Feature {
+    pub(crate) const ALL: [Self; 17] = [
+        Self::Replies,
+        Self::Reactions,
+        Self::Typing,
+        Self::Redaction,
+        Self::Multiline,
+        Self::History,
+        Self::ReadMarkers,
+        Self::Metadata,
+        Self::Monitor,
+        Self::SetName,
+        Self::BotMode,
+        Self::AccountRegistration,
+        Self::Persistence,
+        Self::WebPush,
+        Self::ChannelRename,
+        Self::Relay,
+        Self::LabeledResponse,
+    ];
+
     /// Returns a stable human-readable feature name.
     #[must_use]
     pub const fn name(self) -> &'static str {
@@ -136,6 +156,13 @@ impl std::fmt::Display for Unsupported {
 }
 
 impl Session {
+    pub(crate) fn supported_features(&self) -> std::collections::BTreeSet<Feature> {
+        Feature::ALL
+            .into_iter()
+            .filter(|&feature| self.supports(feature).is_ok())
+            .collect()
+    }
+
     pub(crate) fn require_feature(&self, feature: Feature) -> Result<(), RequestError> {
         self.supports(feature)
             .map_err(|reason| RequestError::Unsupported(Unsupported { feature, reason }))
