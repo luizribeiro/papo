@@ -282,6 +282,7 @@ pub(crate) async fn assert_join_waits_for_sync(server: &mut DuplexStream, client
         ("#papo", Some("Ergonomic IRC"))
     );
     assert_eq!(joined.members_count, 2);
+    client_line(server, b"MODE #papo\r\n").await;
     client_line(server, b"WHO #papo %tcuhnfar,152\r\n").await;
 }
 

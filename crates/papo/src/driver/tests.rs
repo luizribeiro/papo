@@ -1576,6 +1576,7 @@ async fn typed_requests_match_unlabelled_responses() {
     client_line(&mut server, b"JOIN #papo\r\n").await;
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
     assert_eq!(within(join).await.unwrap().unwrap().members_count, 2);
+    client_line(&mut server, b"MODE #papo\r\n").await;
     client_line(&mut server, b"WHO #papo\r\n").await;
 
     let list = tokio::spawn({

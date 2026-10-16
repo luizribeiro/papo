@@ -841,6 +841,7 @@ impl State {
             user.realname = join.realname.map(str::to_owned);
         }
         if ours && no_implicit_names {
+            outbox.transmit("MODE", [join.channel]);
             self.start_who(join.channel, isupport, outbox);
             outbox.event(Event::ChannelSynced {
                 channel: join.channel.to_owned(),
@@ -869,6 +870,7 @@ impl State {
             return false;
         }
         if let Some(channel) = name {
+            outbox.transmit("MODE", [channel]);
             self.start_who(channel, isupport, outbox);
             outbox.event(Event::ChannelSynced {
                 channel: channel.to_owned(),

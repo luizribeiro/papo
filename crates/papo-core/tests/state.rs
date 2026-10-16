@@ -311,6 +311,7 @@ fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
         .event_until(
             |event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"),
         )
+        .client("MODE #papo")
         .client("WHO #papo")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
@@ -557,6 +558,7 @@ fn no_implicit_names_marks_our_join_synced_without_366() {
         .client("CAP END")
         .server(":ergo.test 005 papo WHOX :are supported")
         .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .client("MODE #papo")
         .client("WHO #papo %tcuhnfar,152")
         .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "papo"))
         .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
@@ -572,13 +574,23 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
         .client("CAP REQ :multi-prefix")
         .server("CAP * ACK :multi-prefix")
         .client("CAP END")
+        .server(":solanum.example 005 papo CHANMODES=Ibe,k,fl,imnpst :are supported")
         .server(":papo!papo@127.0.0.1 JOIN #Papo")
         .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#Papo" && nick == "papo"))
         .inspect(|session| assert!(!session.state().channel("#papo").unwrap().is_synced()))
         .server(":ergo.test 366 papo #Papo :End of NAMES list")
+        .client("MODE #Papo")
         .client("WHO #Papo")
         .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#Papo"))
-        .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()))
+        .server(":solanum.example 324 papo #Papo +ntk secret")
+        .server(":solanum.example 329 papo #Papo 1760529342")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert!(channel.is_synced());
+            assert_eq!(channel.mode('n'), Some(None));
+            assert_eq!(channel.mode('k'), Some(Some("secret")));
+            assert_eq!(channel.created_at(), Some(1_760_529_342));
+        })
         .no_event();
 }
 
@@ -770,6 +782,9 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     .server(":ergo.test 366 emily #papo :End of NAMES list")
     .no_client()
     .advance(Duration::from_millis(500))
+    .client("MODE #papo")
+    .no_client()
+    .advance(Duration::from_millis(500))
     .client("WHO #papo %tcuhnfar,152")
     .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
     .server(":ergo.test 354 emily 152 #papo em 127.0.0.1 emily H@ emily :Emily Garcia")
@@ -795,6 +810,7 @@ fn falls_back_to_plain_who_without_whox() {
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
         .server(":ergo.test 353 emily = #papo :emily!em@127.0.0.1 +dan!~dan@cloak.example")
         .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("MODE #papo")
         .client("WHO #papo")
         .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
         .server(":ergo.test 352 emily #papo ~dan account/dan ergo.test dan GB+ :0 Daniel Garcia")
@@ -829,6 +845,7 @@ fn who_here_flags_clear_a_previous_away_state() {
             )
         })
         .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("MODE #papo")
         .client("WHO #papo")
         .event(|event| matches!(event, Event::ChannelSynced { .. }))
         .server(":ergo.test 352 emily #papo ~dan cloak.example ergo.test dan H :0 Daniel Garcia")
@@ -843,6 +860,7 @@ fn plain_who_recognizes_each_bot_flag_source() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("MODE #papo")
         .client("WHO #papo")
         .event(|event| matches!(event, Event::ChannelSynced { .. }))
         .server(":ergo.test 352 emily #papo bot services.example ergo.test service-bot HB :0 Service Bot")
@@ -863,6 +881,7 @@ fn whox_replies_require_our_token_and_an_active_sweep() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("MODE #papo")
         .client("WHO #papo %tcuhnfar,152")
         .event(|event| matches!(event, Event::ChannelSynced { .. }))
         .server(":ergo.test 354 emily 999 #papo dan cloak.example dan H dan :Daniel Garcia")
