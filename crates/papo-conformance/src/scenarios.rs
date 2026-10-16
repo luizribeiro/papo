@@ -305,7 +305,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: draft_multiline,
+            run: __papo_scenario_draft_multiline,
         },
         ScenarioSpec {
             name: "draft_read_marker",
@@ -407,7 +407,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 caps: &[],
                 isupport: &["UTF8ONLY"],
             },
-            run: utf8only,
+            run: __papo_scenario_utf8only,
         },
         ScenarioSpec {
             name: "whox",
@@ -1009,50 +1009,50 @@ async fn history_page(context: Scenario) -> ScenarioResult {
     close_pair(writer, reader).await
 }
 
-fn draft_multiline(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let (receiver, mut sender, channel) = joined_pair(&context).await?;
-        let reference = context.unique().replace('_', "-");
-        sender
-            .client
-            .send(Message::new(
-                "BATCH",
-                [
-                    format!("+{reference}"),
-                    "draft/multiline".into(),
-                    channel.clone(),
-                ],
-            ))
-            .await
-            .map_err(Failed::from)?;
-        sender
-            .client
-            .send(Message::privmsg(&channel, "first ").with_tag("batch", reference.clone()))
-            .await
-            .map_err(Failed::from)?;
-        sender
-            .client
-            .send(
-                Message::privmsg(&channel, "second")
-                    .with_tag("batch", reference.clone())
-                    .with_tag("draft/multiline-concat", ""),
-            )
-            .await
-            .map_err(Failed::from)?;
-        sender
-            .client
-            .send(Message::new("BATCH", [format!("-{reference}")]))
-            .await
-            .map_err(Failed::from)?;
-        context
+/// reassembles a client multiline message
+#[scenario(requires(caps = ["draft/multiline"]))]
+async fn draft_multiline(context: Scenario) -> ScenarioResult {
+    let (receiver, mut sender, channel) = joined_pair(&context).await?;
+    let reference = context.unique().replace('_', "-");
+    sender
+        .client
+        .send(Message::new(
+            "BATCH",
+            [
+                format!("+{reference}"),
+                "draft/multiline".into(),
+                channel.clone(),
+            ],
+        ))
+        .await
+        .map_err(Failed::from)?;
+    sender
+        .client
+        .send(Message::privmsg(&channel, "first ").with_tag("batch", reference.clone()))
+        .await
+        .map_err(Failed::from)?;
+    sender
+        .client
+        .send(
+            Message::privmsg(&channel, "second")
+                .with_tag("batch", reference.clone())
+                .with_tag("draft/multiline-concat", ""),
+        )
+        .await
+        .map_err(Failed::from)?;
+    sender
+        .client
+        .send(Message::new("BATCH", [format!("-{reference}")]))
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut sender.events,
                 |event| matches!(event, Event::Message(message) if message.raw_text() == "first second"),
                 EXPECT_TIMEOUT,
             )
             .await?;
-        close_pair(receiver, sender).await
-    })
+    close_pair(receiver, sender).await
 }
 
 fn draft_read_marker(context: Scenario) -> ScenarioFuture {
@@ -1264,24 +1264,24 @@ fn bot_mode(context: Scenario) -> ScenarioFuture {
     })
 }
 
-fn utf8only(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let (mut receiver, sender, channel) = joined_pair(&context).await?;
-        let text = "Olá, IRC 世界";
-        sender
-            .client
-            .privmsg(&channel, text)
-            .await
-            .map_err(Failed::from)?;
-        context
-            .expect(
-                &mut receiver.events,
-                |event| matches!(event, Event::Message(message) if message.raw_text() == text),
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-        close_pair(receiver, sender).await
-    })
+/// delivers UTF-8 channel text without replacement
+#[scenario(requires(isupport = ["UTF8ONLY"]))]
+async fn utf8only(context: Scenario) -> ScenarioResult {
+    let (mut receiver, sender, channel) = joined_pair(&context).await?;
+    let text = "Olá, IRC 世界";
+    sender
+        .client
+        .privmsg(&channel, text)
+        .await
+        .map_err(Failed::from)?;
+    context
+        .expect(
+            &mut receiver.events,
+            |event| matches!(event, Event::Message(message) if message.raw_text() == text),
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+    close_pair(receiver, sender).await
 }
 
 fn whox(context: Scenario) -> ScenarioFuture {
