@@ -2392,6 +2392,23 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn history_fails_without_the_negotiated_capability() {
+        let (mut server, client, mut events, driver) = scripted(config());
+        let task = tokio::spawn(driver);
+        complete_registration(&mut server, &mut events).await;
+        assert!(matches!(
+            client.history("#papo").latest(10).await,
+            Err(Error::Unsupported("chathistory"))
+        ));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn registration_is_forwarded() {
         let (mut server, client, mut events, driver) = scripted(config());
         assert!(!client.is_connected());
