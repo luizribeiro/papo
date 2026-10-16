@@ -170,6 +170,9 @@
               cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip2 --locked
               cargo check -p papo-proto --all-targets --all-features --target wasm32-wasip2 --locked
               cargo check -p papo-proto -p papo-core --target wasm32-unknown-unknown --locked
+              cargo check -p papo --target wasm32-unknown-unknown --no-default-features --locked
+              cargo check -p papo --target wasm32-unknown-unknown --locked
+              cargo check -p papo --target wasm32-unknown-unknown --all-features --locked
               cargo check -p papo -p papo-conformance --target wasm32-wasip2 --locked
             '';
           };
