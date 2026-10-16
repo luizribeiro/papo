@@ -2,6 +2,8 @@
 
 mod account;
 #[cfg(not(target_family = "wasm"))]
+mod atheme;
+#[cfg(not(target_family = "wasm"))]
 mod certificate;
 #[cfg(not(target_family = "wasm"))]
 mod directory;

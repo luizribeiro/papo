@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{certificate, directory::TemporaryDirectory};
+use crate::{atheme, certificate, directory::TemporaryDirectory};
 
 pub(crate) struct Configuration {
     pub(crate) plaintext: std::net::SocketAddr,
@@ -35,7 +35,6 @@ impl Configuration {
         let path = |name| directory.join(name).display().to_string();
         fs::create_dir_all(path("tmp/tmp"))?;
         fs::write(path("empty.txt"), "\n")?;
-        fs::write(path("services.db"), "")?;
         fs::write(
             path("unrealircd.conf"),
             format!(
@@ -82,28 +81,12 @@ files {{ pidfile "{pid}"; tunefile "{tune}"; }}
                 tune = path("ircd.tune"),
             ),
         )?;
-        fs::write(
-            path("atheme.conf"),
-            format!(
-                r#"loadmodule "{modules}/protocol/unreal4";
-loadmodule "{modules}/backend/opensex";
-loadmodule "{modules}/crypto/pbkdf2v2";
-loadmodule "{modules}/crypto/pbkdf2";
-loadmodule "{modules}/nickserv/main";
-loadmodule "{modules}/nickserv/cert";
-loadmodule "{modules}/nickserv/register";
-loadmodule "{modules}/nickserv/verify";
-loadmodule "{modules}/saslserv/main";
-loadmodule "{modules}/saslserv/authcookie";
-loadmodule "{modules}/saslserv/external";
-loadmodule "{modules}/saslserv/plain";
-serverinfo {{ name = "services.papo.test"; desc = "papo test services"; numeric = "00A"; netname = "papo"; adminname = "papo"; adminemail = "papo@example.invalid"; registeremail = "papo@example.invalid"; auth = none; casemapping = "ascii"; }};
-general {{ commit_interval = 5; }};
-uplink "irc.papo.test" {{ host = "127.0.0.1"; port = {port}; send_password = "papo-link"; receive_password = "papo-link"; }};
-saslserv {{ nick = "SaslServ"; }};
-"#,
-                port = self.services.port()
-            ),
+        atheme::write_config(
+            directory,
+            modules,
+            "unreal4",
+            "irc.papo.test",
+            self.services.port(),
         )
     }
 
@@ -114,16 +97,6 @@ saslserv {{ nick = "SaslServ"; }};
             command
                 .args(["-t", "-F", "-f"])
                 .arg(path("unrealircd.conf"));
-        } else {
-            command.arg("-n");
-            for (flag, file) in [
-                ("-c", "atheme.conf"),
-                ("-l", "atheme.log"),
-                ("-p", "atheme.pid"),
-            ] {
-                command.arg(flag).arg(path(file));
-            }
-            command.arg("-D").arg(directory.path());
         }
         command.current_dir(directory.path());
         Ok(command)
@@ -171,7 +144,7 @@ impl TestServer {
             config,
         };
         server.wait_for(false)?;
-        let atheme = Configuration::command("ATHEME_BIN", &server.directory)?
+        let atheme = atheme::command(&server.directory)?
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?;
@@ -213,8 +186,7 @@ impl TestServer {
     }
 
     fn services_linked(&self) -> bool {
-        fs::read_to_string(self.directory.path().join("atheme.log"))
-            .is_ok_and(|log| log.contains("finished synching with uplink"))
+        atheme::linked(self.directory.path())
     }
 
     /// Returns the plaintext, TLS, WebSocket, and secure WebSocket listeners.
@@ -281,9 +253,6 @@ mod tests {
         assert!(unreal.contains(&format!("port {};", config.tls.port())));
         assert!(unreal.contains("modes-on-join \"+ntH 100:1d\""));
         assert!(!unreal.contains("sts-policy"));
-        let atheme = fs::read_to_string(directory.path().join("atheme.conf")).unwrap();
-        assert!(atheme.contains("/atheme/modules/protocol/unreal4"));
-        assert!(atheme.contains(&format!("port = {}", config.services.port())));
     }
 
     #[test]
