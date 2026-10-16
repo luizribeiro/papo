@@ -5603,11 +5603,25 @@ mod tests {
             matches!(register.await.unwrap().unwrap(), super::AccountRegistration::VerificationRequired { account, .. } if account == "alice")
         );
 
-        let verify = tokio::spawn(async move { client.verify("alice", "expired-code").await });
-        client_line(&mut server, b"@label=1 VERIFY alice expired-code\r\n").await;
+        let verify = tokio::spawn({
+            let client = client.clone();
+            async move { client.verify("alice", "392814").await }
+        });
+        client_line(&mut server, b"@label=1 VERIFY alice 392814\r\n").await;
         server_line(
             &mut server,
-            b"@label=1 :ergo.test FAIL VERIFY INVALID_CODE :Invalid verification code\r\n",
+            b"@label=1 :ergo.test VERIFY SUCCESS alice :Account successfully registered\r\n",
+        )
+        .await;
+        assert!(
+            matches!(verify.await.unwrap().unwrap(), super::AccountRegistration::Registered { account } if account == "alice")
+        );
+
+        let verify = tokio::spawn(async move { client.verify("alice", "expired-code").await });
+        client_line(&mut server, b"@label=2 VERIFY alice expired-code\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=2 :ergo.test FAIL VERIFY INVALID_CODE :Invalid verification code\r\n",
         )
         .await;
         assert!(matches!(
