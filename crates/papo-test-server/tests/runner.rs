@@ -49,26 +49,30 @@ fn live_binary_respects_preset_server_variables() {
 
 #[test]
 fn live_binary_forwards_the_selected_server_kind() {
-    let directory = directory();
-    let helper = executable(
-        &directory,
-        "server-helper",
-        r#"test "$PAPO_TEST_SERVER" = unrealircd
+    for server in ["inspircd", "unrealircd"] {
+        let directory = directory();
+        let helper = executable(
+            &directory,
+            "server-helper",
+            &format!(
+                r#"test "$PAPO_TEST_SERVER" = {server}
 printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem
-read -r _ || true"#,
-    );
-    let binary = executable(
-        &directory,
-        "live_selected-deadbeef",
-        "test \"$PAPO_TEST_SERVER\" = unrealircd",
-    );
-    let status = runner(&binary)
-        .env("PAPO_TEST_SERVER", "unrealircd")
-        .env("PAPO_TEST_SERVER_BIN", helper)
-        .status()
-        .unwrap();
-    assert!(status.success());
-    fs::remove_dir_all(directory).unwrap();
+read -r _ || true"#
+            ),
+        );
+        let binary = executable(
+            &directory,
+            "live_selected-deadbeef",
+            &format!("test \"$PAPO_TEST_SERVER\" = {server}"),
+        );
+        let status = runner(&binary)
+            .env("PAPO_TEST_SERVER", server)
+            .env("PAPO_TEST_SERVER_BIN", helper)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        fs::remove_dir_all(directory).unwrap();
+    }
 }
 
 #[test]

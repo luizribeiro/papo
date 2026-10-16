@@ -8,11 +8,12 @@ use std::{
 };
 
 #[cfg(not(target_family = "wasm"))]
-use papo_test_server::{TestServer, UnrealIrcdServer};
+use papo_test_server::{InspIrcdServer, TestServer, UnrealIrcdServer};
 
 #[cfg(not(target_family = "wasm"))]
 enum Server {
     Ergo(TestServer),
+    InspIrcd(InspIrcdServer),
     UnrealIrcd(UnrealIrcdServer),
 }
 
@@ -21,6 +22,7 @@ impl Server {
     fn start(kind: &str) -> io::Result<Self> {
         match kind {
             "ergo" => TestServer::start_with_ephemeral_channels().map(Self::Ergo),
+            "inspircd" => InspIrcdServer::start().map(Self::InspIrcd),
             "unrealircd" => UnrealIrcdServer::start().map(Self::UnrealIrcd),
             kind => Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -37,6 +39,15 @@ impl Server {
                 format!("ws://{}/", server.websocket_addr()),
                 format!("wss://localhost:{}/", server.secure_websocket_addr().port()),
             ),
+            Self::InspIrcd(server) => {
+                let [plaintext, tls, websocket, secure_websocket] = server.endpoints();
+                (
+                    plaintext.to_string(),
+                    tls.to_string(),
+                    format!("ws://{websocket}/"),
+                    format!("wss://localhost:{}/", secure_websocket.port()),
+                )
+            }
             Self::UnrealIrcd(server) => {
                 let [plaintext, tls, websocket, secure_websocket] = server.endpoints();
                 (
@@ -52,6 +63,7 @@ impl Server {
     fn ca_pem_path(&self) -> PathBuf {
         match self {
             Self::Ergo(server) => server.ca_pem_path(),
+            Self::InspIrcd(server) => server.ca_pem_path(),
             Self::UnrealIrcd(server) => server.ca_pem_path(),
         }
     }
@@ -59,6 +71,7 @@ impl Server {
     fn process_id(&self) -> u32 {
         match self {
             Self::Ergo(server) => server.process_id(),
+            Self::InspIrcd(server) => server.process_id(),
             Self::UnrealIrcd(server) => server.process_id(),
         }
     }
