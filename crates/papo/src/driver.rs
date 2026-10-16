@@ -5831,6 +5831,78 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn metadata_management_updates_subscriptions_and_types_failures() {
+        let settings = config().wanted_caps(["draft/metadata-2", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        complete_caps_registration(
+            &mut server,
+            &mut events,
+            "draft/metadata-2=max-subs=100,max-keys=100 labeled-response",
+            "draft/metadata-2 labeled-response",
+        )
+        .await;
+
+        let clear = tokio::spawn({
+            let client = client.clone();
+            async move { client.metadata().clear().await }
+        });
+        client_line(&mut server, b"@label=0 METADATA papo-driver CLEAR\r\n").await;
+        server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
+        assert!(clear.await.unwrap().is_ok());
+
+        let subscribe = tokio::spawn({
+            let client = client.clone();
+            async move { client.metadata().subscribe(["avatar", "pronouns"]).await }
+        });
+        client_line(&mut server, b"@label=1 METADATA * SUB avatar pronouns\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=1 :ergo.test 770 papo-driver avatar pronouns\r\n",
+        )
+        .await;
+        assert!(subscribe.await.unwrap().is_ok());
+        assert_eq!(client.metadata().subscriptions(), ["avatar", "pronouns"]);
+        client.state(|state| {
+            assert_eq!(state.metadata_subscriptions(), ["avatar", "pronouns"]);
+        });
+
+        let unsubscribe = tokio::spawn({
+            let client = client.clone();
+            async move { client.metadata().unsubscribe(["pronouns"]).await }
+        });
+        client_line(&mut server, b"@label=2 METADATA * UNSUB pronouns\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=2 :ergo.test 771 papo-driver pronouns\r\n",
+        )
+        .await;
+        assert!(unsubscribe.await.unwrap().is_ok());
+        assert_eq!(client.metadata().subscriptions(), ["avatar"]);
+
+        let sync = tokio::spawn({
+            let client = client.clone();
+            async move { client.metadata().sync("#papo").await }
+        });
+        client_line(&mut server, b"@label=3 METADATA #papo SYNC\r\n").await;
+        server_line(&mut server, b"@label=3 :ergo.test ACK\r\n").await;
+        assert!(sync.await.unwrap().is_ok());
+
+        let clear = tokio::spawn(async move { client.metadata().clear().await });
+        client_line(&mut server, b"@label=4 METADATA papo-driver CLEAR\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=4 :ergo.test FAIL METADATA VALUE_INVALID :Metadata request rejected\r\n",
+        )
+        .await;
+        assert!(matches!(
+            clear.await.unwrap(),
+            Err(Error::Metadata(papo_core::MetadataError::ValueInvalid))
+        ));
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn rename_and_relay_return_success_and_typed_failures() {
         let settings =
             config().wanted_caps(["draft/channel-rename", "draft/relaymsg", "labeled-response"]);
