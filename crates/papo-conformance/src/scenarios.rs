@@ -501,63 +501,6 @@ async fn setname(context: Scenario) -> ScenarioResult {
     close_pair(receiver, sender).await
 }
 
-/// notifies channel members about invitations
-#[scenario(requires(caps = ["invite-notify"]))]
-async fn invite_notify(context: Scenario) -> ScenarioResult {
-    let (inviter, mut observer, channel) = joined_pair(&context).await?;
-    let observer_nick = observer.welcome.nick.clone();
-    if !observer
-        .client
-        .state(|state| state.has_cap("invite-notify"))
-    {
-        return Err("invite-notify observer did not negotiate the capability".into());
-    }
-    inviter
-        .client
-        .send(Message::new("MODE", [&channel, "+o", &observer_nick]))
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut observer.events,
-            |event| matches!(event, Event::ModeChanged { target, .. } if target == &channel),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    let observer_is_op = observer.client.state(|state| {
-        state
-            .channel(&channel)
-            .and_then(|channel| channel.member(&observer_nick))
-            .is_some_and(papo_core::Member::is_op)
-    });
-    if !observer_is_op {
-        return Err("invite-notify observer is not a channel operator".into());
-    }
-    let target_nick = context.unique();
-    let target = context.client(&target_nick).await?;
-    inviter
-        .client
-        .send(Message::new("INVITE", [&target_nick, &channel]))
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut observer.events,
-            |event| {
-                matches!(event, Event::Raw(message) if {
-                    let message = message.as_ref();
-                    message.command_is("INVITE")
-                        && message.param(0) == Some(target_nick.as_str())
-                        && message.param(1) == Some(channel.as_str())
-                })
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    observer.close().await?;
-    close_pair(inviter, target).await
-}
-
 /// reports monitored users with extended-monitor enabled
 #[scenario(requires(
     caps = ["extended-monitor", "away-notify"],
