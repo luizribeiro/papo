@@ -50,6 +50,10 @@ enum CoreRequest {
         email: Option<String>,
         password: papo_core::Secret,
     },
+    Verify {
+        account: String,
+        code: String,
+    },
 }
 
 impl CoreRequest {
@@ -63,6 +67,7 @@ impl CoreRequest {
             } => {
                 session.register(now(), account.as_deref(), email.as_deref(), password)?;
             }
+            Self::Verify { account, code } => session.verify(now(), &account, &code)?,
         }
         Ok(before)
     }
@@ -375,6 +380,21 @@ impl Client {
                 account: account.map(str::to_owned),
                 email: email.map(str::to_owned),
                 password,
+            })
+            .await?;
+        account_registration_result(&response)
+    }
+
+    /// Submits an account verification code.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    pub async fn verify(&self, account: &str, code: &str) -> Result<AccountRegistration, Error> {
+        let response = self
+            .core_request(CoreRequest::Verify {
+                account: account.to_owned(),
+                code: code.to_owned(),
             })
             .await?;
         account_registration_result(&response)
@@ -809,6 +829,9 @@ impl Client {
 }
 
 fn account_registration_result(response: &Response) -> Result<AccountRegistration, Error> {
+    if let Some(error) = response.account_registration_error() {
+        return Err(Error::AccountRegistration(error));
+    }
     let message = response.lines.first().ok_or(Error::Disconnected)?.as_ref();
     let account = message.param(1).ok_or(Error::Disconnected)?.to_owned();
     match message.param(0) {
@@ -5352,14 +5375,17 @@ mod tests {
         server_line(&mut server, b":ergo.test 001 papo-driver :Welcome\r\n").await;
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
 
-        let register = tokio::spawn(async move {
-            client
-                .register(
-                    Some("alice"),
-                    Some("alice@example.org"),
-                    papo_core::Secret::new("correct horse battery staple"),
-                )
-                .await
+        let register = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .register(
+                        Some("alice"),
+                        Some("alice@example.org"),
+                        papo_core::Secret::new("correct horse battery staple"),
+                    )
+                    .await
+            }
         });
         client_line(
             &mut server,
@@ -5374,6 +5400,20 @@ mod tests {
         assert!(
             matches!(register.await.unwrap().unwrap(), super::AccountRegistration::VerificationRequired { account, .. } if account == "alice")
         );
+
+        let verify = tokio::spawn(async move { client.verify("alice", "expired-code").await });
+        client_line(&mut server, b"@label=1 VERIFY alice expired-code\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=1 :ergo.test FAIL VERIFY INVALID_CODE :Invalid verification code\r\n",
+        )
+        .await;
+        assert!(matches!(
+            verify.await.unwrap(),
+            Err(Error::AccountRegistration(
+                papo_core::AccountRegistrationError::InvalidCode
+            ))
+        ));
 
         driver.abort();
     }

@@ -63,6 +63,9 @@ pub enum Error {
     /// The IRC server rejected a request.
     #[error("the IRC server rejected the request: {0:?}")]
     Server(papo_core::ServerError),
+    /// The IRC server rejected account registration or verification.
+    #[error("account registration failed: {0:?}")]
+    AccountRegistration(papo_core::AccountRegistrationError),
 }
 
 #[cfg(test)]
