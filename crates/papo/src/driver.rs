@@ -44,6 +44,30 @@ type BackoffEntropy = Box<dyn FnMut() -> u64 + Send>;
 type ReadMarkerSender = oneshot::Sender<Result<Option<SystemTime>, Error>>;
 type ReadMarkerWaiters = Vec<(String, ReadMarkerSender)>;
 
+enum CoreRequest {
+    Register {
+        account: Option<String>,
+        email: Option<String>,
+        password: papo_core::Secret,
+    },
+}
+
+impl CoreRequest {
+    fn start(self, session: &mut Session) -> Result<RequestId, RequestError> {
+        let before = session.next_request_id();
+        match self {
+            Self::Register {
+                account,
+                email,
+                password,
+            } => {
+                session.register(now(), account.as_deref(), email.as_deref(), password)?;
+            }
+        }
+        Ok(before)
+    }
+}
+
 struct Catchup {
     target: String,
     messages: Vec<Message>,
@@ -58,6 +82,10 @@ enum Command {
     Request {
         message: Message,
         matcher: Option<ResponseMatcher>,
+        result: oneshot::Sender<Result<Response, Error>>,
+    },
+    CoreRequest {
+        request: CoreRequest,
         result: oneshot::Sender<Result<Response, Error>>,
     },
     History {
@@ -188,6 +216,23 @@ pub struct Sent {
     pub time: Option<SystemTime>,
 }
 
+/// Outcome of an account registration request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AccountRegistration {
+    /// The account was created and authenticated.
+    Registered {
+        /// Registered account name.
+        account: String,
+    },
+    /// The server requires an out-of-band verification code.
+    VerificationRequired {
+        /// Account awaiting verification.
+        account: String,
+        /// Human-readable verification instructions.
+        message: String,
+    },
+}
+
 impl Sent {
     fn from_response(response: &Response) -> Self {
         response.sent().map_or_else(Self::default, |sent| Self {
@@ -303,6 +348,36 @@ impl Client {
             .await
             .map_err(|_| Error::Disconnected)?;
         receiver.await.map_err(|_| Error::Disconnected)?
+    }
+
+    async fn core_request(&self, request: CoreRequest) -> Result<Response, Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::CoreRequest { request, result })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        receiver.await.map_err(|_| Error::Disconnected)?
+    }
+
+    /// Creates an account through `draft/account-registration`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    pub async fn register(
+        &self,
+        account: Option<&str>,
+        email: Option<&str>,
+        password: papo_core::Secret,
+    ) -> Result<AccountRegistration, Error> {
+        let response = self
+            .core_request(CoreRequest::Register {
+                account: account.map(str::to_owned),
+                email: email.map(str::to_owned),
+                password,
+            })
+            .await?;
+        account_registration_result(&response)
     }
 
     /// Sends an IRC message without waiting for a correlated response.
@@ -730,6 +805,21 @@ impl Client {
             .await
             .map_err(|_| Error::Disconnected)?;
         receiver.await.map_err(|_| Error::Disconnected)?
+    }
+}
+
+fn account_registration_result(response: &Response) -> Result<AccountRegistration, Error> {
+    let message = response.lines.first().ok_or(Error::Disconnected)?.as_ref();
+    let account = message.param(1).ok_or(Error::Disconnected)?.to_owned();
+    match message.param(0) {
+        Some("SUCCESS") => Ok(AccountRegistration::Registered { account }),
+        Some("VERIFICATION_REQUIRED") => Ok(AccountRegistration::VerificationRequired {
+            account,
+            message: message.param(2).unwrap_or_default().to_owned(),
+        }),
+        _ => response
+            .error()
+            .map_or(Err(Error::Disconnected), |error| Err(Error::Server(error))),
     }
 }
 
@@ -1414,6 +1504,7 @@ fn handle_disconnected_command(
         }
         Some(
             Command::Request { result, .. }
+            | Command::CoreRequest { result, .. }
             | Command::History { result, .. }
             | Command::MarkRead { result, .. },
         ) => {
@@ -1612,6 +1703,14 @@ where
                             };
                             _ = result.send(Err(error));
                         }
+                    }
+                }
+                Some(Command::CoreRequest { request, result }) => {
+                    match request.start(session) {
+                        Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
+                        Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
+                        Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
+                        Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
                     }
                 }
                 Some(Command::History { query, result }) => {
@@ -5230,5 +5329,52 @@ mod tests {
         server.shutdown().await.unwrap();
         assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
         assert_eq!(client.state(|state| state.monitor_online().count()), 0);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn registers_accounts_with_typed_results() {
+        let settings = config().wanted_caps(["draft/account-registration", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :draft/account-registration=custom-account-name labeled-response\r\n").await;
+        client_line(
+            &mut server,
+            b"CAP REQ :draft/account-registration labeled-response\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * ACK :draft/account-registration labeled-response\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(&mut server, b":ergo.test 001 papo-driver :Welcome\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+
+        let register = tokio::spawn(async move {
+            client
+                .register(
+                    Some("alice"),
+                    Some("alice@example.org"),
+                    papo_core::Secret::new("correct horse battery staple"),
+                )
+                .await
+        });
+        client_line(
+            &mut server,
+            b"@label=0 REGISTER alice alice@example.org :correct horse battery staple\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=0 :ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent\r\n",
+        )
+        .await;
+        assert!(
+            matches!(register.await.unwrap().unwrap(), super::AccountRegistration::VerificationRequired { account, .. } if account == "alice")
+        );
+
+        driver.abort();
     }
 }
