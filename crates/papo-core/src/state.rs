@@ -10,13 +10,15 @@ use papo_proto::{
 };
 
 use crate::{
-    Config, Event, Handled, LastSeen, Outbox, OwnedModeChange, PersistenceSetting,
+    Config, Event, Handled, LastSeen, MetadataValue, Outbox, OwnedModeChange, PersistenceSetting,
     PersistenceStatus, ReadMarker, StateLimit, monitor::Monitor,
 };
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
+const MAX_METADATA_TARGETS: usize = 10_000;
+const MAX_METADATA_KEYS: usize = 10_000;
 
 /// The known channel and user state for a session.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -39,6 +41,7 @@ pub struct State {
     channel_limit_warned: bool,
     member_limit_warned: bool,
     persistence: Option<PersistenceStatus>,
+    metadata: HashMap<CaseKey, HashMap<String, MetadataValue>>,
 }
 
 /// State known about a joined channel.
@@ -119,6 +122,7 @@ impl State {
             channel_limit_warned: false,
             member_limit_warned: false,
             persistence: None,
+            metadata: HashMap::new(),
         }
     }
 
@@ -159,6 +163,9 @@ impl State {
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = self.prepare_message(message, own_nick, isupport, outbox);
+        if self.handle_metadata(message, outbox) {
+            return Handled::Yes;
+        }
         if self.handle_persistence(message, outbox) {
             return Handled::Yes;
         }
@@ -292,6 +299,80 @@ impl State {
     #[must_use]
     pub const fn persistence(&self) -> Option<PersistenceStatus> {
         self.persistence
+    }
+
+    fn handle_metadata(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
+        let (target, key, visibility, value) = match message.command() {
+            Command::Numeric(Numeric::RPL_KEYVALUE) => {
+                let (Some(target), Some(key), Some(visibility), Some(value)) = (
+                    message.param(1),
+                    message.param(2),
+                    message.param(3),
+                    message.param(4),
+                ) else {
+                    return false;
+                };
+                (target, key, visibility, Some(value))
+            }
+            Command::Numeric(Numeric::RPL_KEYNOTSET) => {
+                let (Some(target), Some(key)) = (message.param(1), message.param(2)) else {
+                    return false;
+                };
+                (target, key, "*", None)
+            }
+            Command::Metadata => {
+                let (Some(target), Some(key), Some(visibility)) =
+                    (message.param(0), message.param(1), message.param(2))
+                else {
+                    return false;
+                };
+                (target, key, visibility, message.param(3))
+            }
+            _ => return false,
+        };
+        self.update_metadata(target, key, visibility, value, outbox);
+        true
+    }
+
+    fn update_metadata(
+        &mut self,
+        target: &str,
+        key: &str,
+        visibility: &str,
+        value: Option<&str>,
+        outbox: &mut Outbox,
+    ) {
+        let target_key = CaseKey::new(target, self.casemapping);
+        if let Some(value) = value {
+            if !self.metadata.contains_key(&target_key)
+                && self.metadata.len() >= MAX_METADATA_TARGETS
+            {
+                return;
+            }
+            if self.metadata.get(&target_key).is_some_and(|values| {
+                !values.contains_key(key) && values.len() >= MAX_METADATA_KEYS
+            }) {
+                return;
+            }
+            self.metadata.entry(target_key).or_default().insert(
+                key.to_owned(),
+                MetadataValue {
+                    value: value.to_owned(),
+                    visibility: visibility.to_owned(),
+                },
+            );
+        } else if let Some(values) = self.metadata.get_mut(&target_key) {
+            _ = values.remove(key);
+            if values.is_empty() {
+                self.metadata.remove(&target_key);
+            }
+        }
+        outbox.event(Event::MetadataChanged {
+            target: target.to_owned(),
+            key: key.to_owned(),
+            value: value.map(str::to_owned),
+            visibility: visibility.to_owned(),
+        });
     }
 
     fn handle_read_marker(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
@@ -555,6 +636,10 @@ impl State {
         self.last_seen = std::mem::take(&mut self.last_seen)
             .into_values()
             .map(|seen| (CaseKey::new(&seen.target, mapping), seen))
+            .collect();
+        self.metadata = std::mem::take(&mut self.metadata)
+            .into_iter()
+            .map(|(target, values)| (CaseKey::new(target.original(), mapping), values))
             .collect();
         self.casemapping = mapping;
     }
@@ -1168,6 +1253,12 @@ impl State {
     #[must_use]
     pub fn user(&self, nick: &str) -> Option<&User> {
         self.users.get(&CaseKey::new(nick, self.casemapping))
+    }
+
+    /// Returns cached metadata using the server's current casemapping.
+    #[must_use]
+    pub fn metadata(&self, target: &str) -> Option<&HashMap<String, MetadataValue>> {
+        self.metadata.get(&CaseKey::new(target, self.casemapping))
     }
 
     /// Returns the newest read marker reported for a target.

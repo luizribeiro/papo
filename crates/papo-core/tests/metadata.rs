@@ -67,7 +67,22 @@ fn prefers_metadata_3_and_reads_known_limits() {
             )
             .unwrap();
     })
-    .client("@label=1 METADATA alice GET avatar pronouns");
+    .client("@label=1 METADATA alice GET avatar pronouns")
+    .server("@label=0 :ergo.test 761 alice ALICE avatar * :https://cdn.example.net/a.png")
+    .event(|event| matches!(event, Event::MetadataChanged { target, key, value: Some(value), visibility }
+        if target == "ALICE" && key == "avatar"
+            && value == "https://cdn.example.net/a.png" && visibility == "*"))
+    .event(|event| matches!(event, Event::Response(_)))
+    .inspect(|session| {
+        let avatar = &session.state().metadata("alice").unwrap()["avatar"];
+        assert_eq!(avatar.value, "https://cdn.example.net/a.png");
+        assert_eq!(avatar.visibility, "*");
+    })
+    .server("@label=1 :ergo.test 766 alice ALICE avatar :key is not set")
+    .event(|event| matches!(event, Event::MetadataChanged { key, value: None, .. }
+        if key == "avatar"))
+    .event(|event| matches!(event, Event::Response(_)))
+    .inspect(|session| assert!(session.state().metadata("alice").is_none()));
 }
 
 #[test]

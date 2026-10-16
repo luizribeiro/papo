@@ -39,7 +39,7 @@ use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
 use keepalive::Keepalive;
-pub use metadata::{MetadataCommand, MetadataLimits};
+pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue};
 use monitor::Monitor;
 pub use outgoing::TextKind;
 pub use ratelimit::RateLimit;
@@ -1092,6 +1092,17 @@ pub enum Event {
         setting: PersistenceSetting,
         /// Whether persistence is currently effective.
         effective: bool,
+    },
+    /// A target's cached metadata changed.
+    MetadataChanged {
+        /// Nickname or channel reported by the server.
+        target: String,
+        /// Metadata key.
+        key: String,
+        /// New server-returned value, or `None` when cleared.
+        value: Option<String>,
+        /// Visibility policy reported by the server.
+        visibility: String,
     },
     /// A completed history or playback batch.
     History {

@@ -4,6 +4,15 @@ use papo_proto::Message;
 
 use crate::{Capabilities, RequestError, RequestId, Session};
 
+/// One server-returned metadata value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MetadataValue {
+    /// Server-returned value.
+    pub value: String,
+    /// Visibility policy reported with the value.
+    pub visibility: String,
+}
+
 /// A `METADATA` operation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
