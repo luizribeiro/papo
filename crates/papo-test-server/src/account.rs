@@ -1,6 +1,6 @@
 use std::{
     io::{self, BufRead, BufReader, Write},
-    net::TcpStream,
+    net::{SocketAddr, TcpStream},
     time::Duration,
 };
 
@@ -13,13 +13,23 @@ use crate::ServerInfo;
 /// Returns an error when the credentials contain IRC line delimiters, the
 /// connection fails, or Ergo does not accept the account.
 pub fn register_account(server: &ServerInfo, name: &str, password: &str) -> io::Result<()> {
+    register_account_at(server.plaintext_addr(), name, password)
+}
+
+/// Creates an account through the IRC listener at `address`.
+///
+/// # Errors
+///
+/// Returns an error when the credentials contain IRC line delimiters, the
+/// connection fails, or Ergo does not accept the account.
+pub fn register_account_at(address: SocketAddr, name: &str, password: &str) -> io::Result<()> {
     if !credentials_valid(name, password) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "account credentials contain IRC line delimiters",
         ));
     }
-    let stream = TcpStream::connect(server.plaintext_addr())?;
+    let stream = TcpStream::connect(address)?;
     stream.set_read_timeout(Some(Duration::from_secs(10)))?;
     let mut connection = BufReader::new(stream);
     send(&mut connection, "CAP LS 302\r\n")?;

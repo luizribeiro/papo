@@ -58,8 +58,14 @@ impl Configuration {
                 "ERGO__DATASTORE__PATH",
                 directory.path().join("ircd.db").display().to_string(),
             ),
+            ("ERGO__DATASTORE__SQLITE__ENABLED", "true".into()),
             ("ERGO__LANGUAGES__ENABLED", "false".into()),
             ("ERGO__ACCOUNTS__REGISTRATION__ENABLED", "true".into()),
+            ("ERGO__HISTORY__PERSISTENT__ENABLED", "true".into()),
+            (
+                "ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS",
+                "true".into(),
+            ),
         ];
         Self {
             plaintext,
