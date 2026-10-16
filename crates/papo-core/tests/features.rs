@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, Feature, Session, Unsupported, UnsupportedReason};
+use papo_core::{Config, Event, Feature, HistoryQuery, Session, Unsupported, UnsupportedReason};
 use support::Transcript;
 
 const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response";
@@ -222,6 +222,45 @@ fn reports_capability_and_isupport_feature_changes_after_registration() {
         .event(|event| {
             matches!(event, Event::FeaturesChanged { added, removed }
                 if added == &[Feature::Monitor] && removed.is_empty())
+        })
+        .no_event();
+}
+
+#[test]
+fn fails_a_pending_request_when_its_feature_disappears() {
+    Transcript::new(Config::default().wanted_caps(["draft/chathistory", "labeled-response"]))
+        .connect_default()
+        .server("CAP * LS :draft/chathistory labeled-response")
+        .client("CAP REQ :draft/chathistory labeled-response")
+        .server("CAP * ACK :draft/chathistory labeled-response")
+        .client("CAP END")
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo CHATHISTORY=100 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| {
+            session
+                .chathistory(
+                    std::time::Instant::now(),
+                    HistoryQuery::Latest {
+                        target: "#papo".into(),
+                        after: None,
+                        limit: 50,
+                    },
+                )
+                .unwrap();
+        })
+        .client("@label=0 CHATHISTORY LATEST #papo * 50")
+        .server("CAP papo DEL :draft/chathistory")
+        .event(|event| matches!(event, Event::CapsChanged { .. }))
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, removed }
+                if added.is_empty() && removed == &[Feature::History])
+        })
+        .event(|event| {
+            matches!(event, Event::RequestUnsupported { unsupported, .. }
+                if unsupported.feature == Feature::History
+                    && unsupported.reason == UnsupportedReason::NotOffered)
         })
         .no_event();
 }

@@ -1460,6 +1460,13 @@ pub enum Event {
         /// Identifier assigned to the request.
         id: RequestId,
     },
+    /// A pending request's required feature became unavailable.
+    RequestUnsupported {
+        /// Identifier assigned to the request.
+        id: RequestId,
+        /// Feature and current reason for its unavailability.
+        unsupported: Unsupported,
+    },
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
     /// Account creation completed and the session is authenticated.
@@ -1820,7 +1827,7 @@ pub struct Session {
     monitor: Monitor,
     metadata_subscriptions_sent: bool,
     rate_limit: RateLimiter,
-    requests: BTreeMap<String, (RequestId, Instant, bool)>,
+    requests: BTreeMap<String, (RequestId, Instant, bool, Option<Feature>)>,
     unlabelled_requests: VecDeque<UnlabelledRequest>,
     next_request_id: u64,
     registration: Registration,
@@ -2110,7 +2117,7 @@ impl Session {
         let expired: Vec<_> = self
             .requests
             .iter()
-            .filter(|(_, (_, started, _))| {
+            .filter(|(_, (_, started, _, _))| {
                 started
                     .checked_add(self.config.request_timeout)
                     .is_some_and(|deadline| now >= deadline)
@@ -2118,7 +2125,7 @@ impl Session {
             .map(|(label, _)| label.clone())
             .collect();
         for label in expired {
-            if let Some((id, _, _)) = self.requests.remove(&label) {
+            if let Some((id, _, _, _)) = self.requests.remove(&label) {
                 self.unlabelled_requests.retain(|request| request.id != id);
                 self.outbox.event(Event::RequestTimedOut { id });
             }
@@ -2161,7 +2168,7 @@ impl Session {
         self.framer.close();
         self.outbox.reset_connection();
         self.batches.reset();
-        for (_, (id, _, _)) in std::mem::take(&mut self.requests) {
+        for (_, (id, _, _, _)) in std::mem::take(&mut self.requests) {
             self.unlabelled_requests.retain(|request| request.id != id);
             self.outbox.event(Event::RequestAborted { id });
         }
@@ -2303,7 +2310,7 @@ impl Session {
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
             let sent = self.caps.enabled().contains_key("echo-message");
-            self.requests.insert(label, (id, now, sent));
+            self.requests.insert(label, (id, now, sent, None));
         }
         if batch_count == 0 {
             for line in lines {
@@ -2324,10 +2331,25 @@ impl Session {
     ///
     /// Returns [`RequestError::PendingLimit`] when 256 labelled requests are already pending, or
     /// [`RequestError::Build`] when the tagged message cannot be represented on the wire.
-    pub fn request(
+    pub fn request(&mut self, now: Instant, message: Message) -> Result<RequestId, RequestError> {
+        self.queue_request(now, message, None)
+    }
+
+    pub(crate) fn request_for_feature(
+        &mut self,
+        now: Instant,
+        message: Message,
+        feature: Feature,
+    ) -> Result<RequestId, RequestError> {
+        self.require_feature(feature)?;
+        self.queue_request(now, message, Some(feature))
+    }
+
+    fn queue_request(
         &mut self,
         now: Instant,
         mut message: Message,
+        feature: Option<Feature>,
     ) -> Result<RequestId, RequestError> {
         self.rate_limit.advance(now);
         let id = RequestId(self.next_request_id);
@@ -2347,7 +2369,7 @@ impl Session {
         let line = message.to_line()?;
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
-            self.requests.insert(label, (id, now, sent));
+            self.requests.insert(label, (id, now, sent, feature));
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
@@ -2374,7 +2396,7 @@ impl Session {
             if track_sync && self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
                 return Err(RequestError::PendingLimit);
             }
-            let id = self.request(now, message)?;
+            let id = self.queue_request(now, message, None)?;
             if track_sync {
                 self.unlabelled_requests.push_back(UnlabelledRequest {
                     id,
@@ -2499,7 +2521,7 @@ impl Session {
             self.batches.next_deadline(),
             self.requests
                 .values()
-                .filter_map(|(_, started, _)| started.checked_add(self.config.request_timeout))
+                .filter_map(|(_, started, _, _)| started.checked_add(self.config.request_timeout))
                 .min(),
             self.unlabelled_requests
                 .iter()
@@ -2825,7 +2847,7 @@ impl Session {
             && message.tag("label").is_some_and(|label| {
                 self.requests
                     .get(label.as_ref())
-                    .is_some_and(|(_, _, sent)| *sent)
+                    .is_some_and(|(_, _, sent, _)| *sent)
             })
             && self.is_own_source(message);
         let labelled_response = self.resolve_message(message);
@@ -2878,7 +2900,36 @@ impl Session {
             .copied()
             .collect();
         if !added.is_empty() || !removed.is_empty() {
-            self.outbox.event(Event::FeaturesChanged { added, removed });
+            self.outbox.event(Event::FeaturesChanged {
+                added,
+                removed: removed.clone(),
+            });
+            for feature in removed {
+                let reason = self
+                    .supports(feature)
+                    .expect_err("a removed feature is unavailable");
+                self.fail_requests_for_feature(feature, reason);
+            }
+        }
+    }
+
+    fn fail_requests_for_feature(&mut self, feature: Feature, reason: UnsupportedReason) {
+        let labels: Vec<_> = self
+            .requests
+            .iter()
+            .filter(|(_, (_, _, _, required))| *required == Some(feature))
+            .map(|(label, _)| label.clone())
+            .collect();
+        for label in labels {
+            let (id, _, _, _) = self
+                .requests
+                .remove(&label)
+                .expect("the pending label was just selected");
+            self.unlabelled_requests.retain(|pending| pending.id != id);
+            self.outbox.event(Event::RequestUnsupported {
+                id,
+                unsupported: Unsupported { feature, reason },
+            });
         }
     }
 
@@ -3009,7 +3060,7 @@ impl Session {
         let Some(label) = message.tag("label") else {
             return false;
         };
-        let Some((id, _, sent)) = self.requests.remove(label.as_ref()) else {
+        let Some((id, _, sent, _)) = self.requests.remove(label.as_ref()) else {
             return false;
         };
         let lines = if message.command_is("ACK") {
@@ -3171,7 +3222,7 @@ impl Session {
         history_targets: Option<Vec<(String, std::time::SystemTime)>>,
     ) {
         let request = self.requests.remove(label);
-        let deferred = request.as_ref().is_some_and(|(id, _, _)| {
+        let deferred = request.as_ref().is_some_and(|(id, _, _, _)| {
             self.unlabelled_requests
                 .iter()
                 .any(|pending| pending.id == *id)
@@ -3182,7 +3233,7 @@ impl Session {
                 self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
             }
         }
-        if let Some((id, _, sent)) = request
+        if let Some((id, _, sent, _)) = request
             && !deferred
         {
             let echoed = sent.then(|| {

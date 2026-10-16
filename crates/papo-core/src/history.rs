@@ -113,7 +113,6 @@ impl Session {
         now: Instant,
         query: HistoryQuery,
     ) -> Result<RequestId, RequestError> {
-        self.require_feature(Feature::History)?;
         let requested = query.limit();
         let advertised = match self.isupport.value().chathistory() {
             Some(LimitValue::Limited(limit)) => limit,
@@ -125,7 +124,7 @@ impl Session {
             requested.min(advertised).min(LOCAL_HISTORY_LIMIT),
             &supported,
         )?;
-        self.request(now, Message::new("CHATHISTORY", params))
+        self.request_for_feature(now, Message::new("CHATHISTORY", params), Feature::History)
     }
 
     /// Sets the read marker for `target` to a UTC timestamp.
@@ -140,8 +139,7 @@ impl Session {
         target: &str,
         time: SystemTime,
     ) -> Result<RequestId, RequestError> {
-        self.require_feature(Feature::ReadMarkers)?;
-        self.request(
+        self.request_for_feature(
             now,
             Message::new(
                 "MARKREAD",
@@ -153,6 +151,7 @@ impl Session {
                     ),
                 ],
             ),
+            Feature::ReadMarkers,
         )
     }
 
