@@ -479,6 +479,27 @@ mod tests {
     }
 
     #[test]
+    fn account_registration_adds_exactly_one_wanted_capability() {
+        let added = Builder::new("irc.example.net")
+            .caps(["message-tags"])
+            .register_on_connect(None::<String>, None::<String>, "realistic secret".into())
+            .config;
+        assert_eq!(
+            added.wanted_caps,
+            ["message-tags", "draft/account-registration"]
+        );
+
+        let retained = Builder::new("irc.example.net")
+            .caps(["server-time", "account-registration"])
+            .register_on_connect(None::<String>, None::<String>, "realistic secret".into())
+            .config;
+        assert_eq!(
+            retained.wanted_caps,
+            ["server-time", "account-registration"]
+        );
+    }
+
+    #[test]
     fn nick_supplies_only_implicit_username_and_realname_defaults() {
         let implicit = Builder::new("irc.example.net").nick("ping-bot").config;
         assert_eq!(
