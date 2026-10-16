@@ -29,15 +29,6 @@ const TIMEOUT: Duration = Duration::from_secs(10);
 type ScenarioResult = Result<Completion, Failed>;
 type ScenarioFuture = Pin<Box<dyn Future<Output = ScenarioResult>>>;
 
-#[cfg(test)]
-struct RegistrationProbe(&'static str);
-
-#[cfg(test)]
-inventory::collect!(RegistrationProbe);
-
-#[cfg(test)]
-inventory::submit!(RegistrationProbe("linked"));
-
 #[derive(Clone, Copy)]
 struct ScenarioSpec {
     name: &'static str,
@@ -97,7 +88,7 @@ pub fn run() -> ExitCode {
     let specs = scenario_specs();
     let server_name = env::var("PAPO_TEST_SERVER").unwrap_or_else(|_| "ergo".into());
     let known_failures =
-        load_known_failures(&server_name, specs).unwrap_or_else(|error| startup_error(&error));
+        load_known_failures(&server_name, &specs).unwrap_or_else(|error| startup_error(&error));
     let wanted_caps = specs
         .iter()
         .flat_map(|spec| spec.requires.caps)
@@ -135,7 +126,7 @@ fn run_trials(arguments: &Arguments, trials: Vec<Trial>) -> Result<Conclusion, S
     Ok(libtest_mimic::run(arguments, trials))
 }
 
-fn scenario_specs() -> &'static [ScenarioSpec] {
+fn scenario_specs() -> Vec<ScenarioSpec> {
     scenarios::all()
 }
 
@@ -567,19 +558,10 @@ mod tests {
     use libtest_mimic::{Arguments, Completion, Failed, Trial};
 
     use super::{
-        CapRequirement, Event, EventSource, RegistrationProbe, Requirements, Scenario,
-        expect_event, json_string, known_failure_verdict, load_known_failures_from,
-        required_environment_from, run_trials, runtime, scenario_status,
+        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event, json_string,
+        known_failure_verdict, load_known_failures_from, required_environment_from, run_trials,
+        runtime, scenario_status,
     };
-
-    #[test]
-    fn inventory_registration_is_linked() {
-        assert!(
-            inventory::iter::<RegistrationProbe>
-                .into_iter()
-                .any(|item| item.0 == "linked")
-        );
-    }
 
     struct TestDirectory(PathBuf);
 
