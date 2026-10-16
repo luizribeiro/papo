@@ -1379,13 +1379,17 @@ impl std::ops::Deref for ReceivedMessage {
 }
 
 /// A bounded server-controlled state collection.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum StateLimit {
     /// Joined channels.
     Channels,
     /// Members retained for one channel.
     Members,
+    /// Targets retained in the metadata cache.
+    MetadataTargets,
+    /// Metadata keys retained for one target.
+    MetadataKeys,
 }
 
 /// Sans-I/O state for one IRC client session.
@@ -2360,6 +2364,7 @@ impl Session {
             self.registration.nick(),
             self.isupport.value(),
             self.no_implicit_names(),
+            self.metadata_max_keys(),
             &mut self.outbox,
         ) == Handled::Yes;
         self.handle_ctcp(now, message);
@@ -2682,6 +2687,7 @@ impl Session {
             self.registration.nick(),
             self.isupport.value(),
             self.no_implicit_names(),
+            self.metadata_max_keys(),
             &mut self.outbox,
         );
         let generated = self.outbox.events.split_off(event_count);
@@ -2700,6 +2706,13 @@ impl Session {
             .enabled()
             .keys()
             .any(|name| papo_proto::canonical(name) == "no-implicit-names")
+    }
+
+    fn metadata_max_keys(&self) -> usize {
+        self.metadata_limits()
+            .and_then(|limits| limits.max_keys)
+            .unwrap_or(10_000)
+            .min(10_000)
     }
 
     fn close_for_long_line(&mut self) {

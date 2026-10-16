@@ -18,7 +18,6 @@ const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_METADATA_TARGETS: usize = 10_000;
-const MAX_METADATA_KEYS: usize = 10_000;
 
 /// The known channel and user state for a session.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -42,6 +41,7 @@ pub struct State {
     member_limit_warned: bool,
     persistence: Option<PersistenceStatus>,
     metadata: HashMap<CaseKey, HashMap<String, MetadataValue>>,
+    metadata_limits_warned: HashSet<StateLimit>,
 }
 
 /// State known about a joined channel.
@@ -123,6 +123,7 @@ impl State {
             member_limit_warned: false,
             persistence: None,
             metadata: HashMap::new(),
+            metadata_limits_warned: HashSet::new(),
         }
     }
 
@@ -160,10 +161,11 @@ impl State {
         own_nick: &str,
         isupport: &Isupport,
         no_implicit_names: bool,
+        metadata_max_keys: usize,
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = self.prepare_message(message, own_nick, isupport, outbox);
-        if self.handle_metadata(message, outbox) {
+        if self.handle_metadata(message, metadata_max_keys, outbox) {
             return Handled::Yes;
         }
         if self.handle_persistence(message, outbox) {
@@ -301,7 +303,12 @@ impl State {
         self.persistence
     }
 
-    fn handle_metadata(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
+    fn handle_metadata(
+        &mut self,
+        message: &MessageRef<'_>,
+        max_keys: usize,
+        outbox: &mut Outbox,
+    ) -> bool {
         let (target, key, visibility, value) = match message.command() {
             Command::Numeric(Numeric::RPL_KEYVALUE) => {
                 let (Some(target), Some(key), Some(visibility), Some(value)) = (
@@ -330,7 +337,7 @@ impl State {
             }
             _ => return false,
         };
-        self.update_metadata(target, key, visibility, value, outbox);
+        self.update_metadata(target, key, visibility, value, max_keys, outbox);
         true
     }
 
@@ -340,6 +347,7 @@ impl State {
         key: &str,
         visibility: &str,
         value: Option<&str>,
+        max_keys: usize,
         outbox: &mut Outbox,
     ) {
         let target_key = CaseKey::new(target, self.casemapping);
@@ -347,11 +355,14 @@ impl State {
             if !self.metadata.contains_key(&target_key)
                 && self.metadata.len() >= MAX_METADATA_TARGETS
             {
+                self.warn_limit(StateLimit::MetadataTargets, outbox);
                 return;
             }
-            if self.metadata.get(&target_key).is_some_and(|values| {
-                !values.contains_key(key) && values.len() >= MAX_METADATA_KEYS
-            }) {
+            let values = self.metadata.get(&target_key);
+            if values.is_none_or(|values| !values.contains_key(key))
+                && values.map_or(0, HashMap::len) >= max_keys
+            {
+                self.warn_limit(StateLimit::MetadataKeys, outbox);
                 return;
             }
             self.metadata.entry(target_key).or_default().insert(
@@ -801,12 +812,14 @@ impl State {
     }
 
     fn warn_limit(&mut self, limit: StateLimit, outbox: &mut Outbox) {
-        let warned = match limit {
-            StateLimit::Channels => &mut self.channel_limit_warned,
-            StateLimit::Members => &mut self.member_limit_warned,
+        let first = match limit {
+            StateLimit::Channels => !std::mem::replace(&mut self.channel_limit_warned, true),
+            StateLimit::Members => !std::mem::replace(&mut self.member_limit_warned, true),
+            StateLimit::MetadataTargets | StateLimit::MetadataKeys => {
+                self.metadata_limits_warned.insert(limit)
+            }
         };
-        if !*warned {
-            *warned = true;
+        if first {
             outbox.event(Event::StateLimitReached { limit });
         }
     }
@@ -1261,6 +1274,12 @@ impl State {
         self.metadata.get(&CaseKey::new(target, self.casemapping))
     }
 
+    /// Returns the number of targets retained in the metadata cache.
+    #[must_use]
+    pub fn metadata_target_count(&self) -> usize {
+        self.metadata.len()
+    }
+
     /// Returns the newest read marker reported for a target.
     #[must_use]
     pub fn read_marker(&self, target: &str) -> Option<&ReadMarker> {
@@ -1537,5 +1556,36 @@ impl Account {
         account.map_or(Self::LoggedOut, |account| {
             Self::LoggedIn(account.to_owned())
         })
+    }
+}
+
+#[cfg(test)]
+mod metadata_tests {
+    use super::State;
+    use crate::{Config, Event, Outbox, StateLimit};
+
+    #[test]
+    fn retains_at_most_ten_thousand_metadata_targets() {
+        let mut state = State::new(&Config::default());
+        let mut outbox = Outbox::default();
+        for index in 0..10_000 {
+            state.update_metadata(
+                &format!("user{index}"),
+                "avatar",
+                "*",
+                Some("https://example.test/a.png"),
+                100,
+                &mut outbox,
+            );
+            outbox.events.clear();
+        }
+        state.update_metadata("overflow", "avatar", "*", Some("x"), 100, &mut outbox);
+        assert_eq!(state.metadata_target_count(), 10_000);
+        assert!(matches!(
+            outbox.events.front(),
+            Some(Event::StateLimitReached {
+                limit: StateLimit::MetadataTargets,
+            })
+        ));
     }
 }

@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, MetadataCommand, MetadataLimits, RequestError};
+use papo_core::{Config, Event, MetadataCommand, MetadataLimits, RequestError, StateLimit};
 use support::Transcript;
 
 fn registered(value: &str) -> Transcript {
@@ -163,4 +163,33 @@ fn rejects_invalid_keys_values_and_subscription_counts_locally() {
         .client("METADATA alice SET a0_./- 12345678")
         .client("METADATA * SUB avatar pronouns")
         .no_client();
+}
+
+#[test]
+fn caches_pushed_updates_up_to_the_advertised_key_limit() {
+    registered("max-subs=100,max-keys=2")
+        .server(":bob!b@example.test METADATA #Papo avatar * :https://example.test/bob.png")
+        .event(|event| {
+            matches!(event, Event::MetadataChanged { target, key, .. }
+            if target == "#Papo" && key == "avatar")
+        })
+        .server(":bob!b@example.test METADATA #papo pronouns members :they/them")
+        .event(|event| {
+            matches!(event, Event::MetadataChanged { visibility, .. }
+            if visibility == "members")
+        })
+        .server(":bob!b@example.test METADATA #papo status * :working")
+        .event(|event| {
+            matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::MetadataKeys,
+                }
+            )
+        })
+        .inspect(|session| {
+            let metadata = session.state().metadata("#PAPO").unwrap();
+            assert_eq!(metadata.len(), 2);
+            assert!(!metadata.contains_key("status"));
+        });
 }
