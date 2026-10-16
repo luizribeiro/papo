@@ -851,6 +851,30 @@ pub enum Event {
     Disconnected(Disconnected),
 }
 
+macro_rules! event_accessors {
+    ($(($variant:ident, $method:ident, $payload:ty)),+ $(,)?) => {
+        impl Event {
+            $(
+                #[doc = concat!("Returns the payload when this is [`Event::", stringify!($variant), "`].")]
+                #[must_use]
+                pub const fn $method(&self) -> Option<&$payload> {
+                    if let Self::$variant(payload) = self {
+                        Some(payload)
+                    } else {
+                        None
+                    }
+                }
+            )+
+        }
+    };
+}
+
+event_accessors! {
+    (Registered, as_registered, Registered),
+    (Disconnected, as_disconnected, Disconnected),
+    (CapsChanged, as_caps_changed, CapsChanged),
+}
+
 // This transient mapping keeps forwarding allocation-free for every event kind.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum CoreEvent {
