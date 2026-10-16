@@ -765,6 +765,15 @@ struct UnlabelledRequest {
     lines: Vec<Message>,
 }
 
+/// One channel reported by a `WHOIS` response.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WhoisChannel {
+    /// Channel name without membership prefixes.
+    pub name: String,
+    /// Advertised membership prefix symbols in wire order.
+    pub prefixes: Vec<char>,
+}
+
 /// Completed response to a labelled request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Response {
@@ -776,6 +785,8 @@ pub struct Response {
     pub history: Option<HistoryPage>,
     /// Targets nested in a completed `CHATHISTORY TARGETS` response.
     pub history_targets: Option<Vec<(String, std::time::SystemTime)>>,
+    /// Channels parsed from `RPL_WHOISCHANNELS` using the current `PREFIX` token.
+    pub whois_channels: Vec<WhoisChannel>,
     sent: Option<SentInfo>,
 }
 
@@ -3078,6 +3089,7 @@ impl Session {
         } else {
             vec![message.to_owned()]
         };
+        let whois_channels = parse_whois_channels(&lines, self.isupport.value());
         if !self
             .unlabelled_requests
             .iter()
@@ -3089,6 +3101,7 @@ impl Session {
                 lines,
                 history: None,
                 history_targets: None,
+                whois_channels,
             }));
         }
         true
@@ -3122,12 +3135,14 @@ impl Session {
         request.lines.push(message.to_owned());
         if complete {
             let request = self.unlabelled_requests.remove(index).unwrap();
+            let whois_channels = parse_whois_channels(&request.lines, self.isupport.value());
             self.outbox.event(Event::Response(Response {
                 id: request.id,
                 sent: None,
                 lines: request.lines,
                 history: None,
                 history_targets: None,
+                whois_channels,
             }));
         }
         true
@@ -3246,6 +3261,7 @@ impl Session {
         if let Some((id, _, sent, _)) = request
             && !deferred
         {
+            let whois_channels = parse_whois_channels(&messages, self.isupport.value());
             let echoed = sent.then(|| {
                 messages
                     .iter()
@@ -3270,6 +3286,7 @@ impl Session {
                 lines: messages,
                 history,
                 history_targets,
+                whois_channels,
             }));
             for message in echoed.into_iter().flatten() {
                 let received = self.received_message(message, None, true);
@@ -3429,6 +3446,36 @@ fn requested_message_feature(message: &MessageRef<'_>) -> Option<Feature> {
         return Some(Feature::Reactions);
     }
     message.tag("+typing").map(|_| Feature::Typing)
+}
+
+fn parse_whois_channels(lines: &[Message], isupport: &papo_proto::Isupport) -> Vec<WhoisChannel> {
+    let symbols: Vec<_> = isupport
+        .prefix()
+        .into_iter()
+        .map(|prefix| prefix.symbol)
+        .collect();
+    lines
+        .iter()
+        .filter_map(|line| {
+            let message = line.as_ref();
+            (message.command() == Command::Numeric(Numeric::RPL_WHOISCHANNELS))
+                .then(|| message.param(2))
+                .flatten()
+        })
+        .flat_map(str::split_ascii_whitespace)
+        .filter_map(|channel| {
+            let prefix_bytes = channel
+                .chars()
+                .take_while(|symbol| symbols.contains(symbol))
+                .map(char::len_utf8)
+                .sum();
+            let (prefixes, name) = channel.split_at(prefix_bytes);
+            (!name.is_empty()).then(|| WhoisChannel {
+                name: name.to_owned(),
+                prefixes: prefixes.chars().collect(),
+            })
+        })
+        .collect()
 }
 
 fn encode_label(mut value: u64) -> String {

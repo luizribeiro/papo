@@ -45,6 +45,52 @@ fn matches_an_unlabelled_whois_through_its_end_numeric() {
 }
 
 #[test]
+fn parses_whois_channels_with_advertised_membership_prefixes() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    session.handle_line(
+        now,
+        b":irc.unreal.example 005 papo PREFIX=(qaohv)~&@%+ CHANTYPES=#&+! :are supported",
+    );
+    session
+        .request_with_matcher(
+            now,
+            Message::new("WHOIS", ["alice"]),
+            ResponseMatcher::Whois("alice".into()),
+        )
+        .unwrap();
+    session.handle_line(
+        now,
+        b":irc.unreal.example 319 papo alice :~&@#staff +#papo !support ~&@",
+    );
+    session.handle_line(
+        now,
+        b":irc.unreal.example 318 papo alice :End of /WHOIS list",
+    );
+
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected a WHOIS response")
+    };
+    assert_eq!(
+        response.whois_channels,
+        [
+            papo_core::WhoisChannel {
+                name: "#staff".into(),
+                prefixes: vec!['~', '&', '@'],
+            },
+            papo_core::WhoisChannel {
+                name: "#papo".into(),
+                prefixes: vec!['+'],
+            },
+            papo_core::WhoisChannel {
+                name: "!support".into(),
+                prefixes: Vec::new(),
+            },
+        ]
+    );
+}
+
+#[test]
 fn unlabelled_join_waits_for_channel_sync() {
     let now = Instant::now();
     let mut session = Session::new(
