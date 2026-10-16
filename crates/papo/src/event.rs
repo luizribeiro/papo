@@ -62,6 +62,9 @@ pub struct MessageEvent {
     bot: bool,
     reply_to: Option<String>,
     relayed_by: Option<String>,
+    // All three states distinguish absent, bare, and named protocol tags.
+    #[allow(clippy::option_option)]
+    oper: Option<Option<String>>,
     batch_type: Option<String>,
     origin: Origin,
     caps: Capabilities,
@@ -228,6 +231,10 @@ impl MessageEvent {
         let bot = message.tags().any(|(key, _)| key == "bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]);
         let relayed_by = tag_owned(&message, &["draft/relaymsg"]);
+        let oper = message
+            .tags()
+            .find(|(key, _)| *key == "draft/oper")
+            .map(|(_, value)| value.map(std::borrow::Cow::into_owned));
         let replay = batch_type.as_deref().is_some_and(|kind| {
             matches!(
                 kind,
@@ -258,6 +265,7 @@ impl MessageEvent {
             bot,
             reply_to,
             relayed_by,
+            oper,
             batch_type,
             origin,
             caps: caps.clone(),
@@ -390,6 +398,13 @@ impl MessageEvent {
     #[must_use]
     pub fn relayed_by(&self) -> Option<&str> {
         self.relayed_by.as_deref()
+    }
+
+    /// Returns whether the sender is an IRC operator and their oper name when supplied.
+    #[must_use]
+    #[allow(clippy::option_option)]
+    pub fn oper(&self) -> Option<Option<&str>> {
+        self.oper.as_ref().map(|name| name.as_deref())
     }
 
     /// Returns the containing batch type, when known.
@@ -1018,7 +1033,7 @@ mod tests {
         Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session, StandardReply,
         StateLimit,
     };
-    use papo_proto::{Isupport, Message, ModeKind, Source, StandardReplyKind, Typing};
+    use papo_proto::{Isupport, Message, MessageRef, ModeKind, Source, StandardReplyKind, Typing};
 
     fn event(
         message: Message,
@@ -1161,6 +1176,30 @@ mod tests {
                 received
             );
         }
+    }
+
+    #[test]
+    fn exposes_oper_tags_with_optional_names() {
+        let tagged = |line| {
+            event(
+                MessageRef::parse(line).unwrap().to_owned(),
+                &Isupport::default(),
+                "papo",
+                UNIX_EPOCH,
+            )
+        };
+        assert_eq!(
+            tagged(
+                "@draft/oper=network-admin :alice!a@localhost PRIVMSG #papo :Scheduled maintenance"
+            )
+            .oper(),
+            Some(Some("network-admin"))
+        );
+        assert_eq!(
+            tagged("@draft/oper :alice!a@localhost PRIVMSG #papo :Scheduled maintenance").oper(),
+            Some(None)
+        );
+        assert_eq!(chat("PRIVMSG", "ordinary message").oper(), None);
     }
 
     #[test]

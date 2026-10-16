@@ -89,6 +89,7 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "standard-replies",
     "labeled-response",
     "draft/multiline",
+    "draft/oper-tag",
     "draft/metadata-2",
 ];
 

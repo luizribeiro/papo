@@ -58,6 +58,23 @@ fn ends_immediately_when_no_advertised_cap_is_wanted() {
 }
 
 #[test]
+fn requests_oper_tags_by_default() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server("CAP * LS :draft/oper-tag")
+        .client("CAP REQ :draft/oper-tag")
+        .server("CAP * ACK :draft/oper-tag")
+        .client("CAP END")
+        .server(
+            "@draft/oper=network-admin :alice!a@localhost PRIVMSG #papo :Maintenance begins soon",
+        )
+        .event(|event| {
+            matches!(event, Event::Message(message)
+            if message.as_ref().tag("draft/oper").as_deref() == Some("network-admin"))
+        });
+}
+
+#[test]
 fn capability_alias_resolution_stays_in_its_namespace() {
     Transcript::new(Config::default().wanted_caps(["draft/chathistory"]))
         .connect_default()
