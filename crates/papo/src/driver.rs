@@ -2023,6 +2023,35 @@ mod tests {
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
     }
 
+    async fn complete_history_registration(server: &mut DuplexStream, events: &mut super::Events) {
+        registration_burst(server).await;
+        server_line(
+            server,
+            b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(
+            server,
+            b"CAP REQ :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        server_line(
+            server,
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(server, b"CAP END\r\n").await;
+        server_line(server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    }
+
+    async fn history_response(server: &mut DuplexStream, label: usize) {
+        let reply = format!(
+            "@label={label} :ergo.test BATCH +reply{label} labeled-response\r\n@batch=reply{label};draft/chathistory-end :ergo.test BATCH +history{label} chathistory #papo\r\n@batch=history{label};time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY12{label:04} :emily!~e@localhost PRIVMSG #papo :page {label}\r\n@batch=reply{label} :ergo.test BATCH -history{label}\r\n:ergo.test BATCH -reply{label}\r\n"
+        );
+        server_line(server, reply.as_bytes()).await;
+    }
+
     async fn assert_join_waits_for_sync(server: &mut DuplexStream, client: &super::Client) {
         let join = tokio::spawn({
             let client = client.clone();
@@ -2285,6 +2314,80 @@ mod tests {
         assert_eq!(page.messages[0].text(), "earlier");
         assert_eq!(page.messages[0].origin(), Origin::History);
         assert!(!page.messages[0].is_live());
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn reference_history_queries_reach_the_wire_and_resolve() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_history_registration(&mut server, &mut events).await;
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .history("#papo")
+                    .before("RfcBTzyxY119999")
+                    .limit(50)
+                    .await
+            }
+        });
+        client_line(
+            &mut server,
+            b"@label=0 CHATHISTORY BEFORE #papo msgid=RfcBTzyxY119999 50\r\n",
+        )
+        .await;
+        history_response(&mut server, 0).await;
+        let before = request.await.unwrap().unwrap();
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .history("#papo")
+                    .after(UNIX_EPOCH + Duration::from_secs(42))
+                    .limit(51)
+                    .await
+            }
+        });
+        client_line(
+            &mut server,
+            b"@label=1 CHATHISTORY AFTER #papo timestamp=1970-01-01T00:00:42.000Z 51\r\n",
+        )
+        .await;
+        history_response(&mut server, 1).await;
+        request.await.unwrap().unwrap();
+
+        let message = before.messages[0].clone();
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.history("#papo").around(&message).limit(52).await }
+        });
+        client_line(
+            &mut server,
+            b"@label=2 CHATHISTORY AROUND #papo msgid=RfcBTzyxY120000 52\r\n",
+        )
+        .await;
+        history_response(&mut server, 2).await;
+        request.await.unwrap().unwrap();
+
+        let request = tokio::spawn(async move {
+            client
+                .history("#papo")
+                .between("RfcBTzyxY119998", "RfcBTzyxY120003")
+                .limit(53)
+                .await
+        });
+        client_line(&mut server, b"@label=3 CHATHISTORY BETWEEN #papo msgid=RfcBTzyxY119998 msgid=RfcBTzyxY120003 53\r\n").await;
+        history_response(&mut server, 3).await;
+        request.await.unwrap().unwrap();
         task.abort();
     }
 
