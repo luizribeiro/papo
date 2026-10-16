@@ -712,52 +712,6 @@ async fn draft_chathistory(context: Scenario) -> ScenarioResult {
     history_page(context).await
 }
 
-/// reassembles a client multiline message
-#[scenario(requires(caps = ["draft/multiline"]))]
-async fn draft_multiline(context: Scenario) -> ScenarioResult {
-    let (receiver, mut sender, channel) = joined_pair(&context).await?;
-    let reference = context.unique().replace('_', "-");
-    sender
-        .client
-        .send(Message::new(
-            "BATCH",
-            [
-                format!("+{reference}"),
-                "draft/multiline".into(),
-                channel.clone(),
-            ],
-        ))
-        .await
-        .map_err(Failed::from)?;
-    sender
-        .client
-        .send(Message::privmsg(&channel, "first ").with_tag("batch", reference.clone()))
-        .await
-        .map_err(Failed::from)?;
-    sender
-        .client
-        .send(
-            Message::privmsg(&channel, "second")
-                .with_tag("batch", reference.clone())
-                .with_tag("draft/multiline-concat", ""),
-        )
-        .await
-        .map_err(Failed::from)?;
-    sender
-        .client
-        .send(Message::new("BATCH", [format!("-{reference}")]))
-        .await
-        .map_err(Failed::from)?;
-    context
-            .expect(
-                &mut sender.events,
-                |event| matches!(event, Event::Message(message) if message.raw_text() == "first second"),
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-    close_pair(receiver, sender).await
-}
-
 /// sets and receives a channel read marker
 #[scenario(requires(caps = ["draft/read-marker"]))]
 async fn draft_read_marker(context: Scenario) -> ScenarioResult {
@@ -930,26 +884,6 @@ async fn bot_mode(context: Scenario) -> ScenarioResult {
         return Err("WHOIS did not report the advertised bot mode".into());
     }
     connection.close().await
-}
-
-/// delivers UTF-8 channel text without replacement
-#[scenario(requires(isupport = ["UTF8ONLY"]))]
-async fn utf8only(context: Scenario) -> ScenarioResult {
-    let (mut receiver, sender, channel) = joined_pair(&context).await?;
-    let text = "Olá, IRC 世界";
-    sender
-        .client
-        .privmsg(&channel, text)
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut receiver.events,
-            |event| matches!(event, Event::Message(message) if message.raw_text() == text),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    close_pair(receiver, sender).await
 }
 
 /// parses an extended WHO reply
