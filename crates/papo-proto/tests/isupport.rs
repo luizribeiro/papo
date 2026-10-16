@@ -63,6 +63,29 @@ fn unescapes_values_in_one_pass() {
 }
 
 #[test]
+fn expands_the_network_icon_size_template() {
+    let mut support = Isupport::default();
+    assert_eq!(support.icon(), None);
+    assert_eq!(support.icon_url(64), None);
+
+    support.apply_tokens(["draft/ICON=https://cdn.example.net/icon-{size}.png"]);
+    assert_eq!(
+        support.icon(),
+        Some("https://cdn.example.net/icon-{size}.png")
+    );
+    assert_eq!(
+        support.icon_url(64).as_deref(),
+        Some("https://cdn.example.net/icon-64.png")
+    );
+
+    support.apply_tokens(["draft/ICON=https://cdn.example.net/network.png"]);
+    assert_eq!(
+        support.icon_url(128).as_deref(),
+        Some("https://cdn.example.net/network.png")
+    );
+}
+
+#[test]
 fn empty_and_malformed_tokens_do_not_create_keys() {
     let mut support = Isupport::default();
     support.apply_tokens(std::iter::empty::<&str>());

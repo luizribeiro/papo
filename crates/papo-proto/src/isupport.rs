@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use crate::{Casemapping, Command, MessageRef, Numeric, canonical};
 
@@ -282,6 +282,25 @@ impl Isupport {
     #[must_use]
     pub fn network(&self) -> Option<&str> {
         self.value("NETWORK")
+    }
+
+    /// Returns the network's advertised icon URL or URL template.
+    #[must_use]
+    pub fn icon(&self) -> Option<&str> {
+        self.value("DRAFT/ICON")
+    }
+
+    /// Returns the network icon URL with every `{size}` placeholder filled.
+    ///
+    /// The requested size is a hint to the image server.
+    #[must_use]
+    pub fn icon_url(&self, size: u32) -> Option<Cow<'_, str>> {
+        let icon = self.icon()?;
+        if icon.contains("{size}") {
+            Some(Cow::Owned(icon.replace("{size}", &size.to_string())))
+        } else {
+            Some(Cow::Borrowed(icon))
+        }
     }
 
     flag_accessors! {
