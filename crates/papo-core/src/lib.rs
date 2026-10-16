@@ -775,7 +775,7 @@ impl Response {
             let Command::Numeric(numeric) = message.command() else {
                 return None;
             };
-            numeric.is_error().then(|| ServerError::Numeric {
+            (numeric.is_error() || numeric == Numeric::RPL_TRYAGAIN).then(|| ServerError::Numeric {
                 numeric,
                 params: message.params().map(str::to_owned).collect(),
             })
@@ -900,7 +900,76 @@ pub enum ServerError {
     },
 }
 
+/// Stable classification of a server refusal.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum RefusalKind {
+    /// A message could not be sent to the channel.
+    CannotSendToChannel,
+    /// The session has joined the server's maximum number of channels.
+    TooManyChannels,
+    /// A command that requires text received none.
+    NoTextToSend,
+    /// An input line exceeded the server's limit.
+    InputTooLong,
+    /// The server does not recognize the command.
+    UnknownCommand,
+    /// A nickname collided during a network split or link.
+    NickCollision,
+    /// A nickname or channel is temporarily unavailable.
+    NickUnavailable,
+    /// A channel mask is malformed.
+    BadChannelMask,
+    /// The channel accepts only secure connections.
+    SecureOnlyChannel,
+    /// The session's host is not authorized for operator access.
+    NoOperHost,
+    /// A user mode flag is unknown.
+    UnknownUserMode,
+    /// The session tried to change another user's modes.
+    UsersDontMatch,
+    /// A channel mode parameter is invalid.
+    InvalidModeParam,
+    /// The server is temporarily too busy to process the command.
+    TryAgain,
+    /// A refusal without a more specific classification.
+    ///
+    /// A later minor release may refine a numeric currently classified here.
+    Other,
+}
+
+impl RefusalKind {
+    const fn from_numeric(numeric: Numeric) -> Self {
+        match numeric {
+            Numeric::ERR_CANNOTSENDTOCHAN => Self::CannotSendToChannel,
+            Numeric::ERR_TOOMANYCHANNELS => Self::TooManyChannels,
+            Numeric::ERR_NOTEXTTOSEND => Self::NoTextToSend,
+            Numeric::ERR_INPUTTOOLONG => Self::InputTooLong,
+            Numeric::ERR_UNKNOWNCOMMAND => Self::UnknownCommand,
+            Numeric::ERR_NICKCOLLISION => Self::NickCollision,
+            Numeric::ERR_UNAVAILRESOURCE => Self::NickUnavailable,
+            Numeric::ERR_BADCHANMASK => Self::BadChannelMask,
+            Numeric::ERR_SECUREONLYCHAN => Self::SecureOnlyChannel,
+            Numeric::ERR_NOOPERHOST => Self::NoOperHost,
+            Numeric::ERR_UMODEUNKNOWNFLAG => Self::UnknownUserMode,
+            Numeric::ERR_USERSDONTMATCH => Self::UsersDontMatch,
+            Numeric::ERR_INVALIDMODEPARAM => Self::InvalidModeParam,
+            Numeric::RPL_TRYAGAIN => Self::TryAgain,
+            _ => Self::Other,
+        }
+    }
+}
+
 impl ServerError {
+    /// Classifies this refusal independently of its wire representation.
+    #[must_use]
+    pub const fn refusal_kind(&self) -> RefusalKind {
+        match self {
+            Self::Numeric { numeric, .. } => RefusalKind::from_numeric(*numeric),
+            Self::Standard { .. } => RefusalKind::Other,
+        }
+    }
+
     /// Returns the typed account-registration code when this is a matching standard failure.
     #[must_use]
     pub fn account_registration_error(&self) -> Option<AccountRegistrationError> {

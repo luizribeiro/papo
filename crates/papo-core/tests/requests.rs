@@ -3,7 +3,8 @@
 use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
-    Config, Event, RateLimit, RequestError, RequestId, ResponseMatcher, ServerError, Session,
+    Config, Event, RateLimit, RefusalKind, RequestError, RequestId, ResponseMatcher, ServerError,
+    Session,
 };
 use papo_proto::{Message, MessageRef, Numeric};
 
@@ -972,6 +973,7 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
             description: "Invalid message reference".into(),
         })
     );
+    assert_eq!(fail.error().unwrap().refusal_kind(), RefusalKind::Other);
     let Some(Event::Response(numeric)) = session.poll_event() else {
         panic!("expected numeric failure response")
     };
@@ -986,6 +988,74 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
             ],
         })
     );
+    assert_eq!(numeric.error().unwrap().refusal_kind(), RefusalKind::Other);
+}
+
+#[test]
+fn classifies_common_numeric_refusals() {
+    let now = Instant::now();
+    let cases = [
+        (
+            "404 papo #rust :Cannot send to channel",
+            RefusalKind::CannotSendToChannel,
+        ),
+        (
+            "405 papo #staff :You have joined too many channels",
+            RefusalKind::TooManyChannels,
+        ),
+        ("412 papo :No text to send", RefusalKind::NoTextToSend),
+        (
+            "417 papo PRIVMSG :Input line was too long",
+            RefusalKind::InputTooLong,
+        ),
+        (
+            "421 papo FROBULATE :Unknown command",
+            RefusalKind::UnknownCommand,
+        ),
+        (
+            "436 papo alice :Nickname collision KILL",
+            RefusalKind::NickCollision,
+        ),
+        (
+            "437 papo #staff :Nick/channel is temporarily unavailable",
+            RefusalKind::NickUnavailable,
+        ),
+        (
+            "476 papo #bad:mask :Bad Channel Mask",
+            RefusalKind::BadChannelMask,
+        ),
+        (
+            "489 papo #secure :Cannot join channel (+z)",
+            RefusalKind::SecureOnlyChannel,
+        ),
+        (
+            "491 papo :No O-lines for your host",
+            RefusalKind::NoOperHost,
+        ),
+        ("501 papo :Unknown MODE flag", RefusalKind::UnknownUserMode),
+        (
+            "502 papo :Cannot change mode for other users",
+            RefusalKind::UsersDontMatch,
+        ),
+        (
+            "696 papo #rust k * :Invalid mode parameter",
+            RefusalKind::InvalidModeParam,
+        ),
+        (
+            "263 papo WHO :Server load is temporarily too heavy",
+            RefusalKind::TryAgain,
+        ),
+    ];
+
+    for (line, expected) in cases {
+        let mut session = labelled_session(now);
+        request(&mut session, now, Message::new("RAW", ["probe"]));
+        session.handle_line(now, format!("@label=0 :ergo.test {line}").as_bytes());
+        let Some(Event::Response(response)) = session.poll_event() else {
+            panic!("expected refusal response for {line}")
+        };
+        assert_eq!(response.error().unwrap().refusal_kind(), expected, "{line}");
+    }
 }
 
 #[test]
