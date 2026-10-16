@@ -2453,17 +2453,19 @@ impl Session {
             self.account_registration.cancel_pending();
         }
         self.sync_monitored_state();
-        let state_handled = self.state.handle_message(
-            message,
-            self.registration.nick(),
-            self.isupport.value(),
-            self.no_implicit_names(),
-            MetadataContext {
-                max_keys: self.metadata_max_keys(),
-                subscription_batch: context.batch_type() == Some("metadata-subs"),
-            },
-            &mut self.outbox,
-        ) == Handled::Yes;
+        let whoami = self.handle_whoami(message);
+        let state_handled = whoami
+            || self.state.handle_message(
+                message,
+                self.registration.nick(),
+                self.isupport.value(),
+                self.no_implicit_names(),
+                MetadataContext {
+                    max_keys: self.metadata_max_keys(),
+                    subscription_batch: context.batch_type() == Some("metadata-subs"),
+                },
+                &mut self.outbox,
+            ) == Handled::Yes;
         self.handle_ctcp(now, message);
         let handled = registration_handled
             || caps_handled
@@ -2513,6 +2515,24 @@ impl Session {
         if before != self.snapshot_values() {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
+    }
+
+    fn handle_whoami(&mut self, message: &MessageRef<'_>) -> bool {
+        if !self.caps.enabled().contains_key("draft/whoami")
+            || !self.registration.is_in_welcome_burst()
+            || !self.state.handle_whoami(
+                message,
+                self.registration.nick(),
+                self.isupport.value(),
+                &mut self.outbox,
+            )
+        {
+            return false;
+        }
+        if let Some(Source::User { nick, .. }) = message.source() {
+            self.registration.update_nick(nick);
+        }
+        true
     }
 
     fn handle_ctcp(&mut self, now: Instant, message: &MessageRef<'_>) -> bool {

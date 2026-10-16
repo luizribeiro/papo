@@ -291,6 +291,42 @@ impl State {
         Handled::No
     }
 
+    pub(crate) fn handle_whoami(
+        &mut self,
+        message: &MessageRef<'_>,
+        own_nick: &str,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> bool {
+        let Some(change) = Setname::parse(message) else {
+            return false;
+        };
+        let Some(Source::User {
+            nick,
+            user: Some(user),
+            host: Some(host),
+        }) = message.source()
+        else {
+            return false;
+        };
+        self.update_casemapping(isupport.casemapping());
+        if !self.casemapping.eq(nick, own_nick) {
+            return false;
+        }
+        let realname_changed = self.realname != change.realname;
+        nick.clone_into(&mut self.nick);
+        user.clone_into(&mut self.user);
+        self.host = Some(host.to_owned());
+        change.realname.clone_into(&mut self.realname);
+        if realname_changed {
+            outbox.event(Event::RealnameChanged {
+                nick: nick.to_owned(),
+                realname: change.realname.to_owned(),
+            });
+        }
+        true
+    }
+
     fn handle_persistence(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
         if !message.command_is("PERSISTENCE") || message.param(0) != Some("STATUS") {
             return false;

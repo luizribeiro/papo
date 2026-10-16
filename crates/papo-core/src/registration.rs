@@ -121,6 +121,14 @@ impl Registration {
         self.registered
     }
 
+    pub(super) const fn is_in_welcome_burst(&self) -> bool {
+        self.welcome_deadline.is_some()
+    }
+
+    pub(super) fn update_nick(&mut self, nick: &str) {
+        nick.clone_into(&mut self.nick);
+    }
+
     fn complete(&mut self, caps: &Capabilities, isupport: &Isupport, outbox: &mut Outbox) {
         self.welcome_deadline = None;
         self.registered = true;
