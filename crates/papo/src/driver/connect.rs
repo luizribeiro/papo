@@ -76,6 +76,7 @@ pub(super) async fn run_plan(
     };
     let mut attempts = 0_usize;
     let mut registered = false;
+    let mut opened_connection = false;
     let mut queued = VecDeque::new();
     let mut pending_events = VecDeque::new();
     let mut sts_required = false;
@@ -94,6 +95,7 @@ pub(super) async fn run_plan(
             disconnected_queue_capacity,
             &events,
             &mut pending_events,
+            registration.0.is_some() && !opened_connection,
             sts_required,
             reconnect,
             attempts,
@@ -101,7 +103,10 @@ pub(super) async fn run_plan(
         )
         .await
         {
-            ConnectionAttempt::Connected(stream) => stream,
+            ConnectionAttempt::Connected(stream) => {
+                opened_connection = true;
+                stream
+            }
             ConnectionAttempt::Retry => continue,
             ConnectionAttempt::Stop => {
                 events.finish(pending_events);
@@ -317,6 +322,7 @@ async fn connect_or_wait(
     capacity: usize,
     events: &EventSink,
     pending_events: &mut VecDeque<Event>,
+    fail_fast: bool,
     sts_required: bool,
     reconnect: Reconnect,
     attempts: usize,
@@ -339,7 +345,7 @@ async fn connect_or_wait(
         Err(error) => error,
     };
     let reason = error.to_string();
-    if sts_required || is_fatal_failure(&error, None) || !reconnect.permits(attempts) {
+    if fail_fast || sts_required || is_fatal_failure(&error, None) || !reconnect.permits(attempts) {
         return ConnectionAttempt::Failed(error);
     }
     if !enqueue_event(

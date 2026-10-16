@@ -157,6 +157,49 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn registration_waiter_fails_after_one_connection_attempt() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let connector: super::Connector = Arc::new({
+        let calls = Arc::clone(&calls);
+        move |_| {
+            calls.fetch_add(1, Ordering::Relaxed);
+            Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+        }
+    });
+    let (registration, waiting) = tokio::sync::oneshot::channel();
+    let (_client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        Some(registration),
+        super::PostRegistration::default(),
+        Reconnect::exponential(),
+        256,
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        false,
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+
+    assert!(matches!(
+        within(waiting).await.unwrap(),
+        Err(Error::Unsupported("scripted connection failure"))
+    ));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected {
+            will_retry: false,
+            ..
+        })
+    ));
+    assert!(within(driver).await.unwrap().is_ok());
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn eof_reconnects_and_emits_reconnected() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
