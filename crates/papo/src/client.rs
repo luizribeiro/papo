@@ -42,23 +42,6 @@ pub struct Sent {
     pub time: Option<SystemTime>,
 }
 
-/// Outcome of an account registration request.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum AccountRegistration {
-    /// The account was created and authenticated.
-    Registered {
-        /// Registered account name.
-        account: String,
-    },
-    /// The server requires an out-of-band verification code.
-    VerificationRequired {
-        /// Account awaiting verification.
-        account: String,
-        /// Human-readable verification instructions.
-        message: String,
-    },
-}
-
 /// Handle for account persistence requests.
 pub struct Persistence<'a> {
     client: &'a Client,
@@ -315,42 +298,6 @@ impl Client {
             .await
             .map_err(|_| Error::Disconnected)?;
         receiver.await.map_err(|_| Error::Disconnected)?
-    }
-
-    /// Creates an account through `draft/account-registration`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
-    pub async fn register(
-        &self,
-        account: Option<&str>,
-        email: Option<&str>,
-        password: papo_core::Secret,
-    ) -> Result<AccountRegistration, Error> {
-        let response = self
-            .core_request(CoreRequest::Register {
-                account: account.map(str::to_owned),
-                email: email.map(str::to_owned),
-                password,
-            })
-            .await?;
-        account_registration_result(&response)
-    }
-
-    /// Submits an account verification code.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
-    pub async fn verify(&self, account: &str, code: &str) -> Result<AccountRegistration, Error> {
-        let response = self
-            .core_request(CoreRequest::Verify {
-                account: account.to_owned(),
-                code: code.to_owned(),
-            })
-            .await?;
-        account_registration_result(&response)
     }
 
     /// Sends an IRC message without waiting for a correlated response.
@@ -778,24 +725,6 @@ impl Client {
             .await
             .map_err(|_| Error::Disconnected)?;
         receiver.await.map_err(|_| Error::Disconnected)?
-    }
-}
-
-fn account_registration_result(response: &Response) -> Result<AccountRegistration, Error> {
-    if let Some(error) = response.account_registration_error() {
-        return Err(Error::AccountRegistration(error));
-    }
-    let message = response.lines.first().ok_or(Error::Disconnected)?.as_ref();
-    let account = message.param(1).ok_or(Error::Disconnected)?.to_owned();
-    match message.param(0) {
-        Some("SUCCESS") => Ok(AccountRegistration::Registered { account }),
-        Some("VERIFICATION_REQUIRED") => Ok(AccountRegistration::VerificationRequired {
-            account,
-            message: message.param(2).unwrap_or_default().to_owned(),
-        }),
-        _ => response
-            .error()
-            .map_or(Err(Error::Disconnected), |error| Err(Error::Server(error))),
     }
 }
 
