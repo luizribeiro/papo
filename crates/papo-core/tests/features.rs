@@ -76,3 +76,73 @@ fn rejects_literal_zero_feature_limits() {
         );
     }
 }
+
+#[test]
+fn distinguishes_client_disabled_and_server_absent_features() {
+    let features = [
+        Feature::Replies,
+        Feature::Reactions,
+        Feature::Typing,
+        Feature::Redaction,
+        Feature::Multiline,
+        Feature::History,
+        Feature::ReadMarkers,
+        Feature::Metadata,
+        Feature::SetName,
+        Feature::AccountRegistration,
+        Feature::Persistence,
+        Feature::WebPush,
+        Feature::ChannelRename,
+        Feature::Relay,
+        Feature::LabeledResponse,
+    ];
+    let disabled = session_with(
+        Config::default()
+            .wanted_caps(CAPS.split_whitespace())
+            .without_caps(CAPS.split_whitespace()),
+        CAPS,
+        "",
+    );
+    let absent = session("");
+    for feature in features {
+        assert_eq!(
+            disabled.supports(feature),
+            Err(papo_core::UnsupportedReason::DisabledByClient),
+            "{feature:?}"
+        );
+        assert_eq!(
+            absent.supports(feature),
+            Err(papo_core::UnsupportedReason::NotOffered),
+            "{feature:?}"
+        );
+    }
+    for feature in [Feature::Monitor, Feature::BotMode] {
+        assert_eq!(
+            absent.supports(feature),
+            Err(papo_core::UnsupportedReason::NotOffered)
+        );
+    }
+}
+
+#[test]
+fn applies_client_tag_denials_per_feature() {
+    let denied = session_with(
+        Config::default().wanted_caps(["message-tags"]),
+        "message-tags",
+        ":irc.solanum.example 005 papo CLIENTTAGDENY=reply,draft/reply,draft/react,typing :are supported by this server",
+    );
+    for feature in [Feature::Replies, Feature::Reactions, Feature::Typing] {
+        assert_eq!(
+            denied.supports(feature),
+            Err(papo_core::UnsupportedReason::TagDenied),
+            "{feature:?}"
+        );
+    }
+
+    let draft_reply = session_with(
+        Config::default().wanted_caps(["message-tags"]),
+        "message-tags",
+        ":irc.solanum.example 005 papo CLIENTTAGDENY=reply :are supported by this server",
+    );
+    assert_eq!(draft_reply.supports(Feature::Replies), Ok(()));
+}

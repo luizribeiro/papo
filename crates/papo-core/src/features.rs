@@ -61,6 +61,15 @@ impl Feature {
             Self::Monitor | Self::BotMode => &[],
         }
     }
+
+    const fn tags(self) -> &'static [&'static str] {
+        match self {
+            Self::Replies => &["+reply", "+draft/reply"],
+            Self::Reactions => &["+draft/react"],
+            Self::Typing => &["+typing"],
+            _ => &[],
+        }
+    }
 }
 
 /// Why an optional IRC behavior is unavailable.
@@ -104,10 +113,24 @@ impl Session {
             .iter()
             .any(|name| self.caps.enabled().contains_key(*name));
         if !enabled {
-            return Err(UnsupportedReason::NotOffered);
+            let disabled = feature.caps().iter().any(|required| {
+                self.config.cap_disabled(required)
+                    && self.caps.advertised().keys().any(|offered| {
+                        papo_proto::canonical(offered) == papo_proto::canonical(required)
+                    })
+            });
+            return Err(if disabled {
+                UnsupportedReason::DisabledByClient
+            } else {
+                UnsupportedReason::NotOffered
+            });
         }
         if feature == Feature::History && support.get("CHATHISTORY") == Advertised::Value("0") {
             return Err(UnsupportedReason::LimitZero);
+        }
+        let denied = support.clienttagdeny();
+        if !feature.tags().is_empty() && feature.tags().iter().all(|tag| denied.denies(tag)) {
+            return Err(UnsupportedReason::TagDenied);
         }
         Ok(())
     }

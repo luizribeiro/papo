@@ -298,6 +298,10 @@ impl Caps {
         &self.enabled
     }
 
+    pub(super) const fn advertised(&self) -> &Capabilities {
+        &self.advertised
+    }
+
     pub(super) fn advertised_value(&self, name: &str) -> Option<&Option<String>> {
         self.advertised.get(name)
     }
