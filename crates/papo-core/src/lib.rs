@@ -2648,6 +2648,12 @@ impl Session {
             BatchEvent::Multiline(message) => self
                 .outbox
                 .event(Event::MultilineMessage(MultilineMessage { message })),
+            BatchEvent::Metadata { kind, messages } => {
+                let context = DispatchContext::from_batch_type(kind);
+                for message in messages {
+                    self.dispatch_message(now, &message.as_ref(), &context, true);
+                }
+            }
         }
     }
 

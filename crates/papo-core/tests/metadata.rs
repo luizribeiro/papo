@@ -193,3 +193,26 @@ fn caches_pushed_updates_up_to_the_advertised_key_limit() {
             assert!(!metadata.contains_key("status"));
         });
 }
+
+#[test]
+fn applies_a_join_metadata_batch_only_when_it_closes() {
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test BATCH +m metadata #papo")
+        .server("@batch=m :ergo.test 761 alice #papo avatar * :https://example.test/papo.png")
+        .server("@batch=m :ergo.test 761 alice bob pronouns * :he/him")
+        .no_event()
+        .inspect(|session| assert!(session.state().metadata("#papo").is_none()))
+        .server(":ergo.test BATCH -m")
+        .event(|event| {
+            matches!(event, Event::MetadataChanged { target, .. }
+            if target == "#papo")
+        })
+        .event(|event| {
+            matches!(event, Event::MetadataChanged { target, .. }
+            if target == "bob")
+        })
+        .inspect(|session| {
+            assert_eq!(session.state().metadata("#PAPO").unwrap().len(), 1);
+            assert_eq!(session.state().metadata("BOB").unwrap().len(), 1);
+        });
+}

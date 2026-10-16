@@ -86,6 +86,10 @@ pub(crate) enum BatchEvent {
         batch_type: Option<String>,
     },
     Multiline(Message),
+    Metadata {
+        kind: String,
+        messages: Vec<Message>,
+    },
 }
 
 impl Batches {
@@ -412,7 +416,11 @@ fn is_history(kind: &str) -> bool {
 }
 
 fn is_aggregate(kind: &str) -> bool {
-    is_history(kind) || matches!(kind, "netsplit" | "netjoin" | "draft/multiline")
+    is_history(kind)
+        || matches!(
+            kind,
+            "netsplit" | "netjoin" | "draft/multiline" | "metadata" | "metadata-subs"
+        )
 }
 
 impl OpenBatch {
@@ -422,6 +430,12 @@ impl OpenBatch {
 }
 
 fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
+    if matches!(batch.kind.as_str(), "metadata" | "metadata-subs") {
+        return vec![BatchEvent::Metadata {
+            kind: batch.kind.clone(),
+            messages: std::mem::take(&mut batch.messages),
+        }];
+    }
     if batch.kind == "draft/multiline" {
         return multiline(batch)
             .into_iter()
@@ -544,6 +558,9 @@ fn history_from_event(event: &BatchEvent) -> Option<HistoryPage> {
 fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
     match event {
         BatchEvent::Response {
+            messages: batch, ..
+        }
+        | BatchEvent::Metadata {
             messages: batch, ..
         } => messages.extend(batch),
         BatchEvent::History {
