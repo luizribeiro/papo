@@ -18,6 +18,20 @@ pub struct Reacted {
     pub removed: bool,
 }
 
+/// A message was removed from history.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Redacted {
+    /// The user or server that removed the message.
+    pub source: Option<Source>,
+    /// The history target containing the message.
+    pub target: String,
+    /// The identifier of the removed message.
+    pub msgid: String,
+    /// The optional human-readable reason.
+    pub reason: Option<String>,
+}
+
 /// A user's typing state changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

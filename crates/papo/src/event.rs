@@ -19,7 +19,7 @@ mod conversation;
 mod source;
 
 pub use connection::{CapsChanged, Disconnected, Registered};
-pub use conversation::{Reacted, TagMsg, TypingChanged};
+pub use conversation::{Reacted, Redacted, TagMsg, TypingChanged};
 pub use source::Source;
 
 /// The semantic kind of an incoming chat message.
@@ -539,7 +539,7 @@ pub enum Event {
     /// A tag-only typing notification.
     TypingChanged(TypingChanged),
     /// A message was redacted from a target's history.
-    Redacted(papo_core::Redacted),
+    Redacted(Redacted),
     /// A labelled request received its complete logical response.
     Response(Response),
     /// A request was sent without protocol-level response correlation.
@@ -892,7 +892,12 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                 Event::TagMsg(tag)
             }
         }
-        papo_core::Event::Redacted(redacted) => Event::Redacted(redacted),
+        papo_core::Event::Redacted(redacted) => Event::Redacted(Redacted {
+            source: redacted.source.map(Source::from_prefix),
+            target: redacted.target,
+            msgid: redacted.msgid,
+            reason: redacted.reason,
+        }),
         papo_core::Event::Response(response) => Event::Response(response),
         papo_core::Event::RequestUntracked { id } => Event::RequestUntracked { id },
         papo_core::Event::RequestTimedOut { id } => Event::RequestTimedOut { id },
@@ -1348,7 +1353,11 @@ mod tests {
         };
         assert!(matches!(
             forwarded(papo_core::Event::Redacted(redacted.clone())),
-            Event::Redacted(mapped) if mapped == redacted
+            Event::Redacted(mapped)
+                if matches!(mapped.source, Some(Source::User { ref nick, .. }) if nick == "alice")
+                    && mapped.target == redacted.target
+                    && mapped.msgid == redacted.msgid
+                    && mapped.reason == redacted.reason
         ));
     }
 
