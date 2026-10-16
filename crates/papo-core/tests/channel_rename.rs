@@ -46,6 +46,16 @@ fn sends_rename_and_types_failures() {
 }
 
 #[test]
+fn types_an_unsolicited_rename_failure() {
+    registered()
+        .server(":ergo.test FAIL RENAME CANNOT_RENAME :Persistent channels cannot be renamed")
+        .event(|event| {
+            matches!(event, Event::StandardReply(reply)
+            if reply.channel_rename_error() == Some(ChannelRenameError::CannotRename))
+        });
+}
+
+#[test]
 fn requires_the_channel_rename_capability() {
     Transcript::new(Config::default())
         .update(|session| {

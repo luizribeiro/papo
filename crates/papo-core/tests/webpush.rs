@@ -57,7 +57,12 @@ fn rejects_invalid_endpoints_and_keys_before_queueing() {
                     Err(RequestError::InvalidWebPushEndpoint)
                 );
             }
-            for (p256dh, auth) in [("not+url/base64", AUTH), (P256DH, "=")] {
+            for (p256dh, auth) in [
+                ("not+url/base64", AUTH),
+                (P256DH, "="),
+                ("", AUTH),
+                (P256DH, ""),
+            ] {
                 assert_eq!(
                     session.webpush_register(std::time::Instant::now(), ENDPOINT, p256dh, auth),
                     Err(RequestError::InvalidWebPushKey)
@@ -88,5 +93,21 @@ fn types_every_webpush_failure() {
         .event(|event| {
             matches!(event, Event::StandardReply(reply)
             if reply.webpush_error().is_none())
+        });
+}
+
+#[test]
+fn types_a_labelled_webpush_failure() {
+    registered("draft/webpush")
+        .update(|session| {
+            session
+                .webpush_unregister(std::time::Instant::now(), ENDPOINT)
+                .unwrap();
+        })
+        .client(&format!("@label=0 WEBPUSH UNREGISTER {ENDPOINT}"))
+        .server("@label=0 :ergo.test FAIL WEBPUSH MAX_REGISTRATIONS :Too many registrations")
+        .event(|event| {
+            matches!(event, Event::Response(response)
+            if response.webpush_error() == Some(WebPushError::MaxRegistrations))
         });
 }

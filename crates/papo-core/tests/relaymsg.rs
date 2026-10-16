@@ -112,3 +112,24 @@ fn types_every_relaymsg_failure() {
             if reply.relay_error().is_none())
         });
 }
+
+#[test]
+fn types_a_labelled_relaymsg_failure() {
+    registered(Some("/"))
+        .update(|session| {
+            session
+                .relay(
+                    std::time::Instant::now(),
+                    "#bridged",
+                    "matrix/alice",
+                    "hello",
+                )
+                .unwrap();
+        })
+        .client("@label=0 RELAYMSG #bridged matrix/alice hello")
+        .server("@label=0 :ergo.test FAIL RELAYMSG BANNED #bridged :Relayed sender is banned")
+        .event(|event| {
+            matches!(event, Event::Response(response)
+            if response.relay_error() == Some(RelayError::Banned))
+        });
+}
