@@ -67,6 +67,9 @@
             (craneLib.filterCargoSources path type)
             || pkgs.lib.hasInfix "/tests/data/" path
             || pkgs.lib.hasInfix "/known-failures/" path
+            || pkgs.lib.hasInfix "/crates/papo-conformance/scripts/" path
+            || pkgs.lib.hasSuffix "/docs/conformance-matrix.md" path
+            || pkgs.lib.hasSuffix "/scripts/conformance-matrix" path
             || pkgs.lib.hasSuffix "/nix" path
             || pkgs.lib.hasSuffix "/nix/test-runner" path;
         };
@@ -314,6 +317,33 @@
               UNREALIRCD_BIN = pkgs.lib.getExe' unrealircd "unrealircd";
               UNREALIRCD_CONFIG = "${unrealircd}/share/unrealircd/conf";
               CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
+            }
+          );
+          conformance-matrix = craneLib.mkCargoDerivation (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              pname = "papo-conformance-matrix";
+              nativeBuildInputs = [
+                pkgs.openssl
+                pkgs.atheme
+                pkgs.python3
+                unrealircd
+              ];
+              ERGO_BIN = pkgs.lib.getExe ergochat;
+              ERGO_CONFIG = ergoConfig;
+              ERGO_LANGUAGES = "${ergochat.src}/languages";
+              ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
+              ATHEME_MODULES = "${pkgs.atheme}/modules";
+              UNREALIRCD_BIN = pkgs.lib.getExe' unrealircd "unrealircd";
+              UNREALIRCD_CONFIG = "${unrealircd}/share/unrealircd/conf";
+              CARGO_INCREMENTAL = "0";
+              CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
+              buildPhaseCargoCommand = ''
+                python scripts/conformance-matrix --output generated-conformance-matrix.md
+                cmp docs/conformance-matrix.md generated-conformance-matrix.md
+              '';
+              installPhaseCommand = "mkdir -p $out";
             }
           );
         };
