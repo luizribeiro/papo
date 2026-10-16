@@ -253,10 +253,19 @@ pub struct Events {
 impl Events {
     /// Waits for the next event, or returns `None` after the driver stops.
     pub async fn next(&mut self) -> Option<Event> {
-        if let Some(event) = self.receiver.recv().await {
+        #[cfg(test)]
+        let event = test_support::within(self.receiver.recv()).await;
+        #[cfg(not(test))]
+        let event = self.receiver.recv().await;
+        if let Some(event) = event {
             return Some(event);
         }
-        self.disconnected.take()?.await.ok()
+        let disconnected = self.disconnected.take()?;
+        #[cfg(test)]
+        let event = test_support::within(disconnected).await;
+        #[cfg(not(test))]
+        let event = disconnected.await;
+        event.ok()
     }
 }
 

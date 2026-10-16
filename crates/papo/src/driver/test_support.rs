@@ -1,5 +1,6 @@
 pub(crate) use std::{
     collections::VecDeque,
+    future::Future,
     io,
     pin::Pin,
     sync::{
@@ -23,6 +24,35 @@ pub(crate) use super::{ConnectionPlan, Driver};
 pub(crate) use crate::{
     Error, Event, MessageEvent, MessageKind, Origin, Reconnect, transport::TlsConfig,
 };
+
+pub(crate) const TEST_DEADLINE: Duration = Duration::from_secs(5);
+
+pub(crate) async fn within<F: Future>(future: F) -> F::Output {
+    within_duration(future, TEST_DEADLINE).await
+}
+
+pub(crate) async fn within_duration<F: Future>(future: F, duration: Duration) -> F::Output {
+    let deadline = std::time::Instant::now() + duration;
+    tokio::pin!(future);
+    loop {
+        tokio::select! {
+            biased;
+            output = &mut future => return output,
+            () = tokio::time::sleep(Duration::from_millis(100)) => {
+                // A Tokio tick lets paused drivers reach scheduled protocol work.
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "test operation exceeded its deadline"
+                );
+            }
+        }
+    }
+}
+
+pub(crate) async fn abort_task<T>(task: tokio::task::JoinHandle<T>) {
+    task.abort();
+    assert!(matches!(within(task).await, Err(error) if error.is_cancelled()));
+}
 
 pub(crate) struct FailingStream {
     pub(crate) inner: DuplexStream,
@@ -107,18 +137,18 @@ pub(crate) fn scripted_with_failures(
 pub(crate) async fn registration_burst(server: &mut DuplexStream) {
     let expected = b"CAP LS 302\r\nNICK papo-driver\r\nUSER papo 0 * :papo driver test\r\n";
     let mut actual = vec![0; expected.len()];
-    server.read_exact(&mut actual).await.unwrap();
+    within(server.read_exact(&mut actual)).await.unwrap();
     assert_eq!(actual, expected);
 }
 
 pub(crate) async fn client_line(server: &mut DuplexStream, expected: &[u8]) {
     let mut actual = vec![0; expected.len()];
-    server.read_exact(&mut actual).await.unwrap();
+    within(server.read_exact(&mut actual)).await.unwrap();
     assert_eq!(actual, expected);
 }
 
 pub(crate) async fn server_line(server: &mut DuplexStream, line: &[u8]) {
-    server.write_all(line).await.unwrap();
+    within(server.write_all(line)).await.unwrap();
 }
 
 pub(crate) fn changed_snapshot(
@@ -150,7 +180,7 @@ pub(crate) async fn complete_labelled_registration(
     client_line(server, b"CAP END\r\n").await;
     server_line(
         server,
-        b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n",
+        b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
@@ -175,7 +205,7 @@ pub(crate) async fn complete_caps_registration(
     )
     .await;
     client_line(server, b"CAP END\r\n").await;
-    server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n").await;
+    server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 }
 
@@ -200,7 +230,7 @@ pub(crate) async fn complete_history_registration(
     )
     .await;
     client_line(server, b"CAP END\r\n").await;
-    server_line(server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n").await;
+    server_line(server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 }
 
@@ -221,7 +251,7 @@ pub(crate) async fn complete_read_marker_registration(
     )
     .await;
     client_line(server, b"CAP END\r\n").await;
-    server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n").await;
+    server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 }
 
@@ -246,7 +276,7 @@ pub(crate) async fn assert_join_waits_for_sync(server: &mut DuplexStream, client
     tokio::task::yield_now().await;
     assert!(!join.is_finished());
     server_line(server, b":ergo.test 332 papo-driver #papo :Ergonomic IRC\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
-    let joined = join.await.unwrap().unwrap();
+    let joined = within(join).await.unwrap().unwrap();
     assert_eq!(
         (joined.name.as_str(), joined.topic.as_deref()),
         ("#papo", Some("Ergonomic IRC"))
@@ -266,7 +296,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
         b"@label=3 :papo-driver!papo@localhost MODE #papo +t\r\n",
     )
     .await;
-    mode.await.unwrap().unwrap();
+    within(mode).await.unwrap().unwrap();
 
     let set = tokio::spawn({
         let client = client.clone();
@@ -279,7 +309,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
     )
     .await;
     assert_eq!(
-        set.await.unwrap().unwrap().as_deref(),
+        within(set).await.unwrap().unwrap().as_deref(),
         Some("Requests in Rust")
     );
 
@@ -294,7 +324,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
     )
     .await;
     assert_eq!(
-        query.await.unwrap().unwrap().as_deref(),
+        within(query).await.unwrap().unwrap().as_deref(),
         Some("Requests in Rust")
     );
 
@@ -308,7 +338,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
         b"@label=6 :papo-driver!papo@localhost PART #papo :tests complete\r\n",
     )
     .await;
-    part.await.unwrap().unwrap();
+    within(part).await.unwrap().unwrap();
 
     let list = tokio::spawn({
         let client = client.clone();
@@ -316,7 +346,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
     });
     client_line(server, b"@label=7 LIST\r\n").await;
     server_line(server, b"@label=7 :ergo.test BATCH +list-42 labeled-response\r\n@batch=list-42 :ergo.test 321 papo-driver Channel :Users Name\r\n@batch=list-42 :ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n@batch=list-42 :ergo.test 322 papo-driver #rust 17 :The Rust Programming Language\r\n@batch=list-42 :ergo.test 323 papo-driver :End of /LIST\r\n:ergo.test BATCH -list-42\r\n").await;
-    let list = list.await.unwrap().unwrap();
+    let list = within(list).await.unwrap().unwrap();
     assert_eq!((list.len(), list[0].name.as_str()), (2, "#papo"));
     assert_eq!(
         (list[1].members_count, list[1].topic.as_str()),
@@ -384,14 +414,18 @@ pub(crate) async fn assert_registration_output(
             .await
             .is_err()
     );
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 pub(crate) fn config() -> Config {
     Config::default()
         .nick("papo-driver")
         .realname("papo driver test")
+        .request_timeout(Duration::from_secs(1))
         .wanted_caps([] as [&str; 0])
 }
 
@@ -435,16 +469,19 @@ pub(crate) async fn assert_reply_wire(
     };
     match kind {
         ReplyKind::Reply => {
-            message.reply("pong").await.unwrap();
+            within(message.reply("pong")).await.unwrap();
         }
         #[cfg(feature = "bot")]
         ReplyKind::PrivateNotice => {
-            message.private_notice("denied").await.unwrap();
+            within(message.private_notice("denied")).await.unwrap();
         }
     }
     client_line(&mut server, expected).await;
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected: Option<&[u8]>) {
@@ -471,9 +508,9 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
     .await;
     let message = next_message(&mut events).await;
     let result = if remove {
-        client.unreact(&message, "👍").await
+        within(client.unreact(&message, "👍")).await
     } else {
-        client.react(&message, "👍").await
+        within(client.react(&message, "👍")).await
     };
     if let Some(expected) = expected {
         result.unwrap();
@@ -486,6 +523,9 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
                 .is_err()
         );
     }
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }

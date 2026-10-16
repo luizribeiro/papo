@@ -352,7 +352,7 @@ mod tests {
         )
         .await;
         client_line(&mut server, b"CAP END\r\n").await;
-        server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n").await;
+        server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
         let request = tokio::spawn(async move { client.history("#papo").latest(10).await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 10\r\n").await;

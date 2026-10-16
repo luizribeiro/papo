@@ -1,4 +1,22 @@
 use super::test_support::*;
+#[test]
+fn shared_test_deadline_is_five_seconds() {
+    assert_eq!(TEST_DEADLINE, Duration::from_secs(5));
+}
+
+#[cfg(not(target_family = "wasm"))]
+#[tokio::test(flavor = "current_thread")]
+async fn shared_test_deadline_rejects_a_stalled_future() {
+    let waiting = tokio::spawn(within_duration(
+        std::future::pending::<()>(),
+        Duration::from_millis(1),
+    ));
+    let result = tokio::time::timeout(Duration::from_secs(1), waiting)
+        .await
+        .expect("deadline helper did not finish");
+    assert!(result.unwrap_err().is_panic());
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn message_accessors_use_captured_session_facts() {
     let (mut server, _client, mut events, driver) = scripted(config().max_batch_lines(0));
@@ -57,8 +75,11 @@ async fn message_accessors_use_captured_session_facts() {
     assert!((before..=after).contains(&absent));
     assert!((before..=after).contains(&malformed));
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -68,20 +89,21 @@ async fn registration_is_forwarded() {
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
     assert!(client.is_connected());
-    server
-        .write_all(b":ergo.test CAP * LS :\r\n")
+    within(server.write_all(b":ergo.test CAP * LS :\r\n"))
         .await
         .unwrap();
     let mut cap_end = [0; 9];
-    server.read_exact(&mut cap_end).await.unwrap();
+    within(server.read_exact(&mut cap_end)).await.unwrap();
     assert_eq!(&cap_end, b"CAP END\r\n");
-    server
-        .write_all(b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n")
+    within(server.write_all(b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n"))
         .await
         .unwrap();
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
     assert!(!client.is_connected());
 }
 
@@ -325,7 +347,7 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
             .all(|message| message.origin() == Origin::History && !message.is_live())
     );
     assert!(end);
-    driver.abort();
+    abort_task(driver).await;
 }
 
 #[test]
