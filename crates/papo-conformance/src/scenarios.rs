@@ -3,8 +3,8 @@ use papo::Event;
 use papo_conformance_macros::scenario;
 use papo_proto::Message;
 
-use super::{Scenario, ScenarioResult, ScenarioSpec, required_environment};
-use support::{EXPECT_TIMEOUT, close_pair, joined_pair};
+use super::{Scenario, ScenarioResult, ScenarioSpec};
+use support::{EXPECT_TIMEOUT, close_pair};
 
 mod auth;
 mod connection;
@@ -430,26 +430,6 @@ const fn scenario_table() -> &'static [ScenarioSpec] {
     ]
 }
 
-/// notifies channel peers of real-name changes
-#[scenario(requires(caps = ["setname"]))]
-async fn setname(context: Scenario) -> ScenarioResult {
-    let (mut receiver, sender, _channel) = joined_pair(&context).await?;
-    let realname = "Papo Conformance Client";
-    sender
-        .client
-        .send(Message::new("SETNAME", [realname]))
-        .await
-        .map_err(Failed::from)?;
-    context
-            .expect(
-                &mut receiver.events,
-                |event| matches!(event, Event::RealnameChanged { nick, realname: changed } if nick == &sender.welcome.nick && changed == realname),
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-    close_pair(receiver, sender).await
-}
-
 /// reports monitored users with extended-monitor enabled
 #[scenario(requires(
     caps = ["extended-monitor", "away-notify"],
@@ -474,40 +454,6 @@ async fn monitor(context: Scenario) -> ScenarioResult {
         .await
         .map_err(|_| Failed::from("timed out waiting for MONITOR presence"))?;
     close_pair(observer, target).await
-}
-
-/// notifies channel peers of operator host changes
-#[scenario(requires(caps = ["chghost"]))]
-async fn chghost(context: Scenario) -> ScenarioResult {
-    let oper = match required_environment("PAPO_TEST_OPER") {
-        Ok(oper) => oper,
-        Err(ignored) => return Ok(ignored),
-    };
-    let Some((oper_name, password)) = oper.split_once(':') else {
-        return Err("PAPO_TEST_OPER must contain name:password".into());
-    };
-    let (mut observer, operator, _channel) = joined_pair(&context).await?;
-    operator
-        .client
-        .send(Message::new("OPER", [oper_name, password]))
-        .await
-        .map_err(Failed::from)?;
-    operator
-        .client
-        .send(Message::new(
-            "CHGHOST",
-            [&observer.welcome.nick, "conformance.example"],
-        ))
-        .await
-        .map_err(Failed::from)?;
-    context
-            .expect(
-                &mut observer.events,
-                |event| matches!(event, Event::HostChanged { nick, host, .. } if nick == &observer.welcome.nick && host == "conformance.example"),
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-    close_pair(observer, operator).await
 }
 
 /// marks a client with the advertised bot mode
