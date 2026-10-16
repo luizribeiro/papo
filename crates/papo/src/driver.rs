@@ -1991,28 +1991,10 @@ fn advance_catchup(
     response: Response,
 ) -> Option<Event> {
     let page = response.history?;
-    let next = page.messages.iter().rev().find_map(|item| {
-        item.message
-            .as_ref()
-            .tag("msgid")
-            .map(std::borrow::Cow::into_owned)
-    });
-    for item in page.messages {
-        let msgid = item
-            .message
-            .as_ref()
-            .tag("msgid")
-            .map(std::borrow::Cow::into_owned);
-        if msgid
-            .as_ref()
-            .is_none_or(|msgid| catchup.seen.insert(msgid.clone()))
-        {
-            catchup.messages.push(item.message);
-        }
-        if catchup.messages.len() == 1_000 {
-            break;
-        }
-    }
+    let next = extend_catchup(
+        &mut catchup,
+        page.messages.into_iter().map(|item| item.message),
+    );
     if !page.end
         && catchup.messages.len() < 1_000
         && let Some(next) = next
@@ -2045,6 +2027,30 @@ fn advance_catchup(
         messages,
         end: page.end,
     })
+}
+
+fn extend_catchup(
+    catchup: &mut Catchup,
+    messages: impl IntoIterator<Item = Message>,
+) -> Option<String> {
+    let mut next = None;
+    for message in messages {
+        let msgid = message
+            .as_ref()
+            .tag("msgid")
+            .map(std::borrow::Cow::into_owned);
+        next.clone_from(&msgid);
+        if msgid
+            .as_ref()
+            .is_none_or(|msgid| catchup.seen.insert(msgid.clone()))
+        {
+            catchup.messages.push(message);
+        }
+        if catchup.messages.len() == 1_000 {
+            break;
+        }
+    }
+    next
 }
 
 fn begin_catchup(
@@ -3070,6 +3076,24 @@ mod tests {
         );
         assert!(end);
         driver.abort();
+    }
+
+    #[test]
+    fn reconnect_history_stops_at_one_thousand_under_unending_input() {
+        let mut catchup = super::Catchup {
+            target: "#papo".into(),
+            messages: Vec::new(),
+            seen: std::collections::HashSet::new(),
+        };
+        let next = super::extend_catchup(
+            &mut catchup,
+            (0..).map(|index| {
+                Message::privmsg("#papo", format!("backlog message {index}"))
+                    .with_tag("msgid", format!("RfcBTzyxY12{index:04}"))
+            }),
+        );
+        assert_eq!(catchup.messages.len(), 1_000);
+        assert_eq!(next.as_deref(), Some("RfcBTzyxY120999"));
     }
 
     #[tokio::test(flavor = "current_thread", start_paused = true)]
