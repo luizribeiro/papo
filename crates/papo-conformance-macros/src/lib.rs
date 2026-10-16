@@ -1,9 +1,11 @@
 //! Attribute macros for the papo conformance suite.
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
+use quote::{format_ident, quote};
 use syn::{
-    Ident, LitStr, Result, Token, bracketed, parenthesized, parse::Parse, parse::ParseStream,
-    parse_macro_input,
+    Attribute, Ident, ItemFn, LitStr, Result, Token, bracketed, parenthesized, parse::Parse,
+    parse::ParseStream, parse_macro_input,
 };
 
 #[derive(Default)]
@@ -60,16 +62,95 @@ fn parse_strings(input: ParseStream<'_>) -> Result<Vec<LitStr>> {
         .map(|values| values.into_iter().collect())
 }
 
-/// Validates the requirement syntax on a conformance scenario.
+fn doc_line(attribute: &Attribute) -> Option<&LitStr> {
+    let syn::Meta::NameValue(meta) = &attribute.meta else {
+        return None;
+    };
+    let syn::Expr::Lit(expression) = &meta.value else {
+        return None;
+    };
+    let syn::Lit::Str(line) = &expression.lit else {
+        return None;
+    };
+    meta.path.is_ident("doc").then_some(line)
+}
+
+fn description(function: &ItemFn) -> Result<LitStr> {
+    let lines = function
+        .attrs
+        .iter()
+        .filter_map(doc_line)
+        .collect::<Vec<_>>();
+    let text = lines
+        .iter()
+        .map(|line| line.value().trim().to_owned())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    if text.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &function.sig.ident,
+            "a scenario requires a doc comment",
+        ));
+    }
+    Ok(LitStr::new(&text, lines[0].span()))
+}
+
+fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
+    if function.sig.asyncness.is_none() {
+        return Err(syn::Error::new_spanned(
+            function.sig.fn_token,
+            "a scenario must be async",
+        ));
+    }
+    let doc = description(function)?;
+    let name = &function.sig.ident;
+    let wrapper = format_ident!("__papo_scenario_{name}");
+    let caps = args.caps.unwrap_or_default().into_iter().map(|cap| {
+        let cap = cap.value();
+        let (name, value) = cap
+            .split_once('=')
+            .map_or((cap.as_str(), None), |(name, value)| (name, Some(value)));
+        let value = value.map_or_else(|| quote!(None), |value| quote!(Some(#value)));
+        quote!(crate::CapRequirement { name: #name, value: #value })
+    });
+    let isupport = args.isupport.unwrap_or_default();
+    Ok(quote! {
+        #function
+
+        fn #wrapper(context: crate::Scenario) -> crate::ScenarioFuture {
+            Box::pin(#name(context))
+        }
+
+        inventory::submit! {
+            crate::ScenarioSpec {
+                name: stringify!(#name),
+                doc: #doc,
+                requires: crate::Requirements {
+                    caps: &[#(#caps),*],
+                    isupport: &[#(#isupport),*],
+                },
+                run: #wrapper,
+            }
+        }
+    })
+}
+
+/// Declares and registers a conformance scenario.
 #[proc_macro_attribute]
 pub fn scenario(args: TokenStream, input: TokenStream) -> TokenStream {
-    let _: ScenarioArgs = parse_macro_input!(args as ScenarioArgs);
-    input
+    let args = parse_macro_input!(args as ScenarioArgs);
+    let function = parse_macro_input!(input as ItemFn);
+    expand(args, &function)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::ScenarioArgs;
+    use quote::quote;
+
+    use super::{ScenarioArgs, expand};
 
     #[test]
     fn parses_optional_capability_and_isupport_requirements() {
@@ -94,5 +175,34 @@ mod tests {
         ] {
             assert!(syn::parse_str::<ScenarioArgs>(input).is_err());
         }
+    }
+
+    #[test]
+    fn expands_docs_cap_values_and_the_future_wrapper() {
+        let args = syn::parse2(quote!(requires(caps = ["sasl=SCRAM-SHA-256"]))).unwrap();
+        let function = syn::parse2(quote! {
+            /// authenticates with a real SCRAM exchange
+            async fn sasl_scram(context: Scenario) -> ScenarioResult { context.close().await }
+        })
+        .unwrap();
+        let output = expand(args, &function).unwrap().to_string();
+        assert!(output.contains("__papo_scenario_sasl_scram"));
+        assert!(output.contains("authenticates with a real SCRAM exchange"));
+        assert!(output.contains("SCRAM-SHA-256"));
+    }
+
+    #[test]
+    fn rejects_undocumented_and_non_async_scenarios() {
+        let undocumented = syn::parse2(quote!(
+            async fn ping(_: Scenario) {}
+        ))
+        .unwrap();
+        assert!(expand(ScenarioArgs::default(), &undocumented).is_err());
+        let synchronous = syn::parse2(quote! {
+            /// answers PING with PONG
+            fn ping(_: Scenario) {}
+        })
+        .unwrap();
+        assert!(expand(ScenarioArgs::default(), &synchronous).is_err());
     }
 }
