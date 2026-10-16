@@ -15,6 +15,7 @@ mod reconnect;
 mod requests;
 mod rt;
 mod state;
+mod transport;
 
 #[cfg(feature = "bot")]
 pub mod bot;
@@ -39,9 +40,7 @@ pub use papo_proto::Typing;
 pub use reconnect::Reconnect;
 pub use requests::{ChannelInfo, ListEntry, ListFilter, WhoEntry, Whois};
 pub use state::State;
+pub use transport::ConnectError;
 
 /// Strict Transport Security policy stores.
 pub mod sts;
-
-/// TCP and TLS connections to IRC servers.
-pub mod transport;

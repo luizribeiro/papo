@@ -72,7 +72,7 @@ start_server() {
   export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS PAPO_TEST_WS PAPO_TEST_WSS PAPO_TEST_CA
 }
 
-if [[ $binary_name == live_* ]]; then
+if [[ $binary_name == live_* || $binary_name == papo ]]; then
   start_server
 fi
 
@@ -80,7 +80,7 @@ set +e
 if [[ $artifact == *.wasm ]]; then
   wasmtime_args=(run --dir=.)
   wasmtime_args+=(--env PAPO_TEST_PID)
-  if [[ $binary_name == live_* ]]; then
+  if [[ $binary_name == live_* || $binary_name == papo ]]; then
     wasmtime_args+=(
       --env PAPO_TEST_PLAINTEXT
       --env PAPO_TEST_TLS

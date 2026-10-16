@@ -51,59 +51,28 @@ impl papo_core::sts::StsStore for papo::sts::FileStsStore
 pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo_core::sts::StoredPolicy>
 pub fn papo::sts::FileStsStore::put(&mut self, papo_core::sts::StoredPolicy)
 pub fn papo::sts::FileStsStore::remove(&mut self, &str)
-pub mod papo::transport
-#[non_exhaustive] pub enum papo::transport::ConnectError
-pub papo::transport::ConnectError::InvalidServerName(alloc::string::String)
-pub papo::transport::ConnectError::InvalidTlsConfiguration(alloc::string::String)
-pub papo::transport::ConnectError::Resolve
-pub papo::transport::ConnectError::Resolve::host: alloc::string::String
-pub papo::transport::ConnectError::Resolve::port: u16
-pub papo::transport::ConnectError::Resolve::source: core::io::error::Error
-pub papo::transport::ConnectError::Tcp(core::io::error::Error)
-pub papo::transport::ConnectError::Tls(rustls::error::Error)
-pub papo::transport::ConnectError::TlsUnavailable
-pub papo::transport::ConnectError::WebSocket(tungstenite::error::Error)
-pub enum papo::transport::Security
-pub papo::transport::Security::Plaintext
-pub papo::transport::Security::Tls(papo::transport::TlsConfig)
-pub enum papo::transport::TlsRoots
-pub papo::transport::TlsRoots::Ca(alloc::vec::Vec<u8>)
-pub papo::transport::TlsRoots::Platform
-pub papo::transport::TlsRoots::PlatformAndCa(alloc::vec::Vec<u8>)
-pub struct papo::transport::ClientCertificate
-impl papo::transport::ClientCertificate
-pub fn papo::transport::ClientCertificate::new(impl core::convert::Into<alloc::vec::Vec<u8>>, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
-impl core::fmt::Debug for papo::transport::ClientCertificate
-pub fn papo::transport::ClientCertificate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub struct papo::transport::Stream
-impl papo::transport::Stream
-pub const fn papo::transport::Stream::is_secure(&self) -> bool
-pub fn papo::transport::Stream::websocket_subprotocol(&self) -> core::option::Option<&str>
-impl tokio::io::async_read::AsyncRead for papo::transport::Stream
-pub fn papo::transport::Stream::poll_read(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>, &mut tokio::io::read_buf::ReadBuf<'_>) -> core::task::poll::Poll<core::io::error::Result<()>>
-impl tokio::io::async_write::AsyncWrite for papo::transport::Stream
-pub fn papo::transport::Stream::poll_flush(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::io::error::Result<()>>
-pub fn papo::transport::Stream::poll_shutdown(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::io::error::Result<()>>
-pub fn papo::transport::Stream::poll_write(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>, &[u8]) -> core::task::poll::Poll<core::result::Result<usize, core::io::error::Error>>
-pub struct papo::transport::TlsConfig
-pub papo::transport::TlsConfig::client_certificate: core::option::Option<papo::transport::ClientCertificate>
-pub papo::transport::TlsConfig::roots: papo::transport::TlsRoots
-pub papo::transport::TlsConfig::server_name: core::option::Option<alloc::string::String>
-impl core::default::Default for papo::transport::TlsConfig
-pub fn papo::transport::TlsConfig::default() -> Self
-pub async fn papo::transport::connect(&str, u16, &papo::transport::Security) -> core::result::Result<papo::transport::Stream, papo::transport::ConnectError>
-pub async fn papo::transport::connect_websocket(&str, core::option::Option<&papo::transport::TlsConfig>) -> core::result::Result<papo::transport::Stream, papo::transport::ConnectError>
 pub enum papo::AccountRegistration
 pub papo::AccountRegistration::Registered
 pub papo::AccountRegistration::Registered::account: alloc::string::String
 pub papo::AccountRegistration::VerificationRequired
 pub papo::AccountRegistration::VerificationRequired::account: alloc::string::String
 pub papo::AccountRegistration::VerificationRequired::message: alloc::string::String
+#[non_exhaustive] pub enum papo::ConnectError
+pub papo::ConnectError::InvalidServerName(alloc::string::String)
+pub papo::ConnectError::InvalidTlsConfiguration(alloc::string::String)
+pub papo::ConnectError::Resolve
+pub papo::ConnectError::Resolve::host: alloc::string::String
+pub papo::ConnectError::Resolve::port: u16
+pub papo::ConnectError::Resolve::source: core::io::error::Error
+pub papo::ConnectError::Tcp(core::io::error::Error)
+pub papo::ConnectError::Tls(rustls::error::Error)
+pub papo::ConnectError::TlsUnavailable
+pub papo::ConnectError::WebSocket(tungstenite::error::Error)
 #[non_exhaustive] pub enum papo::Error
 pub papo::Error::AccountRegistration(papo_core::AccountRegistrationError)
 pub papo::Error::Build(papo_proto::message::BuildError)
 pub papo::Error::ChannelRename(papo_core::channel_rename::ChannelRenameError)
-pub papo::Error::Connect(papo::transport::ConnectError)
+pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected
 pub papo::Error::EmptyText
 pub papo::Error::InvalidInput(papo::InvalidInput)

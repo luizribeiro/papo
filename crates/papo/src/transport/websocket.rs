@@ -17,6 +17,9 @@ use tokio_tungstenite::{
     },
 };
 
+#[cfg(test)]
+mod live;
+
 use super::{ConnectError, Security, Stream, TlsConfig};
 
 const BINARY: &str = "binary.ircv3.net";
@@ -141,10 +144,12 @@ async fn connect_once(
 }
 
 impl WebSocket {
+    #[cfg(test)]
     pub(super) const fn is_secure(&self) -> bool {
         self.secure
     }
 
+    #[cfg(test)]
     pub(super) const fn subprotocol(&self) -> Option<&str> {
         self.subprotocol
     }

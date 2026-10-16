@@ -4,27 +4,25 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
-mod support;
-
 #[cfg(tls)]
 use std::fs;
 use std::{io, net::ToSocketAddrs, time::Duration};
 
-#[cfg(tls)]
-use papo::transport::{ClientCertificate, TlsConfig, TlsRoots};
-use papo::transport::{ConnectError, Security, Stream, connect};
 use papo_test_server::from_env;
 #[cfg(tls)]
 use papo_test_server::{ServerInfo, unique};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
-use support::within;
+#[cfg(tls)]
+use super::{ClientCertificate, TlsConfig, TlsRoots};
+use super::{ConnectError, Security, Stream, connect};
+use crate::driver::test_support::within;
 
 #[cfg(tls)]
-const CLIENT_CERTIFICATE: &[u8] = include_bytes!("data/client.pem");
+const CLIENT_CERTIFICATE: &[u8] = include_bytes!("../../tests/data/client.pem");
 #[cfg(tls)]
-const CLIENT_KEY: &[u8] = include_bytes!("data/client.key");
+const CLIENT_KEY: &[u8] = include_bytes!("../../tests/data/client.key");
 #[cfg(tls)]
 const CLIENT_CERTFP: &str = "60eb8e5dbf6aa3e388743d9250b29e3862759373b4610b9ba3c0ea2330b4bfc4";
 
@@ -210,7 +208,7 @@ async fn tls_without_a_provider_returns_a_clear_error_body() {
     let error = connect(
         "name-does-not-exist.invalid",
         6697,
-        &Security::Tls(papo::transport::TlsConfig::default()),
+        &Security::Tls(TlsConfig::default()),
     )
     .await
     .unwrap_err();

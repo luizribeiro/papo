@@ -3,7 +3,7 @@ use std::{io, path::PathBuf};
 use papo_proto::BuildError;
 use thiserror::Error;
 
-use crate::{InvalidInput, transport::ConnectError};
+use crate::{ConnectError, InvalidInput};
 
 /// An error produced by the asynchronous IRC client.
 #[derive(Debug, Error)]

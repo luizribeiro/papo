@@ -7,16 +7,11 @@
     )
 ))]
 
-mod support;
-
 #[cfg(tls)]
 use std::fs;
 use std::{io, time::Duration};
 
 use futures_util::{SinkExt, StreamExt};
-use papo::transport::{ConnectError, Stream, connect_websocket};
-#[cfg(tls)]
-use papo::transport::{TlsConfig, TlsRoots};
 use papo_test_server::from_env;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::{net::TcpListener, time::timeout};
@@ -29,7 +24,12 @@ use tokio_tungstenite::{
     },
 };
 
-use support::within;
+#[cfg(tls)]
+use crate::transport::{TlsConfig, TlsRoots};
+use crate::{
+    driver::test_support::within,
+    transport::{ConnectError, Stream, connect_websocket},
+};
 
 #[tokio::test(flavor = "current_thread")]
 async fn plaintext_cap_exchange_prefers_binary_messages() {

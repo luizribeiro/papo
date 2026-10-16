@@ -24,6 +24,9 @@ use tokio_rustls::client::TlsStream;
 #[cfg(feature = "websocket")]
 mod websocket;
 
+#[cfg(test)]
+mod live;
+
 /// The security used for a connection.
 #[derive(Clone, Debug)]
 pub enum Security {
@@ -41,6 +44,7 @@ pub enum TlsRoots {
     /// Only the certificates in the supplied PEM document.
     Ca(Vec<u8>),
     /// Platform roots plus the certificates in the supplied PEM document.
+    #[cfg(test)]
     PlatformAndCa(Vec<u8>),
 }
 
@@ -120,6 +124,7 @@ enum StreamInner {
 impl Stream {
     /// Reports whether the stream authenticates and encrypts its traffic.
     #[must_use]
+    #[cfg(test)]
     pub const fn is_secure(&self) -> bool {
         match &self.inner {
             StreamInner::Tcp(_) => false,
@@ -134,6 +139,7 @@ impl Stream {
 
     /// Returns the negotiated WebSocket subprotocol, if this is a WebSocket stream.
     #[must_use]
+    #[cfg(test)]
     pub fn websocket_subprotocol(&self) -> Option<&str> {
         match &self.inner {
             #[cfg(feature = "websocket")]
@@ -352,6 +358,7 @@ fn tls_connector(
             }
             builder.with_root_certificates(roots)
         }
+        #[cfg(test)]
         TlsRoots::PlatformAndCa(pem) => {
             let verifier = rustls_platform_verifier::Verifier::new_with_extra_roots(
                 certificates(pem)?,
