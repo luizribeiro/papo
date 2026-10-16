@@ -2594,8 +2594,7 @@ impl Session {
             && self.is_own_source(message);
         let response = self.resolve_message(message) || self.resolve_unlabelled(message);
         if response && labelled_echo {
-            let received = self.received_message(message.to_owned(), None, true);
-            self.outbox.event(Event::Message(received));
+            self.enqueue_labelled_echo(message);
         }
         let tag_message = !response && emit_unhandled && self.report_tag_message(message);
         let redacted =
@@ -2622,6 +2621,19 @@ impl Session {
         if before != self.snapshot_values() {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
+    }
+
+    fn enqueue_labelled_echo(&mut self, message: &MessageRef<'_>) {
+        let response = self
+            .outbox
+            .events
+            .pop_back()
+            .expect("a resolved request queued its response");
+        debug_assert!(matches!(response, Event::Response(_)));
+        let received = self.received_message(message.to_owned(), None, true);
+        self.outbox.event(Event::Message(received));
+        // Consumers must observe the confirming event before the action completes.
+        self.outbox.event(response);
     }
 
     fn send_pending_registration(&mut self, now: Instant) {
