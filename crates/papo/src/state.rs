@@ -64,12 +64,6 @@ impl State {
 
     /// Reports whether the client currently has an open transport.
     #[must_use]
-    pub const fn connected(&self) -> bool {
-        self.connected
-    }
-
-    /// Reports whether the client currently has an open transport.
-    #[must_use]
     pub const fn is_connected(&self) -> bool {
         self.connected
     }
@@ -178,12 +172,6 @@ impl State {
     #[must_use]
     pub fn casemapping(&self) -> Casemapping {
         self.isupport.casemapping()
-    }
-
-    /// Returns the canonical form of an IRC nickname or channel name.
-    #[must_use]
-    pub fn casemap(&self, name: &str) -> String {
-        self.isupport.casemapping().fold(name).into_owned()
     }
 }
 

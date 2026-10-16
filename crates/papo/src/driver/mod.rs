@@ -499,7 +499,6 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
     let state = Arc::new(RwLock::new(Arc::new(State::from_session(session, false))));
     let client = Client {
         commands: command_sender,
-        connected: Arc::clone(&connected),
         state: Arc::clone(&state),
     };
     let events = EventSink {
@@ -1014,7 +1013,6 @@ where
                             session.nick(),
                             Client {
                                 commands,
-                                connected: Arc::clone(&events.connected),
                                 state: Arc::clone(&events.state),
                             },
                             session.caps(),
@@ -1062,7 +1060,6 @@ where
                         session.isupport(),
                         Client {
                             commands,
-                            connected: Arc::clone(&events.connected),
                             state: Arc::clone(&events.state),
                         },
                         session.caps(),
@@ -1096,7 +1093,6 @@ where
                 };
                 let client = Client {
                     commands,
-                    connected: Arc::clone(&events.connected),
                     state: Arc::clone(&events.state),
                 };
                 let messages = messages

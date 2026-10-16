@@ -366,10 +366,6 @@ pub papo::ChannelInfo::topic: core::option::Option<alloc::string::String>
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
-pub fn papo::Client::casemap(&self, &str) -> alloc::string::String
-pub fn papo::Client::has_cap(&self, &str) -> bool
-pub fn papo::Client::is_connected(&self) -> bool
-pub fn papo::Client::isupport(&self) -> alloc::rcs::arc::Arc<papo_proto::isupport::Isupport>
 pub async fn papo::Client::join(&self, &str) -> core::result::Result<papo::ChannelInfo, papo::Error>
 pub async fn papo::Client::list(&self, papo::ListFilter) -> core::result::Result<alloc::vec::Vec<papo::ListEntry>, papo::Error>
 pub async fn papo::Client::mode<I, S>(&self, &str, &str, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
@@ -554,11 +550,9 @@ impl papo::State
 pub fn papo::State::account(&self) -> core::option::Option<&str>
 pub const fn papo::State::away(&self) -> bool
 pub const fn papo::State::caps(&self) -> &papo_core::Capabilities
-pub fn papo::State::casemap(&self, &str) -> alloc::string::String
 pub fn papo::State::casemapping(&self) -> papo_proto::casemapping::Casemapping
 pub fn papo::State::channel(&self, &str) -> core::option::Option<&papo_core::state::Channel>
 pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::Channel>
-pub const fn papo::State::connected(&self) -> bool
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo_core::features::Feature> + '_
 pub fn papo::State::has_cap(&self, &str) -> bool
 pub const fn papo::State::is_connected(&self) -> bool

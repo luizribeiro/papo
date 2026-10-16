@@ -47,7 +47,6 @@ pub(super) fn advance_catchup(
     let commands = events.commands.upgrade()?;
     let client = Client {
         commands,
-        connected: Arc::clone(&events.connected),
         state: Arc::clone(&events.state),
     };
     let messages = catchup

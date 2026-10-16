@@ -92,10 +92,10 @@ async fn message_accessors_use_captured_session_facts() {
 #[tokio::test(flavor = "current_thread")]
 async fn registration_is_forwarded() {
     let (mut server, client, mut events, driver) = scripted(config());
-    assert!(!client.is_connected());
+    assert!(!client.state(crate::State::is_connected));
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    assert!(client.is_connected());
+    assert!(client.state(crate::State::is_connected));
     within(server.write_all(b":ergo.test CAP * LS :\r\n"))
         .await
         .unwrap();
@@ -108,7 +108,7 @@ async fn registration_is_forwarded() {
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
-    assert!(!client.is_connected());
+    assert!(!client.state(crate::State::is_connected));
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -289,7 +289,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     ));
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
-    assert!(client.is_connected());
+    assert!(client.state(crate::State::is_connected));
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
@@ -298,7 +298,7 @@ async fn eof_reconnects_and_emits_reconnected() {
             ..
         })
     ));
-    assert!(!client.is_connected());
+    assert!(!client.state(crate::State::is_connected));
 
     tokio::time::advance(Duration::from_secs(2)).await;
     registration_burst(&mut second_server).await;
@@ -316,7 +316,7 @@ async fn eof_reconnects_and_emits_reconnected() {
             .await
             .is_err()
     );
-    assert!(client.is_connected());
+    assert!(client.state(crate::State::is_connected));
 
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut second_server, b"QUIT\r\n").await;
@@ -731,7 +731,7 @@ async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
     }
 
     within(server.shutdown()).await.unwrap();
-    while client.is_connected() {
+    while client.state(crate::State::is_connected) {
         tokio::task::yield_now().await;
     }
     within(client.quit(None)).await.unwrap();
@@ -2395,7 +2395,7 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
         b":ergo.test 005 papo-driver CLIENTTAGDENY=typing :are supported\r\n",
     )
     .await;
-    while !client.isupport().clienttagdeny().denies("typing") {
+    while client.state(|state| !state.isupport().clienttagdeny().denies("typing")) {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
@@ -2477,7 +2477,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
         b":ergo.test CAP * DEL :draft/message-redaction\r\n",
     )
     .await;
-    while client.has_cap("draft/message-redaction") {
+    while client.state(|state| state.has_cap("draft/message-redaction")) {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
@@ -2869,10 +2869,10 @@ async fn session_deadline_sends_keepalive_ping() {
 #[tokio::test(flavor = "current_thread")]
 async fn client_reads_owned_state_snapshots() {
     let (mut server, client, mut events, driver) = scripted(config());
-    assert!(!client.snapshot().connected());
+    assert!(!client.snapshot().is_connected());
     let driver = tokio::spawn(driver);
     complete_registration(&mut server, &mut events).await;
-    assert!(client.snapshot().connected());
+    assert!(client.snapshot().is_connected());
 
     server_line(
         &mut server,
@@ -2909,7 +2909,7 @@ async fn client_reads_owned_state_snapshots() {
         within(driver).await.unwrap(),
         Err(disconnected!())
     ));
-    assert!(!client.snapshot().connected());
+    assert!(!client.snapshot().is_connected());
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -3123,12 +3123,10 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     .await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 
-    assert!(client.has_cap("no-implicit-names"));
-    assert!(client.has_cap("draft/no-implicit-names"));
-    assert!(!client.has_cap("message-tags"));
-    assert_eq!(client.isupport().nicklen(), Some(27));
-    assert_eq!(client.casemap("#PAPO[dev]"), "#papo[dev]");
-    assert_ne!(client.casemap("#PAPO[dev]"), client.casemap("#papo{dev}"));
+    assert!(client.state(|state| state.has_cap("no-implicit-names")));
+    assert!(client.state(|state| state.has_cap("draft/no-implicit-names")));
+    assert!(!client.state(|state| state.has_cap("message-tags")));
+    assert_eq!(client.state(|state| state.isupport().nicklen()), Some(27));
     client.state(|state| {
         assert!(state.is_connected());
         assert!(state.is_me("PAPO-DRIVER"));

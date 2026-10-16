@@ -23,7 +23,7 @@ async fn registers_messages_itself_and_quits() {
         .connect()
         .await
         .unwrap();
-        assert!(client.state(|state| state.connected() && state.nick() == nick));
+        assert!(client.state(|state| state.is_connected() && state.nick() == nick));
 
         loop {
             match events.next().await.unwrap() {

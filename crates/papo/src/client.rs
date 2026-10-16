@@ -1,8 +1,5 @@
 use std::{
-    sync::{
-        Arc, RwLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, RwLock},
     time::SystemTime,
 };
 
@@ -29,7 +26,6 @@ use papo_core::Session;
 #[derive(Clone)]
 pub struct Client {
     pub(crate) commands: mpsc::Sender<Command>,
-    pub(crate) connected: Arc<AtomicBool>,
     pub(crate) state: Arc<RwLock<Arc<State>>>,
 }
 
@@ -75,12 +71,6 @@ impl Client {
         crate::Builder::from_endpoint(endpoint)
     }
 
-    /// Reports whether an IRC transport is currently connected.
-    #[must_use]
-    pub fn is_connected(&self) -> bool {
-        self.connected.load(Ordering::Relaxed)
-    }
-
     /// Borrows the latest immutable state snapshot for the duration of `read`.
     pub fn state<R>(&self, read: impl FnOnce(&State) -> R) -> R {
         let snapshot = self.snapshot();
@@ -104,31 +94,12 @@ impl Client {
         self.state(|state| state.nick().to_owned())
     }
 
-    /// Reports whether a capability or its ratified alias is enabled.
-    #[must_use]
-    pub fn has_cap(&self, name: &str) -> bool {
-        self.state(|state| state.has_cap(name))
-    }
-
-    /// Returns the latest accumulated server feature advertisement.
-    #[must_use]
-    pub fn isupport(&self) -> Arc<papo_proto::Isupport> {
-        self.state(|state| Arc::clone(&state.isupport))
-    }
-
-    /// Returns the canonical form of an IRC nickname or channel name.
-    #[must_use]
-    pub fn casemap(&self, name: &str) -> String {
-        self.state(|state| state.casemap(name))
-    }
-
     fn require_feature(&self, feature: Feature) -> Result<(), Error> {
         match self.state(|state| state.unsupported_reason(feature)) {
             Some(reason) => Err(Error::Unsupported(Unsupported::new(feature, reason))),
             None => Ok(()),
         }
     }
-
     /// Disconnects the current transport and starts a new connection immediately.
     ///
     /// This skips any reconnect backoff. A builder configured with
@@ -291,7 +262,7 @@ impl Client {
         reaction_tag: &'static str,
     ) -> Result<(), Error> {
         self.require_feature(Feature::Reactions)?;
-        let isupport = self.isupport();
+        let isupport = self.state(|state| Arc::clone(&state.isupport));
         let denied = isupport.clienttagdeny();
         let reply_tag = event::allowed_alias(&denied, "+reply", "+draft/reply")
             .expect("feature preflight requires an allowed reply tag");
@@ -367,7 +338,7 @@ impl Client {
         text: &str,
         tags: Vec<(String, String)>,
     ) -> Result<Sent, Error> {
-        if !self.is_connected() {
+        if !self.state(State::is_connected) {
             let mut message = match kind {
                 TextKind::Privmsg => Message::privmsg(target, text),
                 TextKind::Notice => Message::notice(target, text),
@@ -418,7 +389,7 @@ impl Client {
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn who(&self, mask: &str) -> Result<Vec<crate::WhoEntry>, Error> {
-        let isupport = self.isupport();
+        let isupport = self.state(|state| Arc::clone(&state.isupport));
         let extended = isupport.whox();
         let message = if extended {
             Message::new("WHO", [mask, "%tcuhnfar"])
