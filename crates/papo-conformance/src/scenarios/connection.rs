@@ -1,4 +1,5 @@
 use libtest_mimic::Failed;
+use papo::Endpoint;
 use papo_conformance_macros::scenario;
 use papo_proto::{Message, MessageRef};
 
@@ -15,8 +16,8 @@ async fn registration(context: Scenario) -> ScenarioResult {
 /// registers over TLS with the configured test CA
 #[scenario]
 async fn tls(context: Scenario) -> ScenarioResult {
-    let address = format!("ircs://{}", context.server.tls_addr());
-    register_over(context, &address).await
+    let endpoint = Endpoint::tls("localhost", context.server.tls_addr().port());
+    register_over(context, endpoint).await
 }
 
 /// registers over a WebSocket transport
@@ -36,12 +37,13 @@ async fn register_over_environment(context: Scenario, variable: &'static str) ->
         Ok(address) => address,
         Err(ignored) => return Ok(ignored),
     };
-    register_over(context, &address).await
+    let endpoint = Endpoint::websocket(address)?;
+    register_over(context, endpoint).await
 }
 
-async fn register_over(context: Scenario, address: &str) -> ScenarioResult {
+async fn register_over(context: Scenario, endpoint: Endpoint) -> ScenarioResult {
     let nick = context.unique();
-    let connection = context.client_at(&nick, address).await?;
+    let connection = context.client_at(&nick, endpoint).await?;
     validate_registration(connection, &nick).await
 }
 

@@ -16,7 +16,7 @@ use std::{
 };
 
 use libtest_mimic::{Arguments, Completion, Conclusion, Failed, FormatSetting, Trial};
-use papo::{Client, Event, Events};
+use papo::{Client, Endpoint, Event, Events};
 use papo_core::{Capabilities, DEFAULT_WANTED_CAPS, Sasl, Welcome};
 use papo_proto::{Advertised, Isupport};
 use papo_test_server::{ServerInfo, from_env};
@@ -222,8 +222,8 @@ impl Scenario {
         self.client_with(nick, None).await
     }
 
-    async fn client_at(&self, nick: &str, address: &str) -> Result<RegisteredClient, Failed> {
-        self.client_with_at(nick, address, None).await
+    async fn client_at(&self, nick: &str, endpoint: Endpoint) -> Result<RegisteredClient, Failed> {
+        self.client_with_at(nick, endpoint, None).await
     }
 
     async fn client_caps(
@@ -231,7 +231,10 @@ impl Scenario {
         nick: &str,
         extra_caps: &[&str],
     ) -> Result<RegisteredClient, Failed> {
-        let address = format!("irc://{}", self.server.plaintext_addr());
+        let endpoint = Endpoint::plaintext(
+            self.server.plaintext_addr().ip().to_string(),
+            self.server.plaintext_addr().port(),
+        );
         let mut wanted_caps = DEFAULT_WANTED_CAPS
             .iter()
             .map(|cap| (*cap).to_owned())
@@ -239,7 +242,7 @@ impl Scenario {
         wanted_caps.extend(extra_caps.iter().map(|cap| (*cap).to_owned()));
         let mut connection = connect_client(
             &self.server,
-            &address,
+            endpoint,
             nick,
             "papo conformance client",
             Some(wanted_caps),
@@ -259,19 +262,22 @@ impl Scenario {
         nick: &str,
         sasl: Option<Sasl>,
     ) -> Result<RegisteredClient, Failed> {
-        let address = format!("irc://{}", self.server.plaintext_addr());
-        self.client_with_at(nick, &address, sasl).await
+        let endpoint = Endpoint::plaintext(
+            self.server.plaintext_addr().ip().to_string(),
+            self.server.plaintext_addr().port(),
+        );
+        self.client_with_at(nick, endpoint, sasl).await
     }
 
     async fn client_with_at(
         &self,
         nick: &str,
-        address: &str,
+        endpoint: Endpoint,
         sasl: Option<Sasl>,
     ) -> Result<RegisteredClient, Failed> {
         let mut connection = connect_client(
             &self.server,
-            address,
+            endpoint,
             nick,
             "papo conformance client",
             None,
@@ -414,11 +420,14 @@ async fn probe(
     wanted_caps: impl IntoIterator<Item = &str>,
 ) -> Result<Welcome, String> {
     let nick = papo_test_server::unique("papo-probe");
-    let address = format!("irc://{}", server.plaintext_addr());
+    let endpoint = Endpoint::plaintext(
+        server.plaintext_addr().ip().to_string(),
+        server.plaintext_addr().port(),
+    );
     let wanted_caps = wanted_caps.into_iter().map(str::to_owned).collect();
     let mut connection = connect_client(
         server,
-        &address,
+        endpoint,
         &nick,
         "papo conformance probe",
         Some(wanted_caps),
@@ -490,13 +499,13 @@ fn required_environment_from(
 
 fn connect_client(
     server: &ServerInfo,
-    address: &str,
+    endpoint: Endpoint,
     nick: &str,
     realname: &str,
     wanted_caps: Option<Vec<String>>,
     sasl: Option<Sasl>,
 ) -> Result<Connection, String> {
-    let mut builder = Client::builder(address)
+    let mut builder = Client::builder(endpoint)
         .nick(nick)
         .username("papo")
         .realname(realname)
