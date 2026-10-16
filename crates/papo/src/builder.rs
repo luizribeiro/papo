@@ -650,6 +650,36 @@ mod tests {
         assert!(events.next().await.is_none());
     }
 
+    #[tokio::test(flavor = "current_thread")]
+    async fn public_builder_rejects_every_non_hostname_string() {
+        for input in [
+            "",
+            "irc://irc.example.net",
+            "irc.example.net:6697",
+            "irc.example.net/webirc",
+            "alice@irc.example.net",
+            "irc example.net",
+            "irc.example.net\t",
+        ] {
+            let (_client, _events, driver) = crate::Client::builder(input).build();
+            assert!(
+                matches!(within(driver).await, Err(Error::InvalidInput(_))),
+                "accepted {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn public_builder_accepts_owned_and_borrowed_hostnames() {
+        for builder in [
+            crate::Client::builder("irc.example.net"),
+            crate::Client::builder(String::from("irc.example.net")),
+        ] {
+            let address = builder.address.unwrap();
+            assert_eq!((address.protocol, address.port), (Protocol::Ircs, 6697));
+        }
+    }
+
     #[cfg(feature = "spawn")]
     #[tokio::test(flavor = "current_thread")]
     async fn connect_returns_a_deferred_address_error() {

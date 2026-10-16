@@ -123,7 +123,6 @@ pub trait IntoEndpoint: private::Sealed {}
 
 impl IntoEndpoint for Endpoint {}
 impl IntoEndpoint for &str {}
-impl IntoEndpoint for &String {}
 impl IntoEndpoint for String {}
 
 impl private::Sealed for Endpoint {
@@ -134,24 +133,35 @@ impl private::Sealed for Endpoint {
 
 impl private::Sealed for &str {
     fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
-        self.parse().map(Endpoint)
-    }
-}
-
-impl private::Sealed for &String {
-    fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
-        self.as_str().parse().map(Endpoint)
+        hostname(self.to_owned())
     }
 }
 
 impl private::Sealed for String {
     fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
-        self.parse().map(Endpoint)
+        hostname(self)
     }
 }
 
 pub(crate) fn convert(value: impl IntoEndpoint) -> Result<Endpoint, InvalidInput> {
     private::Sealed::into_endpoint(value)
+}
+
+fn hostname(host: String) -> Result<Endpoint, InvalidInput> {
+    if host.is_empty()
+        || host.contains("://")
+        || host.contains([':', '/', '@', '?', '#'])
+        || host.chars().any(char::is_whitespace)
+    {
+        return Err(InvalidInput::InvalidHost);
+    }
+    Ok(Endpoint(ServerAddress {
+        protocol: Protocol::Ircs,
+        host,
+        port: 6697,
+        explicit_port: false,
+        websocket_path: None,
+    }))
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

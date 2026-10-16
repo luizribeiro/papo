@@ -504,7 +504,6 @@ pub papo::Whois::secure: bool
 pub papo::Whois::server: core::option::Option<alloc::string::String>
 pub papo::Whois::user: core::option::Option<alloc::string::String>
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
-impl papo::IntoEndpoint for &alloc::string::String
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String
 impl papo::IntoEndpoint for papo::Endpoint
