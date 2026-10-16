@@ -477,10 +477,20 @@ mod tests {
         let first = Command::parse(&event("!ping"), &config).unwrap();
         let second = Command::parse(&event("!ping"), &config).unwrap();
         let third = Command::parse(&event("!ping"), &config).unwrap();
-        assert!(first.reply("pong").await.is_err());
-        assert!(second.reply("pong").await.is_err());
+        assert!(
+            crate::driver::test_support::within(first.reply("pong"))
+                .await
+                .is_err()
+        );
+        assert!(
+            crate::driver::test_support::within(second.reply("pong"))
+                .await
+                .is_err()
+        );
         assert_eq!(
-            third.reply("pong").await.unwrap(),
+            crate::driver::test_support::within(third.reply("pong"))
+                .await
+                .unwrap(),
             super::ReplyStatus::Dropped
         );
     }
@@ -488,6 +498,10 @@ mod tests {
     #[tokio::test]
     async fn private_notices_consume_the_reply_budget_before_sending() {
         let command = Command::parse(&event("!ping"), &BotConfig::new("!")).unwrap();
-        assert!(command.private_notice("pong").await.is_err());
+        assert!(
+            crate::driver::test_support::within(command.private_notice("pong"))
+                .await
+                .is_err()
+        );
     }
 }

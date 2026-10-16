@@ -280,15 +280,22 @@ mod tests {
     use tokio_tungstenite::tungstenite::protocol::Role;
 
     use super::WebSocket;
-    use crate::transport::{Stream, StreamInner};
+    use crate::{
+        driver::test_support::within,
+        transport::{Stream, StreamInner},
+    };
 
     #[tokio::test(flavor = "current_thread")]
     async fn flush_propagates_a_broken_peer_error() {
         let peer = Stream {
             inner: StreamInner::BrokenPeer,
         };
-        let websocket =
-            tokio_tungstenite::WebSocketStream::from_raw_socket(peer, Role::Client, None).await;
+        let websocket = within(tokio_tungstenite::WebSocketStream::from_raw_socket(
+            peer,
+            Role::Client,
+            None,
+        ))
+        .await;
         let mut stream = Stream {
             inner: StreamInner::WebSocket(Box::new(WebSocket {
                 stream: websocket,
@@ -301,7 +308,7 @@ mod tests {
             })),
         };
 
-        let error = stream.flush().await.unwrap_err();
+        let error = within(stream.flush()).await.unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::Other);
         assert_eq!(error.to_string(), "IO error: broken WebSocket peer");
     }

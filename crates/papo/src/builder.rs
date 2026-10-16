@@ -452,7 +452,7 @@ mod tests {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::{Builder, apply_address};
-    use crate::{Error, address::Protocol, transport::TlsRoots};
+    use crate::{Error, address::Protocol, driver::test_support::within, transport::TlsRoots};
 
     #[test]
     fn fills_every_session_configuration_field() {
@@ -577,7 +577,10 @@ mod tests {
             .sts_store(store)
             .build();
 
-        assert!(matches!(driver.await, Err(Error::StsRequiresTls { .. })));
+        assert!(matches!(
+            within(driver).await,
+            Err(Error::StsRequiresTls { .. })
+        ));
     }
 
     #[test]
@@ -637,14 +640,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn build_defers_address_errors_until_the_driver_is_polled() {
         let (_client, mut events, driver) = Builder::new("irc://").build();
-        assert!(matches!(driver.await, Err(Error::Address(_))));
+        assert!(matches!(within(driver).await, Err(Error::Address(_))));
         assert!(events.next().await.is_none());
     }
 
     #[cfg(feature = "spawn")]
     #[tokio::test(flavor = "current_thread")]
     async fn connect_returns_a_deferred_address_error() {
-        let error = Builder::new("irc://").connect().await.err().unwrap();
+        let error = within(Builder::new("irc://").connect())
+            .await
+            .err()
+            .unwrap();
         assert!(matches!(error, Error::Address(_)));
     }
 
@@ -659,25 +665,25 @@ mod tests {
         );
         let expected = b"CAP LS 302\r\nNICK papo-custom\r\nUSER papo-custom 0 * papo-custom\r\n";
         let mut burst = vec![0; expected.len()];
-        server.read_exact(&mut burst).await.unwrap();
+        within(server.read_exact(&mut burst)).await.unwrap();
         assert_eq!(&burst, expected);
-        server
-            .write_all(b":custom.example CAP * LS :\r\n")
+        within(server.write_all(b":custom.example CAP * LS :\r\n"))
             .await
             .unwrap();
         let mut cap_end = [0; 9];
-        server.read_exact(&mut cap_end).await.unwrap();
+        within(server.read_exact(&mut cap_end)).await.unwrap();
         assert_eq!(&cap_end, b"CAP END\r\n");
-        server
-            .write_all(b":custom.example 001 papo-custom :Welcome\r\n")
-            .await
-            .unwrap();
-        let (client, mut events) = connecting.await.unwrap().unwrap();
+        within(server.write_all(
+            b":custom.example 001 papo-custom :Welcome\r\n:custom.example 422 papo-custom :MOTD File is missing\r\n",
+        ))
+        .await
+        .unwrap();
+        let (client, mut events) = within(connecting).await.unwrap().unwrap();
         assert!(matches!(
             events.next().await,
             Some(crate::Event::Registered(_))
         ));
-        server.shutdown().await.unwrap();
+        within(server.shutdown()).await.unwrap();
         assert!(matches!(
             events.next().await,
             Some(crate::Event::Disconnected {
@@ -692,7 +698,7 @@ mod tests {
     async fn build_with_defers_address_errors() {
         let (stream, _server) = tokio::io::duplex(64);
         let (_client, mut events, driver) = Builder::new("irc://").build_with(stream);
-        assert!(matches!(driver.await, Err(Error::Address(_))));
+        assert!(matches!(within(driver).await, Err(Error::Address(_))));
         assert!(events.next().await.is_none());
     }
 
@@ -702,6 +708,9 @@ mod tests {
         let (_client, _events, driver) = Builder::new("ws://irc.example.net/webirc")
             .reconnect(crate::Reconnect::never())
             .build();
-        assert!(matches!(driver.await, Err(Error::Unsupported("websocket"))));
+        assert!(matches!(
+            within(driver).await,
+            Err(Error::Unsupported("websocket"))
+        ));
     }
 }
