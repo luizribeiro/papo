@@ -39,7 +39,7 @@ use crate::{
     client::{Client, Sent},
     event,
     state::State,
-    transport::{self, TlsConfig},
+    transport::TlsConfig,
 };
 
 pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
@@ -312,11 +312,7 @@ pub struct Driver {
 }
 
 impl Driver {
-    /// Creates handles and a driver for an already-connected stream.
-    pub fn new(stream: transport::Stream, session: Session) -> (Client, Events, Self) {
-        Self::with_stream(stream, session)
-    }
-
+    #[cfg(test)]
     fn with_stream<S>(stream: S, session: Session) -> (Client, Events, Self)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -324,6 +320,7 @@ impl Driver {
         Self::with_stream_and_capacity(stream, session, DEFAULT_CHANNEL_CAPACITY)
     }
 
+    #[cfg(test)]
     fn with_stream_and_capacity<S>(
         stream: S,
         session: Session,

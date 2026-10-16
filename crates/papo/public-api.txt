@@ -343,8 +343,6 @@ pub const fn papo::Client::webpush(&self) -> papo::WebPush<'_>
 impl core::fmt::Debug for papo::Client
 pub fn papo::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Driver
-impl papo::Driver
-pub fn papo::Driver::new(papo::transport::Stream, papo_core::Session) -> (papo::Client, papo::Events, Self)
 impl core::future::future::Future for papo::Driver
 pub type papo::Driver::Output = core::result::Result<(), papo::Error>
 pub fn papo::Driver::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>

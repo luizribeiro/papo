@@ -8,8 +8,7 @@ mod support;
 
 use support::within;
 
-use papo::{Driver, Event, OsEntropy, transport};
-use papo_core::{Config, Session};
+use papo::{Client, Endpoint, Event};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -17,23 +16,17 @@ async fn registers_messages_itself_and_quits() {
     within(async {
         let server = from_env();
         let nick = unique("papo-client");
-        let stream = transport::connect(
-            &server.plaintext_addr().ip().to_string(),
+        let (client, mut events) = Client::builder(Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-            &transport::Security::Plaintext,
-        )
+        ))
+        .nick(&nick)
+        .username("papo")
+        .realname("papo live client test")
+        .connect()
         .await
         .unwrap();
-        let session = Session::with_entropy(
-            Config::default()
-                .nick(&nick)
-                .username("papo")
-                .realname("papo live client test")
-                .host(server.plaintext_addr().ip().to_string()),
-            Box::new(OsEntropy),
-        );
-        let (client, mut events, driver) = Driver::new(stream, session);
-        let driver = tokio::spawn(driver);
+        assert!(client.state(|state| state.connected() && state.nick() == nick));
 
         loop {
             match events.next().await.unwrap() {
@@ -74,7 +67,6 @@ async fn registers_messages_itself_and_quits() {
             .quit(Some("live client test complete"))
             .await
             .unwrap();
-        driver.await.unwrap().unwrap();
         loop {
             match events.next().await {
                 Some(Event::Disconnected { .. }) => break,
