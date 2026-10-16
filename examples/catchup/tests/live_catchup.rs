@@ -24,7 +24,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
 
         let (poster, mut poster_events) = Client::builder(endpoint.clone())
             .nick(&poster_nick)
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();
@@ -68,7 +68,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
             .request_caps(["draft/read-marker"])
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();

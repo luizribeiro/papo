@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
         .bot()
-        .channels(channels.split(',').map(str::trim));
+        .autojoin(channels.split(',').map(str::trim));
     if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
         builder = builder.tls_ca_pem(std::fs::read(ca_file)?);
     }

@@ -35,7 +35,7 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         ])
         .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
         .unwrap()
-        .channels([&channel])
+        .autojoin([&channel])
         .history_on_reconnect(true)
         .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)))
         .connect()
@@ -108,7 +108,7 @@ async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
         server.plaintext_addr().port(),
     ))
     .nick(&poster_nick)
-    .channels([channel])
+    .autojoin([channel])
     .connect()
     .await
     .unwrap();

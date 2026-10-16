@@ -26,7 +26,7 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
         );
         let (user, mut events) = Client::builder(endpoint)
             .nick(&user_nick)
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();

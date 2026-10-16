@@ -99,7 +99,7 @@ pub(super) fn begin_catchup(
     let seen = defaults
         .channels
         .iter()
-        .filter_map(|channel| session.state().last_seen(channel).cloned())
+        .filter_map(|channel| session.state().last_seen(&channel.channel).cloned())
         .collect::<Vec<_>>();
     for seen in seen {
         let query = HistoryQuery::After {

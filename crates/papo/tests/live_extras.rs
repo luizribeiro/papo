@@ -27,7 +27,7 @@ async fn subscriber_receives_another_clients_metadata() {
         let (writer, mut writer_events) = Client::builder(address.clone())
             .nick(&writer_nick)
             .request_caps(["draft/metadata-2", "labeled-response"])
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();
@@ -35,7 +35,7 @@ async fn subscriber_receives_another_clients_metadata() {
         let (reader, mut reader_events) = Client::builder(address)
             .nick(&reader_nick)
             .request_caps(["draft/metadata-2", "labeled-response"])
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();
@@ -91,7 +91,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         let (operator, mut operator_events) = Client::builder(address.clone())
             .nick(&operator_nick)
             .request_caps(capabilities)
-            .channels([&old_channel])
+            .autojoin([&old_channel])
             .connect()
             .await
             .unwrap();
@@ -99,7 +99,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         let (member, mut member_events) = Client::builder(address)
             .nick(&member_nick)
             .request_caps(capabilities)
-            .channels([&old_channel])
+            .autojoin([&old_channel])
             .connect()
             .await
             .unwrap();

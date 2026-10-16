@@ -249,8 +249,29 @@ pub(crate) struct ConnectionPlan {
 #[derive(Default)]
 pub(crate) struct PostRegistration {
     pub(crate) bot: bool,
-    pub(crate) channels: Vec<String>,
+    pub(crate) channels: Vec<Autojoin>,
     pub(crate) history_on_reconnect: bool,
+}
+
+#[derive(Clone)]
+pub(crate) struct Autojoin {
+    pub(crate) channel: String,
+    pub(crate) key: Option<papo_core::Secret>,
+}
+
+impl Autojoin {
+    pub(crate) fn new(channel: impl Into<String>, key: Option<papo_core::Secret>) -> Self {
+        Self {
+            channel: channel.into(),
+            key,
+        }
+    }
+}
+
+impl From<&str> for Autojoin {
+    fn from(channel: &str) -> Self {
+        Self::new(channel, None)
+    }
 }
 
 /// The events produced by a running IRC client.
@@ -1169,8 +1190,12 @@ fn after_registration(
     }
     if should_rejoin(session) {
         for channel in &defaults.channels {
+            let params = match &channel.key {
+                Some(key) => vec![channel.channel.clone(), key.expose().to_owned()],
+                None => vec![channel.channel.clone()],
+            };
             session
-                .send(now(), Message::new("JOIN", [channel.clone()]))
+                .send(now(), Message::new("JOIN", params))
                 .map_err(io::Error::other)?;
         }
     }

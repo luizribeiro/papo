@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             "batch",
             "server-time",
         ])
-        .channels(&channels);
+        .autojoin(&channels);
     if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
         builder = builder.tls_ca_pem(std::fs::read(ca_file)?);
     }

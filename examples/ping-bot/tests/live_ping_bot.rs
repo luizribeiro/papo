@@ -29,7 +29,7 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
         );
         let (user, mut events) = Client::builder(endpoint)
             .nick(&user_nick)
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();
@@ -90,7 +90,7 @@ impl Bot {
                 .nick(nick)
                 .sasl(papo::Sasl::plain(nick, PASSWORD))
                 .bot()
-                .channels([channel])
+                .autojoin([channel])
                 .connect()
                 .await
                 .unwrap();

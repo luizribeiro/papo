@@ -7,7 +7,7 @@ use tokio::sync::oneshot;
 use crate::{
     Error, InvalidInput, Reconnect,
     address::ServerAddress,
-    driver::{ConnectionPlan, PostRegistration},
+    driver::{Autojoin, ConnectionPlan, PostRegistration},
     transport::{ClientCertificate, TlsConfig, TlsRoots},
 };
 
@@ -24,7 +24,7 @@ pub struct Builder {
     sts_store: Box<dyn StsStore + Send>,
     stream: Option<Box<dyn crate::io_compat::FutureStream>>,
     bot: bool,
-    channels: Vec<String>,
+    autojoin: Vec<Autojoin>,
     history_on_reconnect: bool,
     username_set: bool,
     realname_set: bool,
@@ -42,7 +42,7 @@ impl Builder {
             sts_store: Box::new(MemoryStsStore::new()),
             stream: None,
             bot: false,
-            channels: Vec::new(),
+            autojoin: Vec::new(),
             history_on_reconnect: false,
             username_set: false,
             realname_set: false,
@@ -303,13 +303,37 @@ impl Builder {
         self
     }
 
-    /// Sets channels to join after registration.
-    pub fn channels<I, S>(mut self, channels: I) -> Self
+    /// Adds channels to join after registration.
+    ///
+    /// ```
+    /// # _ = papo::Client::builder("irc.example.net").autojoin(["#papo"]);
+    /// ```
+    pub fn autojoin<I, S>(mut self, channels: I) -> Self
     where
         I: IntoIterator<Item = S>,
         S: Into<String>,
     {
-        self.channels = channels.into_iter().map(Into::into).collect();
+        self.autojoin.extend(
+            channels
+                .into_iter()
+                .map(|channel| Autojoin::new(channel, None)),
+        );
+        self
+    }
+
+    /// Adds a keyed channel to join after registration.
+    ///
+    /// ```
+    /// # _ = papo::Client::builder("irc.example.net").autojoin_with_key("#staff", "secret");
+    /// ```
+    pub fn autojoin_with_key(
+        mut self,
+        channel: impl Into<String>,
+        key: impl Into<papo_core::Secret>,
+    ) -> Self {
+        let channel = channel.into();
+        self.autojoin.retain(|entry| entry.channel != channel);
+        self.autojoin.push(Autojoin::new(channel, Some(key.into())));
         self
     }
 
@@ -368,7 +392,7 @@ impl Builder {
             registration,
             PostRegistration {
                 bot: self.bot,
-                channels: self.channels,
+                channels: self.autojoin,
                 history_on_reconnect: self.history_on_reconnect,
             },
         )
@@ -391,7 +415,7 @@ impl Builder {
         let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
         let defaults = PostRegistration {
             bot: self.bot,
-            channels: self.channels,
+            channels: self.autojoin,
             history_on_reconnect: self.history_on_reconnect,
         };
         crate::Driver::with_plan(
@@ -573,10 +597,19 @@ mod tests {
     fn configures_post_registration_defaults() {
         let builder = Builder::new("irc.example.net")
             .bot()
-            .channels(["#papo", "#papo-bots"])
+            .autojoin(["#papo", "#papo-bots"])
+            .autojoin_with_key("#staff", "private channel key")
             .history_on_reconnect(true);
         assert!(builder.bot);
-        assert_eq!(builder.channels, ["#papo", "#papo-bots"]);
+        assert_eq!(
+            builder
+                .autojoin
+                .iter()
+                .map(|entry| entry.channel.as_str())
+                .collect::<Vec<_>>(),
+            ["#papo", "#papo-bots", "#staff"]
+        );
+        assert!(builder.autojoin[2].key.is_some());
         assert!(builder.history_on_reconnect);
     }
 

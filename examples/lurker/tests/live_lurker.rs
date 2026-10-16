@@ -27,7 +27,7 @@ async fn prints_channel_state_changes_in_wire_order() {
 
         let (owner, mut owner_events) = Client::builder(endpoint.clone())
             .nick(&owner_nick)
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();
@@ -46,7 +46,7 @@ async fn prints_channel_state_changes_in_wire_order() {
 
         let (user, mut user_events) = Client::builder(endpoint)
             .nick(&user_nick)
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();

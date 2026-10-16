@@ -26,7 +26,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
 
         let (client_a, mut events_a) = Client::builder(address.clone())
             .nick(&nick_a)
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();
@@ -34,7 +34,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
 
         let (client_b, mut events_b) = Client::builder(address)
             .nick(&nick_b)
-            .channels([&channel])
+            .autojoin([&channel])
             .connect()
             .await
             .unwrap();
@@ -176,7 +176,7 @@ async fn multiline_delivers_a_thousand_byte_message_whole() {
 async fn client(address: Endpoint, nick: &str, channel: &str) -> (Client, papo::Events) {
     let (client, mut events) = Client::builder(address)
         .nick(nick)
-        .channels([channel])
+        .autojoin([channel])
         .connect()
         .await
         .unwrap();
@@ -193,7 +193,7 @@ async fn account_client(
     let (client, mut events) = Client::builder(address)
         .nick(account)
         .sasl(Sasl::plain(account, password))
-        .channels([channel])
+        .autojoin([channel])
         .connect()
         .await
         .unwrap();

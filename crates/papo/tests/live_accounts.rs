@@ -89,7 +89,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
             .request_caps(["sasl", "draft/persistence", "labeled-response"])
-            .channels([&channel])
+            .autojoin([&channel])
             .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(1)))
             .connect()
             .await
