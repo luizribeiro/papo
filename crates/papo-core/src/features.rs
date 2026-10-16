@@ -43,6 +43,30 @@ pub enum Feature {
 }
 
 impl Feature {
+    /// Returns a stable human-readable feature name.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Replies => "replies",
+            Self::Reactions => "reactions",
+            Self::Typing => "typing notifications",
+            Self::Redaction => "draft/message-redaction",
+            Self::Multiline => "multiline messages",
+            Self::History => "chathistory",
+            Self::ReadMarkers => "read-marker",
+            Self::Metadata => "metadata",
+            Self::Monitor => "monitoring",
+            Self::SetName => "real-name changes",
+            Self::BotMode => "bot mode",
+            Self::AccountRegistration => "account-registration",
+            Self::Persistence => "persistence",
+            Self::WebPush => "webpush",
+            Self::ChannelRename => "channel rename",
+            Self::Relay => "relaymsg",
+            Self::LabeledResponse => "labeled-response",
+        }
+    }
+
     const fn caps(self) -> &'static [&'static str] {
         match self {
             Self::Replies | Self::Reactions | Self::Typing => &["message-tags"],
@@ -84,6 +108,31 @@ pub enum UnsupportedReason {
     TagDenied,
     /// The server advertised a limit of zero for the feature.
     LimitZero,
+}
+
+/// A requested optional IRC behavior that is unavailable.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Unsupported {
+    /// The requested behavior.
+    pub feature: Feature,
+    /// Why the behavior is unavailable.
+    pub reason: UnsupportedReason,
+}
+
+impl std::fmt::Display for Unsupported {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{} unavailable: {}",
+            self.feature.name(),
+            match self.reason {
+                UnsupportedReason::NotOffered => "the server did not offer it",
+                UnsupportedReason::DisabledByClient => "it was disabled by the client",
+                UnsupportedReason::TagDenied => "the server denies its client-only tag",
+                UnsupportedReason::LimitZero => "the server advertised a zero limit",
+            }
+        )
+    }
 }
 
 impl Session {

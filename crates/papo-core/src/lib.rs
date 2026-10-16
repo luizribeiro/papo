@@ -41,7 +41,7 @@ use account_registration::{AccountRegistration, PendingRegistration, Registratio
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 pub use channel_rename::ChannelRenameError;
-pub use features::{Feature, UnsupportedReason};
+pub use features::{Feature, Unsupported, UnsupportedReason};
 use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;

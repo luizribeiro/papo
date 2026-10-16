@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Feature, Session};
+use papo_core::{Config, Feature, Session, Unsupported, UnsupportedReason};
 
 const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response";
 
@@ -145,4 +145,32 @@ fn applies_client_tag_denials_per_feature() {
         ":irc.solanum.example 005 papo CLIENTTAGDENY=reply :are supported by this server",
     );
     assert_eq!(draft_reply.supports(Feature::Replies), Ok(()));
+}
+
+#[test]
+fn unsupported_messages_name_the_feature_and_reason() {
+    for (reason, expected) in [
+        (UnsupportedReason::NotOffered, "the server did not offer it"),
+        (
+            UnsupportedReason::DisabledByClient,
+            "it was disabled by the client",
+        ),
+        (
+            UnsupportedReason::TagDenied,
+            "the server denies its client-only tag",
+        ),
+        (
+            UnsupportedReason::LimitZero,
+            "the server advertised a zero limit",
+        ),
+    ] {
+        assert_eq!(
+            Unsupported {
+                feature: Feature::Reactions,
+                reason,
+            }
+            .to_string(),
+            format!("reactions unavailable: {expected}")
+        );
+    }
 }
