@@ -20,6 +20,7 @@ mod sasl;
 mod secret;
 mod state;
 pub mod sts;
+mod webpush;
 
 pub use secret::Secret;
 
@@ -1057,6 +1058,10 @@ pub enum RequestError {
     },
     /// A relayed nickname contains none of the server-advertised separator characters.
     InvalidRelayNickname,
+    /// A web push endpoint is not a nonempty HTTPS URL.
+    InvalidWebPushEndpoint,
+    /// A web push key is not valid URL-safe base64.
+    InvalidWebPushKey,
 }
 
 /// Machine-readable reason that a session requested connection closure.
@@ -1101,6 +1106,8 @@ impl std::fmt::Display for RequestError {
             Self::InvalidRelayNickname => {
                 formatter.write_str("relayed nickname does not contain an allowed separator")
             }
+            Self::InvalidWebPushEndpoint => formatter.write_str("invalid web push endpoint"),
+            Self::InvalidWebPushKey => formatter.write_str("invalid web push key"),
         }
     }
 }
@@ -1118,7 +1125,9 @@ impl std::error::Error for RequestError {
             | Self::InvalidMetadataKey
             | Self::MetadataValueTooLong { .. }
             | Self::TooManyMetadataSubscriptions { .. }
-            | Self::InvalidRelayNickname => None,
+            | Self::InvalidRelayNickname
+            | Self::InvalidWebPushEndpoint
+            | Self::InvalidWebPushKey => None,
         }
     }
 }
