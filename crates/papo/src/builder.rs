@@ -5,7 +5,7 @@ use papo_core::{Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl};
 use tokio::sync::oneshot;
 
 use crate::{
-    Error, InvalidInput, Reconnect,
+    Error, InvalidInput, NewAccount, Reconnect,
     address::ServerAddress,
     driver::{Autojoin, ConnectionPlan, PostRegistration},
     transport::{ClientCertificate, TlsConfig, TlsRoots},
@@ -117,12 +117,12 @@ impl Builder {
     }
 
     /// Registers an account before connection registration completes.
-    pub fn register_on_connect(
-        mut self,
-        account: Option<impl Into<String>>,
-        email: Option<impl Into<String>>,
-        password: impl Into<papo_core::Secret>,
-    ) -> Self {
+    ///
+    /// ```
+    /// let account = papo::NewAccount::new("correct horse battery staple").account("alice");
+    /// # _ = papo::Client::builder("irc.example.net").register_account(account);
+    /// ```
+    pub fn register_account(mut self, account: NewAccount) -> Self {
         if !self.config.wanted_caps.iter().any(|capability| {
             matches!(
                 capability.as_str(),
@@ -133,7 +133,9 @@ impl Builder {
                 .wanted_caps
                 .push("draft/account-registration".into());
         }
-        self.config = self.config.register_on_connect(account, email, password);
+        self.config =
+            self.config
+                .register_on_connect(account.account, account.email, account.password);
         self
     }
 
@@ -449,7 +451,8 @@ mod tests {
 
     use super::{Builder, apply_address};
     use crate::{
-        Error, InvalidInput, address::Protocol, driver::test_support::within, transport::TlsRoots,
+        Error, InvalidInput, NewAccount, address::Protocol, driver::test_support::within,
+        transport::TlsRoots,
     };
 
     #[test]
@@ -482,7 +485,7 @@ mod tests {
     fn account_registration_retains_one_default_capability() {
         let added = Builder::new("irc.example.net")
             .request_caps(["message-tags"])
-            .register_on_connect(None::<String>, None::<String>, "realistic secret")
+            .register_account(NewAccount::new("realistic secret"))
             .config;
         assert_eq!(
             added
@@ -495,7 +498,7 @@ mod tests {
 
         let retained = Builder::new("irc.example.net")
             .request_caps(["server-time", "account-registration"])
-            .register_on_connect(None::<String>, None::<String>, "realistic secret")
+            .register_account(NewAccount::new("realistic secret"))
             .config;
         assert!(
             retained

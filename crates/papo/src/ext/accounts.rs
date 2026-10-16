@@ -2,6 +2,47 @@ use papo_core::Response;
 
 use crate::{Client, Error, driver::CoreRequest};
 
+/// Credentials and optional identity fields for a new IRC account.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NewAccount {
+    pub(crate) account: Option<String>,
+    pub(crate) email: Option<String>,
+    pub(crate) password: papo_core::Secret,
+}
+
+impl NewAccount {
+    /// Creates an account request with a generated account name and no email address.
+    ///
+    /// ```
+    /// let account = papo::NewAccount::new("correct horse battery staple")
+    ///     .account("alice")
+    ///     .email("alice@example.org");
+    /// # _ = account;
+    /// ```
+    #[must_use]
+    pub fn new(password: impl Into<papo_core::Secret>) -> Self {
+        Self {
+            account: None,
+            email: None,
+            password: password.into(),
+        }
+    }
+
+    /// Sets the requested account name.
+    #[must_use]
+    pub fn account(mut self, account: impl Into<String>) -> Self {
+        self.account = Some(account.into());
+        self
+    }
+
+    /// Sets the email address used for verification and password resets.
+    #[must_use]
+    pub fn email(mut self, email: impl Into<String>) -> Self {
+        self.email = Some(email.into());
+        self
+    }
+}
+
 /// Outcome of an account registration request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AccountRegistration {
@@ -25,17 +66,15 @@ impl Client {
     /// # Errors
     ///
     /// Returns an error when the request is unsupported, rejected, or interrupted.
-    pub async fn register(
+    pub async fn register_account(
         &self,
-        account: Option<&str>,
-        email: Option<&str>,
-        password: impl Into<papo_core::Secret>,
+        account: NewAccount,
     ) -> Result<AccountRegistration, Error> {
         let response = self
             .core_request(CoreRequest::Register {
-                account: account.map(str::to_owned),
-                email: email.map(str::to_owned),
-                password: password.into(),
+                account: account.account,
+                email: account.email,
+                password: account.password,
             })
             .await?;
         account_registration_result(&response)
@@ -108,10 +147,10 @@ mod tests {
             let client = client.clone();
             async move {
                 client
-                    .register(
-                        Some("alice"),
-                        Some("alice@example.org"),
-                        papo_core::Secret::new("correct horse battery staple"),
+                    .register_account(
+                        super::NewAccount::new("correct horse battery staple")
+                            .account("alice")
+                            .email("alice@example.org"),
                     )
                     .await
             }

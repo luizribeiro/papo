@@ -28,7 +28,7 @@ pub use driver::{Driver, Events};
 pub use entropy::OsEntropy;
 pub use error::Error;
 pub use event::{Event, MessageEvent, MessageKind, Origin};
-pub use ext::accounts::AccountRegistration;
+pub use ext::accounts::{AccountRegistration, NewAccount};
 pub use ext::history::{History, HistoryPage, HistoryReference, HistoryRequest};
 pub use ext::metadata::Metadata;
 pub use ext::persistence::Persistence;

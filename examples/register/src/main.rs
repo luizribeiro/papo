@@ -2,8 +2,7 @@
 
 use std::{env, error::Error, io};
 
-use papo::{Client, Endpoint, Event};
-use papo_core::Secret;
+use papo::{Client, Endpoint, Event, NewAccount};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -14,11 +13,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut builder = Client::builder(endpoint(server)?)
         .nick(&account)
         .request_caps(["draft/account-registration"])
-        .register_on_connect(
-            Some(&account),
+        .register_account(new_account(
+            &account,
             email.as_deref(),
-            Secret::new(password.trim_end_matches(['\r', '\n'])),
-        );
+            password.trim_end_matches(['\r', '\n']),
+        ));
     if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
         builder = builder.tls_ca_pem(std::fs::read(ca_file)?);
     }
@@ -50,6 +49,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
     Err("driver stopped before registration completed".into())
+}
+
+fn new_account(account: &str, email: Option<&str>, password: &str) -> NewAccount {
+    let account = NewAccount::new(password).account(account);
+    match email {
+        Some(email) => account.email(email),
+        None => account,
+    }
 }
 
 fn endpoint(host: String) -> Result<Endpoint, Box<dyn Error>> {

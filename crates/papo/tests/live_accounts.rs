@@ -15,10 +15,9 @@ use std::time::Duration;
 
 #[cfg(not(target_family = "wasm"))]
 use papo::Reconnect;
-use papo::{AccountRegistration, Client, Endpoint, Event, Sasl};
+use papo::{AccountRegistration, Client, Endpoint, Event, NewAccount, Sasl};
 #[cfg(not(target_family = "wasm"))]
 use papo_core::PersistenceSetting;
-use papo_core::Secret;
 #[cfg(not(target_family = "wasm"))]
 use papo_test_server::register_account;
 use papo_test_server::{from_env, unique};
@@ -48,7 +47,7 @@ async fn registers_then_logs_in_with_sasl() {
         wait_registered(&mut registrar_events, &account).await;
         assert!(matches!(
             registrar
-                .register(Some(&account), None, Secret::new(PASSWORD))
+                .register_account(NewAccount::new(PASSWORD).account(&account))
                 .await
                 .unwrap(),
             AccountRegistration::Registered { account: registered } if registered == account

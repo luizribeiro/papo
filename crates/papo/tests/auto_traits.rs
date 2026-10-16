@@ -5,7 +5,8 @@ use std::{future::IntoFuture, time::SystemTime};
 
 use futures_core::Stream;
 use papo::{
-    Client, Error, Event, Events, ListFilter, MessageEvent, PersistenceSetting, PushKeys, Secret,
+    Client, Error, Event, Events, ListFilter, MessageEvent, NewAccount, PersistenceSetting,
+    PushKeys,
 };
 use papo_proto::{Message, Typing};
 
@@ -57,11 +58,13 @@ fn request_futures_are_send() {
     assert_send(client.history_targets(SystemTime::UNIX_EPOCH, SystemTime::now()));
     assert_send(client.mark_read("#papo", SystemTime::UNIX_EPOCH));
     assert_send(client.read_marker("#papo"));
-    assert_send(client.register(
-        Some("alice"),
-        Some("alice@example.org"),
-        Secret::new("correct horse battery staple"),
-    ));
+    assert_send(
+        client.register_account(
+            NewAccount::new("correct horse battery staple")
+                .account("alice")
+                .email("alice@example.org"),
+        ),
+    );
     assert_send(client.verify("alice", "392814"));
     assert_send(client.persistence().get());
     assert_send(client.persistence().set(PersistenceSetting::On));
