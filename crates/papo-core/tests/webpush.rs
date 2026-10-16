@@ -2,8 +2,8 @@
 
 mod support;
 
-use papo_core::{Config, Event, RequestError, Session, WebPushError};
-use support::Transcript;
+use papo_core::{Config, Event, Feature, RequestError, Session, WebPushError};
+use support::{Transcript, unsupported_error};
 
 const ENDPOINT: &str = "https://push.example.net/message/ErgoTest/alice";
 const P256DH: &str = "AQIDBAUGBwgJCgsMDQ4P_w";
@@ -47,7 +47,7 @@ fn rejects_invalid_endpoints_and_keys_before_queueing() {
     let mut unsupported = Session::new(Config::default());
     assert_eq!(
         unsupported.webpush_unregister(std::time::Instant::now(), ENDPOINT),
-        Err(RequestError::Unsupported("webpush"))
+        Err(unsupported_error(Feature::WebPush))
     );
     registered("draft/webpush")
         .update(|session| {

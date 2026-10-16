@@ -2,8 +2,8 @@
 
 mod support;
 
-use papo_core::{AccountRegistrationError, Config, Event};
-use support::Transcript;
+use papo_core::{AccountRegistrationError, Config, Event, Feature};
+use support::{Transcript, unsupported_error};
 
 fn registered() -> Transcript {
     Transcript::new(
@@ -311,9 +311,7 @@ fn rejects_early_registration_without_before_connect() {
                     Some("alice@example.org"),
                     "hunter2",
                 ),
-                Err(papo_core::RequestError::Unsupported(
-                    "account registration before connection"
-                ))
+                Err(unsupported_error(Feature::AccountRegistration))
             );
         })
         .server("CAP * ACK :draft/account-registration")
@@ -321,9 +319,7 @@ fn rejects_early_registration_without_before_connect() {
         .update(|session| {
             assert_eq!(
                 session.verify(std::time::Instant::now(), "alice", "pending-code"),
-                Err(papo_core::RequestError::Unsupported(
-                    "account verification before connection"
-                ))
+                Err(unsupported_error(Feature::AccountRegistration))
             );
         })
         .no_client();

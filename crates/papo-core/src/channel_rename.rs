@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use papo_proto::Message;
 
-use crate::{RequestError, RequestId, Session};
+use crate::{Feature, RequestError, RequestId, Session};
 
 /// A typed `FAIL RENAME` code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -42,7 +42,7 @@ impl Session {
         reason: &str,
     ) -> Result<RequestId, RequestError> {
         if !self.caps.enabled().contains_key("draft/channel-rename") {
-            return Err(RequestError::Unsupported("channel rename"));
+            return Err(RequestError::unsupported(Feature::ChannelRename));
         }
         self.request(now, Message::new("RENAME", [old, new, reason]))
     }

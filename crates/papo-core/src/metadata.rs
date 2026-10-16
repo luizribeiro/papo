@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use papo_proto::Message;
 
-use crate::{Capabilities, RequestError, RequestId, Session};
+use crate::{Capabilities, Feature, RequestError, RequestId, Session};
 
 /// One server-returned metadata value.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -181,7 +181,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         let limits = self
             .metadata_limits()
-            .ok_or(RequestError::Unsupported("metadata"))?;
+            .ok_or(RequestError::unsupported(Feature::Metadata))?;
         let mut params = Vec::new();
         match command {
             MetadataCommand::Get { target, keys } => {

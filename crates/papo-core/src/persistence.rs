@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use papo_proto::Message;
 
-use crate::{PersistenceSetting, RequestError, Session};
+use crate::{Feature, PersistenceSetting, RequestError, Session};
 
 impl Session {
     /// Requests the current `draft/persistence` status.
@@ -31,7 +31,7 @@ impl Session {
 
     fn persistence_request(&mut self, now: Instant, message: Message) -> Result<(), RequestError> {
         if !self.caps.enabled().contains_key("draft/persistence") {
-            return Err(RequestError::Unsupported("persistence"));
+            return Err(RequestError::unsupported(Feature::Persistence));
         }
         self.request(now, message)?;
         Ok(())

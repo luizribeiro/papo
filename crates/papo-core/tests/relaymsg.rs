@@ -2,8 +2,8 @@
 
 mod support;
 
-use papo_core::{Config, Event, RelayError, RequestError};
-use support::Transcript;
+use papo_core::{Config, Event, Feature, RelayError, RequestError};
+use support::{Transcript, unsupported_error};
 
 fn registered(value: Option<&str>) -> Transcript {
     let advertised = value.map_or_else(
@@ -81,7 +81,7 @@ fn requires_the_relaymsg_capability() {
                     "matrix/alice",
                     "hello"
                 ),
-                Err(RequestError::Unsupported("relaymsg"))
+                Err(unsupported_error(Feature::Relay))
             );
         })
         .no_client();

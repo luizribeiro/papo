@@ -1301,8 +1301,8 @@ pub enum RequestError {
     PendingLimit,
     /// The text contains no nonempty lines to send.
     EmptyText,
-    /// The server has not enabled the named optional protocol feature.
-    Unsupported(&'static str),
+    /// An optional protocol feature is unavailable.
+    Unsupported(Unsupported),
     /// The server cannot accept the supplied history reference.
     InvalidMessageReference,
     /// Account registration requires an email address.
@@ -1363,7 +1363,7 @@ impl std::fmt::Display for RequestError {
             Self::Build(error) => error.fmt(formatter),
             Self::PendingLimit => formatter.write_str("too many labelled requests are pending"),
             Self::EmptyText => formatter.write_str("text has no nonempty lines"),
-            Self::Unsupported(feature) => write!(formatter, "server does not support {feature}"),
+            Self::Unsupported(unsupported) => unsupported.fmt(formatter),
             Self::InvalidMessageReference => formatter.write_str("unsupported message reference"),
             Self::EmailRequired => formatter.write_str("account registration requires an email"),
             Self::CustomAccountNameUnsupported => {
@@ -1406,6 +1406,15 @@ impl std::error::Error for RequestError {
 impl From<BuildError> for RequestError {
     fn from(error: BuildError) -> Self {
         Self::Build(error)
+    }
+}
+
+impl RequestError {
+    fn unsupported(feature: Feature) -> Self {
+        Self::Unsupported(Unsupported {
+            feature,
+            reason: UnsupportedReason::NotOffered,
+        })
     }
 }
 
@@ -2587,13 +2596,11 @@ impl Session {
                 .map(Option::as_deref)
         };
         let Some(value) = value else {
-            return Err(RequestError::Unsupported("account-registration"));
+            return Err(RequestError::unsupported(Feature::AccountRegistration));
         };
         let policy = RegistrationPolicy::parse(value);
         if !registered && !policy.before_connect {
-            return Err(RequestError::Unsupported(
-                "account registration before connection",
-            ));
+            return Err(RequestError::unsupported(Feature::AccountRegistration));
         }
         if email.is_none() && policy.email_required {
             return Err(RequestError::EmailRequired);
@@ -2607,7 +2614,7 @@ impl Session {
         let password = password.into();
         if !registered {
             if !self.caps.is_pending("draft/account-registration") {
-                return Err(RequestError::Unsupported("account-registration"));
+                return Err(RequestError::unsupported(Feature::AccountRegistration));
             }
             self.account_registration.begin(PendingRegistration {
                 account: account.map(str::to_owned),
@@ -2653,7 +2660,7 @@ impl Session {
             .enabled()
             .contains_key("draft/account-registration")
         {
-            return Err(RequestError::Unsupported("account-registration"));
+            return Err(RequestError::unsupported(Feature::AccountRegistration));
         }
         if !self.registration.is_registered()
             && !RegistrationPolicy::parse(
@@ -2664,9 +2671,7 @@ impl Session {
             )
             .before_connect
         {
-            return Err(RequestError::Unsupported(
-                "account verification before connection",
-            ));
+            return Err(RequestError::unsupported(Feature::AccountRegistration));
         }
         self.request(now, Message::new("VERIFY", [account, code]))?;
         self.account_registration.request_started();

@@ -2,8 +2,8 @@
 
 mod support;
 
-use papo_core::{ChannelRenameError, Config, Event, RequestError};
-use support::Transcript;
+use papo_core::{ChannelRenameError, Config, Event, Feature};
+use support::{Transcript, unsupported_error};
 
 fn registered() -> Transcript {
     Transcript::new(Config::default().wanted_caps(["draft/channel-rename", "labeled-response"]))
@@ -61,7 +61,7 @@ fn requires_the_channel_rename_capability() {
         .update(|session| {
             assert_eq!(
                 session.rename(std::time::Instant::now(), "#rust", "#Rust", ""),
-                Err(RequestError::Unsupported("channel rename"))
+                Err(unsupported_error(Feature::ChannelRename))
             );
         })
         .no_client();

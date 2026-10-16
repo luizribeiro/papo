@@ -1,10 +1,13 @@
 //! Transcript coverage for history requests and server replies.
 
+mod support;
+
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
-    Config, Event, HistoryItem, HistoryQuery, MsgRef, RateLimit, RequestError, Session,
+    Config, Event, Feature, HistoryItem, HistoryQuery, MsgRef, RateLimit, RequestError, Session,
 };
+use support::unsupported_error;
 
 fn history_session(isupport: &str) -> (Session, Instant) {
     let now = Instant::now();
@@ -238,7 +241,7 @@ fn rejects_history_without_its_capability() {
                 limit: 50,
             }
         ),
-        Err(RequestError::Unsupported("chathistory"))
+        Err(unsupported_error(Feature::History))
     );
 }
 
@@ -386,7 +389,7 @@ fn rejects_read_markers_without_the_capability() {
     let mut session = Session::new(Config::default());
     assert_eq!(
         session.read_marker("#papo"),
-        Err(RequestError::Unsupported("read-marker"))
+        Err(unsupported_error(Feature::ReadMarkers))
     );
 }
 

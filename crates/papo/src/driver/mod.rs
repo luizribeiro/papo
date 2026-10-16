@@ -702,7 +702,7 @@ where
                 Some(Command::CoreRequest { request, result }) => {
                     match request.start(session) {
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
-                        Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
+                        Err(RequestError::Unsupported(unsupported)) => { _ = result.send(Err(Error::Unsupported(unsupported.feature.name()))); }
                         Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
                         Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
                     }
@@ -710,7 +710,7 @@ where
                 Some(Command::History { query, result }) => {
                     match session.chathistory(now(), query) {
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
-                        Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
+                        Err(RequestError::Unsupported(unsupported)) => { _ = result.send(Err(Error::Unsupported(unsupported.feature.name()))); }
                         Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
                         Err(RequestError::InvalidMessageReference) => { _ = result.send(Err(Error::Unsupported("message reference"))); }
                         Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
@@ -719,7 +719,7 @@ where
                 Some(Command::MarkRead { target, time, result }) => {
                     match session.mark_read(now(), &target, time) {
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
-                        Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
+                        Err(RequestError::Unsupported(unsupported)) => { _ = result.send(Err(Error::Unsupported(unsupported.feature.name()))); }
                         Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
                         Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
                     }
@@ -731,7 +731,7 @@ where
                             None if read_marker_waiters.len() < 256 => read_marker_waiters.push((target, result)),
                             None => { _ = result.send(Err(Error::RequestLimit)); }
                         },
-                        Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
+                        Err(RequestError::Unsupported(unsupported)) => { _ = result.send(Err(Error::Unsupported(unsupported.feature.name()))); }
                         Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
                         Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
                     }

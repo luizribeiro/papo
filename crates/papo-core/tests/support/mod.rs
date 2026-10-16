@@ -9,11 +9,22 @@ use std::{
     time::{Duration, Instant},
 };
 
-use papo_core::{Config, Connection, Entropy, Event, RateLimit, Session};
+use papo_core::{
+    Config, Connection, Entropy, Event, Feature, RateLimit, RequestError, Session, Unsupported,
+    UnsupportedReason,
+};
 use papo_proto::Message;
 
 /// Maximum time a blocking transcript operation may wait for the server.
 pub const TEST_DEADLINE: Duration = Duration::from_secs(5);
+
+/// Builds the expected error for a feature absent from a transcript.
+pub fn unsupported_error(feature: Feature) -> RequestError {
+    RequestError::Unsupported(Unsupported {
+        feature,
+        reason: UnsupportedReason::NotOffered,
+    })
+}
 
 /// Runs a blocking transcript operation with bounded socket reads and writes.
 pub fn within<T>(stream: &mut TcpStream, operation: impl FnOnce(&mut TcpStream) -> T) -> T {

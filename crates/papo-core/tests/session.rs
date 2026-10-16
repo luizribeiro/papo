@@ -1,12 +1,15 @@
 //! Tests for the public session queue surface.
 
+mod support;
+
 use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
 use papo_core::{
-    Config, DEFAULT_WANTED_CAPS, Event, RateLimit, RequestError, Secret, Session, TextKind,
+    Config, DEFAULT_WANTED_CAPS, Event, Feature, RateLimit, RequestError, Secret, Session, TextKind,
 };
 use papo_proto::{BuildError, Message};
+use support::unsupported_error;
 
 #[test]
 fn config_builders_set_registration_identity_and_timeout() {
@@ -319,8 +322,8 @@ fn request_errors_describe_the_failure_and_preserve_build_sources() {
     assert_eq!(limit.to_string(), "too many labelled requests are pending");
     assert!(std::error::Error::source(&limit).is_none());
     assert_eq!(
-        RequestError::Unsupported("chathistory").to_string(),
-        "server does not support chathistory"
+        unsupported_error(Feature::History).to_string(),
+        "chathistory unavailable: the server did not offer it"
     );
     assert_eq!(
         RequestError::InvalidMessageReference.to_string(),

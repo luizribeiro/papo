@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use papo_proto::Message;
 
-use crate::{RequestError, RequestId, Session};
+use crate::{Feature, RequestError, RequestId, Session};
 
 /// A typed `FAIL RELAYMSG` code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -52,7 +52,7 @@ impl Session {
         text: &str,
     ) -> Result<RequestId, RequestError> {
         let Some(value) = self.caps.enabled().get("draft/relaymsg") else {
-            return Err(RequestError::Unsupported("relaymsg"));
+            return Err(RequestError::unsupported(Feature::Relay));
         };
         let separators = value.as_deref().unwrap_or("/");
         if !nick_with_separator

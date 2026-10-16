@@ -6,7 +6,7 @@ use base64::{
 };
 use papo_proto::Message;
 
-use crate::{RequestError, RequestId, Session};
+use crate::{Feature, RequestError, RequestId, Session};
 
 /// A typed `FAIL WEBPUSH` code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -79,7 +79,7 @@ impl Session {
             .iter()
             .any(|name| self.caps.enabled().contains_key(*name))
             .then_some(())
-            .ok_or(RequestError::Unsupported("webpush"))
+            .ok_or(RequestError::unsupported(Feature::WebPush))
     }
 }
 

@@ -2,7 +2,7 @@ use std::time::{Instant, SystemTime};
 
 use papo_proto::{LimitValue, Message, time};
 
-use crate::{RequestError, RequestId, Session};
+use crate::{Feature, RequestError, RequestId, Session};
 
 const LOCAL_HISTORY_LIMIT: usize = 1_000;
 
@@ -119,7 +119,7 @@ impl Session {
             .keys()
             .any(|name| matches!(name.as_str(), "draft/chathistory" | "chathistory"))
         {
-            return Err(RequestError::Unsupported("chathistory"));
+            return Err(RequestError::unsupported(Feature::History));
         }
         let requested = query.limit();
         let advertised = match self.isupport.value().chathistory() {
@@ -148,7 +148,7 @@ impl Session {
         time: SystemTime,
     ) -> Result<RequestId, RequestError> {
         if !self.supports_read_marker() {
-            return Err(RequestError::Unsupported("read-marker"));
+            return Err(RequestError::unsupported(Feature::ReadMarkers));
         }
         self.request(
             now,
@@ -173,7 +173,7 @@ impl Session {
     /// or [`RequestError::Build`] when the target cannot be encoded.
     pub fn read_marker(&mut self, target: &str) -> Result<(), RequestError> {
         if !self.supports_read_marker() {
-            return Err(RequestError::Unsupported("read-marker"));
+            return Err(RequestError::unsupported(Feature::ReadMarkers));
         }
         let line = Message::new("MARKREAD", [target]).to_line()?;
         self.outbox.transmit_raw(line.into());
