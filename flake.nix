@@ -175,6 +175,24 @@
             runtimeInputs = [ pkgs.cargo-deny ];
             text = "cargo deny check bans licenses sources";
           };
+          public-api = cargoHook {
+            name = "public-api-hook";
+            runtimeInputs = [ pkgs.cargo-public-api ];
+            text = ''
+              actual=$(mktemp)
+              trap 'rm -f "$actual"' EXIT
+              CARGO_INCREMENTAL=0 \
+                RUSTC=${nightlyToolchain}/bin/rustc \
+                RUSTDOC=${nightlyToolchain}/bin/rustdoc \
+                ${nightlyToolchain}/bin/cargo rustdoc \
+                  -p papo --all-features --lib --target-dir target/public-api \
+                  -- -Z unstable-options --output-format json
+              cargo public-api \
+                --rustdoc-json target/public-api/doc/papo.json \
+                --color=never -sss > "$actual"
+              diff -u crates/papo/public-api.txt "$actual"
+            '';
+          };
           plain-tests = cargoHook {
             name = "plain-tests-hook";
             runtimeInputs = [ pkgs.cargo-nextest ];
@@ -288,6 +306,7 @@
             pkgs.wasm-tools
             pkgs.cargo-nextest
             pkgs.cargo-deny
+            pkgs.cargo-public-api
             pkgs.cargo-mutants
             pkgs.cargo-fuzz
             pkgs.cargo-llvm-cov

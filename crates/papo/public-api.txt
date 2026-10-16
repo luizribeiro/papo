@@ -1,0 +1,496 @@
+pub mod papo
+pub use papo::Account
+pub use papo::Capabilities
+pub use papo::Channel
+pub use papo::Member
+pub use papo::PersistenceSetting
+pub use papo::PersistenceStatus
+pub use papo::RateLimit
+pub use papo::Response
+pub use papo::Sasl
+pub use papo::Secret
+pub use papo::ServerError
+pub use papo::Typing
+pub use papo::User
+pub use papo::WebIrc
+pub mod papo::bot
+pub enum papo::bot::ReplyStatus
+pub papo::bot::ReplyStatus::Dropped
+pub papo::bot::ReplyStatus::Sent
+pub struct papo::bot::BotConfig
+impl papo::bot::BotConfig
+pub const fn papo::bot::BotConfig::mention(self, bool) -> Self
+pub fn papo::bot::BotConfig::new(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::bot::BotConfig::reply_limiter(self, papo::bot::ReplyRateLimiter) -> Self
+pub struct papo::bot::Command
+impl papo::bot::Command
+pub fn papo::bot::Command::account(&self) -> core::option::Option<&str>
+pub fn papo::bot::Command::account_in<I, S>(&self, I) -> bool where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo::bot::Command::args(&self) -> &[alloc::string::String]
+pub fn papo::bot::Command::channel(&self) -> core::option::Option<&str>
+pub const fn papo::bot::Command::client(&self) -> &papo::Client
+pub const fn papo::bot::Command::message(&self) -> &papo::MessageEvent
+pub fn papo::bot::Command::name(&self) -> &str
+pub fn papo::bot::Command::parse(&papo::Event, &papo::bot::BotConfig) -> core::option::Option<Self>
+pub async fn papo::bot::Command::private_notice(&self, &str) -> core::result::Result<papo::bot::ReplyStatus, papo::Error>
+pub async fn papo::bot::Command::reply(&self, &str) -> core::result::Result<papo::bot::ReplyStatus, papo::Error>
+pub struct papo::bot::ReplyRateLimiter
+impl papo::bot::ReplyRateLimiter
+pub fn papo::bot::ReplyRateLimiter::check(&self, &str) -> bool
+pub fn papo::bot::ReplyRateLimiter::new(usize, core::time::Duration) -> Self
+pub mod papo::sts
+pub use papo::sts::MemoryStsStore
+pub use papo::sts::StoredPolicy
+pub use papo::sts::StsStore
+pub struct papo::sts::FileStsStore
+impl papo::sts::FileStsStore
+pub fn papo::sts::FileStsStore::default_path() -> core::option::Option<std::path::PathBuf>
+pub fn papo::sts::FileStsStore::last_error(&self) -> core::option::Option<&core::io::error::Error>
+pub fn papo::sts::FileStsStore::open(impl core::convert::Into<std::path::PathBuf>) -> Self
+impl papo_core::sts::StsStore for papo::sts::FileStsStore
+pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo_core::sts::StoredPolicy>
+pub fn papo::sts::FileStsStore::put(&mut self, papo_core::sts::StoredPolicy)
+pub fn papo::sts::FileStsStore::remove(&mut self, &str)
+pub mod papo::transport
+#[non_exhaustive] pub enum papo::transport::ConnectError
+pub papo::transport::ConnectError::InvalidServerName(alloc::string::String)
+pub papo::transport::ConnectError::InvalidTlsConfiguration(alloc::string::String)
+pub papo::transport::ConnectError::Resolve
+pub papo::transport::ConnectError::Resolve::host: alloc::string::String
+pub papo::transport::ConnectError::Resolve::port: u16
+pub papo::transport::ConnectError::Resolve::source: core::io::error::Error
+pub papo::transport::ConnectError::Tcp(core::io::error::Error)
+pub papo::transport::ConnectError::Tls(rustls::error::Error)
+pub papo::transport::ConnectError::TlsUnavailable
+pub papo::transport::ConnectError::WebSocket(tungstenite::error::Error)
+pub enum papo::transport::Security
+pub papo::transport::Security::Plaintext
+pub papo::transport::Security::Tls(papo::transport::TlsConfig)
+pub enum papo::transport::TlsRoots
+pub papo::transport::TlsRoots::Ca(alloc::vec::Vec<u8>)
+pub papo::transport::TlsRoots::Platform
+pub papo::transport::TlsRoots::PlatformAndCa(alloc::vec::Vec<u8>)
+pub struct papo::transport::ClientCertificate
+impl papo::transport::ClientCertificate
+pub fn papo::transport::ClientCertificate::new(impl core::convert::Into<alloc::vec::Vec<u8>>, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+impl core::fmt::Debug for papo::transport::ClientCertificate
+pub fn papo::transport::ClientCertificate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct papo::transport::Stream
+impl papo::transport::Stream
+pub const fn papo::transport::Stream::is_secure(&self) -> bool
+pub fn papo::transport::Stream::websocket_subprotocol(&self) -> core::option::Option<&str>
+impl tokio::io::async_read::AsyncRead for papo::transport::Stream
+pub fn papo::transport::Stream::poll_read(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>, &mut tokio::io::read_buf::ReadBuf<'_>) -> core::task::poll::Poll<core::io::error::Result<()>>
+impl tokio::io::async_write::AsyncWrite for papo::transport::Stream
+pub fn papo::transport::Stream::poll_flush(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::io::error::Result<()>>
+pub fn papo::transport::Stream::poll_shutdown(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::io::error::Result<()>>
+pub fn papo::transport::Stream::poll_write(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>, &[u8]) -> core::task::poll::Poll<core::result::Result<usize, core::io::error::Error>>
+pub struct papo::transport::TlsConfig
+pub papo::transport::TlsConfig::client_certificate: core::option::Option<papo::transport::ClientCertificate>
+pub papo::transport::TlsConfig::roots: papo::transport::TlsRoots
+pub papo::transport::TlsConfig::server_name: core::option::Option<alloc::string::String>
+impl core::default::Default for papo::transport::TlsConfig
+pub fn papo::transport::TlsConfig::default() -> Self
+pub async fn papo::transport::connect(&str, u16, &papo::transport::Security) -> core::result::Result<papo::transport::Stream, papo::transport::ConnectError>
+pub async fn papo::transport::connect_websocket(&str, core::option::Option<&papo::transport::TlsConfig>) -> core::result::Result<papo::transport::Stream, papo::transport::ConnectError>
+pub enum papo::AccountRegistration
+pub papo::AccountRegistration::Registered
+pub papo::AccountRegistration::Registered::account: alloc::string::String
+pub papo::AccountRegistration::VerificationRequired
+pub papo::AccountRegistration::VerificationRequired::account: alloc::string::String
+pub papo::AccountRegistration::VerificationRequired::message: alloc::string::String
+#[non_exhaustive] pub enum papo::AddressError
+pub papo::AddressError::Empty
+pub papo::AddressError::InvalidHost
+pub papo::AddressError::InvalidPort(alloc::string::String)
+pub papo::AddressError::UnexpectedPath
+pub papo::AddressError::UnsupportedScheme(alloc::string::String)
+#[non_exhaustive] pub enum papo::Error
+pub papo::Error::AccountRegistration(papo_core::AccountRegistrationError)
+pub papo::Error::Address(papo::AddressError)
+pub papo::Error::Build(papo_proto::message::BuildError)
+pub papo::Error::ChannelRename(papo_core::channel_rename::ChannelRenameError)
+pub papo::Error::Connect(papo::transport::ConnectError)
+pub papo::Error::Disconnected
+pub papo::Error::EmptyText
+pub papo::Error::Io(core::io::error::Error)
+pub papo::Error::Metadata(papo_core::metadata::MetadataError)
+pub papo::Error::ReadFile
+pub papo::Error::ReadFile::path: std::path::PathBuf
+pub papo::Error::ReadFile::source: core::io::error::Error
+pub papo::Error::Registration(alloc::string::String)
+pub papo::Error::Relay(papo_core::relaymsg::RelayError)
+pub papo::Error::RequestLimit
+pub papo::Error::Server(papo_core::ServerError)
+pub papo::Error::StsRequiresTls
+pub papo::Error::StsRequiresTls::host: alloc::string::String
+pub papo::Error::StsUpgradeLoop
+pub papo::Error::StsUpgradeLoop::host: alloc::string::String
+pub papo::Error::Timeout
+pub papo::Error::Unsupported(&'static str)
+pub papo::Error::WebPush(papo_core::webpush::WebPushError)
+#[non_exhaustive] pub enum papo::Event
+pub papo::Event::AccountChanged
+pub papo::Event::AccountChanged::account: papo_core::state::Account
+pub papo::Event::AccountChanged::nick: alloc::string::String
+pub papo::Event::AccountRegistered
+pub papo::Event::AccountRegistered::account: alloc::string::String
+pub papo::Event::AccountRegistered::logged_in: bool
+pub papo::Event::AuthenticationFailed
+pub papo::Event::AuthenticationFailed::reason: alloc::string::String
+pub papo::Event::AwayChanged
+pub papo::Event::AwayChanged::message: core::option::Option<alloc::string::String>
+pub papo::Event::AwayChanged::nick: alloc::string::String
+pub papo::Event::BatchAbandoned
+pub papo::Event::BatchAbandoned::batch_type: alloc::string::String
+pub papo::Event::BatchAbandoned::reason: papo_core::BatchAbandonReason
+pub papo::Event::BatchAbandoned::reference: alloc::string::String
+pub papo::Event::CapsChanged
+pub papo::Event::CapsChanged::added: papo_core::Capabilities
+pub papo::Event::CapsChanged::removed: papo_core::Capabilities
+pub papo::Event::ChannelRenamed
+pub papo::Event::ChannelRenamed::new: alloc::string::String
+pub papo::Event::ChannelRenamed::old: alloc::string::String
+pub papo::Event::ChannelRenamed::reason: alloc::string::String
+pub papo::Event::ChannelSynced
+pub papo::Event::ChannelSynced::channel: alloc::string::String
+pub papo::Event::Disconnected
+pub papo::Event::Disconnected::reason: alloc::string::String
+pub papo::Event::Disconnected::will_retry: bool
+pub papo::Event::History
+pub papo::Event::History::end: bool
+pub papo::Event::History::messages: alloc::vec::Vec<papo::MessageEvent>
+pub papo::Event::History::target: alloc::string::String
+pub papo::Event::HistoryTargets(alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>)
+pub papo::Event::HostChanged
+pub papo::Event::HostChanged::host: alloc::string::String
+pub papo::Event::HostChanged::nick: alloc::string::String
+pub papo::Event::HostChanged::user: alloc::string::String
+pub papo::Event::Joined
+pub papo::Event::Joined::channel: alloc::string::String
+pub papo::Event::Joined::nick: alloc::string::String
+pub papo::Event::Kicked
+pub papo::Event::Kicked::by: alloc::string::String
+pub papo::Event::Kicked::channel: alloc::string::String
+pub papo::Event::Kicked::nick: alloc::string::String
+pub papo::Event::Kicked::reason: core::option::Option<alloc::string::String>
+pub papo::Event::Malformed
+pub papo::Event::Malformed::line: alloc::vec::Vec<u8>
+pub papo::Event::Message(papo::MessageEvent)
+pub papo::Event::MetadataChanged
+pub papo::Event::MetadataChanged::key: alloc::string::String
+pub papo::Event::MetadataChanged::target: alloc::string::String
+pub papo::Event::MetadataChanged::value: core::option::Option<alloc::string::String>
+pub papo::Event::MetadataChanged::visibility: alloc::string::String
+pub papo::Event::MetadataSyncLater
+pub papo::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
+pub papo::Event::MetadataSyncLater::target: alloc::string::String
+pub papo::Event::ModeChanged
+pub papo::Event::ModeChanged::by: alloc::string::String
+pub papo::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::OwnedModeChange>
+pub papo::Event::ModeChanged::target: alloc::string::String
+pub papo::Event::MonitorListFull
+pub papo::Event::MonitorListFull::limit: usize
+pub papo::Event::MonitorListFull::nicks: alloc::vec::Vec<alloc::string::String>
+pub papo::Event::MonitorOffline
+pub papo::Event::MonitorOffline::nick: alloc::string::String
+pub papo::Event::MonitorOnline
+pub papo::Event::MonitorOnline::host: alloc::string::String
+pub papo::Event::MonitorOnline::nick: alloc::string::String
+pub papo::Event::MonitorOnline::user: alloc::string::String
+pub papo::Event::MonitorUnsupported
+pub papo::Event::Netjoin
+pub papo::Event::Netjoin::joins: alloc::vec::Vec<papo_proto::message::Message>
+pub papo::Event::Netjoin::servers: [alloc::string::String; 2]
+pub papo::Event::Netsplit
+pub papo::Event::Netsplit::quits: alloc::vec::Vec<papo_proto::message::Message>
+pub papo::Event::Netsplit::servers: [alloc::string::String; 2]
+pub papo::Event::NickChanged
+pub papo::Event::NickChanged::new: alloc::string::String
+pub papo::Event::NickChanged::old: alloc::string::String
+pub papo::Event::Parted
+pub papo::Event::Parted::channel: alloc::string::String
+pub papo::Event::Parted::nick: alloc::string::String
+pub papo::Event::Parted::reason: core::option::Option<alloc::string::String>
+pub papo::Event::PersistenceStatus
+pub papo::Event::PersistenceStatus::effective: bool
+pub papo::Event::PersistenceStatus::setting: papo_core::PersistenceSetting
+pub papo::Event::Quit
+pub papo::Event::Quit::channels: alloc::vec::Vec<alloc::string::String>
+pub papo::Event::Quit::nick: alloc::string::String
+pub papo::Event::Quit::reason: core::option::Option<alloc::string::String>
+pub papo::Event::Raw(papo_proto::message::Message)
+pub papo::Event::Reaction(papo::event::TagMsg)
+pub papo::Event::ReadMarker(papo_core::history::ReadMarker)
+pub papo::Event::RealnameChanged
+pub papo::Event::RealnameChanged::nick: alloc::string::String
+pub papo::Event::RealnameChanged::realname: alloc::string::String
+pub papo::Event::Reconnected(papo_core::Welcome)
+pub papo::Event::Redacted(papo_core::Redacted)
+pub papo::Event::Registered(papo_core::Welcome)
+pub papo::Event::RequestAborted
+pub papo::Event::RequestAborted::id: papo_core::RequestId
+pub papo::Event::RequestTimedOut
+pub papo::Event::RequestTimedOut::id: papo_core::RequestId
+pub papo::Event::RequestUntracked
+pub papo::Event::RequestUntracked::id: papo_core::RequestId
+pub papo::Event::Response(papo_core::Response)
+pub papo::Event::StandardReply(papo_core::StandardReply)
+pub papo::Event::StateLimitReached
+pub papo::Event::StateLimitReached::limit: papo_core::StateLimit
+pub papo::Event::StsPolicy(papo_core::sts::StsAction)
+pub papo::Event::StsUpgrade
+pub papo::Event::StsUpgrade::port: u16
+pub papo::Event::TagMsg(papo::event::TagMsg)
+pub papo::Event::TopicChanged
+pub papo::Event::TopicChanged::by: alloc::string::String
+pub papo::Event::TopicChanged::channel: alloc::string::String
+pub papo::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
+pub papo::Event::Typing(papo::event::TagMsg)
+pub papo::Event::VerificationRequired
+pub papo::Event::VerificationRequired::account: alloc::string::String
+pub papo::Event::VerificationRequired::message: alloc::string::String
+#[non_exhaustive] pub enum papo::MessageKind<'a>
+pub papo::MessageKind::Action
+pub papo::MessageKind::Ctcp(&'a str)
+pub papo::MessageKind::Notice
+pub papo::MessageKind::Privmsg
+#[non_exhaustive] pub enum papo::Origin
+pub papo::Origin::Echo
+pub papo::Origin::History
+pub papo::Origin::Live
+pub papo::Origin::OtherSession
+pub papo::Origin::Replay
+pub struct papo::Builder
+impl papo::Builder
+pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::bot(self) -> Self
+pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
+pub fn papo::Builder::build_with<S>(self, S) -> (papo::Client, papo::Events, papo::Driver) where S: tokio::io::async_read::AsyncRead + tokio::io::async_write::AsyncWrite + core::marker::Unpin + core::marker::Send + 'static
+pub fn papo::Builder::caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>
+pub async fn papo::Builder::connect_with<S>(self, S) -> core::result::Result<(papo::Client, papo::Events), papo::Error> where S: tokio::io::async_read::AsyncRead + tokio::io::async_write::AsyncWrite + core::marker::Unpin + core::marker::Send + 'static
+pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub const fn papo::Builder::disconnected_queue_capacity(self, usize) -> Self
+pub fn papo::Builder::event_capacity(self, usize) -> Self
+pub const fn papo::Builder::history_on_reconnect(self, bool) -> Self
+pub fn papo::Builder::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::nick(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Builder::password(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Builder::ping_interval(self, core::time::Duration) -> Self
+pub fn papo::Builder::ping_timeout(self, core::time::Duration) -> Self
+pub fn papo::Builder::plaintext(self) -> Self
+pub fn papo::Builder::port(self, u16) -> Self
+pub fn papo::Builder::rate_limit(self, papo_core::ratelimit::RateLimit) -> Self
+pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
+pub fn papo::Builder::register_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, papo_core::secret::Secret) -> Self
+pub fn papo::Builder::require_sasl(self, bool) -> Self
+pub fn papo::Builder::sasl(self, papo_core::sasl::Sasl) -> Self
+pub fn papo::Builder::sts_store(self, impl papo_core::sts::StsStore + core::marker::Send + 'static) -> Self
+pub fn papo::Builder::tls(self, bool) -> Self
+pub fn papo::Builder::tls_ca_file(self, impl core::convert::AsRef<std::path::Path>) -> core::result::Result<Self, papo::Error>
+pub fn papo::Builder::tls_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+pub fn papo::Builder::tls_client_cert(self, impl core::convert::Into<alloc::vec::Vec<u8>>, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+pub fn papo::Builder::tls_client_cert_files(self, impl core::convert::AsRef<std::path::Path>, impl core::convert::AsRef<std::path::Path>) -> core::result::Result<Self, papo::Error>
+pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Builder::webirc(self, papo_core::WebIrc) -> Self
+pub struct papo::ChannelInfo
+pub papo::ChannelInfo::members_count: usize
+pub papo::ChannelInfo::name: alloc::string::String
+pub papo::ChannelInfo::topic: core::option::Option<alloc::string::String>
+pub struct papo::Client
+impl papo::Client
+pub fn papo::Client::builder(&str) -> papo::Builder
+pub fn papo::Client::casemap(&self, &str) -> alloc::string::String
+pub fn papo::Client::has_cap(&self, &str) -> bool
+pub fn papo::Client::is_connected(&self) -> bool
+pub fn papo::Client::isupport(&self) -> alloc::rcs::arc::Arc<papo_proto::isupport::Isupport>
+pub async fn papo::Client::join(&self, &str) -> core::result::Result<papo::ChannelInfo, papo::Error>
+pub async fn papo::Client::list(&self, papo::ListFilter) -> core::result::Result<alloc::vec::Vec<papo::ListEntry>, papo::Error>
+pub async fn papo::Client::mode<I, S>(&self, &str, &str, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo::Client::nick(&self) -> alloc::string::String
+pub async fn papo::Client::notice(&self, &str, &str) -> core::result::Result<papo::Sent, papo::Error>
+pub async fn papo::Client::part(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::privmsg(&self, &str, &str) -> core::result::Result<papo::Sent, papo::Error>
+pub async fn papo::Client::quit(&self, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::raw(&self, papo_proto::message::Message) -> core::result::Result<papo_core::Response, papo::Error>
+pub async fn papo::Client::raw_unlabeled(&self, papo_proto::message::Message) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::react(&self, &papo::MessageEvent, &str) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::redact(&self, &str, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::send(&self, papo_proto::message::Message) -> core::result::Result<(), papo::Error>
+pub fn papo::Client::snapshot(&self) -> alloc::rcs::arc::Arc<papo::State>
+pub fn papo::Client::state<R>(&self, impl core::ops::function::FnOnce(&papo::State) -> R) -> R
+pub async fn papo::Client::topic(&self, &str, core::option::Option<&str>) -> core::result::Result<core::option::Option<alloc::string::String>, papo::Error>
+pub async fn papo::Client::typing(&self, &str, papo_proto::client_tags::Typing) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::unreact(&self, &papo::MessageEvent, &str) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::who(&self, &str) -> core::result::Result<alloc::vec::Vec<papo::WhoEntry>, papo::Error>
+pub async fn papo::Client::whois(&self, &str) -> core::result::Result<papo::Whois, papo::Error>
+impl papo::Client
+pub fn papo::Client::history(&self, &str) -> papo::History<'_>
+pub async fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> core::result::Result<alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>, papo::Error>
+pub async fn papo::Client::mark_read(&self, &str, std::time::SystemTime) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::read_marker(&self, &str) -> core::result::Result<core::option::Option<std::time::SystemTime>, papo::Error>
+impl papo::Client
+pub const fn papo::Client::metadata(&self) -> papo::Metadata<'_>
+impl papo::Client
+pub const fn papo::Client::persistence(&self) -> papo::Persistence<'_>
+impl papo::Client
+pub async fn papo::Client::register(&self, core::option::Option<&str>, core::option::Option<&str>, papo_core::secret::Secret) -> core::result::Result<papo::AccountRegistration, papo::Error>
+pub async fn papo::Client::verify(&self, &str, &str) -> core::result::Result<papo::AccountRegistration, papo::Error>
+impl papo::Client
+pub async fn papo::Client::relay(&self, &str, &str, &str) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::rename(&self, &str, &str, &str) -> core::result::Result<(), papo::Error>
+impl papo::Client
+pub const fn papo::Client::webpush(&self) -> papo::WebPush<'_>
+impl core::fmt::Debug for papo::Client
+pub fn papo::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct papo::Driver
+impl papo::Driver
+pub fn papo::Driver::new(papo::transport::Stream, papo_core::Session) -> (papo::Client, papo::Events, Self)
+impl core::future::future::Future for papo::Driver
+pub type papo::Driver::Output = core::result::Result<(), papo::Error>
+pub fn papo::Driver::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
+pub struct papo::Events
+impl papo::Events
+pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::Event>
+pub struct papo::History<'a>
+impl<'a> papo::History<'a>
+pub fn papo::History<'a>::after(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
+pub fn papo::History<'a>::around(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
+pub fn papo::History<'a>::before(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
+pub fn papo::History<'a>::between(self, impl core::convert::Into<papo::HistoryReference>, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
+pub fn papo::History<'a>::latest(self, usize) -> papo::HistoryRequest<'a>
+pub struct papo::HistoryPage
+pub papo::HistoryPage::end: bool
+pub papo::HistoryPage::messages: alloc::vec::Vec<papo::MessageEvent>
+pub struct papo::HistoryReference(_)
+impl core::convert::From<&alloc::string::String> for papo::HistoryReference
+pub fn papo::HistoryReference::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo::MessageEvent> for papo::HistoryReference
+pub fn papo::HistoryReference::from(&papo::MessageEvent) -> Self
+impl core::convert::From<&str> for papo::HistoryReference
+pub fn papo::HistoryReference::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo::HistoryReference
+pub fn papo::HistoryReference::from(alloc::string::String) -> Self
+impl core::convert::From<std::time::SystemTime> for papo::HistoryReference
+pub fn papo::HistoryReference::from(std::time::SystemTime) -> Self
+pub struct papo::HistoryRequest<'a>
+impl papo::HistoryRequest<'_>
+pub fn papo::HistoryRequest<'_>::limit(self, usize) -> Self
+impl<'a> core::future::into_future::IntoFuture for papo::HistoryRequest<'a>
+pub type papo::HistoryRequest<'a>::IntoFuture = core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = <papo::HistoryRequest<'a> as core::future::into_future::IntoFuture>::Output> + core::marker::Send + 'a)>>
+pub type papo::HistoryRequest<'a>::Output = core::result::Result<papo::HistoryPage, papo::Error>
+pub fn papo::HistoryRequest<'a>::into_future(self) -> Self::IntoFuture
+pub struct papo::ListEntry
+pub papo::ListEntry::members_count: usize
+pub papo::ListEntry::name: alloc::string::String
+pub papo::ListEntry::topic: alloc::string::String
+pub struct papo::ListFilter
+impl papo::ListFilter
+pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub struct papo::MessageEvent
+impl papo::MessageEvent
+pub fn papo::MessageEvent::account(&self) -> core::option::Option<&str>
+pub fn papo::MessageEvent::as_ref(&self) -> papo_proto::message::MessageRef<'_>
+pub fn papo::MessageEvent::batch_type(&self) -> core::option::Option<&str>
+pub fn papo::MessageEvent::is_bot(&self) -> bool
+pub fn papo::MessageEvent::is_live(&self) -> bool
+pub fn papo::MessageEvent::is_private(&self) -> bool
+pub fn papo::MessageEvent::kind(&self) -> papo::MessageKind<'_>
+pub fn papo::MessageEvent::msgid(&self) -> core::option::Option<&str>
+pub fn papo::MessageEvent::oper(&self) -> core::option::Option<core::option::Option<&str>>
+pub fn papo::MessageEvent::origin(&self) -> papo::Origin
+pub fn papo::MessageEvent::raw_text(&self) -> &str
+pub fn papo::MessageEvent::relayed_by(&self) -> core::option::Option<&str>
+pub async fn papo::MessageEvent::reply(&self, &str) -> core::result::Result<papo::Sent, papo::Error>
+pub fn papo::MessageEvent::reply_target(&self) -> &str
+pub fn papo::MessageEvent::reply_to(&self) -> core::option::Option<&str>
+pub fn papo::MessageEvent::source(&self) -> core::option::Option<papo_proto::source::Source<'_>>
+pub fn papo::MessageEvent::target(&self) -> &str
+pub fn papo::MessageEvent::text(&self) -> &str
+pub fn papo::MessageEvent::time(&self) -> std::time::SystemTime
+impl core::convert::From<&papo::MessageEvent> for papo::HistoryReference
+pub fn papo::HistoryReference::from(&papo::MessageEvent) -> Self
+impl core::fmt::Debug for papo::MessageEvent
+pub fn papo::MessageEvent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct papo::Metadata<'a>
+impl papo::Metadata<'_>
+pub async fn papo::Metadata<'_>::clear(&self) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata<'_>::get<I, S>(&self, &str, I) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub async fn papo::Metadata<'_>::list(&self, &str) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error>
+pub async fn papo::Metadata<'_>::set(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata<'_>::set_on(&self, &str, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata<'_>::subscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Metadata<'_>::subscriptions(&self) -> alloc::vec::Vec<alloc::string::String>
+pub async fn papo::Metadata<'_>::sync(&self, &str) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata<'_>::unsubscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub struct papo::OsEntropy
+impl papo_core::sasl::Entropy for papo::OsEntropy
+pub fn papo::OsEntropy::fill(&mut self, &mut [u8])
+pub struct papo::Persistence<'a>
+impl papo::Persistence<'_>
+pub async fn papo::Persistence<'_>::get(&self) -> core::result::Result<papo_core::PersistenceStatus, papo::Error>
+pub async fn papo::Persistence<'_>::set(&self, papo_core::PersistenceSetting) -> core::result::Result<papo_core::PersistenceStatus, papo::Error>
+pub fn papo::Persistence<'_>::state(&self) -> core::option::Option<papo_core::PersistenceStatus>
+pub struct papo::PushKeys
+pub papo::PushKeys::auth: alloc::string::String
+pub papo::PushKeys::p256dh: alloc::string::String
+pub struct papo::Reconnect
+impl papo::Reconnect
+pub const fn papo::Reconnect::exponential() -> Self
+pub const fn papo::Reconnect::max_attempts(self, usize) -> Self
+pub const fn papo::Reconnect::max_delay(self, core::time::Duration) -> Self
+pub const fn papo::Reconnect::never() -> Self
+impl core::default::Default for papo::Reconnect
+pub fn papo::Reconnect::default() -> Self
+pub struct papo::Sent
+pub papo::Sent::msgid: core::option::Option<alloc::string::String>
+pub papo::Sent::time: core::option::Option<std::time::SystemTime>
+pub struct papo::State
+impl papo::State
+pub fn papo::State::account(&self) -> core::option::Option<&str>
+pub const fn papo::State::away(&self) -> bool
+pub const fn papo::State::caps(&self) -> &papo_core::Capabilities
+pub fn papo::State::casemap(&self, &str) -> alloc::string::String
+pub fn papo::State::channel(&self, &str) -> core::option::Option<&papo_core::state::Channel>
+pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::Channel>
+pub const fn papo::State::connected(&self) -> bool
+pub fn papo::State::has_cap(&self, &str) -> bool
+pub fn papo::State::isupport(&self) -> &papo_proto::isupport::Isupport
+pub fn papo::State::metadata(&self, &str) -> core::option::Option<&std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
+pub fn papo::State::metadata_subscriptions(&self) -> &[alloc::string::String]
+pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::User>
+pub fn papo::State::nick(&self) -> &str
+pub const fn papo::State::persistence(&self) -> core::option::Option<papo_core::PersistenceStatus>
+pub fn papo::State::read_marker(&self, &str) -> core::option::Option<std::time::SystemTime>
+pub fn papo::State::user(&self, &str) -> core::option::Option<&papo_core::state::User>
+pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
+pub struct papo::WebPush<'a>
+impl papo::WebPush<'_>
+pub async fn papo::WebPush<'_>::register(&self, &str, papo::PushKeys) -> core::result::Result<(), papo::Error>
+pub async fn papo::WebPush<'_>::unregister(&self, &str) -> core::result::Result<(), papo::Error>
+pub struct papo::WhoEntry
+pub papo::WhoEntry::account: core::option::Option<alloc::string::String>
+pub papo::WhoEntry::away: bool
+pub papo::WhoEntry::channel: core::option::Option<alloc::string::String>
+pub papo::WhoEntry::host: alloc::string::String
+pub papo::WhoEntry::is_bot: bool
+pub papo::WhoEntry::is_oper: bool
+pub papo::WhoEntry::nick: alloc::string::String
+pub papo::WhoEntry::prefixes: alloc::vec::Vec<char>
+pub papo::WhoEntry::realname: alloc::string::String
+pub papo::WhoEntry::user: alloc::string::String
+pub struct papo::Whois
+pub papo::Whois::account: core::option::Option<alloc::string::String>
+pub papo::Whois::away: core::option::Option<alloc::string::String>
+pub papo::Whois::channels: alloc::vec::Vec<alloc::string::String>
+pub papo::Whois::host: core::option::Option<alloc::string::String>
+pub papo::Whois::idle: core::option::Option<core::time::Duration>
+pub papo::Whois::is_bot: bool
+pub papo::Whois::nick: alloc::string::String
+pub papo::Whois::realname: core::option::Option<alloc::string::String>
+pub papo::Whois::secure: bool
+pub papo::Whois::server: core::option::Option<alloc::string::String>
+pub papo::Whois::user: core::option::Option<alloc::string::String>
