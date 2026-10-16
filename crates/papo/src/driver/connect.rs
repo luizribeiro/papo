@@ -2,7 +2,7 @@ use std::{collections::VecDeque, ops::ControlFlow};
 
 use papo_core::{
     Connection, Session,
-    sts::{ConnectionSecurity, StoredPolicy, StsAction, StsStore, reschedule_on_disconnect},
+    sts::{ConnectionSecurity, StsAction, StsPolicy, StsStore, reschedule_on_disconnect},
 };
 use tokio::sync::mpsc;
 
@@ -420,7 +420,7 @@ pub(super) fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &Sts
         StsAction::Persist { host, duration } => {
             let now = crate::rt::now_wall();
             if let Some(expires_at) = now.checked_add(*duration) {
-                store.put(StoredPolicy::new(host, port, expires_at, *duration));
+                store.put(StsPolicy::new(host, port, expires_at, *duration));
             }
         }
         StsAction::Remove { host } => store.remove(host),

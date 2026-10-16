@@ -140,7 +140,7 @@ pub enum StsParseError {
 /// A persisted secure-only policy and the duration last advertised by its host.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct StoredPolicy {
+pub struct StsPolicy {
     /// The hostname to which this policy applies.
     pub host: String,
     /// The last TLS port used for this host; the policy itself applies to every port.
@@ -151,12 +151,12 @@ pub struct StoredPolicy {
     pub duration: Duration,
 }
 
-impl StoredPolicy {
+impl StsPolicy {
     /// Creates a persistent secure-only policy.
     ///
     /// ```
     /// # use std::time::{Duration, SystemTime};
-    /// let policy = papo_core::sts::StoredPolicy::new(
+    /// let policy = papo_core::sts::StsPolicy::new(
     ///     "irc.example.net",
     ///     6697,
     ///     SystemTime::now() + Duration::from_secs(3600),
@@ -189,10 +189,10 @@ impl StoredPolicy {
 /// Persistent storage for per-host STS policies.
 pub trait StsStore {
     /// Returns the stored policy for `host`, if one exists.
-    fn get(&self, host: &str) -> Option<StoredPolicy>;
+    fn get(&self, host: &str) -> Option<StsPolicy>;
 
     /// Inserts or replaces a host's policy.
-    fn put(&mut self, policy: StoredPolicy);
+    fn put(&mut self, policy: StsPolicy);
 
     /// Removes a host's policy, if one exists.
     fn remove(&mut self, host: &str);
@@ -201,7 +201,7 @@ pub trait StsStore {
 /// An in-memory STS policy store.
 #[derive(Clone, Debug, Default)]
 pub struct MemoryStsStore {
-    policies: HashMap<String, StoredPolicy>,
+    policies: HashMap<String, StsPolicy>,
 }
 
 impl MemoryStsStore {
@@ -213,11 +213,11 @@ impl MemoryStsStore {
 }
 
 impl StsStore for MemoryStsStore {
-    fn get(&self, host: &str) -> Option<StoredPolicy> {
+    fn get(&self, host: &str) -> Option<StsPolicy> {
         self.policies.get(&normalize_host(host)).cloned()
     }
 
-    fn put(&mut self, mut policy: StoredPolicy) {
+    fn put(&mut self, mut policy: StsPolicy) {
         policy.host = normalize_host(&policy.host);
         self.policies.insert(policy.host.clone(), policy);
     }
@@ -233,11 +233,11 @@ fn normalize_host(host: &str) -> String {
 
 /// Refreshes a stored policy from the time its connection closed.
 #[must_use]
-pub fn reschedule_on_disconnect(stored: StoredPolicy, disconnected_at: SystemTime) -> StoredPolicy {
+pub fn reschedule_on_disconnect(stored: StsPolicy, disconnected_at: SystemTime) -> StsPolicy {
     let expires_at = disconnected_at
         .checked_add(stored.duration)
         .unwrap_or(stored.expires_at);
-    StoredPolicy {
+    StsPolicy {
         expires_at,
         ..stored
     }
@@ -248,7 +248,7 @@ mod tests {
     use std::time::{Duration, UNIX_EPOCH};
 
     use super::{
-        ConnectionSecurity, MemoryStsStore, StoredPolicy, StsAction, StsDirective, StsParseError,
+        ConnectionSecurity, MemoryStsStore, StsAction, StsDirective, StsParseError, StsPolicy,
         StsStore, decide, reschedule_on_disconnect,
     };
 
@@ -348,7 +348,7 @@ mod tests {
     #[test]
     fn stores_replaces_and_removes_policies() {
         let mut store = MemoryStsStore::new();
-        let policy = StoredPolicy {
+        let policy = StsPolicy {
             host: "irc.example.net".to_owned(),
             port: 6697,
             expires_at: UNIX_EPOCH + Duration::from_secs(2_000_000),
@@ -358,7 +358,7 @@ mod tests {
         store.put(policy.clone());
         assert_eq!(store.get("irc.example.net"), Some(policy));
 
-        let replacement = StoredPolicy {
+        let replacement = StsPolicy {
             host: "irc.example.net".to_owned(),
             port: 6698,
             expires_at: UNIX_EPOCH + Duration::from_secs(3_000_001),
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn normalizes_hostnames_at_the_store_boundary() {
         let mut store = MemoryStsStore::new();
-        store.put(StoredPolicy {
+        store.put(StsPolicy {
             host: "irc.Example.com".to_owned(),
             port: 6697,
             expires_at: UNIX_EPOCH + Duration::from_secs(2_000_000),
@@ -389,7 +389,7 @@ mod tests {
     #[test]
     fn an_expired_stored_policy_is_inactive() {
         let now = UNIX_EPOCH + Duration::from_secs(1_000_000);
-        let policy = StoredPolicy {
+        let policy = StsPolicy {
             host: "irc.example.net".to_owned(),
             port: 6697,
             expires_at: now - Duration::from_secs(1),
@@ -406,7 +406,7 @@ mod tests {
             .unwrap()
             .duration
             .unwrap();
-        let stored = StoredPolicy {
+        let stored = StsPolicy {
             host: "irc.example.net".to_owned(),
             port: 6697,
             expires_at: UNIX_EPOCH + duration,

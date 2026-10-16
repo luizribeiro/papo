@@ -76,7 +76,7 @@ pub const papo::cap::WEBPUSH: &str
 pub const papo::cap::WHOAMI: &str
 pub mod papo::sts
 pub use papo::sts::MemoryStsStore
-pub use papo::sts::StoredPolicy
+pub use papo::sts::StsPolicy
 pub use papo::sts::StsStore
 pub struct papo::sts::FileStsStore
 impl papo::sts::FileStsStore
@@ -84,8 +84,8 @@ pub fn papo::sts::FileStsStore::default_path() -> core::option::Option<std::path
 pub fn papo::sts::FileStsStore::last_error(&self) -> core::option::Option<&core::io::error::Error>
 pub fn papo::sts::FileStsStore::open(impl core::convert::Into<std::path::PathBuf>) -> Self
 impl papo_core::sts::StsStore for papo::sts::FileStsStore
-pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo_core::sts::StoredPolicy>
-pub fn papo::sts::FileStsStore::put(&mut self, papo_core::sts::StoredPolicy)
+pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo_core::sts::StsPolicy>
+pub fn papo::sts::FileStsStore::put(&mut self, papo_core::sts::StsPolicy)
 pub fn papo::sts::FileStsStore::remove(&mut self, &str)
 pub enum papo::AccountRegistration
 pub papo::AccountRegistration::Registered

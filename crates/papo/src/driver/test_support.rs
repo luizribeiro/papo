@@ -63,11 +63,11 @@ pub(crate) struct FailingStream {
 pub(crate) struct SharedStsStore(Arc<Mutex<papo_core::sts::MemoryStsStore>>);
 
 impl papo_core::sts::StsStore for SharedStsStore {
-    fn get(&self, host: &str) -> Option<papo_core::sts::StoredPolicy> {
+    fn get(&self, host: &str) -> Option<papo_core::sts::StsPolicy> {
         papo_core::sts::StsStore::get(&*self.0.lock().unwrap(), host)
     }
 
-    fn put(&mut self, policy: papo_core::sts::StoredPolicy) {
+    fn put(&mut self, policy: papo_core::sts::StsPolicy) {
         papo_core::sts::StsStore::put(&mut *self.0.lock().unwrap(), policy);
     }
 

@@ -1,6 +1,6 @@
 //! Strict Transport Security policy stores.
 
-pub use papo_core::sts::{MemoryStsStore, StoredPolicy, StsStore};
+pub use papo_core::sts::{MemoryStsStore, StsPolicy, StsStore};
 
 #[cfg(feature = "sts-file")]
 use std::{
@@ -90,14 +90,14 @@ impl FileStsStore {
 
 #[cfg(feature = "sts-file")]
 impl StsStore for FileStsStore {
-    fn get(&self, host: &str) -> Option<StoredPolicy> {
+    fn get(&self, host: &str) -> Option<StsPolicy> {
         let host = normalize_host(host);
         self.entries
             .get(&host)
             .and_then(|entry| entry.to_stored(host))
     }
 
-    fn put(&mut self, policy: StoredPolicy) {
+    fn put(&mut self, policy: StsPolicy) {
         let host = normalize_host(&policy.host);
         self.entries.insert(host, DiskPolicy::from_stored(&policy));
         cap_entries(&mut self.entries);
@@ -126,7 +126,7 @@ const fn default_sts_port() -> u16 {
 
 #[cfg(feature = "sts-file")]
 impl DiskPolicy {
-    fn from_stored(policy: &StoredPolicy) -> Self {
+    fn from_stored(policy: &StsPolicy) -> Self {
         Self {
             port: policy.port,
             duration_secs: policy.duration.as_secs(),
@@ -138,8 +138,8 @@ impl DiskPolicy {
         }
     }
 
-    fn to_stored(&self, host: String) -> Option<StoredPolicy> {
-        Some(StoredPolicy::new(
+    fn to_stored(&self, host: String) -> Option<StsPolicy> {
+        Some(StsPolicy::new(
             host,
             self.port,
             UNIX_EPOCH.checked_add(Duration::from_secs(self.expires_at_unix))?,
@@ -227,7 +227,7 @@ fn nonempty(value: Option<OsString>) -> Option<OsString> {
 #[cfg(feature = "sts-file")]
 fn normalize_host(host: &str) -> String {
     let mut store = MemoryStsStore::new();
-    store.put(StoredPolicy::new(host, 6697, UNIX_EPOCH, Duration::ZERO));
+    store.put(StsPolicy::new(host, 6697, UNIX_EPOCH, Duration::ZERO));
     store
         .get(host)
         .map_or_else(|| host.to_owned(), |policy| policy.host)
@@ -237,7 +237,7 @@ fn normalize_host(host: &str) -> String {
 mod tests {
     use std::{fs, io, path::PathBuf, time::Duration};
 
-    use super::{FileStsStore, StoredPolicy, StsStore, default_path_with};
+    use super::{FileStsStore, StsPolicy, StsStore, default_path_with};
 
     fn test_dir(name: &str) -> PathBuf {
         let path = PathBuf::from("target/sts-file-tests").join(name);
@@ -246,8 +246,8 @@ mod tests {
         path
     }
 
-    fn policy(host: &str, expires_at_unix: u64) -> StoredPolicy {
-        StoredPolicy::new(
+    fn policy(host: &str, expires_at_unix: u64) -> StsPolicy {
+        StsPolicy::new(
             host,
             6697,
             std::time::UNIX_EPOCH + Duration::from_secs(expires_at_unix),
