@@ -70,7 +70,7 @@ mod tests {
         )
         .await;
         server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
-        assert!(rename.await.unwrap().is_ok());
+        assert!(within(rename).await.unwrap().is_ok());
 
         let rename = tokio::spawn({
             let client = client.clone();
@@ -87,7 +87,7 @@ mod tests {
         )
         .await;
         assert!(matches!(
-            rename.await.unwrap(),
+            within(rename).await.unwrap(),
             Err(Error::ChannelRename(
                 papo_core::ChannelRenameError::ChannelNameInUse
             ))
@@ -107,7 +107,7 @@ mod tests {
         )
         .await;
         server_line(&mut server, b"@label=2 :ergo.test ACK\r\n").await;
-        assert!(relay.await.unwrap().is_ok());
+        assert!(within(relay).await.unwrap().is_ok());
 
         let relay = tokio::spawn(async move {
             client
@@ -125,9 +125,9 @@ mod tests {
         )
         .await;
         assert!(matches!(
-            relay.await.unwrap(),
+            within(relay).await.unwrap(),
             Err(Error::Relay(papo_core::RelayError::Banned))
         ));
-        driver.abort();
+        abort_task(driver).await;
     }
 }

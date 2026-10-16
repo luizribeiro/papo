@@ -87,7 +87,7 @@ mod tests {
             b"@label=0 :ergo.test PERSISTENCE STATUS OFF OFF\r\n",
         )
         .await;
-        assert!(!get.await.unwrap().unwrap().effective);
+        assert!(!within(get).await.unwrap().unwrap().effective);
 
         let set = tokio::spawn({
             let client = client.clone();
@@ -104,8 +104,8 @@ mod tests {
             b"@label=1 :ergo.test PERSISTENCE STATUS ON ON\r\n",
         )
         .await;
-        assert!(set.await.unwrap().unwrap().effective);
+        assert!(within(set).await.unwrap().unwrap().effective);
         assert!(client.persistence().state().unwrap().effective);
-        driver.abort();
+        abort_task(driver).await;
     }
 }

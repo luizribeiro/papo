@@ -127,7 +127,7 @@ mod tests {
         )
         .await;
         assert!(
-            matches!(register.await.unwrap().unwrap(), super::AccountRegistration::VerificationRequired { account, .. } if account == "alice")
+            matches!(within(register).await.unwrap().unwrap(), super::AccountRegistration::VerificationRequired { account, .. } if account == "alice")
         );
 
         let verify = tokio::spawn({
@@ -141,7 +141,7 @@ mod tests {
         )
         .await;
         assert!(
-            matches!(verify.await.unwrap().unwrap(), super::AccountRegistration::Registered { account } if account == "alice")
+            matches!(within(verify).await.unwrap().unwrap(), super::AccountRegistration::Registered { account } if account == "alice")
         );
 
         let verify = tokio::spawn(async move { client.verify("alice", "expired-code").await });
@@ -152,12 +152,12 @@ mod tests {
         )
         .await;
         assert!(matches!(
-            verify.await.unwrap(),
+            within(verify).await.unwrap(),
             Err(Error::AccountRegistration(
                 papo_core::AccountRegistrationError::InvalidCode
             ))
         ));
 
-        driver.abort();
+        abort_task(driver).await;
     }
 }

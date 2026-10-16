@@ -180,7 +180,7 @@ mod tests {
             b"@label=0 :ergo.test BATCH +get labeled-response\r\n@batch=get :ergo.test 761 papo-driver alice avatar * :https://cdn.example.net/alice.png\r\n:ergo.test BATCH -get\r\n",
         )
         .await;
-        let metadata = get.await.unwrap().unwrap();
+        let metadata = within(get).await.unwrap().unwrap();
         assert_eq!(
             metadata["avatar"].value,
             "https://cdn.example.net/alice.png"
@@ -199,7 +199,7 @@ mod tests {
             b"@label=1 :ergo.test BATCH +list labeled-response\r\n@batch=list :ergo.test 761 papo-driver alice pronouns * :they/them\r\n:ergo.test BATCH -list\r\n",
         )
         .await;
-        let metadata = list.await.unwrap().unwrap();
+        let metadata = within(list).await.unwrap().unwrap();
         assert_eq!(metadata["pronouns"].value, "they/them");
 
         let set = tokio::spawn({
@@ -216,7 +216,7 @@ mod tests {
             b"@label=2 :ergo.test 761 papo-driver papo-driver status * testing\r\n",
         )
         .await;
-        assert!(set.await.unwrap().is_ok());
+        assert!(within(set).await.unwrap().is_ok());
 
         let set_on = tokio::spawn(async move {
             client
@@ -234,8 +234,8 @@ mod tests {
             b"@label=3 :ergo.test 761 papo-driver bob timezone * America/New_York\r\n",
         )
         .await;
-        assert!(set_on.await.unwrap().is_ok());
-        driver.abort();
+        assert!(within(set_on).await.unwrap().is_ok());
+        abort_task(driver).await;
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -257,7 +257,7 @@ mod tests {
         });
         client_line(&mut server, b"@label=0 METADATA papo-driver CLEAR\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
-        assert!(clear.await.unwrap().is_ok());
+        assert!(within(clear).await.unwrap().is_ok());
 
         let subscribe = tokio::spawn({
             let client = client.clone();
@@ -269,7 +269,7 @@ mod tests {
             b"@label=1 :ergo.test 770 papo-driver avatar pronouns\r\n",
         )
         .await;
-        assert!(subscribe.await.unwrap().is_ok());
+        assert!(within(subscribe).await.unwrap().is_ok());
         assert_eq!(client.metadata().subscriptions(), ["avatar", "pronouns"]);
         client.state(|state| {
             assert_eq!(state.metadata_subscriptions(), ["avatar", "pronouns"]);
@@ -285,7 +285,7 @@ mod tests {
             b"@label=2 :ergo.test 771 papo-driver pronouns\r\n",
         )
         .await;
-        assert!(unsubscribe.await.unwrap().is_ok());
+        assert!(within(unsubscribe).await.unwrap().is_ok());
         assert_eq!(client.metadata().subscriptions(), ["avatar"]);
 
         let sync = tokio::spawn({
@@ -294,7 +294,7 @@ mod tests {
         });
         client_line(&mut server, b"@label=3 METADATA #papo SYNC\r\n").await;
         server_line(&mut server, b"@label=3 :ergo.test ACK\r\n").await;
-        assert!(sync.await.unwrap().is_ok());
+        assert!(within(sync).await.unwrap().is_ok());
 
         let clear = tokio::spawn(async move { client.metadata().clear().await });
         client_line(&mut server, b"@label=4 METADATA papo-driver CLEAR\r\n").await;
@@ -304,9 +304,9 @@ mod tests {
         )
         .await;
         assert!(matches!(
-            clear.await.unwrap(),
+            within(clear).await.unwrap(),
             Err(Error::Metadata(papo_core::MetadataError::ValueInvalid))
         ));
-        driver.abort();
+        abort_task(driver).await;
     }
 }

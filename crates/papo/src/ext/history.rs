@@ -357,7 +357,7 @@ mod tests {
         let request = tokio::spawn(async move { client.history("#papo").latest(10).await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 10\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
-        let page = request.await.unwrap().unwrap();
+        let page = within(request).await.unwrap().unwrap();
         assert!(page.end);
         assert_eq!(page.messages[0].text(), "earlier");
         assert_eq!(page.messages[0].origin(), Origin::History);
@@ -366,7 +366,7 @@ mod tests {
             panic!("expected replay batch event")
         };
         assert_eq!(messages[0].origin(), Origin::Replay);
-        task.abort();
+        abort_task(task).await;
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -397,7 +397,7 @@ mod tests {
         )
         .await;
         history_response(&mut server, 0).await;
-        let before = request.await.unwrap().unwrap();
+        let before = within(request).await.unwrap().unwrap();
 
         let request = tokio::spawn({
             let client = client.clone();
@@ -415,7 +415,7 @@ mod tests {
         )
         .await;
         history_response(&mut server, 1).await;
-        request.await.unwrap().unwrap();
+        within(request).await.unwrap().unwrap();
 
         let message = before.messages[0].clone();
         let request = tokio::spawn({
@@ -428,7 +428,7 @@ mod tests {
         )
         .await;
         history_response(&mut server, 2).await;
-        request.await.unwrap().unwrap();
+        within(request).await.unwrap().unwrap();
 
         let request = tokio::spawn(async move {
             client
@@ -443,8 +443,8 @@ mod tests {
         )
         .await;
         history_response(&mut server, 3).await;
-        request.await.unwrap().unwrap();
-        task.abort();
+        within(request).await.unwrap().unwrap();
+        abort_task(task).await;
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -453,7 +453,7 @@ mod tests {
         let task = tokio::spawn(driver);
         complete_registration(&mut server, &mut events).await;
         assert!(matches!(
-            client.history("#papo").latest(10).await,
+            within(async { client.history("#papo").latest(10).await }).await,
             Err(Error::Unsupported("chathistory"))
         ));
         assert!(
@@ -461,7 +461,7 @@ mod tests {
                 .await
                 .is_err()
         );
-        task.abort();
+        abort_task(task).await;
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -489,12 +489,12 @@ mod tests {
         )
         .await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply :ergo.test BATCH +targets draft/chathistory-targets\r\n@batch=targets :ergo.test CHATHISTORY TARGETS #papo 2026-10-15T12:00:00.000Z\r\n@batch=reply :ergo.test BATCH -targets\r\n:ergo.test BATCH -reply\r\n").await;
-        let targets = request.await.unwrap().unwrap();
+        let targets = within(request).await.unwrap().unwrap();
         assert_eq!(
             targets,
             [("#papo".into(), UNIX_EPOCH + Duration::from_hours(497_796))]
         );
-        task.abort();
+        abort_task(task).await;
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -521,11 +521,11 @@ mod tests {
             b"@label=0 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
         )
         .await;
-        request.await.unwrap().unwrap();
+        within(request).await.unwrap().unwrap();
         assert!(
             matches!(events.next().await, Some(Event::ReadMarker(marker)) if marker.target == "#papo")
         );
-        task.abort();
+        abort_task(task).await;
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -545,14 +545,17 @@ mod tests {
         )
         .await;
         let expected = UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
-        assert_eq!(request.await.unwrap().unwrap(), Some(expected));
+        assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));
         assert_eq!(
             client.state(|state| state.read_marker("#PAPO")),
             Some(expected)
         );
 
-        assert_eq!(client.read_marker("#papo").await.unwrap(), Some(expected));
+        assert_eq!(
+            within(client.read_marker("#papo")).await.unwrap(),
+            Some(expected)
+        );
         client_line(&mut server, b"MARKREAD #papo\r\n").await;
-        task.abort();
+        abort_task(task).await;
     }
 }

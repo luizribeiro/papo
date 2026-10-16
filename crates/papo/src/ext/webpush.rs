@@ -98,7 +98,7 @@ mod tests {
             b"@label=0 :ergo.test WEBPUSH SUCCESS :Subscription registered\r\n",
         )
         .await;
-        assert!(register.await.unwrap().is_ok());
+        assert!(within(register).await.unwrap().is_ok());
 
         let unregister = tokio::spawn(async move {
             client
@@ -117,9 +117,9 @@ mod tests {
         )
         .await;
         assert!(matches!(
-            unregister.await.unwrap(),
+            within(unregister).await.unwrap(),
             Err(Error::WebPush(papo_core::WebPushError::MaxRegistrations))
         ));
-        driver.abort();
+        abort_task(driver).await;
     }
 }
