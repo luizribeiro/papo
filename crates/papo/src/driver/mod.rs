@@ -1145,11 +1145,11 @@ where
                         .ok()
                     })
                     .collect();
-                let event = Event::History {
+                let event = Event::History(Box::new(crate::HistoryPage {
                     target,
                     messages,
                     end,
-                };
+                }));
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,

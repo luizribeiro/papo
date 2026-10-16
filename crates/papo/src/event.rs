@@ -588,14 +588,7 @@ pub enum Event {
     /// A target's cached metadata changed.
     MetadataChanged(MetadataChanged),
     /// A completed history or playback batch.
-    History {
-        /// The history target named by the batch.
-        target: String,
-        /// Messages in server delivery order.
-        messages: Vec<MessageEvent>,
-        /// Whether the server reported that no further page exists.
-        end: bool,
-    },
+    History(Box<crate::HistoryPage>),
     /// A target's read marker advanced or was first reported.
     ReadMarker(ReadMarker),
     /// Users departed because connectivity between two servers was lost.

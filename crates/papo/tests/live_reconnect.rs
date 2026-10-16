@@ -134,13 +134,9 @@ async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
 async fn wait_history(events: &mut papo::Events, target: &str) -> Vec<papo::MessageEvent> {
     loop {
         match events.next().await {
-            Some(Event::History {
-                target: received,
-                messages,
-                ..
-            }) if received == target => return messages,
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("disconnected: {reason}")
+            Some(Event::History(history)) if history.target == target => return history.messages,
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected: {}", disconnected.reason)
             }
             Some(_) => {}
             None => panic!("driver stopped before history arrived"),

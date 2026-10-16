@@ -6,8 +6,11 @@ use tokio::sync::oneshot;
 use crate::{Client, Error, MessageEvent, driver::Command};
 
 /// A page of requested chat history.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct HistoryPage {
+    /// Target whose history was requested.
+    pub target: String,
     /// Messages in server delivery order.
     pub messages: Vec<MessageEvent>,
     /// Whether the server reported that no further page exists.
@@ -205,6 +208,14 @@ impl Client {
         &self,
         query: HistoryQuery,
     ) -> Result<crate::HistoryPage, Error> {
+        let target = match &query {
+            HistoryQuery::Latest { target, .. }
+            | HistoryQuery::Before { target, .. }
+            | HistoryQuery::After { target, .. }
+            | HistoryQuery::Around { target, .. }
+            | HistoryQuery::Between { target, .. } => target.clone(),
+            HistoryQuery::Targets { .. } | _ => String::new(),
+        };
         let response = self.history_response(query).await?;
         let page = response.history.ok_or_else(Error::disconnected)?;
         let messages = page
@@ -217,6 +228,7 @@ impl Client {
             })
             .collect();
         Ok(crate::HistoryPage {
+            target,
             messages,
             end: page.end,
         })
@@ -396,10 +408,10 @@ mod tests {
         assert_eq!(page.messages[0].text(), "earlier");
         assert_eq!(page.messages[0].origin(), Origin::History);
         assert!(!page.messages[0].is_live());
-        let Some(Event::History { messages, .. }) = events.next().await else {
+        let Some(Event::History(history)) = events.next().await else {
             panic!("expected replay batch event")
         };
-        assert_eq!(messages[0].origin(), Origin::Replay);
+        assert_eq!(history.messages[0].origin(), Origin::Replay);
         abort_task(task).await;
     }
 

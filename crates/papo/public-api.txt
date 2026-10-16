@@ -317,10 +317,7 @@ pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
 pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
 pub papo::Event::Disconnected(papo::event::Disconnected)
-pub papo::Event::History
-pub papo::Event::History::end: bool
-pub papo::Event::History::messages: alloc::vec::Vec<papo::MessageEvent>
-pub papo::Event::History::target: alloc::string::String
+pub papo::Event::History(alloc::boxed::Box<papo::HistoryPage>)
 pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
@@ -566,9 +563,10 @@ pub fn papo::History<'a>::around(self, impl core::convert::Into<papo::HistoryRef
 pub fn papo::History<'a>::before(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
 pub fn papo::History<'a>::between(self, impl core::convert::Into<papo::HistoryReference>, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
 pub fn papo::History<'a>::latest(self, usize) -> papo::HistoryRequest<'a>
-pub struct papo::HistoryPage
+#[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::end: bool
 pub papo::HistoryPage::messages: alloc::vec::Vec<papo::MessageEvent>
+pub papo::HistoryPage::target: alloc::string::String
 pub struct papo::HistoryReference(_)
 impl core::convert::From<&alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&alloc::string::String) -> Self

@@ -56,11 +56,11 @@ pub(super) fn advance_catchup(
             crate::MessageEvent::from_history(message, client.clone(), crate::rt::now_wall()).ok()
         })
         .collect();
-    Some(Event::History {
+    Some(Event::History(Box::new(crate::HistoryPage {
         target: catchup.target,
         messages,
         end: page.end,
-    })
+    })))
 }
 
 pub(super) fn extend_catchup(

@@ -536,25 +536,25 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     .await;
     server_line(&mut second_server, b"@label=1 :ergo.test BATCH +reply1 labeled-response\r\n@batch=reply1;draft/chathistory-end :ergo.test BATCH +history1 chathistory #papo\r\n@batch=history1;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed one\r\n@batch=history1;time=2026-10-15T12:02:00.000Z;msgid=RfcBTzyxY120002 :emily!~e@localhost PRIVMSG #papo :missed two\r\n@batch=reply1 :ergo.test BATCH -history1\r\n:ergo.test BATCH -reply1\r\n").await;
 
-    let Some(Event::History {
-        target,
-        messages,
-        end,
-    }) = events.next().await
-    else {
+    let Some(Event::History(history)) = events.next().await else {
         panic!("expected aggregate history event")
     };
-    assert_eq!(target, "#papo");
+    assert_eq!(history.target, "#papo");
     assert_eq!(
-        messages.iter().map(MessageEvent::text).collect::<Vec<_>>(),
+        history
+            .messages
+            .iter()
+            .map(MessageEvent::text)
+            .collect::<Vec<_>>(),
         ["missed one", "missed two"]
     );
     assert!(
-        messages
+        history
+            .messages
             .iter()
             .all(|message| message.origin() == Origin::History && !message.is_live())
     );
-    assert!(end);
+    assert!(history.end);
     abort_task(driver).await;
 }
 
