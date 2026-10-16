@@ -2,7 +2,7 @@ use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
-use papo_proto::{Message, StandardReplyKind, Typing};
+use papo_proto::{Message, StandardReplyKind};
 use papo_test_server::register_account;
 
 use super::{Scenario, ScenarioResult, ScenarioSpec, required_environment};
@@ -441,49 +441,6 @@ async fn labeled_response(context: Scenario) -> ScenarioResult {
         return Err("labelled WHOIS resolved for the wrong nickname".into());
     }
     connection.close().await
-}
-
-/// delivers a channel message with server time
-#[scenario(requires(caps = ["server-time"]))]
-async fn server_time(context: Scenario) -> ScenarioResult {
-    let (mut receiver, sender, channel) = joined_pair(&context).await?;
-    let text = format!("timestamped message from {}", sender.welcome.nick);
-    sender
-        .client
-        .privmsg(&channel, &text)
-        .await
-        .map_err(Failed::from)?;
-    context
-            .expect(
-                &mut receiver.events,
-                |event| {
-                    matches!(event, Event::Message(message) if message.raw_text() == text && message.as_ref().tag("time").is_some())
-                },
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-    close_pair(receiver, sender).await
-}
-
-/// delivers a client-only typing tag
-#[scenario(requires(caps = ["message-tags"]))]
-async fn message_tags(context: Scenario) -> ScenarioResult {
-    let (mut receiver, sender, channel) = joined_pair(&context).await?;
-    sender
-        .client
-        .send(Message::new("TAGMSG", [&channel]).with_tag("+typing", "active"))
-        .await
-        .map_err(Failed::from)?;
-    context
-            .expect(
-                &mut receiver.events,
-                |event| {
-                    matches!(event, Event::Typing(message) if message.target() == channel && message.typing() == Some(Typing::Active))
-                },
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-    close_pair(receiver, sender).await
 }
 
 /// delivers an authenticated sender account

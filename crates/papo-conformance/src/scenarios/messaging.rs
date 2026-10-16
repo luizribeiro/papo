@@ -1,9 +1,9 @@
 use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
-use papo_proto::{Message, Source};
+use papo_proto::{Message, Source, Typing};
 
-use super::support::EXPECT_TIMEOUT;
+use super::support::{EXPECT_TIMEOUT, close_pair, joined_pair};
 use crate::{Scenario, ScenarioResult};
 
 /// echoes a channel PRIVMSG to its sender
@@ -55,4 +55,47 @@ async fn echo_message(context: Scenario) -> ScenarioResult {
         )
         .await?;
     connection.close().await
+}
+
+/// delivers a channel message with server time
+#[scenario(requires(caps = ["server-time"]))]
+async fn server_time(context: Scenario) -> ScenarioResult {
+    let (mut receiver, sender, channel) = joined_pair(&context).await?;
+    let text = format!("timestamped message from {}", sender.welcome.nick);
+    sender
+        .client
+        .privmsg(&channel, &text)
+        .await
+        .map_err(Failed::from)?;
+    context
+        .expect(
+            &mut receiver.events,
+            |event| {
+                matches!(event, Event::Message(message) if message.raw_text() == text && message.as_ref().tag("time").is_some())
+            },
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+    close_pair(receiver, sender).await
+}
+
+/// delivers a client-only typing tag
+#[scenario(requires(caps = ["message-tags"]))]
+async fn message_tags(context: Scenario) -> ScenarioResult {
+    let (mut receiver, sender, channel) = joined_pair(&context).await?;
+    sender
+        .client
+        .send(Message::new("TAGMSG", [&channel]).with_tag("+typing", "active"))
+        .await
+        .map_err(Failed::from)?;
+    context
+        .expect(
+            &mut receiver.events,
+            |event| {
+                matches!(event, Event::Typing(message) if message.target() == channel && message.typing() == Some(Typing::Active))
+            },
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+    close_pair(receiver, sender).await
 }
