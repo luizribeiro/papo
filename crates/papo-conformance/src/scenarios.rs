@@ -336,6 +336,42 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
             },
             run: draft_metadata_2,
         },
+        ScenarioSpec {
+            name: "draft_channel_rename",
+            doc: "renames a joined channel",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "draft/channel-rename",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: draft_channel_rename,
+        },
+        ScenarioSpec {
+            name: "draft_account_registration",
+            doc: "registers and authenticates a new account",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "draft/account-registration",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: draft_account_registration,
+        },
+        ScenarioSpec {
+            name: "draft_message_redaction",
+            doc: "redacts a delivered channel message",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "draft/message-redaction",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: draft_message_redaction,
+        },
     ]
 }
 
@@ -993,6 +1029,109 @@ fn draft_metadata_2(context: Scenario) -> ScenarioFuture {
             )
             .await?;
         connection.close().await
+    })
+}
+
+fn draft_channel_rename(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = context.unique();
+        let old = format!("#{}", context.unique());
+        let new = format!("#{}", context.unique());
+        let mut connection = context
+            .client_caps(&nick, &["draft/channel-rename"])
+            .await?;
+        join(&context, &mut connection, &old).await?;
+        let response = connection
+            .client
+            .raw(Message::new("RENAME", [&old, &new, "conformance rename"]))
+            .await
+            .map_err(Failed::from)?;
+        if let Some(error) = response.error() {
+            return Err(format!("server rejected RENAME: {error:?}").into());
+        }
+        context
+            .expect(
+                &mut connection.events,
+                |event| matches!(event, Event::ChannelRenamed { old: renamed, new: replacement, .. } if renamed == &old && replacement == &new),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        connection.close().await
+    })
+}
+
+fn draft_account_registration(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = context.unique();
+        let account = nick.clone();
+        let mut connection = context
+            .client_caps(&nick, &["draft/account-registration"])
+            .await?;
+        connection
+            .client
+            .send(Message::new("REGISTER", [&account, "*", PASSWORD]))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut connection.events,
+                |event| match event {
+                    Event::AccountRegistered {
+                        account: registered,
+                        logged_in: true,
+                    } => registered == &account,
+                    Event::Raw(message) => {
+                        let message = message.as_ref();
+                        message.command_is("REGISTER")
+                            && message.param(0) == Some("SUCCESS")
+                            && message.param(1) == Some(account.as_str())
+                    }
+                    _ => false,
+                },
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        connection.close().await
+    })
+}
+
+fn draft_message_redaction(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let sender_nick = context.unique();
+        let receiver_nick = context.unique();
+        let channel = format!("#{}", context.unique());
+        let mut sender = context
+            .client_caps(&sender_nick, &["draft/message-redaction"])
+            .await?;
+        join(&context, &mut sender, &channel).await?;
+        let mut receiver = context
+            .client_caps(&receiver_nick, &["draft/message-redaction"])
+            .await?;
+        join(&context, &mut receiver, &channel).await?;
+        let response = sender
+            .client
+            .raw(Message::privmsg(&channel, "message to redact"))
+            .await
+            .map_err(Failed::from)?;
+        let Some(sent) = response.sent() else {
+            return Err("echoed message did not include a message identifier".into());
+        };
+        sender
+            .client
+            .send(Message::new(
+                "REDACT",
+                [&channel, &sent.msgid, "conformance redaction"],
+            ))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut receiver.events,
+                |event| matches!(event, Event::Redacted(redacted) if redacted.target == channel && redacted.msgid == sent.msgid),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        close_pair(sender, receiver).await
     })
 }
 

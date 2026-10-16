@@ -20,7 +20,7 @@ enum Server {
 impl Server {
     fn start(kind: &str) -> io::Result<Self> {
         match kind {
-            "ergo" => TestServer::start().map(Self::Ergo),
+            "ergo" => TestServer::start_with_ephemeral_channels().map(Self::Ergo),
             "unrealircd" => UnrealIrcdServer::start().map(Self::UnrealIrcd),
             kind => Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
