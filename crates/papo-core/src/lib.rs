@@ -163,6 +163,21 @@ pub struct Connection {
     pub security: ConnectionSecurity,
 }
 
+/// Identity asserted by a trusted IRC gateway with `WEBIRC`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WebIrc {
+    /// Password shared with the IRC server.
+    pub password: Secret,
+    /// Gateway name configured on the IRC server.
+    pub gateway: String,
+    /// Client hostname, or `None` when only its IP address is known.
+    pub hostname: Option<String>,
+    /// Client IP address.
+    pub ip: String,
+    /// Ordered `name[=value]` options appended to the command.
+    pub options: Vec<(String, Option<String>)>,
+}
+
 /// Configuration for an IRC session.
 #[derive(Clone, Eq, PartialEq)]
 #[non_exhaustive]
@@ -177,6 +192,8 @@ pub struct Config {
     pub realname: String,
     /// The optional server password sent during registration.
     pub password: Option<String>,
+    /// Gateway identity sent before registration begins.
+    pub webirc: Option<WebIrc>,
     /// The maximum time to wait for the welcome numeric.
     pub registration_timeout: Duration,
     /// Idle time after which the client probes the server with `PING`.
@@ -228,6 +245,7 @@ impl std::fmt::Debug for Config {
             .field("username", &self.username)
             .field("realname", &self.realname)
             .field("password", &self.password.as_ref().map(|_| RedactedSecret))
+            .field("webirc", &self.webirc)
             .field("registration_timeout", &self.registration_timeout)
             .field("ping_interval", &self.ping_interval)
             .field("ping_timeout", &self.ping_timeout)
@@ -269,6 +287,7 @@ impl Default for Config {
             username: "papo".to_owned(),
             realname: "papo".to_owned(),
             password: None,
+            webirc: None,
             registration_timeout: DEFAULT_REGISTRATION_TIMEOUT,
             ping_interval: DEFAULT_PING_INTERVAL,
             ping_timeout: DEFAULT_PING_TIMEOUT,
@@ -329,6 +348,13 @@ impl Config {
     #[must_use]
     pub fn password(mut self, password: impl Into<String>) -> Self {
         self.password = Some(password.into());
+        self
+    }
+
+    /// Sets the gateway identity sent with `WEBIRC` before registration.
+    #[must_use]
+    pub fn webirc(mut self, webirc: WebIrc) -> Self {
+        self.webirc = Some(webirc);
         self
     }
 

@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use papo_proto::{Isupport, MessageRef};
+use papo_proto::{Isupport, Message, MessageRef, escape_tag_value};
 
 use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome};
 
@@ -32,6 +32,36 @@ impl Registration {
         self.welcome_deadline = None;
         self.next_alt_nick = 0;
         self.registered = false;
+        if let Some(webirc) = &config.webirc {
+            let ip = if webirc.ip.starts_with(':') {
+                format!("0{}", webirc.ip)
+            } else {
+                webirc.ip.clone()
+            };
+            let hostname = webirc.hostname.as_deref().unwrap_or(&ip);
+            let mut params = vec![
+                webirc.password.expose(),
+                webirc.gateway.as_str(),
+                hostname,
+                ip.as_str(),
+            ];
+            let options = webirc
+                .options
+                .iter()
+                .map(|(name, value)| match value {
+                    Some(value) => format!("{name}={}", escape_tag_value(value)),
+                    None => name.clone(),
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            if !options.is_empty() {
+                params.push(&options);
+            }
+            let line = Message::new("WEBIRC", params)
+                .to_line()
+                .expect("configured WEBIRC fields are valid");
+            outbox.transmit_raw(line.into());
+        }
         outbox.transmit_raw(b"CAP LS 302\r\n".to_vec());
         if let Some(password) = &config.password {
             outbox.transmit("PASS", [password]);

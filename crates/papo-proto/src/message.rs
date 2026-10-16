@@ -379,7 +379,7 @@ impl Message {
                 line.push_str(key);
                 if let Some(value) = value {
                     line.push('=');
-                    line.push_str(&escape_tag(value));
+                    line.push_str(&escape_tag_value(value));
                 }
             }
             if line.len() - 1 > MAX_CLIENT_TAG_DATA_LEN {
@@ -571,7 +571,9 @@ fn unescape_tag(value: &str) -> Cow<'_, str> {
     Cow::Owned(unescaped)
 }
 
-fn escape_tag(value: &str) -> Cow<'_, str> {
+/// Escapes an `IRCv3` tag value for use on the wire.
+#[must_use]
+pub fn escape_tag_value(value: &str) -> Cow<'_, str> {
     if !value
         .chars()
         .any(|character| matches!(character, ';' | ' ' | '\\' | '\r' | '\n'))
@@ -597,12 +599,12 @@ fn escape_tag(value: &str) -> Cow<'_, str> {
 mod tests {
     use proptest::prelude::*;
 
-    use super::{escape_tag, unescape_tag};
+    use super::{escape_tag_value, unescape_tag};
 
     proptest! {
         #[test]
         fn escaping_round_trips(value in any::<String>()) {
-            let escaped = escape_tag(&value);
+            let escaped = escape_tag_value(&value);
             prop_assert_eq!(unescape_tag(&escaped), value.as_str());
         }
     }
@@ -610,7 +612,7 @@ mod tests {
     #[test]
     fn escapes_each_special_character() {
         assert_eq!(
-            escape_tag("semi; space \\ cr\r lf\n"),
+            escape_tag_value("semi; space \\ cr\r lf\n"),
             r"semi\:\sspace\s\\\scr\r\slf\n"
         );
     }
