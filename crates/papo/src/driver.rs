@@ -2892,7 +2892,12 @@ mod tests {
                 address: "irc://irc.example.net".parse().unwrap(),
                 tls: TlsConfig::default(),
             }),
-            Session::new(config()),
+            Session::new(config().wanted_caps([
+                "draft/chathistory",
+                "labeled-response",
+                "batch",
+                "server-time",
+            ])),
             super::DEFAULT_CHANNEL_CAPACITY,
             None,
             super::PostRegistration {
@@ -2908,8 +2913,10 @@ mod tests {
         );
         let driver = tokio::spawn(driver);
 
-        complete_registration(&mut first_server, &mut events).await;
+        complete_history_registration(&mut first_server, &mut events).await;
         client_line(&mut first_server, b"JOIN #papo\r\n").await;
+        server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Message(_))));
         assert!(client.is_connected());
         first_server.shutdown().await.unwrap();
         assert!(matches!(
@@ -2923,15 +2930,34 @@ mod tests {
 
         tokio::time::advance(Duration::from_secs(2)).await;
         registration_burst(&mut second_server).await;
-        server_line(&mut second_server, b":ergo.test CAP * LS :\r\n").await;
+        server_line(
+            &mut second_server,
+            b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(
+            &mut second_server,
+            b"CAP REQ :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        server_line(
+            &mut second_server,
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
         client_line(&mut second_server, b"CAP END\r\n").await;
         server_line(
             &mut second_server,
-            b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+            b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome back\r\n",
         )
         .await;
         assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
         client_line(&mut second_server, b"JOIN #papo\r\n").await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), second_server.read_u8())
+                .await
+                .is_err()
+        );
         assert!(client.is_connected());
 
         let quit = tokio::spawn(async move { client.quit(None).await });
@@ -2939,6 +2965,111 @@ mod tests {
         second_server.shutdown().await.unwrap();
         assert!(quit.await.unwrap().is_ok());
         assert!(driver.await.unwrap().is_ok());
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
+        let (first_stream, mut first_server) = tokio::io::duplex(4096);
+        let (second_stream, mut second_server) = tokio::io::duplex(4096);
+        let streams = Arc::new(Mutex::new(VecDeque::from([
+            Box::new(first_stream) as super::BoxConnection,
+            Box::new(second_stream) as super::BoxConnection,
+        ])));
+        let connector: super::Connector = Arc::new(move |_| {
+            let stream = streams.lock().unwrap().pop_front().unwrap();
+            Box::pin(async move { Ok(stream) })
+        });
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (_client, mut events, driver) = Driver::with_connector(
+            Ok(ConnectionPlan {
+                address: "irc://irc.example.net".parse().unwrap(),
+                tls: TlsConfig::default(),
+            }),
+            Session::new(config),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            None,
+            super::PostRegistration {
+                bot: false,
+                channels: vec!["#papo".into()],
+                history_on_reconnect: true,
+            },
+            Reconnect::exponential(),
+            256,
+            Box::new(papo_core::sts::MemoryStsStore::new()),
+            false,
+            connector,
+        );
+        let driver = tokio::spawn(driver);
+
+        complete_history_registration(&mut first_server, &mut events).await;
+        client_line(&mut first_server, b"JOIN #papo\r\n").await;
+        server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Message(_))));
+        first_server.shutdown().await.unwrap();
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected { .. })
+        ));
+        tokio::time::advance(Duration::from_secs(2)).await;
+
+        registration_burst(&mut second_server).await;
+        server_line(
+            &mut second_server,
+            b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(
+            &mut second_server,
+            b"CAP REQ :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        server_line(
+            &mut second_server,
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(&mut second_server, b"CAP END\r\n").await;
+        server_line(&mut second_server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome back\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
+        client_line(&mut second_server, b"JOIN #papo\r\n").await;
+        client_line(
+            &mut second_server,
+            b"@label=0 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
+        )
+        .await;
+        server_line(&mut second_server, b"@label=0 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0 :ergo.test BATCH +history0 chathistory #papo\r\n@batch=history0;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n@batch=history0;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed one\r\n@batch=reply0 :ergo.test BATCH -history0\r\n:ergo.test BATCH -reply0\r\n").await;
+        client_line(
+            &mut second_server,
+            b"@label=1 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
+        )
+        .await;
+        server_line(&mut second_server, b"@label=1 :ergo.test BATCH +reply1 labeled-response\r\n@batch=reply1;draft/chathistory-end :ergo.test BATCH +history1 chathistory #papo\r\n@batch=history1;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed one\r\n@batch=history1;time=2026-10-15T12:02:00.000Z;msgid=RfcBTzyxY120002 :emily!~e@localhost PRIVMSG #papo :missed two\r\n@batch=reply1 :ergo.test BATCH -history1\r\n:ergo.test BATCH -reply1\r\n").await;
+
+        let Some(Event::History {
+            target,
+            messages,
+            end,
+        }) = events.next().await
+        else {
+            panic!("expected aggregate history event")
+        };
+        assert_eq!(target, "#papo");
+        assert_eq!(
+            messages.iter().map(MessageEvent::text).collect::<Vec<_>>(),
+            ["missed one", "missed two"]
+        );
+        assert!(
+            messages
+                .iter()
+                .all(|message| message.origin() == Origin::History && !message.is_live())
+        );
+        assert!(end);
+        driver.abort();
     }
 
     #[tokio::test(flavor = "current_thread", start_paused = true)]
