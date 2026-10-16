@@ -2,7 +2,7 @@ use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
-use papo_proto::{Message, MessageRef, Source, StandardReplyKind, Typing};
+use papo_proto::{Message, Source, StandardReplyKind, Typing};
 use papo_test_server::register_account;
 
 use super::{Scenario, ScenarioResult, ScenarioSpec, required_environment};
@@ -11,15 +11,6 @@ use support::{EXPECT_TIMEOUT, PASSWORD, close_pair, history_page, join, joined_p
 mod auth;
 mod connection;
 mod support;
-
-fn validate_account_reply(message: &MessageRef<'_>, account: &str) -> Result<(), Failed> {
-    if (message.command_is("900") || message.command_is("330")) && message.param(2) == Some(account)
-    {
-        Ok(())
-    } else {
-        Err("server account reply did not contain the authenticated account".into())
-    }
-}
 
 pub(super) fn all() -> Vec<ScenarioSpec> {
     let mut scenarios = inventory::iter::<ScenarioSpec>
@@ -938,41 +929,6 @@ async fn draft_channel_rename(context: Scenario) -> ScenarioResult {
     connection.close().await
 }
 
-/// registers and authenticates a new account
-#[scenario(requires(caps = ["draft/account-registration"]))]
-async fn draft_account_registration(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let account = nick.clone();
-    let mut connection = context
-        .client_caps(&nick, &["draft/account-registration"])
-        .await?;
-    connection
-        .client
-        .send(Message::new("REGISTER", [&account, "*", PASSWORD]))
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut connection.events,
-            |event| match event {
-                Event::AccountRegistered {
-                    account: registered,
-                    logged_in: true,
-                } => registered == &account,
-                Event::Raw(message) => {
-                    let message = message.as_ref();
-                    message.command_is("REGISTER")
-                        && message.param(0) == Some("SUCCESS")
-                        && message.param(1) == Some(account.as_str())
-                }
-                _ => false,
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    connection.close().await
-}
-
 /// redacts a delivered channel message
 #[scenario(requires(caps = ["draft/message-redaction"]))]
 async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
@@ -1113,9 +1069,7 @@ async fn whox(context: Scenario) -> ScenarioResult {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::MessageRef;
-
-    use super::{all, validate_account_reply};
+    use super::all;
 
     #[test]
     fn registered_scenarios_are_complete_and_sorted() {
@@ -1159,19 +1113,6 @@ mod tests {
                 "websocket_tls",
                 "whox",
             ]
-        );
-    }
-
-    #[test]
-    fn wrong_account_in_logged_in_reply_fails() {
-        let message = MessageRef::parse(
-            ":ergo.test 900 papo papo!~u@host mallory :You are now logged in as mallory",
-        )
-        .unwrap();
-        let error = validate_account_reply(&message, "alice").unwrap_err();
-        assert_eq!(
-            error.message(),
-            Some("server account reply did not contain the authenticated account")
         );
     }
 }
