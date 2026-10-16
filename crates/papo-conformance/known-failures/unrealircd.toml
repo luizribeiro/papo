@@ -1,2 +1,1 @@
-[ping]
-reason = "the scenario sends PING before registration; UnrealIRCd returns ERR_NOTREGISTERED (451), and the protocol says clients should not send PING during registration"
+# No known failures for UnrealIRCd.
