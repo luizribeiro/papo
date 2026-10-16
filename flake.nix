@@ -93,6 +93,7 @@
           '';
         };
         ergochat = pkgs.callPackage ./nix/ergochat.nix { };
+        unrealircd = pkgs.callPackage ./nix/unrealircd.nix { };
         ergoConfig = pkgs.runCommand "ergo.yaml" { nativeBuildInputs = [ pkgs.yq-go ]; } ''
           yq eval-all '
             (select(fi == 0) | del(.server.listeners, .server.webirc, .opers))
@@ -318,6 +319,7 @@
             pkgs.taplo
             pkgs.git-absorb
             ergochat
+            unrealircd
             nightlyToolchain
           ]
           ++ gitHooks.enabledPackages;
