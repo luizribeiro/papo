@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
@@ -10,9 +8,9 @@ use papo_test_server::register_account;
 use super::{
     CapRequirement, Requirements, Scenario, ScenarioResult, ScenarioSpec, required_environment,
 };
+use support::{EXPECT_TIMEOUT, PASSWORD, close_pair, join, joined_pair};
 
-const EXPECT_TIMEOUT: Duration = Duration::from_secs(10);
-const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
+mod support;
 
 pub(super) fn all() -> Vec<ScenarioSpec> {
     let mut scenarios = inventory::iter::<ScenarioSpec>
@@ -608,56 +606,6 @@ async fn echo_message(context: Scenario) -> ScenarioResult {
             )
             .await?;
     connection.close().await
-}
-
-async fn joined_pair(
-    context: &Scenario,
-) -> Result<(super::RegisteredClient, super::RegisteredClient, String), Failed> {
-    let first_nick = context.unique();
-    let second_nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let mut first = context.client(&first_nick).await?;
-    join(context, &mut first, &channel).await?;
-    let mut second = context.client(&second_nick).await?;
-    join(context, &mut second, &channel).await?;
-    context
-        .expect(
-            &mut first.events,
-            |event| {
-                matches!(event, Event::Joined { channel: joined, nick } if joined == &channel && nick == &second_nick)
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    Ok((first, second, channel))
-}
-
-async fn join(
-    context: &Scenario,
-    connection: &mut super::RegisteredClient,
-    channel: &str,
-) -> Result<(), Failed> {
-    connection
-        .client
-        .send(Message::join(channel))
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut connection.events,
-            |event| matches!(event, Event::ChannelSynced { channel: joined } if joined == channel),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    Ok(())
-}
-
-async fn close_pair(
-    first: super::RegisteredClient,
-    second: super::RegisteredClient,
-) -> ScenarioResult {
-    first.close().await?;
-    second.close().await
 }
 
 /// correlates a labelled WHOIS response
