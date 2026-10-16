@@ -309,15 +309,7 @@ impl Client {
         &self,
         query: HistoryQuery,
     ) -> Result<crate::HistoryPage, Error> {
-        let (result, receiver) = oneshot::channel();
-        self.commands
-            .send(Command::History { query, result })
-            .await
-            .map_err(|_| Error::Disconnected)?;
-        let response = receiver.await.map_err(|_| Error::Disconnected)??;
-        if let Some(error) = response.error() {
-            return Err(Error::Server(error));
-        }
+        let response = self.history_response(query).await?;
         let page = response.history.ok_or(Error::Disconnected)?;
         let messages = page
             .messages
@@ -331,6 +323,39 @@ impl Client {
             messages,
             end: page.end,
         })
+    }
+
+    async fn history_response(&self, query: HistoryQuery) -> Result<Response, Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::History { query, result })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        let response = receiver.await.map_err(|_| Error::Disconnected)??;
+        if let Some(error) = response.error() {
+            return Err(Error::Server(error));
+        }
+        Ok(response)
+    }
+
+    /// Lists targets that received messages during an inclusive time range.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when history is unsupported or the request cannot complete.
+    pub async fn history_targets(
+        &self,
+        since: SystemTime,
+        until: SystemTime,
+    ) -> Result<Vec<(String, SystemTime)>, Error> {
+        self.history_response(HistoryQuery::Targets {
+            from: since,
+            to: until,
+            limit: 1_000,
+        })
+        .await?
+        .history_targets
+        .ok_or(Error::Disconnected)
     }
 
     /// Sends a private message to a user or channel.
@@ -2404,6 +2429,35 @@ mod tests {
             tokio::time::timeout(Duration::from_millis(1), server.read_u8())
                 .await
                 .is_err()
+        );
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn history_targets_are_typed_and_time_bounded() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_history_registration(&mut server, &mut events).await;
+        let request = tokio::spawn(async move {
+            client
+                .history_targets(
+                    UNIX_EPOCH + Duration::from_secs(42),
+                    UNIX_EPOCH + Duration::from_secs(84),
+                )
+                .await
+        });
+        client_line(&mut server, b"@label=0 CHATHISTORY TARGETS 1970-01-01T00:00:42.000Z 1970-01-01T00:01:24.000Z 100\r\n").await;
+        server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply :ergo.test BATCH +targets draft/chathistory-targets\r\n@batch=targets :ergo.test CHATHISTORY TARGETS #papo 2026-10-15T12:00:00.000Z\r\n@batch=reply :ergo.test BATCH -targets\r\n:ergo.test BATCH -reply\r\n").await;
+        let targets = request.await.unwrap().unwrap();
+        assert_eq!(
+            targets,
+            [("#papo".into(), UNIX_EPOCH + Duration::from_hours(497_796))]
         );
         task.abort();
     }
