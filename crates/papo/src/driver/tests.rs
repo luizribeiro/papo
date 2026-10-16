@@ -1701,6 +1701,60 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
     ));
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn labelled_join_timeout_kick_and_part_end_the_action() {
+    let settings = config()
+        .wanted_caps(["labeled-response"])
+        .request_timeout(Duration::from_secs(1));
+    let (mut server, client, mut events, driver) = scripted(settings);
+    let driver = tokio::spawn(driver);
+    complete_labelled_registration(&mut server, &mut events).await;
+
+    let stalled = tokio::spawn({
+        let client = client.clone();
+        async move { client.join("#stalled").await }
+    });
+    client_line(&mut server, b"@label=0 JOIN #stalled\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0 :papo-driver!papo@localhost JOIN #stalled * :papo driver test\r\n",
+    )
+    .await;
+    tokio::time::advance(Duration::from_secs(1)).await;
+    assert!(matches!(
+        within(stalled).await.unwrap(),
+        Err(Error::Timeout)
+    ));
+
+    let kicked = tokio::spawn({
+        let client = client.clone();
+        async move { client.join("#limited").await }
+    });
+    client_line(&mut server, b"@label=1 JOIN #limited\r\n").await;
+    server_line(&mut server, b"@label=1 :papo-driver!papo@localhost JOIN #limited * :papo driver test\r\n:ergo.test KICK #limited papo-driver :Channel is full\r\n").await;
+    assert!(matches!(
+        within(kicked).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+
+    let parted = tokio::spawn({
+        let client = client.clone();
+        async move { client.join("#registered").await }
+    });
+    client_line(&mut server, b"@label=2 JOIN #registered\r\n").await;
+    server_line(&mut server, b"@label=2 :papo-driver!papo@localhost JOIN #registered * :papo driver test\r\n:papo-driver!papo@localhost PART #registered :Registration required\r\n").await;
+    assert!(matches!(
+        within(parted).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn message_reply_obeys_tags_and_clienttagdeny() {
     let tagged = b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG #papo :!ping\r\n";

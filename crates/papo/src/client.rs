@@ -376,6 +376,9 @@ impl Client {
         if let Some(error) = response.error() {
             return Err(Error::Server(error));
         }
+        if self.state(|state| state.channel(channel).is_none()) {
+            return Err(Error::Disconnected);
+        }
         if !self.state(|state| {
             state
                 .channel(channel)
