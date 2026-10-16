@@ -2,7 +2,9 @@
 
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
-use papo_core::{Config, Event, HistoryQuery, MsgRef, RateLimit, RequestError, Session};
+use papo_core::{
+    Config, Event, HistoryItem, HistoryQuery, MsgRef, RateLimit, RequestError, Session,
+};
 
 fn history_session(isupport: &str) -> (Session, Instant) {
     let now = Instant::now();
@@ -294,7 +296,9 @@ fn assembles_deduplicated_context_aware_pages() {
         Some("earlier")
     );
     assert!(!page.items[0].message().unwrap().context);
-    assert!(page.items[1].message().unwrap().context);
+    assert!(matches!(page.items[1], HistoryItem::TagMsg(_)));
+    assert!(page.items[1].clone().into_raw().context);
+    assert_eq!(page.messages().count(), 1);
 }
 
 #[test]

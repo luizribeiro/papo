@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use papo_proto::{Message, MessageRef, time};
+use papo_proto::{Command, Message, MessageRef, Reaction, time};
 
 use crate::{BatchAbandonReason, Config, HistoryItem, HistoryMessage, HistoryPage};
 
@@ -572,7 +572,7 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
             messages.extend(
                 batch
                     .into_iter()
-                    .filter_map(HistoryItem::into_message)
+                    .map(HistoryItem::into_raw)
                     .map(|item| item.message),
             );
         }
@@ -597,9 +597,34 @@ fn history_items(messages: Vec<Message>) -> Vec<HistoryItem> {
                 .any(|(key, _)| key == "draft/chathistory-context");
             msgid
                 .is_none_or(|msgid| msgids.insert(msgid))
-                .then_some(HistoryItem::Message(HistoryMessage { message, context }))
+                .then(|| classify_history_item(HistoryMessage { message, context }))
         })
         .collect()
+}
+
+fn classify_history_item(item: HistoryMessage) -> HistoryItem {
+    match item.message.as_ref().command() {
+        Command::Privmsg | Command::Notice => return HistoryItem::Message(item),
+        Command::Join => return HistoryItem::Joined(item),
+        Command::Part => return HistoryItem::Parted(item),
+        Command::Quit => return HistoryItem::Quit(item),
+        Command::Kick => return HistoryItem::Kicked(item),
+        Command::Nick => return HistoryItem::NickChanged(item),
+        Command::Topic => return HistoryItem::TopicChanged(item),
+        Command::Mode => return HistoryItem::ModeChanged(item),
+        _ => {}
+    }
+    if item.message.as_ref().command_is("TAGMSG") {
+        return if Reaction::parse(&item.message.as_ref()).is_some() {
+            HistoryItem::Reacted(item)
+        } else {
+            HistoryItem::TagMsg(item)
+        };
+    }
+    if item.message.as_ref().command_is("REDACT") {
+        return HistoryItem::Redacted(item);
+    }
+    HistoryItem::Other(item)
 }
 
 fn valid_reference(reference: &str) -> bool {

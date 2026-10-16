@@ -1750,16 +1750,23 @@ mod tests {
             end,
         } = from_core(papo_core::Event::History {
             target: "#papo".into(),
-            items: vec![papo_core::HistoryItem::Message(papo_core::HistoryMessage {
-                message: message.clone(),
-                context: false,
-            })],
+            items: vec![
+                papo_core::HistoryItem::Message(papo_core::HistoryMessage {
+                    message: message.clone(),
+                    context: false,
+                }),
+                papo_core::HistoryItem::Other(papo_core::HistoryMessage {
+                    message: Message::new("WALLOPS", ["Network maintenance begins soon"]),
+                    context: false,
+                }),
+            ],
             end: true,
         })
         else {
             panic!("history was not classified")
         };
         assert_eq!(target, "#papo");
+        assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].message, message);
         assert!(!messages[0].context);
         assert!(end);

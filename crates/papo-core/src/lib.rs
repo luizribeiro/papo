@@ -1188,6 +1188,25 @@ impl HistoryItem {
             _ => None,
         }
     }
+
+    /// Returns the replayed wire message and its history context flag.
+    #[must_use]
+    pub fn into_raw(self) -> HistoryMessage {
+        match self {
+            Self::Message(message)
+            | Self::Reacted(message)
+            | Self::Redacted(message)
+            | Self::TagMsg(message)
+            | Self::Joined(message)
+            | Self::Parted(message)
+            | Self::Quit(message)
+            | Self::Kicked(message)
+            | Self::NickChanged(message)
+            | Self::TopicChanged(message)
+            | Self::ModeChanged(message)
+            | Self::Other(message) => message,
+        }
+    }
 }
 
 /// History page attached to a completed response.

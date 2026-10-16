@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{BatchAbandonReason, Config, Event, RateLimit, Session};
+use papo_core::{BatchAbandonReason, Config, Event, HistoryItem, RateLimit, Session};
 
 fn message(session: &mut Session) -> papo_core::ReceivedMessage {
     let Some(Event::Message(message)) = session.poll_event() else {
@@ -289,6 +289,55 @@ fn recorded_ergo_latest_batch_becomes_history() {
 }
 
 #[test]
+fn classifies_event_playback_items_in_wire_order() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b":ergo.test BATCH +play draft/event-playback #papo");
+    for line in [
+        "@batch=play;msgid=RKi9Cw :alice!~a@cloak PRIVMSG #papo :hello",
+        "@batch=play;+draft/react=👍;+reply=RKi9Cw;draft/chathistory-context :bob!~b@cloak TAGMSG #papo",
+        "@batch=play :alice!~a@cloak REDACT #papo RKi9Cw :Removed by author",
+        "@batch=play;+typing=active :bob!~b@cloak TAGMSG #papo",
+        "@batch=play :carol!~c@cloak JOIN #papo carol :Carol Example",
+        "@batch=play :carol!~c@cloak PART #papo :Leaving",
+        "@batch=play :carol!~c@cloak QUIT :Client exited",
+        "@batch=play :alice!~a@cloak KICK #papo bob :Flooding",
+        "@batch=play :bob!~b@cloak NICK robert",
+        "@batch=play :alice!~a@cloak TOPIC #papo :Rust 1.90 is out",
+        "@batch=play :alice!~a@cloak MODE #papo +v robert",
+        "@batch=play :NickServ!service@services NOTICE #papo :Account registered",
+        "@batch=play :ergo.test WALLOPS :Network maintenance begins soon",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    session.handle_line(now, b":ergo.test BATCH -play");
+
+    let Some(Event::History { items, .. }) = session.poll_event() else {
+        panic!("expected event playback history")
+    };
+    assert!(matches!(
+        &items[..],
+        [
+            HistoryItem::Message(_),
+            HistoryItem::Reacted(_),
+            HistoryItem::Redacted(_),
+            HistoryItem::TagMsg(_),
+            HistoryItem::Joined(_),
+            HistoryItem::Parted(_),
+            HistoryItem::Quit(_),
+            HistoryItem::Kicked(_),
+            HistoryItem::NickChanged(_),
+            HistoryItem::TopicChanged(_),
+            HistoryItem::ModeChanged(_),
+            HistoryItem::Message(_),
+            HistoryItem::Other(_)
+        ]
+    ));
+    assert!(items[1].clone().into_raw().context);
+    assert_eq!(items.iter().filter_map(HistoryItem::message).count(), 2);
+}
+
+#[test]
 fn history_targets_require_the_command_and_subcommand_independently() {
     for member in [
         "@batch=targets :ergo.test NOTICE TARGETS #papo 2026-10-15T12:00:01.000Z",
@@ -498,22 +547,25 @@ fn rejects_a_batch_beyond_the_configured_open_limit() {
 fn abandons_history_on_the_first_line_beyond_its_limit() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().max_batch_lines(2));
-    session.handle_line(now, b"BATCH +h chathistory #papo");
-    session.handle_line(now, b"@batch=h :alice PRIVMSG #papo :one");
-    session.handle_line(now, b"@batch=h :alice PRIVMSG #papo :two");
+    session.handle_line(now, b"BATCH +h draft/event-playback #papo");
+    session.handle_line(
+        now,
+        b"@batch=h :alice!~a@cloak JOIN #papo alice :Alice Example",
+    );
+    session.handle_line(now, b"@batch=h :alice!~a@cloak PART #papo :Leaving");
     assert_eq!(session.poll_event(), None);
-    session.handle_line(now, b"@batch=h :alice PRIVMSG #papo :three");
+    session.handle_line(now, b"@batch=h :bob!~b@cloak MODE #papo +v bob");
 
-    for expected in ["one", "two", "three"] {
+    for expected in ["JOIN", "PART", "MODE"] {
         let fallback = message(&mut session);
-        assert_eq!(fallback.batch_type(), Some("chathistory"));
-        assert_eq!(fallback.as_ref().param(1), Some(expected));
+        assert_eq!(fallback.batch_type(), Some("draft/event-playback"));
+        assert!(fallback.as_ref().command_is(expected));
     }
     assert!(matches!(
         session.poll_event(),
         Some(Event::BatchAbandoned { reference, batch_type, reason })
             if reference == "h"
-                && batch_type == "chathistory"
+                && batch_type == "draft/event-playback"
                 && reason == BatchAbandonReason::LineLimit
     ));
     assert_eq!(session.poll_event(), None);
