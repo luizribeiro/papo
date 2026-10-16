@@ -1883,6 +1883,36 @@ where
                 };
                 *pending_event = Some(event);
             }
+            event::CoreEvent::History {
+                target,
+                messages,
+                end,
+            } => {
+                let Some(commands) = events.commands.upgrade() else {
+                    continue;
+                };
+                let client = Client {
+                    commands,
+                    connected: Arc::clone(&events.connected),
+                    state: Arc::clone(&events.state),
+                };
+                let messages = messages
+                    .into_iter()
+                    .filter_map(|item| {
+                        crate::MessageEvent::from_replay(
+                            item.message,
+                            client.clone(),
+                            SystemTime::now(),
+                        )
+                        .ok()
+                    })
+                    .collect();
+                *pending_event = Some(Event::History {
+                    target,
+                    messages,
+                    end,
+                });
+            }
             event::CoreEvent::Close(reason) => return Ok(Some(reason)),
             event::CoreEvent::Unknown => {}
         }
@@ -2463,6 +2493,10 @@ mod tests {
         assert_eq!(page.messages[0].text(), "earlier");
         assert_eq!(page.messages[0].origin(), Origin::History);
         assert!(!page.messages[0].is_live());
+        let Some(Event::History { messages, .. }) = events.next().await else {
+            panic!("expected replay batch event")
+        };
+        assert_eq!(messages[0].origin(), Origin::Replay);
         task.abort();
     }
 

@@ -154,6 +154,23 @@ impl MessageEvent {
         client: Client,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
+        Self::from_historical(message, client, received_at, Origin::History)
+    }
+
+    pub(crate) fn from_replay(
+        message: Message,
+        client: Client,
+        received_at: SystemTime,
+    ) -> Result<Self, Message> {
+        Self::from_historical(message, client, received_at, Origin::Replay)
+    }
+
+    fn from_historical(
+        message: Message,
+        client: Client,
+        received_at: SystemTime,
+        origin: Origin,
+    ) -> Result<Self, Message> {
         let snapshot = client.snapshot();
         let mut event = Self::new_with_context(
             message,
@@ -165,7 +182,7 @@ impl MessageEvent {
             snapshot.caps(),
             received_at,
         )?;
-        event.origin = Origin::History;
+        event.origin = origin;
         Ok(event)
     }
 
@@ -567,7 +584,7 @@ pub enum Event {
         /// The history target named by the batch.
         target: String,
         /// Messages in server delivery order.
-        messages: Vec<papo_core::HistoryMessage>,
+        messages: Vec<MessageEvent>,
         /// Whether the server reported that no further page exists.
         end: bool,
     },
@@ -766,6 +783,11 @@ pub enum Event {
 pub(crate) enum CoreEvent {
     Forward(Event),
     Message(papo_core::ReceivedMessage),
+    History {
+        target: String,
+        messages: Vec<papo_core::HistoryMessage>,
+        end: bool,
+    },
     Close(String),
     Unknown,
 }
@@ -801,11 +823,13 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             target,
             messages,
             end,
-        } => Event::History {
-            target,
-            messages,
-            end,
-        },
+        } => {
+            return CoreEvent::History {
+                target,
+                messages,
+                end,
+            };
+        }
         papo_core::Event::HistoryTargets(targets) => Event::HistoryTargets(targets),
         papo_core::Event::ReadMarker(marker) => Event::ReadMarker(marker),
         papo_core::Event::Netsplit { servers, quits } => Event::Netsplit { servers, quits },
@@ -1505,11 +1529,11 @@ mod tests {
     #[test]
     fn maps_history() {
         let message = Message::privmsg("#papo", "earlier");
-        let Event::History {
+        let CoreEvent::History {
             target,
             messages,
             end,
-        } = forwarded(papo_core::Event::History {
+        } = from_core(papo_core::Event::History {
             target: "#papo".into(),
             messages: vec![papo_core::HistoryMessage {
                 message: message.clone(),
@@ -1518,7 +1542,7 @@ mod tests {
             end: true,
         })
         else {
-            panic!("history was not forwarded")
+            panic!("history was not classified")
         };
         assert_eq!(target, "#papo");
         assert_eq!(messages[0].message, message);
