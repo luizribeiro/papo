@@ -44,7 +44,6 @@ pub enum TlsRoots {
     /// Only the certificates in the supplied PEM document.
     Ca(Vec<u8>),
     /// Platform roots plus the certificates in the supplied PEM document.
-    #[cfg(test)]
     PlatformAndCa(Vec<u8>),
 }
 
@@ -52,13 +51,16 @@ pub enum TlsRoots {
 #[derive(Clone)]
 pub struct ClientCertificate {
     certificate_chain: Vec<u8>,
-    private_key: Vec<u8>,
+    private_key: papo_core::Secret,
 }
 
 impl ClientCertificate {
     /// Creates client credentials from PEM-encoded certificate and key data.
     #[must_use]
-    pub fn new(certificate_chain: impl Into<Vec<u8>>, private_key: impl Into<Vec<u8>>) -> Self {
+    pub fn new(
+        certificate_chain: impl Into<Vec<u8>>,
+        private_key: impl Into<papo_core::Secret>,
+    ) -> Self {
         Self {
             certificate_chain: certificate_chain.into(),
             private_key: private_key.into(),
@@ -71,10 +73,7 @@ impl fmt::Debug for ClientCertificate {
         formatter
             .debug_struct("ClientCertificate")
             .field("certificate_chain", &self.certificate_chain)
-            .field(
-                "private_key",
-                &format_args!("[REDACTED; {} bytes]", self.private_key.len()),
-            )
+            .field("private_key", &self.private_key)
             .finish()
     }
 }
@@ -358,7 +357,6 @@ fn tls_connector(
             }
             builder.with_root_certificates(roots)
         }
-        #[cfg(test)]
         TlsRoots::PlatformAndCa(pem) => {
             let verifier = rustls_platform_verifier::Verifier::new_with_extra_roots(
                 certificates(pem)?,
@@ -372,7 +370,7 @@ fn tls_connector(
     };
     let mut config = if let Some(identity) = &settings.client_certificate {
         let chain = certificates(&identity.certificate_chain)?;
-        let key = PrivateKeyDer::from_pem_slice(&identity.private_key)
+        let key = PrivateKeyDer::from_pem_slice(identity.private_key.expose().as_bytes())
             .map_err(|error| invalid_pem("client private key", error))?;
         builder
             .with_client_auth_cert(chain, key)
@@ -478,13 +476,13 @@ mod tests {
         let config = TlsConfig {
             client_certificate: Some(ClientCertificate::new(
                 b"public certificate".to_vec(),
-                b"private key material".to_vec(),
+                "private key material",
             )),
             ..TlsConfig::default()
         };
         let output = format!("{config:?}");
         assert!(output.contains("certificate_chain"));
-        assert!(output.contains("[REDACTED;"));
+        assert!(output.contains("[REDACTED]"));
         assert!(!output.contains("private key material"));
     }
 

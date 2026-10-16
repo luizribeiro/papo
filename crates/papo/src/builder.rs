@@ -1,4 +1,4 @@
-use std::{path::Path, time::Duration};
+use std::time::Duration;
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
 use papo_core::{Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl};
@@ -254,44 +254,47 @@ impl Builder {
     }
 
     /// Trusts only the certificates in a PEM document.
+    ///
+    /// ```
+    /// # _ = papo::Client::builder("irc.example.net").tls_ca_pem(Vec::new());
+    /// ```
     pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
         self.tls.roots = TlsRoots::Ca(pem.into());
         self
     }
 
-    /// Reads a PEM trust document from `path`.
+    /// Adds certificates from a PEM document to the platform trust roots.
     ///
-    /// # Errors
-    ///
-    /// Returns [`Error::ReadFile`] when the file cannot be read.
-    pub fn tls_ca_file(self, path: impl AsRef<Path>) -> Result<Self, Error> {
-        self.read_file(path)
-            .map(|(builder, pem)| builder.tls_ca_pem(pem))
+    /// ```
+    /// # _ = papo::Client::builder("irc.example.net").tls_extra_ca_pem(Vec::new());
+    /// ```
+    pub fn tls_extra_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
+        self.tls.roots = TlsRoots::PlatformAndCa(pem.into());
+        self
     }
 
     /// Sets a PEM-encoded TLS client certificate chain and private key.
+    ///
+    /// ```
+    /// # _ = papo::Client::builder("irc.example.net").tls_client_cert(Vec::new(), "key");
+    /// ```
     pub fn tls_client_cert(
         mut self,
         certificate: impl Into<Vec<u8>>,
-        key: impl Into<Vec<u8>>,
+        key: impl Into<papo_core::Secret>,
     ) -> Self {
         self.tls.client_certificate = Some(ClientCertificate::new(certificate, key));
         self
     }
 
-    /// Reads a TLS client certificate chain and private key from PEM files.
+    /// Overrides the DNS name authenticated by TLS.
     ///
-    /// # Errors
-    ///
-    /// Returns [`Error::ReadFile`] when either file cannot be read.
-    pub fn tls_client_cert_files(
-        self,
-        certificate: impl AsRef<Path>,
-        key: impl AsRef<Path>,
-    ) -> Result<Self, Error> {
-        let (builder, certificate) = self.read_file(certificate)?;
-        let (builder, key) = builder.read_file(key)?;
-        Ok(builder.tls_client_cert(certificate, key))
+    /// ```
+    /// # _ = papo::Client::builder("127.0.0.1").tls_server_name("irc.example.net");
+    /// ```
+    pub fn tls_server_name(mut self, server_name: impl Into<String>) -> Self {
+        self.tls.server_name = Some(server_name.into());
+        self
     }
 
     /// Sets the server-advertised bot user mode after registration.
@@ -401,16 +404,6 @@ impl Builder {
             self.disconnected_queue_capacity,
             self.sts_store,
         )
-    }
-
-    fn read_file(self, path: impl AsRef<Path>) -> Result<(Self, Vec<u8>), Error> {
-        let path = path.as_ref();
-        std::fs::read(path)
-            .map(|contents| (self, contents))
-            .map_err(|source| Error::ReadFile {
-                path: path.to_owned(),
-                source,
-            })
     }
 }
 
@@ -566,21 +559,14 @@ mod tests {
     }
 
     #[test]
-    fn configures_tls_material_and_names_file_errors() {
+    fn configures_tls_material_and_server_name() {
         let builder = Builder::new("irc.example.net")
-            .tls_ca_pem(b"test CA".to_vec())
-            .tls_client_cert(b"certificate".to_vec(), b"private key".to_vec());
-        assert!(matches!(builder.tls.roots, TlsRoots::Ca(pem) if pem == b"test CA"));
+            .tls_extra_ca_pem(b"test CA".to_vec())
+            .tls_client_cert(b"certificate".to_vec(), "private key")
+            .tls_server_name("chat.example.net");
+        assert!(matches!(builder.tls.roots, TlsRoots::PlatformAndCa(pem) if pem == b"test CA"));
         assert!(builder.tls.client_certificate.is_some());
-
-        let error = Builder::new("irc.example.net")
-            .tls_ca_file("missing-papo-builder-ca.pem")
-            .err()
-            .unwrap();
-        assert!(
-            matches!(&error, Error::ReadFile { path, .. } if path == std::path::Path::new("missing-papo-builder-ca.pem"))
-        );
-        assert!(error.to_string().contains("missing-papo-builder-ca.pem"));
+        assert_eq!(builder.tls.server_name.as_deref(), Some("chat.example.net"));
     }
 
     #[test]

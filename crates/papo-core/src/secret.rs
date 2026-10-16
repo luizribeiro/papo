@@ -9,8 +9,9 @@ impl Secret {
         Self(value.into())
     }
 
-    #[allow(dead_code, reason = "used only while constructing credential commands")]
-    pub(crate) fn expose(&self) -> &str {
+    /// Borrows the sensitive value for use by a protocol or transport implementation.
+    #[must_use]
+    pub fn expose(&self) -> &str {
         &self.0
     }
 }

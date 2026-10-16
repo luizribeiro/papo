@@ -86,8 +86,7 @@ impl Bot {
     async fn start(server: &ServerInfo, nick: &str, channel: &str) -> Self {
         let (client, mut events) =
             Client::builder(Endpoint::tls("localhost", server.tls_addr().port()))
-                .tls_ca_file(server.ca_pem_path())
-                .unwrap()
+                .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
                 .nick(nick)
                 .sasl(papo::Sasl::plain(nick, PASSWORD))
                 .bot()

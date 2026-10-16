@@ -1,4 +1,4 @@
-use std::{io, path::PathBuf};
+use std::io;
 
 use papo_proto::BuildError;
 use thiserror::Error;
@@ -12,15 +12,6 @@ pub enum Error {
     /// The configured server address is invalid.
     #[error("invalid server address: {0}")]
     InvalidInput(#[from] InvalidInput),
-    /// Reading a configured file failed.
-    #[error("failed to read {path}: {source}")]
-    ReadFile {
-        /// The path that could not be read.
-        path: PathBuf,
-        /// The filesystem error.
-        #[source]
-        source: io::Error,
-    },
     /// Reading from or writing to the connection failed.
     #[error("connection I/O failed: {0}")]
     Io(#[from] io::Error),

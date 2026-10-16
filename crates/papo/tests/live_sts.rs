@@ -19,8 +19,7 @@ async fn connect_waits_for_registration_after_an_sts_upgrade() {
         ))
         .nick(&nick)
         .request_caps(["sts"])
-        .tls_ca_file(server.ca_pem_path())
-        .unwrap()
+        .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
         .connect()
         .await
         .unwrap();

@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Secret::new(password.trim_end_matches(['\r', '\n'])),
         );
     if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
-        builder = builder.tls_ca_file(ca_file)?;
+        builder = builder.tls_ca_pem(std::fs::read(ca_file)?);
     }
     let (client, mut events, driver) = builder.build();
     tokio::spawn(driver);

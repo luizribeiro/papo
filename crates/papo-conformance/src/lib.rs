@@ -505,12 +505,12 @@ fn connect_client(
     wanted_caps: Option<Vec<String>>,
     sasl: Option<Sasl>,
 ) -> Result<Connection, String> {
+    let ca_pem = std::fs::read(server.ca_pem_path()).map_err(|error| error.to_string())?;
     let mut builder = Client::builder(endpoint)
         .nick(nick)
         .username("papo")
         .realname(realname)
-        .tls_ca_file(server.ca_pem_path())
-        .map_err(|error| error.to_string())?;
+        .tls_ca_pem(ca_pem);
     if let Some(wanted_caps) = wanted_caps {
         builder = builder.request_caps(wanted_caps);
     }
