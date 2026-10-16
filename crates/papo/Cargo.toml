@@ -27,6 +27,7 @@ tls-ring = [
 
 [dependencies]
 futures-core = "0.3.34"
+futures-io = "0.3.34"
 futures-util = { version = "0.3.34", default-features = false, features = ["sink"], optional = true }
 getrandom = "0.4.3"
 papo-core = { path = "../papo-core", version = "=0.0.0" }
