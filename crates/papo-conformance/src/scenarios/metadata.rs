@@ -24,7 +24,7 @@ async fn draft_metadata_2(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut connection.events,
-            |event| matches!(event, Event::MetadataChanged { target, key: changed_key, value: Some(changed_value), .. } if target == &nick && changed_key == key && changed_value == &value),
+            |event| matches!(event, Event::MetadataChanged(changed) if changed.target == nick && changed.key == key && changed.value.as_deref() == Some(value.as_str())),
             EXPECT_TIMEOUT,
         )
         .await?;

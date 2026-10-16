@@ -1,6 +1,6 @@
 use papo_core::{
-    Account, BatchAbandonReason, Capabilities, RequestId, Response, StateLimit, Welcome,
-    sts::StsAction,
+    Account, BatchAbandonReason as CoreBatchAbandonReason, Capabilities, RequestId, Response,
+    StateLimit as CoreStateLimit, Welcome, sts::StsAction,
 };
 use std::{
     fmt,
@@ -17,6 +17,8 @@ mod channel;
 mod connection;
 #[path = "event/conversation.rs"]
 mod conversation;
+#[path = "event/server.rs"]
+mod server;
 #[path = "event/source.rs"]
 mod source;
 #[path = "event/user.rs"]
@@ -29,6 +31,10 @@ pub use channel::{
 pub use connection::{CapsChanged, Disconnected, Registered};
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
+};
+pub use server::{
+    BatchAbandonReason, MetadataChanged, PersistenceChanged, PersistenceSetting, StateLimit,
+    Warning,
 };
 pub use source::Source;
 pub use user::{
@@ -588,23 +594,9 @@ pub enum Event {
         message: String,
     },
     /// The server reported the account's persistence state.
-    PersistenceStatus {
-        /// The configured persistence preference.
-        setting: papo_core::PersistenceSetting,
-        /// Whether persistence is currently effective.
-        effective: bool,
-    },
+    PersistenceChanged(PersistenceChanged),
     /// A target's cached metadata changed.
-    MetadataChanged {
-        /// Nickname or channel reported by the server.
-        target: String,
-        /// Metadata key.
-        key: String,
-        /// New server-returned value, or `None` when cleared.
-        value: Option<String>,
-        /// Visibility policy reported by the server.
-        visibility: String,
-    },
+    MetadataChanged(MetadataChanged),
     /// The server deferred metadata synchronization for a target.
     MetadataSyncLater {
         /// Nickname or channel whose synchronization was deferred.
@@ -642,7 +634,7 @@ pub enum Event {
         /// The batch type from its opening line.
         batch_type: String,
         /// The bound that was reached.
-        reason: BatchAbandonReason,
+        reason: CoreBatchAbandonReason,
     },
     /// A line from the server could not be decoded or parsed.
     Malformed {
@@ -694,7 +686,7 @@ pub enum Event {
     /// Server input exceeded a configured state-retention bound.
     StateLimitReached {
         /// The state collection that rejected another entry.
-        limit: StateLimit,
+        limit: CoreStateLimit,
     },
     /// A monitored nickname came online or changed its userhost.
     MonitorOnline(MonitorOnline),
@@ -868,19 +860,27 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             Event::VerificationRequired { account, message }
         }
         papo_core::Event::PersistenceStatus { setting, effective } => {
-            Event::PersistenceStatus { setting, effective }
+            Event::PersistenceChanged(PersistenceChanged {
+                setting: match setting {
+                    papo_core::PersistenceSetting::On => PersistenceSetting::On,
+                    papo_core::PersistenceSetting::Off => PersistenceSetting::Off,
+                    papo_core::PersistenceSetting::Default => PersistenceSetting::Default,
+                    _ => return CoreEvent::Unknown,
+                },
+                effective,
+            })
         }
         papo_core::Event::MetadataChanged {
             target,
             key,
             value,
             visibility,
-        } => Event::MetadataChanged {
+        } => Event::MetadataChanged(MetadataChanged {
             target,
             key,
             value,
             visibility,
-        },
+        }),
         papo_core::Event::MetadataSyncLater {
             target,
             retry_after,
@@ -1061,7 +1061,8 @@ mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
-        CoreEvent, Event, MessageEvent, MessageKind, Origin, Source, StandardReplyKind, from_core,
+        CoreEvent, Event, MessageEvent, MessageKind, Origin, PersistenceSetting, Source,
+        StandardReplyKind, from_core,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Session,
@@ -1488,10 +1489,8 @@ mod tests {
                 setting: papo_core::PersistenceSetting::Default,
                 effective: true,
             }),
-            Event::PersistenceStatus {
-                setting: papo_core::PersistenceSetting::Default,
-                effective: true,
-            }
+            Event::PersistenceChanged(changed)
+                if changed.setting == PersistenceSetting::Default && changed.effective
         ));
     }
 
@@ -1504,9 +1503,10 @@ mod tests {
                 value: Some("they/them".into()),
                 visibility: "members".into(),
             }),
-            Event::MetadataChanged { target, key, value: Some(value), visibility }
-                if target == "#papo" && key == "pronouns"
-                    && value == "they/them" && visibility == "members"
+            Event::MetadataChanged(changed)
+                if changed.target == "#papo" && changed.key == "pronouns"
+                    && changed.value.as_deref() == Some("they/them")
+                    && changed.visibility == "members"
         ));
         assert!(matches!(
             forwarded(papo_core::Event::MetadataSyncLater {

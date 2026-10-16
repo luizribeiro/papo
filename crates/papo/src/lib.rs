@@ -53,11 +53,12 @@ pub use state::State;
 /// Payloads carried by [`Event`].
 pub mod event {
     pub use crate::event_impl::{
-        AccountChanged, AwayChanged, CapsChanged, ChannelRenamed, ChannelSynced, Departed,
-        Disconnected, HostChanged, Invited, Joined, Kicked, ModeChange, ModeChanged,
-        MonitorOffline, MonitorOnline, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
-        ReadMarker, RealnameChanged, Redacted, Registered, Source, StandardReply,
-        StandardReplyKind, TagMsg, TopicChanged, TypingChanged,
+        AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, ChannelRenamed,
+        ChannelSynced, Departed, Disconnected, HostChanged, Invited, Joined, Kicked,
+        MetadataChanged, ModeChange, ModeChanged, MonitorOffline, MonitorOnline, Netjoin, Netsplit,
+        NickChanged, Parted, PersistenceChanged, PersistenceSetting, Quit, Reacted, ReadMarker,
+        RealnameChanged, Redacted, Registered, Source, StandardReply, StandardReplyKind,
+        StateLimit, TagMsg, TopicChanged, TypingChanged, Warning,
     };
 }
 

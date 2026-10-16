@@ -46,13 +46,10 @@ async fn subscriber_receives_another_clients_metadata() {
             .unwrap();
         loop {
             match reader_events.next().await {
-                Some(Event::MetadataChanged {
-                    target,
-                    key,
-                    value: Some(value),
-                    ..
-                }) if target == writer_nick && key == "status" => {
-                    assert_eq!(value, "available for review");
+                Some(Event::MetadataChanged(changed))
+                    if changed.target == writer_nick && changed.key == "status" =>
+                {
+                    assert_eq!(changed.value.as_deref(), Some("available for review"));
                     break;
                 }
                 Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {

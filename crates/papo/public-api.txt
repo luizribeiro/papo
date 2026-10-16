@@ -87,6 +87,15 @@ pub const papo::cap::USERHOST_IN_NAMES: &str
 pub const papo::cap::WEBPUSH: &str
 pub const papo::cap::WHOAMI: &str
 pub mod papo::event
+#[non_exhaustive] pub enum papo::event::BatchAbandonReason
+pub papo::event::BatchAbandonReason::ByteLimit
+pub papo::event::BatchAbandonReason::LineLimit
+pub papo::event::BatchAbandonReason::OpenBatchLimit
+pub papo::event::BatchAbandonReason::Timeout
+#[non_exhaustive] pub enum papo::event::PersistenceSetting
+pub papo::event::PersistenceSetting::Default
+pub papo::event::PersistenceSetting::Off
+pub papo::event::PersistenceSetting::On
 #[non_exhaustive] pub enum papo::event::Source
 #[non_exhaustive] pub papo::event::Source::Server
 pub papo::event::Source::Server::name: alloc::string::String
@@ -102,6 +111,28 @@ pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Res
 pub papo::event::StandardReplyKind::Fail
 pub papo::event::StandardReplyKind::Note
 pub papo::event::StandardReplyKind::Warn
+#[non_exhaustive] pub enum papo::event::StateLimit
+pub papo::event::StateLimit::Channels
+pub papo::event::StateLimit::Members
+pub papo::event::StateLimit::MetadataKeys
+pub papo::event::StateLimit::MetadataTargets
+#[non_exhaustive] pub enum papo::event::Warning
+#[non_exhaustive] pub papo::event::Warning::AuthenticationFailed
+pub papo::event::Warning::AuthenticationFailed::reason: alloc::string::String
+#[non_exhaustive] pub papo::event::Warning::BatchAbandoned
+pub papo::event::Warning::BatchAbandoned::batch_type: alloc::string::String
+pub papo::event::Warning::BatchAbandoned::reason: papo::event::BatchAbandonReason
+pub papo::event::Warning::BatchAbandoned::reference: alloc::string::String
+#[non_exhaustive] pub papo::event::Warning::Malformed
+pub papo::event::Warning::Malformed::line: alloc::vec::Vec<u8>
+#[non_exhaustive] pub papo::event::Warning::MonitorListFull
+pub papo::event::Warning::MonitorListFull::limit: usize
+pub papo::event::Warning::MonitorListFull::nicks: alloc::vec::Vec<alloc::string::String>
+pub papo::event::Warning::MonitorUnsupported
+#[non_exhaustive] pub papo::event::Warning::StateLimitReached
+pub papo::event::Warning::StateLimitReached::limit: papo::event::StateLimit
+impl core::fmt::Display for papo::event::Warning
+pub fn papo::event::Warning::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct papo::event::AccountChanged
 pub papo::event::AccountChanged::account: core::option::Option<alloc::string::String>
 pub papo::event::AccountChanged::nick: alloc::string::String
@@ -142,6 +173,11 @@ pub papo::event::Kicked::channel: alloc::string::String
 pub papo::event::Kicked::is_self: bool
 pub papo::event::Kicked::nick: alloc::string::String
 pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
+#[non_exhaustive] pub struct papo::event::MetadataChanged
+pub papo::event::MetadataChanged::key: alloc::string::String
+pub papo::event::MetadataChanged::target: alloc::string::String
+pub papo::event::MetadataChanged::value: core::option::Option<alloc::string::String>
+pub papo::event::MetadataChanged::visibility: alloc::string::String
 #[non_exhaustive] pub struct papo::event::ModeChange
 pub papo::event::ModeChange::arg: core::option::Option<alloc::string::String>
 pub papo::event::ModeChange::mode: char
@@ -171,6 +207,9 @@ pub papo::event::Parted::channel: alloc::string::String
 pub papo::event::Parted::is_self: bool
 pub papo::event::Parted::nick: alloc::string::String
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
+#[non_exhaustive] pub struct papo::event::PersistenceChanged
+pub papo::event::PersistenceChanged::effective: bool
+pub papo::event::PersistenceChanged::setting: papo::event::PersistenceSetting
 #[non_exhaustive] pub struct papo::event::Quit
 pub papo::event::Quit::channels: alloc::vec::Vec<alloc::string::String>
 pub papo::event::Quit::nick: alloc::string::String
@@ -290,11 +329,7 @@ pub papo::Event::Kicked(papo::event::Kicked)
 pub papo::Event::Malformed
 pub papo::Event::Malformed::line: alloc::vec::Vec<u8>
 pub papo::Event::Message(papo::MessageEvent)
-pub papo::Event::MetadataChanged
-pub papo::Event::MetadataChanged::key: alloc::string::String
-pub papo::Event::MetadataChanged::target: alloc::string::String
-pub papo::Event::MetadataChanged::value: core::option::Option<alloc::string::String>
-pub papo::Event::MetadataChanged::visibility: alloc::string::String
+pub papo::Event::MetadataChanged(papo::event::MetadataChanged)
 pub papo::Event::MetadataSyncLater
 pub papo::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
 pub papo::Event::MetadataSyncLater::target: alloc::string::String
@@ -309,9 +344,7 @@ pub papo::Event::Netjoin(papo::event::Netjoin)
 pub papo::Event::Netsplit(papo::event::Netsplit)
 pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Parted(papo::event::Parted)
-pub papo::Event::PersistenceStatus
-pub papo::Event::PersistenceStatus::effective: bool
-pub papo::Event::PersistenceStatus::setting: papo_core::PersistenceSetting
+pub papo::Event::PersistenceChanged(papo::event::PersistenceChanged)
 pub papo::Event::Quit(papo::event::Quit)
 pub papo::Event::Raw(papo_proto::message::Message)
 pub papo::Event::Reacted(papo::event::Reacted)
