@@ -371,7 +371,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: draft_message_redaction,
+            run: __papo_scenario_draft_message_redaction,
         },
         ScenarioSpec {
             name: "standard_replies",
@@ -1168,44 +1168,44 @@ async fn draft_account_registration(context: Scenario) -> ScenarioResult {
     connection.close().await
 }
 
-fn draft_message_redaction(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let sender_nick = context.unique();
-        let receiver_nick = context.unique();
-        let channel = format!("#{}", context.unique());
-        let mut sender = context
-            .client_caps(&sender_nick, &["draft/message-redaction"])
-            .await?;
-        join(&context, &mut sender, &channel).await?;
-        let mut receiver = context
-            .client_caps(&receiver_nick, &["draft/message-redaction"])
-            .await?;
-        join(&context, &mut receiver, &channel).await?;
-        let response = sender
-            .client
-            .raw(Message::privmsg(&channel, "message to redact"))
-            .await
-            .map_err(Failed::from)?;
-        let Some(sent) = response.sent() else {
-            return Err("echoed message did not include a message identifier".into());
-        };
-        sender
-            .client
-            .send(Message::new(
-                "REDACT",
-                [&channel, &sent.msgid, "conformance redaction"],
-            ))
-            .await
-            .map_err(Failed::from)?;
-        context
+/// redacts a delivered channel message
+#[scenario(requires(caps = ["draft/message-redaction"]))]
+async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
+    let sender_nick = context.unique();
+    let receiver_nick = context.unique();
+    let channel = format!("#{}", context.unique());
+    let mut sender = context
+        .client_caps(&sender_nick, &["draft/message-redaction"])
+        .await?;
+    join(&context, &mut sender, &channel).await?;
+    let mut receiver = context
+        .client_caps(&receiver_nick, &["draft/message-redaction"])
+        .await?;
+    join(&context, &mut receiver, &channel).await?;
+    let response = sender
+        .client
+        .raw(Message::privmsg(&channel, "message to redact"))
+        .await
+        .map_err(Failed::from)?;
+    let Some(sent) = response.sent() else {
+        return Err("echoed message did not include a message identifier".into());
+    };
+    sender
+        .client
+        .send(Message::new(
+            "REDACT",
+            [&channel, &sent.msgid, "conformance redaction"],
+        ))
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut receiver.events,
                 |event| matches!(event, Event::Redacted(redacted) if redacted.target == channel && redacted.msgid == sent.msgid),
                 EXPECT_TIMEOUT,
             )
             .await?;
-        close_pair(sender, receiver).await
-    })
+    close_pair(sender, receiver).await
 }
 
 fn standard_replies(context: Scenario) -> ScenarioFuture {
