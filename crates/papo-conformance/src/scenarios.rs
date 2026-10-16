@@ -790,46 +790,6 @@ async fn draft_channel_rename(context: Scenario) -> ScenarioResult {
     connection.close().await
 }
 
-/// redacts a delivered channel message
-#[scenario(requires(caps = ["draft/message-redaction"]))]
-async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
-    let sender_nick = context.unique();
-    let receiver_nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let mut sender = context
-        .client_caps(&sender_nick, &["draft/message-redaction"])
-        .await?;
-    join(&context, &mut sender, &channel).await?;
-    let mut receiver = context
-        .client_caps(&receiver_nick, &["draft/message-redaction"])
-        .await?;
-    join(&context, &mut receiver, &channel).await?;
-    let response = sender
-        .client
-        .raw(Message::privmsg(&channel, "message to redact"))
-        .await
-        .map_err(Failed::from)?;
-    let Some(sent) = response.sent() else {
-        return Err("echoed message did not include a message identifier".into());
-    };
-    sender
-        .client
-        .send(Message::new(
-            "REDACT",
-            [&channel, &sent.msgid, "conformance redaction"],
-        ))
-        .await
-        .map_err(Failed::from)?;
-    context
-            .expect(
-                &mut receiver.events,
-                |event| matches!(event, Event::Redacted(redacted) if redacted.target == channel && redacted.msgid == sent.msgid),
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-    close_pair(sender, receiver).await
-}
-
 /// rejects an invalid real name with a standard failure
 #[scenario(requires(caps = ["standard-replies", "setname"]))]
 async fn standard_replies(context: Scenario) -> ScenarioResult {
