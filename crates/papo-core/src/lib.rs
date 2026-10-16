@@ -2625,11 +2625,11 @@ impl Session {
                 .map(Option::as_deref)
         };
         let Some(value) = value else {
-            return Err(RequestError::unsupported(Feature::AccountRegistration));
+            return self.require_feature(Feature::AccountRegistration);
         };
         let policy = RegistrationPolicy::parse(value);
         if !registered && !policy.before_connect {
-            return Err(RequestError::unsupported(Feature::AccountRegistration));
+            return self.require_feature(Feature::AccountRegistration);
         }
         if email.is_none() && policy.email_required {
             return Err(RequestError::EmailRequired);
@@ -2643,7 +2643,7 @@ impl Session {
         let password = password.into();
         if !registered {
             if !self.caps.is_pending("draft/account-registration") {
-                return Err(RequestError::unsupported(Feature::AccountRegistration));
+                return self.require_feature(Feature::AccountRegistration);
             }
             self.account_registration.begin(PendingRegistration {
                 account: account.map(str::to_owned),
@@ -2662,7 +2662,7 @@ impl Session {
         email: Option<&str>,
         password: &Secret,
     ) -> Result<(), RequestError> {
-        self.request(
+        self.request_for_feature(
             now,
             Message::new(
                 "REGISTER",
@@ -2672,6 +2672,7 @@ impl Session {
                     password.expose(),
                 ],
             ),
+            Feature::AccountRegistration,
         )?;
         self.account_registration.request_started();
         Ok(())
@@ -2684,13 +2685,7 @@ impl Session {
     /// Returns [`RequestError::Unsupported`] when the capability was not negotiated. Other
     /// failures are the same as [`Session::request`].
     pub fn verify(&mut self, now: Instant, account: &str, code: &str) -> Result<(), RequestError> {
-        if !self
-            .caps
-            .enabled()
-            .contains_key("draft/account-registration")
-        {
-            return Err(RequestError::unsupported(Feature::AccountRegistration));
-        }
+        self.require_feature(Feature::AccountRegistration)?;
         if !self.registration.is_registered()
             && !RegistrationPolicy::parse(
                 self.caps
@@ -2702,7 +2697,11 @@ impl Session {
         {
             return Err(RequestError::unsupported(Feature::AccountRegistration));
         }
-        self.request(now, Message::new("VERIFY", [account, code]))?;
+        self.request_for_feature(
+            now,
+            Message::new("VERIFY", [account, code]),
+            Feature::AccountRegistration,
+        )?;
         self.account_registration.request_started();
         Ok(())
     }

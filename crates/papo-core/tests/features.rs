@@ -272,6 +272,7 @@ fn fails_a_pending_request_when_its_feature_disappears() {
 fn extension_requests_preserve_explicitly_disabled_reasons() {
     let caps = [
         "draft/metadata-3",
+        "draft/account-registration",
         "draft/persistence",
         "draft/webpush",
         "draft/channel-rename",
@@ -283,7 +284,7 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
             .without_caps(caps),
     )
     .connect_default()
-    .server("CAP * LS :draft/metadata-3 draft/persistence draft/webpush draft/channel-rename draft/relaymsg=/")
+    .server("CAP * LS :draft/metadata-3 draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg=/")
     .client("CAP END")
     .update(|session| {
         let now = std::time::Instant::now();
@@ -297,6 +298,14 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
         assert_eq!(
             session.persistence_get(now),
             Err(expected(Feature::Persistence))
+        );
+        assert_eq!(
+            session.register(now, Some("alice"), None, "account-password"),
+            Err(expected(Feature::AccountRegistration))
+        );
+        assert_eq!(
+            session.verify(now, "alice", "39gvcdg4myvnmdcfhvd6exsv4n"),
+            Err(expected(Feature::AccountRegistration))
         );
         assert_eq!(
             session.persistence_set(now, PersistenceSetting::On),
