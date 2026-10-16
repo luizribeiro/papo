@@ -12,7 +12,7 @@ use super::{
     Connector, EventSink, PostRegistration, RegistrationWait, SLOW_CONSUMER_REASON,
     STABLE_CONNECTION, StsActions, enqueue_event, finish, now, run_connection,
 };
-use crate::{AddressError, Error, Event, Reconnect, address::Protocol, transport};
+use crate::{Error, Event, InvalidInput, Reconnect, address::Protocol, transport};
 
 pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::Stream, Error> {
     #[cfg(any(
@@ -58,7 +58,7 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
 
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub(super) async fn run_plan(
-    plan: Result<ConnectionPlan, AddressError>,
+    plan: Result<ConnectionPlan, InvalidInput>,
     mut session: Session,
     mut commands: mpsc::Receiver<Command>,
     events: EventSink,
@@ -200,16 +200,16 @@ fn enqueue_retry_event(
 }
 
 fn initial_connection_plan(
-    plan: Result<ConnectionPlan, AddressError>,
+    plan: Result<ConnectionPlan, InvalidInput>,
     registration: &mut RegistrationWait,
 ) -> Result<Option<ConnectionPlan>, Error> {
     match plan {
         Ok(plan) => Ok(Some(plan)),
         Err(error) if registration.0.is_some() => {
-            registration.failed(Error::Address(error));
+            registration.failed(Error::InvalidInput(error));
             Ok(None)
         }
-        Err(error) => Err(Error::Address(error)),
+        Err(error) => Err(Error::InvalidInput(error)),
     }
 }
 

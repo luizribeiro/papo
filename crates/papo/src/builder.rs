@@ -7,7 +7,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot;
 
 use crate::{
-    AddressError, Error, Reconnect,
+    Error, InvalidInput, Reconnect,
     address::ServerAddress,
     driver::{ConnectionPlan, PostRegistration},
     transport::{ClientCertificate, TlsConfig, TlsRoots},
@@ -17,7 +17,7 @@ use crate::{
 #[must_use]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Builder {
-    pub(crate) address: Result<ServerAddress, AddressError>,
+    pub(crate) address: Result<ServerAddress, InvalidInput>,
     pub(crate) config: Config,
     pub(crate) event_capacity: usize,
     pub(crate) tls: TlsConfig,
@@ -375,7 +375,7 @@ impl Builder {
                 &session,
                 self.event_capacity,
                 registration,
-                Error::Address(error),
+                Error::InvalidInput(error),
             );
         }
         crate::Driver::with_stream_and_registration(
@@ -640,7 +640,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn build_defers_address_errors_until_the_driver_is_polled() {
         let (_client, mut events, driver) = Builder::new("irc://").build();
-        assert!(matches!(within(driver).await, Err(Error::Address(_))));
+        assert!(matches!(within(driver).await, Err(Error::InvalidInput(_))));
         assert!(events.next().await.is_none());
     }
 
@@ -651,7 +651,7 @@ mod tests {
             .await
             .err()
             .unwrap();
-        assert!(matches!(error, Error::Address(_)));
+        assert!(matches!(error, Error::InvalidInput(_)));
     }
 
     #[cfg(feature = "spawn")]
@@ -698,7 +698,7 @@ mod tests {
     async fn build_with_defers_address_errors() {
         let (stream, _server) = tokio::io::duplex(64);
         let (_client, mut events, driver) = Builder::new("irc://").build_with(stream);
-        assert!(matches!(within(driver).await, Err(Error::Address(_))));
+        assert!(matches!(within(driver).await, Err(Error::InvalidInput(_))));
         assert!(events.next().await.is_none());
     }
 

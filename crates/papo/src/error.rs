@@ -3,7 +3,7 @@ use std::{io, path::PathBuf};
 use papo_proto::BuildError;
 use thiserror::Error;
 
-use crate::{AddressError, transport::ConnectError};
+use crate::{InvalidInput, transport::ConnectError};
 
 /// An error produced by the asynchronous IRC client.
 #[derive(Debug, Error)]
@@ -11,7 +11,7 @@ use crate::{AddressError, transport::ConnectError};
 pub enum Error {
     /// The configured server address is invalid.
     #[error("invalid server address: {0}")]
-    Address(#[from] AddressError),
+    InvalidInput(#[from] InvalidInput),
     /// Reading a configured file failed.
     #[error("failed to read {path}: {source}")]
     ReadFile {

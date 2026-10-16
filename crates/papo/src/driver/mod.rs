@@ -34,7 +34,7 @@ use tokio::{
 };
 
 use crate::{
-    AddressError, Error, Event, Reconnect,
+    Error, Event, InvalidInput, Reconnect,
     address::ServerAddress,
     client::{Client, Sent},
     event,
@@ -383,7 +383,7 @@ impl Driver {
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn with_plan(
-        plan: Result<ConnectionPlan, AddressError>,
+        plan: Result<ConnectionPlan, InvalidInput>,
         session: Session,
         capacity: usize,
         registration: Option<RegistrationSender>,
@@ -415,7 +415,7 @@ impl Driver {
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn with_connector(
-        plan: Result<ConnectionPlan, AddressError>,
+        plan: Result<ConnectionPlan, InvalidInput>,
         session: Session,
         capacity: usize,
         registration: Option<RegistrationSender>,
@@ -443,7 +443,7 @@ impl Driver {
 
     #[allow(clippy::too_many_arguments)]
     fn with_connector_and_entropy(
-        plan: Result<ConnectionPlan, AddressError>,
+        plan: Result<ConnectionPlan, InvalidInput>,
         session: Session,
         capacity: usize,
         registration: Option<RegistrationSender>,

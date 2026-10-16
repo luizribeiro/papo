@@ -99,20 +99,14 @@ pub papo::AccountRegistration::Registered::account: alloc::string::String
 pub papo::AccountRegistration::VerificationRequired
 pub papo::AccountRegistration::VerificationRequired::account: alloc::string::String
 pub papo::AccountRegistration::VerificationRequired::message: alloc::string::String
-#[non_exhaustive] pub enum papo::AddressError
-pub papo::AddressError::Empty
-pub papo::AddressError::InvalidHost
-pub papo::AddressError::InvalidPort(alloc::string::String)
-pub papo::AddressError::UnexpectedPath
-pub papo::AddressError::UnsupportedScheme(alloc::string::String)
 #[non_exhaustive] pub enum papo::Error
 pub papo::Error::AccountRegistration(papo_core::AccountRegistrationError)
-pub papo::Error::Address(papo::AddressError)
 pub papo::Error::Build(papo_proto::message::BuildError)
 pub papo::Error::ChannelRename(papo_core::channel_rename::ChannelRenameError)
 pub papo::Error::Connect(papo::transport::ConnectError)
 pub papo::Error::Disconnected
 pub papo::Error::EmptyText
+pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::Io(core::io::error::Error)
 pub papo::Error::Metadata(papo_core::metadata::MetadataError)
 pub papo::Error::ReadFile
@@ -250,6 +244,12 @@ pub papo::Event::Typing(papo::event::TagMsg)
 pub papo::Event::VerificationRequired
 pub papo::Event::VerificationRequired::account: alloc::string::String
 pub papo::Event::VerificationRequired::message: alloc::string::String
+#[non_exhaustive] pub enum papo::InvalidInput
+pub papo::InvalidInput::Empty
+pub papo::InvalidInput::InvalidHost
+pub papo::InvalidInput::InvalidPort(alloc::string::String)
+pub papo::InvalidInput::UnexpectedPath
+pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
 #[non_exhaustive] pub enum papo::MessageKind<'a>
 pub papo::MessageKind::Action
 pub papo::MessageKind::Ctcp(&'a str)

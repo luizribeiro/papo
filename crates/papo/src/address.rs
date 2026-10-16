@@ -4,10 +4,10 @@ use thiserror::Error;
 
 const REJECTED_ADDRESS_CHARACTERS: [char; 5] = ['?', '#', '@', ' ', '\t'];
 
-/// An error in an IRC server address.
+/// An invalid client configuration value.
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 #[non_exhaustive]
-pub enum AddressError {
+pub enum InvalidInput {
     /// The address is empty.
     #[error("server address is empty")]
     Empty,
@@ -25,7 +25,7 @@ pub enum AddressError {
     UnexpectedPath,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Protocol {
     Irc,
     Ircs,
@@ -33,7 +33,7 @@ pub(crate) enum Protocol {
     Wss,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct ServerAddress {
     pub(crate) protocol: Protocol,
     pub(crate) host: String,
@@ -43,29 +43,29 @@ pub(crate) struct ServerAddress {
 }
 
 impl FromStr for ServerAddress {
-    type Err = AddressError;
+    type Err = InvalidInput;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         if input.is_empty() {
-            return Err(AddressError::Empty);
+            return Err(InvalidInput::Empty);
         }
         let (protocol, remainder) = match input.split_once("://") {
             Some((scheme, rest)) if scheme.eq_ignore_ascii_case("irc") => (Protocol::Irc, rest),
             Some((scheme, rest)) if scheme.eq_ignore_ascii_case("ircs") => (Protocol::Ircs, rest),
             Some((scheme, rest)) if scheme.eq_ignore_ascii_case("ws") => (Protocol::Ws, rest),
             Some((scheme, rest)) if scheme.eq_ignore_ascii_case("wss") => (Protocol::Wss, rest),
-            Some((scheme, _)) => return Err(AddressError::UnsupportedScheme(scheme.to_owned())),
+            Some((scheme, _)) => return Err(InvalidInput::UnsupportedScheme(scheme.to_owned())),
             None => (Protocol::Ircs, input),
         };
         let websocket = matches!(protocol, Protocol::Ws | Protocol::Wss);
         let (authority, path) = remainder.split_once('/').unwrap_or((remainder, ""));
         if !websocket && (!path.is_empty() || remainder.ends_with('/')) {
-            return Err(AddressError::UnexpectedPath);
+            return Err(InvalidInput::UnexpectedPath);
         }
         if authority.contains(REJECTED_ADDRESS_CHARACTERS)
             || path.contains(REJECTED_ADDRESS_CHARACTERS)
         {
-            return Err(AddressError::InvalidHost);
+            return Err(InvalidInput::InvalidHost);
         }
         let default_port = default_port(protocol);
         let (host, port) = parse_authority(authority, default_port)?;
@@ -131,37 +131,37 @@ const fn default_port(protocol: Protocol) -> u16 {
     }
 }
 
-fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), AddressError> {
+fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), InvalidInput> {
     let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
-        let (host, suffix) = rest.split_once(']').ok_or(AddressError::InvalidHost)?;
+        let (host, suffix) = rest.split_once(']').ok_or(InvalidInput::InvalidHost)?;
         let port = suffix.strip_prefix(':');
         if host.is_empty() || (!suffix.is_empty() && port.is_none()) {
-            return Err(AddressError::InvalidHost);
+            return Err(InvalidInput::InvalidHost);
         }
         (host, port)
     } else {
         if authority.matches(':').count() > 1 {
-            return Err(AddressError::InvalidHost);
+            return Err(InvalidInput::InvalidHost);
         }
         authority
             .split_once(':')
             .map_or((authority, None), |(host, port)| (host, Some(port)))
     };
     if host.is_empty() || host.contains(['[', ']', ' ', '\t']) {
-        return Err(AddressError::InvalidHost);
+        return Err(InvalidInput::InvalidHost);
     }
     let port = port.map_or(Ok(default_port), |port| {
         port.parse::<u16>()
             .ok()
             .filter(|port| *port != 0)
-            .ok_or_else(|| AddressError::InvalidPort(port.to_owned()))
+            .ok_or_else(|| InvalidInput::InvalidPort(port.to_owned()))
     })?;
     Ok((host.to_owned(), port))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{AddressError, Protocol, ServerAddress};
+    use super::{InvalidInput, Protocol, ServerAddress};
 
     #[test]
     fn parses_every_server_address_form() {
@@ -251,7 +251,7 @@ mod tests {
             "ftp://irc.example.net"
                 .parse::<ServerAddress>()
                 .unwrap_err(),
-            AddressError::UnsupportedScheme("ftp".into())
+            InvalidInput::UnsupportedScheme("ftp".into())
         );
         assert_eq!("host:1".parse::<ServerAddress>().unwrap().port, 1);
         assert_eq!("host:65535".parse::<ServerAddress>().unwrap().port, 65535);
@@ -267,7 +267,7 @@ mod tests {
         ] {
             assert_eq!(
                 input.parse::<ServerAddress>(),
-                Err(AddressError::InvalidHost),
+                Err(InvalidInput::InvalidHost),
                 "accepted {input:?}"
             );
         }
@@ -314,7 +314,7 @@ mod tests {
             ] {
                 assert_eq!(
                     input.parse::<ServerAddress>(),
-                    Err(AddressError::InvalidHost),
+                    Err(InvalidInput::InvalidHost),
                     "accepted {input:?}"
                 );
             }
