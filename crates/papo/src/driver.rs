@@ -5750,6 +5750,87 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn metadata_reads_writes_and_updates_state() {
+        let settings = config().wanted_caps(["batch", "draft/metadata-2", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        complete_caps_registration(
+            &mut server,
+            &mut events,
+            "batch draft/metadata-2=max-subs=100,max-keys=100 labeled-response",
+            "batch draft/metadata-2 labeled-response",
+        )
+        .await;
+
+        let get = tokio::spawn({
+            let client = client.clone();
+            async move { client.metadata().get("alice", ["avatar"]).await }
+        });
+        client_line(&mut server, b"@label=0 METADATA alice GET avatar\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=0 :ergo.test BATCH +get labeled-response\r\n@batch=get :ergo.test 761 papo-driver alice avatar * :https://cdn.example.net/alice.png\r\n:ergo.test BATCH -get\r\n",
+        )
+        .await;
+        let metadata = get.await.unwrap().unwrap();
+        assert_eq!(
+            metadata["avatar"].value,
+            "https://cdn.example.net/alice.png"
+        );
+        client.state(|state| {
+            assert_eq!(state.metadata("ALICE").unwrap()["avatar"].visibility, "*");
+        });
+
+        let list = tokio::spawn({
+            let client = client.clone();
+            async move { client.metadata().list("alice").await }
+        });
+        client_line(&mut server, b"@label=1 METADATA alice LIST\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=1 :ergo.test BATCH +list labeled-response\r\n@batch=list :ergo.test 761 papo-driver alice pronouns * :they/them\r\n:ergo.test BATCH -list\r\n",
+        )
+        .await;
+        let metadata = list.await.unwrap().unwrap();
+        assert_eq!(metadata["pronouns"].value, "they/them");
+
+        let set = tokio::spawn({
+            let client = client.clone();
+            async move { client.metadata().set("status", Some("testing")).await }
+        });
+        client_line(
+            &mut server,
+            b"@label=2 METADATA papo-driver SET status testing\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=2 :ergo.test 761 papo-driver papo-driver status * testing\r\n",
+        )
+        .await;
+        assert!(set.await.unwrap().is_ok());
+
+        let set_on = tokio::spawn(async move {
+            client
+                .metadata()
+                .set_on("bob", "timezone", Some("America/New_York"))
+                .await
+        });
+        client_line(
+            &mut server,
+            b"@label=3 METADATA bob SET timezone America/New_York\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=3 :ergo.test 761 papo-driver bob timezone * America/New_York\r\n",
+        )
+        .await;
+        assert!(set_on.await.unwrap().is_ok());
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn rename_and_relay_return_success_and_typed_failures() {
         let settings =
             config().wanted_caps(["draft/channel-rename", "draft/relaymsg", "labeled-response"]);
