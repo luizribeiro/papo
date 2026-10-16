@@ -19,9 +19,9 @@ impl Lurker {
         let output = std::env::temp_dir().join(format!("{nick}.stdout"));
         std::fs::write(&password, format!("{PASSWORD}\n")).unwrap();
         let stdout = std::fs::File::create(&output).unwrap();
-        let address = format!("ircs://localhost:{}", server.tls_addr().port());
         let child = std::process::Command::new(env!("CARGO_BIN_EXE_lurker"))
-            .env("IRC_SERVER", address)
+            .env("IRC_SERVER", "localhost")
+            .env("IRC_PORT", server.tls_addr().port().to_string())
             .env("IRC_NICK", nick)
             .env("IRC_PASSWORD_FILE", &password)
             .env("IRC_CA_FILE", server.ca_pem_path())

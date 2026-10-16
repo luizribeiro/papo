@@ -3,7 +3,7 @@
 use std::{env, error::Error, io, time::Duration};
 
 use papo::{
-    Client, Error as PapoError, Event, Events, Sasl,
+    Client, Endpoint, Error as PapoError, Event, Events, Sasl,
     bot::{BotConfig, Command, ReplyRateLimiter},
 };
 use papo_proto::Message;
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let admins = required("IRC_ADMINS")?;
     let password = std::fs::read_to_string(password_file)?;
 
-    let mut builder = Client::builder(server.as_str())
+    let mut builder = Client::builder(endpoint(server)?)
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
         .require_sasl(true)
@@ -37,6 +37,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         BotConfig::new("!").reply_limiter(ReplyRateLimiter::new(2, Duration::from_secs(5)));
     run(client, events, &config, &admins).await?;
     Ok(())
+}
+
+fn endpoint(host: String) -> Result<Endpoint, Box<dyn Error>> {
+    let port = env::var("IRC_PORT").map_or(Ok(6697), |value| value.parse())?;
+    Ok(if env::var_os("IRC_PLAINTEXT").is_some() {
+        Endpoint::plaintext(host, port)
+    } else {
+        Endpoint::tls(host, port)
+    })
 }
 
 #[cfg(not(target_os = "wasi"))]

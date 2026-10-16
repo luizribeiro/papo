@@ -2,7 +2,7 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use papo::{Client, Event, Events, MessageEvent, Sasl};
+use papo::{Client, Endpoint, Event, Events, MessageEvent, Sasl};
 use papo_test_server::ServerInfo;
 use tokio::time::{sleep, timeout};
 
@@ -17,9 +17,9 @@ impl AdminBot {
     pub(super) fn start(server: &ServerInfo, nick: &str, channels: &str, admins: &str) -> Self {
         let password = std::env::temp_dir().join(format!("{nick}.password"));
         std::fs::write(&password, format!("{PASSWORD}\n")).unwrap();
-        let address = format!("ircs://localhost:{}", server.tls_addr().port());
         let child = std::process::Command::new(env!("CARGO_BIN_EXE_admin-bot"))
-            .env("IRC_SERVER", address)
+            .env("IRC_SERVER", "localhost")
+            .env("IRC_PORT", server.tls_addr().port().to_string())
             .env("IRC_NICK", nick)
             .env("IRC_PASSWORD_FILE", &password)
             .env("IRC_CA_FILE", server.ca_pem_path())
@@ -64,10 +64,11 @@ pub(super) async fn connect(
     channels: &[String],
     authenticated: bool,
 ) -> (Client, Events) {
-    let address = format!("irc://{}", server.plaintext_addr());
-    let mut builder = Client::builder(address.as_str())
-        .nick(nick)
-        .channels(channels);
+    let endpoint = Endpoint::plaintext(
+        server.plaintext_addr().ip().to_string(),
+        server.plaintext_addr().port(),
+    );
+    let mut builder = Client::builder(endpoint).nick(nick).channels(channels);
     if authenticated {
         builder = builder.sasl(Sasl::plain(nick, PASSWORD)).require_sasl(true);
     }

@@ -2,7 +2,7 @@
 
 use std::{env, error::Error, io};
 
-use papo::{Client, Event, Sasl};
+use papo::{Client, Endpoint, Event, Sasl};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let channels = required("IRC_CHANNELS")?;
     let password = std::fs::read_to_string(password_file)?;
 
-    let mut builder = Client::builder(server.as_str())
+    let mut builder = Client::builder(endpoint(server)?)
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
         .require_sasl(true)
@@ -24,6 +24,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (client, events) = builder.connect().await?;
     run(client, events).await?;
     Ok(())
+}
+
+fn endpoint(host: String) -> Result<Endpoint, Box<dyn Error>> {
+    let port = env::var("IRC_PORT").map_or(Ok(6697), |value| value.parse())?;
+    Ok(if env::var_os("IRC_PLAINTEXT").is_some() {
+        Endpoint::plaintext(host, port)
+    } else {
+        Endpoint::tls(host, port)
+    })
 }
 
 #[cfg(not(target_os = "wasi"))]

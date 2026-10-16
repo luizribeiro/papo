@@ -3,7 +3,7 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use papo::{Client, Event, MessageEvent, Typing};
+use papo::{Client, Endpoint, Event, MessageEvent, Typing};
 use papo_test_server::{ServerInfo, from_env, register_account, unique};
 use tokio::time::{sleep, timeout};
 
@@ -20,8 +20,11 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
         let _bot = Bot::start(&server, &bot_nick, &channel);
         sleep(Duration::from_millis(500)).await;
 
-        let address = format!("irc://{}", server.plaintext_addr());
-        let (user, mut events) = Client::builder(address.as_str())
+        let endpoint = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
+        let (user, mut events) = Client::builder(endpoint)
             .nick(&user_nick)
             .channels([&channel])
             .connect()
@@ -70,9 +73,9 @@ impl Bot {
     fn start(server: &ServerInfo, nick: &str, channel: &str) -> Self {
         let password = std::env::temp_dir().join(format!("{nick}.password"));
         std::fs::write(&password, format!("{PASSWORD}\n")).unwrap();
-        let address = format!("ircs://localhost:{}", server.tls_addr().port());
         let child = std::process::Command::new(env!("CARGO_BIN_EXE_echo-bot"))
-            .env("IRC_SERVER", address)
+            .env("IRC_SERVER", "localhost")
+            .env("IRC_PORT", server.tls_addr().port().to_string())
             .env("IRC_NICK", nick)
             .env("IRC_PASSWORD_FILE", &password)
             .env("IRC_CA_FILE", server.ca_pem_path())

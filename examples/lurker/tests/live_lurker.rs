@@ -5,7 +5,7 @@ mod support;
 
 use std::time::Duration;
 
-use papo::{Client, Event};
+use papo::{Client, Endpoint, Event};
 use papo_proto::Message;
 use papo_test_server::{from_env, register_account, unique};
 use support::{Lurker, PASSWORD};
@@ -20,9 +20,12 @@ async fn prints_channel_state_changes_in_wire_order() {
         let lurker_nick = unique("papo-lurker");
         let user_nick = unique("papo-user");
         let renamed = unique("papo-renamed");
-        let address = format!("irc://{}", server.plaintext_addr());
+        let endpoint = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
 
-        let (owner, mut owner_events) = Client::builder(address.as_str())
+        let (owner, mut owner_events) = Client::builder(endpoint.clone())
             .nick(&owner_nick)
             .channels([&channel])
             .connect()
@@ -41,7 +44,7 @@ async fn prints_channel_state_changes_in_wire_order() {
         wait_event(&mut owner_events, |event| joined(event, &lurker_nick)).await;
         lurker.wait_for(&format!("synced {channel}:")).await;
 
-        let (user, mut user_events) = Client::builder(address.as_str())
+        let (user, mut user_events) = Client::builder(endpoint)
             .nick(&user_nick)
             .channels([&channel])
             .connect()

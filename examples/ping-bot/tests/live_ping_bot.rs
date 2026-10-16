@@ -6,7 +6,7 @@
 
 use std::time::Duration;
 
-use papo::{Client, Event, MessageEvent};
+use papo::{Client, Endpoint, Event, MessageEvent};
 use papo_test_server::{ServerInfo, from_env, register_account, unique};
 use tokio::time::{sleep, timeout};
 
@@ -23,8 +23,11 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
         let mut bot = Bot::start(&server, &bot_nick, &channel).await;
         sleep(Duration::from_millis(500)).await;
 
-        let address = format!("irc://{}", server.plaintext_addr());
-        let (user, mut events) = Client::builder(address.as_str())
+        let endpoint = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
+        let (user, mut events) = Client::builder(endpoint)
             .nick(&user_nick)
             .channels([&channel])
             .connect()
@@ -65,9 +68,9 @@ impl Bot {
         use std::process::Command;
         let password_file = std::env::temp_dir().join(format!("{nick}.password"));
         std::fs::write(&password_file, format!("{PASSWORD}\n")).unwrap();
-        let address = format!("ircs://localhost:{}", server.tls_addr().port());
         let child = Command::new(env!("CARGO_BIN_EXE_ping-bot"))
-            .env("IRC_SERVER", address)
+            .env("IRC_SERVER", "localhost")
+            .env("IRC_PORT", server.tls_addr().port().to_string())
             .env("IRC_NICK", nick)
             .env("IRC_PASSWORD_FILE", &password_file)
             .env("IRC_CA_FILE", server.ca_pem_path())
@@ -81,18 +84,18 @@ impl Bot {
 
     #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
     async fn start(server: &ServerInfo, nick: &str, channel: &str) -> Self {
-        let address = format!("ircs://localhost:{}", server.tls_addr().port());
-        let (client, mut events) = Client::builder(address.as_str())
-            .tls_ca_file(server.ca_pem_path())
-            .unwrap()
-            .nick(nick)
-            .sasl(papo::Sasl::plain(nick, PASSWORD))
-            .require_sasl(true)
-            .bot()
-            .channels([channel])
-            .connect()
-            .await
-            .unwrap();
+        let (client, mut events) =
+            Client::builder(Endpoint::tls("localhost", server.tls_addr().port()))
+                .tls_ca_file(server.ca_pem_path())
+                .unwrap()
+                .nick(nick)
+                .sasl(papo::Sasl::plain(nick, PASSWORD))
+                .require_sasl(true)
+                .bot()
+                .channels([channel])
+                .connect()
+                .await
+                .unwrap();
         let task = tokio::spawn(async move {
             while let Some(event) = events.next().await {
                 if let Event::Message(message) = event

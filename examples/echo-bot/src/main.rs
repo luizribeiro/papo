@@ -3,7 +3,7 @@
 use std::{env, error::Error, io};
 
 use papo::{
-    Client, Event, MessageKind, Sasl, Typing,
+    Client, Endpoint, Event, MessageKind, Sasl, Typing,
     bot::{BotConfig, Command},
 };
 
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let channels = required("IRC_CHANNELS")?;
     let password = std::fs::read_to_string(password_file)?;
 
-    let mut builder = Client::builder(server.as_str())
+    let mut builder = Client::builder(endpoint(server)?)
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
         .require_sasl(true)
@@ -30,6 +30,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         handle(&client, &event, &config).await?;
     }
     Ok(())
+}
+
+fn endpoint(host: String) -> Result<Endpoint, Box<dyn Error>> {
+    let port = env::var("IRC_PORT").map_or(Ok(6697), |value| value.parse())?;
+    Ok(if env::var_os("IRC_PLAINTEXT").is_some() {
+        Endpoint::plaintext(host, port)
+    } else {
+        Endpoint::tls(host, port)
+    })
 }
 
 async fn handle(client: &Client, event: &Event, config: &BotConfig) -> Result<(), papo::Error> {
