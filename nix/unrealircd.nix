@@ -29,6 +29,10 @@ stdenv.mkDerivation (finalAttrs: {
     pcre2
   ];
 
+  preConfigure = ''
+    mkdir -p tmp
+  '';
+
   configureFlags = [
     "--enable-dynamic-linking"
     "--enable-ssl=${openssl.dev}"
@@ -40,7 +44,7 @@ stdenv.mkDerivation (finalAttrs: {
     "--with-builddir=${placeholder "out"}/share/unrealircd/build"
     "--with-logdir=."
     "--with-cachedir=."
-    "--with-tmpdir=."
+    "--with-tmpdir=tmp"
     "--with-datadir=."
     "--with-pidfile=./unrealircd.pid"
     "--with-controlfile=./unrealircd.ctl"
