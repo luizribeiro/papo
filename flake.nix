@@ -59,6 +59,28 @@
           ];
           installPhase = "cp -R . $out";
         };
+        wasmBindgenCliVersion = "0.2.129";
+        wasmBindgenCliSource = pkgs.fetchCrate {
+          pname = "wasm-bindgen-cli";
+          version = wasmBindgenCliVersion;
+          hash = "sha256-pcecKQd7E8Opw6bkFoE569epUi7gh5qpQF1e5PJY6V8=";
+        };
+        wasmBindgenCli = pkgs.buildWasmBindgenCli {
+          version = wasmBindgenCliVersion;
+          src = wasmBindgenCliSource;
+          cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+            pname = "wasm-bindgen-cli-${wasmBindgenCliVersion}";
+            version = wasmBindgenCliVersion;
+            src = wasmBindgenCliSource;
+            hash = "sha256-vmUrWVU7kPJJxO5qIVeAkwQyWDELO1Z4Z5gitz2kco8=";
+          };
+        };
+        browserTools = [
+          wasmBindgenCli
+          pkgs.nodejs
+          pkgs.chromium
+          pkgs.chromedriver
+        ];
         craneLib = (crane.mkLib pkgs).overrideToolchain stableToolchain;
         cargoSource = pkgs.lib.cleanSourceWith {
           src = ./.;
@@ -409,6 +431,7 @@
             cargoWasip3
             pkgs.wasmtime
             pkgs.wasm-tools
+            pkgs.binaryen
             pkgs.cargo-nextest
             pkgs.cargo-deny
             pkgs.cargo-public-api
@@ -429,6 +452,7 @@
             unrealircd
             nightlyToolchain
           ]
+          ++ browserTools
           ++ gitHooks.enabledPackages;
           ERGO_BIN = pkgs.lib.getExe ergochat;
           ERGO_CONFIG = ergoConfig;
