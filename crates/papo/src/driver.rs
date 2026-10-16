@@ -13,7 +13,8 @@ use std::{
 };
 
 use papo_core::{
-    Connection, RequestError, RequestId, Response, ResponseMatcher, Session, TextKind,
+    Connection, HistoryQuery, RequestError, RequestId, Response, ResponseMatcher, Session,
+    TextKind,
     sts::{ConnectionSecurity, StoredPolicy, StsAction, StsStore, reschedule_on_disconnect},
 };
 use papo_proto::{Message, Typing, time};
@@ -49,6 +50,10 @@ enum Command {
     Request {
         message: Message,
         matcher: Option<ResponseMatcher>,
+        result: oneshot::Sender<Result<Response, Error>>,
+    },
+    History {
+        query: HistoryQuery,
         result: oneshot::Sender<Result<Response, Error>>,
     },
     SendText {
@@ -289,6 +294,43 @@ impl Client {
     /// Returns an error if the message is invalid or the driver has stopped.
     pub async fn raw_unlabeled(&self, message: Message) -> Result<(), Error> {
         self.send(message).await
+    }
+
+    /// Starts a chat history request for `target`.
+    #[must_use]
+    pub fn history(&self, target: &str) -> crate::History<'_> {
+        crate::History {
+            client: self,
+            target: target.to_owned(),
+        }
+    }
+
+    pub(crate) async fn history_page(
+        &self,
+        query: HistoryQuery,
+    ) -> Result<crate::HistoryPage, Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::History { query, result })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        let response = receiver.await.map_err(|_| Error::Disconnected)??;
+        if let Some(error) = response.error() {
+            return Err(Error::Server(error));
+        }
+        let page = response.history.ok_or(Error::Disconnected)?;
+        let messages = page
+            .messages
+            .into_iter()
+            .filter_map(|item| {
+                crate::MessageEvent::from_history(item.message, self.clone(), SystemTime::now())
+                    .ok()
+            })
+            .collect();
+        Ok(crate::HistoryPage {
+            messages,
+            end: page.end,
+        })
     }
 
     /// Sends a private message to a user or channel.
@@ -1287,7 +1329,7 @@ fn handle_disconnected_command(
             _ = result.send(response);
             true
         }
-        Some(Command::Request { result, .. }) => {
+        Some(Command::Request { result, .. } | Command::History { result, .. }) => {
             _ = result.send(Err(Error::Disconnected));
             true
         }
@@ -1469,6 +1511,14 @@ where
                             };
                             _ = result.send(Err(error));
                         }
+                    }
+                }
+                Some(Command::History { query, result }) => {
+                    match session.chathistory(now(), query) {
+                        Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
+                        Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
+                        Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
+                        Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
                     }
                 }
                 Some(Command::SendText { kind, target, text, tags, result }) => {
@@ -2195,6 +2245,46 @@ mod tests {
             .nick("papo-driver")
             .realname("papo driver test")
             .wanted_caps([] as [&str; 0])
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn latest_history_resolves_with_history_messages() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(
+            &mut server,
+            b"CAP REQ :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        let request = tokio::spawn(async move { client.history("#papo").latest(10).await });
+        client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 10\r\n").await;
+        server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
+        let page = request.await.unwrap().unwrap();
+        assert!(page.end);
+        assert_eq!(page.messages[0].text(), "earlier");
+        assert_eq!(page.messages[0].origin(), Origin::History);
+        assert!(!page.messages[0].is_live());
+        task.abort();
     }
 
     #[tokio::test(flavor = "current_thread")]

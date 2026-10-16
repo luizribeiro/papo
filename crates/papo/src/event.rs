@@ -149,6 +149,26 @@ impl MessageEvent {
         )
     }
 
+    pub(crate) fn from_history(
+        message: Message,
+        client: Client,
+        received_at: SystemTime,
+    ) -> Result<Self, Message> {
+        let snapshot = client.snapshot();
+        let mut event = Self::new_with_context(
+            message,
+            None,
+            false,
+            false,
+            snapshot.isupport(),
+            client,
+            snapshot.caps(),
+            received_at,
+        )?;
+        event.origin = Origin::History;
+        Ok(event)
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn new_with_context(
         raw: Message,
