@@ -129,7 +129,6 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
         crate::Reconnect::exponential().max_attempts(2),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
         Box::new(|| 0),
     );
@@ -179,7 +178,6 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -232,7 +230,6 @@ async fn eof_reconnects_and_emits_reconnected() {
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -325,7 +322,6 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -458,7 +454,6 @@ async fn commands_queue_while_disconnected_and_overflow_is_rejected() {
         Reconnect::exponential(),
         3,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -519,7 +514,6 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -556,7 +550,6 @@ async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -600,7 +593,6 @@ fn failing_driver_with_one_event_slot() -> (super::Client, super::Events, Driver
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
         Box::new(|| 0),
     );
@@ -676,7 +668,6 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
         Reconnect::exponential().max_attempts(3),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
         Box::new(|| 0),
     );
@@ -730,7 +721,6 @@ async fn stable_registration_resets_the_backoff() {
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
         Box::new(|| 0),
     );
@@ -809,7 +799,6 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         Reconnect::exponential(),
         256,
         Box::new(store),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -854,7 +843,6 @@ async fn connector_failure_under_stored_sts_is_terminal() {
         Reconnect::exponential(),
         256,
         Box::new(store),
-        false,
         connector,
     );
 
@@ -1052,7 +1040,6 @@ async fn required_sasl_failure_does_not_reconnect() {
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -1286,7 +1273,6 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -1345,7 +1331,6 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
         Reconnect::exponential().max_attempts(1),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -1432,7 +1417,6 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
         Reconnect::never(),
         256,
         Box::new(store),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -1506,7 +1490,6 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
         Reconnect::never(),
         256,
         Box::new(store),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);
@@ -1554,7 +1537,6 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
         Reconnect::never(),
         256,
         Box::new(store),
-        false,
         connector,
     );
     let driver = tokio::spawn(driver);

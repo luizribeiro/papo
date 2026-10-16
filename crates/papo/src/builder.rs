@@ -368,7 +368,6 @@ impl Builder {
             self.reconnect,
             self.disconnected_queue_capacity,
             self.sts_store,
-            false,
         )
     }
 

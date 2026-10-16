@@ -388,7 +388,6 @@ impl Driver {
         reconnect: Reconnect,
         disconnected_queue_capacity: usize,
         sts_store: Box<dyn StsStore + Send>,
-        force_plaintext: bool,
     ) -> (Client, Events, Self) {
         Self::with_connector(
             plan,
@@ -399,7 +398,6 @@ impl Driver {
             reconnect,
             disconnected_queue_capacity,
             sts_store,
-            force_plaintext,
             Arc::new(|plan| {
                 Box::pin(async move {
                     open_connection(plan)
@@ -420,7 +418,6 @@ impl Driver {
         reconnect: Reconnect,
         disconnected_queue_capacity: usize,
         sts_store: Box<dyn StsStore + Send>,
-        force_plaintext: bool,
         connector: Connector,
     ) -> (Client, Events, Self) {
         Self::with_connector_and_entropy(
@@ -432,7 +429,6 @@ impl Driver {
             reconnect,
             disconnected_queue_capacity,
             sts_store,
-            force_plaintext,
             connector,
             Box::new(crate::OsEntropy::next_u64),
         )
@@ -448,7 +444,6 @@ impl Driver {
         reconnect: Reconnect,
         disconnected_queue_capacity: usize,
         sts_store: Box<dyn StsStore + Send>,
-        force_plaintext: bool,
         connector: Connector,
         entropy: BackoffEntropy,
     ) -> (Client, Events, Self) {
@@ -463,7 +458,6 @@ impl Driver {
             reconnect,
             disconnected_queue_capacity,
             sts_store,
-            force_plaintext,
             connector,
             entropy,
         ));

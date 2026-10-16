@@ -67,7 +67,6 @@ pub(super) async fn run_plan(
     reconnect: Reconnect,
     disconnected_queue_capacity: usize,
     mut sts_store: Box<dyn StsStore + Send>,
-    force_plaintext: bool,
     connector: Connector,
     mut entropy: BackoffEntropy,
 ) -> Result<(), Error> {
@@ -83,10 +82,7 @@ pub(super) async fn run_plan(
     let mut last_sts_upgrade = None;
     loop {
         attempts = attempts.saturating_add(1);
-        let plan = match plan_with_stored_sts(&base_plan, sts_store.as_mut(), force_plaintext) {
-            Ok(plan) => plan,
-            Err(error) => return finish_connection_failure(events, &mut registration, error),
-        };
+        let plan = plan_with_stored_sts(&base_plan, sts_store.as_mut());
         sts_required |= !base_plan.address.is_secure() && plan.address.is_secure();
         let stream = match connect_or_wait(
             connector(plan.clone()),
@@ -141,7 +137,6 @@ pub(super) async fn run_plan(
         let (end, upgrade_port) = match triage_connection_end(
             end,
             &plan,
-            force_plaintext,
             reconnect,
             &mut attempts,
             &mut last_sts_upgrade,
@@ -261,7 +256,6 @@ pub(super) async fn run_planned_connection(
 fn triage_connection_end(
     mut end: ConnectionEnd,
     plan: &ConnectionPlan,
-    force_plaintext: bool,
     reconnect: Reconnect,
     attempts: &mut usize,
     last_sts_upgrade: &mut Option<String>,
@@ -276,13 +270,7 @@ fn triage_connection_end(
         *last_sts_upgrade = None;
     }
     if let Some(port) = end.sts.upgrade {
-        if force_plaintext {
-            let error = Error::StsRequiresTls {
-                host: plan.address.host.clone(),
-            };
-            end.reason = error.to_string();
-            end.error = error;
-        } else if let Err(error) = record_sts_upgrade(last_sts_upgrade, &plan.address.host) {
+        if let Err(error) = record_sts_upgrade(last_sts_upgrade, &plan.address.host) {
             end.reason = error.to_string();
             end.error = error;
         } else if reconnect.permits(*attempts) {
@@ -464,30 +452,21 @@ fn reschedule_stored_policy(store: &mut dyn StsStore, host: &str) {
     }
 }
 
-fn plan_with_stored_sts(
-    base: &ConnectionPlan,
-    store: &mut dyn StsStore,
-    force_plaintext: bool,
-) -> Result<ConnectionPlan, Error> {
+fn plan_with_stored_sts(base: &ConnectionPlan, store: &mut dyn StsStore) -> ConnectionPlan {
     let Some(policy) = store.get(&base.address.host) else {
-        return Ok(base.clone());
+        return base.clone();
     };
     if !policy.is_active_at(crate::rt::now_wall()) {
         store.remove(&base.address.host);
-        return Ok(base.clone());
+        return base.clone();
     }
     if base.address.is_secure() {
-        return Ok(base.clone());
-    }
-    if force_plaintext {
-        return Err(Error::StsRequiresTls {
-            host: base.address.host.clone(),
-        });
+        return base.clone();
     }
     let mut plan = base.clone();
     plan.address.set_tls(true);
     plan.address.set_port(policy.port);
-    Ok(plan)
+    plan
 }
 
 pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {

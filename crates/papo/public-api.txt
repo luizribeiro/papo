@@ -85,8 +85,6 @@ pub papo::Error::Registration(alloc::string::String)
 pub papo::Error::Relay(papo_core::relaymsg::RelayError)
 pub papo::Error::RequestLimit
 pub papo::Error::Server(papo_core::ServerError)
-pub papo::Error::StsRequiresTls
-pub papo::Error::StsRequiresTls::host: alloc::string::String
 pub papo::Error::StsUpgradeLoop
 pub papo::Error::StsUpgradeLoop::host: alloc::string::String
 pub papo::Error::Timeout

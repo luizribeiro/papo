@@ -27,12 +27,6 @@ pub enum Error {
     /// Opening the connection failed.
     #[error("connection failed: {0}")]
     Connect(#[from] ConnectError),
-    /// A stored STS policy conflicts with explicitly forced plaintext.
-    #[error("STS requires TLS for {host}, but plaintext was explicitly selected")]
-    StsRequiresTls {
-        /// The hostname protected by the stored policy.
-        host: String,
-    },
     /// A server requested consecutive STS upgrades without registering.
     #[error("repeated STS upgrade for {host} without registration")]
     StsUpgradeLoop {
