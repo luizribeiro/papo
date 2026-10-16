@@ -19,6 +19,7 @@ mod transport;
 
 #[cfg(feature = "bot")]
 pub mod bot;
+pub mod cap;
 
 pub use address::{Endpoint, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
