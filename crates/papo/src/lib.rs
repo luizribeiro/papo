@@ -18,7 +18,7 @@ mod state;
 #[cfg(feature = "bot")]
 pub mod bot;
 
-pub use address::{Endpoint, InvalidInput};
+pub use address::{Endpoint, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
 pub use client::{Client, Sent};
 pub use driver::{Driver, Events};

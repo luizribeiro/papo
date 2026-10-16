@@ -65,7 +65,9 @@ pub(super) async fn connect(
     authenticated: bool,
 ) -> (Client, Events) {
     let address = format!("irc://{}", server.plaintext_addr());
-    let mut builder = Client::builder(&address).nick(nick).channels(channels);
+    let mut builder = Client::builder(address.as_str())
+        .nick(nick)
+        .channels(channels);
     if authenticated {
         builder = builder.sasl(Sasl::plain(nick, PASSWORD)).require_sasl(true);
     }

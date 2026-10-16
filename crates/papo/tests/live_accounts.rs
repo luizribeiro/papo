@@ -36,7 +36,7 @@ async fn registers_then_logs_in_with_sasl() {
         let server = from_env();
         let address = format!("irc://{}", server.plaintext_addr());
         let account = unique("papo-account");
-        let (registrar, mut registrar_events) = Client::builder(&address)
+        let (registrar, mut registrar_events) = Client::builder(address.as_str())
             .nick(&account)
             .caps(["draft/account-registration", "labeled-response"])
             .connect()
@@ -52,7 +52,7 @@ async fn registers_then_logs_in_with_sasl() {
         ));
         registrar.quit(Some("account created")).await.unwrap();
 
-        let (authenticated, mut authenticated_events) = Client::builder(&address)
+        let (authenticated, mut authenticated_events) = Client::builder(address.as_str())
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
             .require_sasl(true)
@@ -83,7 +83,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         let account = unique("papo-persistent");
         let channel = format!("#{}", unique("papo-persistent"));
         register_account(&server, &account, PASSWORD).unwrap();
-        let (client, mut events) = Client::builder(&address)
+        let (client, mut events) = Client::builder(address.as_str())
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
             .require_sasl(true)

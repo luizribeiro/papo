@@ -18,7 +18,7 @@ async fn typed_requests_round_trip_against_ergo() {
         let address = format!("irc://{}", server.plaintext_addr());
         let nick = unique("papo-requests");
         let channel = format!("#{}", unique("papo-requests"));
-        let (client, mut events) = Client::builder(&address)
+        let (client, mut events) = Client::builder(address.as_str())
             .nick(&nick)
             .connect()
             .await

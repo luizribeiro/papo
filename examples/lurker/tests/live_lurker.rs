@@ -22,7 +22,7 @@ async fn prints_channel_state_changes_in_wire_order() {
         let renamed = unique("papo-renamed");
         let address = format!("irc://{}", server.plaintext_addr());
 
-        let (owner, mut owner_events) = Client::builder(&address)
+        let (owner, mut owner_events) = Client::builder(address.as_str())
             .nick(&owner_nick)
             .channels([&channel])
             .connect()
@@ -41,7 +41,7 @@ async fn prints_channel_state_changes_in_wire_order() {
         wait_event(&mut owner_events, |event| joined(event, &lurker_nick)).await;
         lurker.wait_for(&format!("synced {channel}:")).await;
 
-        let (user, mut user_events) = Client::builder(&address)
+        let (user, mut user_events) = Client::builder(address.as_str())
             .nick(&user_nick)
             .channels([&channel])
             .connect()

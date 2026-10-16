@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let account = required("IRC_ACCOUNT")?;
     let password = std::fs::read_to_string(required("IRC_PASSWORD_FILE")?)?;
     let email = env::var("IRC_EMAIL").ok();
-    let mut builder = Client::builder(&server)
+    let mut builder = Client::builder(server.as_str())
         .nick(&account)
         .caps(["draft/account-registration"])
         .register_on_connect(

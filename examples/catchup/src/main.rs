@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(str::to_owned)
         .collect::<Vec<_>>();
     let password = std::fs::read_to_string(password_file)?;
-    let mut builder = Client::builder(&server)
+    let mut builder = Client::builder(server.as_str())
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
         .require_sasl(true)

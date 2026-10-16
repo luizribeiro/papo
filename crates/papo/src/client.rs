@@ -62,9 +62,14 @@ impl Client {
         channels(1, session).client
     }
 
-    /// Starts configuring a client for `address`.
-    pub fn builder(address: &str) -> crate::Builder {
-        crate::Builder::new(address)
+    /// Starts configuring a client for `endpoint`.
+    ///
+    /// ```
+    /// let builder = papo::Client::builder("irc.example.net");
+    /// # _ = builder;
+    /// ```
+    pub fn builder(endpoint: impl crate::IntoEndpoint) -> crate::Builder {
+        crate::Builder::from_endpoint(endpoint)
     }
 
     /// Reports whether an IRC transport is currently connected.

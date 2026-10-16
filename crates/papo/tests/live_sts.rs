@@ -13,7 +13,7 @@ async fn connect_waits_for_registration_after_an_sts_upgrade() {
     within(async {
         let server = TestServer::start_with_sts().unwrap();
         let nick = unique("papo-sts");
-        let (client, mut events) = Client::builder(&format!(
+        let (client, mut events) = Client::builder(format!(
             "irc://localhost:{}",
             server.plaintext_addr().port()
         ))

@@ -102,6 +102,56 @@ impl Endpoint {
             websocket_path: None,
         })
     }
+
+    pub(crate) fn into_address(self) -> ServerAddress {
+        self.0
+    }
+}
+
+mod private {
+    use super::{Endpoint, InvalidInput};
+
+    pub trait Sealed {
+        fn into_endpoint(self) -> Result<Endpoint, InvalidInput>;
+    }
+}
+
+/// A value accepted by [`crate::Client::builder`].
+///
+/// This trait is sealed; it is implemented for [`Endpoint`], `&str`, and [`String`].
+pub trait IntoEndpoint: private::Sealed {}
+
+impl IntoEndpoint for Endpoint {}
+impl IntoEndpoint for &str {}
+impl IntoEndpoint for &String {}
+impl IntoEndpoint for String {}
+
+impl private::Sealed for Endpoint {
+    fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
+        Ok(self)
+    }
+}
+
+impl private::Sealed for &str {
+    fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
+        self.parse().map(Endpoint)
+    }
+}
+
+impl private::Sealed for &String {
+    fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
+        self.as_str().parse().map(Endpoint)
+    }
+}
+
+impl private::Sealed for String {
+    fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
+        self.parse().map(Endpoint)
+    }
+}
+
+pub(crate) fn convert(value: impl IntoEndpoint) -> Result<Endpoint, InvalidInput> {
+    private::Sealed::into_endpoint(value)
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

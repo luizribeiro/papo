@@ -19,7 +19,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         let poster_nick = unique("papo-poster");
         register_account(&server, &account, PASSWORD).unwrap();
 
-        let (poster, mut poster_events) = Client::builder(&address)
+        let (poster, mut poster_events) = Client::builder(address.as_str())
             .nick(&poster_nick)
             .channels([&channel])
             .connect()
@@ -59,7 +59,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             texts.map(|text| format!("{channel} {text}"))
         );
 
-        let (reader, mut reader_events) = Client::builder(&address)
+        let (reader, mut reader_events) = Client::builder(address.as_str())
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
             .require_sasl(true)

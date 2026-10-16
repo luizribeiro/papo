@@ -17,7 +17,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         let server = from_env();
         let channel = format!("#{}", unique("papo-history"));
         let nick = unique("papo-history");
-        let (client, mut events) = Client::builder(&format!("irc://{}", server.plaintext_addr()))
+        let (client, mut events) = Client::builder(format!("irc://{}", server.plaintext_addr()))
             .nick(&nick)
             .caps([
                 "message-tags",

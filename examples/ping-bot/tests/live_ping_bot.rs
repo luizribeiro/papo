@@ -24,7 +24,7 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
         sleep(Duration::from_millis(500)).await;
 
         let address = format!("irc://{}", server.plaintext_addr());
-        let (user, mut events) = Client::builder(&address)
+        let (user, mut events) = Client::builder(address.as_str())
             .nick(&user_nick)
             .channels([&channel])
             .connect()
@@ -82,7 +82,7 @@ impl Bot {
     #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
     async fn start(server: &ServerInfo, nick: &str, channel: &str) -> Self {
         let address = format!("ircs://localhost:{}", server.tls_addr().port());
-        let (client, mut events) = Client::builder(&address)
+        let (client, mut events) = Client::builder(address.as_str())
             .tls_ca_file(server.ca_pem_path())
             .unwrap()
             .nick(nick)

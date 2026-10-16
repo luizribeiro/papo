@@ -19,7 +19,7 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         let channel = format!("#{}", unique("papo-reconnect"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
         register_account_at(server.plaintext_addr(), &nick, password).unwrap();
-        let (client, mut events) = Client::builder(&format!(
+        let (client, mut events) = Client::builder(format!(
             "irc://localhost:{}",
             server.plaintext_addr().port()
         ))
@@ -102,7 +102,7 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
 
 async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
     let poster_nick = unique("papo-reconnect-poster");
-    let (poster, mut events) = Client::builder(&format!(
+    let (poster, mut events) = Client::builder(format!(
         "irc://localhost:{}",
         server.plaintext_addr().port()
     ))

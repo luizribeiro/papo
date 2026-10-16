@@ -21,7 +21,7 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
         sleep(Duration::from_millis(500)).await;
 
         let address = format!("irc://{}", server.plaintext_addr());
-        let (user, mut events) = Client::builder(&address)
+        let (user, mut events) = Client::builder(address.as_str())
             .nick(&user_nick)
             .channels([&channel])
             .connect()

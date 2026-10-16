@@ -57,6 +57,12 @@ impl Builder {
         }
     }
 
+    pub(crate) fn from_endpoint(endpoint: impl crate::IntoEndpoint) -> Self {
+        let mut builder = Self::new("irc.example.net");
+        builder.address = crate::address::convert(endpoint).map(crate::Endpoint::into_address);
+        builder
+    }
+
     /// Sets the primary nickname.
     pub fn nick(mut self, nick: impl Into<String>) -> Self {
         let nick = nick.into();

@@ -21,7 +21,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         let nick_a = unique("papo-sender");
         let nick_b = unique("papo-replier");
 
-        let (client_a, mut events_a) = Client::builder(&address)
+        let (client_a, mut events_a) = Client::builder(address.as_str())
             .nick(&nick_a)
             .channels([&channel])
             .connect()
@@ -29,7 +29,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
             .unwrap();
         wait_ready(&mut events_a, &nick_a, &channel).await;
 
-        let (client_b, mut events_b) = Client::builder(&address)
+        let (client_b, mut events_b) = Client::builder(address.as_str())
             .nick(&nick_b)
             .channels([&channel])
             .connect()

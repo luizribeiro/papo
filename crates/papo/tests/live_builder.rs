@@ -22,7 +22,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
         register_account(&server, &account, password).unwrap();
 
         let (client, mut events) =
-            Client::builder(&format!("ircs://localhost:{}", server.tls_addr().port()))
+            Client::builder(format!("ircs://localhost:{}", server.tls_addr().port()))
                 .nick(&account)
                 .sasl(Sasl::plain(&account, password))
                 .require_sasl(true)

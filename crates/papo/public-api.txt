@@ -302,7 +302,7 @@ pub papo::ChannelInfo::name: alloc::string::String
 pub papo::ChannelInfo::topic: core::option::Option<alloc::string::String>
 pub struct papo::Client
 impl papo::Client
-pub fn papo::Client::builder(&str) -> papo::Builder
+pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
 pub fn papo::Client::casemap(&self, &str) -> alloc::string::String
 pub fn papo::Client::has_cap(&self, &str) -> bool
 pub fn papo::Client::is_connected(&self) -> bool
@@ -357,6 +357,7 @@ impl papo::Endpoint
 pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>, u16) -> Self
 pub fn papo::Endpoint::tls(impl core::convert::Into<alloc::string::String>, u16) -> Self
 pub fn papo::Endpoint::websocket(impl core::convert::AsRef<str>) -> core::result::Result<Self, papo::InvalidInput>
+impl papo::IntoEndpoint for papo::Endpoint
 pub struct papo::Events
 impl papo::Events
 pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::Event>
@@ -502,3 +503,8 @@ pub papo::Whois::realname: core::option::Option<alloc::string::String>
 pub papo::Whois::secure: bool
 pub papo::Whois::server: core::option::Option<alloc::string::String>
 pub papo::Whois::user: core::option::Option<alloc::string::String>
+pub trait papo::IntoEndpoint: papo::address::private::Sealed
+impl papo::IntoEndpoint for &alloc::string::String
+impl papo::IntoEndpoint for &str
+impl papo::IntoEndpoint for alloc::string::String
+impl papo::IntoEndpoint for papo::Endpoint
