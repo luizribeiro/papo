@@ -167,7 +167,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: away_notify,
+            run: __papo_scenario_away_notify,
         },
         ScenarioSpec {
             name: "setname",
@@ -179,7 +179,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: setname,
+            run: __papo_scenario_setname,
         },
         ScenarioSpec {
             name: "extended_join",
@@ -742,44 +742,44 @@ async fn account_notify(context: Scenario) -> ScenarioResult {
     close_pair(receiver, sender).await
 }
 
-fn away_notify(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let (mut receiver, sender, _channel) = joined_pair(&context).await?;
-        let away = "reviewing the IRCv3 specification";
-        sender
-            .client
-            .send(Message::new("AWAY", [away]))
-            .await
-            .map_err(Failed::from)?;
-        context
+/// notifies channel peers of away state
+#[scenario(requires(caps = ["away-notify"]))]
+async fn away_notify(context: Scenario) -> ScenarioResult {
+    let (mut receiver, sender, _channel) = joined_pair(&context).await?;
+    let away = "reviewing the IRCv3 specification";
+    sender
+        .client
+        .send(Message::new("AWAY", [away]))
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut receiver.events,
                 |event| matches!(event, Event::AwayChanged { nick, message: Some(message) } if nick == &sender.welcome.nick && message == away),
                 EXPECT_TIMEOUT,
             )
             .await?;
-        close_pair(receiver, sender).await
-    })
+    close_pair(receiver, sender).await
 }
 
-fn setname(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let (mut receiver, sender, _channel) = joined_pair(&context).await?;
-        let realname = "Papo Conformance Client";
-        sender
-            .client
-            .send(Message::new("SETNAME", [realname]))
-            .await
-            .map_err(Failed::from)?;
-        context
+/// notifies channel peers of real-name changes
+#[scenario(requires(caps = ["setname"]))]
+async fn setname(context: Scenario) -> ScenarioResult {
+    let (mut receiver, sender, _channel) = joined_pair(&context).await?;
+    let realname = "Papo Conformance Client";
+    sender
+        .client
+        .send(Message::new("SETNAME", [realname]))
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut receiver.events,
                 |event| matches!(event, Event::RealnameChanged { nick, realname: changed } if nick == &sender.welcome.nick && changed == realname),
                 EXPECT_TIMEOUT,
             )
             .await?;
-        close_pair(receiver, sender).await
-    })
+    close_pair(receiver, sender).await
 }
 
 /// records real names from extended JOIN
