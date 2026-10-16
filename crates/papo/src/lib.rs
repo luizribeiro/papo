@@ -19,7 +19,9 @@ pub mod bot;
 
 pub use address::AddressError;
 pub use builder::Builder;
-pub use driver::{AccountRegistration, Client, Driver, Events, Persistence, Sent, WebPush};
+pub use driver::{
+    AccountRegistration, Client, Driver, Events, Persistence, PushKeys, Sent, WebPush,
+};
 pub use entropy::OsEntropy;
 pub use error::Error;
 pub use event::{Event, MessageEvent, MessageKind, Origin};

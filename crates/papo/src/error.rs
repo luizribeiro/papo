@@ -69,6 +69,9 @@ pub enum Error {
     /// The IRC server rejected a metadata operation.
     #[error("metadata operation failed: {0:?}")]
     Metadata(papo_core::MetadataError),
+    /// The IRC server rejected a Web Push operation.
+    #[error("Web Push operation failed: {0:?}")]
+    WebPush(papo_core::WebPushError),
 }
 
 #[cfg(test)]
