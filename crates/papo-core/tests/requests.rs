@@ -874,7 +874,7 @@ fn links_nested_chathistory_to_its_response() {
     assert_eq!(response.lines.len(), 1);
     let history = response.history.expect("history reference");
     assert_eq!(history.target, "#papo");
-    assert_eq!(history.messages.len(), 1);
+    assert_eq!(history.items.len(), 1);
     assert!(history.end);
 }
 

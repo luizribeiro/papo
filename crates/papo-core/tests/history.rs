@@ -289,9 +289,12 @@ fn assembles_deduplicated_context_aware_pages() {
     };
     let page = response.history.unwrap();
     assert_eq!(page.target, "#papo");
-    assert_eq!(page.messages[0].as_ref().param(1), Some("earlier"));
-    assert!(!page.messages[0].context);
-    assert!(page.messages[1].context);
+    assert_eq!(
+        page.items[0].message().unwrap().as_ref().param(1),
+        Some("earlier")
+    );
+    assert!(!page.items[0].message().unwrap().context);
+    assert!(page.items[1].message().unwrap().context);
 }
 
 #[test]

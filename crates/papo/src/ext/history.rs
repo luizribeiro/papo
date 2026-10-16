@@ -188,8 +188,9 @@ impl Client {
         let response = self.history_response(query).await?;
         let page = response.history.ok_or(Error::Disconnected)?;
         let messages = page
-            .messages
+            .items
             .into_iter()
+            .filter_map(papo_core::HistoryItem::into_message)
             .filter_map(|item| {
                 crate::MessageEvent::from_history(item.message, self.clone(), crate::rt::now_wall())
                     .ok()

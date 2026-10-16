@@ -1138,17 +1138,76 @@ impl std::ops::Deref for HistoryMessage {
     }
 }
 
+/// One replayed entry in a history page.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum HistoryItem {
+    /// A `PRIVMSG` or `NOTICE`.
+    Message(HistoryMessage),
+    /// A reaction or unreaction carried by `TAGMSG`.
+    Reacted(HistoryMessage),
+    /// A `REDACT` command.
+    Redacted(HistoryMessage),
+    /// A `TAGMSG` without reaction metadata.
+    TagMsg(HistoryMessage),
+    /// A `JOIN` command.
+    Joined(HistoryMessage),
+    /// A `PART` command.
+    Parted(HistoryMessage),
+    /// A `QUIT` command.
+    Quit(HistoryMessage),
+    /// A `KICK` command.
+    Kicked(HistoryMessage),
+    /// A `NICK` command.
+    NickChanged(HistoryMessage),
+    /// A `TOPIC` command.
+    TopicChanged(HistoryMessage),
+    /// A `MODE` command.
+    ModeChanged(HistoryMessage),
+    /// A replayed command without a more specific classification.
+    ///
+    /// A later minor release may refine a command currently classified here.
+    Other(HistoryMessage),
+}
+
+impl HistoryItem {
+    /// Returns this item as a chat message.
+    #[must_use]
+    pub const fn message(&self) -> Option<&HistoryMessage> {
+        match self {
+            Self::Message(message) => Some(message),
+            _ => None,
+        }
+    }
+
+    /// Returns the chat message, or `None` for a replayed activity item.
+    #[must_use]
+    pub fn into_message(self) -> Option<HistoryMessage> {
+        match self {
+            Self::Message(message) => Some(message),
+            _ => None,
+        }
+    }
+}
+
 /// History page attached to a completed response.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HistoryPage {
     /// History target named by the batch.
     pub target: String,
-    /// Replayed messages in server delivery order.
-    pub messages: Vec<HistoryMessage>,
+    /// Replayed items in server delivery order.
+    pub items: Vec<HistoryItem>,
     /// Whether the server reported that no further page exists.
     ///
     /// A page shorter than the requested limit does not imply the end.
     pub end: bool,
+}
+
+impl HistoryPage {
+    /// Iterates over chat messages, excluding replayed activity items.
+    pub fn messages(&self) -> impl Iterator<Item = &HistoryMessage> {
+        self.items.iter().filter_map(HistoryItem::message)
+    }
 }
 
 /// Compatibility name for a history page attached to a response.

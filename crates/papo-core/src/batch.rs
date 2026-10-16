@@ -5,7 +5,7 @@ use std::{
 
 use papo_proto::{Message, MessageRef, time};
 
-use crate::{BatchAbandonReason, Config, HistoryMessage, HistoryPage};
+use crate::{BatchAbandonReason, Config, HistoryItem, HistoryMessage, HistoryPage};
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -559,7 +559,7 @@ fn history_from_event(event: &BatchEvent) -> Option<HistoryPage> {
     };
     Some(HistoryPage {
         target: target.clone(),
-        messages: messages.clone(),
+        items: messages.iter().cloned().map(HistoryItem::Message).collect(),
         end: *end,
     })
 }

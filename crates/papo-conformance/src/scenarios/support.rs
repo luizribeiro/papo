@@ -82,8 +82,7 @@ pub(super) async fn history_page(context: Scenario) -> ScenarioResult {
         return Err("CHATHISTORY response did not contain a history batch".into());
     };
     if !history
-        .messages
-        .iter()
+        .messages()
         .any(|message| message.as_ref().param(1) == Some(text.as_str()))
     {
         return Err("history batch did not contain the earlier message".into());

@@ -25,7 +25,10 @@ pub(super) fn advance_catchup(
     let page = response.history?;
     let next = extend_catchup(
         &mut catchup,
-        page.messages.into_iter().map(|item| item.message),
+        page.items
+            .into_iter()
+            .filter_map(papo_core::HistoryItem::into_message)
+            .map(|item| item.message),
     );
     if !page.end
         && catchup.messages.len() < 1_000
