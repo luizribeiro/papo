@@ -810,6 +810,27 @@ fn labelled_join_times_out_once_when_sync_never_finishes() {
 }
 
 #[test]
+fn labelled_join_without_an_echo_times_out_once() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let id = session
+        .request_with_matcher(
+            now,
+            Message::join("#papo"),
+            ResponseMatcher::Join("#papo".into()),
+        )
+        .unwrap();
+
+    session.handle_timeout(now + std::time::Duration::from_secs(30));
+    assert_eq!(
+        std::iter::from_fn(|| session.poll_event())
+            .filter(|event| matches!(event, Event::RequestTimedOut { id: timed_out } if *timed_out == id))
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn own_part_or_kick_ends_a_labelled_join_during_sync() {
     for departure in [
         ":papo!~papo@localhost PART #papo :Registration required",
