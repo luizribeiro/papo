@@ -7,11 +7,22 @@ use papo_core::{Config, Feature, Session};
 const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response";
 
 fn session(caps: &str) -> Session {
-    let mut session = Session::new(Config::default().wanted_caps(caps.split_whitespace()));
+    session_with(
+        Config::default().wanted_caps(caps.split_whitespace()),
+        caps,
+        "",
+    )
+}
+
+fn session_with(config: Config, caps: &str, isupport: &str) -> Session {
+    let mut session = Session::new(config);
     let now = std::time::Instant::now();
     session.handle_connected(now);
     session.handle_line(now, format!(":ergo.test CAP papo LS :{caps}").as_bytes());
     session.handle_line(now, format!(":ergo.test CAP papo ACK :{caps}").as_bytes());
+    if !isupport.is_empty() {
+        session.handle_line(now, isupport.as_bytes());
+    }
     session
 }
 
@@ -36,5 +47,32 @@ fn recognizes_every_capability_backed_feature() {
         Feature::LabeledResponse,
     ] {
         assert_eq!(session.supports(feature), Ok(()), "{feature:?}");
+    }
+}
+
+#[test]
+fn combines_isupport_tokens_with_negotiated_caps() {
+    let session = session_with(
+        Config::default().wanted_caps(["chathistory"]),
+        "chathistory",
+        ":irc.unreal.example 005 papo MONITOR=100 BOT=B CHATHISTORY=100 :are supported by this server",
+    );
+    for feature in [Feature::History, Feature::Monitor, Feature::BotMode] {
+        assert_eq!(session.supports(feature), Ok(()), "{feature:?}");
+    }
+}
+
+#[test]
+fn rejects_literal_zero_feature_limits() {
+    let zero = session_with(
+        Config::default().wanted_caps(["chathistory"]),
+        "chathistory",
+        ":irc.unreal.example 005 papo MONITOR=0 CHATHISTORY=0 :are supported by this server",
+    );
+    for feature in [Feature::Monitor, Feature::History] {
+        assert_eq!(
+            zero.supports(feature),
+            Err(papo_core::UnsupportedReason::LimitZero)
+        );
     }
 }

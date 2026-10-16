@@ -1,3 +1,5 @@
+use papo_proto::Advertised;
+
 use crate::Session;
 
 /// Optional IRC behavior understood by the session.
@@ -82,11 +84,31 @@ impl Session {
     ///
     /// Returns the reason the feature is unavailable on this connection.
     pub fn supports(&self, feature: Feature) -> Result<(), UnsupportedReason> {
-        feature
+        let support = self.isupport.value();
+        match feature {
+            Feature::Monitor => match support.get("MONITOR") {
+                Advertised::Absent => return Err(UnsupportedReason::NotOffered),
+                Advertised::Value("0") => return Err(UnsupportedReason::LimitZero),
+                Advertised::Bare | Advertised::Value(_) => return Ok(()),
+            },
+            Feature::BotMode => {
+                return support
+                    .bot_mode()
+                    .map(|_| ())
+                    .ok_or(UnsupportedReason::NotOffered);
+            }
+            _ => {}
+        }
+        let enabled = feature
             .caps()
             .iter()
-            .any(|name| self.caps.enabled().contains_key(*name))
-            .then_some(())
-            .ok_or(UnsupportedReason::NotOffered)
+            .any(|name| self.caps.enabled().contains_key(*name));
+        if !enabled {
+            return Err(UnsupportedReason::NotOffered);
+        }
+        if feature == Feature::History && support.get("CHATHISTORY") == Advertised::Value("0") {
+            return Err(UnsupportedReason::LimitZero);
+        }
+        Ok(())
     }
 }
