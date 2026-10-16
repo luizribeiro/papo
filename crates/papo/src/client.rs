@@ -114,42 +114,6 @@ impl Client {
         self.state(|state| state.casemap(name))
     }
 
-    /// Requests a channel rename.
-    ///
-    /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
-    pub async fn rename(&self, old: &str, new: &str, reason: &str) -> Result<(), Error> {
-        let response = self
-            .core_request(CoreRequest::Rename {
-                old: old.into(),
-                new: new.into(),
-                reason: reason.into(),
-            })
-            .await?;
-        if let Some(error) = response.channel_rename_error() {
-            return Err(Error::ChannelRename(error));
-        }
-        crate::requests::empty(&response)
-    }
-
-    /// Sends a message attributed to a relayed nickname.
-    ///
-    /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
-    pub async fn relay(&self, channel: &str, nick: &str, text: &str) -> Result<(), Error> {
-        let response = self
-            .core_request(CoreRequest::Relay {
-                channel: channel.into(),
-                nick: nick.into(),
-                text: text.into(),
-            })
-            .await?;
-        if let Some(error) = response.relay_error() {
-            return Err(Error::Relay(error));
-        }
-        crate::requests::empty(&response)
-    }
-
     /// Validates and queues an IRC message for transmission.
     ///
     /// # Errors
