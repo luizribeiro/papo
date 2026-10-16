@@ -1,0 +1,58 @@
+//! Transcript tests for `draft/channel-rename`.
+
+mod support;
+
+use papo_core::{ChannelRenameError, Config, Event, RequestError};
+use support::Transcript;
+
+fn registered() -> Transcript {
+    Transcript::new(Config::default().wanted_caps(["draft/channel-rename", "labeled-response"]))
+        .connect_default()
+        .server("CAP * LS :draft/channel-rename labeled-response")
+        .client("CAP REQ :draft/channel-rename labeled-response")
+        .server("CAP * ACK :draft/channel-rename labeled-response")
+        .client("CAP END")
+        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .server(":ergo.test 422 alice :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+}
+
+#[test]
+fn sends_rename_and_types_failures() {
+    for (code, expected) in [
+        ("CHANNEL_NAME_IN_USE", ChannelRenameError::ChannelNameInUse),
+        ("CANNOT_RENAME", ChannelRenameError::CannotRename),
+    ] {
+        registered()
+            .update(|session| {
+                session
+                    .rename(
+                        std::time::Instant::now(),
+                        "#rust",
+                        "#rust-lang",
+                        "Project renamed",
+                    )
+                    .unwrap();
+            })
+            .client("@label=0 RENAME #rust #rust-lang :Project renamed")
+            .server(&format!(
+                "@label=0 :ergo.test FAIL RENAME {code} :Channel rename failed"
+            ))
+            .event(|event| {
+                matches!(event, Event::Response(response)
+                if response.channel_rename_error() == Some(expected))
+            });
+    }
+}
+
+#[test]
+fn requires_the_channel_rename_capability() {
+    Transcript::new(Config::default())
+        .update(|session| {
+            assert_eq!(
+                session.rename(std::time::Instant::now(), "#rust", "#Rust", ""),
+                Err(RequestError::Unsupported("channel rename"))
+            );
+        })
+        .no_client();
+}

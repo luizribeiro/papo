@@ -4,6 +4,7 @@
 mod account_registration;
 mod batch;
 mod caps;
+mod channel_rename;
 mod framing;
 mod history;
 mod isupport;
@@ -35,6 +36,7 @@ use papo_proto::{
 use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
+pub use channel_rename::ChannelRenameError;
 use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
@@ -717,6 +719,12 @@ impl Response {
     pub fn metadata_error(&self) -> Option<MetadataError> {
         self.error()?.metadata_error()
     }
+
+    /// Returns a typed channel-rename failure from this response.
+    #[must_use]
+    pub fn channel_rename_error(&self) -> Option<ChannelRenameError> {
+        self.error()?.channel_rename_error()
+    }
 }
 
 /// A standardized `REGISTER` or `VERIFY` failure code.
@@ -829,6 +837,15 @@ impl ServerError {
             Self::Numeric { .. } => None,
         }
     }
+
+    /// Returns the typed channel-rename code when this is a matching standard failure.
+    #[must_use]
+    pub fn channel_rename_error(&self) -> Option<ChannelRenameError> {
+        match self {
+            Self::Standard { command, code, .. } => ChannelRenameError::parse(command, code),
+            Self::Numeric { .. } => None,
+        }
+    }
 }
 
 /// Owned `IRCv3` standard reply received outside a correlated request.
@@ -902,6 +919,14 @@ impl StandardReply {
     pub fn metadata_error(&self) -> Option<MetadataError> {
         (self.kind == StandardReplyKind::Fail)
             .then(|| MetadataError::parse(&self.command, &self.code, &self.context))
+            .flatten()
+    }
+
+    /// Returns the typed channel-rename code when this is a matching failure.
+    #[must_use]
+    pub fn channel_rename_error(&self) -> Option<ChannelRenameError> {
+        (self.kind == StandardReplyKind::Fail)
+            .then(|| ChannelRenameError::parse(&self.command, &self.code))
             .flatten()
     }
 }
