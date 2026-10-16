@@ -3,7 +3,7 @@ use std::time::Duration;
 use libtest_mimic::Failed;
 use papo::Event;
 use papo_core::Sasl;
-use papo_proto::{Message, MessageRef, Source};
+use papo_proto::{Message, MessageRef, Source, Typing};
 use papo_test_server::register_account;
 
 use super::{
@@ -14,6 +14,8 @@ use super::{
 const EXPECT_TIMEOUT: Duration = Duration::from_secs(10);
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
+// Keeping each requirement beside its scenario makes support-matrix gating auditable.
+#[allow(clippy::too_many_lines)]
 pub(super) const fn all() -> &'static [ScenarioSpec] {
     &[
         ScenarioSpec {
@@ -99,6 +101,42 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 isupport: &[],
             },
             run: echo_message,
+        },
+        ScenarioSpec {
+            name: "labeled_response",
+            doc: "correlates a labelled WHOIS response",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "labeled-response",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: labeled_response,
+        },
+        ScenarioSpec {
+            name: "server_time",
+            doc: "delivers a channel message with server time",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "server-time",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: server_time,
+        },
+        ScenarioSpec {
+            name: "message_tags",
+            doc: "delivers a client-only typing tag",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "message-tags",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: message_tags,
         },
     ]
 }
@@ -276,6 +314,115 @@ fn echo_message(context: Scenario) -> ScenarioFuture {
             )
             .await?;
         connection.close().await
+    })
+}
+
+async fn joined_pair(
+    context: &Scenario,
+) -> Result<(super::RegisteredClient, super::RegisteredClient, String), Failed> {
+    let first_nick = context.unique();
+    let second_nick = context.unique();
+    let channel = format!("#{}", context.unique());
+    let mut first = context.client(&first_nick).await?;
+    join(context, &mut first, &channel).await?;
+    let mut second = context.client(&second_nick).await?;
+    join(context, &mut second, &channel).await?;
+    context
+        .expect(
+            &mut first.events,
+            |event| {
+                matches!(event, Event::Joined { channel: joined, nick } if joined == &channel && nick == &second_nick)
+            },
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+    Ok((first, second, channel))
+}
+
+async fn join(
+    context: &Scenario,
+    connection: &mut super::RegisteredClient,
+    channel: &str,
+) -> Result<(), Failed> {
+    connection
+        .client
+        .send(Message::join(channel))
+        .await
+        .map_err(Failed::from)?;
+    context
+        .expect(
+            &mut connection.events,
+            |event| matches!(event, Event::ChannelSynced { channel: joined } if joined == channel),
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+    Ok(())
+}
+
+async fn close_pair(
+    first: super::RegisteredClient,
+    second: super::RegisteredClient,
+) -> ScenarioResult {
+    first.close().await?;
+    second.close().await
+}
+
+fn labeled_response(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = context.unique();
+        let connection = context.client(&nick).await?;
+        let whois = connection
+            .client
+            .whois(&connection.welcome.nick)
+            .await
+            .map_err(Failed::from)?;
+        if whois.nick != connection.welcome.nick {
+            return Err("labelled WHOIS resolved for the wrong nickname".into());
+        }
+        connection.close().await
+    })
+}
+
+fn server_time(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let (mut receiver, sender, channel) = joined_pair(&context).await?;
+        let text = format!("timestamped message from {}", sender.welcome.nick);
+        sender
+            .client
+            .privmsg(&channel, &text)
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut receiver.events,
+                |event| {
+                    matches!(event, Event::Message(message) if message.raw_text() == text && message.as_ref().tag("time").is_some())
+                },
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        close_pair(receiver, sender).await
+    })
+}
+
+fn message_tags(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let (mut receiver, sender, channel) = joined_pair(&context).await?;
+        sender
+            .client
+            .send(Message::new("TAGMSG", [&channel]).with_tag("+typing", "active"))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut receiver.events,
+                |event| {
+                    matches!(event, Event::Typing(message) if message.target() == channel && message.typing() == Some(Typing::Active))
+                },
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        close_pair(receiver, sender).await
     })
 }
 
