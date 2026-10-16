@@ -203,7 +203,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: multi_prefix,
+            run: __papo_scenario_multi_prefix,
         },
         ScenarioSpec {
             name: "userhost_in_names",
@@ -798,41 +798,40 @@ async fn extended_join(context: Scenario) -> ScenarioResult {
     close_pair(receiver, sender).await
 }
 
-fn multi_prefix(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let first_nick = context.unique();
-        let second_nick = context.unique();
-        let channel = format!("#{}", context.unique());
-        let mut first = context.client(&first_nick).await?;
-        join(&context, &mut first, &channel).await?;
-        first
-            .client
-            .send(Message::new("MODE", [&channel, "+v", &first_nick]))
-            .await
-            .map_err(Failed::from)?;
-        context
-            .expect(
-                &mut first.events,
-                |event| matches!(event, Event::ModeChanged { target, .. } if target == &channel),
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-        let mut second = context.client(&second_nick).await?;
-        join(&context, &mut second, &channel).await?;
-        let prefixes = second.client.state(|state| {
-            state
-                .channel(&channel)
-                .and_then(|channel| channel.member(&first_nick))
-                .map(|member| member.prefixes().to_vec())
-        });
-        if prefixes.as_deref() != Some(&['@', '+']) {
-            return Err(format!(
-                "NAMES did not preserve operator and voice prefixes: {prefixes:?}"
-            )
-            .into());
-        }
-        close_pair(first, second).await
-    })
+/// records every advertised membership prefix
+#[scenario(requires(caps = ["multi-prefix"]))]
+async fn multi_prefix(context: Scenario) -> ScenarioResult {
+    let first_nick = context.unique();
+    let second_nick = context.unique();
+    let channel = format!("#{}", context.unique());
+    let mut first = context.client(&first_nick).await?;
+    join(&context, &mut first, &channel).await?;
+    first
+        .client
+        .send(Message::new("MODE", [&channel, "+v", &first_nick]))
+        .await
+        .map_err(Failed::from)?;
+    context
+        .expect(
+            &mut first.events,
+            |event| matches!(event, Event::ModeChanged { target, .. } if target == &channel),
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+    let mut second = context.client(&second_nick).await?;
+    join(&context, &mut second, &channel).await?;
+    let prefixes = second.client.state(|state| {
+        state
+            .channel(&channel)
+            .and_then(|channel| channel.member(&first_nick))
+            .map(|member| member.prefixes().to_vec())
+    });
+    if prefixes.as_deref() != Some(&['@', '+']) {
+        return Err(
+            format!("NAMES did not preserve operator and voice prefixes: {prefixes:?}").into(),
+        );
+    }
+    close_pair(first, second).await
 }
 
 /// records usernames and hosts from NAMES
