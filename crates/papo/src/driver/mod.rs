@@ -827,7 +827,7 @@ fn request_quit(
 
 async fn wait_until(deadline: Option<Instant>) {
     match deadline {
-        Some(deadline) => tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)).await,
+        Some(deadline) => crate::rt::sleep_until(deadline).await,
         None => std::future::pending().await,
     }
 }
@@ -910,7 +910,7 @@ where
                                 state: Arc::clone(&events.state),
                             },
                             session.caps(),
-                            SystemTime::now(),
+                            crate::rt::now_wall(),
                         )
                         .map_or_else(Event::Raw, Event::Message),
                         None => Event::Raw(message),
@@ -949,7 +949,7 @@ where
                             state: Arc::clone(&events.state),
                         },
                         session.caps(),
-                        SystemTime::now(),
+                        crate::rt::now_wall(),
                     )
                     .map_or_else(Event::Raw, Event::Message),
                     None => Event::Raw(message.into_message()),
@@ -983,7 +983,7 @@ where
                         crate::MessageEvent::from_replay(
                             item.message,
                             client.clone(),
-                            SystemTime::now(),
+                            crate::rt::now_wall(),
                         )
                         .ok()
                     })
@@ -1105,7 +1105,7 @@ fn finish(events: EventSink, end: ConnectionEnd, will_retry: bool) -> Result<(),
 }
 
 fn now() -> Instant {
-    tokio::time::Instant::now().into_std()
+    crate::rt::now_mono()
 }
 
 #[cfg(test)]

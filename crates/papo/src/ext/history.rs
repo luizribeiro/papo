@@ -191,7 +191,7 @@ impl Client {
             .messages
             .into_iter()
             .filter_map(|item| {
-                crate::MessageEvent::from_history(item.message, self.clone(), SystemTime::now())
+                crate::MessageEvent::from_history(item.message, self.clone(), crate::rt::now_wall())
                     .ok()
             })
             .collect();

@@ -331,7 +331,7 @@ impl Builder {
     pub async fn connect(self) -> Result<(crate::Client, crate::Events), Error> {
         let (sender, receiver) = oneshot::channel();
         let (client, events, driver) = self.build_with_registration(Some(sender));
-        tokio::spawn(driver);
+        crate::rt::spawn(driver);
         receiver.await.map_err(|_| Error::Disconnected)??;
         Ok((client, events))
     }
@@ -351,7 +351,7 @@ impl Builder {
     {
         let (sender, receiver) = oneshot::channel();
         let (client, events, driver) = self.build_stream_with_registration(stream, Some(sender));
-        tokio::spawn(driver);
+        crate::rt::spawn(driver);
         receiver.await.map_err(|_| Error::Disconnected)??;
         Ok((client, events))
     }

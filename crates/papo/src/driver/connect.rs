@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, ops::ControlFlow, time::SystemTime};
+use std::{collections::VecDeque, ops::ControlFlow};
 
 use papo_core::{
     Connection, Session,
@@ -355,7 +355,7 @@ fn finish_connection_failure(
 pub(super) fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &StsAction) {
     match action {
         StsAction::Persist { host, duration } => {
-            let now = SystemTime::now();
+            let now = crate::rt::now_wall();
             if let Some(expires_at) = now.checked_add(*duration) {
                 store.put(StoredPolicy {
                     host: host.clone(),
@@ -372,7 +372,7 @@ pub(super) fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &Sts
 
 fn reschedule_stored_policy(store: &mut dyn StsStore, host: &str) {
     if let Some(policy) = store.get(host) {
-        store.put(reschedule_on_disconnect(policy, SystemTime::now()));
+        store.put(reschedule_on_disconnect(policy, crate::rt::now_wall()));
     }
 }
 
@@ -384,7 +384,7 @@ fn plan_with_stored_sts(
     let Some(policy) = store.get(&base.address.host) else {
         return Ok(base.clone());
     };
-    if !policy.is_active_at(SystemTime::now()) {
+    if !policy.is_active_at(crate::rt::now_wall()) {
         store.remove(&base.address.host);
         return Ok(base.clone());
     }
@@ -452,7 +452,7 @@ async fn wait_before_retry(
     entropy: &mut (dyn FnMut() -> u64 + Send),
 ) -> bool {
     let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
-    let sleep = tokio::time::sleep(reconnect.delay(retry, entropy()));
+    let sleep = crate::rt::sleep_until(now() + reconnect.delay(retry, entropy()));
     tokio::pin!(sleep);
     loop {
         tokio::select! {

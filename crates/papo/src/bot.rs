@@ -38,7 +38,7 @@ impl ReplyRateLimiter {
     /// Consumes one reply slot for `target`, or reports that it is limited.
     #[must_use]
     pub fn check(&self, target: &str) -> bool {
-        self.check_at(target, Instant::now())
+        self.check_at(target, crate::rt::now_mono())
     }
 
     fn check_at(&self, target: &str, now: Instant) -> bool {

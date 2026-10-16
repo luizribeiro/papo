@@ -12,6 +12,7 @@ mod event;
 mod ext;
 mod reconnect;
 mod requests;
+mod rt;
 mod state;
 
 #[cfg(feature = "bot")]

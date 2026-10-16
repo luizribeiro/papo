@@ -42,7 +42,7 @@ impl FileStsStore {
         };
         match read_entries(&store.path) {
             Ok(Some(entries)) => {
-                if let Err(error) = store.load(entries, SystemTime::now()) {
+                if let Err(error) = store.load(entries, crate::rt::now_wall()) {
                     store.last_error = Some(error);
                 }
             }
