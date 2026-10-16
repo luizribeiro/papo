@@ -13,6 +13,7 @@ pub(super) struct Registration {
     welcome_deadline: Option<Instant>,
     next_alt_nick: usize,
     registered: bool,
+    webirc_pending: bool,
 }
 
 impl Registration {
@@ -23,6 +24,7 @@ impl Registration {
             welcome_deadline: None,
             next_alt_nick: 0,
             registered: false,
+            webirc_pending: false,
         }
     }
 
@@ -32,6 +34,7 @@ impl Registration {
         self.welcome_deadline = None;
         self.next_alt_nick = 0;
         self.registered = false;
+        self.webirc_pending = config.webirc.is_some();
         if let Some(webirc) = &config.webirc {
             let ip = if webirc.ip.starts_with(':') {
                 format!("0{}", webirc.ip)
@@ -79,6 +82,19 @@ impl Registration {
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Handled {
+        if self.webirc_pending {
+            self.webirc_pending = false;
+            if message.command_is("ERROR") {
+                outbox.close(
+                    CloseKind::WebIrcRejected,
+                    message
+                        .param(0)
+                        .unwrap_or("server rejected WEBIRC")
+                        .to_owned(),
+                );
+                return Handled::Yes;
+            }
+        }
         if message.command_is("001") {
             if let Some(nick) = message.param(0) {
                 nick.clone_into(&mut self.nick);
@@ -141,6 +157,7 @@ impl Registration {
         self.deadline = None;
         self.welcome_deadline = None;
         self.registered = false;
+        self.webirc_pending = false;
     }
 
     pub(super) fn nick(&self) -> &str {

@@ -1120,6 +1120,8 @@ pub enum RequestError {
 pub enum CloseKind {
     /// Required SASL authentication failed.
     SaslFailed,
+    /// The server rejected the gateway's `WEBIRC` command.
+    WebIrcRejected,
     /// IRC registration did not complete before its deadline.
     RegistrationTimeout,
     /// A server line exceeded the protocol framing limit.

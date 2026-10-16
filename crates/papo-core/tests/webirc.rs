@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Secret, Session, WebIrc};
+use papo_core::{CloseKind, Config, Event, Secret, Session, WebIrc};
 use support::Transcript;
 
 fn webirc(hostname: Option<&str>, ip: &str) -> WebIrc {
@@ -65,4 +65,38 @@ fn redacts_the_webirc_password_from_configuration_and_session_debug() {
     });
     assert!(!format!("{config:?}").contains(password));
     assert!(!format!("{:?}", Session::new(config)).contains(password));
+}
+
+#[test]
+fn closes_without_more_protocol_work_when_webirc_is_rejected() {
+    Transcript::new(Config::default().webirc(webirc(None, "192.0.2.42")))
+        .connect()
+        .client("WEBIRC gateway-password papo-gateway 192.0.2.42 192.0.2.42")
+        .client("CAP LS 302")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .server("ERROR :Invalid WEBIRC password")
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::WebIrcRejected, reason }
+                if reason == "Invalid WEBIRC password")
+        })
+        .server("PING :ergo.test")
+        .no_client();
+}
+
+#[test]
+fn error_after_another_server_message_is_not_a_webirc_rejection() {
+    Transcript::new(Config::default().webirc(webirc(None, "192.0.2.42")))
+        .connect()
+        .client("WEBIRC gateway-password papo-gateway 192.0.2.42 192.0.2.42")
+        .client("CAP LS 302")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .server("CAP * LS :")
+        .client("CAP END")
+        .server("ERROR :Closing link")
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::ServerError, reason }
+                if reason == "Closing link")
+        });
 }
