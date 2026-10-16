@@ -1,2 +1,2 @@
 [invite_notify]
-reason = "UnrealIRCd advertises invite-notify but does not broadcast the fixture's successful INVITE to another channel member"
+reason = "UnrealIRCd advertises invite-notify but does not notify the fixture's channel-operator observer of a successful INVITE"

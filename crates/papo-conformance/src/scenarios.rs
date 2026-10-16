@@ -843,6 +843,16 @@ fn userhost_in_names(context: Scenario) -> ScenarioFuture {
 fn invite_notify(context: Scenario) -> ScenarioFuture {
     Box::pin(async move {
         let (mut observer, inviter, channel) = joined_pair(&context).await?;
+        let observer_nick = observer.welcome.nick.clone();
+        let observer_is_op = observer.client.state(|state| {
+            state
+                .channel(&channel)
+                .and_then(|channel| channel.member(&observer_nick))
+                .is_some_and(papo_core::Member::is_op)
+        });
+        if !observer_is_op {
+            return Err("invite-notify observer is not a channel operator".into());
+        }
         let target_nick = context.unique();
         let target = context.client(&target_nick).await?;
         inviter
