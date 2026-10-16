@@ -257,7 +257,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: chghost,
+            run: __papo_scenario_chghost,
         },
         ScenarioSpec {
             name: "batch",
@@ -935,38 +935,38 @@ async fn monitor(context: Scenario) -> ScenarioResult {
     close_pair(observer, target).await
 }
 
-fn chghost(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let oper = match required_environment("PAPO_TEST_OPER") {
-            Ok(oper) => oper,
-            Err(ignored) => return Ok(ignored),
-        };
-        let Some((oper_name, password)) = oper.split_once(':') else {
-            return Err("PAPO_TEST_OPER must contain name:password".into());
-        };
-        let (mut observer, operator, _channel) = joined_pair(&context).await?;
-        operator
-            .client
-            .send(Message::new("OPER", [oper_name, password]))
-            .await
-            .map_err(Failed::from)?;
-        operator
-            .client
-            .send(Message::new(
-                "CHGHOST",
-                [&observer.welcome.nick, "conformance.example"],
-            ))
-            .await
-            .map_err(Failed::from)?;
-        context
+/// notifies channel peers of operator host changes
+#[scenario(requires(caps = ["chghost"]))]
+async fn chghost(context: Scenario) -> ScenarioResult {
+    let oper = match required_environment("PAPO_TEST_OPER") {
+        Ok(oper) => oper,
+        Err(ignored) => return Ok(ignored),
+    };
+    let Some((oper_name, password)) = oper.split_once(':') else {
+        return Err("PAPO_TEST_OPER must contain name:password".into());
+    };
+    let (mut observer, operator, _channel) = joined_pair(&context).await?;
+    operator
+        .client
+        .send(Message::new("OPER", [oper_name, password]))
+        .await
+        .map_err(Failed::from)?;
+    operator
+        .client
+        .send(Message::new(
+            "CHGHOST",
+            [&observer.welcome.nick, "conformance.example"],
+        ))
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut observer.events,
                 |event| matches!(event, Event::HostChanged { nick, host, .. } if nick == &observer.welcome.nick && host == "conformance.example"),
                 EXPECT_TIMEOUT,
             )
             .await?;
-        close_pair(observer, operator).await
-    })
+    close_pair(observer, operator).await
 }
 
 fn batch(context: Scenario) -> ScenarioFuture {
