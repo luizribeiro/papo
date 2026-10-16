@@ -2,7 +2,10 @@ use papo_core::{
     Account, BatchAbandonReason, Capabilities, OwnedModeChange, RequestId, Response, StandardReply,
     StateLimit, Welcome, sts::StsAction,
 };
-use std::{fmt, time::SystemTime};
+use std::{
+    fmt,
+    time::{Duration, SystemTime},
+};
 
 use papo_proto::{
     Ctcp, Isupport, Message, MessageRef, Reaction, Source, Typing, strip_formatting, time,
@@ -600,6 +603,24 @@ pub enum Event {
         /// Whether persistence is currently effective.
         effective: bool,
     },
+    /// A target's cached metadata changed.
+    MetadataChanged {
+        /// Nickname or channel reported by the server.
+        target: String,
+        /// Metadata key.
+        key: String,
+        /// New server-returned value, or `None` when cleared.
+        value: Option<String>,
+        /// Visibility policy reported by the server.
+        visibility: String,
+    },
+    /// The server deferred metadata synchronization for a target.
+    MetadataSyncLater {
+        /// Nickname or channel whose synchronization was deferred.
+        target: String,
+        /// Suggested delay before retrying, when supplied.
+        retry_after: Option<Duration>,
+    },
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -852,6 +873,24 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::PersistenceStatus { setting, effective } => {
             Event::PersistenceStatus { setting, effective }
         }
+        papo_core::Event::MetadataChanged {
+            target,
+            key,
+            value,
+            visibility,
+        } => Event::MetadataChanged {
+            target,
+            key,
+            value,
+            visibility,
+        },
+        papo_core::Event::MetadataSyncLater {
+            target,
+            retry_after,
+        } => Event::MetadataSyncLater {
+            target,
+            retry_after,
+        },
         papo_core::Event::History {
             target,
             messages,
@@ -1338,6 +1377,29 @@ mod tests {
                 setting: papo_core::PersistenceSetting::Default,
                 effective: true,
             }
+        ));
+    }
+
+    #[test]
+    fn maps_metadata_events() {
+        assert!(matches!(
+            forwarded(papo_core::Event::MetadataChanged {
+                target: "#papo".into(),
+                key: "pronouns".into(),
+                value: Some("they/them".into()),
+                visibility: "members".into(),
+            }),
+            Event::MetadataChanged { target, key, value: Some(value), visibility }
+                if target == "#papo" && key == "pronouns"
+                    && value == "they/them" && visibility == "members"
+        ));
+        assert!(matches!(
+            forwarded(papo_core::Event::MetadataSyncLater {
+                target: "alice".into(),
+                retry_after: Some(Duration::from_secs(90)),
+            }),
+            Event::MetadataSyncLater { target, retry_after: Some(delay) }
+                if target == "alice" && delay == Duration::from_secs(90)
         ));
     }
 
