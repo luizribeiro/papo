@@ -44,6 +44,7 @@ use crate::{
 pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const STABLE_CONNECTION: Duration = Duration::from_secs(60);
+pub(super) const SLOW_CONSUMER_REASON: &str = "SlowConsumer";
 
 pub(crate) trait ConnectionIo: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> ConnectionIo for T {}
@@ -563,7 +564,7 @@ where
     }
     let mut commands_open = true;
     let mut quit = None;
-    let mut pending_event = None;
+    let mut pending_events = VecDeque::new();
     let mut requests = BTreeMap::new();
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
@@ -577,7 +578,7 @@ where
             &mut stream,
             session,
             events,
-            &mut pending_event,
+            &mut pending_events,
             &mut requests,
             &mut sync_waiters,
             &mut read_marker_waiters,
@@ -596,6 +597,11 @@ where
             Ok(None) => {}
             Err(error) => break (error.to_string(), Error::Io(error), None, false),
         }
+        let read_ahead = !requests.is_empty()
+            || !sync_waiters.is_empty()
+            || !read_marker_waiters.is_empty()
+            || !catchups.is_empty()
+            || registration.0.is_some();
         let deadline = [
             session.poll_timeout(),
             quit.as_ref().map(|quit: &Quit| quit.deadline),
@@ -604,7 +610,7 @@ where
         .flatten()
         .min();
         tokio::select! {
-            read = stream.read(&mut buffer), if pending_event.is_none() => match read {
+            read = stream.read(&mut buffer), if pending_events.is_empty() || read_ahead => match read {
                 Ok(0) => {
                     break (
                         "server closed the connection".to_owned(),
@@ -616,11 +622,11 @@ where
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
                 Err(error) => break (error.to_string(), Error::Io(error), None, false),
             },
-            permit = events.regular.clone().reserve_owned(), if pending_event.is_some() => match permit {
+            permit = events.regular.clone().reserve_owned(), if !pending_events.is_empty() => match permit {
                 Ok(permit) => {
-                    _ = permit.send(pending_event.take().expect("pending event is present"));
+                    _ = permit.send(pending_events.pop_front().expect("pending event is present"));
                 }
-                Err(_) => pending_event = None,
+                Err(_) => pending_events.clear(),
             },
             command = commands.recv(), if commands_open => match command {
                 Some(Command::Send { message, result }) => {
@@ -837,7 +843,7 @@ async fn drain<S>(
     stream: &mut S,
     session: &mut Session,
     events: &EventSink,
-    pending_event: &mut Option<Event>,
+    pending_events: &mut VecDeque<Event>,
     requests: &mut BTreeMap<RequestId, PendingRequest>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
     read_marker_waiters: &mut ReadMarkerWaiters,
@@ -857,7 +863,12 @@ where
     while let Some(line) = session.poll_transmit() {
         stream.write_all(&line).await?;
     }
-    while pending_event.is_none()
+    let read_ahead = !requests.is_empty()
+        || !sync_waiters.is_empty()
+        || !read_marker_waiters.is_empty()
+        || !catchups.is_empty()
+        || registration.0.is_some();
+    while (pending_events.is_empty() || read_ahead)
         && let Some(core_event) = session.poll_event()
     {
         match event::from_core(core_event) {
@@ -936,7 +947,12 @@ where
                         *registered = true;
                     }
                 }
-                *pending_event = Some(event);
+                if !enqueue_event(events, pending_events, event) {
+                    return Ok(Some((
+                        papo_core::CloseKind::Other,
+                        SLOW_CONSUMER_REASON.to_owned(),
+                    )));
+                }
             }
             event::CoreEvent::Message(message) => {
                 let event = match events.commands.upgrade() {
@@ -954,7 +970,12 @@ where
                     .map_or_else(Event::Raw, Event::Message),
                     None => Event::Raw(message.into_message()),
                 };
-                *pending_event = Some(event);
+                if !enqueue_event(events, pending_events, event) {
+                    return Ok(Some((
+                        papo_core::CloseKind::Other,
+                        SLOW_CONSUMER_REASON.to_owned(),
+                    )));
+                }
             }
             event::CoreEvent::History {
                 target,
@@ -988,17 +1009,42 @@ where
                         .ok()
                     })
                     .collect();
-                *pending_event = Some(Event::History {
+                let event = Event::History {
                     target,
                     messages,
                     end,
-                });
+                };
+                if !enqueue_event(events, pending_events, event) {
+                    return Ok(Some((
+                        papo_core::CloseKind::Other,
+                        SLOW_CONSUMER_REASON.to_owned(),
+                    )));
+                }
             }
             event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),
             event::CoreEvent::Unknown => {}
         }
     }
+    while let Some(line) = session.poll_transmit() {
+        stream.write_all(&line).await?;
+    }
     Ok(None)
+}
+
+fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
+    let event = if pending.is_empty() {
+        match events.regular.try_send(event) {
+            Ok(()) | Err(mpsc::error::TrySendError::Closed(_)) => return true,
+            Err(mpsc::error::TrySendError::Full(event)) => event,
+        }
+    } else {
+        event
+    };
+    if pending.len() >= events.regular.max_capacity() {
+        return false;
+    }
+    pending.push_back(event);
+    true
 }
 
 fn resolve_sync_waiters(

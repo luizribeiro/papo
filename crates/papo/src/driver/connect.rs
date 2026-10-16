@@ -9,8 +9,8 @@ use tokio::sync::mpsc;
 
 use super::{
     BackoffEntropy, BoxConnection, Command, ConnectFuture, ConnectionEnd, ConnectionPlan,
-    Connector, EventSink, PostRegistration, RegistrationWait, STABLE_CONNECTION, StsActions,
-    finish, now, run_connection,
+    Connector, EventSink, PostRegistration, RegistrationWait, SLOW_CONSUMER_REASON,
+    STABLE_CONNECTION, StsActions, finish, now, run_connection,
 };
 use crate::{AddressError, Error, Event, Reconnect, address::Protocol, transport};
 
@@ -230,6 +230,9 @@ fn triage_connection_end(
     attempts: &mut usize,
     last_sts_upgrade: &mut Option<String>,
 ) -> ControlFlow<(ConnectionEnd, bool), (ConnectionEnd, Option<u16>)> {
+    if end.reason == SLOW_CONSUMER_REASON {
+        return ControlFlow::Break((end, true));
+    }
     if end.quit.is_some() {
         return ControlFlow::Break((end, false));
     }

@@ -2187,6 +2187,66 @@ async fn full_event_channel_still_serves_quit_and_its_timer() {
     assert_eq!(events.receiver.len(), 1);
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn pending_whois_reads_ahead_past_a_full_event_channel() {
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :maintenance extended\r\n",
+    )
+    .await;
+    while events.receiver.len() != 1 {
+        tokio::task::yield_now().await;
+    }
+
+    let whois = tokio::spawn(async move { client.whois("alice").await });
+    client_line(&mut server, b"WHOIS alice\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 311 papo-driver alice ~alice staff.example * :Alice Example\r\n:ergo.test 318 papo-driver alice :End of /WHOIS list\r\n",
+    )
+    .await;
+    assert_eq!(within(whois).await.unwrap().unwrap().nick, "alice");
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Ok(()) | Err(Error::Disconnected)
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+    let whois = tokio::spawn(async move { client.whois("alice").await });
+    client_line(&mut server, b"WHOIS alice\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test NOTICE papo-driver :maintenance one\r\n:ergo.test NOTICE papo-driver :maintenance two\r\n:ergo.test NOTICE papo-driver :maintenance three\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        within(whois).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected { reason, .. }) if reason == "SlowConsumer"
+    ));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn session_deadline_sends_keepalive_ping() {
     let config = config()
