@@ -373,3 +373,55 @@ fn reports_metadata_sync_later_with_and_without_a_retry_delay() {
             if target == "bob")
         });
 }
+
+#[test]
+fn subscribes_before_cap_end_and_resubscribes_with_an_empty_cache() {
+    let config = Config::default()
+        .wanted_caps(["draft/metadata-2", "labeled-response"])
+        .metadata_subscriptions(["avatar", "pronouns"]);
+    Transcript::new(config)
+        .connect_default()
+        .server(
+            "CAP * LS :draft/metadata-2=before-connect,max-subs=100,max-keys=100 labeled-response",
+        )
+        .client("CAP REQ :draft/metadata-2 labeled-response")
+        .server("CAP * ACK :draft/metadata-2 labeled-response")
+        .client("@label=0 METADATA * SUB avatar pronouns")
+        .client("CAP END")
+        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .server(":ergo.test 422 alice :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .server("@label=0 :ergo.test 770 alice avatar pronouns")
+        .event(|event| matches!(event, Event::Response(_)))
+        .server(":bob!b@example.test METADATA alice avatar * :https://example.test/a.png")
+        .event(|event| matches!(event, Event::MetadataChanged { .. }))
+        .inspect(|session| assert!(session.state().metadata("alice").is_some()))
+        .disconnect()
+        .inspect(|session| assert!(session.state().metadata("alice").is_none()))
+        .connect_default()
+        .server(
+            "CAP * LS :draft/metadata-2=before-connect,max-subs=100,max-keys=100 labeled-response",
+        )
+        .client("CAP REQ :draft/metadata-2 labeled-response")
+        .server("CAP * ACK :draft/metadata-2 labeled-response")
+        .client("@label=1 METADATA * SUB avatar pronouns")
+        .client("CAP END");
+}
+
+#[test]
+fn subscribes_after_registration_without_before_connect() {
+    let config = Config::default()
+        .wanted_caps(["draft/metadata-2", "labeled-response"])
+        .metadata_subscriptions(["avatar"]);
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :draft/metadata-2=max-subs=100,max-keys=100 labeled-response")
+        .client("CAP REQ :draft/metadata-2 labeled-response")
+        .server("CAP * ACK :draft/metadata-2 labeled-response")
+        .client("CAP END")
+        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .no_client()
+        .server(":ergo.test 422 alice :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .client("@label=0 METADATA * SUB avatar");
+}

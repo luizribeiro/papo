@@ -207,6 +207,8 @@ pub struct Config {
     pub ctcp: CtcpReplies,
     /// Away state announced during or immediately after registration.
     pub away_on_connect: Option<AwayOnConnect>,
+    /// Metadata keys subscribed on every connection.
+    pub metadata_subscriptions: Vec<String>,
 }
 
 impl std::fmt::Debug for Config {
@@ -237,6 +239,7 @@ impl std::fmt::Debug for Config {
             .field("request_timeout", &self.request_timeout)
             .field("ctcp", &self.ctcp)
             .field("away_on_connect", &self.away_on_connect)
+            .field("metadata_subscriptions", &self.metadata_subscriptions)
             .finish()
     }
 }
@@ -280,6 +283,7 @@ impl Default for Config {
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
             ctcp: CtcpReplies::default(),
             away_on_connect: None,
+            metadata_subscriptions: Vec::new(),
         }
     }
 }
@@ -461,6 +465,17 @@ impl Config {
     #[must_use]
     pub fn away_on_connect(mut self, away: Option<AwayOnConnect>) -> Self {
         self.away_on_connect = away;
+        self
+    }
+
+    /// Sets metadata keys subscribed on every connection.
+    #[must_use]
+    pub fn metadata_subscriptions<I, S>(mut self, keys: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.metadata_subscriptions = keys.into_iter().map(Into::into).collect();
         self
     }
 }
@@ -1440,6 +1455,7 @@ pub struct Session {
     isupport: IsupportState,
     keepalive: Keepalive,
     monitor: Monitor,
+    metadata_subscriptions_sent: bool,
     rate_limit: RateLimiter,
     requests: BTreeMap<String, (RequestId, Instant, bool)>,
     unlabelled_requests: VecDeque<UnlabelledRequest>,
@@ -1466,6 +1482,10 @@ impl std::fmt::Debug for Session {
             .field("isupport", &self.isupport)
             .field("keepalive", &self.keepalive)
             .field("monitor", &self.monitor)
+            .field(
+                "metadata_subscriptions_sent",
+                &self.metadata_subscriptions_sent,
+            )
             .field("rate_limit", &self.rate_limit)
             .field("requests", &self.requests)
             .field("unlabelled_requests", &self.unlabelled_requests)
@@ -1607,6 +1627,7 @@ impl Session {
             isupport,
             keepalive: Keepalive::default(),
             monitor: Monitor::default(),
+            metadata_subscriptions_sent: false,
             rate_limit,
             requests: BTreeMap::new(),
             unlabelled_requests: VecDeque::new(),
@@ -1640,6 +1661,7 @@ impl Session {
         self.rate_limit.reset(now);
         self.account_registration.handle_disconnected();
         self.away_on_connect_sent = false;
+        self.metadata_subscriptions_sent = false;
         self.caps.handle_connected(now);
         self.isupport.handle_connected();
         self.sasl.handle_connected();
@@ -1758,6 +1780,7 @@ impl Session {
                 .restore(self.isupport.value(), &mut self.outbox);
         }
         self.sasl.handle_timeout(now, &mut self.outbox);
+        self.maybe_subscribe_metadata(now);
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
             &mut self.outbox,
@@ -1782,6 +1805,7 @@ impl Session {
         self.sasl.handle_disconnected();
         self.keepalive.handle_disconnected();
         self.monitor.handle_disconnected();
+        self.metadata_subscriptions_sent = false;
         self.state.reset(&self.config);
         self.state_generation = self.state_generation.wrapping_add(1);
     }
@@ -2434,6 +2458,7 @@ impl Session {
             && !redacted
             && emit_unhandled
             && self.report_standard_reply(message);
+        self.maybe_subscribe_metadata(now);
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
             &mut self.outbox,
@@ -2754,6 +2779,32 @@ impl Session {
             .and_then(|limits| limits.max_keys)
             .unwrap_or(10_000)
             .min(10_000)
+    }
+
+    fn maybe_subscribe_metadata(&mut self, now: Instant) {
+        if self.metadata_subscriptions_sent || self.config.metadata_subscriptions.is_empty() {
+            return;
+        }
+        let Some(limits) = self.metadata_limits() else {
+            return;
+        };
+        let registered = self.registration.is_registered();
+        if !registered && !limits.before_connect {
+            return;
+        }
+        self.metadata_subscriptions_sent = true;
+        let result = self.metadata(
+            now,
+            MetadataCommand::Sub {
+                keys: self.config.metadata_subscriptions.clone(),
+            },
+        );
+        if !registered
+            && result.is_ok()
+            && let Some(Transmission::Line(line)) = self.outbox.transmits.pop_back()
+        {
+            self.outbox.immediate.push_back(line);
+        }
     }
 
     fn close_for_long_line(&mut self) {
