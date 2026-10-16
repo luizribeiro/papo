@@ -2,7 +2,7 @@ use std::{
     io::{self, Read, Write},
     net::{SocketAddr, TcpStream},
     path::PathBuf,
-    process::{Child, Stdio},
+    process::{Child, ExitStatus, Stdio},
     thread,
     time::{Duration, Instant},
 };
@@ -179,29 +179,38 @@ impl TestServer {
 
     fn wait_until_ready(&mut self) -> io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(10);
-        while Instant::now() < deadline {
-            if let Some(status) = self.child.try_wait()? {
-                return Err(io::Error::other(format!("ergo exited with {status}")));
-            }
-            if [
-                self.plaintext,
-                self.tls,
-                self.websocket,
-                self.secure_websocket,
-            ]
+        let addresses = [
+            self.plaintext,
+            self.tls,
+            self.websocket,
+            self.secure_websocket,
+        ];
+        wait_until_ready_until(addresses, deadline, || self.child.try_wait())
+    }
+}
+
+fn wait_until_ready_until(
+    addresses: [SocketAddr; 4],
+    deadline: Instant,
+    mut child_status: impl FnMut() -> io::Result<Option<ExitStatus>>,
+) -> io::Result<()> {
+    while Instant::now() < deadline {
+        if let Some(status) = child_status()? {
+            return Err(io::Error::other(format!("ergo exited with {status}")));
+        }
+        if addresses
             .iter()
             .all(|address| TcpStream::connect(address).is_ok())
-                && answers_irc(self.plaintext)
-            {
-                return Ok(());
-            }
-            thread::sleep(Duration::from_millis(20));
+            && answers_irc(addresses[0])
+        {
+            return Ok(());
         }
-        Err(io::Error::new(
-            io::ErrorKind::TimedOut,
-            "Ergo did not start",
-        ))
+        thread::sleep(Duration::from_millis(20));
     }
+    Err(io::Error::new(
+        io::ErrorKind::TimedOut,
+        "Ergo did not start",
+    ))
 }
 
 /// A listening port alone can belong to another process, so readiness also requires an IRC reply.
@@ -230,13 +239,74 @@ impl Drop for TestServer {
 #[cfg(test)]
 mod tests {
     use std::{
-        io::{Read, Write},
+        io::{self, Read, Write},
         net::{TcpListener, TcpStream},
         path::Path,
-        time::Duration,
+        sync::mpsc,
+        thread,
+        time::{Duration, Instant},
     };
 
-    use super::{Configuration, TestServer};
+    use super::{Configuration, TestServer, answers_irc, wait_until_ready_until};
+
+    #[test]
+    fn irc_probe_requires_a_reply_from_an_open_port() {
+        let silent_listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let silent_address = silent_listener.local_addr().unwrap();
+        let (release_sender, release_receiver) = mpsc::channel();
+        thread::scope(|scope| {
+            scope.spawn(move || {
+                let (mut connection, _) = silent_listener.accept().unwrap();
+                let mut ping = [0; 18];
+                connection.read_exact(&mut ping).unwrap();
+                assert_eq!(&ping, b"PING :papo-ready\r\n");
+                release_receiver.recv().unwrap();
+            });
+            let answered = answers_irc(silent_address);
+            let mut unblock = TcpStream::connect(silent_address).unwrap();
+            unblock.write_all(b"PING :papo-ready\r\n").unwrap();
+            release_sender.send(()).unwrap();
+            assert!(!answered);
+        });
+
+        let answering_listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let answering_address = answering_listener.local_addr().unwrap();
+        thread::scope(|scope| {
+            scope.spawn(move || {
+                let (mut connection, _) = answering_listener.accept().unwrap();
+                let mut ping = [0; 18];
+                connection.read_exact(&mut ping).unwrap();
+                assert_eq!(&ping, b"PING :papo-ready\r\n");
+                connection
+                    .write_all(b":irc.example PONG irc.example :papo-ready\r\n")
+                    .unwrap();
+            });
+            assert!(answers_irc(answering_address));
+        });
+
+        let closed_listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let closed_address = closed_listener.local_addr().unwrap();
+        drop(closed_listener);
+        assert!(!answers_irc(closed_address));
+    }
+
+    #[test]
+    fn readiness_times_out_when_every_port_accepts_but_irc_is_silent() {
+        let listeners =
+            std::array::from_fn::<_, 4, _>(|_| TcpListener::bind(("127.0.0.1", 0)).unwrap());
+        let addresses = listeners
+            .each_ref()
+            .map(|listener| listener.local_addr().unwrap());
+        let error = wait_until_ready_until(
+            addresses,
+            Instant::now() + Duration::from_millis(20),
+            || Ok::<_, io::Error>(None),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert_eq!(error.to_string(), "Ergo did not start");
+    }
 
     #[test]
     fn retries_with_fresh_ports_after_a_bind_collision() {
