@@ -5,6 +5,7 @@ mod account_registration;
 mod batch;
 mod caps;
 mod channel_rename;
+mod features;
 mod framing;
 mod history;
 mod isupport;
@@ -40,6 +41,7 @@ use account_registration::{AccountRegistration, PendingRegistration, Registratio
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 pub use channel_rename::ChannelRenameError;
+pub use features::{Feature, UnsupportedReason};
 use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
