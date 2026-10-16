@@ -2294,6 +2294,13 @@ impl Session {
         self.state_generation
     }
 
+    /// Returns the identifier that the next tracked request will receive.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn next_request_id(&self) -> RequestId {
+        RequestId(self.next_request_id)
+    }
+
     /// Reports whether connection registration has completed.
     #[must_use]
     pub const fn is_registered(&self) -> bool {
