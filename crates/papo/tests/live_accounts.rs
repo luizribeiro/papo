@@ -4,12 +4,25 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
+#[cfg(not(target_family = "wasm"))]
+use std::net::SocketAddr;
 use std::time::Duration;
 
+#[cfg(not(target_family = "wasm"))]
+use papo::Reconnect;
 use papo::{AccountRegistration, Client, Event, Sasl};
+#[cfg(not(target_family = "wasm"))]
+use papo_core::PersistenceSetting;
 use papo_core::Secret;
+#[cfg(not(target_family = "wasm"))]
+use papo_test_server::register_account;
 use papo_test_server::{from_env, unique};
 use tokio::time::timeout;
+#[cfg(not(target_family = "wasm"))]
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::mpsc,
+};
 
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
@@ -57,6 +70,78 @@ async fn registers_then_logs_in_with_sasl() {
     .expect("live account test did not finish within 10 seconds");
 }
 
+#[cfg(not(target_family = "wasm"))]
+#[tokio::test(flavor = "current_thread")]
+async fn persistent_server_restores_channels_without_a_client_join() {
+    timeout(Duration::from_secs(20), async {
+        let server = from_env();
+        let (proxy, disconnect) = disconnecting_proxy(server.plaintext_addr()).await;
+        let address = format!("irc://{proxy}");
+        let account = unique("papo-persistent");
+        let channel = format!("#{}", unique("papo-persistent"));
+        register_account(&server, &account, PASSWORD).unwrap();
+        let (client, mut events) = Client::builder(&address)
+            .nick(&account)
+            .sasl(Sasl::plain(&account, PASSWORD))
+            .require_sasl(true)
+            .caps(["sasl", "draft/persistence", "labeled-response"])
+            .channels([&channel])
+            .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(1)))
+            .connect()
+            .await
+            .unwrap();
+        wait_for(
+            &mut events,
+            |event| matches!(event, Event::ChannelSynced { channel: joined } if joined == &channel),
+        )
+        .await;
+        let persistence = client
+            .persistence()
+            .set(PersistenceSetting::On)
+            .await
+            .unwrap();
+        assert!(persistence.effective);
+
+        disconnect.send(()).await.unwrap();
+        wait_for(&mut events, |event| {
+            matches!(
+                event,
+                Event::Disconnected {
+                    will_retry: true,
+                    ..
+                }
+            )
+        })
+        .await;
+        wait_for(&mut events, |event| matches!(event, Event::Reconnected(_))).await;
+        assert!(client.state(|state| state.channel(&channel).is_some()));
+        client
+            .quit(Some("persistent reconnect verified"))
+            .await
+            .unwrap();
+    })
+    .await
+    .expect("persistent reconnect did not finish within 20 seconds");
+}
+
+#[cfg(not(target_family = "wasm"))]
+async fn disconnecting_proxy(target: SocketAddr) -> (SocketAddr, mpsc::Sender<()>) {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let (disconnect, mut disconnects) = mpsc::channel(1);
+    tokio::spawn(async move {
+        loop {
+            let (mut client, _) = listener.accept().await.unwrap();
+            let mut server = TcpStream::connect(target).await.unwrap();
+            tokio::select! {
+                _ = tokio::io::copy_bidirectional(&mut client, &mut server) => {}
+                _ = disconnects.recv() => {}
+            }
+        }
+    });
+    (address, disconnect)
+}
+
 async fn wait_registered(events: &mut papo::Events, nick: &str) {
     loop {
         match events.next().await {
@@ -64,6 +149,16 @@ async fn wait_registered(events: &mut papo::Events, nick: &str) {
             Some(Event::Disconnected { reason, .. }) => panic!("disconnected: {reason}"),
             Some(_) => {}
             None => panic!("driver stopped before registration"),
+        }
+    }
+}
+
+#[cfg(not(target_family = "wasm"))]
+async fn wait_for(events: &mut papo::Events, accepted: impl Fn(&Event) -> bool) {
+    loop {
+        let event = events.next().await.expect("driver stopped unexpectedly");
+        if accepted(&event) {
+            return;
         }
     }
 }
