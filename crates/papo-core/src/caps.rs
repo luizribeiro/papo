@@ -5,7 +5,7 @@ use std::{
 
 use papo_proto::{MAX_MESSAGE_LEN, MessageRef, NAME_ALIASES, NameKind};
 
-use crate::sts::{StsAction, StsPolicy, decide};
+use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
     Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox, sasl::SaslSession,
 };
@@ -312,7 +312,7 @@ impl Caps {
         let Some(value) = self.advertised.get("sts").and_then(Option::as_deref) else {
             return false;
         };
-        let Ok(directive) = StsPolicy::parse(value) else {
+        let Ok(directive) = StsDirective::parse(value) else {
             return false;
         };
         match decide(directive, connection.security, &connection.host) {

@@ -5,11 +5,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-/// Stateless operations for `IRCv3` Strict Transport Security policies.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct StsPolicy;
-
-impl StsPolicy {
+impl StsDirective {
     /// Parses an `sts` capability value.
     ///
     /// Unknown policy keys are ignored as required by the `IRCv3` specification.
@@ -225,12 +221,12 @@ mod tests {
 
     use super::{
         ConnectionSecurity, MemoryStsStore, StoredPolicy, StsAction, StsDirective, StsParseError,
-        StsPolicy, StsStore, decide, reschedule_on_disconnect,
+        StsStore, decide, reschedule_on_disconnect,
     };
 
     #[test]
     fn parses_every_policy_part() {
-        let directive = StsPolicy::parse("port=6697,duration=15552000,preload").unwrap();
+        let directive = StsDirective::parse("port=6697,duration=15552000,preload").unwrap();
         assert_eq!(directive.port, Some(6697));
         assert_eq!(
             directive.duration.map(|value| value.as_secs()),
@@ -242,7 +238,7 @@ mod tests {
     #[test]
     fn ignores_unknown_keys_and_preload_values() {
         assert_eq!(
-            StsPolicy::parse("unknown,preload=yes,foo=bar").unwrap(),
+            StsDirective::parse("unknown,preload=yes,foo=bar").unwrap(),
             StsDirective {
                 preload: true,
                 ..StsDirective::default()
@@ -252,7 +248,7 @@ mod tests {
 
     #[test]
     fn accepts_an_empty_policy_as_having_no_directives() {
-        assert_eq!(StsPolicy::parse("").unwrap(), StsDirective::default());
+        assert_eq!(StsDirective::parse("").unwrap(), StsDirective::default());
     }
 
     #[test]
@@ -271,18 +267,18 @@ mod tests {
             ),
             ("preload,preload", StsParseError::DuplicateKey("preload")),
         ] {
-            assert_eq!(StsPolicy::parse(value), Err(error));
+            assert_eq!(StsDirective::parse(value), Err(error));
         }
     }
 
     #[test]
     fn upgrades_plaintext_only_when_a_port_is_present() {
-        let with_port = StsPolicy::parse("port=6697,duration=31536000").unwrap();
+        let with_port = StsDirective::parse("port=6697,duration=31536000").unwrap();
         assert_eq!(
             decide(with_port, ConnectionSecurity::Plaintext, "irc.example.net"),
             StsAction::UpgradeTo { port: 6697 }
         );
-        let duration_only = StsPolicy::parse("duration=31536000").unwrap();
+        let duration_only = StsDirective::parse("duration=31536000").unwrap();
         assert_eq!(
             decide(
                 duration_only,
@@ -295,7 +291,7 @@ mod tests {
 
     #[test]
     fn persists_or_removes_only_from_a_secure_connection() {
-        let duration = StsPolicy::parse("duration=15552000,preload=consent").unwrap();
+        let duration = StsDirective::parse("duration=15552000,preload=consent").unwrap();
         let StsAction::Persist { host, duration } =
             decide(duration, ConnectionSecurity::Secure, "IRC.Example.NET.")
         else {
@@ -303,7 +299,7 @@ mod tests {
         };
         assert_eq!(host, "irc.example.net");
         assert_eq!(duration, Duration::from_hours(4_320));
-        let remove = StsPolicy::parse("duration=0").unwrap();
+        let remove = StsDirective::parse("duration=0").unwrap();
         assert_eq!(
             decide(remove, ConnectionSecurity::Secure, "IRC.Example.NET."),
             StsAction::Remove {
@@ -314,7 +310,7 @@ mod tests {
 
     #[test]
     fn ignores_a_secure_policy_with_only_a_port() {
-        let directive = StsPolicy::parse("port=6697").unwrap();
+        let directive = StsDirective::parse("port=6697").unwrap();
         assert_eq!(
             decide(directive, ConnectionSecurity::Secure, "irc.example.net"),
             StsAction::Ignore
@@ -378,7 +374,7 @@ mod tests {
 
     #[test]
     fn reschedules_expiry_from_disconnect_time() {
-        let duration = StsPolicy::parse("duration=2592000")
+        let duration = StsDirective::parse("duration=2592000")
             .unwrap()
             .duration
             .unwrap();
