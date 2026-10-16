@@ -426,3 +426,37 @@ fn subscribes_after_registration_without_before_connect() {
         .event(|event| matches!(event, Event::Registered(_)))
         .client("@label=0 METADATA * SUB avatar");
 }
+
+#[test]
+fn encodes_list_remove_clear_and_sync() {
+    registered("max-subs=100,max-keys=100")
+        .update(|session| {
+            let now = std::time::Instant::now();
+            for command in [
+                MetadataCommand::List {
+                    target: "alice".into(),
+                },
+                MetadataCommand::Set {
+                    target: "alice".into(),
+                    key: "status".into(),
+                    value: None,
+                },
+                MetadataCommand::Clear {
+                    target: "alice".into(),
+                },
+                MetadataCommand::Sync {
+                    target: "#papo".into(),
+                },
+            ] {
+                session.metadata(now, command).unwrap();
+            }
+        })
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .client("METADATA alice LIST")
+        .client("METADATA alice SET status")
+        .client("METADATA alice CLEAR")
+        .client("METADATA #papo SYNC");
+}
