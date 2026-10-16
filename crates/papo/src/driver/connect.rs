@@ -124,7 +124,7 @@ pub(super) async fn run_plan(
             .take()
             .expect("planned connections retain their STS store");
         reschedule_stored_policy(sts_store.as_mut(), &plan.address.host);
-        let (end, upgrade_port) = match triage_connection_end(
+        let (mut end, upgrade_port) = match triage_connection_end(
             end,
             &plan,
             force_plaintext,
@@ -145,6 +145,7 @@ pub(super) async fn run_plan(
             base_plan.address.set_port(port);
             sts_required = true;
         }
+        send_pending(&events.regular, &mut end.pending_events).await;
         _ = events
             .regular
             .send(Event::Disconnected {
@@ -166,6 +167,14 @@ pub(super) async fn run_plan(
         .await
         {
             return Ok(());
+        }
+    }
+}
+
+async fn send_pending(events: &mpsc::Sender<Event>, pending: &mut VecDeque<Event>) {
+    while let Some(event) = pending.pop_front() {
+        if events.send(event).await.is_err() {
+            break;
         }
     }
 }
@@ -333,10 +342,12 @@ fn finish_connection_failure(
     if registration.0.is_some() {
         registration.failed(error);
         drop(events.regular);
-        _ = events.disconnected.send(Event::Disconnected {
-            reason,
-            will_retry: false,
-        });
+        _ = events
+            .disconnected
+            .send(VecDeque::from([Event::Disconnected {
+                reason,
+                will_retry: false,
+            }]));
         return Ok(());
     }
     finish(
@@ -350,6 +361,7 @@ fn finish_connection_failure(
             registered_at: None,
             sts: StsActions::default(),
             sts_store: None,
+            pending_events: VecDeque::new(),
         },
         false,
     )

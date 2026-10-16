@@ -2313,6 +2313,38 @@ async fn pending_whois_reads_ahead_past_a_full_event_channel() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn disconnect_preserves_events_waiting_for_channel_capacity() {
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+    let whois = tokio::spawn(async move { client.whois("alice").await });
+    client_line(&mut server, b"WHOIS alice\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :maintenance extended\r\nERROR :Closing Link: papo-driver (Server shutdown)\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        within(whois).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+    assert_eq!(next_message(&mut events).await.text(), "maintenance soon");
+    assert_eq!(
+        next_message(&mut events).await.text(),
+        "maintenance extended"
+    );
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected { reason, .. }) if reason == "Closing Link: papo-driver (Server shutdown)"
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
     let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
@@ -2333,6 +2365,7 @@ async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
         within(driver).await.unwrap(),
         Err(Error::Disconnected)
     ));
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(matches!(
         events.next().await,

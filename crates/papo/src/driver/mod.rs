@@ -197,7 +197,7 @@ struct Quit {
 
 struct EventSink {
     regular: mpsc::Sender<Event>,
-    disconnected: oneshot::Sender<Event>,
+    disconnected: oneshot::Sender<VecDeque<Event>>,
     connected: Arc<AtomicBool>,
     state: Arc<RwLock<Arc<State>>>,
     commands: mpsc::WeakSender<Command>,
@@ -248,12 +248,16 @@ pub(crate) struct PostRegistration {
 /// client commands and session timers continue to be served.
 pub struct Events {
     receiver: mpsc::Receiver<Event>,
-    disconnected: Option<oneshot::Receiver<Event>>,
+    disconnected: Option<oneshot::Receiver<VecDeque<Event>>>,
+    pending: VecDeque<Event>,
 }
 
 impl Events {
     /// Waits for the next event, or returns `None` after the driver stops.
     pub async fn next(&mut self) -> Option<Event> {
+        if let Some(event) = self.pending.pop_front() {
+            return Some(event);
+        }
         #[cfg(test)]
         let event = test_support::within(self.receiver.recv()).await;
         #[cfg(not(test))]
@@ -263,10 +267,11 @@ impl Events {
         }
         let disconnected = self.disconnected.take()?;
         #[cfg(test)]
-        let event = test_support::within(disconnected).await;
+        let events = test_support::within(disconnected).await;
         #[cfg(not(test))]
-        let event = disconnected.await;
-        event.ok()
+        let events = disconnected.await;
+        self.pending = events.ok()?;
+        self.pending.pop_front()
     }
 }
 
@@ -462,6 +467,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         events: Events {
             receiver: event_receiver,
             disconnected: Some(disconnect_receiver),
+            pending: VecDeque::new(),
         },
         commands: command_receiver,
         event_sink: events,
@@ -519,6 +525,7 @@ struct ConnectionEnd {
     registered_at: Option<Instant>,
     sts: StsActions,
     sts_store: Option<Box<dyn StsStore + Send>>,
+    pending_events: VecDeque<Event>,
 }
 
 #[derive(Default)]
@@ -796,6 +803,7 @@ where
         registered_at,
         sts,
         sts_store,
+        pending_events,
     }
 }
 
@@ -1132,10 +1140,12 @@ fn should_rejoin(session: &Session) -> bool {
 
 fn finish(events: EventSink, end: ConnectionEnd, will_retry: bool) -> Result<(), Error> {
     drop(events.regular);
-    _ = events.disconnected.send(Event::Disconnected {
+    let mut pending = end.pending_events;
+    pending.push_back(Event::Disconnected {
         reason: end.reason,
         will_retry,
     });
+    _ = events.disconnected.send(pending);
     if let Some(quit) = end.quit {
         for response in quit.results {
             _ = response.send(if end.quit_timed_out {
