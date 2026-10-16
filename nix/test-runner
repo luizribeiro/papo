@@ -2,10 +2,21 @@
 set -euo pipefail
 
 invocation_dir=$PWD
-artifact=${1:?a test binary is required}
-if [[ $artifact == */target/* ]]; then
-  repo_root=${artifact%%/target/*}
+browser_tests=false
+if [[ ${1-} == --browser ]]; then
+  browser_tests=true
+  shift
+  artifact=browser
+  repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+elif [[ ${1-} ]]; then
+  artifact=$1
 else
+  echo "a test binary or --browser is required" >&2
+  exit 2
+fi
+if ! $browser_tests && [[ $artifact == */target/* ]]; then
+  repo_root=${artifact%%/target/*}
+elif ! $browser_tests; then
   repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 fi
 binary_name=${artifact##*/}
@@ -74,6 +85,21 @@ start_server() {
 
 if [[ $binary_name == live_* || $binary_name == papo ]]; then
   start_server
+fi
+
+if $browser_tests; then
+  start_server
+  if [[ ! -d ${HOME-} ]]; then
+    export HOME=$invocation_dir/target/browser-home
+    mkdir -p "$HOME"
+  fi
+  export PAPO_BROWSER_WS=$PAPO_TEST_WS
+  export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner
+  manifest=crates/papo-core/tests/browser/Cargo.toml
+  cargo test --manifest-path "$manifest" --target wasm32-unknown-unknown --locked --test node
+  CI=1 cargo test --manifest-path "$manifest" --target wasm32-unknown-unknown --locked --test dedicated_worker
+  CI=1 cargo test --manifest-path "$manifest" --target wasm32-unknown-unknown --locked --test shared_worker
+  exit
 fi
 
 set +e
