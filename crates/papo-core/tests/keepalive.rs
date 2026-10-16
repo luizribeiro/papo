@@ -48,12 +48,18 @@ fn bounds_server_error_reasons_without_splitting_utf8() {
         .server(&format!("ERROR :{exact}"))
         .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason } if reason == exact));
 
-    let over = format!("{}é", "K".repeat(255));
-    assert_eq!(over.len(), 257);
-    Transcript::new(Config::default())
-        .connect_default()
-        .server(&format!("ERROR :{over}"))
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason } if reason == &"K".repeat(255)));
+    for (over, expected) in [
+        ("K".repeat(257), "K".repeat(256)),
+        (format!("{}é", "K".repeat(255)), "K".repeat(255)),
+        (format!("{}€", "K".repeat(254)), "K".repeat(254)),
+        (format!("{}🦀", "K".repeat(253)), "K".repeat(253)),
+    ] {
+        assert_eq!(over.len(), 257);
+        Transcript::new(Config::default())
+            .connect_default()
+            .server(&format!("ERROR :{over}"))
+            .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason } if reason == &expected));
+    }
 }
 
 #[test]

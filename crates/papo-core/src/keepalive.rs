@@ -108,9 +108,6 @@ impl Keepalive {
 }
 
 fn bounded_server_error_reason(reason: &str) -> String {
-    let mut end = reason.len().min(MAX_SERVER_ERROR_REASON_LEN);
-    while !reason.is_char_boundary(end) {
-        end -= 1;
-    }
+    let end = reason.floor_char_boundary(reason.len().min(MAX_SERVER_ERROR_REASON_LEN));
     reason[..end].to_owned()
 }
