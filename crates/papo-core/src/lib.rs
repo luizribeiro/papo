@@ -1132,6 +1132,13 @@ pub enum Event {
         /// Visibility policy reported by the server.
         visibility: String,
     },
+    /// The server deferred metadata synchronization for a target.
+    MetadataSyncLater {
+        /// Nickname or channel whose synchronization was deferred.
+        target: String,
+        /// Suggested delay before retrying, when supplied.
+        retry_after: Option<Duration>,
+    },
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.

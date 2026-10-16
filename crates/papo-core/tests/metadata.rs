@@ -358,3 +358,18 @@ fn types_each_simple_metadata_failure_only_for_metadata() {
             if reply.metadata_error().is_none())
         });
 }
+
+#[test]
+fn reports_metadata_sync_later_with_and_without_a_retry_delay() {
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test 774 alice #papo 90")
+        .event(|event| {
+            matches!(event, Event::MetadataSyncLater { target, retry_after }
+            if target == "#papo" && *retry_after == Some(Duration::from_secs(90)))
+        })
+        .server(":ergo.test 774 alice bob")
+        .event(|event| {
+            matches!(event, Event::MetadataSyncLater { target, retry_after: None }
+            if target == "bob")
+        });
+}
