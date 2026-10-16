@@ -3735,6 +3735,7 @@ mod tests {
                 duration: Duration::from_secs(3600),
             },
         );
+        let (registration, waiter) = tokio::sync::oneshot::channel();
         let (_client, mut events, driver) = Driver::with_connector(
             Ok(ConnectionPlan {
                 address: "irc://irc.example.net".parse().unwrap(),
@@ -3742,7 +3743,7 @@ mod tests {
             }),
             Session::new(config()),
             super::DEFAULT_CHANNEL_CAPACITY,
-            None,
+            Some(registration),
             super::PostRegistration::default(),
             Reconnect::exponential(),
             256,
@@ -3751,8 +3752,9 @@ mod tests {
             connector,
         );
 
+        assert!(matches!(driver.await, Ok(())));
         assert!(matches!(
-            driver.await,
+            waiter.await.unwrap(),
             Err(Error::Unsupported("scripted TLS failure"))
         ));
         assert!(matches!(
@@ -4133,6 +4135,7 @@ mod tests {
                 Box::pin(async move { Ok(stream) })
             }
         });
+        let (registration, waiter) = tokio::sync::oneshot::channel();
         let (client, mut events, driver) = Driver::with_connector(
             Ok(ConnectionPlan {
                 address: "irc://irc.example.net".parse().unwrap(),
@@ -4140,7 +4143,7 @@ mod tests {
             }),
             Session::new(config().host("irc.example.net").wanted_caps(["sts"])),
             super::DEFAULT_CHANNEL_CAPACITY,
-            None,
+            Some(registration),
             super::PostRegistration::default(),
             Reconnect::exponential(),
             256,
@@ -4164,6 +4167,18 @@ mod tests {
         ));
         registration_burst(&mut second_server).await;
         assert_eq!(&*requested.lock().unwrap(), &[(false, 6667), (true, 6699)]);
+        server_line(
+            &mut second_server,
+            b":ergo.test CAP * LS :sts=duration=3600\r\n",
+        )
+        .await;
+        client_line(&mut second_server, b"CAP END\r\n").await;
+        server_line(
+            &mut second_server,
+            b":ergo.test 001 papo-driver :Welcome over TLS\r\n",
+        )
+        .await;
+        assert!(waiter.await.unwrap().is_ok());
 
         let quit = tokio::spawn(async move { client.quit(None).await });
         client_line(&mut second_server, b"QUIT\r\n").await;

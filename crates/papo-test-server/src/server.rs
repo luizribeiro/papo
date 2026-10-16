@@ -31,6 +31,19 @@ impl TestServer {
         Self::start_with(Configuration::new)
     }
 
+    /// Starts Ergo with STS advertising its isolated TLS listener.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if setup fails or Ergo does not become ready in time.
+    pub fn start_with_sts() -> io::Result<Self> {
+        Self::start_with(|directory| {
+            let mut configuration = Configuration::new(directory)?;
+            configuration.enable_sts();
+            Ok(configuration)
+        })
+    }
+
     /// Returns the plaintext IRC listener address.
     #[must_use]
     pub const fn plaintext_addr(&self) -> SocketAddr {

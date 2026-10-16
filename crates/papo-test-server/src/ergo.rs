@@ -35,6 +35,15 @@ impl Configuration {
         Self::from_addresses(directory, addresses)
     }
 
+    pub(crate) fn enable_sts(&mut self) {
+        self.overrides
+            .push(("ERGO__SERVER__STS__ENABLED", "true".into()));
+        self.overrides
+            .push(("ERGO__SERVER__STS__PORT", self.tls.port().to_string()));
+        self.overrides
+            .push(("ERGO__SERVER__STS__DURATION", "1h".into()));
+    }
+
     fn from_addresses(
         directory: &TemporaryDirectory,
         addresses: [std::net::SocketAddr; 4],
