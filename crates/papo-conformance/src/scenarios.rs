@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use libtest_mimic::Failed;
 use papo::Event;
+use papo_conformance_macros::scenario;
 use papo_core::Sasl;
 use papo_proto::{Message, MessageRef, Source, StandardReplyKind, Typing};
 use papo_test_server::register_account;
@@ -25,7 +26,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 caps: &[],
                 isupport: &[],
             },
-            run: registration,
+            run: __papo_scenario_registration,
         },
         ScenarioSpec {
             name: "tls",
@@ -34,7 +35,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 caps: &[],
                 isupport: &[],
             },
-            run: tls,
+            run: __papo_scenario_tls,
         },
         ScenarioSpec {
             name: "websocket",
@@ -43,7 +44,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 caps: &[],
                 isupport: &[],
             },
-            run: websocket,
+            run: __papo_scenario_websocket,
         },
         ScenarioSpec {
             name: "websocket_tls",
@@ -52,7 +53,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 caps: &[],
                 isupport: &[],
             },
-            run: websocket_tls,
+            run: __papo_scenario_websocket_tls,
         },
         ScenarioSpec {
             name: "sasl_plain",
@@ -88,7 +89,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: ping,
+            run: __papo_scenario_ping,
         },
         ScenarioSpec {
             name: "echo_message",
@@ -420,37 +421,39 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
     ]
 }
 
-fn registration(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let nick = context.unique();
-        let connection = context.client(&nick).await?;
-        validate_registration(connection, &nick).await
-    })
+/// registers with the requested nickname
+#[scenario]
+async fn registration(context: Scenario) -> ScenarioResult {
+    let nick = context.unique();
+    let connection = context.client(&nick).await?;
+    validate_registration(connection, &nick).await
 }
 
-fn tls(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let address = format!("ircs://{}", context.server.tls_addr());
-        register_over(context, &address).await
-    })
+/// registers over TLS with the configured test CA
+#[scenario]
+async fn tls(context: Scenario) -> ScenarioResult {
+    let address = format!("ircs://{}", context.server.tls_addr());
+    register_over(context, &address).await
 }
 
-fn websocket(context: Scenario) -> ScenarioFuture {
-    register_over_environment(context, "PAPO_TEST_WS")
+/// registers over a WebSocket transport
+#[scenario]
+async fn websocket(context: Scenario) -> ScenarioResult {
+    register_over_environment(context, "PAPO_TEST_WS").await
 }
 
-fn websocket_tls(context: Scenario) -> ScenarioFuture {
-    register_over_environment(context, "PAPO_TEST_WSS")
+/// registers over a TLS WebSocket transport
+#[scenario]
+async fn websocket_tls(context: Scenario) -> ScenarioResult {
+    register_over_environment(context, "PAPO_TEST_WSS").await
 }
 
-fn register_over_environment(context: Scenario, variable: &'static str) -> ScenarioFuture {
-    Box::pin(async move {
-        let address = match required_environment(variable) {
-            Ok(address) => address,
-            Err(ignored) => return Ok(ignored),
-        };
-        register_over(context, &address).await
-    })
+async fn register_over_environment(context: Scenario, variable: &'static str) -> ScenarioResult {
+    let address = match required_environment(variable) {
+        Ok(address) => address,
+        Err(ignored) => return Ok(ignored),
+    };
+    register_over(context, &address).await
 }
 
 async fn register_over(context: Scenario, address: &str) -> ScenarioResult {
@@ -519,22 +522,22 @@ fn validate_account_reply(message: &MessageRef<'_>, account: &str) -> Result<(),
     }
 }
 
-fn ping(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let nick = context.unique();
-        let connection = context.client(&nick).await?;
-        let token = context.unique();
-        let response = connection
-            .client
-            .raw(Message::new("PING", [&token]))
-            .await
-            .map_err(Failed::from)?;
-        let Some(message) = response.lines.first() else {
-            return Err("server returned an empty PING response".into());
-        };
-        validate_pong(&message.as_ref(), &token)?;
-        connection.close().await
-    })
+/// answers a client PING with the matching PONG
+#[scenario(requires(caps = ["labeled-response"]))]
+async fn ping(context: Scenario) -> ScenarioResult {
+    let nick = context.unique();
+    let connection = context.client(&nick).await?;
+    let token = context.unique();
+    let response = connection
+        .client
+        .raw(Message::new("PING", [&token]))
+        .await
+        .map_err(Failed::from)?;
+    let Some(message) = response.lines.first() else {
+        return Err("server returned an empty PING response".into());
+    };
+    validate_pong(&message.as_ref(), &token)?;
+    connection.close().await
 }
 
 fn validate_pong(message: &MessageRef<'_>, token: &str) -> Result<(), Failed> {

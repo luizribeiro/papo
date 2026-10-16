@@ -46,6 +46,8 @@ struct ScenarioSpec {
     run: fn(Scenario) -> ScenarioFuture,
 }
 
+inventory::collect!(ScenarioSpec);
+
 #[derive(Clone, Copy, Default)]
 struct Requirements {
     caps: &'static [CapRequirement],
