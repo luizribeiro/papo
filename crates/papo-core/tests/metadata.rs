@@ -329,3 +329,32 @@ fn types_contextual_metadata_failures() {
             });
     }
 }
+
+#[test]
+fn types_each_simple_metadata_failure_only_for_metadata() {
+    use MetadataError as E;
+    for (code, expected) in [
+        ("INVALID_TARGET", E::InvalidTarget),
+        ("KEY_INVALID", E::KeyInvalid),
+        ("KEY_NO_PERMISSION", E::KeyNoPermission),
+        ("KEY_NOT_SET", E::KeyNotSet),
+        ("LIMIT_REACHED", E::LimitReached),
+        ("SUBCOMMAND_INVALID", E::SubcommandInvalid),
+        ("VALUE_INVALID", E::ValueInvalid),
+    ] {
+        registered("max-subs=100,max-keys=100")
+            .server(&format!(
+                ":ergo.test FAIL METADATA {code} :Metadata request rejected"
+            ))
+            .event(|event| {
+                matches!(event, Event::StandardReply(reply)
+                if reply.metadata_error() == Some(expected))
+            });
+    }
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test FAIL WHOIS KEY_INVALID :WHOIS request rejected")
+        .event(|event| {
+            matches!(event, Event::StandardReply(reply)
+            if reply.metadata_error().is_none())
+        });
+}
