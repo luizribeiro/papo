@@ -26,7 +26,7 @@ async fn subscriber_receives_another_clients_metadata() {
         let reader_nick = unique("papo-metadata-reader");
         let (writer, mut writer_events) = Client::builder(address.clone())
             .nick(&writer_nick)
-            .caps(["draft/metadata-2", "labeled-response"])
+            .request_caps(["draft/metadata-2", "labeled-response"])
             .channels([&channel])
             .connect()
             .await
@@ -34,7 +34,7 @@ async fn subscriber_receives_another_clients_metadata() {
         wait_synced(&mut writer_events, &channel).await;
         let (reader, mut reader_events) = Client::builder(address)
             .nick(&reader_nick)
-            .caps(["draft/metadata-2", "labeled-response"])
+            .request_caps(["draft/metadata-2", "labeled-response"])
             .channels([&channel])
             .connect()
             .await
@@ -90,7 +90,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         ];
         let (operator, mut operator_events) = Client::builder(address.clone())
             .nick(&operator_nick)
-            .caps(capabilities)
+            .request_caps(capabilities)
             .channels([&old_channel])
             .connect()
             .await
@@ -98,7 +98,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         wait_synced(&mut operator_events, &old_channel).await;
         let (member, mut member_events) = Client::builder(address)
             .nick(&member_nick)
-            .caps(capabilities)
+            .request_caps(capabilities)
             .channels([&old_channel])
             .connect()
             .await

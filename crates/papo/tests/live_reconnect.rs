@@ -7,7 +7,7 @@ use support::within;
 
 use std::time::Duration;
 
-use papo::{Client, Endpoint, Event, Origin, Reconnect, Sasl};
+use papo::{Client, Endpoint, Event, Origin, Reconnect, Sasl, cap};
 use papo_test_server::{TestServer, register_account_at, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -25,7 +25,7 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         ))
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password))
-        .caps([
+        .request_caps([
             "message-tags",
             "server-time",
             "batch",
@@ -33,6 +33,8 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
             "labeled-response",
             "draft/chathistory",
         ])
+        .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
+        .unwrap()
         .channels([&channel])
         .history_on_reconnect(true)
         .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)))

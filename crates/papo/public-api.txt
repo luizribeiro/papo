@@ -252,6 +252,7 @@ pub papo::InvalidInput::Empty
 pub papo::InvalidInput::InvalidHost
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
 pub papo::InvalidInput::UnexpectedPath
+pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
 #[non_exhaustive] pub enum papo::MessageKind<'a>
 pub papo::MessageKind::Action
@@ -269,7 +270,6 @@ impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::bot(self) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
-pub fn papo::Builder::caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>
 pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
@@ -285,6 +285,7 @@ pub fn papo::Builder::rate_limit(self, papo_core::ratelimit::RateLimit) -> Self
 pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
 pub fn papo::Builder::register_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, impl core::convert::Into<papo_core::secret::Secret>) -> Self
+pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::sasl(self, papo_core::sasl::Sasl) -> Self
 pub fn papo::Builder::stream(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static) -> Self
 pub fn papo::Builder::sts_store(self, impl papo_core::sts::StsStore + core::marker::Send + 'static) -> Self
@@ -294,6 +295,7 @@ pub fn papo::Builder::tls_client_cert(self, impl core::convert::Into<alloc::vec:
 pub fn papo::Builder::tls_client_cert_files(self, impl core::convert::AsRef<std::path::Path>, impl core::convert::AsRef<std::path::Path>) -> core::result::Result<Self, papo::Error>
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::webirc(self, papo_core::WebIrc) -> Self
+pub fn papo::Builder::without_caps<I, S>(self, I) -> core::result::Result<Self, papo::InvalidInput> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub struct papo::ChannelInfo
 pub papo::ChannelInfo::members_count: usize
 pub papo::ChannelInfo::name: alloc::string::String

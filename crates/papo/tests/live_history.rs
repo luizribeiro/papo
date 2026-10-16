@@ -8,7 +8,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, MessageEvent, Origin};
+use papo::{Client, Endpoint, Event, MessageEvent, Origin, cap};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -22,7 +22,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             server.plaintext_addr().port(),
         ))
         .nick(&nick)
-        .caps([
+        .request_caps([
             "message-tags",
             "server-time",
             "batch",
@@ -31,6 +31,8 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             "draft/chathistory",
             "draft/read-marker",
         ])
+        .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
+        .unwrap()
         .channels([&channel])
         .connect()
         .await

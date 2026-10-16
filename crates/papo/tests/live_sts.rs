@@ -18,7 +18,7 @@ async fn connect_waits_for_registration_after_an_sts_upgrade() {
             server.plaintext_addr().port(),
         ))
         .nick(&nick)
-        .caps(["sts"])
+        .request_caps(["sts"])
         .tls_ca_file(server.ca_pem_path())
         .unwrap()
         .connect()

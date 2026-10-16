@@ -1,7 +1,7 @@
 use std::{path::Path, time::Duration};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
-use papo_core::{Config, RateLimit, Sasl};
+use papo_core::{Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -137,14 +137,52 @@ impl Builder {
         self
     }
 
-    /// Replaces the capability names requested when advertised.
-    pub fn caps<I, S>(mut self, caps: I) -> Self
+    /// Adds capability names to request when advertised.
+    ///
+    /// ```
+    /// let builder = papo::Client::builder("irc.example.net")
+    ///     .request_caps(["soju.im/bouncer-networks"]);
+    /// # _ = builder;
+    /// ```
+    pub fn request_caps<I, S>(mut self, caps: I) -> Self
     where
         I: IntoIterator<Item = S>,
         S: Into<String>,
     {
-        self.config.wanted_caps = caps.into_iter().map(Into::into).collect();
+        for capability in caps.into_iter().map(Into::into) {
+            if !self.config.wanted_caps.contains(&capability) {
+                self.config.wanted_caps.push(capability);
+            }
+        }
         self
+    }
+
+    /// Removes default capability names from the request set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidInput::UnknownCapability`] for a name papo does not request by default.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), papo::InvalidInput> {
+    /// let builder = papo::Client::builder("irc.example.net")
+    ///     .without_caps([papo::cap::AWAY_NOTIFY])?;
+    /// # _ = builder;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn without_caps<I, S>(mut self, caps: I) -> Result<Self, InvalidInput>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        for capability in caps.into_iter().map(Into::into) {
+            if !DEFAULT_WANTED_CAPS.contains(&capability.as_str()) {
+                return Err(InvalidInput::UnknownCapability(capability));
+            }
+            self.config.wanted_caps.retain(|name| name != &capability);
+        }
+        Ok(self)
     }
 
     /// Sets metadata keys subscribed on every connection.
@@ -389,11 +427,13 @@ fn apply_address(config: &mut Config, address: &ServerAddress) {
 mod tests {
     use std::time::Duration;
 
-    use papo_core::{RateLimit, Sasl, Secret, sts::ConnectionSecurity};
+    use papo_core::{DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, sts::ConnectionSecurity};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::{Builder, apply_address};
-    use crate::{Error, address::Protocol, driver::test_support::within, transport::TlsRoots};
+    use crate::{
+        Error, InvalidInput, address::Protocol, driver::test_support::within, transport::TlsRoots,
+    };
 
     #[test]
     fn fills_every_session_configuration_field() {
@@ -405,7 +445,7 @@ mod tests {
             .password("network password")
             .sasl(Sasl::plain("ping-bot", "correct horse battery staple"))
             .device("phone")
-            .caps(["message-tags", "sasl"]);
+            .request_caps(["message-tags", "sasl"]);
         let config = &builder.config;
         assert_eq!(config.nick, "ping-bot");
         assert_eq!(config.alt_nicks, ["ping-bot_", "ping-bot__"]);
@@ -414,28 +454,61 @@ mod tests {
         assert_eq!(config.password, Some(Secret::new("network password")));
         assert!(config.sasl.is_some());
         assert_eq!(config.device.as_deref(), Some("phone"));
-        assert_eq!(config.wanted_caps, ["message-tags", "sasl"]);
+        assert_eq!(
+            config.wanted_caps[..DEFAULT_WANTED_CAPS.len()],
+            DEFAULT_WANTED_CAPS[..]
+        );
+        assert_eq!(config.wanted_caps.last().map(String::as_str), Some("sasl"));
     }
 
     #[test]
-    fn account_registration_adds_exactly_one_wanted_capability() {
+    fn account_registration_retains_one_default_capability() {
         let added = Builder::new("irc.example.net")
-            .caps(["message-tags"])
+            .request_caps(["message-tags"])
             .register_on_connect(None::<String>, None::<String>, "realistic secret")
             .config;
         assert_eq!(
-            added.wanted_caps,
-            ["message-tags", "draft/account-registration"]
+            added
+                .wanted_caps
+                .iter()
+                .filter(|name| name.as_str() == "draft/account-registration")
+                .count(),
+            1
         );
 
         let retained = Builder::new("irc.example.net")
-            .caps(["server-time", "account-registration"])
+            .request_caps(["server-time", "account-registration"])
             .register_on_connect(None::<String>, None::<String>, "realistic secret")
             .config;
-        assert_eq!(
-            retained.wanted_caps,
-            ["server-time", "account-registration"]
+        assert!(
+            retained
+                .wanted_caps
+                .iter()
+                .any(|name| name == "account-registration")
         );
+    }
+
+    #[test]
+    fn capabilities_extend_defaults_and_only_known_defaults_can_be_removed() {
+        let builder = Builder::new("irc.example.net")
+            .request_caps(["message-tags", "soju.im/bouncer-networks"])
+            .without_caps(["away-notify"])
+            .unwrap();
+        assert!(
+            !builder
+                .config
+                .wanted_caps
+                .iter()
+                .any(|name| name == "away-notify")
+        );
+        assert_eq!(
+            builder.config.wanted_caps.last().map(String::as_str),
+            Some("soju.im/bouncer-networks")
+        );
+        assert!(matches!(
+            Builder::new("irc.example.net").without_caps(["soju.im/bouncer-networks"]),
+            Err(InvalidInput::UnknownCapability(name)) if name == "soju.im/bouncer-networks"
+        ));
     }
 
     #[test]

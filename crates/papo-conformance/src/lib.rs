@@ -512,7 +512,7 @@ fn connect_client(
         .tls_ca_file(server.ca_pem_path())
         .map_err(|error| error.to_string())?;
     if let Some(wanted_caps) = wanted_caps {
-        builder = builder.caps(wanted_caps);
+        builder = builder.request_caps(wanted_caps);
     }
     if let Some(sasl) = sasl {
         builder = builder.sasl(sasl);

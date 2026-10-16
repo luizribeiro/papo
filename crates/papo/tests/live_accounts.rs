@@ -41,7 +41,7 @@ async fn registers_then_logs_in_with_sasl() {
         let account = unique("papo-account");
         let (registrar, mut registrar_events) = Client::builder(address.clone())
             .nick(&account)
-            .caps(["draft/account-registration", "labeled-response"])
+            .request_caps(["draft/account-registration", "labeled-response"])
             .connect()
             .await
             .unwrap();
@@ -58,7 +58,7 @@ async fn registers_then_logs_in_with_sasl() {
         let (authenticated, mut authenticated_events) = Client::builder(address)
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
-            .caps(["sasl"])
+            .request_caps(["sasl"])
             .connect()
             .await
             .unwrap();
@@ -88,7 +88,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         let (client, mut events) = Client::builder(address)
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
-            .caps(["sasl", "draft/persistence", "labeled-response"])
+            .request_caps(["sasl", "draft/persistence", "labeled-response"])
             .channels([&channel])
             .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(1)))
             .connect()

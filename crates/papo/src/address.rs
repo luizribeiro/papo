@@ -23,6 +23,9 @@ pub enum InvalidInput {
     /// A TCP IRC URL contains a path, query, or fragment.
     #[error("IRC server address cannot contain a path")]
     UnexpectedPath,
+    /// A capability cannot be removed because papo does not request it by default.
+    #[error("papo does not request capability {0:?} by default")]
+    UnknownCapability(String),
 }
 
 /// The network endpoint used by an IRC client.

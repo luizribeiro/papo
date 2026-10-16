@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let email = env::var("IRC_EMAIL").ok();
     let mut builder = Client::builder(endpoint(server)?)
         .nick(&account)
-        .caps(["draft/account-registration"])
+        .request_caps(["draft/account-registration"])
         .register_on_connect(
             Some(&account),
             email.as_deref(),
