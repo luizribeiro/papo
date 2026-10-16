@@ -10,6 +10,8 @@ mod directory;
 mod environment;
 #[cfg(not(target_family = "wasm"))]
 mod ergo;
+#[cfg(all(test, not(target_family = "wasm")))]
+mod inspircd_config;
 #[cfg(not(target_family = "wasm"))]
 mod server;
 #[cfg(not(target_family = "wasm"))]
