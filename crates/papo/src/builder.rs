@@ -1,7 +1,7 @@
-use std::time::Duration;
+use std::{fmt, time::Duration};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
-use papo_core::{Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl};
+use papo_core::{AwayOnConnect, Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -28,6 +28,28 @@ pub struct Builder {
     history_on_reconnect: bool,
     username_set: bool,
     realname_set: bool,
+}
+
+impl fmt::Debug for Builder {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Builder")
+            .field("address", &self.address)
+            .field("config", &self.config)
+            .field("event_capacity", &self.event_capacity)
+            .field("tls", &self.tls)
+            .field("reconnect", &self.reconnect)
+            .field(
+                "disconnected_queue_capacity",
+                &self.disconnected_queue_capacity,
+            )
+            .field("sts_store", &"<STS store>")
+            .field("stream", &self.stream.as_ref().map(|_| "<stream>"))
+            .field("bot", &self.bot)
+            .field("autojoin", &self.autojoin)
+            .field("history_on_reconnect", &self.history_on_reconnect)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Builder {
@@ -212,6 +234,51 @@ impl Builder {
     /// Sets the maximum time allowed without an incoming line.
     pub fn ping_timeout(mut self, timeout: Duration) -> Self {
         self.config.ping_timeout = timeout;
+        self
+    }
+
+    /// Sets how long an action waits for its server response.
+    ///
+    /// ```
+    /// # use std::time::Duration;
+    /// # _ = papo::Client::builder("irc.example.net")
+    /// #     .request_timeout(Duration::from_secs(15));
+    /// ```
+    pub fn request_timeout(mut self, timeout: Duration) -> Self {
+        self.config.request_timeout = timeout;
+        self
+    }
+
+    /// Sets the away message announced while connecting.
+    ///
+    /// ```
+    /// # _ = papo::Client::builder("irc.example.net").away_on_connect("At lunch");
+    /// ```
+    pub fn away_on_connect(mut self, text: impl Into<String>) -> Self {
+        self.config.away_on_connect = Some(AwayOnConnect::Message(text.into()));
+        self
+    }
+
+    /// Sets the automatic reply to private CTCP VERSION queries.
+    ///
+    /// Passing `None` disables the automatic reply.
+    ///
+    /// ```
+    /// # _ = papo::Client::builder("irc.example.net").ctcp_version(Some("papo bot"));
+    /// ```
+    pub fn ctcp_version(mut self, text: Option<&str>) -> Self {
+        self.config.ctcp.version = text.map(str::to_owned);
+        self
+    }
+
+    /// Sets the automatic reply to private CTCP SOURCE queries.
+    ///
+    /// ```
+    /// # _ = papo::Client::builder("irc.example.net")
+    /// #     .ctcp_source("https://example.org/papo-bot");
+    /// ```
+    pub fn ctcp_source(mut self, url: impl Into<String>) -> Self {
+        self.config.ctcp.source = Some(url.into());
         self
     }
 
@@ -554,15 +621,61 @@ mod tests {
 
     #[test]
     fn configures_timing_rate_and_event_capacity() {
+        assert_eq!(
+            Builder::new("irc.example.net").config.request_timeout,
+            Duration::from_secs(30)
+        );
         let builder = Builder::new("irc.example.net")
             .rate_limit(RateLimit::unlimited())
             .ping_interval(Duration::from_secs(31))
             .ping_timeout(Duration::from_secs(93))
+            .request_timeout(Duration::from_secs(17))
             .event_capacity(17);
         assert_eq!(builder.config.rate_limit, RateLimit::unlimited());
         assert_eq!(builder.config.ping_interval, Duration::from_secs(31));
         assert_eq!(builder.config.ping_timeout, Duration::from_secs(93));
+        assert_eq!(builder.config.request_timeout, Duration::from_secs(17));
         assert_eq!(builder.event_capacity, 17);
+    }
+
+    #[test]
+    fn configures_away_and_ctcp_replies() {
+        let builder = Builder::new("irc.example.net")
+            .away_on_connect("Reviewing patches")
+            .ctcp_version(None)
+            .ctcp_source("https://example.org/papo");
+        assert_eq!(
+            builder.config.away_on_connect,
+            Some(papo_core::AwayOnConnect::Message(
+                "Reviewing patches".into()
+            ))
+        );
+        assert_eq!(builder.config.ctcp.version, None);
+        assert_eq!(
+            builder.config.ctcp.source.as_deref(),
+            Some("https://example.org/papo")
+        );
+    }
+
+    #[test]
+    fn debug_redacts_every_builder_secret() {
+        let builder = Builder::new("irc.example.net")
+            .password("unique-network-password-9134")
+            .sasl(Sasl::plain("alice", "unique-sasl-password-8527"))
+            .register_account(NewAccount::new("unique-account-password-7416"))
+            .tls_client_cert(Vec::new(), "unique-tls-key-6305")
+            .autojoin_with_key("#staff", "unique-channel-key-5294");
+        let output = format!("{builder:?}");
+        assert!(output.contains("[REDACTED]"));
+        for secret in [
+            "unique-network-password-9134",
+            "unique-sasl-password-8527",
+            "unique-account-password-7416",
+            "unique-tls-key-6305",
+            "unique-channel-key-5294",
+        ] {
+            assert!(!output.contains(secret));
+        }
     }
 
     #[test]

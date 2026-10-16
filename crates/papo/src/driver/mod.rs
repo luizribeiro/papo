@@ -253,7 +253,7 @@ pub(crate) struct PostRegistration {
     pub(crate) history_on_reconnect: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct Autojoin {
     pub(crate) channel: String,
     pub(crate) key: Option<papo_core::Secret>,

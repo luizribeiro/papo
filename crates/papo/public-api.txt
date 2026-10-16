@@ -267,9 +267,12 @@ impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::autojoin_with_key(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::secret::Secret>) -> Self
+pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::bot(self) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
 pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>
+pub fn papo::Builder::ctcp_source(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Builder::ctcp_version(self, core::option::Option<&str>) -> Self
 pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::disconnected_queue_capacity(self, usize) -> Self
 pub fn papo::Builder::event_capacity(self, usize) -> Self
@@ -284,6 +287,7 @@ pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::Str
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
 pub fn papo::Builder::register_account(self, papo::NewAccount) -> Self
 pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo_core::sasl::Sasl) -> Self
 pub fn papo::Builder::stream(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static) -> Self
 pub fn papo::Builder::sts_store(self, impl papo_core::sts::StsStore + core::marker::Send + 'static) -> Self
@@ -294,6 +298,8 @@ pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::stri
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::webirc(self, papo_core::WebIrc) -> Self
 pub fn papo::Builder::without_caps<I, S>(self, I) -> core::result::Result<Self, papo::InvalidInput> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+impl core::fmt::Debug for papo::Builder
+pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::ChannelInfo
 pub papo::ChannelInfo::members_count: usize
 pub papo::ChannelInfo::name: alloc::string::String
