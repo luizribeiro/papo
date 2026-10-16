@@ -129,6 +129,21 @@ fn distinguishes_client_disabled_and_server_absent_features() {
 }
 
 #[test]
+fn recognizes_one_disabled_capability_when_it_is_offered() {
+    let session = session_with(
+        Config::default()
+            .wanted_caps(["draft/metadata-3"])
+            .without_caps(["draft/metadata-3"]),
+        "draft/metadata-3",
+        "",
+    );
+    assert_eq!(
+        session.supports(Feature::Metadata),
+        Err(UnsupportedReason::DisabledByClient)
+    );
+}
+
+#[test]
 fn applies_client_tag_denials_per_feature() {
     let denied = session_with(
         Config::default().wanted_caps(["message-tags"]),
