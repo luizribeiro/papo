@@ -16,6 +16,8 @@ mod inspircd;
 mod inspircd_config;
 #[cfg(not(target_family = "wasm"))]
 mod server;
+#[cfg(all(test, not(target_family = "wasm")))]
+mod solanum_config;
 #[cfg(not(target_family = "wasm"))]
 mod unrealircd;
 

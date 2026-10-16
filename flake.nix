@@ -98,6 +98,13 @@
         };
         ergochat = pkgs.callPackage ./nix/ergochat.nix { };
         unrealircd = pkgs.callPackage ./nix/unrealircd.nix { };
+        solanum = pkgs.solanum.overrideAttrs (old: {
+          postPatch = (old.postPatch or "") + ''
+            substituteInPlace ircd/bandbi.c --replace-fail \
+              'rb_setenv("BANDB_DBPATH", ircd_paths[IRCD_PATH_BANDB], 1);' \
+              'if (getenv("BANDB_DBPATH") == NULL) rb_setenv("BANDB_DBPATH", ircd_paths[IRCD_PATH_BANDB], 1);'
+          '';
+        });
         ergoConfig = pkgs.runCommand "ergo.yaml" { nativeBuildInputs = [ pkgs.yq-go ]; } ''
           yq eval-all '
             (select(fi == 0) | del(.server.listeners, .server.webirc, .opers))
@@ -369,6 +376,7 @@
             pkgs.git-absorb
             pkgs.atheme
             pkgs.inspircd
+            solanum
             ergochat
             unrealircd
             nightlyToolchain
@@ -381,6 +389,8 @@
           ATHEME_MODULES = "${pkgs.atheme}/modules";
           INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";
           INSPIRCD_MODULES = "${pkgs.lib.getLib pkgs.inspircd}/lib/inspircd";
+          SOLANUM_BIN = pkgs.lib.getExe solanum;
+          SOLANUM_MODULES = "${solanum}/lib/solanum/modules";
           UNREALIRCD_BIN = pkgs.lib.getExe' unrealircd "unrealircd";
           UNREALIRCD_CONFIG = "${unrealircd}/share/unrealircd/conf";
           CC_wasm32_wasip1 = "${wasiSdk}/bin/wasm32-wasip1-clang";
