@@ -258,6 +258,42 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
             },
             run: chghost,
         },
+        ScenarioSpec {
+            name: "batch",
+            doc: "delivers channel history in a batch",
+            requires: Requirements {
+                caps: &[
+                    CapRequirement {
+                        name: "batch",
+                        value: None,
+                    },
+                    CapRequirement {
+                        name: "draft/chathistory",
+                        value: None,
+                    },
+                ],
+                isupport: &[],
+            },
+            run: batch,
+        },
+        ScenarioSpec {
+            name: "draft_chathistory",
+            doc: "retrieves a channel history page",
+            requires: Requirements {
+                caps: &[
+                    CapRequirement {
+                        name: "batch",
+                        value: None,
+                    },
+                    CapRequirement {
+                        name: "draft/chathistory",
+                        value: None,
+                    },
+                ],
+                isupport: &[],
+            },
+            run: draft_chathistory,
+        },
     ]
 }
 
@@ -778,6 +814,48 @@ fn chghost(context: Scenario) -> ScenarioFuture {
             .await?;
         close_pair(observer, operator).await
     })
+}
+
+fn batch(context: Scenario) -> ScenarioFuture {
+    Box::pin(history_page(context))
+}
+
+fn draft_chathistory(context: Scenario) -> ScenarioFuture {
+    Box::pin(history_page(context))
+}
+
+async fn history_page(context: Scenario) -> ScenarioResult {
+    let writer_nick = context.unique();
+    let reader_nick = context.unique();
+    let channel = format!("#{}", context.unique());
+    let text = format!("history from {writer_nick}");
+    let mut writer = context.client(&writer_nick).await?;
+    join(&context, &mut writer, &channel).await?;
+    writer
+        .client
+        .privmsg(&channel, &text)
+        .await
+        .map_err(Failed::from)?;
+    let mut reader = context
+        .client_caps(&reader_nick, &["draft/chathistory"])
+        .await?;
+    join(&context, &mut reader, &channel).await?;
+    let response = reader
+        .client
+        .raw(Message::new("CHATHISTORY", ["LATEST", &channel, "*", "10"]))
+        .await
+        .map_err(Failed::from)?;
+    let Some(history) = response.history else {
+        return Err("CHATHISTORY response did not contain a history batch".into());
+    };
+    if !history
+        .messages
+        .iter()
+        .any(|message| message.as_ref().param(1) == Some(text.as_str()))
+    {
+        return Err("history batch did not contain the earlier message".into());
+    }
+    close_pair(writer, reader).await
 }
 
 #[cfg(test)]

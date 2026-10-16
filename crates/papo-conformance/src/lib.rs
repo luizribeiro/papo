@@ -17,7 +17,7 @@ use std::{
 
 use libtest_mimic::{Arguments, Completion, Conclusion, Failed, FormatSetting, Trial};
 use papo::{Client, Event, Events};
-use papo_core::{Capabilities, Sasl, Welcome};
+use papo_core::{Capabilities, DEFAULT_WANTED_CAPS, Sasl, Welcome};
 use papo_proto::{Advertised, Isupport};
 use papo_test_server::{ServerInfo, from_env};
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
@@ -222,6 +222,34 @@ impl Scenario {
 
     async fn client_at(&self, nick: &str, address: &str) -> Result<RegisteredClient, Failed> {
         self.client_with_at(nick, address, None).await
+    }
+
+    async fn client_caps(
+        &self,
+        nick: &str,
+        extra_caps: &[&str],
+    ) -> Result<RegisteredClient, Failed> {
+        let address = format!("irc://{}", self.server.plaintext_addr());
+        let mut wanted_caps = DEFAULT_WANTED_CAPS
+            .iter()
+            .map(|cap| (*cap).to_owned())
+            .collect::<Vec<_>>();
+        wanted_caps.extend(extra_caps.iter().map(|cap| (*cap).to_owned()));
+        let mut connection = connect_client(
+            &self.server,
+            &address,
+            nick,
+            "papo conformance client",
+            Some(wanted_caps),
+            None,
+        )?;
+        let welcome = wait_for_registration(&mut connection.events).await?;
+        Ok(RegisteredClient {
+            client: connection.client,
+            events: connection.events,
+            driver: connection.driver,
+            welcome,
+        })
     }
 
     async fn client_with(
