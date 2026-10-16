@@ -8,7 +8,7 @@ use papo_test_server::register_account;
 use super::{
     CapRequirement, Requirements, Scenario, ScenarioResult, ScenarioSpec, required_environment,
 };
-use support::{EXPECT_TIMEOUT, PASSWORD, close_pair, join, joined_pair};
+use support::{EXPECT_TIMEOUT, PASSWORD, close_pair, history_page, join, joined_pair};
 
 mod support;
 
@@ -934,40 +934,6 @@ async fn batch(context: Scenario) -> ScenarioResult {
 #[scenario(requires(caps = ["batch", "draft/chathistory"]))]
 async fn draft_chathistory(context: Scenario) -> ScenarioResult {
     history_page(context).await
-}
-
-async fn history_page(context: Scenario) -> ScenarioResult {
-    let writer_nick = context.unique();
-    let reader_nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let text = format!("history from {writer_nick}");
-    let mut writer = context.client(&writer_nick).await?;
-    join(&context, &mut writer, &channel).await?;
-    writer
-        .client
-        .privmsg(&channel, &text)
-        .await
-        .map_err(Failed::from)?;
-    let mut reader = context
-        .client_caps(&reader_nick, &["draft/chathistory"])
-        .await?;
-    join(&context, &mut reader, &channel).await?;
-    let response = reader
-        .client
-        .raw(Message::new("CHATHISTORY", ["LATEST", &channel, "*", "10"]))
-        .await
-        .map_err(Failed::from)?;
-    let Some(history) = response.history else {
-        return Err("CHATHISTORY response did not contain a history batch".into());
-    };
-    if !history
-        .messages
-        .iter()
-        .any(|message| message.as_ref().param(1) == Some(text.as_str()))
-    {
-        return Err("history batch did not contain the earlier message".into());
-    }
-    close_pair(writer, reader).await
 }
 
 /// reassembles a client multiline message
