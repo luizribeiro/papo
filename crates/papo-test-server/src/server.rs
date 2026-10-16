@@ -1,5 +1,5 @@
 use std::{
-    io,
+    io::{self, Read, Write},
     net::{SocketAddr, TcpStream},
     path::PathBuf,
     process::{Child, Stdio},
@@ -165,6 +165,7 @@ impl TestServer {
             ]
             .iter()
             .all(|address| TcpStream::connect(address).is_ok())
+                && answers_irc(self.plaintext)
             {
                 return Ok(());
             }
@@ -175,6 +176,22 @@ impl TestServer {
             "Ergo did not start",
         ))
     }
+}
+
+/// A listening port alone can belong to another process, so readiness also requires an IRC reply.
+fn answers_irc(address: SocketAddr) -> bool {
+    let Ok(mut connection) = TcpStream::connect(address) else {
+        return false;
+    };
+    if connection
+        .set_read_timeout(Some(Duration::from_millis(500)))
+        .is_err()
+        || connection.write_all(b"PING :papo-ready\r\n").is_err()
+    {
+        return false;
+    }
+    let mut reply = [0; 512];
+    matches!(connection.read(&mut reply), Ok(count) if count > 0)
 }
 
 impl Drop for TestServer {
