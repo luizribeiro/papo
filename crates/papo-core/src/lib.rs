@@ -47,6 +47,7 @@ use ratelimit::RateLimiter;
 use registration::Registration;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
+use state::MetadataContext;
 pub use state::{Account, Channel, Member, State, User};
 use sts::ConnectionSecurity;
 
@@ -2423,7 +2424,10 @@ impl Session {
             self.registration.nick(),
             self.isupport.value(),
             self.no_implicit_names(),
-            self.metadata_max_keys(),
+            MetadataContext {
+                max_keys: self.metadata_max_keys(),
+                subscription_batch: context.batch_type() == Some("metadata-subs"),
+            },
             &mut self.outbox,
         ) == Handled::Yes;
         self.handle_ctcp(now, message);
@@ -2709,6 +2713,9 @@ impl Session {
                 .outbox
                 .event(Event::MultilineMessage(MultilineMessage { message })),
             BatchEvent::Metadata { kind, messages } => {
+                if kind == "metadata-subs" {
+                    self.state.clear_metadata_subscriptions();
+                }
                 let context = DispatchContext::from_batch_type(kind);
                 for message in messages {
                     self.dispatch_message(now, &message.as_ref(), &context, true);
@@ -2753,7 +2760,10 @@ impl Session {
             self.registration.nick(),
             self.isupport.value(),
             self.no_implicit_names(),
-            self.metadata_max_keys(),
+            MetadataContext {
+                max_keys: self.metadata_max_keys(),
+                subscription_batch: false,
+            },
             &mut self.outbox,
         );
         let generated = self.outbox.events.split_off(event_count);

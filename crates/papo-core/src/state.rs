@@ -102,6 +102,12 @@ struct WhoUser<'a> {
     realname: Option<&'a str>,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct MetadataContext {
+    pub(crate) max_keys: usize,
+    pub(crate) subscription_batch: bool,
+}
+
 impl State {
     pub(crate) fn new(config: &Config) -> Self {
         Self {
@@ -163,11 +169,16 @@ impl State {
         own_nick: &str,
         isupport: &Isupport,
         no_implicit_names: bool,
-        metadata_max_keys: usize,
+        metadata: MetadataContext,
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = self.prepare_message(message, own_nick, isupport, outbox);
-        if self.handle_metadata(message, metadata_max_keys, outbox) {
+        if self.handle_metadata(
+            message,
+            metadata.max_keys,
+            metadata.subscription_batch,
+            outbox,
+        ) {
             return Handled::Yes;
         }
         if self.handle_persistence(message, outbox) {
@@ -309,6 +320,7 @@ impl State {
         &mut self,
         message: &MessageRef<'_>,
         max_keys: usize,
+        metadata_subs_batch: bool,
         outbox: &mut Outbox,
     ) -> bool {
         if message.command() == Command::Numeric(Numeric::RPL_METADATASYNCLATER) {
@@ -345,7 +357,14 @@ impl State {
                 return true;
             }
             Command::Numeric(Numeric::RPL_METADATASUBS) => {
-                self.metadata_subscriptions = message.params().skip(1).map(str::to_owned).collect();
+                if !metadata_subs_batch {
+                    self.metadata_subscriptions.clear();
+                }
+                for key in message.params().skip(1) {
+                    if !self.metadata_subscriptions.iter().any(|item| item == key) {
+                        self.metadata_subscriptions.push(key.to_owned());
+                    }
+                }
                 return true;
             }
             _ => {}
@@ -1325,6 +1344,10 @@ impl State {
     #[must_use]
     pub fn metadata_subscriptions(&self) -> &[String] {
         &self.metadata_subscriptions
+    }
+
+    pub(crate) fn clear_metadata_subscriptions(&mut self) {
+        self.metadata_subscriptions.clear();
     }
 
     /// Returns the newest read marker reported for a target.

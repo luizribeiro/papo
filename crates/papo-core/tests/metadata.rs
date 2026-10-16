@@ -271,7 +271,8 @@ fn tracks_sub_subs_and_unsub_replies() {
         .event(|event| matches!(event, Event::RequestUntracked { .. }))
         .client("METADATA * SUBS")
         .server(":ergo.test BATCH +s metadata-subs")
-        .server("@batch=s :ergo.test 772 alice avatar status")
+        .server("@batch=s :ergo.test 772 alice avatar")
+        .server("@batch=s :ergo.test 772 alice status")
         .server(":ergo.test BATCH -s")
         .inspect(|session| {
             assert_eq!(
