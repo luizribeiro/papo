@@ -7,7 +7,9 @@ SIGINT and SIGTERM send `QUIT :shutting down` and wait at most ten seconds for a
 
 Configuration comes from the environment:
 
-- `IRC_SERVER`: a host, host and port, or `irc`, `ircs`, `ws`, or `wss` URL;
+- `IRC_SERVER`: the server hostname;
+- `IRC_PORT`: optional service port (defaults to `6697`);
+- `IRC_PLAINTEXT`: when set, start without TLS while still honoring STS;
 - `IRC_NICK`: nickname and SASL PLAIN account name;
 - `IRC_PASSWORD_FILE`: file containing the SASL password (a trailing newline is trimmed);
 - `IRC_CA_FILE`: optional PEM file containing the trusted CA certificate;
@@ -16,7 +18,7 @@ Configuration comes from the environment:
 Run it natively from the repository root:
 
 ```sh
-IRC_SERVER=ircs://irc.example.test:6697 IRC_NICK=ping-bot \
+IRC_SERVER=irc.example.test IRC_NICK=ping-bot \
 IRC_PASSWORD_FILE=/run/credentials/password IRC_CA_FILE=/run/credentials/irc-ca.pem \
 IRC_CHANNELS='#bots,#operators' \
 cargo run -p papo-ping-bot
@@ -29,7 +31,7 @@ the connection ends:
 cargo build -p papo-ping-bot --target wasm32-wasip2
 wasmtime run -S inherit-network -S allow-ip-name-lookup \
   --dir /run/credentials \
-  --env IRC_SERVER=ircs://irc.example.test:6697 \
+  --env IRC_SERVER=irc.example.test \
   --env IRC_NICK=ping-bot \
   --env IRC_PASSWORD_FILE=/run/credentials/password \
   --env IRC_CA_FILE=/run/credentials/irc-ca.pem \
