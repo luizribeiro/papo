@@ -1,4 +1,4 @@
-use std::{fs, io, net::TcpListener};
+use std::{env, fs, io, net::TcpListener};
 
 use crate::{atheme, directory::TemporaryDirectory};
 
@@ -8,6 +8,14 @@ pub(super) struct Configuration {
 }
 
 impl Configuration {
+    pub(super) fn new(directory: &TemporaryDirectory) -> io::Result<Self> {
+        Self::with_paths(
+            directory,
+            &required_env("INSPIRCD_MODULES")?,
+            &required_env("ATHEME_MODULES")?,
+        )
+    }
+
     fn with_paths(
         directory: &TemporaryDirectory,
         modules: &str,
@@ -68,6 +76,10 @@ impl Configuration {
             self.services.port(),
         )
     }
+}
+
+fn required_env(name: &str) -> io::Result<String> {
+    env::var(name).map_err(|_| io::Error::other(format!("{name} is unset")))
 }
 
 #[cfg(test)]

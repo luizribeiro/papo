@@ -368,6 +368,7 @@
             pkgs.taplo
             pkgs.git-absorb
             pkgs.atheme
+            pkgs.inspircd
             ergochat
             unrealircd
             nightlyToolchain
@@ -378,6 +379,8 @@
           ERGO_LANGUAGES = "${ergochat.src}/languages";
           ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
           ATHEME_MODULES = "${pkgs.atheme}/modules";
+          INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";
+          INSPIRCD_MODULES = "${pkgs.lib.getLib pkgs.inspircd}/lib/inspircd";
           UNREALIRCD_BIN = pkgs.lib.getExe' unrealircd "unrealircd";
           UNREALIRCD_CONFIG = "${unrealircd}/share/unrealircd/conf";
           CC_wasm32_wasip1 = "${wasiSdk}/bin/wasm32-wasip1-clang";
