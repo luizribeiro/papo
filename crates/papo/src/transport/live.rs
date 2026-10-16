@@ -1,8 +1,5 @@
 //! Connections to the runner-managed Ergo server.
-#![cfg(any(
-    not(target_family = "wasm"),
-    all(target_os = "wasi", not(target_env = "p1"))
-))]
+#![cfg(sockets)]
 
 #[cfg(tls)]
 use std::fs;

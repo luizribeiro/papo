@@ -1,9 +1,6 @@
 //! Network connections to IRC servers.
 
-#[cfg(any(
-    not(target_family = "wasm"),
-    all(target_os = "wasi", not(target_env = "p1"))
-))]
+#[cfg(sockets)]
 use std::net::SocketAddr;
 #[cfg(tls)]
 use std::sync::Arc;
@@ -260,13 +257,7 @@ pub enum ConnectError {
 /// # Errors
 ///
 /// Returns an error for an invalid URL or failed TCP, TLS, or WebSocket handshake.
-#[cfg(all(
-    feature = "websocket",
-    any(
-        not(target_family = "wasm"),
-        all(target_os = "wasi", not(target_env = "p1"))
-    )
-))]
+#[cfg(all(feature = "websocket", sockets))]
 pub async fn connect_websocket(url: &str, tls: Option<&TlsConfig>) -> Result<Stream, ConnectError> {
     websocket::connect(url, tls).await.map(|stream| Stream {
         inner: StreamInner::WebSocket(Box::new(stream)),
@@ -281,10 +272,7 @@ pub async fn connect_websocket(url: &str, tls: Option<&TlsConfig>) -> Result<Str
 ///
 /// Returns the resolver error, the last TCP error, or an error explaining that
 /// the selected security mode is unavailable.
-#[cfg(any(
-    not(target_family = "wasm"),
-    all(target_os = "wasi", not(target_env = "p1"))
-))]
+#[cfg(sockets)]
 pub async fn connect(host: &str, port: u16, security: &Security) -> Result<Stream, ConnectError> {
     #[cfg(not(tls))]
     if matches!(security, Security::Tls(_)) {
@@ -428,10 +416,7 @@ fn rustls_error(error: &io::Error) -> Option<rustls::Error> {
         .cloned()
 }
 
-#[cfg(any(
-    not(target_family = "wasm"),
-    all(target_os = "wasi", not(target_env = "p1"))
-))]
+#[cfg(sockets)]
 async fn resolve(host: &str, port: u16) -> Result<Vec<SocketAddr>, ConnectError> {
     #[cfg(not(target_os = "wasi"))]
     let result = tokio::net::lookup_host((host, port))
@@ -452,10 +437,7 @@ async fn resolve(host: &str, port: u16) -> Result<Vec<SocketAddr>, ConnectError>
     })
 }
 
-#[cfg(any(
-    not(target_family = "wasm"),
-    all(target_os = "wasi", not(target_env = "p1"))
-))]
+#[cfg(sockets)]
 async fn connect_address(address: SocketAddr) -> io::Result<TcpStream> {
     let stream = TcpStream::connect(address).await?;
     #[cfg(not(target_os = "wasi"))]

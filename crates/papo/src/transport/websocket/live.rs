@@ -1,11 +1,5 @@
 //! WebSocket connections to the runner-managed Ergo server.
-#![cfg(all(
-    feature = "websocket",
-    any(
-        not(target_family = "wasm"),
-        all(target_os = "wasi", not(target_env = "p1"))
-    )
-))]
+#![cfg(all(feature = "websocket", sockets))]
 
 #[cfg(tls)]
 use std::fs;

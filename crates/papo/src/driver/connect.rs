@@ -14,10 +14,7 @@ use super::{
 use crate::{Error, Event, InvalidInput, Reconnect, address::Protocol, transport};
 
 pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::Stream, Error> {
-    #[cfg(any(
-        not(target_family = "wasm"),
-        all(target_os = "wasi", not(target_env = "p1"))
-    ))]
+    #[cfg(sockets)]
     {
         if plan.address.websocket_url().is_some() {
             #[cfg(feature = "websocket")]
@@ -45,10 +42,7 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
             .await
             .map_err(Error::Connect)
     }
-    #[cfg(not(any(
-        not(target_family = "wasm"),
-        all(target_os = "wasi", not(target_env = "p1"))
-    )))]
+    #[cfg(not(sockets))]
     {
         _ = plan;
         Err(Error::Unsupported("outbound sockets"))
