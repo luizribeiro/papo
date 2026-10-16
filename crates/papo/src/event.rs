@@ -644,24 +644,40 @@ pub enum Event {
 }
 
 macro_rules! event_accessors {
-    ($(($variant:ident, $method:ident, $payload:ty)),+ $(,)?) => {
+    () => {};
+    ((boxed $variant:ident, $method:ident, $payload:ty), $($rest:tt)*) => {
         impl Event {
-            $(
-                #[doc = concat!("Returns the payload when this is [`Event::", stringify!($variant), "`].")]
-                #[must_use]
-                pub const fn $method(&self) -> Option<&$payload> {
-                    if let Self::$variant(payload) = self {
-                        Some(payload)
-                    } else {
-                        None
-                    }
+            #[doc = concat!("Returns the payload when this is [`Event::", stringify!($variant), "`].")]
+            #[must_use]
+            pub fn $method(&self) -> Option<&$payload> {
+                if let Self::$variant(payload) = self {
+                    Some(payload)
+                } else {
+                    None
                 }
-            )+
+            }
         }
+        event_accessors! { $($rest)* }
+    };
+    (($variant:ident, $method:ident, $payload:ty), $($rest:tt)*) => {
+        impl Event {
+            #[doc = concat!("Returns the payload when this is [`Event::", stringify!($variant), "`].")]
+            #[must_use]
+            pub const fn $method(&self) -> Option<&$payload> {
+                if let Self::$variant(payload) = self {
+                    Some(payload)
+                } else {
+                    None
+                }
+            }
+        }
+        event_accessors! { $($rest)* }
     };
 }
 
 event_accessors! {
+    (boxed Message, as_message, MessageEvent),
+    (boxed History, as_history, crate::HistoryPage),
     (Registered, as_registered, Registered),
     (Disconnected, as_disconnected, Disconnected),
     (CapsChanged, as_caps_changed, CapsChanged),
@@ -671,6 +687,29 @@ event_accessors! {
     (TagMsg, as_tag_msg, TagMsg),
     (ReadMarker, as_read_marker, ReadMarker),
     (StandardReply, as_standard_reply, StandardReply),
+    (Joined, as_joined, Joined),
+    (ChannelSynced, as_channel_synced, ChannelSynced),
+    (Parted, as_parted, Parted),
+    (Kicked, as_kicked, Kicked),
+    (Invited, as_invited, Invited),
+    (TopicChanged, as_topic_changed, TopicChanged),
+    (ModeChanged, as_mode_changed, ModeChanged),
+    (ChannelRenamed, as_channel_renamed, ChannelRenamed),
+    (Quit, as_quit, Quit),
+    (NickChanged, as_nick_changed, NickChanged),
+    (AwayChanged, as_away_changed, AwayChanged),
+    (AccountChanged, as_account_changed, AccountChanged),
+    (HostChanged, as_host_changed, HostChanged),
+    (RealnameChanged, as_realname_changed, RealnameChanged),
+    (MonitorOnline, as_monitor_online, MonitorOnline),
+    (MonitorOffline, as_monitor_offline, MonitorOffline),
+    (Netsplit, as_netsplit, Netsplit),
+    (Netjoin, as_netjoin, Netjoin),
+    (MetadataChanged, as_metadata_changed, MetadataChanged),
+    (PersistenceChanged, as_persistence_changed, PersistenceChanged),
+    (AccountRegistration, as_account_registration, crate::AccountRegistration),
+    (Warning, as_warning, Warning),
+    (Raw, as_raw, RawLine),
 }
 
 impl Event {
