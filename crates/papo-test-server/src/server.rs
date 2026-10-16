@@ -185,18 +185,21 @@ impl TestServer {
             self.websocket,
             self.secure_websocket,
         ];
-        wait_until_ready_until(addresses, deadline, || self.child.try_wait())
+        wait_until_ready_until("Ergo", addresses, deadline, || self.child.try_wait())
     }
 }
 
-fn wait_until_ready_until(
-    addresses: [SocketAddr; 4],
+pub(crate) fn wait_until_ready_until<const N: usize>(
+    server_name: &str,
+    addresses: [SocketAddr; N],
     deadline: Instant,
     mut child_status: impl FnMut() -> io::Result<Option<ExitStatus>>,
 ) -> io::Result<()> {
     while Instant::now() < deadline {
         if let Some(status) = child_status()? {
-            return Err(io::Error::other(format!("ergo exited with {status}")));
+            return Err(io::Error::other(format!(
+                "{server_name} exited with {status}"
+            )));
         }
         if addresses
             .iter()
@@ -209,7 +212,7 @@ fn wait_until_ready_until(
     }
     Err(io::Error::new(
         io::ErrorKind::TimedOut,
-        "Ergo did not start",
+        format!("{server_name} did not start"),
     ))
 }
 
@@ -298,6 +301,7 @@ mod tests {
             .each_ref()
             .map(|listener| listener.local_addr().unwrap());
         let error = wait_until_ready_until(
+            "Ergo",
             addresses,
             Instant::now() + Duration::from_millis(20),
             || Ok::<_, io::Error>(None),

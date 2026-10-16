@@ -1,6 +1,6 @@
 use std::{
     env, fs, io,
-    net::{TcpListener, TcpStream},
+    net::TcpListener,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     thread,
@@ -155,6 +155,27 @@ impl TestServer {
 
     fn wait_for(&mut self, services: bool) -> io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(10);
+        if !services {
+            let endpoints = [
+                self.config.plaintext,
+                self.config.tls,
+                self.config.websocket,
+                self.config.secure_websocket,
+            ];
+            return crate::server::wait_until_ready_until(
+                "UnrealIRCd",
+                endpoints,
+                deadline,
+                || {
+                    for child in &mut self.children {
+                        if let Some(status) = child.try_wait()? {
+                            return Ok(Some(status));
+                        }
+                    }
+                    Ok(None)
+                },
+            );
+        }
         while Instant::now() < deadline {
             for child in &mut self.children {
                 if let Some(status) = child.try_wait()? {
@@ -163,18 +184,7 @@ impl TestServer {
                     )));
                 }
             }
-            if if services {
-                self.services_linked()
-            } else {
-                [
-                    self.config.plaintext,
-                    self.config.tls,
-                    self.config.websocket,
-                    self.config.secure_websocket,
-                ]
-                .iter()
-                .all(|address| TcpStream::connect(address).is_ok())
-            } {
+            if self.services_linked() {
                 return Ok(());
             }
             thread::sleep(Duration::from_millis(20));

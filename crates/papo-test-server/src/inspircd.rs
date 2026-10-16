@@ -1,6 +1,6 @@
 use std::{
     env, io,
-    net::{SocketAddr, TcpStream},
+    net::SocketAddr,
     path::PathBuf,
     process::{Child, Command, Stdio},
     thread,
@@ -60,6 +60,17 @@ impl TestServer {
     }
     fn wait_for(&mut self, services: bool) -> io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(10);
+        if !services {
+            let endpoints = self.endpoints;
+            return crate::server::wait_until_ready_until("InspIRCd", endpoints, deadline, || {
+                for child in &mut self.children {
+                    if let Some(status) = child.try_wait()? {
+                        return Ok(Some(status));
+                    }
+                }
+                Ok(None)
+            });
+        }
         while Instant::now() < deadline {
             for child in &mut self.children {
                 if let Some(status) = child.try_wait()? {
@@ -68,13 +79,7 @@ impl TestServer {
                     )));
                 }
             }
-            if (services && atheme::linked(self.directory.path()))
-                || (!services
-                    && self
-                        .endpoints
-                        .iter()
-                        .all(|address| TcpStream::connect(address).is_ok()))
-            {
+            if atheme::linked(self.directory.path()) {
                 return Ok(());
             }
             thread::sleep(Duration::from_millis(20));
