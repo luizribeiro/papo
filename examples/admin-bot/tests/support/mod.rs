@@ -98,9 +98,9 @@ pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
 pub(super) async fn wait_message(events: &mut Events, text: &str) -> MessageEvent {
     loop {
         match events.next().await {
-            Some(Event::Message(message)) if message.text() == text => return message,
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("message failed: {reason}")
+            Some(Event::Message(message)) if message.text() == text => return *message,
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("message failed: {}", disconnected.reason)
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for {text}"),

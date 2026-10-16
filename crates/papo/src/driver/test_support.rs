@@ -396,7 +396,7 @@ pub(crate) async fn next_message(events: &mut super::Events) -> MessageEvent {
     let Some(Event::Message(message)) = events.next().await else {
         panic!("expected message event")
     };
-    message
+    *message
 }
 
 pub(crate) async fn assert_registration_output(

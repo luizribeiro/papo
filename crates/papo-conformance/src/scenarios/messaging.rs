@@ -1,7 +1,7 @@
 use libtest_mimic::Failed;
-use papo::Event;
+use papo::{Event, MessageKind, Source};
 use papo_conformance_macros::scenario;
-use papo_proto::{Message, Source, Typing};
+use papo_proto::{Message, Typing};
 
 use super::support::{EXPECT_TIMEOUT, close_pair, join, joined_pair};
 use crate::{Scenario, ScenarioResult};
@@ -42,10 +42,9 @@ async fn echo_message(context: Scenario) -> ScenarioResult {
             &mut connection.events,
             |event| {
                 matches!(event, Event::Message(message) if {
-                    let message = message.as_ref();
-                    message.command_is("PRIVMSG")
-                        && message.param(0) == Some(channel.as_str())
-                        && message.param(1) == Some(text.as_str())
+                    matches!(message.kind(), MessageKind::Privmsg)
+                        && message.target() == channel
+                        && message.raw_text() == text
                         && matches!(message.source(), Some(Source::User { nick, .. }) if nick == registered_nick)
                 })
             },
@@ -69,7 +68,7 @@ async fn server_time(context: Scenario) -> ScenarioResult {
         .expect(
             &mut receiver.events,
             |event| {
-                matches!(event, Event::Message(message) if message.raw_text() == text && message.as_ref().tag("time").is_some())
+                matches!(event, Event::Message(message) if message.raw_text() == text && message.as_ref().as_ref().tag("time").is_some())
             },
             EXPECT_TIMEOUT,
         )

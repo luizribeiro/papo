@@ -46,7 +46,7 @@ async fn registers_messages_itself_and_quits() {
         loop {
             match events.next().await.unwrap() {
                 Event::Message(message) => {
-                    let message = message.as_ref();
+                    let message = message.as_ref().as_ref();
                     if message.command_is("PRIVMSG")
                         && message.param(0) == Some(nick.as_str())
                         && message.param(1) == Some("hello from papo's live client")

@@ -1041,7 +1041,7 @@ where
                     )
                     .map_or_else(
                         |message| Event::Raw(crate::RawLine::from_proto(&message)),
-                        Event::Message,
+                        |message| Event::Message(Box::new(message)),
                     )
                 } else {
                     let message = message.into_message();
@@ -1069,7 +1069,7 @@ where
                     )
                     .map_or_else(
                         |message| Event::Raw(crate::RawLine::from_proto(&message)),
-                        Event::Message,
+                        |message| Event::Message(Box::new(message)),
                     ),
                     None => Event::Raw(crate::RawLine::from_proto(&message)),
                 };

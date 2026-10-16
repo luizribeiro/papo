@@ -325,7 +325,7 @@ pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
-pub papo::Event::Message(papo::MessageEvent)
+pub papo::Event::Message(alloc::boxed::Box<papo::MessageEvent>)
 pub papo::Event::MetadataChanged(papo::event::MetadataChanged)
 pub papo::Event::ModeChanged(papo::event::ModeChanged)
 pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
@@ -615,6 +615,9 @@ pub fn papo::MessageEvent::source(&self) -> core::option::Option<papo::Source>
 pub fn papo::MessageEvent::target(&self) -> &str
 pub fn papo::MessageEvent::text(&self) -> &str
 pub fn papo::MessageEvent::time(&self) -> std::time::SystemTime
+impl core::cmp::Eq for papo::MessageEvent
+impl core::cmp::PartialEq for papo::MessageEvent
+pub fn papo::MessageEvent::eq(&self, &Self) -> bool
 impl core::convert::From<&papo::MessageEvent> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::MessageEvent) -> Self
 impl core::fmt::Debug for papo::MessageEvent

@@ -134,7 +134,7 @@ impl Command {
         let name = words.remove(0).to_ascii_lowercase();
         let account = message.resolved_account();
         Some(Self {
-            message: message.clone(),
+            message: *message.clone(),
             name,
             args: words,
             account,
@@ -303,7 +303,7 @@ mod tests {
     use super::{BotConfig, Command, Event, MessageEvent, ReplyRateLimiter};
 
     fn event_as(command: &str, text: &str, nick: &str, source: &str) -> Event {
-        Event::Message(
+        Event::Message(Box::new(
             MessageEvent::new(
                 Message::new(command, ["#papo", text]).with_source(source),
                 &Isupport::default(),
@@ -313,7 +313,7 @@ mod tests {
                 UNIX_EPOCH,
             )
             .unwrap(),
-        )
+        ))
     }
 
     fn event(text: &str) -> Event {
@@ -322,7 +322,7 @@ mod tests {
 
     fn event_to(target: &str, text: &str, isupport: &Isupport) -> Event {
         let session = papo_core::Session::new(papo_core::Config::default().nick("papo{bot}"));
-        Event::Message(
+        Event::Message(Box::new(
             MessageEvent::new(
                 Message::privmsg(target, text).with_source("emily!~emily@localhost"),
                 isupport,
@@ -332,7 +332,7 @@ mod tests {
                 UNIX_EPOCH,
             )
             .unwrap(),
-        )
+        ))
     }
 
     #[test]
@@ -349,7 +349,11 @@ mod tests {
             unreachable!()
         };
         let tagged = MessageEvent::new(
-            message.as_ref().to_owned().with_tag("account", "Emily"),
+            message
+                .as_ref()
+                .as_ref()
+                .to_owned()
+                .with_tag("account", "Emily"),
             &Isupport::default(),
             "papo",
             crate::Client::disconnected_for_test(),
@@ -357,7 +361,8 @@ mod tests {
             UNIX_EPOCH,
         )
         .unwrap();
-        let command = Command::parse(&Event::Message(tagged), &BotConfig::new("!")).unwrap();
+        let command =
+            Command::parse(&Event::Message(Box::new(tagged)), &BotConfig::new("!")).unwrap();
         assert_eq!(command.account(), Some("Emily"));
         assert!(command.account_in(["emily", "alice"]));
         assert!(!command.account_in(["carol"]));
@@ -384,7 +389,8 @@ mod tests {
             UNIX_EPOCH,
         )
         .unwrap();
-        let command = Command::parse(&Event::Message(message), &BotConfig::new("!")).unwrap();
+        let command =
+            Command::parse(&Event::Message(Box::new(message)), &BotConfig::new("!")).unwrap();
         assert_eq!(command.account(), Some("emily"));
     }
 
