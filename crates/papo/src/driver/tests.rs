@@ -1420,8 +1420,8 @@ async fn cap_new_and_del_forward_capability_changes() {
     )
     .await;
     assert!(
-        matches!(events.next().await, Some(Event::CapsChanged { added, .. })
-        if added.get("server-time") == Some(&Some("2027".to_owned())))
+        matches!(events.next().await, Some(Event::CapsChanged(changed))
+        if changed.added.get("server-time") == Some(&Some("2027".to_owned())))
     );
     server_line(
         &mut server,
@@ -1429,8 +1429,8 @@ async fn cap_new_and_del_forward_capability_changes() {
     )
     .await;
     assert!(
-        matches!(events.next().await, Some(Event::CapsChanged { removed, .. })
-        if removed.contains_key("server-time"))
+        matches!(events.next().await, Some(Event::CapsChanged(changed))
+        if changed.removed.contains_key("server-time"))
     );
     within(server.shutdown()).await.unwrap();
     assert!(matches!(

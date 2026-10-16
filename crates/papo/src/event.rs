@@ -708,12 +708,7 @@ pub enum Event {
         reason: String,
     },
     /// The capabilities enabled on an established connection changed.
-    CapsChanged {
-        /// Newly enabled capabilities and updated advertised values.
-        added: Capabilities,
-        /// Capabilities removed by the server.
-        removed: Capabilities,
-    },
+    CapsChanged(CapsChanged),
     /// A plaintext connection must be replaced with TLS on `port`.
     StsUpgrade {
         /// The advertised TLS port.
@@ -972,7 +967,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::Malformed { line } => Event::Malformed { line },
         papo_core::Event::Close { kind, reason } => return CoreEvent::Close { kind, reason },
         papo_core::Event::AuthenticationFailed { reason } => Event::AuthenticationFailed { reason },
-        papo_core::Event::CapsChanged { added, removed } => Event::CapsChanged { added, removed },
+        papo_core::Event::CapsChanged { added, removed } => {
+            Event::CapsChanged(CapsChanged { added, removed })
+        }
         papo_core::Event::StsUpgrade { port } => Event::StsUpgrade { port },
         papo_core::Event::StsPolicy(action) => Event::StsPolicy(action),
         papo_core::Event::Joined { channel, nick } => Event::Joined { channel, nick },
