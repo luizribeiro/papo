@@ -620,6 +620,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-catchup"
+version = "0.0.0"
+dependencies = [
+ "papo",
+ "papo-test-server",
+ "tokio",
+]
+
+[[package]]
 name = "papo-conformance"
 version = "0.0.0"
 dependencies = [

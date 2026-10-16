@@ -11,6 +11,7 @@ members = [
   "examples/lurker",
   "examples/admin-bot",
   "examples/echo-bot",
+  "examples/catchup",
 ]
 exclude = ["fuzz"]
 

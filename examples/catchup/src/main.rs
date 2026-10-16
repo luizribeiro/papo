@@ -1,0 +1,70 @@
+//! Print unread channel history, then advance each read marker.
+
+use std::{collections::BTreeSet, env, error::Error, io, time::UNIX_EPOCH};
+
+use papo::{Client, Event, Sasl};
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let server = required("IRC_SERVER")?;
+    let nick = required("IRC_NICK")?;
+    let password_file = required("IRC_PASSWORD_FILE")?;
+    let channels = required("IRC_CHANNELS")?
+        .split(',')
+        .map(str::trim)
+        .filter(|channel| !channel.is_empty())
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let password = std::fs::read_to_string(password_file)?;
+    let mut builder = Client::builder(&server)
+        .nick(&nick)
+        .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
+        .require_sasl(true)
+        .channels(&channels);
+    if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
+        builder = builder.tls_ca_file(ca_file)?;
+    }
+    let (client, mut events) = builder.connect().await?;
+    wait_for_channels(&mut events, &channels).await?;
+
+    for channel in channels {
+        let mut after = client.read_marker(&channel).await?.unwrap_or(UNIX_EPOCH);
+        let mut newest = None;
+        loop {
+            let page = client.history(&channel).after(after).limit(100).await?;
+            for message in &page.messages {
+                println!("{channel} {}", message.text());
+                after = message.time();
+                newest = Some(after);
+            }
+            if page.end || page.messages.is_empty() {
+                break;
+            }
+        }
+        if let Some(newest) = newest {
+            client.mark_read(&channel, newest).await?;
+        }
+    }
+    client.quit(Some("history caught up")).await?;
+    Ok(())
+}
+
+async fn wait_for_channels(
+    events: &mut papo::Events,
+    channels: &[String],
+) -> Result<(), papo::Error> {
+    let mut pending = channels.iter().cloned().collect::<BTreeSet<_>>();
+    while !pending.is_empty() {
+        match events.next().await {
+            Some(Event::ChannelSynced { channel }) => _ = pending.remove(&channel),
+            Some(Event::Disconnected { .. }) | None => return Err(papo::Error::Disconnected),
+            Some(_) => {}
+        }
+    }
+    Ok(())
+}
+
+fn required(name: &str) -> io::Result<String> {
+    env::var(name)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, format!("{name} is required")))
+}
