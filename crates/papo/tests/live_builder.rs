@@ -8,7 +8,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Event, Sasl};
+use papo::{Client, Endpoint, Event, Sasl};
 use papo_proto::Message;
 use papo_test_server::{from_env, register_account, unique};
 
@@ -22,7 +22,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
         register_account(&server, &account, password).unwrap();
 
         let (client, mut events) =
-            Client::builder(format!("ircs://localhost:{}", server.tls_addr().port()))
+            Client::builder(Endpoint::tls("localhost", server.tls_addr().port()))
                 .nick(&account)
                 .sasl(Sasl::plain(&account, password))
                 .require_sasl(true)
@@ -72,11 +72,12 @@ async fn connects_through_the_configured_websocket_url() {
     within(async {
         let server = from_env();
         let nick = unique("papo-builder-ws");
-        let (client, mut events) = Client::builder(server.websocket_url())
-            .nick(&nick)
-            .connect()
-            .await
-            .unwrap();
+        let (client, mut events) =
+            Client::builder(Endpoint::websocket(server.websocket_url()).unwrap())
+                .nick(&nick)
+                .connect()
+                .await
+                .unwrap();
         wait_registered(&mut events, &nick).await;
         client
             .quit(Some("WebSocket builder test complete"))

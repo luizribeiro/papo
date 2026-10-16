@@ -15,7 +15,7 @@ use std::time::Duration;
 
 #[cfg(not(target_family = "wasm"))]
 use papo::Reconnect;
-use papo::{AccountRegistration, Client, Event, Sasl};
+use papo::{AccountRegistration, Client, Endpoint, Event, Sasl};
 #[cfg(not(target_family = "wasm"))]
 use papo_core::PersistenceSetting;
 use papo_core::Secret;
@@ -34,9 +34,12 @@ const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 async fn registers_then_logs_in_with_sasl() {
     within(async {
         let server = from_env();
-        let address = format!("irc://{}", server.plaintext_addr());
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
         let account = unique("papo-account");
-        let (registrar, mut registrar_events) = Client::builder(address.as_str())
+        let (registrar, mut registrar_events) = Client::builder(address.clone())
             .nick(&account)
             .caps(["draft/account-registration", "labeled-response"])
             .connect()
@@ -52,7 +55,7 @@ async fn registers_then_logs_in_with_sasl() {
         ));
         registrar.quit(Some("account created")).await.unwrap();
 
-        let (authenticated, mut authenticated_events) = Client::builder(address.as_str())
+        let (authenticated, mut authenticated_events) = Client::builder(address)
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
             .require_sasl(true)
@@ -79,11 +82,11 @@ async fn persistent_server_restores_channels_without_a_client_join() {
     within(async {
         let server = from_env();
         let (proxy, disconnect) = disconnecting_proxy(server.plaintext_addr()).await;
-        let address = format!("irc://{proxy}");
+        let address = Endpoint::plaintext(proxy.ip().to_string(), proxy.port());
         let account = unique("papo-persistent");
         let channel = format!("#{}", unique("papo-persistent"));
         register_account(&server, &account, PASSWORD).unwrap();
-        let (client, mut events) = Client::builder(address.as_str())
+        let (client, mut events) = Client::builder(address)
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
             .require_sasl(true)

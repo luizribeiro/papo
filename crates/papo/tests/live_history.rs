@@ -8,7 +8,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Event, MessageEvent, Origin};
+use papo::{Client, Endpoint, Event, MessageEvent, Origin};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -17,21 +17,24 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         let server = from_env();
         let channel = format!("#{}", unique("papo-history"));
         let nick = unique("papo-history");
-        let (client, mut events) = Client::builder(format!("irc://{}", server.plaintext_addr()))
-            .nick(&nick)
-            .caps([
-                "message-tags",
-                "server-time",
-                "batch",
-                "echo-message",
-                "labeled-response",
-                "draft/chathistory",
-                "draft/read-marker",
-            ])
-            .channels([&channel])
-            .connect()
-            .await
-            .unwrap();
+        let (client, mut events) = Client::builder(Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        ))
+        .nick(&nick)
+        .caps([
+            "message-tags",
+            "server-time",
+            "batch",
+            "echo-message",
+            "labeled-response",
+            "draft/chathistory",
+            "draft/read-marker",
+        ])
+        .channels([&channel])
+        .connect()
+        .await
+        .unwrap();
         wait_synced(&mut events, &channel).await;
 
         let texts = [

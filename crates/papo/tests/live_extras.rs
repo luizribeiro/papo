@@ -8,7 +8,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Event};
+use papo::{Client, Endpoint, Event};
 #[cfg(not(target_family = "wasm"))]
 use papo_test_server::TestServer;
 use papo_test_server::{from_env, unique};
@@ -17,11 +17,14 @@ use papo_test_server::{from_env, unique};
 async fn subscriber_receives_another_clients_metadata() {
     within(async {
         let server = from_env();
-        let address = format!("irc://{}", server.plaintext_addr());
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
         let channel = format!("#{}", unique("papo-metadata"));
         let writer_nick = unique("papo-metadata-writer");
         let reader_nick = unique("papo-metadata-reader");
-        let (writer, mut writer_events) = Client::builder(address.as_str())
+        let (writer, mut writer_events) = Client::builder(address.clone())
             .nick(&writer_nick)
             .caps(["draft/metadata-2", "labeled-response"])
             .channels([&channel])
@@ -29,7 +32,7 @@ async fn subscriber_receives_another_clients_metadata() {
             .await
             .unwrap();
         wait_synced(&mut writer_events, &channel).await;
-        let (reader, mut reader_events) = Client::builder(address.as_str())
+        let (reader, mut reader_events) = Client::builder(address)
             .nick(&reader_nick)
             .caps(["draft/metadata-2", "labeled-response"])
             .channels([&channel])
@@ -71,7 +74,10 @@ async fn subscriber_receives_another_clients_metadata() {
 async fn member_sees_channel_rename_and_relay_attribution() {
     within(async {
         let server = TestServer::start_with_ephemeral_channels().unwrap();
-        let address = format!("irc://{}", server.plaintext_addr());
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
         let old_channel = format!("#{}", unique("papo-rename"));
         let new_channel = format!("#{}", unique("papo-renamed"));
         let operator_nick = unique("papo-relay-operator");
@@ -82,7 +88,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             "labeled-response",
             "message-tags",
         ];
-        let (operator, mut operator_events) = Client::builder(address.as_str())
+        let (operator, mut operator_events) = Client::builder(address.clone())
             .nick(&operator_nick)
             .caps(capabilities)
             .channels([&old_channel])
@@ -90,7 +96,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             .await
             .unwrap();
         wait_synced(&mut operator_events, &old_channel).await;
-        let (member, mut member_events) = Client::builder(address.as_str())
+        let (member, mut member_events) = Client::builder(address)
             .nick(&member_nick)
             .caps(capabilities)
             .channels([&old_channel])
