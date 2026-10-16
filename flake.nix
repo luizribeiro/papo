@@ -93,7 +93,7 @@
             || pkgs.lib.hasSuffix "/docs/conformance-matrix.md" path
             || pkgs.lib.hasSuffix "/scripts/conformance-matrix" path
             || pkgs.lib.hasSuffix "/nix" path
-            || pkgs.lib.hasSuffix "/nix/test-runner" path;
+            || pkgs.lib.hasInfix "/nix/" path;
         };
         nixTestRunner = "${pkgs.lib.getExe pkgs.bash} ${cargoSource}/nix/test-runner";
         craneArgs = {
@@ -103,6 +103,24 @@
           version = "0.0.0";
         };
         cargoArtifacts = craneLib.buildDepsOnly craneArgs;
+        browserCargoVendor = craneLib.vendorCargoDeps {
+          src = cargoSource;
+          cargoLock = ./crates/papo-core/tests/browser/Cargo.lock;
+        };
+        browserCraneArgs = craneArgs // {
+          pname = "papo-core-browser-tests";
+          cargoArtifacts = null;
+          cargoVendorDir = browserCargoVendor;
+          cargoLock = ./crates/papo-core/tests/browser/Cargo.lock;
+        };
+        papoTestServer = craneLib.buildPackage (
+          craneArgs
+          // {
+            inherit cargoArtifacts;
+            cargoExtraArgs = "-p papo-test-server --bin papo-test-server";
+            doCheck = false;
+          }
+        );
         cargoWasip3 = pkgs.writeShellApplication {
           name = "cargo-wasip3";
           text = ''
@@ -248,6 +266,12 @@
             '';
             stages = [ "pre-push" ];
           };
+          browser-tests = cargoHook {
+            name = "browser-tests-hook";
+            runtimeInputs = browserTools;
+            text = "${nixTestRunner} --browser";
+            stages = [ "pre-push" ];
+          };
           wasip2-tests = cargoHook {
             name = "wasip2-tests-hook";
             runtimeInputs = [ pkgs.wasmtime ];
@@ -332,6 +356,19 @@
               CARGO_TARGET_WASM32_WASIP1_RUNNER = nixTestRunner;
               CARGO_TARGET_WASM32_WASIP2_RUNNER = nixTestRunner;
               CARGO_TARGET_WASM32_WASIP3_RUNNER = nixTestRunner;
+            }
+          );
+          browser-tests = craneLib.mkCargoDerivation (
+            browserCraneArgs
+            // {
+              nativeBuildInputs = browserTools ++ [ pkgs.openssl ];
+              PAPO_TEST_SERVER_BIN = pkgs.lib.getExe' papoTestServer "papo-test-server";
+              ERGO_BIN = pkgs.lib.getExe ergochat;
+              ERGO_CONFIG = ergoConfig;
+              ERGO_LANGUAGES = "${ergochat.src}/languages";
+              doInstallCargoArtifacts = false;
+              buildPhaseCargoCommand = "${nixTestRunner} --browser";
+              installPhaseCommand = "touch $out";
             }
           );
           conformance-unrealircd = craneLib.cargoTest (
