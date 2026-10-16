@@ -280,8 +280,6 @@ pub fn papo::Builder::nick(self, impl core::convert::Into<alloc::string::String>
 pub fn papo::Builder::password(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::ping_interval(self, core::time::Duration) -> Self
 pub fn papo::Builder::ping_timeout(self, core::time::Duration) -> Self
-pub fn papo::Builder::plaintext(self) -> Self
-pub fn papo::Builder::port(self, u16) -> Self
 pub fn papo::Builder::rate_limit(self, papo_core::ratelimit::RateLimit) -> Self
 pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
@@ -289,7 +287,6 @@ pub fn papo::Builder::register_on_connect(self, core::option::Option<impl core::
 pub fn papo::Builder::require_sasl(self, bool) -> Self
 pub fn papo::Builder::sasl(self, papo_core::sasl::Sasl) -> Self
 pub fn papo::Builder::sts_store(self, impl papo_core::sts::StsStore + core::marker::Send + 'static) -> Self
-pub fn papo::Builder::tls(self, bool) -> Self
 pub fn papo::Builder::tls_ca_file(self, impl core::convert::AsRef<std::path::Path>) -> core::result::Result<Self, papo::Error>
 pub fn papo::Builder::tls_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
 pub fn papo::Builder::tls_client_cert(self, impl core::convert::Into<alloc::vec::Vec<u8>>, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
