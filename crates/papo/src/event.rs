@@ -7,7 +7,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use papo_proto::{Ctcp, Isupport, Message, MessageRef, Reaction, Typing, strip_formatting, time};
+use papo_proto::{Ctcp, Isupport, Message, MessageRef, strip_formatting, time};
 
 use crate::{Client, Error};
 
@@ -19,7 +19,7 @@ mod conversation;
 mod source;
 
 pub use connection::{CapsChanged, Disconnected, Registered};
-pub use conversation::{Reacted, TypingChanged};
+pub use conversation::{Reacted, TagMsg, TypingChanged};
 pub use source::Source;
 
 /// The semantic kind of an incoming chat message.
@@ -513,69 +513,11 @@ fn tag_owned(message: &MessageRef<'_>, keys: &[&str]) -> Option<String> {
         .find_map(|key| message.tag(key).map(std::borrow::Cow::into_owned))
 }
 
-/// A tag-only message. Known tags have typed accessors; unknown tags remain available.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TagMsg {
-    source: Option<String>,
-    target: String,
-    tags: Vec<(String, Option<String>)>,
-}
-
-impl TagMsg {
-    /// Returns the source prefix without its leading colon.
-    #[must_use]
-    pub fn source(&self) -> Option<&str> {
-        self.source.as_deref()
-    }
-
-    /// Returns the message target.
-    #[must_use]
-    pub fn target(&self) -> &str {
-        &self.target
-    }
-
-    /// Returns all tags in wire order.
-    #[must_use]
-    pub fn tags(&self) -> &[(String, Option<String>)] {
-        &self.tags
-    }
-
-    /// Returns a recognized typing state.
-    #[must_use]
-    pub fn typing(&self) -> Option<Typing> {
-        match self.tag("+typing")? {
-            "active" => Some(Typing::Active),
-            "paused" => Some(Typing::Paused),
-            "done" => Some(Typing::Done),
-            _ => None,
-        }
-    }
-
-    /// Returns a reaction linked to a message identifier.
-    #[must_use]
-    pub fn reaction(&self) -> Option<Reaction> {
-        let react = self.tag("+draft/react").map(str::to_owned);
-        let unreact = self.tag("+draft/unreact").map(str::to_owned);
-        if react.is_none() && unreact.is_none() {
-            return None;
-        }
-        Some(Reaction {
-            react,
-            unreact,
-            reply_to: self
-                .tag("+reply")
-                .or_else(|| self.tag("+draft/reply"))?
-                .to_owned(),
-        })
-    }
-
-    fn tag(&self, key: &str) -> Option<&str> {
-        self.tags
-            .iter()
-            .rev()
-            .find(|(candidate, _)| candidate == key)
-            .and_then(|(_, value)| value.as_deref())
-    }
+fn tag_value<'a>(tags: &'a [(String, Option<String>)], key: &str) -> Option<&'a str> {
+    tags.iter()
+        .rev()
+        .find(|(candidate, _)| candidate == key)
+        .and_then(|(_, value)| value.as_deref())
 }
 
 /// An event emitted by an IRC client.
@@ -914,25 +856,35 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::MultilineMessage(message) => Event::Raw(message.message),
         papo_core::Event::TagMessage(message) => {
             let tag = TagMsg {
-                source: message.source,
+                source: message.source.map(Source::from_prefix),
                 target: message.target,
                 tags: message.tags,
             };
-            if let Some(reaction) = tag.reaction() {
-                let removed = reaction.react.is_none();
+            let reply_to =
+                tag_value(&tag.tags, "+reply").or_else(|| tag_value(&tag.tags, "+draft/reply"));
+            let reaction = tag_value(&tag.tags, "+draft/react")
+                .map(|reaction| (reaction, false))
+                .or_else(|| {
+                    tag_value(&tag.tags, "+draft/unreact").map(|reaction| (reaction, true))
+                });
+            if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
-                    source: tag.source.map(Source::from_prefix),
+                    source: tag.source,
                     target: tag.target,
-                    reaction: reaction
-                        .react
-                        .or(reaction.unreact)
-                        .expect("reaction contains one operation"),
-                    msgid: reaction.reply_to,
+                    reaction: reaction.to_owned(),
+                    msgid: msgid.to_owned(),
                     removed,
                 })
-            } else if let Some(state) = tag.typing() {
+            } else if let Some(state) =
+                tag_value(&tag.tags, "+typing").and_then(|state| match state {
+                    "active" => Some(crate::Typing::Active),
+                    "paused" => Some(crate::Typing::Paused),
+                    "done" => Some(crate::Typing::Done),
+                    _ => None,
+                })
+            {
                 Event::TypingChanged(TypingChanged {
-                    source: tag.source.map(Source::from_prefix),
+                    source: tag.source,
                     target: tag.target,
                     state,
                 })
@@ -1081,7 +1033,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
-    use super::{CoreEvent, Event, MessageEvent, MessageKind, Origin, Source, TagMsg, from_core};
+    use super::{CoreEvent, Event, MessageEvent, MessageKind, Origin, Source, from_core};
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session, StandardReply,
         StateLimit,
@@ -1361,12 +1313,15 @@ mod tests {
     #[test]
     fn distinguishes_every_typing_tag_value() {
         let typing = |value: &str| {
-            TagMsg {
+            let tag = papo_core::TagMessage {
                 source: None,
                 target: "#papo".into(),
                 tags: vec![("+typing".into(), Some(value.into()))],
+            };
+            match forwarded(papo_core::Event::TagMessage(tag)) {
+                Event::TypingChanged(typing) => Some(typing.state),
+                _ => None,
             }
-            .typing()
         };
         assert_eq!(typing("active"), Some(Typing::Active));
         assert_eq!(typing("paused"), Some(Typing::Paused));

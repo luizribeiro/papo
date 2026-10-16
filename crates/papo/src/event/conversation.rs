@@ -29,3 +29,15 @@ pub struct TypingChanged {
     /// The new typing state.
     pub state: Typing,
 }
+
+/// A tag-only message with no more specific typed event.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct TagMsg {
+    /// The message source, when supplied by the server.
+    pub source: Option<Source>,
+    /// The message target.
+    pub target: String,
+    /// Tags in wire order.
+    pub tags: Vec<(String, Option<String>)>,
+}

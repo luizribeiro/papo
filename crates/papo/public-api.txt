@@ -113,13 +113,10 @@ pub papo::event::Registered::caps: papo_core::Capabilities
 pub papo::event::Registered::nick: alloc::string::String
 pub papo::event::Registered::reconnected: bool
 pub papo::event::Registered::text: alloc::string::String
-pub struct papo::event::TagMsg
-impl papo::event::TagMsg
-pub fn papo::event::TagMsg::reaction(&self) -> core::option::Option<papo_proto::client_tags::Reaction>
-pub fn papo::event::TagMsg::source(&self) -> core::option::Option<&str>
-pub fn papo::event::TagMsg::tags(&self) -> &[(alloc::string::String, core::option::Option<alloc::string::String>)]
-pub fn papo::event::TagMsg::target(&self) -> &str
-pub fn papo::event::TagMsg::typing(&self) -> core::option::Option<papo_proto::client_tags::Typing>
+#[non_exhaustive] pub struct papo::event::TagMsg
+pub papo::event::TagMsg::source: core::option::Option<papo::Source>
+pub papo::event::TagMsg::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
+pub papo::event::TagMsg::target: alloc::string::String
 #[non_exhaustive] pub struct papo::event::TypingChanged
 pub papo::event::TypingChanged::source: core::option::Option<papo::Source>
 pub papo::event::TypingChanged::state: papo_proto::client_tags::Typing
