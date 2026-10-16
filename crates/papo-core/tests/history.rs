@@ -282,7 +282,7 @@ fn assembles_deduplicated_context_aware_pages() {
         session.handle_line(now, line.as_bytes());
     }
     assert!(
-        matches!(session.poll_event(), Some(Event::History { messages, end: true, .. }) if messages.len() == 2)
+        matches!(session.poll_event(), Some(Event::History { items, end: true, .. }) if items.len() == 2)
     );
     let Some(Event::Response(response)) = session.poll_event() else {
         panic!("expected history response")

@@ -268,21 +268,22 @@ fn recorded_ergo_latest_batch_becomes_history() {
     assert_eq!(session.poll_event(), None);
     session.handle_line(now, b":ergo.test BATCH -c");
 
-    let Some(Event::History {
-        target,
-        messages,
-        end,
-    }) = session.poll_event()
-    else {
+    let Some(Event::History { target, items, end }) = session.poll_event() else {
         panic!("expected history")
     };
     assert_eq!(target, "#papo");
     assert!(end);
-    assert_eq!(messages.len(), 3);
-    assert_eq!(messages[0].as_ref().tag("msgid").as_deref(), Some("RKi9Cw"));
-    assert_eq!(messages[1].as_ref().param(1), Some("second"));
+    assert_eq!(items.len(), 3);
     assert_eq!(
-        messages[2].as_ref().tag("time").as_deref(),
+        items[0].message().unwrap().as_ref().tag("msgid").as_deref(),
+        Some("RKi9Cw")
+    );
+    assert_eq!(
+        items[1].message().unwrap().as_ref().param(1),
+        Some("second")
+    );
+    assert_eq!(
+        items[2].message().unwrap().as_ref().tag("time").as_deref(),
         Some("2026-10-15T12:00:03.000Z")
     );
 }
@@ -316,8 +317,8 @@ fn empty_and_draft_history_types_complete() {
         session.handle_line(now, b"BATCH -h");
         assert!(matches!(
             session.poll_event(),
-            Some(Event::History { target, messages, end: false })
-                if target == "#papo" && messages.is_empty()
+            Some(Event::History { target, items, end: false })
+                if target == "#papo" && items.is_empty()
         ));
     }
 }
@@ -334,7 +335,7 @@ fn nested_history_waits_for_the_outer_batch() {
     session.handle_line(now, b"BATCH -reply");
     assert!(matches!(
         session.poll_event(),
-        Some(Event::History { messages, .. }) if messages.len() == 1
+        Some(Event::History { items, .. }) if items.len() == 1
     ));
 }
 

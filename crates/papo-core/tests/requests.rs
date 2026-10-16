@@ -864,8 +864,8 @@ fn links_nested_chathistory_to_its_response() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::History { target, messages, end })
-            if target == "#papo" && messages.len() == 1 && end
+        Some(Event::History { target, items, end })
+            if target == "#papo" && items.len() == 1 && end
     ));
     let Some(Event::Response(response)) = session.poll_event() else {
         panic!("expected correlated history response")
@@ -899,7 +899,7 @@ fn unclaimed_history_response_releases_its_messages() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::History { target, messages, .. }) if target == "#papo" && messages.len() == 1
+        Some(Event::History { target, items, .. }) if target == "#papo" && items.len() == 1
     ));
     assert!(matches!(
         session.poll_event(),

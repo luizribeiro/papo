@@ -929,14 +929,13 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             target,
             retry_after,
         },
-        papo_core::Event::History {
-            target,
-            messages,
-            end,
-        } => {
+        papo_core::Event::History { target, items, end } => {
             return CoreEvent::History {
                 target,
-                messages,
+                messages: items
+                    .into_iter()
+                    .filter_map(papo_core::HistoryItem::into_message)
+                    .collect(),
                 end,
             };
         }
@@ -1751,10 +1750,10 @@ mod tests {
             end,
         } = from_core(papo_core::Event::History {
             target: "#papo".into(),
-            messages: vec![papo_core::HistoryMessage {
+            items: vec![papo_core::HistoryItem::Message(papo_core::HistoryMessage {
                 message: message.clone(),
                 context: false,
-            }],
+            })],
             end: true,
         })
         else {

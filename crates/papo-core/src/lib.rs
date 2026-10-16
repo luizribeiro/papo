@@ -1449,8 +1449,8 @@ pub enum Event {
     History {
         /// The history target named by the batch.
         target: String,
-        /// Messages in server delivery order.
-        messages: Vec<HistoryMessage>,
+        /// Replayed items in server delivery order.
+        items: Vec<HistoryItem>,
         /// Whether the server reported that no further page exists.
         end: bool,
     },
@@ -3017,15 +3017,9 @@ impl Session {
                 history,
                 history_targets,
             ),
-            BatchEvent::History {
-                target,
-                messages,
-                end,
-            } => self.outbox.event(Event::History {
-                target,
-                messages,
-                end,
-            }),
+            BatchEvent::History { target, items, end } => {
+                self.outbox.event(Event::History { target, items, end });
+            }
             BatchEvent::HistoryTargets(targets) => {
                 self.outbox.event(Event::HistoryTargets(targets));
             }

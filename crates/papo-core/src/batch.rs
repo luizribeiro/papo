@@ -64,7 +64,7 @@ pub(crate) enum BatchEvent {
     },
     History {
         target: String,
-        messages: Vec<HistoryMessage>,
+        items: Vec<HistoryItem>,
         end: bool,
     },
     HistoryTargets(Vec<(String, std::time::SystemTime)>),
@@ -479,7 +479,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         _ => {
             return vec![BatchEvent::History {
                 target: batch.params.first().cloned().unwrap_or_default(),
-                messages: history_messages(std::mem::take(&mut batch.messages)),
+                items: history_items(std::mem::take(&mut batch.messages)),
                 end: batch.end,
             }];
         }
@@ -549,17 +549,12 @@ fn multiline(batch: &mut OpenBatch) -> Option<Message> {
 }
 
 fn history_from_event(event: &BatchEvent) -> Option<HistoryPage> {
-    let BatchEvent::History {
-        target,
-        messages,
-        end,
-    } = event
-    else {
+    let BatchEvent::History { target, items, end } = event else {
         return None;
     };
     Some(HistoryPage {
         target: target.clone(),
-        items: messages.iter().cloned().map(HistoryItem::Message).collect(),
+        items: items.clone(),
         end: *end,
     })
 }
@@ -573,10 +568,13 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
             messages: batch, ..
         }
         | BatchEvent::Isupport(batch) => messages.extend(batch),
-        BatchEvent::History {
-            messages: batch, ..
-        } => {
-            messages.extend(batch.into_iter().map(|item| item.message));
+        BatchEvent::History { items: batch, .. } => {
+            messages.extend(
+                batch
+                    .into_iter()
+                    .filter_map(HistoryItem::into_message)
+                    .map(|item| item.message),
+            );
         }
         BatchEvent::Netsplit { quits, .. } => messages.extend(quits),
         BatchEvent::Netjoin { joins, .. } => messages.extend(joins),
@@ -587,7 +585,7 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
     }
 }
 
-fn history_messages(messages: Vec<Message>) -> Vec<HistoryMessage> {
+fn history_items(messages: Vec<Message>) -> Vec<HistoryItem> {
     let mut msgids = HashSet::new();
     messages
         .into_iter()
@@ -599,7 +597,7 @@ fn history_messages(messages: Vec<Message>) -> Vec<HistoryMessage> {
                 .any(|(key, _)| key == "draft/chathistory-context");
             msgid
                 .is_none_or(|msgid| msgids.insert(msgid))
-                .then_some(HistoryMessage { message, context })
+                .then_some(HistoryItem::Message(HistoryMessage { message, context }))
         })
         .collect()
 }
@@ -674,13 +672,10 @@ mod tests {
         else {
             panic!("history did not complete")
         };
-        let BatchEvent::History {
-            target, messages, ..
-        } = &events[0]
-        else {
+        let BatchEvent::History { target, items, .. } = &events[0] else {
             panic!("expected history")
         };
         assert_eq!(target, "#papo");
-        assert_eq!(messages[0].as_ref().param(1), Some("hello"));
+        assert_eq!(items[0].message().unwrap().as_ref().param(1), Some("hello"));
     }
 }
