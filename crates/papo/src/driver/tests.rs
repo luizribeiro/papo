@@ -1256,6 +1256,65 @@ async fn successful_registration_preserves_earlier_events() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn verification_challenge_resolves_registration_before_welcome() {
+    let (client_stream, mut server) = tokio::io::duplex(4096);
+    let (registration, waiter) = tokio::sync::oneshot::channel();
+    let config = config()
+        .wanted_caps(["draft/account-registration"])
+        .register_on_connect(
+            Some("alice"),
+            Some("alice@example.org"),
+            "correct horse battery staple",
+        );
+    let (_client, mut events, driver) = Driver::with_stream_and_registration(
+        client_stream,
+        Session::new(config),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        Some(registration),
+        super::PostRegistration::default(),
+    );
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b":ergo.test CAP * LS :draft/account-registration=before-connect\r\n",
+    )
+    .await;
+    client_line(&mut server, b"CAP REQ :draft/account-registration\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test CAP * ACK :draft/account-registration\r\n",
+    )
+    .await;
+    client_line(
+        &mut server,
+        b"REGISTER alice alice@example.org :correct horse battery staple\r\n",
+    )
+    .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::RequestUntracked { .. })
+    ));
+    server_line(
+        &mut server,
+        b":ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent\r\n",
+    )
+    .await;
+
+    assert!(within(waiter).await.unwrap().is_ok());
+    assert!(matches!(
+        events.next().await,
+        Some(Event::VerificationRequired { account, message })
+            if account == "alice" && message == "Verification code sent"
+    ));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (_client, mut events, driver) = Driver::with_stream_and_registration(

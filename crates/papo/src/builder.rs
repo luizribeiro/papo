@@ -355,11 +355,14 @@ impl Builder {
     /// Connects in a spawned driver and waits for IRC registration.
     ///
     /// The [`crate::Event::Registered`] event remains available from the
-    /// returned event stream.
+    /// returned event stream. When account registration requires email
+    /// verification, this returns after [`crate::Event::VerificationRequired`]
+    /// because the server holds IRC registration open until verification.
     ///
     /// # Errors
     ///
-    /// Returns connection or registration errors that occur before welcome.
+    /// Returns connection or registration errors that occur before registration
+    /// or a verification challenge.
     pub async fn connect(self) -> Result<(crate::Client, crate::Events), Error> {
         let (sender, receiver) = oneshot::channel();
         let (client, events, driver) = self.build_with_registration(Some(sender));

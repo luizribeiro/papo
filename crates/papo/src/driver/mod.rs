@@ -1009,6 +1009,9 @@ where
                     _ => {}
                 }
                 update_rejoin_channels(session, defaults, &event);
+                if matches!(event, Event::VerificationRequired { .. }) {
+                    registration.succeeded();
+                }
                 if let Event::Registered(welcome) = &event {
                     after_registration(session, welcome, defaults)?;
                     registration.succeeded();
