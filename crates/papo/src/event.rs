@@ -19,7 +19,7 @@ mod conversation;
 mod source;
 
 pub use connection::{CapsChanged, Disconnected, Registered};
-pub use conversation::{Reacted, Redacted, TagMsg, TypingChanged};
+pub use conversation::{Reacted, ReadMarker, Redacted, TagMsg, TypingChanged};
 pub use source::Source;
 
 /// The semantic kind of an incoming chat message.
@@ -610,7 +610,7 @@ pub enum Event {
     /// Targets that received messages during a requested time range.
     HistoryTargets(Vec<(String, SystemTime)>),
     /// A target's read marker advanced or was first reported.
-    ReadMarker(papo_core::ReadMarker),
+    ReadMarker(ReadMarker),
     /// Users departed because connectivity between two servers was lost.
     ///
     /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
@@ -944,7 +944,10 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             };
         }
         papo_core::Event::HistoryTargets(targets) => Event::HistoryTargets(targets),
-        papo_core::Event::ReadMarker(marker) => Event::ReadMarker(marker),
+        papo_core::Event::ReadMarker(marker) => Event::ReadMarker(ReadMarker {
+            target: marker.target,
+            time: marker.time,
+        }),
         papo_core::Event::Netsplit { servers, quits } => Event::Netsplit { servers, quits },
         papo_core::Event::Netjoin { servers, joins } => Event::Netjoin { servers, joins },
         papo_core::Event::BatchAbandoned {
@@ -1795,7 +1798,8 @@ mod tests {
         };
         assert!(matches!(
             forwarded(papo_core::Event::ReadMarker(marker.clone())),
-            Event::ReadMarker(mapped) if mapped == marker
+            Event::ReadMarker(mapped)
+                if mapped.target == marker.target && mapped.time == marker.time
         ));
     }
 

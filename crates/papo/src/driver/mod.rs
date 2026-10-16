@@ -1219,7 +1219,7 @@ fn resolve_sync_waiters(
 fn resolve_read_marker_waiters(
     session: &Session,
     waiters: &mut ReadMarkerWaiters,
-    marker: &papo_core::ReadMarker,
+    marker: &crate::event::ReadMarker,
 ) {
     let mapping = session.isupport().casemapping();
     *waiters = std::mem::take(waiters)

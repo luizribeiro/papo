@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use crate::Typing;
 
 use super::Source;
@@ -54,4 +56,14 @@ pub struct TagMsg {
     pub target: String,
     /// Tags in wire order.
     pub tags: Vec<(String, Option<String>)>,
+}
+
+/// A target's read marker changed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct ReadMarker {
+    /// The channel or nickname to which the marker applies.
+    pub target: String,
+    /// The marker time, or `None` when the server reports `*`.
+    pub time: Option<SystemTime>,
 }
