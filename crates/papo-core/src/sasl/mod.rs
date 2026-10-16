@@ -211,7 +211,7 @@ impl SaslSession {
             device: config.device.clone(),
             challenge: String::new(),
             entropy,
-            require: config.require_sasl || config.sasl.as_ref().is_some_and(|sasl| sasl.required),
+            require: config.sasl.as_ref().is_some_and(|sasl| sasl.required),
             failures: Vec::new(),
             deadline: None,
             aborting: false,

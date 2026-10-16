@@ -90,7 +90,6 @@ impl Bot {
                 .unwrap()
                 .nick(nick)
                 .sasl(papo::Sasl::plain(nick, PASSWORD))
-                .require_sasl(true)
                 .bot()
                 .channels([channel])
                 .connect()

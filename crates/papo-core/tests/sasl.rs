@@ -18,10 +18,8 @@ impl Entropy for FixedEntropy {
 fn configures_mechanisms_policy_and_entropy() {
     let config = Config::default()
         .sasl(Sasl::any("alice", "correct horse battery staple"))
-        .require_sasl(true)
         .device("phone");
     assert!(config.sasl.is_some());
-    assert!(config.require_sasl);
     assert_eq!(config.device.as_deref(), Some("phone"));
 
     let session = Session::with_entropy(config, Box::new(FixedEntropy));
@@ -342,16 +340,14 @@ fn required_sasl_closes_when_unavailable_naked_or_failed() {
     for transcript in [
         Transcript::new(
             Config::default()
-                .sasl(Sasl::plain("alice", "hunter2"))
-                .require_sasl(true),
+                .sasl(Sasl::plain("alice", "hunter2")),
         )
         .connect_default()
         .server("CAP * LS :")
         .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("did not advertise"))),
         Transcript::new(
             Config::default()
-                .sasl(Sasl::plain("alice", "hunter2"))
-                .require_sasl(true),
+                .sasl(Sasl::plain("alice", "hunter2")),
         )
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
@@ -360,8 +356,7 @@ fn required_sasl_closes_when_unavailable_naked_or_failed() {
         .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("rejected"))),
         Transcript::new(
             Config::default()
-                .sasl(Sasl::plain("alice", "hunter2"))
-                .require_sasl(true),
+                .sasl(Sasl::plain("alice", "hunter2")),
         )
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
@@ -396,8 +391,7 @@ fn terminal_sasl_numerics_do_not_try_another_mechanism() {
 fn account_required_closes_and_verification_note_surfaces() {
     Transcript::new(
         Config::default()
-            .sasl(Sasl::plain("alice", "hunter2"))
-            .require_sasl(true),
+            .sasl(Sasl::plain("alice", "hunter2")),
     )
     .connect_default()
     .server("CAP * LS :sasl=PLAIN standard-replies")
@@ -418,20 +412,16 @@ fn unrelated_fail_replies_do_not_trigger_account_required_policy() {
         ":ergo.test FAIL AUTHENTICATE ACCOUNT_REQUIRED :Authentication required",
         ":ergo.test FAIL * OTHER_CODE :A different failure",
     ] {
-        Transcript::new(
-            Config::default()
-                .sasl(Sasl::plain("alice", "hunter2"))
-                .require_sasl(true),
-        )
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN standard-replies")
-        .client("CAP REQ :standard-replies sasl")
-        .server("CAP * ACK :standard-replies sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server(reply)
-        .event(|event| matches!(event, Event::StandardReply(_)))
-        .no_client()
-        .deadline(Some(std::time::Duration::from_secs(30)));
+        Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+            .connect_default()
+            .server("CAP * LS :sasl=PLAIN standard-replies")
+            .client("CAP REQ :standard-replies sasl")
+            .server("CAP * ACK :standard-replies sasl")
+            .client("AUTHENTICATE PLAIN")
+            .server(reply)
+            .event(|event| matches!(event, Event::StandardReply(_)))
+            .no_client()
+            .deadline(Some(std::time::Duration::from_secs(30)));
     }
 }
 

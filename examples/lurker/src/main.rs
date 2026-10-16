@@ -14,7 +14,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut builder = Client::builder(endpoint(server)?)
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
-        .require_sasl(true)
         .channels(channels.split(',').map(str::trim));
     if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
         builder = builder.tls_ca_file(ca_file)?;

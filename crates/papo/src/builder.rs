@@ -110,12 +110,6 @@ impl Builder {
         self
     }
 
-    /// Sets whether successful SASL authentication is required.
-    pub fn require_sasl(mut self, required: bool) -> Self {
-        self.config.require_sasl = required;
-        self
-    }
-
     /// Sets the Ergo multiclient device identifier.
     pub fn device(mut self, device: impl Into<String>) -> Self {
         self.config.device = Some(device.into());
@@ -410,7 +404,6 @@ mod tests {
             .realname("papo ping bot")
             .password("network password")
             .sasl(Sasl::plain("ping-bot", "correct horse battery staple"))
-            .require_sasl(true)
             .device("phone")
             .caps(["message-tags", "sasl"]);
         let config = &builder.config;
@@ -420,7 +413,6 @@ mod tests {
         assert_eq!(config.realname, "papo ping bot");
         assert_eq!(config.password.as_deref(), Some("network password"));
         assert!(config.sasl.is_some());
-        assert!(config.require_sasl);
         assert_eq!(config.device.as_deref(), Some("phone"));
         assert_eq!(config.wanted_caps, ["message-tags", "sasl"]);
     }

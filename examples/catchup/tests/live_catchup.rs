@@ -67,7 +67,6 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         let (reader, mut reader_events) = Client::builder(endpoint)
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
-            .require_sasl(true)
             .caps(["draft/read-marker"])
             .channels([&channel])
             .connect()

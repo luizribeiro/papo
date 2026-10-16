@@ -193,7 +193,6 @@ async fn account_client(
     let (client, mut events) = Client::builder(address)
         .nick(account)
         .sasl(Sasl::plain(account, password))
-        .require_sasl(true)
         .channels([channel])
         .connect()
         .await

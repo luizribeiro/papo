@@ -58,7 +58,6 @@ async fn registers_then_logs_in_with_sasl() {
         let (authenticated, mut authenticated_events) = Client::builder(address)
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
-            .require_sasl(true)
             .caps(["sasl"])
             .connect()
             .await
@@ -89,7 +88,6 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         let (client, mut events) = Client::builder(address)
             .nick(&account)
             .sasl(Sasl::plain(&account, PASSWORD))
-            .require_sasl(true)
             .caps(["sasl", "draft/persistence", "labeled-response"])
             .channels([&channel])
             .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(1)))

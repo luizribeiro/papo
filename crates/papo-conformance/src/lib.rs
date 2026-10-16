@@ -515,7 +515,7 @@ fn connect_client(
         builder = builder.caps(wanted_caps);
     }
     if let Some(sasl) = sasl {
-        builder = builder.sasl(sasl).require_sasl(true);
+        builder = builder.sasl(sasl);
     }
     let (client, events, driver) = builder.build();
     Ok(Connection {

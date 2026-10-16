@@ -215,8 +215,6 @@ pub struct Config {
     pub alt_nicks: Vec<String>,
     /// SASL mechanisms to try in preference order.
     pub sasl: Option<Sasl>,
-    /// Whether registration must stop when SASL is unavailable or fails.
-    pub require_sasl: bool,
     /// Ergo multiclient device identifier appended to the authentication identity.
     pub device: Option<String>,
     /// Maximum number of channels retained in session state.
@@ -259,7 +257,6 @@ impl std::fmt::Debug for Config {
             .field("wanted_caps", &self.wanted_caps)
             .field("alt_nicks", &self.alt_nicks)
             .field("sasl", &self.sasl)
-            .field("require_sasl", &self.require_sasl)
             .field("device", &self.device)
             .field("max_channels", &self.max_channels)
             .field("max_members_per_channel", &self.max_members_per_channel)
@@ -305,7 +302,6 @@ impl Default for Config {
                 .collect(),
             alt_nicks: Vec::new(),
             sasl: None,
-            require_sasl: false,
             device: None,
             max_channels: DEFAULT_MAX_CHANNELS,
             max_members_per_channel: DEFAULT_MAX_MEMBERS_PER_CHANNEL,
@@ -448,13 +444,6 @@ impl Config {
     #[must_use]
     pub fn sasl(mut self, sasl: Sasl) -> Self {
         self.sasl = Some(sasl);
-        self
-    }
-
-    /// Sets whether registration requires successful SASL authentication.
-    #[must_use]
-    pub const fn require_sasl(mut self, required: bool) -> Self {
-        self.require_sasl = required;
         self
     }
 

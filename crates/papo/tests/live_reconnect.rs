@@ -25,7 +25,6 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         ))
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password))
-        .require_sasl(true)
         .caps([
             "message-tags",
             "server-time",

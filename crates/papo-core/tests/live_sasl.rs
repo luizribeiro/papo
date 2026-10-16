@@ -31,7 +31,7 @@ fn authenticates_with_plain_and_scram_against_live_ergo() {
         Sasl::plain(&account, password),
         Sasl::scram_sha256(&account, password),
     ] {
-        let session = authenticate(&server, &account, sasl, true)
+        let session = authenticate(&server, &account, sasl)
             .unwrap_or_else(|reason| panic!("valid credentials closed: {reason}"));
         assert!(session.is_registered());
         assert_eq!(session.account(), Some(account.as_str()));
@@ -41,25 +41,18 @@ fn authenticates_with_plain_and_scram_against_live_ergo() {
         &server,
         &account,
         Sasl::plain(&account, "wrong-password-4917"),
-        true,
     )
     .expect_err("required SASL accepted a wrong password");
     assert!(reason.contains("SASL failed"));
 }
 
-fn authenticate(
-    server: &ServerInfo,
-    account: &str,
-    sasl: Sasl,
-    require_sasl: bool,
-) -> Result<Session, String> {
+fn authenticate(server: &ServerInfo, account: &str, sasl: Sasl) -> Result<Session, String> {
     let mut stream = TcpStream::connect(server.plaintext_addr()).unwrap();
     let config = Config::default()
         .nick(unique("papo-auth"))
         .username("papo")
         .realname("papo live SASL test")
         .sasl(sasl)
-        .require_sasl(require_sasl)
         .rate_limit(RateLimit::unlimited());
     let mut session = Session::with_entropy(config, Box::new(FixedEntropy));
     session.handle_connected(Instant::now());

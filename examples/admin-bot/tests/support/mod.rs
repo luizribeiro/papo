@@ -70,7 +70,7 @@ pub(super) async fn connect(
     );
     let mut builder = Client::builder(endpoint).nick(nick).channels(channels);
     if authenticated {
-        builder = builder.sasl(Sasl::plain(nick, PASSWORD)).require_sasl(true);
+        builder = builder.sasl(Sasl::plain(nick, PASSWORD));
     }
     let (client, mut events) = builder.connect().await.unwrap();
     wait_synced(&mut events, channels).await;

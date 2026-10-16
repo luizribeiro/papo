@@ -1092,8 +1092,7 @@ async fn sasl_nak_forwards_authentication_failure() {
 async fn required_sasl_failure_rejects_registration_waiter() {
     let settings = config()
         .wanted_caps(["sasl"])
-        .sasl(Sasl::plain("alice", "correct horse battery staple"))
-        .require_sasl(true);
+        .sasl(Sasl::plain("alice", "correct horse battery staple"));
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
     let (_client, _events, driver) = Driver::with_stream_and_registration(
@@ -1122,8 +1121,7 @@ async fn required_sasl_failure_rejects_registration_waiter() {
 async fn required_sasl_failure_does_not_reconnect() {
     let settings = config()
         .wanted_caps(["sasl"])
-        .sasl(Sasl::plain("alice", "correct horse battery staple"))
-        .require_sasl(true);
+        .sasl(Sasl::plain("alice", "correct horse battery staple"));
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let stream = Arc::new(Mutex::new(Some(
         Box::new(client_stream) as super::BoxConnection

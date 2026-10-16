@@ -20,7 +20,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut builder = Client::builder(endpoint(server)?)
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
-        .require_sasl(true)
         .caps([
             "draft/chathistory",
             "draft/read-marker",
