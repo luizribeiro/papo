@@ -93,7 +93,7 @@ impl Builder {
     }
 
     /// Sets the server password sent with `PASS`.
-    pub fn password(mut self, password: impl Into<String>) -> Self {
+    pub fn password(mut self, password: impl Into<papo_core::Secret>) -> Self {
         self.config.password = Some(password.into());
         self
     }
@@ -121,7 +121,7 @@ impl Builder {
         mut self,
         account: Option<impl Into<String>>,
         email: Option<impl Into<String>>,
-        password: papo_core::Secret,
+        password: impl Into<papo_core::Secret>,
     ) -> Self {
         if !self.config.wanted_caps.iter().any(|capability| {
             matches!(
@@ -389,7 +389,7 @@ fn apply_address(config: &mut Config, address: &ServerAddress) {
 mod tests {
     use std::time::Duration;
 
-    use papo_core::{RateLimit, Sasl, sts::ConnectionSecurity};
+    use papo_core::{RateLimit, Sasl, Secret, sts::ConnectionSecurity};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::{Builder, apply_address};
@@ -411,7 +411,7 @@ mod tests {
         assert_eq!(config.alt_nicks, ["ping-bot_", "ping-bot__"]);
         assert_eq!(config.username, "ping");
         assert_eq!(config.realname, "papo ping bot");
-        assert_eq!(config.password.as_deref(), Some("network password"));
+        assert_eq!(config.password, Some(Secret::new("network password")));
         assert!(config.sasl.is_some());
         assert_eq!(config.device.as_deref(), Some("phone"));
         assert_eq!(config.wanted_caps, ["message-tags", "sasl"]);
@@ -421,7 +421,7 @@ mod tests {
     fn account_registration_adds_exactly_one_wanted_capability() {
         let added = Builder::new("irc.example.net")
             .caps(["message-tags"])
-            .register_on_connect(None::<String>, None::<String>, "realistic secret".into())
+            .register_on_connect(None::<String>, None::<String>, "realistic secret")
             .config;
         assert_eq!(
             added.wanted_caps,
@@ -430,7 +430,7 @@ mod tests {
 
         let retained = Builder::new("irc.example.net")
             .caps(["server-time", "account-registration"])
-            .register_on_connect(None::<String>, None::<String>, "realistic secret".into())
+            .register_on_connect(None::<String>, None::<String>, "realistic secret")
             .config;
         assert_eq!(
             retained.wanted_caps,

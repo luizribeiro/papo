@@ -29,13 +29,13 @@ impl Client {
         &self,
         account: Option<&str>,
         email: Option<&str>,
-        password: papo_core::Secret,
+        password: impl Into<papo_core::Secret>,
     ) -> Result<AccountRegistration, Error> {
         let response = self
             .core_request(CoreRequest::Register {
                 account: account.map(str::to_owned),
                 email: email.map(str::to_owned),
-                password,
+                password: password.into(),
             })
             .await?;
         account_registration_result(&response)

@@ -242,13 +242,13 @@ pub fn papo::Builder::event_capacity(self, usize) -> Self
 pub const fn papo::Builder::history_on_reconnect(self, bool) -> Self
 pub fn papo::Builder::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::nick(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Builder::password(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Builder::password(self, impl core::convert::Into<papo_core::secret::Secret>) -> Self
 pub fn papo::Builder::ping_interval(self, core::time::Duration) -> Self
 pub fn papo::Builder::ping_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::rate_limit(self, papo_core::ratelimit::RateLimit) -> Self
 pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
-pub fn papo::Builder::register_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, papo_core::secret::Secret) -> Self
+pub fn papo::Builder::register_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, impl core::convert::Into<papo_core::secret::Secret>) -> Self
 pub fn papo::Builder::sasl(self, papo_core::sasl::Sasl) -> Self
 pub fn papo::Builder::stream(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static) -> Self
 pub fn papo::Builder::sts_store(self, impl papo_core::sts::StsStore + core::marker::Send + 'static) -> Self
@@ -300,7 +300,7 @@ pub const fn papo::Client::metadata(&self) -> papo::Metadata<'_>
 impl papo::Client
 pub const fn papo::Client::persistence(&self) -> papo::Persistence<'_>
 impl papo::Client
-pub async fn papo::Client::register(&self, core::option::Option<&str>, core::option::Option<&str>, papo_core::secret::Secret) -> core::result::Result<papo::AccountRegistration, papo::Error>
+pub async fn papo::Client::register(&self, core::option::Option<&str>, core::option::Option<&str>, impl core::convert::Into<papo_core::secret::Secret>) -> core::result::Result<papo::AccountRegistration, papo::Error>
 pub async fn papo::Client::verify(&self, &str, &str) -> core::result::Result<papo::AccountRegistration, papo::Error>
 impl papo::Client
 pub async fn papo::Client::relay(&self, &str, &str, &str) -> core::result::Result<(), papo::Error>

@@ -3,7 +3,9 @@
 use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
-use papo_core::{Config, DEFAULT_WANTED_CAPS, Event, RateLimit, RequestError, Session, TextKind};
+use papo_core::{
+    Config, DEFAULT_WANTED_CAPS, Event, RateLimit, RequestError, Secret, Session, TextKind,
+};
 use papo_proto::{BuildError, Message};
 
 #[test]
@@ -30,8 +32,8 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(config.username, "em");
     assert_eq!(config.realname, "Emily Example");
     assert_eq!(
-        config.password.as_deref(),
-        Some("correct horse battery staple")
+        config.password,
+        Some(Secret::new("correct horse battery staple"))
     );
     assert_eq!(config.connection_security, ConnectionSecurity::Secure);
     assert_eq!(config.host, "irc.example.net");

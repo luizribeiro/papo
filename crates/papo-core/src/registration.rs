@@ -70,7 +70,7 @@ impl Registration {
         }
         outbox.transmit_raw(b"CAP LS 302\r\n".to_vec());
         if let Some(password) = &config.password {
-            outbox.transmit("PASS", [password]);
+            outbox.transmit("PASS", [password.expose()]);
         }
         outbox.transmit("NICK", [&config.nick]);
         outbox.transmit("USER", [&config.username, "0", "*", &config.realname]);

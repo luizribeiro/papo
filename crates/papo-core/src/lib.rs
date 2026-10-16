@@ -194,7 +194,7 @@ pub struct Config {
     /// The real name sent during registration.
     pub realname: String,
     /// The optional server password sent during registration.
-    pub password: Option<String>,
+    pub password: Option<Secret>,
     /// Gateway identity sent before registration begins.
     pub webirc: Option<WebIrc>,
     /// The maximum time to wait for the welcome numeric.
@@ -348,7 +348,7 @@ impl Config {
 
     /// Sets the optional server password sent during registration.
     #[must_use]
-    pub fn password(mut self, password: impl Into<String>) -> Self {
+    pub fn password(mut self, password: impl Into<Secret>) -> Self {
         self.password = Some(password.into());
         self
     }

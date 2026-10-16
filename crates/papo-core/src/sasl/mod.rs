@@ -8,7 +8,7 @@ use std::{
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::MessageRef;
 
-use crate::{Config, Handled, Outbox, RedactedSecret};
+use crate::{Config, Handled, Outbox, RedactedSecret, Secret};
 use scram::ScramClient;
 
 const SASL_CHUNK_LEN: usize = 400;
@@ -24,9 +24,9 @@ pub struct Sasl {
 
 #[derive(Clone, Eq, PartialEq)]
 pub(crate) enum Mechanism {
-    Plain { username: String, password: String },
+    Plain { username: String, password: Secret },
     External { authzid: Option<String> },
-    ScramSha256 { username: String, password: String },
+    ScramSha256 { username: String, password: Secret },
 }
 
 impl std::fmt::Debug for Mechanism {
@@ -53,7 +53,7 @@ impl std::fmt::Debug for Mechanism {
 impl Sasl {
     /// Uses the SASL PLAIN mechanism.
     #[must_use]
-    pub fn plain(username: impl Into<String>, password: impl Into<String>) -> Self {
+    pub fn plain(username: impl Into<String>, password: impl Into<Secret>) -> Self {
         Self {
             mechanisms: vec![Mechanism::Plain {
                 username: username.into(),
@@ -88,7 +88,7 @@ impl Sasl {
 
     /// Uses the SASL SCRAM-SHA-256 mechanism.
     #[must_use]
-    pub fn scram_sha256(username: impl Into<String>, password: impl Into<String>) -> Self {
+    pub fn scram_sha256(username: impl Into<String>, password: impl Into<Secret>) -> Self {
         Self {
             mechanisms: vec![Mechanism::ScramSha256 {
                 username: username.into(),
@@ -100,7 +100,7 @@ impl Sasl {
 
     /// Prefers SCRAM-SHA-256 and falls back to PLAIN.
     #[must_use]
-    pub fn any(username: impl Into<String>, password: impl Into<String>) -> Self {
+    pub fn any(username: impl Into<String>, password: impl Into<Secret>) -> Self {
         let username = username.into();
         let password = password.into();
         Self {
@@ -346,7 +346,10 @@ impl SaslSession {
         match mechanism {
             Mechanism::Plain { username, password } => {
                 let authcid = with_device(username, self.device.as_deref());
-                transmit_response(format!("\0{authcid}\0{password}").as_bytes(), outbox);
+                transmit_response(
+                    format!("\0{authcid}\0{}", password.expose()).as_bytes(),
+                    outbox,
+                );
             }
             Mechanism::External { authzid } => {
                 transmit_response(authzid.as_deref().unwrap_or("").as_bytes(), outbox);
@@ -486,7 +489,7 @@ impl SaslSession {
                     .expect("SCRAM entropy was checked")
                     .fill(&mut nonce);
                 let authcid = with_device(username, self.device.as_deref());
-                match ScramClient::new(&authcid, password, &STANDARD.encode(nonce)) {
+                match ScramClient::new(&authcid, password.expose(), &STANDARD.encode(nonce)) {
                     Ok(scram) => {
                         self.scram = Some(scram);
                         self.scram_step = ScramStep::Initial;
