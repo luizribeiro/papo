@@ -191,7 +191,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: extended_join,
+            run: __papo_scenario_extended_join,
         },
         ScenarioSpec {
             name: "multi_prefix",
@@ -215,7 +215,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: userhost_in_names,
+            run: __papo_scenario_userhost_in_names,
         },
         ScenarioSpec {
             name: "invite_notify",
@@ -416,7 +416,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 caps: &[],
                 isupport: &["WHOX"],
             },
-            run: whox,
+            run: __papo_scenario_whox,
         },
     ]
 }
@@ -782,20 +782,20 @@ fn setname(context: Scenario) -> ScenarioFuture {
     })
 }
 
-fn extended_join(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let (receiver, sender, _channel) = joined_pair(&context).await?;
-        let observed = receiver.client.state(|state| {
-            state
-                .user(&sender.welcome.nick)
-                .and_then(papo::User::realname)
-                == Some("papo conformance client")
-        });
-        if !observed {
-            return Err("extended JOIN did not populate the sender real name".into());
-        }
-        close_pair(receiver, sender).await
-    })
+/// records real names from extended JOIN
+#[scenario(requires(caps = ["extended-join"]))]
+async fn extended_join(context: Scenario) -> ScenarioResult {
+    let (receiver, sender, _channel) = joined_pair(&context).await?;
+    let observed = receiver.client.state(|state| {
+        state
+            .user(&sender.welcome.nick)
+            .and_then(papo::User::realname)
+            == Some("papo conformance client")
+    });
+    if !observed {
+        return Err("extended JOIN did not populate the sender real name".into());
+    }
+    close_pair(receiver, sender).await
 }
 
 fn multi_prefix(context: Scenario) -> ScenarioFuture {
@@ -835,22 +835,22 @@ fn multi_prefix(context: Scenario) -> ScenarioFuture {
     })
 }
 
-fn userhost_in_names(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let (receiver, sender, _channel) = joined_pair(&context).await?;
-        let userhost = receiver.client.state(|state| {
-            state.user(&sender.welcome.nick).map(|user| {
-                (
-                    user.username().map(str::to_owned),
-                    user.host().map(str::to_owned),
-                )
-            })
-        });
-        if !matches!(userhost, Some((Some(_), Some(_)))) {
-            return Err(format!("NAMES did not include a complete userhost: {userhost:?}").into());
-        }
-        close_pair(receiver, sender).await
-    })
+/// records usernames and hosts from NAMES
+#[scenario(requires(caps = ["userhost-in-names"]))]
+async fn userhost_in_names(context: Scenario) -> ScenarioResult {
+    let (receiver, sender, _channel) = joined_pair(&context).await?;
+    let userhost = receiver.client.state(|state| {
+        state.user(&sender.welcome.nick).map(|user| {
+            (
+                user.username().map(str::to_owned),
+                user.host().map(str::to_owned),
+            )
+        })
+    });
+    if !matches!(userhost, Some((Some(_), Some(_)))) {
+        return Err(format!("NAMES did not include a complete userhost: {userhost:?}").into());
+    }
+    close_pair(receiver, sender).await
 }
 
 fn invite_notify(context: Scenario) -> ScenarioFuture {
@@ -1284,26 +1284,26 @@ async fn utf8only(context: Scenario) -> ScenarioResult {
     close_pair(receiver, sender).await
 }
 
-fn whox(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let nick = context.unique();
-        let connection = context.client(&nick).await?;
-        let entries = connection
-            .client
-            .who(&connection.welcome.nick)
-            .await
-            .map_err(Failed::from)?;
-        let complete = entries.iter().any(|entry| {
-            entry.nick == connection.welcome.nick
-                && !entry.user.is_empty()
-                && !entry.host.is_empty()
-                && !entry.realname.is_empty()
-        });
-        if !complete {
-            return Err("WHOX reply did not contain the registered user's identity".into());
-        }
-        connection.close().await
-    })
+/// parses an extended WHO reply
+#[scenario(requires(isupport = ["WHOX"]))]
+async fn whox(context: Scenario) -> ScenarioResult {
+    let nick = context.unique();
+    let connection = context.client(&nick).await?;
+    let entries = connection
+        .client
+        .who(&connection.welcome.nick)
+        .await
+        .map_err(Failed::from)?;
+    let complete = entries.iter().any(|entry| {
+        entry.nick == connection.welcome.nick
+            && !entry.user.is_empty()
+            && !entry.host.is_empty()
+            && !entry.realname.is_empty()
+    });
+    if !complete {
+        return Err("WHOX reply did not contain the registered user's identity".into());
+    }
+    connection.close().await
 }
 
 #[cfg(test)]
