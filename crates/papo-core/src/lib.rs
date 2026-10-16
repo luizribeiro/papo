@@ -2529,22 +2529,7 @@ impl Session {
             self.monitor
                 .handle_message(message, self.isupport.value(), &mut self.outbox)
                 == Handled::Yes;
-        if self
-            .caps
-            .enabled()
-            .contains_key("draft/account-registration")
-        {
-            if let Some(pending) = self.account_registration.take_pending() {
-                _ = self.send_register(
-                    now,
-                    pending.account.as_deref(),
-                    pending.email.as_deref(),
-                    &pending.password,
-                );
-            }
-        } else if !self.caps.is_pending("draft/account-registration") {
-            self.account_registration.cancel_pending();
-        }
+        self.send_pending_registration(now);
         self.sync_monitored_state();
         let whoami = self.handle_whoami(message);
         let state_handled = whoami
@@ -2607,6 +2592,25 @@ impl Session {
         self.apply_close_request();
         if before != self.snapshot_values() {
             self.state_generation = self.state_generation.wrapping_add(1);
+        }
+    }
+
+    fn send_pending_registration(&mut self, now: Instant) {
+        if self
+            .caps
+            .enabled()
+            .contains_key("draft/account-registration")
+        {
+            if let Some(pending) = self.account_registration.take_pending() {
+                _ = self.send_register(
+                    now,
+                    pending.account.as_deref(),
+                    pending.email.as_deref(),
+                    &pending.password,
+                );
+            }
+        } else if !self.caps.is_pending("draft/account-registration") {
+            self.account_registration.cancel_pending();
         }
     }
 
@@ -2774,46 +2778,14 @@ impl Session {
                 batch_type,
                 history,
                 history_targets,
-            } => {
-                let request = self.requests.remove(&label);
-                let context = DispatchContext::from_batch_type(batch_type);
-                if history.is_none() || request.is_none() {
-                    for message in &messages {
-                        self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
-                    }
-                }
-                if let Some((id, _, sent)) = request {
-                    let echoed = sent.then(|| {
-                        messages
-                            .iter()
-                            .filter(|message| {
-                                matches!(
-                                    message.as_ref().command(),
-                                    Command::Privmsg | Command::Notice
-                                ) && self.is_own_source(&message.as_ref())
-                            })
-                            .cloned()
-                            .collect::<Vec<_>>()
-                    });
-                    self.outbox.event(Event::Response(Response {
-                        id,
-                        sent: if sent {
-                            messages
-                                .iter()
-                                .find_map(|message| sent_info(&message.as_ref()))
-                        } else {
-                            None
-                        },
-                        lines: messages,
-                        history,
-                        history_targets,
-                    }));
-                    for message in echoed.into_iter().flatten() {
-                        let received = self.received_message(message, None, true);
-                        self.outbox.event(Event::Message(received));
-                    }
-                }
-            }
+            } => self.dispatch_response_batch(
+                now,
+                &label,
+                messages,
+                batch_type,
+                history,
+                history_targets,
+            ),
             BatchEvent::History {
                 target,
                 messages,
@@ -2875,6 +2847,55 @@ impl Session {
                 if before != self.snapshot_values() {
                     self.state_generation = self.state_generation.wrapping_add(1);
                 }
+            }
+        }
+    }
+
+    fn dispatch_response_batch(
+        &mut self,
+        now: Instant,
+        label: &str,
+        messages: Vec<Message>,
+        batch_type: String,
+        history: Option<HistoryPage>,
+        history_targets: Option<Vec<(String, std::time::SystemTime)>>,
+    ) {
+        let request = self.requests.remove(label);
+        let context = DispatchContext::from_batch_type(batch_type);
+        if history.is_none() || request.is_none() {
+            for message in &messages {
+                self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
+            }
+        }
+        if let Some((id, _, sent)) = request {
+            let echoed = sent.then(|| {
+                messages
+                    .iter()
+                    .filter(|message| {
+                        matches!(
+                            message.as_ref().command(),
+                            Command::Privmsg | Command::Notice
+                        ) && self.is_own_source(&message.as_ref())
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>()
+            });
+            self.outbox.event(Event::Response(Response {
+                id,
+                sent: if sent {
+                    messages
+                        .iter()
+                        .find_map(|message| sent_info(&message.as_ref()))
+                } else {
+                    None
+                },
+                lines: messages,
+                history,
+                history_targets,
+            }));
+            for message in echoed.into_iter().flatten() {
+                let received = self.received_message(message, None, true);
+                self.outbox.event(Event::Message(received));
             }
         }
     }
