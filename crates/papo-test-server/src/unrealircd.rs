@@ -256,7 +256,14 @@ mod tests {
     }
 
     #[test]
-    fn starts_unrealircd_with_linked_atheme() {
-        super::TestServer::start().unwrap();
+    fn registers_an_account_through_linked_atheme() {
+        let server = super::TestServer::start().unwrap();
+        let name = crate::unique("atheme-account");
+        crate::account::register_atheme(server.config.plaintext, &name, "q7Hx-2mZp_9vLcT4wRfB")
+            .unwrap();
+        assert!(
+            crate::account::register_atheme(server.config.plaintext, &name, "q7Hx-2mZp_9vLcT4wRfB")
+                .is_err()
+        );
     }
 }
