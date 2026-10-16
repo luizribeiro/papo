@@ -2,7 +2,8 @@
 
 use std::{collections::BTreeSet, env, error::Error, io, time::UNIX_EPOCH};
 
-use papo::{Client, Event, Sasl};
+use papo::{Client, Event, MessageKind, Sasl};
+use papo_proto::Source;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -20,6 +21,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .nick(&nick)
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
         .require_sasl(true)
+        .caps([
+            "draft/chathistory",
+            "draft/read-marker",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ])
         .channels(&channels);
     if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
         builder = builder.tls_ca_file(ca_file)?;
@@ -33,7 +41,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
         loop {
             let page = client.history(&channel).after(after).limit(100).await?;
             for message in &page.messages {
-                println!("{channel} {}", message.text());
+                if matches!(
+                    message.kind(),
+                    MessageKind::Privmsg | MessageKind::Notice | MessageKind::Action
+                ) && !matches!(
+                    message.source(),
+                    Some(Source::User {
+                        nick: "HistServ",
+                        ..
+                    })
+                ) {
+                    println!("{channel} {}", message.text());
+                }
                 after = message.time();
                 newest = Some(after);
             }
