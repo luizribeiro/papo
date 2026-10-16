@@ -1,6 +1,6 @@
 use papo_proto::Advertised;
 
-use crate::Session;
+use crate::{RequestError, Session};
 
 /// Optional IRC behavior understood by the session.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -136,6 +136,11 @@ impl std::fmt::Display for Unsupported {
 }
 
 impl Session {
+    pub(crate) fn require_feature(&self, feature: Feature) -> Result<(), RequestError> {
+        self.supports(feature)
+            .map_err(|reason| RequestError::Unsupported(Unsupported { feature, reason }))
+    }
+
     /// Reports whether this connection supports an optional IRC behavior.
     ///
     /// # Errors
@@ -173,9 +178,6 @@ impl Session {
             } else {
                 UnsupportedReason::NotOffered
             });
-        }
-        if feature == Feature::History && support.get("CHATHISTORY") == Advertised::Value("0") {
-            return Err(UnsupportedReason::LimitZero);
         }
         let denied = support.clienttagdeny();
         if !feature.tags().is_empty() && feature.tags().iter().all(|tag| denied.denies(tag)) {

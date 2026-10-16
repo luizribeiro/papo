@@ -6,8 +6,9 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
     Config, Event, Feature, HistoryItem, HistoryQuery, MsgRef, RateLimit, RequestError, Session,
+    UnsupportedReason,
 };
-use support::unsupported_error;
+use support::{Transcript, unsupported_because, unsupported_error};
 
 fn history_session(isupport: &str) -> (Session, Instant) {
     let now = Instant::now();
@@ -391,6 +392,49 @@ fn rejects_read_markers_without_the_capability() {
         session.read_marker("#papo"),
         Err(unsupported_error(Feature::ReadMarkers))
     );
+}
+
+#[test]
+fn rejects_explicitly_disabled_history_features_before_transmitting() {
+    let config = Config::default()
+        .wanted_caps(["chathistory", "read-marker"])
+        .without_caps(["draft/chathistory", "read-marker"]);
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :chathistory read-marker")
+        .client("CAP END")
+        .update(|session| {
+            let now = Instant::now();
+            assert_eq!(
+                session.chathistory(
+                    now,
+                    HistoryQuery::Latest {
+                        target: "#papo".into(),
+                        after: None,
+                        limit: 50,
+                    },
+                ),
+                Err(unsupported_because(
+                    Feature::History,
+                    UnsupportedReason::DisabledByClient,
+                ))
+            );
+            assert_eq!(
+                session.read_marker("#papo"),
+                Err(unsupported_because(
+                    Feature::ReadMarkers,
+                    UnsupportedReason::DisabledByClient,
+                ))
+            );
+            assert_eq!(
+                session.mark_read(now, "#papo", UNIX_EPOCH),
+                Err(unsupported_because(
+                    Feature::ReadMarkers,
+                    UnsupportedReason::DisabledByClient,
+                ))
+            );
+        })
+        .no_client();
 }
 
 #[test]

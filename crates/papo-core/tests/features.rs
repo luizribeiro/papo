@@ -69,12 +69,11 @@ fn rejects_literal_zero_feature_limits() {
         "chathistory",
         ":irc.unreal.example 005 papo MONITOR=0 CHATHISTORY=0 :are supported by this server",
     );
-    for feature in [Feature::Monitor, Feature::History] {
-        assert_eq!(
-            zero.supports(feature),
-            Err(papo_core::UnsupportedReason::LimitZero)
-        );
-    }
+    assert_eq!(
+        zero.supports(Feature::Monitor),
+        Err(papo_core::UnsupportedReason::LimitZero)
+    );
+    assert_eq!(zero.supports(Feature::History), Ok(()));
 }
 
 #[test]

@@ -113,14 +113,7 @@ impl Session {
         now: Instant,
         query: HistoryQuery,
     ) -> Result<RequestId, RequestError> {
-        if !self
-            .caps
-            .enabled()
-            .keys()
-            .any(|name| matches!(name.as_str(), "draft/chathistory" | "chathistory"))
-        {
-            return Err(RequestError::unsupported(Feature::History));
-        }
+        self.require_feature(Feature::History)?;
         let requested = query.limit();
         let advertised = match self.isupport.value().chathistory() {
             Some(LimitValue::Limited(limit)) => limit,
@@ -147,9 +140,7 @@ impl Session {
         target: &str,
         time: SystemTime,
     ) -> Result<RequestId, RequestError> {
-        if !self.supports_read_marker() {
-            return Err(RequestError::unsupported(Feature::ReadMarkers));
-        }
+        self.require_feature(Feature::ReadMarkers)?;
         self.request(
             now,
             Message::new(
@@ -172,19 +163,10 @@ impl Session {
     /// Returns [`RequestError::Unsupported`] when read markers were not negotiated,
     /// or [`RequestError::Build`] when the target cannot be encoded.
     pub fn read_marker(&mut self, target: &str) -> Result<(), RequestError> {
-        if !self.supports_read_marker() {
-            return Err(RequestError::unsupported(Feature::ReadMarkers));
-        }
+        self.require_feature(Feature::ReadMarkers)?;
         let line = Message::new("MARKREAD", [target]).to_line()?;
         self.outbox.transmit_raw(line.into());
         Ok(())
-    }
-
-    fn supports_read_marker(&self) -> bool {
-        self.caps
-            .enabled()
-            .keys()
-            .any(|name| matches!(name.as_str(), "draft/read-marker" | "read-marker"))
     }
 }
 

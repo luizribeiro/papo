@@ -20,10 +20,12 @@ pub const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
 /// Builds the expected error for a feature absent from a transcript.
 pub fn unsupported_error(feature: Feature) -> RequestError {
-    RequestError::Unsupported(Unsupported {
-        feature,
-        reason: UnsupportedReason::NotOffered,
-    })
+    unsupported_because(feature, UnsupportedReason::NotOffered)
+}
+
+/// Builds the expected error for a feature unavailable for `reason`.
+pub fn unsupported_because(feature: Feature, reason: UnsupportedReason) -> RequestError {
+    RequestError::Unsupported(Unsupported { feature, reason })
 }
 
 /// Runs a blocking transcript operation with bounded socket reads and writes.
