@@ -371,6 +371,33 @@
               installPhaseCommand = "touch $out";
             }
           );
+          browser-size = craneLib.mkCargoDerivation (
+            browserCraneArgs
+            // {
+              nativeBuildInputs = [ pkgs.binaryen ];
+              doInstallCargoArtifacts = false;
+              buildPhaseCargoCommand = ''
+                cargo build \
+                  --manifest-path crates/papo-core/tests/browser/Cargo.toml \
+                  --target wasm32-unknown-unknown --target-dir target/browser-size \
+                  --release --locked
+                wasm-opt -Oz \
+                  target/browser-size/wasm32-unknown-unknown/release/papo_core_browser_tests.wasm \
+                  -o papo-core-probe.wasm
+                size=$(stat --format=%s papo-core-probe.wasm)
+                budget=867086
+                echo "optimized papo-core browser probe: $size bytes (budget: $budget bytes)"
+                if (( size > budget )); then
+                  echo "papo-core browser probe exceeds its size budget" >&2
+                  exit 1
+                fi
+              '';
+              installPhaseCommand = ''
+                mkdir -p $out
+                cp papo-core-probe.wasm $out/
+              '';
+            }
+          );
           conformance-unrealircd = craneLib.cargoTest (
             craneArgs
             // {
