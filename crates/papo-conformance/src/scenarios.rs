@@ -3,7 +3,7 @@ use std::time::Duration;
 use libtest_mimic::Failed;
 use papo::Event;
 use papo_core::Sasl;
-use papo_proto::{Message, MessageRef, Source, Typing};
+use papo_proto::{Message, MessageRef, Source, StandardReplyKind, Typing};
 use papo_test_server::register_account;
 
 use super::{
@@ -371,6 +371,27 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 isupport: &[],
             },
             run: draft_message_redaction,
+        },
+        ScenarioSpec {
+            name: "standard_replies",
+            doc: "parses a standard failure reply",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "standard-replies",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: standard_replies,
+        },
+        ScenarioSpec {
+            name: "bot_mode",
+            doc: "marks a client with the advertised bot mode",
+            requires: Requirements {
+                caps: &[],
+                isupport: &["BOT"],
+            },
+            run: bot_mode,
         },
     ]
 }
@@ -1132,6 +1153,63 @@ fn draft_message_redaction(context: Scenario) -> ScenarioFuture {
             )
             .await?;
         close_pair(sender, receiver).await
+    })
+}
+
+fn standard_replies(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = context.unique();
+        let mut connection = context.client(&nick).await?;
+        connection
+            .client
+            .send(Message::new(
+                "BATCH",
+                [
+                    format!("+{}", context.unique().replace('_', "-")),
+                    "draft/unknown".into(),
+                ],
+            ))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut connection.events,
+                |event| {
+                    matches!(event, Event::StandardReply(reply) if reply.kind == StandardReplyKind::Fail && reply.command == "BATCH" && !reply.code.is_empty())
+                },
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        connection.close().await
+    })
+}
+
+fn bot_mode(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = context.unique();
+        let mut connection = context.client(&nick).await?;
+        let registered = connection.welcome.nick.clone();
+        connection
+            .client
+            .send(Message::new("MODE", [&registered, "+B"]))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut connection.events,
+                |event| matches!(event, Event::ModeChanged { target, .. } if target == &registered),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        let whois = connection
+            .client
+            .whois(&registered)
+            .await
+            .map_err(Failed::from)?;
+        if !whois.is_bot {
+            return Err("WHOIS did not report the advertised bot mode".into());
+        }
+        connection.close().await
     })
 }
 
