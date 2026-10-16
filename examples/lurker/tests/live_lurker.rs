@@ -32,12 +32,13 @@ async fn prints_channel_state_changes_in_wire_order() {
             .await
             .unwrap();
         wait_event(&mut owner_events, |event| synced(event, &channel)).await;
-        assert!(owner.state(|state| state
+        assert!(owner
+            .snapshot()
             .channel(&channel)
             .unwrap()
             .member(&owner_nick)
             .unwrap()
-            .is_op()));
+            .is_op());
 
         register_account(&server, &lurker_nick, PASSWORD).unwrap();
         let mut lurker = Lurker::start(&server, &lurker_nick, &channel);

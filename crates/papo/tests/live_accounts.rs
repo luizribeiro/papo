@@ -61,7 +61,7 @@ async fn registers_then_logs_in_with_sasl() {
             .unwrap();
         wait_registered(&mut authenticated_events, &account).await;
         assert_eq!(
-            authenticated.state(|state| state.account().map(str::to_owned)),
+            authenticated.snapshot().account().map(str::to_owned),
             Some(account.clone())
         );
         authenticated
@@ -126,7 +126,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
             )
         })
         .await;
-        assert!(client.state(|state| state.channel(&channel).is_some()));
+        assert!(client.snapshot().channel(&channel).is_some());
         client
             .raw(papo_proto::Message::new(
                 "PING",

@@ -23,7 +23,8 @@ async fn registers_messages_itself_and_quits() {
         .connect()
         .await
         .unwrap();
-        assert!(client.state(|state| state.is_connected() && state.nick() == nick));
+        let state = client.snapshot();
+        assert!(state.is_connected() && state.is_me(&nick));
 
         loop {
             match events.next().await.unwrap() {
