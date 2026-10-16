@@ -17,6 +17,8 @@ mod raw;
 mod server;
 #[path = "event/source.rs"]
 mod source;
+#[path = "event/tags.rs"]
+mod tags;
 #[path = "event/user.rs"]
 mod user;
 
@@ -34,6 +36,7 @@ pub use server::{
     Warning,
 };
 pub use source::Source;
+pub use tags::Tags;
 pub use user::{
     AccountChanged, AwayChanged, Departed, HostChanged, MonitorOffline, MonitorOnline, Netjoin,
     Netsplit, NickChanged, Quit, RealnameChanged,

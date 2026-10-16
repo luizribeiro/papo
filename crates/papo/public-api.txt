@@ -748,6 +748,17 @@ pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::
 pub fn papo::State::supports(&self, papo_core::features::Feature) -> bool
 pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::state::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
+pub struct papo::Tags(_)
+impl papo::Tags
+pub fn papo::Tags::contains(&self, &str) -> bool
+pub fn papo::Tags::get(&self, &str) -> core::option::Option<&str>
+pub const fn papo::Tags::is_empty(&self) -> bool
+pub fn papo::Tags::iter(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, core::option::Option<&str>)>
+impl core::cmp::Eq for papo::Tags
+impl core::cmp::PartialEq for papo::Tags
+pub fn papo::Tags::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Tags
+pub fn papo::Tags::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::WebPush<'a>
 impl papo::WebPush<'_>
 pub async fn papo::WebPush<'_>::register(&self, &str, papo::PushKeys) -> core::result::Result<(), papo::Error>
