@@ -1621,10 +1621,10 @@ impl Member {
         self.has_prefix_at_least('@')
     }
 
-    /// Reports whether the member has voice rank or higher.
+    /// Reports whether the member has the voice prefix.
     #[must_use]
     pub fn is_voiced(&self) -> bool {
-        self.has_prefix_at_least('+')
+        self.prefixes.contains(&'+')
     }
 
     /// Reports whether the member has half-operator rank or higher.

@@ -524,7 +524,7 @@ fn distinguishes_prefix_rank_and_channel_mode_argument_branches() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
-        .server(":ergo.test 353 emily = #papo :+dan!dan@cloak.example +erin!erin@cloak.example")
+        .server(":ergo.test 353 emily = #papo :+dan!dan@cloak.example erin!erin@cloak.example @frank!frank@staff.example")
         .server(":alice!alice@staff.example MODE #papo +o dan")
         .server(":alice!alice@staff.example MODE #papo +l")
         .server(":alice!alice@staff.example MODE #papo +m")
@@ -535,6 +535,9 @@ fn distinguishes_prefix_rank_and_channel_mode_argument_branches() {
             assert!(channel.member("dan").unwrap().is_voiced());
             assert!(channel.member("dan").unwrap().is_halfop());
             assert!(!channel.member("erin").unwrap().is_halfop());
+            assert!(!channel.member("erin").unwrap().is_voiced());
+            assert!(channel.member("frank").unwrap().is_op());
+            assert!(!channel.member("frank").unwrap().is_voiced());
             assert_eq!(channel.mode('l'), None);
             assert_eq!(channel.mode('m'), Some(None));
         })
