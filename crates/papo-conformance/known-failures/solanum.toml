@@ -1,2 +1,1 @@
-[invite_notify]
-reason = "Solanum advertises invite-notify but does not notify the fixture's channel-operator observer of a successful INVITE"
+# No known failures.

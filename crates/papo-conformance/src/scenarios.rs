@@ -842,8 +842,26 @@ fn userhost_in_names(context: Scenario) -> ScenarioFuture {
 
 fn invite_notify(context: Scenario) -> ScenarioFuture {
     Box::pin(async move {
-        let (mut observer, inviter, channel) = joined_pair(&context).await?;
+        let (inviter, mut observer, channel) = joined_pair(&context).await?;
         let observer_nick = observer.welcome.nick.clone();
+        if !observer
+            .client
+            .state(|state| state.has_cap("invite-notify"))
+        {
+            return Err("invite-notify observer did not negotiate the capability".into());
+        }
+        inviter
+            .client
+            .send(Message::new("MODE", [&channel, "+o", &observer_nick]))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut observer.events,
+                |event| matches!(event, Event::ModeChanged { target, .. } if target == &channel),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
         let observer_is_op = observer.client.state(|state| {
             state
                 .channel(&channel)
