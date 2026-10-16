@@ -46,6 +46,59 @@ impl<'a> History<'a> {
             }),
         }
     }
+
+    /// Requests messages after `reference`.
+    #[must_use]
+    pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
+        let query = reference.into().0.ok_or(Error::Unsupported("message id"));
+        HistoryRequest {
+            client: self.client,
+            query: query.map(|after| HistoryQuery::After {
+                target: self.target,
+                after,
+                limit: 100,
+            }),
+        }
+    }
+
+    /// Requests messages surrounding `reference`.
+    #[must_use]
+    pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
+        let query = reference.into().0.ok_or(Error::Unsupported("message id"));
+        HistoryRequest {
+            client: self.client,
+            query: query.map(|around| HistoryQuery::Around {
+                target: self.target,
+                around,
+                limit: 100,
+            }),
+        }
+    }
+
+    /// Requests messages between two exclusive references.
+    #[must_use]
+    pub fn between(
+        self,
+        start: impl Into<HistoryReference>,
+        end: impl Into<HistoryReference>,
+    ) -> HistoryRequest<'a> {
+        let start = start.into().0.ok_or(Error::Unsupported("message id"));
+        let query = start.and_then(|start| {
+            end.into()
+                .0
+                .ok_or(Error::Unsupported("message id"))
+                .map(|end| HistoryQuery::Between {
+                    target: self.target,
+                    start,
+                    end,
+                    limit: 100,
+                })
+        });
+        HistoryRequest {
+            client: self.client,
+            query,
+        }
+    }
 }
 
 /// A message identifier or timestamp accepted by a history query.
@@ -92,7 +145,11 @@ impl HistoryRequest<'_> {
     #[must_use]
     pub fn limit(mut self, limit: usize) -> Self {
         if let Ok(
-            HistoryQuery::Latest { limit: value, .. } | HistoryQuery::Before { limit: value, .. },
+            HistoryQuery::Latest { limit: value, .. }
+            | HistoryQuery::Before { limit: value, .. }
+            | HistoryQuery::After { limit: value, .. }
+            | HistoryQuery::Around { limit: value, .. }
+            | HistoryQuery::Between { limit: value, .. },
         ) = &mut self.query
         {
             *value = limit;
@@ -115,9 +172,9 @@ impl<'a> IntoFuture for HistoryRequest<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::UNIX_EPOCH;
+    use std::time::{Duration, UNIX_EPOCH};
 
-    use papo_core::MsgRef;
+    use papo_core::{HistoryQuery, MsgRef};
     use papo_proto::Message;
 
     use super::HistoryReference;
@@ -139,5 +196,31 @@ mod tests {
         assert!(
             matches!(HistoryReference::from(&event).0, Some(MsgRef::Msgid(id)) if id == "RfcBTzyxY120004")
         );
+    }
+
+    #[test]
+    fn builds_after_around_and_between_queries_with_limits() {
+        let client = crate::Client::disconnected_for_test();
+        let after = client
+            .history("#papo")
+            .after(UNIX_EPOCH + Duration::from_secs(42))
+            .limit(51);
+        assert!(matches!(
+            after.query,
+            Ok(HistoryQuery::After { limit: 51, .. })
+        ));
+        let around = client.history("#papo").around("RfcBTzyxY120000").limit(52);
+        assert!(matches!(
+            around.query,
+            Ok(HistoryQuery::Around { limit: 52, .. })
+        ));
+        let between = client
+            .history("#papo")
+            .between("RfcBTzyxY119998", "RfcBTzyxY120003")
+            .limit(53);
+        assert!(matches!(
+            between.query,
+            Ok(HistoryQuery::Between { limit: 53, .. })
+        ));
     }
 }
