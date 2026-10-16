@@ -559,7 +559,7 @@ fn bounds_channel_modes_at_literal_sixty_four() {
 }
 
 #[test]
-fn no_implicit_names_marks_our_join_synced_without_366() {
+fn no_implicit_names_requests_names_before_marking_the_channel_synced() {
     Transcript::new(Config::default().wanted_caps(["no-implicit-names"]))
         .connect_default()
         .server("CAP * LS :draft/no-implicit-names")
@@ -568,9 +568,13 @@ fn no_implicit_names_marks_our_join_synced_without_366() {
         .client("CAP END")
         .server(":ergo.test 005 papo WHOX :are supported")
         .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .client("NAMES #papo")
+        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "papo"))
+        .inspect(|session| assert!(!session.state().channel("#papo").unwrap().is_synced()))
+        .server(":ergo.test 353 papo = #papo :@papo +emily")
+        .server(":ergo.test 366 papo #papo :End of NAMES list")
         .client("MODE #papo")
         .client("WHO #papo %tcuhnfar,152")
-        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "papo"))
         .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
         .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()))
         .no_event();

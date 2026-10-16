@@ -713,7 +713,7 @@ fn only_live_membership_aggregates_change_channel_state() {
 }
 
 #[test]
-fn netjoin_for_our_nick_honors_no_implicit_names() {
+fn netjoin_for_our_nick_waits_for_requested_names() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().wanted_caps(["no-implicit-names"]));
     session.handle_connected(now);
@@ -727,6 +727,11 @@ fn netjoin_for_our_nick_honors_no_implicit_names() {
         session.poll_event(),
         Some(Event::Netjoin { joins, .. }) if joins.len() == 1
     ));
-    assert!(session.state().channel("#papo").unwrap().is_synced());
-    assert_eq!(session.poll_event(), None);
+    assert!(!session.state().channel("#papo").unwrap().is_synced());
+    session.handle_line(now, b":ergo.test 353 papo = #papo :@papo +alice");
+    session.handle_line(now, b":ergo.test 366 papo #papo :End of NAMES list");
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::ChannelSynced { channel }) if channel == "#papo"
+    ));
 }

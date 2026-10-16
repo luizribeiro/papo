@@ -832,7 +832,7 @@ impl State {
             }
             self.channels.insert(
                 key,
-                Channel::new(join.channel, self.casemapping, isupport, no_implicit_names),
+                Channel::new(join.channel, self.casemapping, isupport, false),
             );
         }
         self.add_member(join.channel, nick, user, host, Vec::new(), outbox);
@@ -843,11 +843,7 @@ impl State {
             user.realname = join.realname.map(str::to_owned);
         }
         if ours && no_implicit_names {
-            outbox.transmit("MODE", [join.channel]);
-            self.start_who(join.channel, isupport, outbox);
-            outbox.event(Event::ChannelSynced {
-                channel: join.channel.to_owned(),
-            });
+            outbox.transmit("NAMES", [join.channel]);
         }
         Handled::Yes
     }
@@ -1572,8 +1568,7 @@ impl Channel {
 
     /// Returns whether initial member synchronization is complete.
     ///
-    /// A channel is immediately synchronized when `no-implicit-names` is enabled,
-    /// because that capability suppresses the automatic `353` and `366` replies.
+    /// Papo requests a names reply after joining when `no-implicit-names` is enabled.
     #[must_use]
     pub const fn is_synced(&self) -> bool {
         self.synced

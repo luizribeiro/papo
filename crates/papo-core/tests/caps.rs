@@ -5,7 +5,7 @@ mod support;
 use std::time::Duration;
 
 use papo_core::sts::{ConnectionSecurity, StsAction};
-use papo_core::{CloseKind, Config, Connection, Event, Session};
+use papo_core::{CloseKind, Config, Connection, DEFAULT_WANTED_CAPS, Event, Session};
 use support::Transcript;
 
 #[test]
@@ -72,6 +72,48 @@ fn requests_event_playback_and_oper_tags_by_default() {
             matches!(event, Event::Message(message)
             if message.as_ref().tag("draft/oper").as_deref() == Some("network-admin"))
         });
+}
+
+#[test]
+fn defaults_cover_every_implemented_negotiable_capability() {
+    assert_eq!(
+        DEFAULT_WANTED_CAPS,
+        [
+            "cap-notify",
+            "message-tags",
+            "server-time",
+            "batch",
+            "draft/event-playback",
+            "echo-message",
+            "account-tag",
+            "extended-join",
+            "multi-prefix",
+            "userhost-in-names",
+            "chghost",
+            "setname",
+            "away-notify",
+            "account-notify",
+            "extended-monitor",
+            "invite-notify",
+            "standard-replies",
+            "labeled-response",
+            "draft/multiline",
+            "draft/oper-tag",
+            "draft/metadata-2",
+            "draft/account-registration",
+            "draft/chathistory",
+            "draft/read-marker",
+            "draft/persistence",
+            "draft/channel-rename",
+            "draft/relaymsg",
+            "draft/message-redaction",
+            "draft/webpush",
+            "draft/pre-away",
+            "draft/no-implicit-names",
+            "draft/whoami",
+            "draft/extended-isupport",
+        ]
+    );
 }
 
 #[test]

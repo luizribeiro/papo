@@ -94,6 +94,18 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "draft/multiline",
     "draft/oper-tag",
     "draft/metadata-2",
+    "draft/account-registration",
+    "draft/chathistory",
+    "draft/read-marker",
+    "draft/persistence",
+    "draft/channel-rename",
+    "draft/relaymsg",
+    "draft/message-redaction",
+    "draft/webpush",
+    "draft/pre-away",
+    "draft/no-implicit-names",
+    "draft/whoami",
+    "draft/extended-isupport",
 ];
 
 /// Enabled `IRCv3` capability names and their advertised values.
