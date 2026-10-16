@@ -139,12 +139,12 @@ impl Session {
             }
             MetadataCommand::Clear { target } => params.extend([target, "CLEAR".into()]),
             MetadataCommand::Sub { keys } => {
-                validate_subscriptions(&keys, limits)?;
+                validate_subscriptions(&keys, limits, self.state.metadata_subscriptions())?;
                 params.extend(["*".into(), "SUB".into()]);
                 params.extend(keys);
             }
             MetadataCommand::Unsub { keys } => {
-                validate_subscriptions(&keys, limits)?;
+                validate_keys(&keys)?;
                 params.extend(["*".into(), "UNSUB".into()]);
                 params.extend(keys);
             }
@@ -167,15 +167,22 @@ fn validate_keys(keys: &[String]) -> Result<(), RequestError> {
     .ok_or(RequestError::InvalidMetadataKey)
 }
 
-fn validate_subscriptions(keys: &[String], limits: MetadataLimits) -> Result<(), RequestError> {
+fn validate_subscriptions(
+    keys: &[String],
+    limits: MetadataLimits,
+    current: &[String],
+) -> Result<(), RequestError> {
     validate_keys(keys)?;
+    let actual = current
+        .iter()
+        .map(String::as_str)
+        .chain(keys.iter().map(String::as_str))
+        .collect::<std::collections::HashSet<_>>()
+        .len();
     if let Some(maximum) = limits.max_subscriptions
-        && keys.len() > maximum
+        && actual > maximum
     {
-        return Err(RequestError::TooManyMetadataSubscriptions {
-            maximum,
-            actual: keys.len(),
-        });
+        return Err(RequestError::TooManyMetadataSubscriptions { maximum, actual });
     }
     Ok(())
 }

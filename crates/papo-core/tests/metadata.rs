@@ -216,3 +216,69 @@ fn applies_a_join_metadata_batch_only_when_it_closes() {
             assert_eq!(session.state().metadata("BOB").unwrap().len(), 1);
         });
 }
+
+#[test]
+fn tracks_sub_subs_and_unsub_replies() {
+    registered("max-subs=2,max-keys=100")
+        .update(|session| {
+            session
+                .metadata(
+                    std::time::Instant::now(),
+                    MetadataCommand::Sub {
+                        keys: vec!["avatar".into(), "pronouns".into()],
+                    },
+                )
+                .unwrap();
+        })
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .client("METADATA * SUB avatar pronouns")
+        .server(":ergo.test 770 alice avatar pronouns")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().metadata_subscriptions(),
+                ["avatar", "pronouns"]
+            );
+        })
+        .update(|session| {
+            assert!(matches!(
+                session.metadata(
+                    std::time::Instant::now(),
+                    MetadataCommand::Sub {
+                        keys: vec!["status".into()],
+                    },
+                ),
+                Err(RequestError::TooManyMetadataSubscriptions { actual: 3, .. })
+            ));
+        })
+        .no_client()
+        .update(|session| {
+            session
+                .metadata(std::time::Instant::now(), MetadataCommand::Subs)
+                .unwrap();
+        })
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .client("METADATA * SUBS")
+        .server(":ergo.test BATCH +s metadata-subs")
+        .server("@batch=s :ergo.test 772 alice avatar status")
+        .server(":ergo.test BATCH -s")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().metadata_subscriptions(),
+                ["avatar", "status"]
+            );
+        })
+        .update(|session| {
+            session
+                .metadata(
+                    std::time::Instant::now(),
+                    MetadataCommand::Unsub {
+                        keys: vec!["avatar".into(), "status".into(), "pronouns".into()],
+                    },
+                )
+                .unwrap();
+        })
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .client("METADATA * UNSUB avatar status pronouns")
+        .server(":ergo.test 771 alice avatar status")
+        .inspect(|session| assert!(session.state().metadata_subscriptions().is_empty()));
+}

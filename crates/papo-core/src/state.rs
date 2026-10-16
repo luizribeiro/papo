@@ -41,6 +41,7 @@ pub struct State {
     member_limit_warned: bool,
     persistence: Option<PersistenceStatus>,
     metadata: HashMap<CaseKey, HashMap<String, MetadataValue>>,
+    metadata_subscriptions: Vec<String>,
     metadata_limits_warned: HashSet<StateLimit>,
 }
 
@@ -123,6 +124,7 @@ impl State {
             member_limit_warned: false,
             persistence: None,
             metadata: HashMap::new(),
+            metadata_subscriptions: Vec::new(),
             metadata_limits_warned: HashSet::new(),
         }
     }
@@ -309,6 +311,26 @@ impl State {
         max_keys: usize,
         outbox: &mut Outbox,
     ) -> bool {
+        match message.command() {
+            Command::Numeric(Numeric::RPL_METADATASUBOK) => {
+                for key in message.params().skip(1) {
+                    if !self.metadata_subscriptions.iter().any(|item| item == key) {
+                        self.metadata_subscriptions.push(key.to_owned());
+                    }
+                }
+                return true;
+            }
+            Command::Numeric(Numeric::RPL_METADATAUNSUBOK) => {
+                self.metadata_subscriptions
+                    .retain(|key| !message.params().skip(1).any(|item| item == key));
+                return true;
+            }
+            Command::Numeric(Numeric::RPL_METADATASUBS) => {
+                self.metadata_subscriptions = message.params().skip(1).map(str::to_owned).collect();
+                return true;
+            }
+            _ => {}
+        }
         let (target, key, visibility, value) = match message.command() {
             Command::Numeric(Numeric::RPL_KEYVALUE) => {
                 let (Some(target), Some(key), Some(visibility), Some(value)) = (
@@ -1278,6 +1300,12 @@ impl State {
     #[must_use]
     pub fn metadata_target_count(&self) -> usize {
         self.metadata.len()
+    }
+
+    /// Returns metadata keys confirmed in the server-side subscription list.
+    #[must_use]
+    pub fn metadata_subscriptions(&self) -> &[String] {
+        &self.metadata_subscriptions
     }
 
     /// Returns the newest read marker reported for a target.
