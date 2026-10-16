@@ -127,7 +127,7 @@ async fn reactions_reach_another_client_with_reply_context() {
         let msgid = incoming.msgid().unwrap().to_owned();
         client_b.react(&incoming, "🎉").await.unwrap();
         let reaction = wait_reaction(&mut events_a).await;
-        assert_eq!(reaction.reply_to, msgid);
+        assert_eq!(reaction.msgid, msgid);
 
         client_b.quit(Some("reaction test complete")).await.unwrap();
         client_a.quit(Some("reaction test complete")).await.unwrap();
@@ -197,12 +197,12 @@ async fn account_client(
     (client, events)
 }
 
-async fn wait_reaction(events: &mut papo::Events) -> papo_proto::Reaction {
+async fn wait_reaction(events: &mut papo::Events) -> papo::event::Reacted {
     loop {
         match events.next().await {
-            Some(Event::Reaction(reaction)) => return reaction.reaction().unwrap(),
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("disconnected: {reason}")
+            Some(Event::Reacted(reaction)) => return reaction,
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected: {}", disconnected.reason)
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for a reaction"),

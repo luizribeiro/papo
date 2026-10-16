@@ -13,10 +13,13 @@ use crate::{Client, Error};
 
 #[path = "event/connection.rs"]
 mod connection;
+#[path = "event/conversation.rs"]
+mod conversation;
 #[path = "event/source.rs"]
 mod source;
 
 pub use connection::{CapsChanged, Disconnected, Registered};
+pub use conversation::Reacted;
 pub use source::Source;
 
 /// The semantic kind of an incoming chat message.
@@ -590,7 +593,7 @@ pub enum Event {
     /// A tag-only message with typed accessors for known client tags.
     TagMsg(TagMsg),
     /// A tag-only reaction or unreaction.
-    Reaction(TagMsg),
+    Reacted(Reacted),
     /// A tag-only typing notification.
     Typing(TagMsg),
     /// A message was redacted from a target's history.
@@ -915,8 +918,18 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                 target: message.target,
                 tags: message.tags,
             };
-            if tag.reaction().is_some() {
-                Event::Reaction(tag)
+            if let Some(reaction) = tag.reaction() {
+                let removed = reaction.react.is_none();
+                Event::Reacted(Reacted {
+                    source: tag.source.map(Source::from_prefix),
+                    target: tag.target,
+                    reaction: reaction
+                        .react
+                        .or(reaction.unreact)
+                        .expect("reaction contains one operation"),
+                    msgid: reaction.reply_to,
+                    removed,
+                })
             } else if tag.typing().is_some() {
                 Event::Typing(tag)
             } else {
@@ -1331,24 +1344,14 @@ mod tests {
                 ("+reply".into(), Some("RKi9Cw".into())),
             ],
         };
-        let Event::Reaction(tag) = forwarded(papo_core::Event::TagMessage(tag)) else {
+        let Event::Reacted(reaction) = forwarded(papo_core::Event::TagMessage(tag)) else {
             panic!("expected reaction")
         };
-        assert_eq!(tag.source(), Some("alice!~a@cloak"));
-        assert_eq!(tag.target(), "#papo");
-        assert_eq!(
-            tag.tags(),
-            [
-                ("+typing".into(), Some("paused".into())),
-                ("+draft/react".into(), Some("👍".into())),
-                ("+reply".into(), Some("RKi9Cw".into())),
-            ]
-        );
-        assert_eq!(tag.typing(), Some(Typing::Paused));
-        assert!(
-            tag.reaction()
-                .is_some_and(|reaction| reaction.reply_to == "RKi9Cw")
-        );
+        assert!(matches!(reaction.source, Some(Source::User { ref nick, .. }) if nick == "alice"));
+        assert_eq!(reaction.target, "#papo");
+        assert_eq!(reaction.reaction, "👍");
+        assert_eq!(reaction.msgid, "RKi9Cw");
+        assert!(!reaction.removed);
     }
 
     #[test]

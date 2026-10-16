@@ -138,9 +138,11 @@ async fn wait_typing(events: &mut papo::Events, target: &str, state: Typing) {
 async fn wait_reaction(events: &mut papo::Events) -> (Option<String>, String) {
     loop {
         match events.next().await {
-            Some(Event::Reaction(tag)) => {
-                let reaction = tag.reaction().expect("complete reaction tags");
-                return (reaction.react, reaction.reply_to);
+            Some(Event::Reacted(reaction)) => {
+                return (
+                    (!reaction.removed).then_some(reaction.reaction),
+                    reaction.msgid,
+                );
             }
             Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
                 panic!("reaction failed: {reason}")

@@ -102,6 +102,12 @@ pub papo::event::CapsChanged::removed: papo_core::Capabilities
 #[non_exhaustive] pub struct papo::event::Disconnected
 pub papo::event::Disconnected::reason: alloc::string::String
 pub papo::event::Disconnected::will_retry: bool
+#[non_exhaustive] pub struct papo::event::Reacted
+pub papo::event::Reacted::msgid: alloc::string::String
+pub papo::event::Reacted::reaction: alloc::string::String
+pub papo::event::Reacted::removed: bool
+pub papo::event::Reacted::source: core::option::Option<papo::Source>
+pub papo::event::Reacted::target: alloc::string::String
 #[non_exhaustive] pub struct papo::event::Registered
 pub papo::event::Registered::caps: papo_core::Capabilities
 pub papo::event::Registered::nick: alloc::string::String
@@ -248,7 +254,7 @@ pub papo::Event::Quit::channels: alloc::vec::Vec<alloc::string::String>
 pub papo::Event::Quit::nick: alloc::string::String
 pub papo::Event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo::Event::Raw(papo_proto::message::Message)
-pub papo::Event::Reaction(papo::event::TagMsg)
+pub papo::Event::Reacted(papo::event::Reacted)
 pub papo::Event::ReadMarker(papo_core::history::ReadMarker)
 pub papo::Event::RealnameChanged
 pub papo::Event::RealnameChanged::nick: alloc::string::String
