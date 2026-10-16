@@ -4,7 +4,7 @@ mod support;
 
 use std::time::Duration;
 
-use papo_core::{CloseKind, Config, Event};
+use papo_core::{BatchAbandonReason, CloseKind, Config, Event};
 use papo_proto::Isupport;
 use support::Transcript;
 
@@ -107,6 +107,64 @@ fn generated_nicks_honor_an_early_nicklen_advertisement() {
         .server(":ergo.test 005 * NICKLEN=12 :are supported by this server")
         .server(":ergo.test 433 * nick :Nickname is already in use")
         .client("NICK long-client_");
+}
+
+#[test]
+fn requests_and_applies_extended_isupport_before_welcome() {
+    Transcript::new(
+        Config::default()
+            .nick("long-client-nickname")
+            .wanted_caps(["batch", "draft/extended-isupport"]),
+    )
+    .connect()
+    .client("CAP LS 302")
+    .client("NICK long-client-nickname")
+    .client("USER papo 0 * papo")
+    .server("CAP * LS :batch draft/extended-isupport")
+    .client("CAP REQ :batch draft/extended-isupport")
+    .server("CAP * ACK :batch draft/extended-isupport")
+    .client("ISUPPORT")
+    .client("CAP END")
+    .server(":ergo.test BATCH +isupport draft/isupport")
+    .server("@batch=isupport :ergo.test 005 * CASEMAPPING=ascii NICKLEN=12 :are supported")
+    .inspect(|session| assert_eq!(session.isupport().nicklen(), None))
+    .server("@batch=isupport :ergo.test 005 * NETWORK=ErgoTest :are supported")
+    .server(":ergo.test BATCH -isupport")
+    .inspect(|session| {
+        assert_eq!(session.isupport().nicklen(), Some(12));
+        assert_eq!(session.isupport().network(), Some("ErgoTest"));
+    })
+    .server(":ergo.test 433 * long-client-nickname :Nickname is already in use")
+    .client("NICK long-client_")
+    .server(":ergo.test 001 long-client_ :Welcome to Ergo")
+    .server(":ergo.test 422 long-client_ :MOTD File is missing")
+    .event(|event| {
+        matches!(event, Event::Registered(welcome)
+        if welcome.isupport.network() == Some("ErgoTest"))
+    });
+}
+
+#[test]
+fn incomplete_isupport_batch_does_not_change_state() {
+    Transcript::new(
+        Config::default()
+            .registration_timeout(Duration::from_secs(300))
+            .ping_interval(Duration::from_secs(300))
+            .ping_timeout(Duration::from_secs(300)),
+    )
+    .connect_default()
+    .server(":ergo.test BATCH +isupport draft/isupport")
+    .server("@batch=isupport :ergo.test 005 * NICKLEN=12 :are supported")
+    .advance(Duration::from_secs(120))
+    .event(|event| matches!(event, Event::Message(_)))
+    .event(|event| {
+        matches!(event, Event::BatchAbandoned {
+            batch_type,
+            reason: BatchAbandonReason::Timeout,
+            ..
+        } if batch_type == "draft/isupport")
+    })
+    .inspect(|session| assert_eq!(session.isupport().nicklen(), None));
 }
 
 #[test]

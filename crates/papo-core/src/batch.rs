@@ -90,6 +90,7 @@ pub(crate) enum BatchEvent {
         kind: String,
         messages: Vec<Message>,
     },
+    Isupport(Vec<Message>),
 }
 
 impl Batches {
@@ -419,7 +420,12 @@ fn is_aggregate(kind: &str) -> bool {
     is_history(kind)
         || matches!(
             kind,
-            "netsplit" | "netjoin" | "draft/multiline" | "metadata" | "metadata-subs"
+            "netsplit"
+                | "netjoin"
+                | "draft/multiline"
+                | "metadata"
+                | "metadata-subs"
+                | "draft/isupport"
         )
 }
 
@@ -430,6 +436,9 @@ impl OpenBatch {
 }
 
 fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
+    if batch.kind == "draft/isupport" {
+        return vec![BatchEvent::Isupport(std::mem::take(&mut batch.messages))];
+    }
     if matches!(batch.kind.as_str(), "metadata" | "metadata-subs") {
         return vec![BatchEvent::Metadata {
             kind: batch.kind.clone(),
@@ -562,7 +571,8 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
         }
         | BatchEvent::Metadata {
             messages: batch, ..
-        } => messages.extend(batch),
+        }
+        | BatchEvent::Isupport(batch) => messages.extend(batch),
         BatchEvent::History {
             messages: batch, ..
         } => {

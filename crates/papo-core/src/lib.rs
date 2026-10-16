@@ -2755,6 +2755,14 @@ impl Session {
                     self.dispatch_message(now, &message.as_ref(), &context, true);
                 }
             }
+            BatchEvent::Isupport(messages) => {
+                let before = self.snapshot_values();
+                self.isupport.handle_batch(&messages);
+                self.sync_monitored_state();
+                if before != self.snapshot_values() {
+                    self.state_generation = self.state_generation.wrapping_add(1);
+                }
+            }
         }
     }
 

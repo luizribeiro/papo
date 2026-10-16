@@ -51,6 +51,9 @@ impl Caps {
                     && let Some(requested) = self.pending.pop_front()
                 {
                     let sasl_acked = requested.iter().any(|name| name == "sasl");
+                    let isupport_acked = requested
+                        .iter()
+                        .any(|name| name == "draft/extended-isupport");
                     let mut added = Capabilities::new();
                     for name in requested {
                         let value = self.advertised.get(&name).cloned().flatten();
@@ -63,6 +66,9 @@ impl Caps {
                             self.enabled.get("sasl").and_then(Option::as_deref),
                             outbox,
                         );
+                    }
+                    if isupport_acked {
+                        outbox.transmit_immediate("ISUPPORT", []);
                     }
                     if self.ended {
                         outbox.event(Event::CapsChanged {

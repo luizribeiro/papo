@@ -1,4 +1,4 @@
-use papo_proto::{Isupport, MessageRef};
+use papo_proto::{Isupport, Message, MessageRef};
 
 use crate::{Decoding, Handled};
 
@@ -34,6 +34,19 @@ impl IsupportState {
             self.configured_decoding
         };
         Handled::Yes
+    }
+
+    pub(super) fn handle_batch(&mut self, messages: &[Message]) {
+        let mut value = self.value.clone();
+        for message in messages {
+            value.apply(&message.as_ref());
+        }
+        self.value = value;
+        self.decoding = if self.value.utf8only() {
+            Decoding::Utf8
+        } else {
+            self.configured_decoding
+        };
     }
 
     pub(super) const fn decoding(&self) -> Decoding {
