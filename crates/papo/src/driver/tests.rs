@@ -2535,18 +2535,11 @@ async fn full_event_channel_still_serves_quit_and_its_timer() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn pending_whois_reads_ahead_past_a_full_event_channel() {
-    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
+async fn only_pending_request_enables_read_ahead() {
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 2);
     let driver = tokio::spawn(driver);
     complete_registration(&mut server, &mut events).await;
-    server_line(
-        &mut server,
-        b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :maintenance extended\r\n",
-    )
-    .await;
-    while events.receiver.len() != 1 {
-        tokio::task::yield_now().await;
-    }
+    saturate_events(&mut server, &events).await;
 
     let whois = tokio::spawn(async move { client.whois("alice").await });
     client_line(&mut server, b"WHOIS alice\r\n").await;
@@ -2558,6 +2551,82 @@ async fn pending_whois_reads_ahead_past_a_full_event_channel() {
     assert_eq!(within(whois).await.unwrap().unwrap().nick, "alice");
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn only_channel_sync_waiter_enables_read_ahead() {
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 2);
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Joined { .. })));
+    saturate_events(&mut server, &events).await;
+
+    let (result, waiter) = tokio::sync::oneshot::channel();
+    client
+        .commands
+        .send(super::Command::WaitChannelSync {
+            channel: "#papo".to_owned(),
+            result,
+        })
+        .await
+        .unwrap();
+    tokio::task::yield_now().await;
+    server_line(
+        &mut server,
+        b":ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n",
+    )
+    .await;
+    within(waiter).await.unwrap().unwrap();
+
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn only_read_marker_waiter_enables_read_ahead() {
+    let settings = config().wanted_caps(["draft/read-marker", "labeled-response"]);
+    let (mut server, client, mut events, driver) = scripted_with_capacity(settings, 2);
+    let driver = tokio::spawn(driver);
+    complete_read_marker_registration(&mut server, &mut events).await;
+    saturate_events(&mut server, &events).await;
+
+    let marker = tokio::spawn(async move { client.read_marker("#papo").await });
+    client_line(&mut server, b"MARKREAD #papo\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+    )
+    .await;
+    assert_eq!(
+        within(marker).await.unwrap().unwrap(),
+        Some(SystemTime::UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
+    );
+
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn no_pending_work_disables_read_ahead() {
+    let (mut server, _client, mut events, driver) = scripted_with_capacity(config(), 2);
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+    saturate_events(&mut server, &events).await;
+
+    server_line(&mut server, b"PING :read-ahead-blocked\r\n").await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+            .await
+            .is_err()
+    );
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    client_line(&mut server, b"PONG :read-ahead-blocked\r\n").await;
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(

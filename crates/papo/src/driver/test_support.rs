@@ -151,6 +151,19 @@ pub(crate) async fn server_line(server: &mut DuplexStream, line: &[u8]) {
     within(server.write_all(line)).await.unwrap();
 }
 
+pub(crate) async fn saturate_events(server: &mut DuplexStream, events: &super::Events) {
+    assert_eq!(events.receiver.max_capacity(), 2);
+    server_line(
+        server,
+        b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :maintenance extended\r\n:ergo.test NOTICE papo-driver :maintenance ongoing\r\n",
+    )
+    .await;
+    while events.receiver.len() != 2 {
+        tokio::task::yield_now().await;
+    }
+    tokio::task::yield_now().await;
+}
+
 pub(crate) fn changed_snapshot(
     client: &super::Client,
     previous: &Arc<crate::State>,
