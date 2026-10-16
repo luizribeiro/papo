@@ -2,9 +2,12 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use papo_core::{Capabilities, Channel, Feature, Session, UnsupportedReason, User};
-use papo_proto::{Isupport, NAME_ALIASES, NameKind};
+use papo_proto::{Casemapping, Isupport, NAME_ALIASES, NameKind};
 
 /// An immutable snapshot of an IRC client's known state.
+///
+/// A snapshot is at least as new as the last event delivered. Events can be
+/// applied in order using their self-contained payloads.
 #[derive(Clone, Debug)]
 pub struct State {
     core: papo_core::State,
@@ -65,10 +68,22 @@ impl State {
         self.connected
     }
 
+    /// Reports whether the client currently has an open transport.
+    #[must_use]
+    pub const fn is_connected(&self) -> bool {
+        self.connected
+    }
+
     /// Returns the client's current nickname.
     #[must_use]
     pub fn nick(&self) -> &str {
         self.core.nick()
+    }
+
+    /// Reports whether `nick` identifies this client under the server's casemapping.
+    #[must_use]
+    pub fn is_me(&self, nick: &str) -> bool {
+        self.casemapping().eq(self.nick(), nick)
     }
 
     /// Returns the authenticated account name when known.
@@ -157,6 +172,12 @@ impl State {
     #[must_use]
     pub fn isupport(&self) -> &Isupport {
         &self.isupport
+    }
+
+    /// Returns the server's nickname and channel casemapping.
+    #[must_use]
+    pub fn casemapping(&self) -> Casemapping {
+        self.isupport.casemapping()
     }
 
     /// Returns the canonical form of an IRC nickname or channel name.

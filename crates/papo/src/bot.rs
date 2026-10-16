@@ -203,7 +203,12 @@ impl Command {
     /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub async fn reply(&self, text: &str) -> Result<ReplyStatus, Error> {
-        let target = self.client().casemap(self.message.reply_target());
+        let target = self.client().state(|state| {
+            state
+                .casemapping()
+                .fold(self.message.reply_target())
+                .into_owned()
+        });
         if !self.replies.check(&target) {
             return Ok(ReplyStatus::Dropped);
         }
@@ -225,7 +230,11 @@ impl Command {
         let Some(target) = self.message.sender_nick() else {
             return Ok(ReplyStatus::Dropped);
         };
-        if !self.replies.check(&self.client().casemap(target)) {
+        if !self.replies.check(
+            &self
+                .client()
+                .state(|state| state.casemapping().fold(target).into_owned()),
+        ) {
             return Ok(ReplyStatus::Dropped);
         }
         self.message.private_notice(text).await?;

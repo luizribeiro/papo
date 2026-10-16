@@ -2961,6 +2961,11 @@ async fn public_state_accessors_report_the_registered_session() {
         assert_eq!(state.user("ALICE").unwrap().username(), Some("~alice"));
         assert_eq!(state.monitor_online().next().unwrap().nick(), "bob");
         assert_eq!(state.isupport().nicklen(), Some(27));
+        assert!(
+            state
+                .features()
+                .any(|feature| feature == papo_core::Feature::Monitor)
+        );
     });
     let snapshot = client.snapshot();
     assert_eq!(snapshot.nick(), "papo-driver");
@@ -3124,8 +3129,12 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert_eq!(client.isupport().nicklen(), Some(27));
     assert_eq!(client.casemap("#PAPO[dev]"), "#papo[dev]");
     assert_ne!(client.casemap("#PAPO[dev]"), client.casemap("#papo{dev}"));
-    client.state(|state| assert!(state.has_cap("draft/no-implicit-names")));
     client.state(|state| {
+        assert!(state.is_connected());
+        assert!(state.is_me("PAPO-DRIVER"));
+        assert!(state.has_cap("draft/no-implicit-names"));
+        assert!(state.casemapping().eq("#Papo", "#papo"));
+        assert!(!state.casemapping().eq("#PAPO[dev]", "#papo{dev}"));
         assert!(!state.supports(crate::Feature::History));
         assert!(
             !state

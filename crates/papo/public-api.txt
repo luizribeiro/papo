@@ -1,6 +1,7 @@
 pub mod papo
 pub use papo::Account
 pub use papo::Capabilities
+pub use papo::Casemapping
 pub use papo::Channel
 pub use papo::Feature
 pub use papo::Member
@@ -554,11 +555,14 @@ pub fn papo::State::account(&self) -> core::option::Option<&str>
 pub const fn papo::State::away(&self) -> bool
 pub const fn papo::State::caps(&self) -> &papo_core::Capabilities
 pub fn papo::State::casemap(&self, &str) -> alloc::string::String
+pub fn papo::State::casemapping(&self) -> papo_proto::casemapping::Casemapping
 pub fn papo::State::channel(&self, &str) -> core::option::Option<&papo_core::state::Channel>
 pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::Channel>
 pub const fn papo::State::connected(&self) -> bool
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo_core::features::Feature> + '_
 pub fn papo::State::has_cap(&self, &str) -> bool
+pub const fn papo::State::is_connected(&self) -> bool
+pub fn papo::State::is_me(&self, &str) -> bool
 pub fn papo::State::isupport(&self) -> &papo_proto::isupport::Isupport
 pub fn papo::State::metadata(&self, &str) -> core::option::Option<&std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> &[alloc::string::String]
