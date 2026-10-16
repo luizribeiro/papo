@@ -89,6 +89,12 @@ impl State {
         self.core.metadata(target)
     }
 
+    /// Returns metadata keys confirmed in the server-side subscription list.
+    #[must_use]
+    pub fn metadata_subscriptions(&self) -> &[String] {
+        self.core.metadata_subscriptions()
+    }
+
     /// Returns a known user using the server's casemapping.
     #[must_use]
     pub fn user(&self, nick: &str) -> Option<&User> {

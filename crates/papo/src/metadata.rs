@@ -100,4 +100,52 @@ impl Metadata<'_> {
         })
         .await
     }
+
+    /// Subscribes to metadata keys.
+    ///
+    /// # Errors
+    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    pub async fn subscribe<I, S>(&self, keys: I) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.request(MetadataCommand::Sub {
+            keys: keys.into_iter().map(Into::into).collect(),
+        })
+        .await
+    }
+
+    /// Unsubscribes from metadata keys.
+    ///
+    /// # Errors
+    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    pub async fn unsubscribe<I, S>(&self, keys: I) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.request(MetadataCommand::Unsub {
+            keys: keys.into_iter().map(Into::into).collect(),
+        })
+        .await
+    }
+
+    /// Returns the cached metadata subscription list.
+    #[must_use]
+    pub fn subscriptions(&self) -> Vec<String> {
+        self.client
+            .state(|state| state.metadata_subscriptions().to_vec())
+    }
+
+    /// Synchronizes cached metadata for a target.
+    ///
+    /// # Errors
+    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    pub async fn sync(&self, target: &str) -> Result<(), Error> {
+        self.request(MetadataCommand::Sync {
+            target: target.into(),
+        })
+        .await
+    }
 }
