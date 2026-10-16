@@ -54,6 +54,26 @@ fn configured_registration_waits_for_before_connect_capability() {
 }
 
 #[test]
+fn configured_registration_survives_a_multiline_capability_listing() {
+    let config = Config::default()
+        .wanted_caps(["draft/account-registration"])
+        .register_on_connect(
+            Some("alice"),
+            None::<String>,
+            "unique-registration-password",
+        );
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS * :draft/account-registration=before-connect")
+        .no_client()
+        .server("CAP * LS :message-tags")
+        .client("CAP REQ :draft/account-registration")
+        .server("CAP * ACK :draft/account-registration")
+        .client("REGISTER alice * unique-registration-password")
+        .event(|event| matches!(event, Event::RequestUntracked { .. }));
+}
+
+#[test]
 fn registers_an_account_with_a_labelled_response() {
     registered()
         .update(|session| {

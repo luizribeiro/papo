@@ -2638,7 +2638,8 @@ impl Session {
                     &pending.password,
                 );
             }
-        } else if !self.caps.is_pending("draft/account-registration") {
+        } else if self.caps.is_negotiating() && !self.caps.is_pending("draft/account-registration")
+        {
             self.account_registration.cancel_pending();
         }
     }

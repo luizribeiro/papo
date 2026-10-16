@@ -131,6 +131,16 @@ impl Builder {
         email: Option<impl Into<String>>,
         password: papo_core::Secret,
     ) -> Self {
+        if !self.config.wanted_caps.iter().any(|capability| {
+            matches!(
+                capability.as_str(),
+                "account-registration" | "draft/account-registration"
+            )
+        }) {
+            self.config
+                .wanted_caps
+                .push("draft/account-registration".into());
+        }
         self.config = self.config.register_on_connect(account, email, password);
         self
     }
