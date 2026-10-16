@@ -4,6 +4,8 @@ use papo_proto::MessageRef;
 
 use crate::{CloseKind, Handled, Outbox};
 
+const MAX_SERVER_ERROR_REASON_LEN: usize = 256;
+
 #[derive(Debug, Default)]
 pub(super) struct Keepalive {
     interval: Duration,
@@ -59,7 +61,7 @@ impl Keepalive {
         } else if message.command_is("ERROR") {
             outbox.close(
                 CloseKind::ServerError,
-                message.param(0).unwrap_or("server sent ERROR").to_owned(),
+                bounded_server_error_reason(message.param(0).unwrap_or("server sent ERROR")),
             );
             Handled::Yes
         } else {
@@ -103,4 +105,12 @@ impl Keepalive {
         self.silence_deadline = None;
         self.pending_ping = None;
     }
+}
+
+fn bounded_server_error_reason(reason: &str) -> String {
+    let mut end = reason.len().min(MAX_SERVER_ERROR_REASON_LEN);
+    while !reason.is_char_boundary(end) {
+        end -= 1;
+    }
+    reason[..end].to_owned()
 }

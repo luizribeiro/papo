@@ -40,6 +40,23 @@ fn closes_on_a_parameterless_error() {
 }
 
 #[test]
+fn bounds_server_error_reasons_without_splitting_utf8() {
+    let exact = format!("K-lined: {}", "open proxy detected; ".repeat(24));
+    let exact = &exact[..256];
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(&format!("ERROR :{exact}"))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason } if reason == exact));
+
+    let over = format!("{}é", "K".repeat(255));
+    assert_eq!(over.len(), 257);
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(&format!("ERROR :{over}"))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason } if reason == &"K".repeat(255)));
+}
+
+#[test]
 fn does_not_answer_invalid_pings() {
     Transcript::new(Config::default())
         .connect_default()
