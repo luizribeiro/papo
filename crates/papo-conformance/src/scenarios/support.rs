@@ -2,7 +2,7 @@ use libtest_mimic::Failed;
 use papo::Event;
 use papo_proto::Message;
 
-use super::{Scenario, ScenarioResult};
+use crate::{Scenario, ScenarioResult};
 
 pub(super) const EXPECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";

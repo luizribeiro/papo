@@ -1,10 +1,4 @@
-use libtest_mimic::Failed;
-use papo::Event;
-use papo_conformance_macros::scenario;
-use papo_proto::Message;
-
-use super::{Scenario, ScenarioResult, ScenarioSpec};
-use support::{EXPECT_TIMEOUT, close_pair};
+use super::ScenarioSpec;
 
 mod auth;
 mod connection;
@@ -428,61 +422,6 @@ const fn scenario_table() -> &'static [ScenarioSpec] {
             run: __papo_scenario_whox,
         },
     ]
-}
-
-/// reports monitored users with extended-monitor enabled
-#[scenario(requires(
-    caps = ["extended-monitor", "away-notify"],
-    isupport = ["MONITOR"]
-))]
-async fn monitor(context: Scenario) -> ScenarioResult {
-    let observer_nick = context.unique();
-    let target_nick = context.unique();
-    let mut observer = context.client(&observer_nick).await?;
-    let target = context.client(&target_nick).await?;
-    observer
-        .client
-        .send(Message::new("MONITOR", ["+", &target_nick]))
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut observer.events,
-            |event| matches!(event, Event::MonitorOnline { nick, .. } if nick == &target_nick),
-            EXPECT_TIMEOUT,
-        )
-        .await
-        .map_err(|_| Failed::from("timed out waiting for MONITOR presence"))?;
-    close_pair(observer, target).await
-}
-
-/// marks a client with the advertised bot mode
-#[scenario(requires(isupport = ["BOT"]))]
-async fn bot_mode(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let mut connection = context.client(&nick).await?;
-    let registered = connection.welcome.nick.clone();
-    connection
-        .client
-        .send(Message::new("MODE", [&registered, "+B"]))
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut connection.events,
-            |event| matches!(event, Event::ModeChanged { target, .. } if target == &registered),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    let whois = connection
-        .client
-        .whois(&registered)
-        .await
-        .map_err(Failed::from)?;
-    if !whois.is_bot {
-        return Err("WHOIS did not report the advertised bot mode".into());
-    }
-    connection.close().await
 }
 
 #[cfg(test)]
