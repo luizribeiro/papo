@@ -2,8 +2,11 @@
 
 mod support;
 
-use papo_core::{Config, Event, Feature, HistoryQuery, Session, Unsupported, UnsupportedReason};
-use support::Transcript;
+use papo_core::{
+    Config, Event, Feature, HistoryQuery, MetadataCommand, PersistenceSetting, Session,
+    Unsupported, UnsupportedReason,
+};
+use support::{Transcript, unsupported_because};
 
 const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response";
 
@@ -263,4 +266,58 @@ fn fails_a_pending_request_when_its_feature_disappears() {
                     && unsupported.reason == UnsupportedReason::NotOffered)
         })
         .no_event();
+}
+
+#[test]
+fn extension_requests_preserve_explicitly_disabled_reasons() {
+    let caps = [
+        "draft/metadata-3",
+        "draft/persistence",
+        "draft/webpush",
+        "draft/channel-rename",
+        "draft/relaymsg",
+    ];
+    Transcript::new(
+        Config::default()
+            .wanted_caps(caps)
+            .without_caps(caps),
+    )
+    .connect_default()
+    .server("CAP * LS :draft/metadata-3 draft/persistence draft/webpush draft/channel-rename draft/relaymsg=/")
+    .client("CAP END")
+    .update(|session| {
+        let now = std::time::Instant::now();
+        let expected = |feature| {
+            unsupported_because(feature, UnsupportedReason::DisabledByClient)
+        };
+        assert_eq!(
+            session.metadata(now, MetadataCommand::Subs),
+            Err(expected(Feature::Metadata))
+        );
+        assert_eq!(
+            session.persistence_get(now),
+            Err(expected(Feature::Persistence))
+        );
+        assert_eq!(
+            session.persistence_set(now, PersistenceSetting::On),
+            Err(expected(Feature::Persistence))
+        );
+        assert_eq!(
+            session.webpush_register(now, "https://push.example/sub", "AQ", "Ag"),
+            Err(expected(Feature::WebPush))
+        );
+        assert_eq!(
+            session.webpush_unregister(now, "https://push.example/sub"),
+            Err(expected(Feature::WebPush))
+        );
+        assert_eq!(
+            session.rename(now, "#papo", "#papo-chat", "clearer name"),
+            Err(expected(Feature::ChannelRename))
+        );
+        assert_eq!(
+            session.relay(now, "#papo", "matrix/alice", "hello from Matrix"),
+            Err(expected(Feature::Relay))
+        );
+    })
+    .no_client();
 }

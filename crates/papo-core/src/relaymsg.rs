@@ -51,8 +51,9 @@ impl Session {
         nick_with_separator: &str,
         text: &str,
     ) -> Result<RequestId, RequestError> {
+        self.require_feature(Feature::Relay)?;
         let Some(value) = self.caps.enabled().get("draft/relaymsg") else {
-            return Err(RequestError::unsupported(Feature::Relay));
+            unreachable!("supported relay messaging has a negotiated capability");
         };
         let separators = value.as_deref().unwrap_or("/");
         if !nick_with_separator
@@ -61,9 +62,10 @@ impl Session {
         {
             return Err(RequestError::InvalidRelayNickname);
         }
-        self.request(
+        self.request_for_feature(
             now,
             Message::new("RELAYMSG", [channel, nick_with_separator, text]),
+            Feature::Relay,
         )
     }
 }

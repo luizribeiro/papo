@@ -41,9 +41,10 @@ impl Session {
         new: &str,
         reason: &str,
     ) -> Result<RequestId, RequestError> {
-        if !self.caps.enabled().contains_key("draft/channel-rename") {
-            return Err(RequestError::unsupported(Feature::ChannelRename));
-        }
-        self.request(now, Message::new("RENAME", [old, new, reason]))
+        self.request_for_feature(
+            now,
+            Message::new("RENAME", [old, new, reason]),
+            Feature::ChannelRename,
+        )
     }
 }

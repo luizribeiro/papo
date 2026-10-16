@@ -30,10 +30,7 @@ impl Session {
     }
 
     fn persistence_request(&mut self, now: Instant, message: Message) -> Result<(), RequestError> {
-        if !self.caps.enabled().contains_key("draft/persistence") {
-            return Err(RequestError::unsupported(Feature::Persistence));
-        }
-        self.request(now, message)?;
+        self.request_for_feature(now, message, Feature::Persistence)?;
         Ok(())
     }
 }

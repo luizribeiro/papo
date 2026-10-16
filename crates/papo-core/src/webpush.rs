@@ -49,13 +49,17 @@ impl Session {
         p256dh: &str,
         auth: &str,
     ) -> Result<RequestId, RequestError> {
-        self.require_webpush()?;
+        self.require_feature(Feature::WebPush)?;
         validate_endpoint(endpoint)?;
         if !valid_base64(p256dh) || !valid_base64(auth) {
             return Err(RequestError::InvalidWebPushKey);
         }
         let keys = format!("p256dh={p256dh};auth={auth}");
-        self.request(now, Message::new("WEBPUSH", ["REGISTER", endpoint, &keys]))
+        self.request_for_feature(
+            now,
+            Message::new("WEBPUSH", ["REGISTER", endpoint, &keys]),
+            Feature::WebPush,
+        )
     }
 
     /// Removes a Web Push subscription for an HTTPS endpoint.
@@ -69,17 +73,13 @@ impl Session {
         now: Instant,
         endpoint: &str,
     ) -> Result<RequestId, RequestError> {
-        self.require_webpush()?;
+        self.require_feature(Feature::WebPush)?;
         validate_endpoint(endpoint)?;
-        self.request(now, Message::new("WEBPUSH", ["UNREGISTER", endpoint]))
-    }
-
-    fn require_webpush(&self) -> Result<(), RequestError> {
-        ["draft/webpush", "soju.im/webpush"]
-            .iter()
-            .any(|name| self.caps.enabled().contains_key(*name))
-            .then_some(())
-            .ok_or(RequestError::unsupported(Feature::WebPush))
+        self.request_for_feature(
+            now,
+            Message::new("WEBPUSH", ["UNREGISTER", endpoint]),
+            Feature::WebPush,
+        )
     }
 }
 

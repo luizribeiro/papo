@@ -179,9 +179,10 @@ impl Session {
         now: Instant,
         command: MetadataCommand,
     ) -> Result<RequestId, RequestError> {
-        let limits = self
-            .metadata_limits()
-            .ok_or(RequestError::unsupported(Feature::Metadata))?;
+        self.require_feature(Feature::Metadata)?;
+        let Some(limits) = self.metadata_limits() else {
+            return Err(RequestError::unsupported(Feature::Metadata));
+        };
         let mut params = Vec::new();
         match command {
             MetadataCommand::Get { target, keys } => {
@@ -217,7 +218,7 @@ impl Session {
             MetadataCommand::Subs => params.extend(["*".into(), "SUBS".into()]),
             MetadataCommand::Sync { target } => params.extend([target, "SYNC".into()]),
         }
-        self.request(now, Message::new("METADATA", params))
+        self.request_for_feature(now, Message::new("METADATA", params), Feature::Metadata)
     }
 }
 
