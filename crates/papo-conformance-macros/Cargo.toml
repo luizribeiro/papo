@@ -1,0 +1,17 @@
+[package]
+name = "papo-conformance-macros"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+publish = false
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0.119"
+
+[lints]
+workspace = true

@@ -645,11 +645,19 @@ dependencies = [
  "inventory",
  "libtest-mimic",
  "papo",
+ "papo-conformance-macros",
  "papo-core",
  "papo-proto",
  "papo-test-server",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "papo-conformance-macros"
+version = "0.0.0"
+dependencies = [
+ "syn 2.0.119",
 ]
 
 [[package]]
