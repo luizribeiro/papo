@@ -153,6 +153,7 @@
               export CC_wasm32_wasip2=${wasiSdk}/bin/wasm32-wasip2-clang
               export WASI_SDK_PATH=${wasiSdk}
               cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip1 --locked
+              cargo check -p papo --example custom_stream --no-default-features --features spawn --target wasm32-wasip1 --locked
               cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip2 --locked
               cargo check -p papo-proto --all-targets --all-features --target wasm32-wasip2 --locked
               cargo check -p papo-proto -p papo-core --target wasm32-unknown-unknown --locked

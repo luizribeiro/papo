@@ -2,6 +2,7 @@ use std::{path::Path, time::Duration};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
 use papo_core::{Config, RateLimit, Sasl};
+use tokio::io::{AsyncRead, AsyncWrite};
 #[cfg(feature = "spawn")]
 use tokio::sync::oneshot;
 
@@ -298,6 +299,16 @@ impl Builder {
         self.build_with_registration(None)
     }
 
+    /// Builds handles and a lazy driver over an already-connected stream.
+    ///
+    /// Custom streams are driven once and are never reconnected after they close.
+    pub fn build_with<S>(self, stream: S) -> (crate::Client, crate::Events, crate::Driver)
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        self.build_stream_with_registration(stream, None)
+    }
+
     /// Connects in a spawned driver and waits for IRC registration.
     ///
     /// The [`crate::Event::Registered`] event remains available from the
@@ -313,6 +324,61 @@ impl Builder {
         tokio::spawn(driver);
         receiver.await.map_err(|_| Error::Disconnected)??;
         Ok((client, events))
+    }
+
+    /// Spawns a driver over an already-connected stream and waits for IRC registration.
+    ///
+    /// The stream is driven once and is never reconnected after it closes. The
+    /// [`crate::Event::Registered`] event remains available from the returned event stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns address or registration errors that occur before welcome.
+    #[cfg(feature = "spawn")]
+    pub async fn connect_with<S>(self, stream: S) -> Result<(crate::Client, crate::Events), Error>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        let (sender, receiver) = oneshot::channel();
+        let (client, events, driver) = self.build_stream_with_registration(stream, Some(sender));
+        tokio::spawn(driver);
+        receiver.await.map_err(|_| Error::Disconnected)??;
+        Ok((client, events))
+    }
+
+    fn build_stream_with_registration<S>(
+        mut self,
+        stream: S,
+        registration: Option<crate::driver::RegistrationSender>,
+    ) -> (crate::Client, crate::Events, crate::Driver)
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        if let Ok(address) = &self.address {
+            apply_address(&mut self.config, address);
+        }
+        let address_error = self.address.err();
+        let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
+        if let Some(error) = address_error {
+            drop(stream);
+            return crate::Driver::failed(
+                &session,
+                self.event_capacity,
+                registration,
+                Error::Address(error),
+            );
+        }
+        crate::Driver::with_stream_and_registration(
+            stream,
+            session,
+            self.event_capacity,
+            registration,
+            PostRegistration {
+                bot: self.bot,
+                channels: self.channels,
+                history_on_reconnect: self.history_on_reconnect,
+            },
+        )
     }
 
     fn build_with_registration(
@@ -373,6 +439,7 @@ mod tests {
         RateLimit, Sasl,
         sts::{ConnectionSecurity, MemoryStsStore, StoredPolicy, StsStore},
     };
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::{Builder, apply_address};
     use crate::{Error, address::Protocol, transport::TlsRoots};
@@ -548,6 +615,54 @@ mod tests {
     async fn connect_returns_a_deferred_address_error() {
         let error = Builder::new("irc://").connect().await.err().unwrap();
         assert!(matches!(error, Error::Address(_)));
+    }
+
+    #[cfg(feature = "spawn")]
+    #[tokio::test(flavor = "current_thread")]
+    async fn custom_stream_registers_once_without_reconnecting() {
+        let (stream, mut server) = tokio::io::duplex(4096);
+        let connecting = tokio::spawn(
+            Builder::new("irc://custom.example")
+                .nick("papo-custom")
+                .connect_with(stream),
+        );
+        let expected = b"CAP LS 302\r\nNICK papo-custom\r\nUSER papo-custom 0 * papo-custom\r\n";
+        let mut burst = vec![0; expected.len()];
+        server.read_exact(&mut burst).await.unwrap();
+        assert_eq!(&burst, expected);
+        server
+            .write_all(b":custom.example CAP * LS :\r\n")
+            .await
+            .unwrap();
+        let mut cap_end = [0; 9];
+        server.read_exact(&mut cap_end).await.unwrap();
+        assert_eq!(&cap_end, b"CAP END\r\n");
+        server
+            .write_all(b":custom.example 001 papo-custom :Welcome\r\n")
+            .await
+            .unwrap();
+        let (client, mut events) = connecting.await.unwrap().unwrap();
+        assert!(matches!(
+            events.next().await,
+            Some(crate::Event::Registered(_))
+        ));
+        server.shutdown().await.unwrap();
+        assert!(matches!(
+            events.next().await,
+            Some(crate::Event::Disconnected {
+                will_retry: false,
+                ..
+            })
+        ));
+        assert!(!client.is_connected());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn build_with_defers_address_errors() {
+        let (stream, _server) = tokio::io::duplex(64);
+        let (_client, mut events, driver) = Builder::new("irc://").build_with(stream);
+        assert!(matches!(driver.await, Err(Error::Address(_))));
+        assert!(events.next().await.is_none());
     }
 
     #[cfg(not(feature = "websocket"))]

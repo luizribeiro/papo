@@ -1082,7 +1082,7 @@ impl Driver {
         )
     }
 
-    fn with_stream_and_registration<S>(
+    pub(crate) fn with_stream_and_registration<S>(
         stream: S,
         session: Session,
         capacity: usize,
@@ -1101,6 +1101,24 @@ impl Driver {
             RegistrationWait(registration),
             defaults,
         ));
+        (channels.client, channels.events, Self { inner })
+    }
+
+    pub(crate) fn failed(
+        session: &Session,
+        capacity: usize,
+        registration: Option<RegistrationSender>,
+        error: Error,
+    ) -> (Client, Events, Self) {
+        let channels = channels(capacity, session);
+        let inner = Box::pin(async move {
+            if let Some(registration) = registration {
+                _ = registration.send(Err(error));
+                Ok(())
+            } else {
+                Err(error)
+            }
+        });
         (channels.client, channels.events, Self { inner })
     }
 
