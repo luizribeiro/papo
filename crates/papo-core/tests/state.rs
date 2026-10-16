@@ -583,6 +583,37 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
 }
 
 #[test]
+fn exposes_channel_replies_for_unjoined_channels_as_messages() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 353 emily = #opers :@alice +dan")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("353")),
+        )
+        .server(":ergo.test 366 emily #opers :End of NAMES list")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("366")),
+        )
+        .server(":solanum.example 332 emily #staff :Operator coordination")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("332")),
+        )
+        .server(":solanum.example 333 emily #staff alice 1760529342")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("333")),
+        )
+        .server(":irc.unreal.test 324 emily #services +snt")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("324")),
+        )
+        .server(":irc.unreal.test 329 emily #services 1760529342")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("329")),
+        )
+        .inspect(|session| assert!(session.state().channel("#opers").is_none()))
+        .no_event();
+}
+
+#[test]
 fn removes_other_members_on_part_kick_and_multi_channel_quit() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")

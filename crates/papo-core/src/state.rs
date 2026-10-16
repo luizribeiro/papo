@@ -270,6 +270,12 @@ impl State {
             return Handled::Yes;
         }
         if let Some((_, channel, entries)) = parse_353(message) {
+            if !self
+                .channels
+                .contains_key(&CaseKey::new(channel, self.casemapping))
+            {
+                return Handled::No;
+            }
             for raw in entries {
                 let entry = NamesEntry::parse(raw, isupport);
                 if !entry.nick.is_empty() {
@@ -627,7 +633,7 @@ impl State {
             .param(1)
             .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
         else {
-            return true;
+            return false;
         };
         if message.command() == Command::Numeric(Numeric::RPL_CHANNELMODEIS) {
             if let Some(modestring) = message.param(2) {
@@ -675,7 +681,7 @@ impl State {
                     .param(1)
                     .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
                 else {
-                    return true;
+                    return false;
                 };
                 channel.topic_set_by = message.param(2).map(str::to_owned);
                 channel.topic_set_at = message.param(3).and_then(|value| value.parse().ok());
@@ -693,7 +699,7 @@ impl State {
         let Some(channel) = channel_name
             .and_then(|name| self.channels.get_mut(&CaseKey::new(name, self.casemapping)))
         else {
-            return true;
+            return false;
         };
         channel.topic = topic.filter(|topic| !topic.is_empty()).map(str::to_owned);
         channel.topic_set_by = if live {
@@ -859,10 +865,11 @@ impl State {
                 channel.synced = true;
                 true
             });
+        if !joined {
+            return false;
+        }
         if let Some(channel) = name {
-            if joined {
-                self.start_who(channel, isupport, outbox);
-            }
+            self.start_who(channel, isupport, outbox);
             outbox.event(Event::ChannelSynced {
                 channel: channel.to_owned(),
             });
