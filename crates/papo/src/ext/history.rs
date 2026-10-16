@@ -1,0 +1,558 @@
+use std::{future::Future, pin::Pin, time::SystemTime};
+
+use papo_core::{HistoryQuery, MsgRef, Response};
+use tokio::sync::oneshot;
+
+use crate::{Client, Error, MessageEvent, driver::Command};
+
+/// A page of requested chat history.
+#[derive(Clone, Debug)]
+pub struct HistoryPage {
+    /// Messages in server delivery order.
+    pub messages: Vec<MessageEvent>,
+    /// Whether the server reported that no further page exists.
+    pub end: bool,
+}
+
+/// Builds a history request for one channel or nickname.
+pub struct History<'a> {
+    pub(crate) client: &'a Client,
+    pub(crate) target: String,
+}
+
+impl<'a> History<'a> {
+    /// Requests the newest `limit` messages.
+    #[must_use]
+    pub fn latest(self, limit: usize) -> HistoryRequest<'a> {
+        HistoryRequest {
+            client: self.client,
+            query: Ok(HistoryQuery::Latest {
+                target: self.target,
+                after: None,
+                limit,
+            }),
+        }
+    }
+
+    /// Requests messages before `reference`.
+    #[must_use]
+    pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
+        let query = reference.into().0.ok_or(Error::Unsupported("message id"));
+        HistoryRequest {
+            client: self.client,
+            query: query.map(|before| HistoryQuery::Before {
+                target: self.target,
+                before,
+                limit: 100,
+            }),
+        }
+    }
+
+    /// Requests messages after `reference`.
+    #[must_use]
+    pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
+        let query = reference.into().0.ok_or(Error::Unsupported("message id"));
+        HistoryRequest {
+            client: self.client,
+            query: query.map(|after| HistoryQuery::After {
+                target: self.target,
+                after,
+                limit: 100,
+            }),
+        }
+    }
+
+    /// Requests messages surrounding `reference`.
+    #[must_use]
+    pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
+        let query = reference.into().0.ok_or(Error::Unsupported("message id"));
+        HistoryRequest {
+            client: self.client,
+            query: query.map(|around| HistoryQuery::Around {
+                target: self.target,
+                around,
+                limit: 100,
+            }),
+        }
+    }
+
+    /// Requests messages between two exclusive references.
+    #[must_use]
+    pub fn between(
+        self,
+        start: impl Into<HistoryReference>,
+        end: impl Into<HistoryReference>,
+    ) -> HistoryRequest<'a> {
+        let start = start.into().0.ok_or(Error::Unsupported("message id"));
+        let query = start.and_then(|start| {
+            end.into()
+                .0
+                .ok_or(Error::Unsupported("message id"))
+                .map(|end| HistoryQuery::Between {
+                    target: self.target,
+                    start,
+                    end,
+                    limit: 100,
+                })
+        });
+        HistoryRequest {
+            client: self.client,
+            query,
+        }
+    }
+}
+
+/// A message identifier or timestamp accepted by a history query.
+pub struct HistoryReference(Option<MsgRef>);
+
+impl From<&str> for HistoryReference {
+    fn from(value: &str) -> Self {
+        Self(Some(MsgRef::Msgid(value.to_owned())))
+    }
+}
+
+impl From<&String> for HistoryReference {
+    fn from(value: &String) -> Self {
+        Self::from(value.as_str())
+    }
+}
+
+impl From<String> for HistoryReference {
+    fn from(value: String) -> Self {
+        Self(Some(MsgRef::Msgid(value)))
+    }
+}
+
+impl From<SystemTime> for HistoryReference {
+    fn from(value: SystemTime) -> Self {
+        Self(Some(MsgRef::Timestamp(value)))
+    }
+}
+
+impl From<&MessageEvent> for HistoryReference {
+    fn from(value: &MessageEvent) -> Self {
+        Self(value.msgid().map(|msgid| MsgRef::Msgid(msgid.to_owned())))
+    }
+}
+
+/// A history request with a configurable page limit.
+pub struct HistoryRequest<'a> {
+    client: &'a Client,
+    query: Result<HistoryQuery, Error>,
+}
+
+impl HistoryRequest<'_> {
+    /// Sets the maximum number of returned messages.
+    #[must_use]
+    pub fn limit(mut self, limit: usize) -> Self {
+        if let Ok(
+            HistoryQuery::Latest { limit: value, .. }
+            | HistoryQuery::Before { limit: value, .. }
+            | HistoryQuery::After { limit: value, .. }
+            | HistoryQuery::Around { limit: value, .. }
+            | HistoryQuery::Between { limit: value, .. },
+        ) = &mut self.query
+        {
+            *value = limit;
+        }
+        self
+    }
+}
+
+impl<'a> IntoFuture for HistoryRequest<'a> {
+    type Output = Result<HistoryPage, Error>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send + 'a>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        match self.query {
+            Ok(query) => Box::pin(self.client.history_page(query)),
+            Err(error) => Box::pin(async move { Err(error) }),
+        }
+    }
+}
+
+impl Client {
+    /// Starts a chat history request for `target`.
+    #[must_use]
+    pub fn history(&self, target: &str) -> crate::History<'_> {
+        crate::History {
+            client: self,
+            target: target.to_owned(),
+        }
+    }
+
+    pub(crate) async fn history_page(
+        &self,
+        query: HistoryQuery,
+    ) -> Result<crate::HistoryPage, Error> {
+        let response = self.history_response(query).await?;
+        let page = response.history.ok_or(Error::Disconnected)?;
+        let messages = page
+            .messages
+            .into_iter()
+            .filter_map(|item| {
+                crate::MessageEvent::from_history(item.message, self.clone(), SystemTime::now())
+                    .ok()
+            })
+            .collect();
+        Ok(crate::HistoryPage {
+            messages,
+            end: page.end,
+        })
+    }
+
+    async fn history_response(&self, query: HistoryQuery) -> Result<Response, Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::History { query, result })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        let response = receiver.await.map_err(|_| Error::Disconnected)??;
+        if let Some(error) = response.error() {
+            return Err(Error::Server(error));
+        }
+        Ok(response)
+    }
+
+    /// Lists targets that received messages during an inclusive time range.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when history is unsupported or the request cannot complete.
+    pub async fn history_targets(
+        &self,
+        since: SystemTime,
+        until: SystemTime,
+    ) -> Result<Vec<(String, SystemTime)>, Error> {
+        self.history_response(HistoryQuery::Targets {
+            from: since,
+            to: until,
+            limit: 1_000,
+        })
+        .await?
+        .history_targets
+        .ok_or(Error::Disconnected)
+    }
+
+    /// Sets the server read marker for `target`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when read markers are unsupported or the request cannot complete.
+    pub async fn mark_read(&self, target: &str, time: SystemTime) -> Result<(), Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::MarkRead {
+                target: target.to_owned(),
+                time,
+                result,
+            })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        let response = receiver.await.map_err(|_| Error::Disconnected)??;
+        crate::requests::empty(&response)
+    }
+
+    /// Queries the server read marker for `target`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when read markers are unsupported or the query cannot complete.
+    pub async fn read_marker(&self, target: &str) -> Result<Option<SystemTime>, Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::ReadMarker {
+                target: target.to_owned(),
+                result,
+            })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        receiver.await.map_err(|_| Error::Disconnected)?
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::driver::test_support::*;
+    use std::time::{Duration, UNIX_EPOCH};
+
+    use papo_core::{HistoryQuery, MsgRef};
+    use papo_proto::Message;
+
+    use super::HistoryReference;
+
+    #[test]
+    fn converts_ids_timestamps_and_message_events() {
+        assert!(
+            matches!(HistoryReference::from("2Zl7JeYG6I8fG9q1lJ55BQ").0, Some(MsgRef::Msgid(id)) if id == "2Zl7JeYG6I8fG9q1lJ55BQ")
+        );
+        assert!(
+            matches!(HistoryReference::from(UNIX_EPOCH).0, Some(MsgRef::Timestamp(time)) if time == UNIX_EPOCH)
+        );
+        let event = crate::MessageEvent::from_history(
+            Message::privmsg("#papo", "earlier").with_tag("msgid", "RfcBTzyxY120004"),
+            crate::Client::disconnected_for_test(),
+            UNIX_EPOCH,
+        )
+        .unwrap();
+        assert!(
+            matches!(HistoryReference::from(&event).0, Some(MsgRef::Msgid(id)) if id == "RfcBTzyxY120004")
+        );
+    }
+
+    #[test]
+    fn builds_after_around_and_between_queries_with_limits() {
+        let client = crate::Client::disconnected_for_test();
+        let after = client
+            .history("#papo")
+            .after(UNIX_EPOCH + Duration::from_secs(42))
+            .limit(51);
+        assert!(matches!(
+            after.query,
+            Ok(HistoryQuery::After { limit: 51, .. })
+        ));
+        let around = client.history("#papo").around("RfcBTzyxY120000").limit(52);
+        assert!(matches!(
+            around.query,
+            Ok(HistoryQuery::Around { limit: 52, .. })
+        ));
+        let between = client
+            .history("#papo")
+            .between("RfcBTzyxY119998", "RfcBTzyxY120003")
+            .limit(53);
+        assert!(matches!(
+            between.query,
+            Ok(HistoryQuery::Between { limit: 53, .. })
+        ));
+    }
+    #[tokio::test(flavor = "current_thread")]
+    async fn latest_history_resolves_with_history_messages() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(
+            &mut server,
+            b"CAP REQ :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        let request = tokio::spawn(async move { client.history("#papo").latest(10).await });
+        client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 10\r\n").await;
+        server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
+        let page = request.await.unwrap().unwrap();
+        assert!(page.end);
+        assert_eq!(page.messages[0].text(), "earlier");
+        assert_eq!(page.messages[0].origin(), Origin::History);
+        assert!(!page.messages[0].is_live());
+        let Some(Event::History { messages, .. }) = events.next().await else {
+            panic!("expected replay batch event")
+        };
+        assert_eq!(messages[0].origin(), Origin::Replay);
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn reference_history_queries_reach_the_wire_and_resolve() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_history_registration(&mut server, &mut events).await;
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .history("#papo")
+                    .before("RfcBTzyxY119999")
+                    .limit(50)
+                    .await
+            }
+        });
+        client_line(
+            &mut server,
+            b"@label=0 CHATHISTORY BEFORE #papo msgid=RfcBTzyxY119999 50\r\n",
+        )
+        .await;
+        history_response(&mut server, 0).await;
+        let before = request.await.unwrap().unwrap();
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .history("#papo")
+                    .after(UNIX_EPOCH + Duration::from_secs(42))
+                    .limit(51)
+                    .await
+            }
+        });
+        client_line(
+            &mut server,
+            b"@label=1 CHATHISTORY AFTER #papo timestamp=1970-01-01T00:00:42.000Z 51\r\n",
+        )
+        .await;
+        history_response(&mut server, 1).await;
+        request.await.unwrap().unwrap();
+
+        let message = before.messages[0].clone();
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.history("#papo").around(&message).limit(52).await }
+        });
+        client_line(
+            &mut server,
+            b"@label=2 CHATHISTORY AROUND #papo msgid=RfcBTzyxY120000 52\r\n",
+        )
+        .await;
+        history_response(&mut server, 2).await;
+        request.await.unwrap().unwrap();
+
+        let request = tokio::spawn(async move {
+            client
+                .history("#papo")
+                .between("RfcBTzyxY119998", "RfcBTzyxY120003")
+                .limit(53)
+                .await
+        });
+        client_line(
+            &mut server,
+            b"@label=3 CHATHISTORY BETWEEN #papo msgid=RfcBTzyxY119998 msgid=RfcBTzyxY120003 53\r\n",
+        )
+        .await;
+        history_response(&mut server, 3).await;
+        request.await.unwrap().unwrap();
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn history_fails_without_the_negotiated_capability() {
+        let (mut server, client, mut events, driver) = scripted(config());
+        let task = tokio::spawn(driver);
+        complete_registration(&mut server, &mut events).await;
+        assert!(matches!(
+            client.history("#papo").latest(10).await,
+            Err(Error::Unsupported("chathistory"))
+        ));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn history_targets_are_typed_and_time_bounded() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_history_registration(&mut server, &mut events).await;
+        let request = tokio::spawn(async move {
+            client
+                .history_targets(
+                    UNIX_EPOCH + Duration::from_secs(42),
+                    UNIX_EPOCH + Duration::from_secs(84),
+                )
+                .await
+        });
+        client_line(
+            &mut server,
+            b"@label=0 CHATHISTORY TARGETS 1970-01-01T00:00:42.000Z 1970-01-01T00:01:24.000Z 100\r\n",
+        )
+        .await;
+        server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply :ergo.test BATCH +targets draft/chathistory-targets\r\n@batch=targets :ergo.test CHATHISTORY TARGETS #papo 2026-10-15T12:00:00.000Z\r\n@batch=reply :ergo.test BATCH -targets\r\n:ergo.test BATCH -reply\r\n").await;
+        let targets = request.await.unwrap().unwrap();
+        assert_eq!(
+            targets,
+            [("#papo".into(), UNIX_EPOCH + Duration::from_hours(497_796))]
+        );
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn mark_read_sets_a_millisecond_server_timestamp() {
+        let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_read_marker_registration(&mut server, &mut events).await;
+        let request = tokio::spawn(async move {
+            client
+                .mark_read(
+                    "#papo",
+                    UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999),
+                )
+                .await
+        });
+        client_line(
+            &mut server,
+            b"@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=0 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        request.await.unwrap().unwrap();
+        assert!(
+            matches!(events.next().await, Some(Event::ReadMarker(marker)) if marker.target == "#papo")
+        );
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn read_marker_resolves_fresh_and_cached_values() {
+        let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_read_marker_registration(&mut server, &mut events).await;
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.read_marker("#papo").await }
+        });
+        client_line(&mut server, b"MARKREAD #papo\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        let expected = UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
+        assert_eq!(request.await.unwrap().unwrap(), Some(expected));
+        assert_eq!(
+            client.state(|state| state.read_marker("#PAPO")),
+            Some(expected)
+        );
+
+        assert_eq!(client.read_marker("#papo").await.unwrap(), Some(expected));
+        client_line(&mut server, b"MARKREAD #papo\r\n").await;
+        task.abort();
+    }
+}

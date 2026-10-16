@@ -6,7 +6,7 @@ use std::{
     time::SystemTime,
 };
 
-use papo_core::{HistoryQuery, Response, ResponseMatcher, TextKind};
+use papo_core::{Response, ResponseMatcher, TextKind};
 use papo_proto::{Message, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
@@ -175,104 +175,6 @@ impl Client {
     /// Returns an error if the message is invalid or the driver has stopped.
     pub async fn raw_unlabeled(&self, message: Message) -> Result<(), Error> {
         self.send(message).await
-    }
-
-    /// Starts a chat history request for `target`.
-    #[must_use]
-    pub fn history(&self, target: &str) -> crate::History<'_> {
-        crate::History {
-            client: self,
-            target: target.to_owned(),
-        }
-    }
-
-    pub(crate) async fn history_page(
-        &self,
-        query: HistoryQuery,
-    ) -> Result<crate::HistoryPage, Error> {
-        let response = self.history_response(query).await?;
-        let page = response.history.ok_or(Error::Disconnected)?;
-        let messages = page
-            .messages
-            .into_iter()
-            .filter_map(|item| {
-                crate::MessageEvent::from_history(item.message, self.clone(), SystemTime::now())
-                    .ok()
-            })
-            .collect();
-        Ok(crate::HistoryPage {
-            messages,
-            end: page.end,
-        })
-    }
-
-    async fn history_response(&self, query: HistoryQuery) -> Result<Response, Error> {
-        let (result, receiver) = oneshot::channel();
-        self.commands
-            .send(Command::History { query, result })
-            .await
-            .map_err(|_| Error::Disconnected)?;
-        let response = receiver.await.map_err(|_| Error::Disconnected)??;
-        if let Some(error) = response.error() {
-            return Err(Error::Server(error));
-        }
-        Ok(response)
-    }
-
-    /// Lists targets that received messages during an inclusive time range.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when history is unsupported or the request cannot complete.
-    pub async fn history_targets(
-        &self,
-        since: SystemTime,
-        until: SystemTime,
-    ) -> Result<Vec<(String, SystemTime)>, Error> {
-        self.history_response(HistoryQuery::Targets {
-            from: since,
-            to: until,
-            limit: 1_000,
-        })
-        .await?
-        .history_targets
-        .ok_or(Error::Disconnected)
-    }
-
-    /// Sets the server read marker for `target`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when read markers are unsupported or the request cannot complete.
-    pub async fn mark_read(&self, target: &str, time: SystemTime) -> Result<(), Error> {
-        let (result, receiver) = oneshot::channel();
-        self.commands
-            .send(Command::MarkRead {
-                target: target.to_owned(),
-                time,
-                result,
-            })
-            .await
-            .map_err(|_| Error::Disconnected)?;
-        let response = receiver.await.map_err(|_| Error::Disconnected)??;
-        crate::requests::empty(&response)
-    }
-
-    /// Queries the server read marker for `target`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when read markers are unsupported or the query cannot complete.
-    pub async fn read_marker(&self, target: &str) -> Result<Option<SystemTime>, Error> {
-        let (result, receiver) = oneshot::channel();
-        self.commands
-            .send(Command::ReadMarker {
-                target: target.to_owned(),
-                result,
-            })
-            .await
-            .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)?
     }
 
     /// Sends a private message to a user or channel.
