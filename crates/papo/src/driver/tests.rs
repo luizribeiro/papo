@@ -149,7 +149,10 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
             ..
         })
     ));
-    assert!(matches!(driver.await.unwrap(), Err(Error::Unsupported(_))));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Unsupported(_))
+    ));
     assert_eq!(calls.load(Ordering::Relaxed), 2);
 }
 
@@ -196,7 +199,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(client.is_connected());
-    first_server.shutdown().await.unwrap();
+    within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected {
@@ -240,9 +243,9 @@ async fn eof_reconnects_and_emits_reconnected() {
 
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut second_server, b"QUIT\r\n").await;
-    second_server.shutdown().await.unwrap();
-    assert!(quit.await.unwrap().is_ok());
-    assert!(driver.await.unwrap().is_ok());
+    within(second_server.shutdown()).await.unwrap();
+    assert!(within(quit).await.unwrap().is_ok());
+    assert!(within(driver).await.unwrap().is_ok());
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -288,7 +291,7 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     client_line(&mut first_server, b"JOIN #papo\r\n").await;
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
-    first_server.shutdown().await.unwrap();
+    within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected { .. })
@@ -424,14 +427,18 @@ async fn commands_queue_while_disconnected_and_overflow_is_rejected() {
         })
     ));
 
-    client.send(Message::new("WHOIS", ["emily"])).await.unwrap();
+    within(client.send(Message::new("WHOIS", ["emily"])))
+        .await
+        .unwrap();
     client
         .privmsg("#papo", "queued during reconnect")
         .await
         .unwrap();
-    client.send(Message::new("MODE", ["#papo"])).await.unwrap();
+    within(client.send(Message::new("MODE", ["#papo"])))
+        .await
+        .unwrap();
     assert!(matches!(
-        client.privmsg("#papo", "queue overflow").await,
+        within(client.privmsg("#papo", "queue overflow")).await,
         Err(Error::Disconnected)
     ));
 
@@ -442,9 +449,9 @@ async fn commands_queue_while_disconnected_and_overflow_is_rejected() {
     client_line(&mut server, b"MODE #papo\r\n").await;
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut server, b"QUIT\r\n").await;
-    server.shutdown().await.unwrap();
-    assert!(quit.await.unwrap().is_ok());
-    assert!(driver.await.unwrap().is_ok());
+    within(server.shutdown()).await.unwrap();
+    assert!(within(quit).await.unwrap().is_ok());
+    assert!(within(driver).await.unwrap().is_ok());
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -480,8 +487,8 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
             ..
         })
     ));
-    client.quit(Some("cancel reconnect")).await.unwrap();
-    assert!(driver.await.unwrap().is_ok());
+    within(client.quit(Some("cancel reconnect"))).await.unwrap();
+    assert!(within(driver).await.unwrap().is_ok());
     tokio::time::advance(Duration::from_secs(10)).await;
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
@@ -521,7 +528,7 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
         ));
     }
     assert!(matches!(
-        driver.await.unwrap(),
+        within(driver).await.unwrap(),
         Err(Error::Unsupported("scripted connection failure"))
     ));
     let attempts = attempts.lock().unwrap();
@@ -587,7 +594,7 @@ async fn stable_registration_resets_the_backoff() {
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
     tokio::time::advance(Duration::from_secs(60)).await;
     let disconnected_at = tokio::time::Instant::now();
-    stable_server.shutdown().await.unwrap();
+    within(stable_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected { .. })
@@ -602,9 +609,9 @@ async fn stable_registration_resets_the_backoff() {
     assert_eq!(delay, Duration::from_millis(800));
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut next_server, b"QUIT\r\n").await;
-    next_server.shutdown().await.unwrap();
-    assert!(quit.await.unwrap().is_ok());
-    assert!(driver.await.unwrap().is_ok());
+    within(next_server.shutdown()).await.unwrap();
+    assert!(within(quit).await.unwrap().is_ok());
+    assert!(within(driver).await.unwrap().is_ok());
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -648,9 +655,9 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
     registration_burst(&mut server).await;
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut server, b"QUIT\r\n").await;
-    server.shutdown().await.unwrap();
-    assert!(quit.await.unwrap().is_ok());
-    assert!(driver.await.unwrap().is_ok());
+    within(server.shutdown()).await.unwrap();
+    assert!(within(quit).await.unwrap().is_ok());
+    assert!(within(driver).await.unwrap().is_ok());
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -690,9 +697,9 @@ async fn connector_failure_under_stored_sts_is_terminal() {
         connector,
     );
 
-    assert!(matches!(driver.await, Ok(())));
+    assert!(matches!(within(driver).await, Ok(())));
     assert!(matches!(
-        waiter.await.unwrap(),
+        within(waiter).await.unwrap(),
         Err(Error::Unsupported("scripted TLS failure"))
     ));
     assert!(matches!(
@@ -710,7 +717,7 @@ async fn eof_emits_disconnected_and_returns_an_error() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    server.shutdown().await.unwrap();
+    within(server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected {
@@ -718,7 +725,10 @@ async fn eof_emits_disconnected_and_returns_an_error() {
             will_retry: false,
         }) if reason == "server closed the connection"
     ));
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -726,7 +736,7 @@ async fn shutdown_error_overrides_a_non_io_terminal_cause() {
     let (mut server, _client, mut events, driver) = scripted_with_failures(false);
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    server.shutdown().await.unwrap();
+    within(server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected {
@@ -734,8 +744,10 @@ async fn shutdown_error_overrides_a_non_io_terminal_cause() {
             will_retry: false,
         }) if reason == "shutdown failed"
     ));
-    assert!(matches!(driver.await.unwrap(), Err(Error::Io(error))
-        if error.to_string() == "shutdown failed"));
+    assert!(
+        matches!(within(driver).await.unwrap(), Err(Error::Io(error))
+        if error.to_string() == "shutdown failed")
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -750,8 +762,10 @@ async fn shutdown_error_does_not_replace_an_io_terminal_cause() {
             will_retry: false,
         }) if reason == "original read failure"
     ));
-    assert!(matches!(driver.await.unwrap(), Err(Error::Io(error))
-        if error.to_string() == "original read failure"));
+    assert!(
+        matches!(within(driver).await.unwrap(), Err(Error::Io(error))
+        if error.to_string() == "original read failure")
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -759,7 +773,7 @@ async fn overlong_line_becomes_a_terminal_disconnect() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    server.write_all(&vec![b'x'; 8704]).await.unwrap();
+    within(server.write_all(&vec![b'x'; 8704])).await.unwrap();
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected {
@@ -767,7 +781,10 @@ async fn overlong_line_becomes_a_terminal_disconnect() {
             will_retry: false,
         }) if reason == "incoming IRC line exceeds 8703 bytes"
     ));
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -775,16 +792,18 @@ async fn malformed_line_preserves_exact_bytes() {
     let (mut server, _client, mut events, driver) = scripted(config().decoding(Decoding::Utf8));
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    server
-        .write_all(b":ergo.test NOTICE * :caf\xe9\r\n")
+    within(server.write_all(b":ergo.test NOTICE * :caf\xe9\r\n"))
         .await
         .unwrap();
     assert!(matches!(
         events.next().await,
         Some(Event::Malformed { line }) if line == b":ergo.test NOTICE * :caf\xe9"
     ));
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -804,8 +823,11 @@ async fn sasl_nak_forwards_authentication_failure() {
         Some(Event::AuthenticationFailed { .. })
     ));
     client_line(&mut server, b"CAP END\r\n").await;
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -830,9 +852,12 @@ async fn required_sasl_failure_rejects_registration_waiter() {
     server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
 
     assert!(
-        matches!(waiter.await.unwrap(), Err(Error::Registration(reason)) if reason.contains("SASL"))
+        matches!(within(waiter).await.unwrap(), Err(Error::Registration(reason)) if reason.contains("SASL"))
     );
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -882,7 +907,10 @@ async fn required_sasl_failure_does_not_reconnect() {
             ..
         })
     ));
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
     tokio::time::advance(Duration::from_secs(10)).await;
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
@@ -917,14 +945,17 @@ async fn successful_registration_preserves_earlier_events() {
     )
     .await;
 
-    assert!(waiter.await.unwrap().is_ok());
+    assert!(within(waiter).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
         Some(Event::Message(message)) if message.as_ref().command_is("NOTICE")
     ));
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -956,8 +987,11 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
         b"MODE papo-driver +B\r\nJOIN #papo\r\nJOIN #papo-bots\r\n",
     )
     .await;
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1027,8 +1061,11 @@ async fn cap_new_and_del_forward_capability_changes() {
         matches!(events.next().await, Some(Event::CapsChanged { removed, .. })
         if removed.contains_key("server-time"))
     );
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1049,7 +1086,10 @@ async fn plaintext_sts_forwards_upgrade_and_closes() {
             will_retry: false,
         }) if reason == "sts upgrade"
     ));
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1112,16 +1152,16 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
     client_line(&mut second_server, b"CAP END\r\n").await;
     server_line(
         &mut second_server,
-        b":ergo.test 001 papo-driver :Welcome over TLS\r\n",
+        b":ergo.test 001 papo-driver :Welcome over TLS\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(waiter.await.unwrap().is_ok());
+    assert!(within(waiter).await.unwrap().is_ok());
 
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut second_server, b"QUIT\r\n").await;
-    second_server.shutdown().await.unwrap();
-    assert!(quit.await.unwrap().is_ok());
-    assert!(driver.await.unwrap().is_ok());
+    within(second_server.shutdown()).await.unwrap();
+    assert!(within(quit).await.unwrap().is_ok());
+    assert!(within(driver).await.unwrap().is_ok());
 }
 
 #[tokio::test(flavor = "current_thread")]
