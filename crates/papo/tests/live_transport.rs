@@ -4,6 +4,8 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
+mod support;
+
 #[cfg(tls)]
 use std::fs;
 use std::{io, net::ToSocketAddrs, time::Duration};
@@ -17,6 +19,8 @@ use papo_test_server::{ServerInfo, unique};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
+use support::within;
+
 #[cfg(tls)]
 const CLIENT_CERTIFICATE: &[u8] = include_bytes!("data/client.pem");
 #[cfg(tls)]
@@ -26,6 +30,10 @@ const CLIENT_CERTFP: &str = "60eb8e5dbf6aa3e388743d9250b29e3862759373b4610b9ba3c
 
 #[tokio::test(flavor = "current_thread")]
 async fn plaintext_cap_exchange() {
+    within(plaintext_cap_exchange_body()).await;
+}
+
+async fn plaintext_cap_exchange_body() {
     let server = from_env();
     let stream = connect(
         &server.plaintext_addr().ip().to_string(),
@@ -40,6 +48,10 @@ async fn plaintext_cap_exchange() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn plaintext_shutdown_reaches_ergo() {
+    within(plaintext_shutdown_reaches_ergo_body()).await;
+}
+
+async fn plaintext_shutdown_reaches_ergo_body() {
     let server = from_env();
     let stream = connect(
         &server.plaintext_addr().ip().to_string(),
@@ -54,6 +66,11 @@ async fn plaintext_shutdown_reaches_ergo() {
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_cap_exchange_trusts_the_test_ca() {
+    within(tls_cap_exchange_trusts_the_test_ca_body()).await;
+}
+
+#[cfg(tls)]
+async fn tls_cap_exchange_trusts_the_test_ca_body() {
     let server = from_env();
     let stream = connect(
         "localhost",
@@ -69,6 +86,11 @@ async fn tls_cap_exchange_trusts_the_test_ca() {
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_shutdown_reaches_ergo() {
+    within(tls_shutdown_reaches_ergo_body()).await;
+}
+
+#[cfg(tls)]
+async fn tls_shutdown_reaches_ergo_body() {
     let server = from_env();
     let stream = connect(
         "localhost",
@@ -83,6 +105,11 @@ async fn tls_shutdown_reaches_ergo() {
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_can_trust_only_the_test_ca() {
+    within(tls_can_trust_only_the_test_ca_body()).await;
+}
+
+#[cfg(tls)]
+async fn tls_can_trust_only_the_test_ca_body() {
     let server = from_env();
     let config = TlsConfig {
         roots: TlsRoots::Ca(fs::read(server.ca_pem_path()).unwrap()),
@@ -101,6 +128,11 @@ async fn tls_can_trust_only_the_test_ca() {
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_rejects_the_untrusted_test_ca() {
+    within(tls_rejects_the_untrusted_test_ca_body()).await;
+}
+
+#[cfg(tls)]
+async fn tls_rejects_the_untrusted_test_ca_body() {
     let server = from_env();
     let error = connect(
         "localhost",
@@ -115,6 +147,11 @@ async fn tls_rejects_the_untrusted_test_ca() {
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_rejects_a_wrong_server_name() {
+    within(tls_rejects_a_wrong_server_name_body()).await;
+}
+
+#[cfg(tls)]
+async fn tls_rejects_a_wrong_server_name_body() {
     let server = from_env();
     let mut config = tls_config(&server);
     config.server_name = Some("wrong.example".into());
@@ -131,6 +168,11 @@ async fn tls_rejects_a_wrong_server_name() {
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_presents_a_client_certificate_seen_by_ergo() {
+    within(tls_presents_a_client_certificate_seen_by_ergo_body()).await;
+}
+
+#[cfg(tls)]
+async fn tls_presents_a_client_certificate_seen_by_ergo_body() {
     let server = from_env();
     let mut config = tls_config(&server);
     config.client_certificate = Some(ClientCertificate::new(CLIENT_CERTIFICATE, CLIENT_KEY));
@@ -160,6 +202,11 @@ async fn tls_presents_a_client_certificate_seen_by_ergo() {
 #[cfg(not(tls))]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_without_a_provider_returns_a_clear_error() {
+    within(tls_without_a_provider_returns_a_clear_error_body()).await;
+}
+
+#[cfg(not(tls))]
+async fn tls_without_a_provider_returns_a_clear_error_body() {
     let error = connect(
         "name-does-not-exist.invalid",
         6697,
@@ -172,6 +219,10 @@ async fn tls_without_a_provider_returns_a_clear_error() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn a_closed_port_returns_connection_refused() {
+    within(a_closed_port_returns_connection_refused_body()).await;
+}
+
+async fn a_closed_port_returns_connection_refused_body() {
     let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let port = listener.local_addr().unwrap().port();
     // Another process could theoretically claim this port before connect runs.
@@ -187,6 +238,10 @@ async fn a_closed_port_returns_connection_refused() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn localhost_falls_back_to_the_ipv4_listener() {
+    within(localhost_falls_back_to_the_ipv4_listener_body()).await;
+}
+
+async fn localhost_falls_back_to_the_ipv4_listener_body() {
     let server = from_env();
     let addresses = ("localhost", server.plaintext_addr().port())
         .to_socket_addrs()

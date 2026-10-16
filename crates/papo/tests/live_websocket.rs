@@ -7,6 +7,8 @@
     )
 ))]
 
+mod support;
+
 #[cfg(tls)]
 use std::fs;
 use std::{io, time::Duration};
@@ -27,8 +29,14 @@ use tokio_tungstenite::{
     },
 };
 
+use support::within;
+
 #[tokio::test(flavor = "current_thread")]
 async fn plaintext_cap_exchange_prefers_binary_messages() {
+    within(plaintext_cap_exchange_prefers_binary_messages_body()).await;
+}
+
+async fn plaintext_cap_exchange_prefers_binary_messages_body() {
     let server = from_env();
     let mut stream = connect_websocket(server.websocket_url(), None)
         .await
@@ -43,6 +51,11 @@ async fn plaintext_cap_exchange_prefers_binary_messages() {
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn secure_websocket_trusts_the_test_ca() {
+    within(secure_websocket_trusts_the_test_ca_body()).await;
+}
+
+#[cfg(tls)]
+async fn secure_websocket_trusts_the_test_ca_body() {
     let server = from_env();
     let config = TlsConfig {
         roots: TlsRoots::Ca(fs::read(server.ca_pem_path()).unwrap()),
@@ -57,6 +70,10 @@ async fn secure_websocket_trusts_the_test_ca() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn writes_each_complete_line_as_one_message() {
+    within(writes_each_complete_line_as_one_message_body()).await;
+}
+
+async fn writes_each_complete_line_as_one_message_body() {
     let server = from_env();
     let mut stream = connect_websocket(server.websocket_url(), None)
         .await
@@ -76,6 +93,11 @@ async fn writes_each_complete_line_as_one_message() {
 #[tokio::test(flavor = "current_thread")]
 #[allow(clippy::result_large_err)]
 async fn retries_without_subprotocols_when_a_legacy_server_rejects_them() {
+    within(retries_without_subprotocols_when_a_legacy_server_rejects_them_body()).await;
+}
+
+#[allow(clippy::result_large_err)]
+async fn retries_without_subprotocols_when_a_legacy_server_rejects_them_body() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -139,6 +161,11 @@ async fn retries_without_subprotocols_when_a_legacy_server_rejects_them() {
 #[tokio::test(flavor = "current_thread")]
 #[allow(clippy::result_large_err)]
 async fn does_not_retry_an_unrelated_handshake_failure() {
+    within(does_not_retry_an_unrelated_handshake_failure_body()).await;
+}
+
+#[allow(clippy::result_large_err)]
+async fn does_not_retry_an_unrelated_handshake_failure_body() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -180,6 +207,11 @@ async fn does_not_retry_an_unrelated_handshake_failure() {
 #[tokio::test(flavor = "current_thread")]
 #[allow(clippy::result_large_err)]
 async fn retries_when_a_successful_handshake_omits_the_subprotocol() {
+    within(retries_when_a_successful_handshake_omits_the_subprotocol_body()).await;
+}
+
+#[allow(clippy::result_large_err)]
+async fn retries_when_a_successful_handshake_omits_the_subprotocol_body() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -225,6 +257,11 @@ async fn retries_when_a_successful_handshake_omits_the_subprotocol() {
 #[tokio::test(flavor = "current_thread")]
 #[allow(clippy::result_large_err)]
 async fn bounds_incoming_messages_at_the_extended_line_limit() {
+    within(bounds_incoming_messages_at_the_extended_line_limit_body()).await;
+}
+
+#[allow(clippy::result_large_err)]
+async fn bounds_incoming_messages_at_the_extended_line_limit_body() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -270,6 +307,11 @@ async fn bounds_incoming_messages_at_the_extended_line_limit() {
 #[tokio::test(flavor = "current_thread")]
 #[allow(clippy::result_large_err)]
 async fn answers_ping_frames_with_pong() {
+    within(answers_ping_frames_with_pong_body()).await;
+}
+
+#[allow(clippy::result_large_err)]
+async fn answers_ping_frames_with_pong_body() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -314,6 +356,10 @@ async fn answers_ping_frames_with_pong() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn rejects_a_partial_line_at_shutdown() {
+    within(rejects_a_partial_line_at_shutdown_body()).await;
+}
+
+async fn rejects_a_partial_line_at_shutdown_body() {
     let server = from_env();
     let mut stream = connect_websocket(server.websocket_url(), None)
         .await
@@ -325,6 +371,10 @@ async fn rejects_a_partial_line_at_shutdown() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn debug_redacts_buffered_wire_bytes() {
+    within(debug_redacts_buffered_wire_bytes_body()).await;
+}
+
+async fn debug_redacts_buffered_wire_bytes_body() {
     let server = from_env();
     let mut stream = connect_websocket(server.websocket_url(), None)
         .await
@@ -338,6 +388,10 @@ async fn debug_redacts_buffered_wire_bytes() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn bounds_outgoing_complete_and_partial_lines() {
+    within(bounds_outgoing_complete_and_partial_lines_body()).await;
+}
+
+async fn bounds_outgoing_complete_and_partial_lines_body() {
     let server = from_env();
     let mut complete = connect_websocket(server.websocket_url(), None)
         .await
@@ -380,6 +434,11 @@ async fn bounds_outgoing_complete_and_partial_lines() {
 #[tokio::test(flavor = "current_thread")]
 #[allow(clippy::result_large_err)]
 async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
+    within(text_subprotocol_uses_text_messages_and_close_is_eof_body()).await;
+}
+
+#[allow(clippy::result_large_err)]
+async fn text_subprotocol_uses_text_messages_and_close_is_eof_body() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
