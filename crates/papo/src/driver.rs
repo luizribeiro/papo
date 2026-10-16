@@ -57,6 +57,22 @@ pub(crate) enum CoreRequest {
     PersistenceGet,
     PersistenceSet(papo_core::PersistenceSetting),
     Metadata(papo_core::MetadataCommand),
+    Rename {
+        old: String,
+        new: String,
+        reason: String,
+    },
+    Relay {
+        channel: String,
+        nick: String,
+        text: String,
+    },
+    WebPushRegister {
+        endpoint: String,
+        p256dh: String,
+        auth: String,
+    },
+    WebPushUnregister(String),
 }
 
 impl CoreRequest {
@@ -74,6 +90,20 @@ impl CoreRequest {
             Self::PersistenceGet => session.persistence_get(now())?,
             Self::PersistenceSet(setting) => session.persistence_set(now(), setting)?,
             Self::Metadata(command) => return session.metadata(now(), command),
+            Self::Rename { old, new, reason } => return session.rename(now(), &old, &new, &reason),
+            Self::Relay {
+                channel,
+                nick,
+                text,
+            } => return session.relay(now(), &channel, &nick, &text),
+            Self::WebPushRegister {
+                endpoint,
+                p256dh,
+                auth,
+            } => return session.webpush_register(now(), &endpoint, &p256dh, &auth),
+            Self::WebPushUnregister(endpoint) => {
+                return session.webpush_unregister(now(), &endpoint);
+            }
         }
         Ok(before)
     }
@@ -249,6 +279,39 @@ pub struct Persistence<'a> {
     client: &'a Client,
 }
 
+/// Handle for Web Push subscription requests.
+pub struct WebPush<'a> {
+    client: &'a Client,
+}
+
+impl WebPush<'_> {
+    /// Registers a Web Push endpoint and its URL-safe encoded keys.
+    ///
+    /// # Errors
+    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    pub async fn register(&self, endpoint: &str, p256dh: &str, auth: &str) -> Result<(), Error> {
+        self.client
+            .core_request(CoreRequest::WebPushRegister {
+                endpoint: endpoint.into(),
+                p256dh: p256dh.into(),
+                auth: auth.into(),
+            })
+            .await
+            .map(|_| ())
+    }
+
+    /// Unregisters a Web Push endpoint.
+    ///
+    /// # Errors
+    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    pub async fn unregister(&self, endpoint: &str) -> Result<(), Error> {
+        self.client
+            .core_request(CoreRequest::WebPushUnregister(endpoint.into()))
+            .await
+            .map(|_| ())
+    }
+}
+
 impl Persistence<'_> {
     /// Requests the server's current persistence status.
     ///
@@ -360,6 +423,40 @@ impl Client {
     #[must_use]
     pub const fn persistence(&self) -> Persistence<'_> {
         Persistence { client: self }
+    }
+
+    /// Requests a channel rename.
+    ///
+    /// # Errors
+    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    pub async fn rename(&self, old: &str, new: &str, reason: &str) -> Result<(), Error> {
+        self.core_request(CoreRequest::Rename {
+            old: old.into(),
+            new: new.into(),
+            reason: reason.into(),
+        })
+        .await
+        .map(|_| ())
+    }
+
+    /// Sends a message attributed to a relayed nickname.
+    ///
+    /// # Errors
+    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    pub async fn relay(&self, channel: &str, nick: &str, text: &str) -> Result<(), Error> {
+        self.core_request(CoreRequest::Relay {
+            channel: channel.into(),
+            nick: nick.into(),
+            text: text.into(),
+        })
+        .await
+        .map(|_| ())
+    }
+
+    /// Returns a handle for Web Push subscriptions.
+    #[must_use]
+    pub const fn webpush(&self) -> WebPush<'_> {
+        WebPush { client: self }
     }
 
     /// Validates and queues an IRC message for transmission.
@@ -1502,7 +1599,11 @@ fn plan_with_stored_sts(
 fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {
     if matches!(
         close_kind,
-        Some(papo_core::CloseKind::SaslFailed | papo_core::CloseKind::AccountRequired)
+        Some(
+            papo_core::CloseKind::SaslFailed
+                | papo_core::CloseKind::AccountRequired
+                | papo_core::CloseKind::WebIrcRejected
+        )
     ) {
         return true;
     }

@@ -99,6 +99,12 @@ impl Builder {
         self
     }
 
+    /// Sets the identity asserted through a trusted `WEBIRC` gateway.
+    pub fn webirc(mut self, webirc: papo_core::WebIrc) -> Self {
+        self.config = self.config.webirc(webirc);
+        self
+    }
+
     /// Configures SASL authentication.
     pub fn sasl(mut self, sasl: Sasl) -> Self {
         self.config.sasl = Some(sasl);
@@ -135,6 +141,16 @@ impl Builder {
         S: Into<String>,
     {
         self.config.wanted_caps = caps.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Sets metadata keys subscribed on every connection.
+    pub fn metadata_subscriptions<I, S>(mut self, keys: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.config = self.config.metadata_subscriptions(keys);
         self
     }
 
