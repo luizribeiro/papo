@@ -261,19 +261,10 @@ async fn eof_reconnects_and_emits_reconnected() {
             address: "irc://irc.example.net".parse().unwrap(),
             tls: TlsConfig::default(),
         }),
-        Session::new(config().wanted_caps([
-            "draft/chathistory",
-            "labeled-response",
-            "batch",
-            "server-time",
-        ])),
+        Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration {
-            bot: false,
-            channels: vec!["#papo".into()],
-            history_on_reconnect: false,
-        },
+        super::PostRegistration::default(),
         Reconnect::exponential(),
         256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
@@ -281,8 +272,21 @@ async fn eof_reconnects_and_emits_reconnected() {
     );
     let driver = tokio::spawn(driver);
 
-    complete_history_registration(&mut first_server, &mut events).await;
+    complete_registration(&mut first_server, &mut events).await;
+    let join = tokio::spawn({
+        let client = client.clone();
+        async move { client.join("#papo").await }
+    });
     client_line(&mut first_server, b"JOIN #papo\r\n").await;
+    server_line(&mut first_server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver emily\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
+    within(join).await.unwrap().unwrap();
+    client_line(&mut first_server, b"MODE #papo\r\n").await;
+    client_line(&mut first_server, b"WHO #papo\r\n").await;
+    assert!(matches!(events.next().await, Some(Event::Joined { .. })));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::ChannelSynced { .. })
+    ));
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(client.is_connected());
@@ -298,25 +302,11 @@ async fn eof_reconnects_and_emits_reconnected() {
 
     tokio::time::advance(Duration::from_secs(2)).await;
     registration_burst(&mut second_server).await;
-    server_line(
-        &mut second_server,
-        b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",
-    )
-    .await;
-    client_line(
-        &mut second_server,
-        b"CAP REQ :draft/chathistory labeled-response batch server-time\r\n",
-    )
-    .await;
-    server_line(
-        &mut second_server,
-        b":ergo.test CAP * ACK :draft/chathistory labeled-response batch server-time\r\n",
-    )
-    .await;
+    server_line(&mut second_server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut second_server, b"CAP END\r\n").await;
     server_line(
         &mut second_server,
-        b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome back\r\n",
+        b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
     assert!(matches!(events.next().await, Some(Event::Reconnected(_))));
@@ -333,6 +323,58 @@ async fn eof_reconnects_and_emits_reconnected() {
     within(second_server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
+}
+
+#[test]
+fn rejoin_set_tracks_our_joins_parts_and_kicks() {
+    let session = Session::new(config());
+    let mut defaults = super::PostRegistration {
+        bot: false,
+        channels: vec![super::Autojoin::new(
+            "#staff",
+            Some("private-channel-key".into()),
+        )],
+        history_on_reconnect: true,
+    };
+
+    super::update_rejoin_channels(
+        &session,
+        &mut defaults,
+        &Event::Joined {
+            channel: "#papo".into(),
+            nick: "papo-driver".into(),
+        },
+    );
+    super::update_rejoin_channels(
+        &session,
+        &mut defaults,
+        &Event::Joined {
+            channel: "#visitors".into(),
+            nick: "alice".into(),
+        },
+    );
+    assert_eq!(defaults.channels.len(), 2);
+
+    super::update_rejoin_channels(
+        &session,
+        &mut defaults,
+        &Event::Parted {
+            channel: "#Papo".into(),
+            nick: "papo-driver".into(),
+            reason: None,
+        },
+    );
+    super::update_rejoin_channels(
+        &session,
+        &mut defaults,
+        &Event::Kicked {
+            channel: "#staff".into(),
+            nick: "papo-driver".into(),
+            by: "chanserv".into(),
+            reason: Some("access removed".into()),
+        },
+    );
+    assert!(defaults.channels.is_empty());
 }
 
 #[tokio::test(flavor = "current_thread")]

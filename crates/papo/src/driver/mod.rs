@@ -534,7 +534,7 @@ async fn run<S>(
     mut commands: mpsc::Receiver<Command>,
     events: EventSink,
     mut registration: RegistrationWait,
-    defaults: PostRegistration,
+    mut defaults: PostRegistration,
 ) -> Result<(), Error>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -547,7 +547,7 @@ where
         &mut commands,
         &events,
         &mut registration,
-        &defaults,
+        &mut defaults,
         &mut queued,
         &mut registered,
         None,
@@ -594,7 +594,7 @@ async fn run_connection<S>(
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
     registration: &mut RegistrationWait,
-    defaults: &PostRegistration,
+    defaults: &mut PostRegistration,
     queued: &mut VecDeque<Message>,
     registered: &mut bool,
     connection: Option<Connection>,
@@ -921,7 +921,7 @@ async fn drain<S>(
     read_marker_waiters: &mut ReadMarkerWaiters,
     catchups: &mut BTreeMap<RequestId, Catchup>,
     registration: &mut RegistrationWait,
-    defaults: &PostRegistration,
+    defaults: &mut PostRegistration,
     registered: &mut bool,
     registered_at: &mut Option<Instant>,
     sts: &mut StsActions,
@@ -1008,6 +1008,7 @@ where
                     }
                     _ => {}
                 }
+                update_rejoin_channels(session, defaults, &event);
                 if let Event::Registered(welcome) = &event {
                     after_registration(session, welcome, defaults)?;
                     registration.succeeded();
@@ -1101,6 +1102,29 @@ where
         stream.write_all(&line).await?;
     }
     Ok(None)
+}
+
+fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, event: &Event) {
+    let casemapping = session.isupport().casemapping();
+    match event {
+        Event::Joined { channel, nick } if casemapping.eq(nick, session.nick()) => {
+            if !defaults
+                .channels
+                .iter()
+                .any(|entry| casemapping.eq(&entry.channel, channel))
+            {
+                defaults.channels.push(Autojoin::new(channel, None));
+            }
+        }
+        Event::Parted { channel, nick, .. } | Event::Kicked { channel, nick, .. }
+            if casemapping.eq(nick, session.nick()) =>
+        {
+            defaults
+                .channels
+                .retain(|entry| !casemapping.eq(&entry.channel, channel));
+        }
+        _ => {}
+    }
 }
 
 fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
