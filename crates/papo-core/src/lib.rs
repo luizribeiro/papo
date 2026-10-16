@@ -595,6 +595,24 @@ impl ResponseMatcher {
                 .is_some_and(|value| value.eq_ignore_ascii_case(command))
     }
 
+    fn own_channel_departure(
+        message: &MessageRef<'_>,
+        channel: &str,
+        mapping: Casemapping,
+        own_nick: &str,
+        own_source: bool,
+    ) -> bool {
+        (message.command() == Command::Part
+            && own_source
+            && Self::target_is(message, 0, channel, mapping))
+            || (message.command() == Command::Kick
+                && Self::target_is(message, 0, channel, mapping)
+                && message
+                    .param(1)
+                    .is_some_and(|nick| mapping.eq(nick, own_nick)))
+    }
+
+    #[allow(clippy::too_many_lines)]
     fn matches(
         &self,
         message: &MessageRef<'_>,
@@ -657,6 +675,9 @@ impl ResponseMatcher {
                 let named = |index| Self::target_is(message, index, channel, mapping);
                 if message.command() == Command::Join && own_source && named(0) {
                     return Some(state.channel(channel).is_some_and(Channel::is_synced));
+                }
+                if Self::own_channel_departure(message, channel, mapping, own_nick, own_source) {
+                    return Some(true);
                 }
                 numeric.and_then(|numeric| {
                     (named(1) && (numeric == Numeric::RPL_ENDOFNAMES || numeric.is_error()))
@@ -1903,6 +1924,7 @@ impl Session {
             .collect();
         for label in expired {
             if let Some((id, _, _)) = self.requests.remove(&label) {
+                self.unlabelled_requests.retain(|request| request.id != id);
                 self.outbox.event(Event::RequestTimedOut { id });
             }
         }
@@ -1945,6 +1967,7 @@ impl Session {
         self.outbox.reset_connection();
         self.batches.reset();
         for (_, (id, _, _)) in std::mem::take(&mut self.requests) {
+            self.unlabelled_requests.retain(|request| request.id != id);
             self.outbox.event(Event::RequestAborted { id });
         }
         for request in self.unlabelled_requests.drain(..) {
@@ -2152,7 +2175,17 @@ impl Session {
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
         if self.caps.enabled().contains_key("labeled-response") {
-            return self.request(now, message);
+            let track_sync = matches!(matcher, ResponseMatcher::Join(_));
+            let id = self.request(now, message)?;
+            if track_sync {
+                self.unlabelled_requests.push_back(UnlabelledRequest {
+                    id,
+                    started: now,
+                    matcher,
+                    lines: Vec::new(),
+                });
+            }
+            return Ok(id);
         }
         self.rate_limit.advance(now);
         if self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
@@ -2592,7 +2625,8 @@ impl Session {
                     .is_some_and(|(_, _, sent)| *sent)
             })
             && self.is_own_source(message);
-        let response = self.resolve_message(message) || self.resolve_unlabelled(message);
+        let labelled_response = self.resolve_message(message);
+        let response = self.resolve_unlabelled(message) || labelled_response;
         if response && labelled_echo {
             self.enqueue_labelled_echo(message);
         }
@@ -2758,13 +2792,19 @@ impl Session {
         } else {
             vec![message.to_owned()]
         };
-        self.outbox.event(Event::Response(Response {
-            id,
-            sent: if sent { sent_info(message) } else { None },
-            lines,
-            history: None,
-            history_targets: None,
-        }));
+        if !self
+            .unlabelled_requests
+            .iter()
+            .any(|request| request.id == id)
+        {
+            self.outbox.event(Event::Response(Response {
+                id,
+                sent: if sent { sent_info(message) } else { None },
+                lines,
+                history: None,
+                history_targets: None,
+            }));
+        }
         true
     }
 
@@ -2903,13 +2943,20 @@ impl Session {
         history_targets: Option<Vec<(String, std::time::SystemTime)>>,
     ) {
         let request = self.requests.remove(label);
+        let deferred = request.as_ref().is_some_and(|(id, _, _)| {
+            self.unlabelled_requests
+                .iter()
+                .any(|pending| pending.id == *id)
+        });
         let context = DispatchContext::from_batch_type(batch_type);
         if history.is_none() || request.is_none() {
             for message in &messages {
                 self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
             }
         }
-        if let Some((id, _, sent)) = request {
+        if let Some((id, _, sent)) = request
+            && !deferred
+        {
             let echoed = sent.then(|| {
                 messages
                     .iter()

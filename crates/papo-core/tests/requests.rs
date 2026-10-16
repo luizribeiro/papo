@@ -663,10 +663,16 @@ fn does_not_report_sent_info_for_a_non_message_request() {
 }
 
 #[test]
-fn labelled_join_updates_state_before_resolving() {
+fn labelled_join_waits_for_state_sync_before_resolving() {
     let now = Instant::now();
     let mut session = labelled_session(now);
-    let id = request(&mut session, now, Message::join("#papo"));
+    let id = session
+        .request_with_matcher(
+            now,
+            Message::join("#papo"),
+            ResponseMatcher::Join("#papo".into()),
+        )
+        .unwrap();
     session.handle_line(
         now,
         b"@label=0 :papo!~papo@localhost JOIN #papo papo :Papo Bot",
@@ -676,11 +682,73 @@ fn labelled_join_updates_state_before_resolving() {
         session.poll_event(),
         Some(Event::Joined { channel, nick }) if channel == "#papo" && nick == "papo"
     ));
+    assert_eq!(session.poll_event(), None);
+    session.handle_line(now, b":ergo.test 353 papo = #papo :@papo alice");
+    session.handle_line(now, b":ergo.test 366 papo #papo :End of /NAMES list");
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Response(response)) if response.id == id && response.lines.len() == 1
+        Some(Event::ChannelSynced { channel }) if channel == "#papo"
     ));
-    assert!(session.state().channel("#papo").is_some());
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id && response.lines.len() == 2
+    ));
+    assert!(session.state().channel("#papo").unwrap().is_synced());
+}
+
+#[test]
+fn labelled_join_times_out_once_when_sync_never_finishes() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let id = session
+        .request_with_matcher(
+            now,
+            Message::join("#papo"),
+            ResponseMatcher::Join("#papo".into()),
+        )
+        .unwrap();
+    session.handle_line(
+        now,
+        b"@label=0 :papo!~papo@localhost JOIN #papo * :Papo Bot",
+    );
+    while session.poll_event().is_some() {}
+
+    session.handle_timeout(now + std::time::Duration::from_secs(30));
+    assert_eq!(
+        std::iter::from_fn(|| session.poll_event())
+            .filter(|event| matches!(event, Event::RequestTimedOut { id: timed_out } if *timed_out == id))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn own_part_or_kick_ends_a_labelled_join_during_sync() {
+    for departure in [
+        ":papo!~papo@localhost PART #papo :Registration required",
+        ":ergo.test KICK #papo papo :Channel is full",
+    ] {
+        let now = Instant::now();
+        let mut session = labelled_session(now);
+        let id = session
+            .request_with_matcher(
+                now,
+                Message::join("#papo"),
+                ResponseMatcher::Join("#papo".into()),
+            )
+            .unwrap();
+        session.handle_line(
+            now,
+            b"@label=0 :papo!~papo@localhost JOIN #papo * :Papo Bot",
+        );
+        session.handle_line(now, departure.as_bytes());
+
+        let response = std::iter::from_fn(|| session.poll_event()).find_map(|event| match event {
+            Event::Response(response) if response.id == id => Some(response),
+            _ => None,
+        });
+        assert_eq!(response.unwrap().lines.len(), 2);
+    }
 }
 
 #[test]
