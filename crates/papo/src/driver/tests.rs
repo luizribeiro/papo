@@ -1852,25 +1852,35 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
 
-    client.typing("#papo", Typing::Active).await.unwrap();
+    within(client.typing("#papo", Typing::Active))
+        .await
+        .unwrap();
     client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;
-    client.typing("#PAPO", Typing::Active).await.unwrap();
+    within(client.typing("#PAPO", Typing::Active))
+        .await
+        .unwrap();
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
             .await
             .is_err()
     );
     tokio::time::advance(Duration::from_secs(2)).await;
-    client.typing("#papo", Typing::Active).await.unwrap();
-    client.typing("#papo", Typing::Paused).await.unwrap();
-    client.typing("#papo", Typing::Done).await.unwrap();
+    within(client.typing("#papo", Typing::Active))
+        .await
+        .unwrap();
+    within(client.typing("#papo", Typing::Paused))
+        .await
+        .unwrap();
+    within(client.typing("#papo", Typing::Done)).await.unwrap();
     client_line(
         &mut server,
         b"@+typing=paused TAGMSG #papo\r\n@+typing=done TAGMSG #papo\r\n",
     )
     .await;
     tokio::time::advance(Duration::from_secs(1)).await;
-    client.typing("#papo", Typing::Active).await.unwrap();
+    within(client.typing("#papo", Typing::Active))
+        .await
+        .unwrap();
     client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;
 
     server_line(
@@ -2004,7 +2014,7 @@ async fn labels_distinguish_our_echo_from_another_session() {
         b"@label=0;msgid=RfcBTzyxY120004 :papo-driver!papo@localhost PRIVMSG #papo :from this device\r\n",
     )
     .await;
-    assert!(sent.await.unwrap().is_ok());
+    assert!(within(sent).await.unwrap().is_ok());
     let echo = next_message(&mut events).await;
     assert_eq!(echo.origin(), Origin::Echo);
     assert!(!echo.is_live());
@@ -2018,8 +2028,11 @@ async fn labels_distinguish_our_echo_from_another_session() {
     assert_eq!(other.origin(), Origin::OtherSession);
     assert!(!other.is_live());
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2060,8 +2073,11 @@ async fn client_send_rejects_an_invalid_message() {
         error,
         Error::Build(papo_proto::BuildError::InvalidCommand)
     ));
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2071,11 +2087,11 @@ async fn quit_resolves_after_server_eof() {
     registration_burst(&mut server).await;
     let quit = tokio::spawn(async move { client.quit(Some("leaving for maintenance")).await });
     let mut line = [0; 31];
-    server.read_exact(&mut line).await.unwrap();
+    within(server.read_exact(&mut line)).await.unwrap();
     assert_eq!(&line, b"QUIT :leaving for maintenance\r\n");
-    server.shutdown().await.unwrap();
-    assert!(quit.await.unwrap().is_ok());
-    assert!(driver.await.unwrap().is_ok());
+    within(server.shutdown()).await.unwrap();
+    assert!(within(quit).await.unwrap().is_ok());
+    assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected { .. })
@@ -2097,13 +2113,12 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
     client_line(&mut server, b"QUIT\r\n").await;
 
     read_error.store(true, Ordering::Relaxed);
-    server
-        .write_all(b":ergo.test NOTICE papo-driver :connection closing\r\n")
+    within(server.write_all(b":ergo.test NOTICE papo-driver :connection closing\r\n"))
         .await
         .unwrap();
 
-    assert!(quit.await.unwrap().is_ok());
-    assert!(driver.await.unwrap().is_ok());
+    assert!(within(quit).await.unwrap().is_ok());
+    assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected {
@@ -2120,13 +2135,13 @@ async fn quit_times_out_after_ten_seconds() {
     registration_burst(&mut server).await;
     let quit = tokio::spawn(async move { client.quit(None).await });
     let mut line = [0; 6];
-    server.read_exact(&mut line).await.unwrap();
+    within(server.read_exact(&mut line)).await.unwrap();
     assert_eq!(&line, b"QUIT\r\n");
     tokio::time::advance(Duration::from_secs(9)).await;
     assert!(!quit.is_finished());
     tokio::time::advance(Duration::from_secs(1)).await;
-    assert!(matches!(quit.await.unwrap(), Err(Error::Timeout)));
-    assert!(driver.await.unwrap().is_ok());
+    assert!(matches!(within(quit).await.unwrap(), Err(Error::Timeout)));
+    assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected {
@@ -2143,10 +2158,10 @@ async fn dropping_every_client_sends_quit() {
     registration_burst(&mut server).await;
     drop(client);
     let mut line = [0; 6];
-    server.read_exact(&mut line).await.unwrap();
+    within(server.read_exact(&mut line)).await.unwrap();
     assert_eq!(&line, b"QUIT\r\n");
-    server.shutdown().await.unwrap();
-    assert!(driver.await.unwrap().is_ok());
+    within(server.shutdown()).await.unwrap();
+    assert!(within(driver).await.unwrap().is_ok());
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -2154,8 +2169,7 @@ async fn full_event_channel_still_serves_quit_and_its_timer() {
     let (mut server, client, events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    server
-        .write_all(b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :still queued\r\n")
+    within(server.write_all(b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :still queued\r\n"))
         .await
         .unwrap();
     while events.receiver.len() != 1 {
@@ -2164,12 +2178,12 @@ async fn full_event_channel_still_serves_quit_and_its_timer() {
 
     let quit = tokio::spawn(async move { client.quit(None).await });
     let mut line = [0; 6];
-    server.read_exact(&mut line).await.unwrap();
+    within(server.read_exact(&mut line)).await.unwrap();
     assert_eq!(&line, b"QUIT\r\n");
     tokio::time::advance(Duration::from_secs(10)).await;
 
-    assert!(matches!(quit.await.unwrap(), Err(Error::Timeout)));
-    assert!(driver.await.unwrap().is_ok());
+    assert!(matches!(within(quit).await.unwrap(), Err(Error::Timeout)));
+    assert!(within(driver).await.unwrap().is_ok());
     assert_eq!(events.receiver.len(), 1);
 }
 
@@ -2183,10 +2197,13 @@ async fn session_deadline_sends_keepalive_ping() {
     registration_burst(&mut server).await;
     tokio::time::advance(Duration::from_secs(30)).await;
     let mut ping = [0; 14];
-    server.read_exact(&mut ping).await.unwrap();
+    within(server.read_exact(&mut ping)).await.unwrap();
     assert_eq!(&ping, b"PING :papo-0\r\n");
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2227,8 +2244,11 @@ async fn client_reads_owned_state_snapshots() {
     assert!(!Arc::ptr_eq(&unchanged, &client.snapshot()));
     assert!(client.state(|state| state.channel("#papo").is_none()));
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
     assert!(!client.snapshot().connected());
 }
 
@@ -2286,8 +2306,11 @@ async fn public_state_accessors_report_the_registered_session() {
     assert_eq!(snapshot.nick(), "papo-driver");
     assert_eq!(snapshot.account(), Some("emily"));
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2407,8 +2430,11 @@ async fn every_state_change_replaces_the_snapshot() {
     let current = changed_snapshot(&client, &previous, "PART");
     assert!(current.channel("#papo").is_none());
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2440,8 +2466,11 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert_ne!(client.casemap("#PAPO[dev]"), client.casemap("#papo{dev}"));
     client.state(|state| assert!(state.has_cap("draft/no-implicit-names")));
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2474,8 +2503,8 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
     });
     assert_eq!(online, ["bob"]);
 
-    server.shutdown().await.unwrap();
-    _ = driver.await;
+    within(server.shutdown()).await.unwrap();
+    _ = within(driver).await;
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2495,7 +2524,10 @@ async fn disconnect_clears_monitor_presence_snapshot() {
     ));
     assert_eq!(client.state(|state| state.monitor_online().count()), 1);
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
     assert_eq!(client.state(|state| state.monitor_online().count()), 0);
 }
