@@ -395,7 +395,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
         },
         ScenarioSpec {
             name: "utf8only",
-            doc: "registers a Unicode nickname on a UTF-8-only server",
+            doc: "delivers UTF-8 channel text without replacement",
             requires: Requirements {
                 caps: &[],
                 isupport: &["UTF8ONLY"],
@@ -1233,16 +1233,21 @@ fn bot_mode(context: Scenario) -> ScenarioFuture {
 
 fn utf8only(context: Scenario) -> ScenarioFuture {
     Box::pin(async move {
-        let nick = papo_test_server::unique("é");
-        let connection = context.client(&nick).await?;
-        if connection.welcome.nick != nick {
-            return Err(format!(
-                "UTF-8 nickname changed from {nick:?} to {:?}",
-                connection.welcome.nick
+        let (mut receiver, sender, channel) = joined_pair(&context).await?;
+        let text = "Olá, IRC 世界";
+        sender
+            .client
+            .privmsg(&channel, text)
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut receiver.events,
+                |event| matches!(event, Event::Message(message) if message.raw_text() == text),
+                EXPECT_TIMEOUT,
             )
-            .into());
-        }
-        connection.close().await
+            .await?;
+        close_pair(receiver, sender).await
     })
 }
 
