@@ -393,6 +393,24 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
             },
             run: bot_mode,
         },
+        ScenarioSpec {
+            name: "utf8only",
+            doc: "registers a Unicode nickname on a UTF-8-only server",
+            requires: Requirements {
+                caps: &[],
+                isupport: &["UTF8ONLY"],
+            },
+            run: utf8only,
+        },
+        ScenarioSpec {
+            name: "whox",
+            doc: "parses an extended WHO reply",
+            requires: Requirements {
+                caps: &[],
+                isupport: &["WHOX"],
+            },
+            run: whox,
+        },
     ]
 }
 
@@ -1208,6 +1226,43 @@ fn bot_mode(context: Scenario) -> ScenarioFuture {
             .map_err(Failed::from)?;
         if !whois.is_bot {
             return Err("WHOIS did not report the advertised bot mode".into());
+        }
+        connection.close().await
+    })
+}
+
+fn utf8only(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = papo_test_server::unique("é");
+        let connection = context.client(&nick).await?;
+        if connection.welcome.nick != nick {
+            return Err(format!(
+                "UTF-8 nickname changed from {nick:?} to {:?}",
+                connection.welcome.nick
+            )
+            .into());
+        }
+        connection.close().await
+    })
+}
+
+fn whox(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = context.unique();
+        let connection = context.client(&nick).await?;
+        let entries = connection
+            .client
+            .who(&connection.welcome.nick)
+            .await
+            .map_err(Failed::from)?;
+        let complete = entries.iter().any(|entry| {
+            entry.nick == connection.welcome.nick
+                && !entry.user.is_empty()
+                && !entry.host.is_empty()
+                && !entry.realname.is_empty()
+        });
+        if !complete {
+            return Err("WHOX reply did not contain the registered user's identity".into());
         }
         connection.close().await
     })
