@@ -29,6 +29,15 @@ const TIMEOUT: Duration = Duration::from_secs(10);
 type ScenarioResult = Result<Completion, Failed>;
 type ScenarioFuture = Pin<Box<dyn Future<Output = ScenarioResult>>>;
 
+#[cfg(test)]
+struct RegistrationProbe(&'static str);
+
+#[cfg(test)]
+inventory::collect!(RegistrationProbe);
+
+#[cfg(test)]
+inventory::submit!(RegistrationProbe("linked"));
+
 #[derive(Clone, Copy)]
 struct ScenarioSpec {
     name: &'static str,
@@ -556,10 +565,19 @@ mod tests {
     use libtest_mimic::{Arguments, Completion, Failed, Trial};
 
     use super::{
-        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event, json_string,
-        known_failure_verdict, load_known_failures_from, required_environment_from, run_trials,
-        runtime, scenario_status,
+        CapRequirement, Event, EventSource, RegistrationProbe, Requirements, Scenario,
+        expect_event, json_string, known_failure_verdict, load_known_failures_from,
+        required_environment_from, run_trials, runtime, scenario_status,
     };
+
+    #[test]
+    fn inventory_registration_is_linked() {
+        assert!(
+            inventory::iter::<RegistrationProbe>
+                .into_iter()
+                .any(|item| item.0 == "linked")
+        );
+    }
 
     struct TestDirectory(PathBuf);
 

@@ -8,6 +8,7 @@ version.workspace = true
 publish = false
 
 [dependencies]
+inventory = "0.3.21"
 libtest-mimic = "0.8.2"
 papo = { path = "../papo", version = "=0.0.0", default-features = false, features = ["tls-ring", "websocket"] }
 papo-core = { path = "../papo-core", version = "=0.0.0" }
