@@ -5,8 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, MessageEvent, Origin, Sasl};
-use papo_proto::Source;
+use papo::{Client, Endpoint, Event, MessageEvent, Origin, Sasl, Source};
 use papo_test_server::{from_env, register_account, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -39,7 +38,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
 
         client_a.privmsg(&channel, "!ping").await.unwrap();
         let incoming = wait_message(&mut events_b, |message| {
-            message.text() == "!ping" && source_nick(message) == Some(nick_a.as_str())
+            message.text() == "!ping" && source_nick(message).as_deref() == Some(nick_a.as_str())
         })
         .await;
         assert!(incoming.is_live());
@@ -48,7 +47,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         incoming.reply("pong").await.unwrap();
 
         let response = wait_message(&mut events_a, |message| {
-            message.text() == "pong" && source_nick(message) == Some(nick_b.as_str())
+            message.text() == "pong" && source_nick(message).as_deref() == Some(nick_b.as_str())
         })
         .await;
         assert_eq!(response.reply_to(), Some(ping_msgid.as_str()));
@@ -243,9 +242,9 @@ async fn wait_message(
     }
 }
 
-fn source_nick(message: &MessageEvent) -> Option<&str> {
+fn source_nick(message: &MessageEvent) -> Option<String> {
     match message.source() {
         Some(Source::User { nick, .. }) => Some(nick),
-        Some(Source::Server(_)) | None => None,
+        _ => None,
     }
 }

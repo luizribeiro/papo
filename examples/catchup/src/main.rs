@@ -2,8 +2,7 @@
 
 use std::{collections::BTreeSet, env, error::Error, io, time::UNIX_EPOCH};
 
-use papo::{Client, Endpoint, Event, MessageKind, Sasl};
-use papo_proto::Source;
+use papo::{Client, Endpoint, Event, MessageKind, Sasl, Source};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -45,10 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     MessageKind::Privmsg | MessageKind::Notice | MessageKind::Action
                 ) && !matches!(
                     message.source(),
-                    Some(Source::User {
-                        nick: "HistServ",
-                        ..
-                    })
+                    Some(Source::User { ref nick, .. }) if nick == "HistServ"
                 ) {
                     println!("{channel} {}", message.text());
                 }

@@ -10,7 +10,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::{
     Error, Feature, InvalidInput, Unsupported, UnsupportedReason,
     driver::{Command, CoreRequest},
-    event,
+    event_impl,
     state::State,
 };
 
@@ -260,7 +260,7 @@ impl Client {
         let state = self.state();
         Self::require_feature(&state, Feature::Reactions)?;
         let denied = state.isupport().clienttagdeny();
-        let reply_tag = event::allowed_alias(&denied, "+reply", "+draft/reply")
+        let reply_tag = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
             .expect("feature preflight requires an allowed reply tag");
         if denied.denies(reaction_tag) {
             return Err(Error::Unsupported(Unsupported::new(

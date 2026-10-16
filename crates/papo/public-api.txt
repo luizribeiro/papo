@@ -86,6 +86,23 @@ pub const papo::cap::STS: &str
 pub const papo::cap::USERHOST_IN_NAMES: &str
 pub const papo::cap::WEBPUSH: &str
 pub const papo::cap::WHOAMI: &str
+pub mod papo::event
+#[non_exhaustive] pub enum papo::event::Source
+#[non_exhaustive] pub papo::event::Source::Server
+pub papo::event::Source::Server::name: alloc::string::String
+#[non_exhaustive] pub papo::event::Source::User
+pub papo::event::Source::User::host: core::option::Option<alloc::string::String>
+pub papo::event::Source::User::nick: alloc::string::String
+pub papo::event::Source::User::user: core::option::Option<alloc::string::String>
+impl papo::Source
+pub fn papo::Source::nick(&self) -> core::option::Option<&str>
+pub struct papo::event::TagMsg
+impl papo::event::TagMsg
+pub fn papo::event::TagMsg::reaction(&self) -> core::option::Option<papo_proto::client_tags::Reaction>
+pub fn papo::event::TagMsg::source(&self) -> core::option::Option<&str>
+pub fn papo::event::TagMsg::tags(&self) -> &[(alloc::string::String, core::option::Option<alloc::string::String>)]
+pub fn papo::event::TagMsg::target(&self) -> &str
+pub fn papo::event::TagMsg::typing(&self) -> core::option::Option<papo_proto::client_tags::Typing>
 pub mod papo::sts
 pub use papo::sts::MemoryStsStore
 pub use papo::sts::StsPolicy
@@ -331,6 +348,15 @@ pub papo::RegistrationError::SaslUnavailable
 pub papo::RegistrationError::StsUpgradeLoop
 pub papo::RegistrationError::StsUpgradeLoop::host: alloc::string::String
 pub papo::RegistrationError::Timeout
+#[non_exhaustive] pub enum papo::Source
+#[non_exhaustive] pub papo::Source::Server
+pub papo::Source::Server::name: alloc::string::String
+#[non_exhaustive] pub papo::Source::User
+pub papo::Source::User::host: core::option::Option<alloc::string::String>
+pub papo::Source::User::nick: alloc::string::String
+pub papo::Source::User::user: core::option::Option<alloc::string::String>
+impl papo::Source
+pub fn papo::Source::nick(&self) -> core::option::Option<&str>
 pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
@@ -497,7 +523,7 @@ pub fn papo::MessageEvent::relayed_by(&self) -> core::option::Option<&str>
 pub async fn papo::MessageEvent::reply(&self, &str) -> core::result::Result<papo::Sent, papo::Error>
 pub fn papo::MessageEvent::reply_target(&self) -> &str
 pub fn papo::MessageEvent::reply_to(&self) -> core::option::Option<&str>
-pub fn papo::MessageEvent::source(&self) -> core::option::Option<papo_proto::source::Source<'_>>
+pub fn papo::MessageEvent::source(&self) -> core::option::Option<papo::Source>
 pub fn papo::MessageEvent::target(&self) -> &str
 pub fn papo::MessageEvent::text(&self) -> &str
 pub fn papo::MessageEvent::time(&self) -> std::time::SystemTime

@@ -8,7 +8,8 @@ mod client;
 mod driver;
 mod entropy;
 mod error;
-mod event;
+#[path = "event.rs"]
+mod event_impl;
 mod ext;
 mod io_compat;
 mod reconnect;
@@ -30,7 +31,7 @@ pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
     RegistrationError, ServerError,
 };
-pub use event::{Event, MessageEvent, MessageKind, Origin};
+pub use event_impl::{Event, MessageEvent, MessageKind, Origin, Source};
 pub use ext::accounts::{AccountRegistration, NewAccount};
 pub use ext::history::{History, HistoryPage, HistoryReference, HistoryRequest};
 pub use ext::metadata::Metadata;
@@ -48,6 +49,11 @@ pub use papo_proto::{
 pub use reconnect::Reconnect;
 pub use requests::{ChannelInfo, ListEntry, ListFilter, WhoEntry, Whois};
 pub use state::State;
+
+/// Payloads carried by [`Event`].
+pub mod event {
+    pub use crate::event_impl::{Source, TagMsg};
+}
 
 /// Strict Transport Security policy stores.
 pub mod sts;

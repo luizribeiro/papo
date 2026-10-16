@@ -7,11 +7,14 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use papo_proto::{
-    Ctcp, Isupport, Message, MessageRef, Reaction, Source, Typing, strip_formatting, time,
-};
+use papo_proto::{Ctcp, Isupport, Message, MessageRef, Reaction, Typing, strip_formatting, time};
 
 use crate::{Client, Error};
+
+#[path = "event/source.rs"]
+mod source;
+
+pub use source::Source;
 
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -117,7 +120,7 @@ impl MessageEvent {
         received_at: SystemTime,
     ) -> Result<Self, Message> {
         let echo = raw.as_ref().source().is_some_and(|source| {
-            let Source::User { nick: source, .. } = source else {
+            let papo_proto::Source::User { nick: source, .. } = source else {
                 return false;
             };
             isupport.casemapping().eq(source, nick)
@@ -273,9 +276,9 @@ impl MessageEvent {
 
     #[cfg(feature = "bot")]
     pub(crate) fn sender_nick(&self) -> Option<&str> {
-        match self.source()? {
-            Source::User { nick, .. } => Some(nick),
-            Source::Server(_) => None,
+        match self.raw.as_ref().source()? {
+            papo_proto::Source::User { nick, .. } => Some(nick),
+            papo_proto::Source::Server(_) => None,
         }
     }
 
@@ -335,8 +338,8 @@ impl MessageEvent {
 
     /// Returns the parsed source, when the server supplied one.
     #[must_use]
-    pub fn source(&self) -> Option<Source<'_>> {
-        self.raw.as_ref().source()
+    pub fn source(&self) -> Option<Source> {
+        self.raw.as_ref().source().map(Source::from_proto)
     }
 
     /// Returns the message target.
@@ -355,7 +358,7 @@ impl MessageEvent {
     #[must_use]
     pub fn reply_target(&self) -> &str {
         if self.is_private()
-            && let Some(Source::User { nick, .. }) = self.source()
+            && let Some(papo_proto::Source::User { nick, .. }) = self.raw.as_ref().source()
         {
             nick
         } else {
@@ -1043,12 +1046,12 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
-    use super::{CoreEvent, Event, MessageEvent, MessageKind, Origin, TagMsg, from_core};
+    use super::{CoreEvent, Event, MessageEvent, MessageKind, Origin, Source, TagMsg, from_core};
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session, StandardReply,
         StateLimit,
     };
-    use papo_proto::{Isupport, Message, MessageRef, ModeKind, Source, StandardReplyKind, Typing};
+    use papo_proto::{Isupport, Message, MessageRef, ModeKind, StandardReplyKind, Typing};
 
     fn event(
         message: Message,
@@ -1139,9 +1142,9 @@ mod tests {
         assert_eq!(
             channel.source(),
             Some(Source::User {
-                nick: "emily",
-                user: Some("~emily"),
-                host: Some("localhost")
+                nick: "emily".into(),
+                user: Some("~emily".into()),
+                host: Some("localhost".into())
             })
         );
 

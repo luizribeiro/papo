@@ -38,7 +38,7 @@ use crate::{
     Error, Event, InvalidInput, Reconnect,
     address::ServerAddress,
     client::{Client, Sent},
-    event,
+    event_impl as event,
     state::State,
     transport::TlsConfig,
 };
