@@ -11,14 +11,13 @@ use std::{
 };
 
 use thiserror::Error;
-use tokio::{
-    io::{AsyncRead, AsyncWrite, ReadBuf},
-    net::TcpStream,
-};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+#[cfg(sockets)]
+use tokio::net::TcpStream;
 #[cfg(tls)]
 use tokio_rustls::client::TlsStream;
 
-#[cfg(feature = "websocket")]
+#[cfg(all(feature = "websocket", sockets))]
 mod websocket;
 
 #[cfg(test)]
@@ -108,13 +107,17 @@ pub struct Stream {
 
 #[derive(Debug)]
 enum StreamInner {
+    #[cfg(sockets)]
     Tcp(TcpStream),
     #[cfg(tls)]
     Tls(Box<TlsStream<TcpStream>>),
-    #[cfg(feature = "websocket")]
+    #[cfg(all(feature = "websocket", sockets))]
     WebSocket(Box<websocket::WebSocket>),
     #[cfg(all(test, feature = "websocket"))]
     BrokenPeer,
+    #[cfg(not(sockets))]
+    #[allow(dead_code)]
+    Unavailable,
 }
 
 impl Stream {
@@ -123,13 +126,16 @@ impl Stream {
     #[cfg(test)]
     pub const fn is_secure(&self) -> bool {
         match &self.inner {
+            #[cfg(sockets)]
             StreamInner::Tcp(_) => false,
             #[cfg(tls)]
             StreamInner::Tls(_) => true,
-            #[cfg(feature = "websocket")]
+            #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => stream.is_secure(),
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => false,
+            #[cfg(not(sockets))]
+            StreamInner::Unavailable => false,
         }
     }
 
@@ -138,13 +144,14 @@ impl Stream {
     #[cfg(test)]
     pub fn websocket_subprotocol(&self) -> Option<&str> {
         match &self.inner {
-            #[cfg(feature = "websocket")]
+            #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => stream.subprotocol(),
             _ => None,
         }
     }
 }
 
+#[cfg_attr(not(sockets), allow(unused_variables))]
 impl AsyncRead for Stream {
     fn poll_read(
         mut self: Pin<&mut Self>,
@@ -152,17 +159,21 @@ impl AsyncRead for Stream {
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         match &mut self.inner {
+            #[cfg(sockets)]
             StreamInner::Tcp(stream) => Pin::new(stream).poll_read(context, buffer),
             #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_read(context, buffer),
-            #[cfg(feature = "websocket")]
+            #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_read(context, buffer),
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
+            #[cfg(not(sockets))]
+            StreamInner::Unavailable => Poll::Ready(Err(transport_unavailable())),
         }
     }
 }
 
+#[cfg_attr(not(sockets), allow(unused_variables))]
 impl AsyncWrite for Stream {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -170,39 +181,53 @@ impl AsyncWrite for Stream {
         buffer: &[u8],
     ) -> Poll<Result<usize, io::Error>> {
         match &mut self.inner {
+            #[cfg(sockets)]
             StreamInner::Tcp(stream) => Pin::new(stream).poll_write(context, buffer),
             #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_write(context, buffer),
-            #[cfg(feature = "websocket")]
+            #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_write(context, buffer),
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
+            #[cfg(not(sockets))]
+            StreamInner::Unavailable => Poll::Ready(Err(transport_unavailable())),
         }
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut self.inner {
+            #[cfg(sockets)]
             StreamInner::Tcp(stream) => Pin::new(stream).poll_flush(context),
             #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_flush(context),
-            #[cfg(feature = "websocket")]
+            #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_flush(context),
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
+            #[cfg(not(sockets))]
+            StreamInner::Unavailable => Poll::Ready(Err(transport_unavailable())),
         }
     }
 
     fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut self.inner {
+            #[cfg(sockets)]
             StreamInner::Tcp(stream) => Pin::new(stream).poll_shutdown(context),
             #[cfg(tls)]
             StreamInner::Tls(stream) => Pin::new(stream).poll_shutdown(context),
-            #[cfg(feature = "websocket")]
+            #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_shutdown(context),
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
+            #[cfg(not(sockets))]
+            StreamInner::Unavailable => Poll::Ready(Err(transport_unavailable())),
         }
     }
+}
+
+#[cfg(not(sockets))]
+fn transport_unavailable() -> io::Error {
+    io::Error::new(io::ErrorKind::Unsupported, "transport is unavailable")
 }
 
 #[cfg(all(test, feature = "websocket"))]
@@ -244,7 +269,7 @@ pub enum ConnectError {
     #[error("TLS support is disabled; enable tls-ring or tls-aws-lc")]
     TlsUnavailable,
     /// WebSocket URL parsing or negotiation failed.
-    #[cfg(feature = "websocket")]
+    #[cfg(all(feature = "websocket", sockets))]
     #[error("WebSocket failed: {0}")]
     WebSocket(#[source] tokio_tungstenite::tungstenite::Error),
 }
@@ -376,12 +401,12 @@ fn tls_connector(
     ))
 }
 
-#[cfg(feature = "tls-ring")]
+#[cfg(all(tls, feature = "tls-ring"))]
 fn tls_provider() -> Arc<rustls::crypto::CryptoProvider> {
     Arc::new(rustls::crypto::ring::default_provider())
 }
 
-#[cfg(all(not(feature = "tls-ring"), feature = "tls-aws-lc"))]
+#[cfg(all(tls, not(feature = "tls-ring"), feature = "tls-aws-lc"))]
 fn tls_provider() -> Arc<rustls::crypto::CryptoProvider> {
     Arc::new(rustls::crypto::aws_lc_rs::default_provider())
 }

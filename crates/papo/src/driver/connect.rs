@@ -11,7 +11,9 @@ use super::{
     Connector, EventSink, PostRegistration, RegistrationWait, SLOW_CONSUMER_REASON,
     STABLE_CONNECTION, StsActions, enqueue_event, finish, now, run_connection,
 };
-use crate::{Error, Event, InvalidInput, Reconnect, address::Protocol, transport};
+#[cfg(sockets)]
+use crate::address::Protocol;
+use crate::{Error, Event, InvalidInput, Reconnect, transport};
 
 pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::Stream, Error> {
     #[cfg(sockets)]
@@ -42,7 +44,12 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
             .await
             .map_err(Error::Connect)
     }
-    #[cfg(not(sockets))]
+    #[cfg(browser)]
+    {
+        _ = plan;
+        Err(Error::Unsupported("browser transport"))
+    }
+    #[cfg(all(not(browser), not(sockets)))]
     {
         _ = plan;
         Err(Error::Unsupported("outbound sockets"))
@@ -445,7 +452,12 @@ fn plan_with_stored_sts(base: &ConnectionPlan, store: &mut dyn StsStore) -> Conn
     plan
 }
 
+#[cfg_attr(not(any(browser, tls)), allow(unused_variables))]
 pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {
+    #[cfg(browser)]
+    if matches!(error, Error::Unsupported("browser transport")) {
+        return true;
+    }
     if matches!(
         close_kind,
         Some(

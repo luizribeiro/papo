@@ -244,6 +244,7 @@ impl RegistrationWait {
 #[derive(Clone)]
 pub(crate) struct ConnectionPlan {
     pub(crate) address: ServerAddress,
+    #[cfg_attr(browser, allow(dead_code))]
     pub(crate) tls: TlsConfig,
 }
 

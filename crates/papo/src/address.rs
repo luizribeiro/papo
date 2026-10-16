@@ -244,6 +244,7 @@ impl ServerAddress {
         matches!(self.protocol, Protocol::Ircs | Protocol::Wss)
     }
 
+    #[cfg(sockets)]
     pub(crate) fn websocket_url(&self) -> Option<String> {
         let scheme = match self.protocol {
             Protocol::Ws => "ws",
