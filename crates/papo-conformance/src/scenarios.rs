@@ -883,14 +883,7 @@ fn monitor(context: Scenario) -> ScenarioFuture {
         context
             .expect(
                 &mut observer.events,
-                |event| match event {
-                    Event::MonitorOnline { nick, .. } => nick == &target_nick,
-                    Event::Raw(message) => {
-                        let message = message.as_ref();
-                        message.command_is("730") && message.param(1) == Some(target_nick.as_str())
-                    }
-                    _ => false,
-                },
+                |event| matches!(event, Event::MonitorOnline { nick, .. } if nick == &target_nick),
                 EXPECT_TIMEOUT,
             )
             .await

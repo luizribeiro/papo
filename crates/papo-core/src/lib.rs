@@ -1374,10 +1374,10 @@ pub enum Event {
     MonitorOnline {
         /// The monitored nickname.
         nick: String,
-        /// The user's current username.
-        user: String,
-        /// The user's current hostname.
-        host: String,
+        /// The user's current username, when supplied by the server.
+        user: Option<String>,
+        /// The user's current hostname, when supplied by the server.
+        host: Option<String>,
     },
     /// A monitored nickname went offline.
     MonitorOffline {

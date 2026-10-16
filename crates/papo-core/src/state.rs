@@ -155,7 +155,7 @@ impl State {
             let user = self
                 .users
                 .entry(CaseKey::new(nick, self.casemapping))
-                .or_insert_with(|| User::new(nick, Some(username), Some(host)));
+                .or_insert_with(|| User::new(nick, username, host));
             user.monitored = true;
         }
         self.users

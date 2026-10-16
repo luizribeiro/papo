@@ -825,10 +825,10 @@ pub enum Event {
     MonitorOnline {
         /// The monitored nickname.
         nick: String,
-        /// The user's current username.
-        user: String,
-        /// The user's current hostname.
-        host: String,
+        /// The user's current username, when supplied by the server.
+        user: Option<String>,
+        /// The user's current hostname, when supplied by the server.
+        host: Option<String>,
     },
     /// A monitored nickname went offline.
     MonitorOffline {
@@ -1687,15 +1687,23 @@ mod tests {
     }
 
     #[test]
-    fn maps_monitor_online() {
+    fn maps_monitor_online_with_and_without_userhost() {
         assert!(matches!(
             forwarded(papo_core::Event::MonitorOnline {
                 nick: "alice".into(),
-                user: "~alice".into(),
-                host: "cloak.example".into(),
+                user: Some("~alice".into()),
+                host: Some("cloak.example".into()),
             }),
             Event::MonitorOnline { nick, user, host }
-                if nick == "alice" && user == "~alice" && host == "cloak.example"
+                if nick == "alice" && user.as_deref() == Some("~alice") && host.as_deref() == Some("cloak.example")
+        ));
+        assert!(matches!(
+            forwarded(papo_core::Event::MonitorOnline {
+                nick: "bob".into(),
+                user: None,
+                host: None,
+            }),
+            Event::MonitorOnline { nick, user: None, host: None } if nick == "bob"
         ));
     }
 

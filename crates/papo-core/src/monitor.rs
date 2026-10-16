@@ -18,17 +18,17 @@ pub(super) struct Monitor {
 enum Presence {
     Online {
         nick: String,
-        user: String,
-        host: String,
+        user: Option<String>,
+        host: Option<String>,
     },
     Offline(String),
 }
 
 impl Monitor {
-    pub(super) fn online(&self) -> impl Iterator<Item = (&str, &str, &str)> {
+    pub(super) fn online(&self) -> impl Iterator<Item = (&str, Option<&str>, Option<&str>)> {
         self.presence.iter().filter_map(|presence| match presence {
             Presence::Online { nick, user, host } => {
-                Some((nick.as_str(), user.as_str(), host.as_str()))
+                Some((nick.as_str(), user.as_deref(), host.as_deref()))
             }
             Presence::Offline(_) => None,
         })
@@ -186,18 +186,18 @@ impl Monitor {
                 };
                 let mut handled = false;
                 for entry in entries.split(',') {
-                    if let Some((nick, user, host)) = parse_mask(entry) {
+                    if let Some((nick, user, host)) = parse_entry(entry) {
                         handled = true;
                         let next = Presence::Online {
                             nick: nick.to_owned(),
-                            user: user.to_owned(),
-                            host: host.to_owned(),
+                            user: user.map(str::to_owned),
+                            host: host.map(str::to_owned),
                         };
                         if self.replace_presence(nick, next, isupport) {
                             outbox.event(Event::MonitorOnline {
                                 nick: nick.to_owned(),
-                                user: user.to_owned(),
-                                host: host.to_owned(),
+                                user: user.map(str::to_owned),
+                                host: host.map(str::to_owned),
                             });
                         }
                     }
@@ -281,10 +281,16 @@ impl Presence {
     }
 }
 
-fn parse_mask(mask: &str) -> Option<(&str, &str, &str)> {
-    let (nick, userhost) = mask.split_once('!')?;
+fn parse_entry(entry: &str) -> Option<(&str, Option<&str>, Option<&str>)> {
+    let Some((nick, userhost)) = entry.split_once('!') else {
+        return (!entry.is_empty()).then_some((entry, None, None));
+    };
     let (user, host) = userhost.split_once('@')?;
-    (!nick.is_empty() && !user.is_empty() && !host.is_empty()).then_some((nick, user, host))
+    (!nick.is_empty() && !user.is_empty() && !host.is_empty()).then_some((
+        nick,
+        Some(user),
+        Some(host),
+    ))
 }
 
 fn transmit_chunks(operation: &str, nicks: &[String], outbox: &mut Outbox) {

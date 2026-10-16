@@ -181,9 +181,10 @@ fn tracks_online_offline_and_list_full_replies() {
     registered()
         .update(|session| session.monitor_add(["alice", "bob", "carol"]))
         .client("MONITOR + alice,bob,carol")
-        .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob!bob@users.example")
-        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "alice" && user == "~alice" && host == "cloak.example"))
-        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "bob" && user == "bob" && host == "users.example"))
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob,carol!carol@staff.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "alice" && user.as_deref() == Some("~alice") && host.as_deref() == Some("cloak.example")))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "bob" && user.is_none() && host.is_none()))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "carol" && user.as_deref() == Some("carol") && host.as_deref() == Some("staff.example")))
         .inspect(|session| {
             let mut online: Vec<_> = session
                 .state()
@@ -195,12 +196,15 @@ fn tracks_online_offline_and_list_full_replies() {
                 online,
                 [
                     ("alice", Some("~alice"), Some("cloak.example")),
-                    ("bob", Some("bob"), Some("users.example")),
+                    ("bob", None, None),
+                    ("carol", Some("carol"), Some("staff.example")),
                 ]
             );
         })
-        .server(":ergo.test 730 papo :bob!bob@users.example")
+        .server(":ergo.test 730 papo :bob")
         .no_event()
+        .server(":ergo.test 730 papo :bob!bob@users.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "bob" && user.as_deref() == Some("bob") && host.as_deref() == Some("users.example")))
         .server(":ergo.test 730 papo :ALICE!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "ALICE"))
         .server(":ergo.test 731 papo :alice")
