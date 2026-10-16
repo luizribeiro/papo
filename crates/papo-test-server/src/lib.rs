@@ -10,7 +10,8 @@ mod environment;
 mod ergo;
 #[cfg(not(target_family = "wasm"))]
 mod server;
-#[cfg(all(test, not(target_family = "wasm")))]
+#[cfg(not(target_family = "wasm"))]
+#[allow(dead_code)]
 mod unrealircd;
 
 pub use account::{register_account, register_account_at};
