@@ -99,6 +99,7 @@
         ergochat = pkgs.callPackage ./nix/ergochat.nix { };
         unrealircd = pkgs.callPackage ./nix/unrealircd.nix { };
         solanum = pkgs.solanum.overrideAttrs (old: {
+          patches = (old.patches or [ ]) ++ [ ./nix/solanum-numeric-dns-port.patch ];
           postPatch = (old.postPatch or "") + ''
             substituteInPlace ircd/bandbi.c --replace-fail \
               'rb_setenv("BANDB_DBPATH", ircd_paths[IRCD_PATH_BANDB], 1);' \

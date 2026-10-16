@@ -57,7 +57,7 @@ connect "services.papo.test" {{ host = "127.0.0.1"; port = 0; send_password = "p
 service {{ name = "services.papo.test"; }};
 exempt {{ ip = "127.0.0.1"; }};
 channel {{ use_invex = yes; use_except = yes; no_create_on_split = no; no_join_on_split = no; disable_local_channels = no; displayed_usercount = 0; autochanmodes = "+nt"; invite_notify_notice = no; }};
-general {{ throttle_count = 100; pace_wait_simple = 0 second; pace_wait = 0 second; sasl_service = "SaslServ"; max_monitor = 100; post_registration_delay = 0 seconds; }};
+general {{ throttle_count = 100; pace_wait_simple = 0 second; pace_wait = 0 second; connect_timeout = 1 second; sasl_service = "SaslServ"; max_monitor = 100; post_registration_delay = 0 seconds; }};
 modules {{ path = "{modules}"; path = "{modules}/autoload"; }};
 "#,
                 cert = path("server.pem"),
@@ -70,7 +70,7 @@ modules {{ path = "{modules}"; path = "{modules}/autoload"; }};
         atheme::write_config(
             directory.path(),
             atheme_modules,
-            "charybdis",
+            "solanum",
             "irc.papo.test",
             self.services.port(),
         )
@@ -96,7 +96,8 @@ mod tests {
         let ircd = fs::read_to_string(directory.path().join("solanum.conf")).unwrap();
         assert!(ircd.contains("extensions/tag_message_id"));
         assert!(ircd.contains(&format!("sslport = {}", config.tls.port())));
+        assert!(ircd.contains("connect_timeout = 1 second"));
         let atheme = fs::read_to_string(directory.path().join("atheme.conf")).unwrap();
-        assert!(atheme.contains("/atheme/modules/protocol/charybdis"));
+        assert!(atheme.contains("/atheme/modules/protocol/solanum"));
     }
 }

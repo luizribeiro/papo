@@ -1,0 +1,7 @@
+diff --git a/authd/reslib.c b/authd/reslib.c
+index 6fe5e63..11bfa94 100644
+--- a/authd/reslib.c
++++ b/authd/reslib.c
+@@ -233 +233 @@ add_nameserver(const char *arg)
+-  if (getaddrinfo(arg, "domain", &hints, &res))
++  if (getaddrinfo(arg, "53", &hints, &res))
