@@ -12,7 +12,7 @@ async fn extended_join(context: Scenario) -> ScenarioResult {
     let (receiver, sender, _channel) = joined_pair(&context).await?;
     let observed = receiver
         .client
-        .snapshot()
+        .state()
         .user(&sender.welcome.nick)
         .and_then(papo::User::realname)
         == Some("papo conformance client");
@@ -28,7 +28,7 @@ async fn userhost_in_names(context: Scenario) -> ScenarioResult {
     let (receiver, sender, _channel) = joined_pair(&context).await?;
     let userhost = receiver
         .client
-        .snapshot()
+        .state()
         .user(&sender.welcome.nick)
         .map(|user| {
             (
@@ -52,7 +52,7 @@ async fn whox(context: Scenario) -> ScenarioResult {
         .who(&connection.welcome.nick)
         .await
         .map_err(Failed::from)?;
-    let casemapping = connection.client.snapshot().casemapping();
+    let casemapping = connection.client.state().casemapping();
     let complete = entries.iter().any(|entry| {
         casemapping.eq(&entry.nick, &connection.welcome.nick)
             && !entry.user.is_empty()
@@ -78,7 +78,7 @@ async fn multi_prefix(context: Scenario) -> ScenarioResult {
         .send(Message::new("MODE", [&channel, "+v", &first_nick]))
         .await
         .map_err(Failed::from)?;
-    let casemapping = first.client.snapshot().casemapping();
+    let casemapping = first.client.state().casemapping();
     context
         .expect(
             &mut first.events,
@@ -92,7 +92,7 @@ async fn multi_prefix(context: Scenario) -> ScenarioResult {
     join(&context, &mut second, &channel).await?;
     let prefixes = second
         .client
-        .snapshot()
+        .state()
         .channel(&channel)
         .and_then(|channel| channel.member(&first_nick))
         .map(|member| member.prefixes().to_vec());
@@ -109,7 +109,7 @@ async fn multi_prefix(context: Scenario) -> ScenarioResult {
 async fn invite_notify(context: Scenario) -> ScenarioResult {
     let (inviter, mut observer, channel) = joined_pair(&context).await?;
     let observer_nick = observer.welcome.nick.clone();
-    if !observer.client.snapshot().has_cap("invite-notify") {
+    if !observer.client.state().has_cap("invite-notify") {
         return Err("invite-notify observer did not negotiate the capability".into());
     }
     inviter
@@ -117,7 +117,7 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
         .send(Message::new("MODE", [&channel, "+o", &observer_nick]))
         .await
         .map_err(Failed::from)?;
-    let casemapping = observer.client.snapshot().casemapping();
+    let casemapping = observer.client.state().casemapping();
     context
         .expect(
             &mut observer.events,
@@ -129,7 +129,7 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
         .await?;
     let observer_is_op = observer
         .client
-        .snapshot()
+        .state()
         .channel(&channel)
         .and_then(|channel| channel.member(&observer_nick))
         .is_some_and(papo_core::Member::is_op);

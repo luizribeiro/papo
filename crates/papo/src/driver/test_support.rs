@@ -175,7 +175,7 @@ pub(crate) fn changed_snapshot(
     previous: &Arc<crate::State>,
     change: &str,
 ) -> Arc<crate::State> {
-    let current = client.snapshot();
+    let current = client.state();
     assert!(!Arc::ptr_eq(previous, &current), "stale after {change}");
     current
 }

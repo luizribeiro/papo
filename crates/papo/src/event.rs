@@ -102,7 +102,7 @@ impl MessageEvent {
         let Source::User { nick, .. } = self.source()? else {
             return None;
         };
-        match self.client.snapshot().user(nick)?.account() {
+        match self.client.state().user(nick)?.account() {
             Account::LoggedIn(account) => Some(account.clone()),
             _ => None,
         }
@@ -177,7 +177,7 @@ impl MessageEvent {
         received_at: SystemTime,
         origin: Origin,
     ) -> Result<Self, Message> {
-        let snapshot = client.snapshot();
+        let snapshot = client.state();
         let mut event = Self::new_with_context(
             message,
             None,

@@ -33,7 +33,7 @@ async fn prints_channel_state_changes_in_wire_order() {
             .unwrap();
         wait_event(&mut owner_events, |event| synced(event, &channel)).await;
         assert!(owner
-            .snapshot()
+            .state()
             .channel(&channel)
             .unwrap()
             .member(&owner_nick)

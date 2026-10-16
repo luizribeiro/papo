@@ -92,10 +92,10 @@ async fn message_accessors_use_captured_session_facts() {
 #[tokio::test(flavor = "current_thread")]
 async fn registration_is_forwarded() {
     let (mut server, client, mut events, driver) = scripted(config());
-    assert!(!client.snapshot().is_connected());
+    assert!(!client.state().is_connected());
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    assert!(client.snapshot().is_connected());
+    assert!(client.state().is_connected());
     within(server.write_all(b":ergo.test CAP * LS :\r\n"))
         .await
         .unwrap();
@@ -108,7 +108,7 @@ async fn registration_is_forwarded() {
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
-    assert!(!client.snapshot().is_connected());
+    assert!(!client.state().is_connected());
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -289,7 +289,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     ));
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
-    assert!(client.snapshot().is_connected());
+    assert!(client.state().is_connected());
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
@@ -298,7 +298,7 @@ async fn eof_reconnects_and_emits_reconnected() {
             ..
         })
     ));
-    assert!(!client.snapshot().is_connected());
+    assert!(!client.state().is_connected());
 
     tokio::time::advance(Duration::from_secs(2)).await;
     registration_burst(&mut second_server).await;
@@ -316,7 +316,7 @@ async fn eof_reconnects_and_emits_reconnected() {
             .await
             .is_err()
     );
-    assert!(client.snapshot().is_connected());
+    assert!(client.state().is_connected());
 
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut second_server, b"QUIT\r\n").await;
@@ -731,7 +731,7 @@ async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
     }
 
     within(server.shutdown()).await.unwrap();
-    while client.snapshot().is_connected() {
+    while client.state().is_connected() {
         tokio::task::yield_now().await;
     }
     within(client.quit(None)).await.unwrap();
@@ -2082,7 +2082,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
 
     assert_eq!(events.receiver.len(), 1);
     assert_eq!(
-        client.snapshot().channel("#papo").unwrap().mode('t'),
+        client.state().channel("#papo").unwrap().mode('t'),
         Some(None)
     );
     assert!(matches!(
@@ -2395,12 +2395,7 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
         b":ergo.test 005 papo-driver CLIENTTAGDENY=typing :are supported\r\n",
     )
     .await;
-    while !client
-        .snapshot()
-        .isupport()
-        .clienttagdeny()
-        .denies("typing")
-    {
+    while !client.state().isupport().clienttagdeny().denies("typing") {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
@@ -2482,7 +2477,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
         b":ergo.test CAP * DEL :draft/message-redaction\r\n",
     )
     .await;
-    while client.snapshot().has_cap("draft/message-redaction") {
+    while client.state().has_cap("draft/message-redaction") {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
@@ -2874,10 +2869,10 @@ async fn session_deadline_sends_keepalive_ping() {
 #[tokio::test(flavor = "current_thread")]
 async fn client_reads_owned_state_snapshots() {
     let (mut server, client, mut events, driver) = scripted(config());
-    assert!(!client.snapshot().is_connected());
+    assert!(!client.state().is_connected());
     let driver = tokio::spawn(driver);
     complete_registration(&mut server, &mut events).await;
-    assert!(client.snapshot().is_connected());
+    assert!(client.state().is_connected());
 
     server_line(
         &mut server,
@@ -2885,19 +2880,19 @@ async fn client_reads_owned_state_snapshots() {
     )
     .await;
     while !matches!(events.next().await, Some(Event::ChannelSynced { .. })) {}
-    let state = client.snapshot();
+    let state = client.state();
     let channel = state.channel("#papo").unwrap();
     assert!(channel.is_synced());
     assert_eq!(channel.member("EMILY").unwrap().prefixes(), &['+']);
 
-    let unchanged = client.snapshot();
+    let unchanged = client.state();
     server_line(
         &mut server,
         b":ergo.test NOTICE papo-driver :maintenance soon\r\n",
     )
     .await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
-    assert!(Arc::ptr_eq(&unchanged, &client.snapshot()));
+    assert!(Arc::ptr_eq(&unchanged, &client.state()));
 
     server_line(
         &mut server,
@@ -2905,15 +2900,15 @@ async fn client_reads_owned_state_snapshots() {
     )
     .await;
     assert!(matches!(events.next().await, Some(Event::Parted { .. })));
-    assert!(!Arc::ptr_eq(&unchanged, &client.snapshot()));
-    assert!(client.snapshot().channel("#papo").is_none());
+    assert!(!Arc::ptr_eq(&unchanged, &client.state()));
+    assert!(client.state().channel("#papo").is_none());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())
     ));
-    assert!(!client.snapshot().is_connected());
+    assert!(!client.state().is_connected());
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2942,13 +2937,13 @@ async fn public_state_accessors_report_the_registered_session() {
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
-    assert!(!client.snapshot().away());
+    assert!(!client.state().away());
 
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 :are supported\r\n:ergo.test 306 papo-driver :You have been marked as being away\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
     while !matches!(events.next().await, Some(Event::MonitorOnline { .. })) {}
 
     assert_eq!(client.nick(), "papo-driver");
-    let state = client.snapshot();
+    let state = client.state();
     assert!(state.is_me("papo-driver"));
     assert_eq!(state.account(), Some("emily"));
     assert!(state.away());
@@ -2970,7 +2965,7 @@ async fn public_state_accessors_report_the_registered_session() {
             .features()
             .any(|feature| feature == papo_core::Feature::Monitor)
     );
-    let snapshot = client.snapshot();
+    let snapshot = client.state();
     assert_eq!(snapshot.nick(), "papo-driver");
     assert_eq!(snapshot.account(), Some("emily"));
 
@@ -2988,7 +2983,7 @@ async fn every_state_change_replaces_the_snapshot() {
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
     complete_extended_monitor_registration(&mut server, &mut events).await;
-    let mut previous = client.snapshot();
+    let mut previous = client.state();
 
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #Papo\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Joined { .. })));
@@ -3126,7 +3121,7 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     .await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 
-    let state = client.snapshot();
+    let state = client.state();
     assert!(state.has_cap("no-implicit-names"));
     assert!(state.has_cap("draft/no-implicit-names"));
     assert!(!state.has_cap("message-tags"));
@@ -3171,10 +3166,10 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
 
     server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
     assert!(
-        matches!(events.next().await, Some(Event::MonitorOffline { nick }) if client.snapshot().casemapping().eq(&nick, "alice"))
+        matches!(events.next().await, Some(Event::MonitorOffline { nick }) if client.state().casemapping().eq(&nick, "alice"))
     );
     let online: Vec<_> = client
-        .snapshot()
+        .state()
         .monitor_online()
         .map(|user| user.nick().to_owned())
         .collect();
@@ -3199,12 +3194,12 @@ async fn disconnect_clears_monitor_presence_snapshot() {
         events.next().await,
         Some(Event::MonitorOnline { .. })
     ));
-    assert_eq!(client.snapshot().monitor_online().count(), 1);
+    assert_eq!(client.state().monitor_online().count(), 1);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())
     ));
-    assert_eq!(client.snapshot().monitor_online().count(), 0);
+    assert_eq!(client.state().monitor_online().count(), 0);
 }

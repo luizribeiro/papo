@@ -380,8 +380,7 @@ pub async fn papo::Client::react(&self, &papo::MessageEvent, &str) -> core::resu
 pub async fn papo::Client::reconnect(&self) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::redact(&self, &str, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::send(&self, papo_proto::message::Message) -> core::result::Result<(), papo::Error>
-pub fn papo::Client::snapshot(&self) -> alloc::rcs::arc::Arc<papo::State>
-pub fn papo::Client::state<R>(&self, impl core::ops::function::FnOnce(&papo::State) -> R) -> R
+pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub async fn papo::Client::topic(&self, &str, core::option::Option<&str>) -> core::result::Result<core::option::Option<alloc::string::String>, papo::Error>
 pub async fn papo::Client::typing(&self, &str, papo_proto::client_tags::Typing) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::unreact(&self, &papo::MessageEvent, &str) -> core::result::Result<(), papo::Error>

@@ -205,7 +205,7 @@ impl Command {
     pub async fn reply(&self, text: &str) -> Result<ReplyStatus, Error> {
         let target = self
             .client()
-            .snapshot()
+            .state()
             .casemapping()
             .fold(self.message.reply_target())
             .into_owned();
@@ -232,7 +232,7 @@ impl Command {
         };
         if !self
             .replies
-            .check(self.client().snapshot().casemapping().fold(target).as_ref())
+            .check(self.client().state().casemapping().fold(target).as_ref())
         {
             return Ok(ReplyStatus::Dropped);
         }

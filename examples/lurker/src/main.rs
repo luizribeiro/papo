@@ -91,7 +91,7 @@ fn endpoint(host: String) -> Result<Endpoint, Box<dyn Error>> {
 }
 
 fn members(client: &Client, channel: &str) -> String {
-    let state = client.snapshot();
+    let state = client.state();
     let mut members = state.channel(channel).map_or_else(Vec::new, |joined| {
         joined
             .members()

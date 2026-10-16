@@ -57,7 +57,7 @@ impl Metadata<'_> {
         .await?;
         Ok(self
             .client
-            .snapshot()
+            .state()
             .metadata(target)
             .cloned()
             .unwrap_or_default())
@@ -79,7 +79,7 @@ impl Metadata<'_> {
         .await?;
         Ok(self
             .client
-            .snapshot()
+            .state()
             .metadata(target)
             .cloned()
             .unwrap_or_default())
@@ -180,7 +180,7 @@ impl Metadata<'_> {
     /// Returns the cached metadata subscription list.
     #[must_use]
     pub fn subscriptions(&self) -> Vec<String> {
-        self.client.snapshot().metadata_subscriptions().to_vec()
+        self.client.state().metadata_subscriptions().to_vec()
     }
 
     /// Synchronizes cached metadata for a target.
@@ -233,7 +233,7 @@ mod tests {
             "https://cdn.example.net/alice.png"
         );
         assert_eq!(
-            client.snapshot().metadata("ALICE").unwrap()["avatar"].visibility,
+            client.state().metadata("ALICE").unwrap()["avatar"].visibility,
             "*"
         );
 
@@ -320,7 +320,7 @@ mod tests {
         assert!(within(subscribe).await.unwrap().is_ok());
         assert_eq!(client.metadata().subscriptions(), ["avatar", "pronouns"]);
         assert_eq!(
-            client.snapshot().metadata_subscriptions(),
+            client.state().metadata_subscriptions(),
             ["avatar", "pronouns"]
         );
 
