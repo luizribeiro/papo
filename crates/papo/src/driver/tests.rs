@@ -1739,7 +1739,8 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn typed_requests_match_unlabelled_responses() {
-    let (mut server, client, mut events, driver) = scripted(config());
+    let (mut server, client, mut events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
     let driver = tokio::spawn(driver);
     complete_registration(&mut server, &mut events).await;
 
