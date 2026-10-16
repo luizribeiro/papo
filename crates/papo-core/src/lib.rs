@@ -15,6 +15,7 @@ mod outgoing;
 mod persistence;
 mod ratelimit;
 mod registration;
+mod relaymsg;
 mod sasl;
 mod secret;
 mod state;
@@ -1029,6 +1030,8 @@ pub enum RequestError {
         /// Supplied key count.
         actual: usize,
     },
+    /// A relayed nickname contains none of the server-advertised separator characters.
+    InvalidRelayNickname,
 }
 
 /// Machine-readable reason that a session requested connection closure.
@@ -1070,6 +1073,9 @@ impl std::fmt::Display for RequestError {
             Self::TooManyMetadataSubscriptions { .. } => {
                 formatter.write_str("too many metadata subscriptions")
             }
+            Self::InvalidRelayNickname => {
+                formatter.write_str("relayed nickname does not contain an allowed separator")
+            }
         }
     }
 }
@@ -1086,7 +1092,8 @@ impl std::error::Error for RequestError {
             | Self::CustomAccountNameUnsupported
             | Self::InvalidMetadataKey
             | Self::MetadataValueTooLong { .. }
-            | Self::TooManyMetadataSubscriptions { .. } => None,
+            | Self::TooManyMetadataSubscriptions { .. }
+            | Self::InvalidRelayNickname => None,
         }
     }
 }
