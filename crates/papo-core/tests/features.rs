@@ -6,6 +6,7 @@ use papo_core::{
     Config, Event, Feature, HistoryQuery, MetadataCommand, PersistenceSetting, Session,
     Unsupported, UnsupportedReason,
 };
+use papo_proto::Message;
 use support::{Transcript, unsupported_because};
 
 const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response";
@@ -277,6 +278,7 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
         "draft/webpush",
         "draft/channel-rename",
         "draft/relaymsg",
+        "labeled-response",
     ];
     Transcript::new(
         Config::default()
@@ -284,7 +286,7 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
             .without_caps(caps),
     )
     .connect_default()
-    .server("CAP * LS :draft/metadata-3 draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg=/")
+    .server("CAP * LS :draft/metadata-3 draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg=/ labeled-response")
     .client("CAP END")
     .update(|session| {
         let now = std::time::Instant::now();
@@ -326,6 +328,10 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
         assert_eq!(
             session.relay(now, "#papo", "matrix/alice", "hello from Matrix"),
             Err(expected(Feature::Relay))
+        );
+        assert_eq!(
+            session.request(now, Message::new("WHOIS", ["alice"])),
+            Err(expected(Feature::LabeledResponse))
         );
     })
     .no_client();

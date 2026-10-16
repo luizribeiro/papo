@@ -1361,13 +1361,16 @@ mod tests {
     #[test]
     fn maps_request_untracked() {
         let now = Instant::now();
-        let mut session = Session::new(Config::default());
-        let id = session
-            .request(now, Message::new("MODE", ["#papo"]))
-            .unwrap();
-        assert!(
-            matches!(forwarded(session.poll_event().unwrap()), Event::RequestUntracked { id: mapped } if mapped == id)
-        );
+        let mut session = Session::new(Config::default().wanted_caps(["draft/persistence"]));
+        session.handle_connected(now);
+        session.handle_line(now, b"CAP * LS :draft/persistence");
+        session.handle_line(now, b"CAP * ACK :draft/persistence");
+        while session.poll_transmit().is_some() {}
+        session.persistence_get(now).unwrap();
+        assert!(matches!(
+            forwarded(session.poll_event().unwrap()),
+            Event::RequestUntracked { .. }
+        ));
     }
 
     #[test]

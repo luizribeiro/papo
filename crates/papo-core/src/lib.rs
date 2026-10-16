@@ -2329,10 +2329,21 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::PendingLimit`] when 256 labelled requests are already pending, or
+    /// Returns [`RequestError::Unsupported`] when `labeled-response` or a feature explicitly
+    /// requested by the message is unavailable,
+    /// [`RequestError::PendingLimit`] when 256 labelled requests are already pending, or
     /// [`RequestError::Build`] when the tagged message cannot be represented on the wire.
     pub fn request(&mut self, now: Instant, message: Message) -> Result<RequestId, RequestError> {
-        self.queue_request(now, message, None)
+        self.require_feature(Feature::LabeledResponse)?;
+        let feature = requested_message_feature(&message.as_ref());
+        if let Some(feature) = feature {
+            self.require_feature(feature)?;
+        }
+        self.queue_request(
+            now,
+            message,
+            Some(feature.unwrap_or(Feature::LabeledResponse)),
+        )
     }
 
     pub(crate) fn request_for_feature(
@@ -3408,6 +3419,16 @@ fn bypasses_rate_limit(line: &[u8]) -> bool {
     ]
     .iter()
     .any(|exempt| command.eq_ignore_ascii_case(exempt))
+}
+
+fn requested_message_feature(message: &MessageRef<'_>) -> Option<Feature> {
+    if message.command_is("REDACT") {
+        return Some(Feature::Redaction);
+    }
+    if message.tag("+draft/react").is_some() || message.tag("+draft/unreact").is_some() {
+        return Some(Feature::Reactions);
+    }
+    message.tag("+typing").map(|_| Feature::Typing)
 }
 
 fn encode_label(mut value: u64) -> String {

@@ -6,7 +6,8 @@ use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
 use papo_core::{
-    Config, DEFAULT_WANTED_CAPS, Event, Feature, RateLimit, RequestError, Secret, Session, TextKind,
+    Config, DEFAULT_WANTED_CAPS, Event, Feature, RateLimit, RequestError, Secret, Session,
+    TextKind, UnsupportedReason,
 };
 use papo_proto::{BuildError, Message};
 use support::unsupported_error;
@@ -275,7 +276,7 @@ fn labelled_echo_batch_does_not_dispatch_another_users_message() {
 }
 
 #[test]
-fn requests_use_labels_only_when_negotiated() {
+fn raw_requests_require_negotiated_labels() {
     let now = Instant::now();
     let mut labelled = Session::new(Config::default());
     labelled.handle_connected(now);
@@ -295,18 +296,57 @@ fn requests_use_labels_only_when_negotiated() {
     );
 
     let mut unlabelled = Session::new(Config::default());
-    let id = unlabelled
-        .request(now, Message::new("MODE", ["#papo"]))
-        .unwrap();
-    assert_eq!(unlabelled.poll_transmit(), Some(b"MODE #papo\r\n".to_vec()));
-    assert!(matches!(
-        unlabelled.poll_event(),
-        Some(Event::RequestUntracked { id: event_id }) if event_id == id
-    ));
     assert_eq!(
-        unlabelled.request(now, Message::new("", ["broken"])),
+        unlabelled.request(now, Message::new("MODE", ["#papo"])),
+        Err(unsupported_error(Feature::LabeledResponse))
+    );
+    assert_eq!(unlabelled.poll_transmit(), None);
+    assert_eq!(
+        labelled.request(now, Message::new("", ["broken"])),
         Err(RequestError::Build(BuildError::InvalidCommand))
     );
+}
+
+#[test]
+fn raw_requests_preflight_features_named_by_the_message() {
+    let now = Instant::now();
+    let mut session =
+        Session::new(Config::default().wanted_caps(["labeled-response", "message-tags"]));
+    session.handle_connected(now);
+    session.handle_line(
+        now,
+        b"CAP * LS :labeled-response message-tags draft/message-redaction",
+    );
+    session.handle_line(now, b"CAP * ACK :labeled-response message-tags");
+    session.handle_line(
+        now,
+        b":irc.solanum.example 005 papo CLIENTTAGDENY=draft/react,typing :are supported",
+    );
+    while session.poll_transmit().is_some() {}
+
+    for (message, feature, reason) in [
+        (
+            Message::new("REDACT", ["#papo", "RfcBTzyxY120005"]),
+            Feature::Redaction,
+            UnsupportedReason::NotOffered,
+        ),
+        (
+            Message::tagmsg("#papo").with_tag("+draft/react", "👍"),
+            Feature::Reactions,
+            UnsupportedReason::TagDenied,
+        ),
+        (
+            Message::tagmsg("#papo").with_tag("+typing", "active"),
+            Feature::Typing,
+            UnsupportedReason::TagDenied,
+        ),
+    ] {
+        assert_eq!(
+            session.request(now, message),
+            Err(support::unsupported_because(feature, reason))
+        );
+    }
+    assert_eq!(session.poll_transmit(), None);
 }
 
 #[test]
