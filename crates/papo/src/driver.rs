@@ -1886,7 +1886,7 @@ where
                     registration.succeeded();
                     *registered_at = Some(now());
                     if *registered {
-                        begin_catchup(session, welcome, defaults, catchups);
+                        begin_catchup(session, defaults, catchups);
                         event = Event::Reconnected(welcome.clone());
                     } else {
                         *registered = true;
@@ -2067,11 +2067,10 @@ fn extend_catchup(
 
 fn begin_catchup(
     session: &mut Session,
-    welcome: &papo_core::Welcome,
     defaults: &PostRegistration,
     catchups: &mut BTreeMap<RequestId, Catchup>,
 ) {
-    if !defaults.history_on_reconnect || !should_fetch_history(welcome) {
+    if !defaults.history_on_reconnect || !should_fetch_history(session) {
         return;
     }
     let seen = defaults
@@ -2098,8 +2097,8 @@ fn begin_catchup(
     }
 }
 
-fn should_fetch_history(welcome: &papo_core::Welcome) -> bool {
-    should_rejoin(welcome)
+fn should_fetch_history(session: &Session) -> bool {
+    !session.server_rejoins_channels()
 }
 
 fn publish_state(events: &EventSink, session: &Session, connected: bool) {
@@ -2133,7 +2132,7 @@ fn after_registration(
             )
             .map_err(io::Error::other)?;
     }
-    if should_rejoin(welcome) {
+    if should_rejoin(session) {
         for channel in &defaults.channels {
             session
                 .send(now(), Message::new("JOIN", [channel.clone()]))
@@ -2143,9 +2142,8 @@ fn after_registration(
     Ok(())
 }
 
-fn should_rejoin(_welcome: &papo_core::Welcome) -> bool {
-    // Core does not yet expose whether draft/persistence restored channel membership.
-    true
+fn should_rejoin(session: &Session) -> bool {
+    !session.server_rejoins_channels()
 }
 
 fn finish(events: EventSink, end: ConnectionEnd, will_retry: bool) -> Result<(), Error> {
@@ -3091,21 +3089,42 @@ mod tests {
     }
 
     #[test]
-    fn reconnect_history_stops_at_one_thousand_under_unending_input() {
-        let mut catchup = super::Catchup {
-            target: "#papo".into(),
-            messages: Vec::new(),
-            seen: std::collections::HashSet::new(),
-        };
-        let next = super::extend_catchup(
-            &mut catchup,
-            (0..).map(|index| {
-                Message::privmsg("#papo", format!("backlog message {index}"))
-                    .with_tag("msgid", format!("RfcBTzyxY12{index:04}"))
-            }),
-        );
-        assert_eq!(catchup.messages.len(), 1_000);
-        assert_eq!(next.as_deref(), Some("RfcBTzyxY120999"));
+    fn reconnect_history_stops_at_the_literal_per_target_limit() {
+        for count in [1_000, 1_001] {
+            let mut catchup = super::Catchup {
+                target: "#papo".into(),
+                messages: Vec::new(),
+                seen: std::collections::HashSet::new(),
+            };
+            let next = super::extend_catchup(
+                &mut catchup,
+                (0..count).map(|index| {
+                    Message::privmsg("#papo", format!("backlog message {index}"))
+                        .with_tag("msgid", format!("RfcBTzyxY12{index:04}"))
+                }),
+            );
+            assert_eq!(catchup.messages.len(), 1_000);
+            assert_eq!(next.as_deref(), Some("RfcBTzyxY120999"));
+        }
+    }
+
+    #[test]
+    fn persistence_gates_rejoin_and_history_fetch() {
+        for (effective, expected) in [(false, true), (true, false)] {
+            let now = std::time::Instant::now();
+            let mut session = Session::new(config().wanted_caps(["draft/persistence"]));
+            session.handle_connected(now);
+            while session.poll_transmit().is_some() {}
+            session.handle_bytes(now, b":ergo.test CAP * LS :draft/persistence\r\n");
+            while session.poll_transmit().is_some() {}
+            session.handle_bytes(
+                now,
+                b":ergo.test CAP * ACK :draft/persistence\r\n:ergo.test PERSISTENCE STATUS DEFAULT ",
+            );
+            session.handle_bytes(now, if effective { b"ON\r\n" } else { b"OFF\r\n" });
+            assert_eq!(super::should_rejoin(&session), expected);
+            assert_eq!(super::should_fetch_history(&session), expected);
+        }
     }
 
     #[tokio::test(flavor = "current_thread", start_paused = true)]
