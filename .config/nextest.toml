@@ -1,0 +1,6 @@
+[profile.mutants]
+
+# cargo-mutants selects this profile with NEXTEST_PROFILE=mutants.
+[[profile.mutants.overrides]]
+filter = 'not binary(/live/)'
+slow-timeout = { period = "10s", terminate-after = 3 }
