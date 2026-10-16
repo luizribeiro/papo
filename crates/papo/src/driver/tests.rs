@@ -1069,8 +1069,7 @@ async fn malformed_line_preserves_exact_bytes() {
 async fn sasl_nak_forwards_authentication_failure() {
     let settings = config()
         .wanted_caps(["sasl"])
-        .sasl(Sasl::plain("alice", "correct horse battery staple"))
-        .require_sasl(false);
+        .sasl(Sasl::plain("alice", "correct horse battery staple").optional());
     let (mut server, _client, mut events, driver) = scripted(settings);
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;

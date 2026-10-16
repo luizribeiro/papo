@@ -243,7 +243,7 @@ fn falls_back_and_honors_the_server_mechanism_list() {
 
 #[test]
 fn reports_every_failed_mechanism_and_continues_when_optional() {
-    Transcript::new(Config::default().sasl(Sasl::any("alice", "hunter2")))
+    Transcript::new(Config::default().sasl(Sasl::any("alice", "hunter2").optional()))
         .connect_default()
         .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
         .client("CAP REQ :sasl")
@@ -272,7 +272,7 @@ fn already_authenticated_counts_as_success() {
 
 #[test]
 fn authenticates_when_sasl_arrives_after_registration() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
         .connect_default()
         .server("CAP * LS :")
         .client("CAP END")
@@ -297,7 +297,7 @@ fn authenticates_when_sasl_arrives_after_registration() {
 
 #[test]
 fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
         .connect_default()
         .server("CAP * LS :")
         .client("CAP END")
@@ -378,7 +378,7 @@ fn required_sasl_closes_when_unavailable_naked_or_failed() {
 #[test]
 fn terminal_sasl_numerics_do_not_try_another_mechanism() {
     for numeric in ["902", "906"] {
-        Transcript::new(Config::default().sasl(Sasl::any("alice", "hunter2")))
+        Transcript::new(Config::default().sasl(Sasl::any("alice", "hunter2").optional()))
             .connect_default()
             .server("CAP * LS :sasl=PLAIN")
             .client("CAP REQ :sasl")
@@ -544,17 +544,14 @@ fn authenticates_with_external_empty_and_explicit_authzids() {
 }
 
 fn scram_start(require_sasl: bool) -> Transcript {
-    Transcript::with_entropy(
-        Config::default()
-            .sasl(Sasl::scram_sha256("user", "pencil"))
-            .require_sasl(require_sasl),
-        Box::new(FixedEntropy),
-    )
-    .connect_default()
-    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
-    .client("CAP REQ :sasl")
-    .server("CAP * ACK :sasl")
-    .client("AUTHENTICATE SCRAM-SHA-256")
+    let sasl = Sasl::scram_sha256("user", "pencil");
+    let sasl = if require_sasl { sasl } else { sasl.optional() };
+    Transcript::with_entropy(Config::default().sasl(sasl), Box::new(FixedEntropy))
+        .connect_default()
+        .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE SCRAM-SHA-256")
 }
 
 fn scram_after_client_first(require_sasl: bool) -> Transcript {
@@ -680,7 +677,7 @@ fn replays_recorded_ergo_scram_login() {
 
 #[test]
 fn rejects_unoffered_and_908_removed_mechanisms() {
-    Transcript::new(Config::default().sasl(Sasl::external()))
+    Transcript::new(Config::default().sasl(Sasl::external().optional()))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
@@ -689,7 +686,7 @@ fn rejects_unoffered_and_908_removed_mechanisms() {
         .client("CAP END");
 
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::any("alice", "hunter2")),
+        Config::default().sasl(Sasl::any("alice", "hunter2").optional()),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -742,7 +739,7 @@ fn a_partial_server_challenge_renews_the_deadline() {
 
 #[test]
 fn aborts_a_challenge_without_a_payload() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
@@ -757,7 +754,7 @@ fn aborts_a_challenge_without_a_payload() {
 
 #[test]
 fn fails_when_the_server_does_not_acknowledge_an_abort() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
@@ -777,12 +774,13 @@ fn fails_when_the_server_does_not_acknowledge_an_abort() {
 #[test]
 fn aborts_a_server_challenge_over_4096_bytes() {
     let chunk = format!("AUTHENTICATE {}", "YWFh".repeat(100));
-    let mut transcript = Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN");
+    let mut transcript =
+        Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
+            .connect_default()
+            .server("CAP * LS :sasl=PLAIN")
+            .client("CAP REQ :sasl")
+            .server("CAP * ACK :sasl")
+            .client("AUTHENTICATE PLAIN");
     for _ in 0..10 {
         transcript = transcript.server(&chunk).no_client();
     }

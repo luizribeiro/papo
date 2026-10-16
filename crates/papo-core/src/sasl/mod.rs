@@ -19,6 +19,7 @@ const SASL_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Sasl {
     pub(crate) mechanisms: Vec<Mechanism>,
+    pub(crate) required: bool,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -58,6 +59,7 @@ impl Sasl {
                 username: username.into(),
                 password: password.into(),
             }],
+            required: true,
         }
     }
 
@@ -66,6 +68,7 @@ impl Sasl {
     pub fn external() -> Self {
         Self {
             mechanisms: vec![Mechanism::External { authzid: None }],
+            required: true,
         }
     }
 
@@ -91,6 +94,7 @@ impl Sasl {
                 username: username.into(),
                 password: password.into(),
             }],
+            required: true,
         }
     }
 
@@ -107,7 +111,20 @@ impl Sasl {
                 },
                 Mechanism::Plain { username, password },
             ],
+            required: true,
         }
+    }
+
+    /// Allows registration to continue when every configured mechanism fails.
+    ///
+    /// ```
+    /// let sasl = papo_core::Sasl::any("alice", "secret").optional();
+    /// # _ = sasl;
+    /// ```
+    #[must_use]
+    pub const fn optional(mut self) -> Self {
+        self.required = false;
+        self
     }
 }
 
@@ -194,7 +211,7 @@ impl SaslSession {
             device: config.device.clone(),
             challenge: String::new(),
             entropy,
-            require: config.require_sasl,
+            require: config.require_sasl || config.sasl.as_ref().is_some_and(|sasl| sasl.required),
             failures: Vec::new(),
             deadline: None,
             aborting: false,
