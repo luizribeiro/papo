@@ -305,7 +305,13 @@ pub papo::Event::VerificationRequired::message: alloc::string::String
 impl papo::Event
 pub const fn papo::Event::as_caps_changed(&self) -> core::option::Option<&papo::event::CapsChanged>
 pub const fn papo::Event::as_disconnected(&self) -> core::option::Option<&papo::event::Disconnected>
+pub const fn papo::Event::as_reacted(&self) -> core::option::Option<&papo::event::Reacted>
+pub const fn papo::Event::as_read_marker(&self) -> core::option::Option<&papo::event::ReadMarker>
+pub const fn papo::Event::as_redacted(&self) -> core::option::Option<&papo::event::Redacted>
 pub const fn papo::Event::as_registered(&self) -> core::option::Option<&papo::event::Registered>
+pub const fn papo::Event::as_standard_reply(&self) -> core::option::Option<&papo::event::StandardReply>
+pub const fn papo::Event::as_tag_msg(&self) -> core::option::Option<&papo::event::TagMsg>
+pub const fn papo::Event::as_typing_changed(&self) -> core::option::Option<&papo::event::TypingChanged>
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::CustomAccountName
 pub papo::InvalidInput::EmailRequired

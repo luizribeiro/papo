@@ -820,6 +820,12 @@ event_accessors! {
     (Registered, as_registered, Registered),
     (Disconnected, as_disconnected, Disconnected),
     (CapsChanged, as_caps_changed, CapsChanged),
+    (Reacted, as_reacted, Reacted),
+    (Redacted, as_redacted, Redacted),
+    (TypingChanged, as_typing_changed, TypingChanged),
+    (TagMsg, as_tag_msg, TagMsg),
+    (ReadMarker, as_read_marker, ReadMarker),
+    (StandardReply, as_standard_reply, StandardReply),
 }
 
 // This transient mapping keeps forwarding allocation-free for every event kind.
