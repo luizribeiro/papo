@@ -76,6 +76,12 @@ impl State {
         self.core.read_marker(target).and_then(|marker| marker.time)
     }
 
+    /// Returns the most recently reported account persistence status.
+    #[must_use]
+    pub const fn persistence(&self) -> Option<papo_core::PersistenceStatus> {
+        self.core.persistence()
+    }
+
     /// Returns a known user using the server's casemapping.
     #[must_use]
     pub fn user(&self, nick: &str) -> Option<&User> {
