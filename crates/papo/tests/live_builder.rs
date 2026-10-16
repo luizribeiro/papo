@@ -4,16 +4,17 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
-use std::time::Duration;
+mod support;
+
+use support::within;
 
 use papo::{Client, Event, Sasl};
 use papo_proto::Message;
 use papo_test_server::{from_env, register_account, unique};
-use tokio::time::timeout;
 
 #[tokio::test(flavor = "current_thread")]
 async fn connects_with_sasl_and_applies_bot_defaults() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let account = unique("papo-builder");
         let channel = format!("#{}", unique("papo-builder"));
@@ -46,8 +47,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
         .await;
         client.quit(Some("builder test complete")).await.unwrap();
     })
-    .await
-    .expect("builder live test did not finish within 10 seconds");
+    .await;
 }
 
 async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
@@ -69,7 +69,7 @@ async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
 #[cfg(feature = "websocket")]
 #[tokio::test(flavor = "current_thread")]
 async fn connects_through_the_configured_websocket_url() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let nick = unique("papo-builder-ws");
         let (client, mut events) = Client::builder(server.websocket_url())
@@ -83,8 +83,7 @@ async fn connects_through_the_configured_websocket_url() {
             .await
             .unwrap();
     })
-    .await
-    .expect("WebSocket builder live test did not finish within 10 seconds");
+    .await;
 }
 
 async fn wait_registered(events: &mut papo::Events, nick: &str) {

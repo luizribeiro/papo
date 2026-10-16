@@ -4,16 +4,17 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
-use std::time::Duration;
+mod support;
+
+use support::within;
 
 use papo::{Client, Event, MessageEvent, Origin, Sasl};
 use papo_proto::Source;
 use papo_test_server::{from_env, register_account, unique};
-use tokio::time::timeout;
 
 #[tokio::test(flavor = "current_thread")]
 async fn reply_between_two_clients_carries_the_original_msgid() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let address = format!("irc://{}", server.plaintext_addr());
         let channel = format!("#{}", unique("papo-reply"));
@@ -61,13 +62,12 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
             .await
             .unwrap();
     })
-    .await
-    .expect("live reply test did not finish within 10 seconds");
+    .await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn same_account_sessions_distinguish_echoes() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let address = format!("irc://{}", server.plaintext_addr());
         let account = unique("papo-multiclient");
@@ -102,13 +102,12 @@ async fn same_account_sessions_distinguish_echoes() {
             .await
             .unwrap();
     })
-    .await
-    .expect("multiclient test did not finish within 10 seconds");
+    .await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn reactions_reach_another_client_with_reply_context() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let address = format!("irc://{}", server.plaintext_addr());
         let channel = format!("#{}", unique("papo-react"));
@@ -126,13 +125,12 @@ async fn reactions_reach_another_client_with_reply_context() {
         client_b.quit(Some("reaction test complete")).await.unwrap();
         client_a.quit(Some("reaction test complete")).await.unwrap();
     })
-    .await
-    .expect("reaction test did not finish within 10 seconds");
+    .await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn multiline_delivers_a_thousand_byte_message_whole() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let address = format!("irc://{}", server.plaintext_addr());
         let channel = format!("#{}", unique("papo-multiline"));
@@ -157,8 +155,7 @@ async fn multiline_delivers_a_thousand_byte_message_whole() {
             .await
             .unwrap();
     })
-    .await
-    .expect("multiline test did not finish within 10 seconds");
+    .await;
 }
 
 async fn client(address: &str, nick: &str, channel: &str) -> (Client, papo::Events) {

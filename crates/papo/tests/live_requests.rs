@@ -4,15 +4,16 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
-use std::time::Duration;
+mod support;
+
+use support::within;
 
 use papo::{Client, Error, Event, ListFilter, ServerError};
 use papo_test_server::{from_env, unique};
-use tokio::time::timeout;
 
 #[tokio::test(flavor = "current_thread")]
 async fn typed_requests_round_trip_against_ergo() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let address = format!("irc://{}", server.plaintext_addr());
         let nick = unique("papo-requests");
@@ -78,6 +79,5 @@ async fn typed_requests_round_trip_against_ergo() {
             .await
             .unwrap();
     })
-    .await
-    .expect("live requests did not finish within 10 seconds");
+    .await;
 }

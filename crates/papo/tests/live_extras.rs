@@ -4,17 +4,18 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
-use std::time::Duration;
+mod support;
+
+use support::within;
 
 use papo::{Client, Event};
 #[cfg(not(target_family = "wasm"))]
 use papo_test_server::TestServer;
 use papo_test_server::{from_env, unique};
-use tokio::time::timeout;
 
 #[tokio::test(flavor = "current_thread")]
 async fn subscriber_receives_another_clients_metadata() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let address = format!("irc://{}", server.plaintext_addr());
         let channel = format!("#{}", unique("papo-metadata"));
@@ -62,14 +63,13 @@ async fn subscriber_receives_another_clients_metadata() {
         reader.quit(Some("metadata received")).await.unwrap();
         writer.quit(Some("metadata sent")).await.unwrap();
     })
-    .await
-    .expect("live metadata test did not finish within 10 seconds");
+    .await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 #[cfg(not(target_family = "wasm"))]
 async fn member_sees_channel_rename_and_relay_attribution() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = TestServer::start_with_ephemeral_channels().unwrap();
         let address = format!("irc://{}", server.plaintext_addr());
         let old_channel = format!("#{}", unique("papo-rename"));
@@ -135,8 +135,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         member.quit(Some("relay received")).await.unwrap();
         operator.quit(Some("relay sent")).await.unwrap();
     })
-    .await
-    .expect("live rename and relay test did not finish within 10 seconds");
+    .await;
 }
 
 async fn wait_synced(events: &mut papo::Events, channel: &str) {

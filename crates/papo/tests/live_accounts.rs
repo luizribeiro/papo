@@ -4,8 +4,13 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
+mod support;
+
+use support::within;
+
 #[cfg(not(target_family = "wasm"))]
 use std::net::SocketAddr;
+#[cfg(not(target_family = "wasm"))]
 use std::time::Duration;
 
 #[cfg(not(target_family = "wasm"))]
@@ -17,7 +22,6 @@ use papo_core::Secret;
 #[cfg(not(target_family = "wasm"))]
 use papo_test_server::register_account;
 use papo_test_server::{from_env, unique};
-use tokio::time::timeout;
 #[cfg(not(target_family = "wasm"))]
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -28,7 +32,7 @@ const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
 #[tokio::test(flavor = "current_thread")]
 async fn registers_then_logs_in_with_sasl() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let address = format!("irc://{}", server.plaintext_addr());
         let account = unique("papo-account");
@@ -66,14 +70,13 @@ async fn registers_then_logs_in_with_sasl() {
             .await
             .unwrap();
     })
-    .await
-    .expect("live account test did not finish within 10 seconds");
+    .await;
 }
 
 #[cfg(not(target_family = "wasm"))]
 #[tokio::test(flavor = "current_thread")]
 async fn persistent_server_restores_channels_without_a_client_join() {
-    timeout(Duration::from_secs(20), async {
+    within(async {
         let server = from_env();
         let (proxy, disconnect) = disconnecting_proxy(server.plaintext_addr()).await;
         let address = format!("irc://{proxy}");
@@ -120,8 +123,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
             .await
             .unwrap();
     })
-    .await
-    .expect("persistent reconnect did not finish within 20 seconds");
+    .await;
 }
 
 #[cfg(not(target_family = "wasm"))]

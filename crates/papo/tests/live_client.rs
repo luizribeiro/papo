@@ -4,16 +4,17 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
-use std::time::Duration;
+mod support;
+
+use support::within;
 
 use papo::{Driver, Event, OsEntropy, transport};
 use papo_core::{Config, Session};
 use papo_test_server::{from_env, unique};
-use tokio::time::timeout;
 
 #[tokio::test(flavor = "current_thread")]
 async fn registers_messages_itself_and_quits() {
-    timeout(Duration::from_secs(10), async {
+    within(async {
         let server = from_env();
         let nick = unique("papo-client");
         let stream = transport::connect(
@@ -82,6 +83,5 @@ async fn registers_messages_itself_and_quits() {
             }
         }
     })
-    .await
-    .expect("live client did not finish within 10 seconds");
+    .await;
 }

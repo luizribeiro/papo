@@ -4,15 +4,16 @@
     all(target_os = "wasi", not(target_env = "p1"))
 ))]
 
-use std::time::Duration;
+mod support;
+
+use support::within;
 
 use papo::{Client, Event, MessageEvent, Origin};
 use papo_test_server::{from_env, unique};
-use tokio::time::timeout;
 
 #[tokio::test(flavor = "current_thread")]
 async fn pages_messages_by_id_and_round_trips_a_read_marker() {
-    timeout(Duration::from_secs(20), async {
+    within(async {
         let server = from_env();
         let channel = format!("#{}", unique("papo-history"));
         let nick = unique("papo-history");
@@ -85,8 +86,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         assert_eq!(client.read_marker(&channel).await.unwrap(), Some(newest));
         client.quit(Some("history test complete")).await.unwrap();
     })
-    .await
-    .expect("live history test did not finish within 20 seconds");
+    .await;
 }
 
 fn chats<'a>(messages: &'a [MessageEvent], texts: &[&str]) -> Vec<&'a MessageEvent> {

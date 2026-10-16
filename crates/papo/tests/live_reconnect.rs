@@ -1,16 +1,19 @@
 //! Reconnection behavior against a process-owned Ergo server.
 #![cfg(not(target_family = "wasm"))]
 
+mod support;
+
+use support::within;
+
 use std::time::Duration;
 
 use papo::{Client, Event, Origin, Reconnect, Sasl};
 use papo_test_server::{TestServer, register_account_at, unique};
-use tokio::time::timeout;
 
 #[tokio::test(flavor = "current_thread")]
 async fn reconnects_and_rejoins_after_ergo_restarts() {
     // This needs exclusive server lifecycle control, so it owns a TestServer.
-    timeout(Duration::from_secs(20), async {
+    within(async {
         let mut server = TestServer::start().unwrap();
         let nick = unique("papo-reconnect");
         let channel = format!("#{}", unique("papo-reconnect"));
@@ -94,8 +97,7 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         poster.quit(Some("messages delivered")).await.unwrap();
         client.quit(Some("reconnect test complete")).await.unwrap();
     })
-    .await
-    .expect("live reconnect test did not finish within 20 seconds");
+    .await;
 }
 
 async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
