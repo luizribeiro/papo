@@ -14,6 +14,7 @@ use crate::{
 
 /// Configures an IRC client before it is built or connected.
 #[must_use]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Builder {
     pub(crate) address: Result<ServerAddress, AddressError>,
     pub(crate) config: Config,
@@ -25,6 +26,7 @@ pub struct Builder {
     plaintext: Plaintext,
     bot: bool,
     channels: Vec<String>,
+    history_on_reconnect: bool,
     username_set: bool,
     realname_set: bool,
 }
@@ -48,6 +50,7 @@ impl Builder {
             plaintext: Plaintext::Upgradeable,
             bot: false,
             channels: Vec::new(),
+            history_on_reconnect: false,
             username_set: false,
             realname_set: false,
         }
@@ -254,6 +257,12 @@ impl Builder {
         self
     }
 
+    /// Sets whether reconnects fetch history missed while disconnected.
+    pub const fn history_on_reconnect(mut self, enabled: bool) -> Self {
+        self.history_on_reconnect = enabled;
+        self
+    }
+
     /// Builds handles and a lazy driver without opening a connection.
     ///
     /// The returned [`crate::Driver`] connects when it is first polled. Use
@@ -294,6 +303,7 @@ impl Builder {
         let defaults = PostRegistration {
             bot: self.bot,
             channels: self.channels,
+            history_on_reconnect: self.history_on_reconnect,
         };
         crate::Driver::with_plan(
             plan,
@@ -492,9 +502,11 @@ mod tests {
     fn configures_post_registration_defaults() {
         let builder = Builder::new("irc.example.net")
             .bot()
-            .channels(["#papo", "#papo-bots"]);
+            .channels(["#papo", "#papo-bots"])
+            .history_on_reconnect(true);
         assert!(builder.bot);
         assert_eq!(builder.channels, ["#papo", "#papo-bots"]);
+        assert!(builder.history_on_reconnect);
     }
 
     #[tokio::test(flavor = "current_thread")]

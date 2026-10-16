@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, HashSet, VecDeque},
     future::Future,
     io,
     ops::ControlFlow,
@@ -43,6 +43,12 @@ pub(crate) type Connector = Arc<dyn Fn(ConnectionPlan) -> ConnectFuture + Send +
 type BackoffEntropy = Box<dyn FnMut() -> u64 + Send>;
 type ReadMarkerSender = oneshot::Sender<Result<Option<SystemTime>, Error>>;
 type ReadMarkerWaiters = Vec<(String, ReadMarkerSender)>;
+
+struct Catchup {
+    target: String,
+    messages: Vec<Message>,
+    seen: HashSet<String>,
+}
 
 enum Command {
     Send {
@@ -159,6 +165,7 @@ pub(crate) struct ConnectionPlan {
 pub(crate) struct PostRegistration {
     pub(crate) bot: bool,
     pub(crate) channels: Vec<String>,
+    pub(crate) history_on_reconnect: bool,
 }
 
 /// A cheap, cloneable handle to a running IRC client.
@@ -1520,6 +1527,7 @@ where
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
     let mut read_marker_waiters = Vec::new();
+    let mut catchups = BTreeMap::new();
     let mut registered_at = None;
     let mut sts = StsActions::default();
     let mut buffer = [0; 4096];
@@ -1532,6 +1540,7 @@ where
             &mut requests,
             &mut sync_waiters,
             &mut read_marker_waiters,
+            &mut catchups,
             registration,
             defaults,
             registered,
@@ -1776,6 +1785,7 @@ async fn drain<S>(
     requests: &mut BTreeMap<RequestId, PendingRequest>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
     read_marker_waiters: &mut ReadMarkerWaiters,
+    catchups: &mut BTreeMap<RequestId, Catchup>,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
     registered: &mut bool,
@@ -1798,11 +1808,17 @@ where
             event::CoreEvent::Forward(mut event) => {
                 event = match event {
                     Event::Response(response) => {
-                        if let Some(result) = requests.remove(&response.id) {
+                        if let Some(catchup) = catchups.remove(&response.id) {
+                            match advance_catchup(session, events, catchups, catchup, response) {
+                                Some(event) => event,
+                                None => continue,
+                            }
+                        } else if let Some(result) = requests.remove(&response.id) {
                             result.respond(response);
                             continue;
+                        } else {
+                            Event::Response(response)
                         }
-                        Event::Response(response)
                     }
                     Event::RequestTimedOut { id } => {
                         if let Some(result) = requests.remove(&id) {
@@ -1858,6 +1874,7 @@ where
                     registration.succeeded();
                     *registered_at = Some(now());
                     if *registered {
+                        begin_catchup(session, welcome, defaults, catchups);
                         event = Event::Reconnected(welcome.clone());
                     } else {
                         *registered = true;
@@ -1888,6 +1905,14 @@ where
                 messages,
                 end,
             } => {
+                if catchups.values().any(|catchup| {
+                    session
+                        .isupport()
+                        .casemapping()
+                        .eq(&catchup.target, &target)
+                }) {
+                    continue;
+                }
                 let Some(commands) = events.commands.upgrade() else {
                     continue;
                 };
@@ -1956,6 +1981,107 @@ fn resolve_read_marker_waiters(
             }
         })
         .collect();
+}
+
+fn advance_catchup(
+    session: &mut Session,
+    events: &EventSink,
+    catchups: &mut BTreeMap<RequestId, Catchup>,
+    mut catchup: Catchup,
+    response: Response,
+) -> Option<Event> {
+    let page = response.history?;
+    let next = page.messages.iter().rev().find_map(|item| {
+        item.message
+            .as_ref()
+            .tag("msgid")
+            .map(std::borrow::Cow::into_owned)
+    });
+    for item in page.messages {
+        let msgid = item
+            .message
+            .as_ref()
+            .tag("msgid")
+            .map(std::borrow::Cow::into_owned);
+        if msgid
+            .as_ref()
+            .is_none_or(|msgid| catchup.seen.insert(msgid.clone()))
+        {
+            catchup.messages.push(item.message);
+        }
+        if catchup.messages.len() == 1_000 {
+            break;
+        }
+    }
+    if !page.end
+        && catchup.messages.len() < 1_000
+        && let Some(next) = next
+    {
+        let query = HistoryQuery::After {
+            target: catchup.target.clone(),
+            after: papo_core::MsgRef::Msgid(next),
+            limit: (1_000 - catchup.messages.len()).min(100),
+        };
+        if let Ok(id) = session.chathistory(now(), query) {
+            catchups.insert(id, catchup);
+            return None;
+        }
+    }
+    let commands = events.commands.upgrade()?;
+    let client = Client {
+        commands,
+        connected: Arc::clone(&events.connected),
+        state: Arc::clone(&events.state),
+    };
+    let messages = catchup
+        .messages
+        .into_iter()
+        .filter_map(|message| {
+            crate::MessageEvent::from_history(message, client.clone(), SystemTime::now()).ok()
+        })
+        .collect();
+    Some(Event::History {
+        target: catchup.target,
+        messages,
+        end: page.end,
+    })
+}
+
+fn begin_catchup(
+    session: &mut Session,
+    welcome: &papo_core::Welcome,
+    defaults: &PostRegistration,
+    catchups: &mut BTreeMap<RequestId, Catchup>,
+) {
+    if !defaults.history_on_reconnect || !should_fetch_history(welcome) {
+        return;
+    }
+    let seen = defaults
+        .channels
+        .iter()
+        .filter_map(|channel| session.state().last_seen(channel).cloned())
+        .collect::<Vec<_>>();
+    for seen in seen {
+        let query = HistoryQuery::After {
+            target: seen.target.clone(),
+            after: papo_core::MsgRef::Msgid(seen.msgid.clone()),
+            limit: 100,
+        };
+        if let Ok(id) = session.chathistory(now(), query) {
+            catchups.insert(
+                id,
+                Catchup {
+                    target: seen.target,
+                    messages: Vec::new(),
+                    seen: HashSet::from([seen.msgid]),
+                },
+            );
+        }
+    }
+}
+
+fn should_fetch_history(welcome: &papo_core::Welcome) -> bool {
+    should_rejoin(welcome)
 }
 
 fn publish_state(events: &EventSink, session: &Session, connected: bool) {
@@ -2772,6 +2898,7 @@ mod tests {
             super::PostRegistration {
                 bot: false,
                 channels: vec!["#papo".into()],
+                history_on_reconnect: false,
             },
             Reconnect::exponential(),
             256,
@@ -3361,6 +3488,7 @@ mod tests {
             super::PostRegistration {
                 bot: true,
                 channels: vec!["#papo".into(), "#papo-bots".into()],
+                history_on_reconnect: false,
             },
         );
         let driver = tokio::spawn(driver);
@@ -3388,6 +3516,7 @@ mod tests {
             super::PostRegistration {
                 bot: true,
                 channels: Vec::new(),
+                history_on_reconnect: false,
             },
             None,
             b"",
@@ -3411,6 +3540,7 @@ mod tests {
             super::PostRegistration {
                 bot: true,
                 channels: Vec::new(),
+                history_on_reconnect: false,
             },
             Some(b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n"),
             b"MODE papo-driver +B\r\n",
