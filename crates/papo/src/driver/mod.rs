@@ -1054,6 +1054,49 @@ where
                     )));
                 }
             }
+            event::CoreEvent::History {
+                target,
+                messages,
+                end,
+            } => {
+                if catchups.values().any(|catchup| {
+                    session
+                        .isupport()
+                        .casemapping()
+                        .eq(&catchup.target, &target)
+                }) {
+                    continue;
+                }
+                let Some(commands) = events.commands.upgrade() else {
+                    continue;
+                };
+                let client = Client {
+                    commands,
+                    state: Arc::clone(&events.state),
+                };
+                let messages = messages
+                    .into_iter()
+                    .filter_map(|item| {
+                        crate::MessageEvent::from_replay(
+                            item.message,
+                            client.clone(),
+                            crate::rt::now_wall(),
+                        )
+                        .ok()
+                    })
+                    .collect();
+                let event = Event::History(Box::new(crate::HistoryPage {
+                    target,
+                    messages,
+                    end,
+                }));
+                if !enqueue_event(events, pending_events, event) {
+                    return Ok(Some((
+                        papo_core::CloseKind::Other,
+                        SLOW_CONSUMER_REASON.to_owned(),
+                    )));
+                }
+            }
             event::CoreEvent::Raw(message) => {
                 let event = match events.commands.upgrade() {
                     Some(commands) => crate::MessageEvent::new(
@@ -1112,49 +1155,6 @@ where
             event::CoreEvent::StsPolicy(action) => {
                 if let Some(store) = sts_store {
                     apply_sts_action(store.as_mut(), sts_port, &action);
-                }
-            }
-            event::CoreEvent::History {
-                target,
-                messages,
-                end,
-            } => {
-                if catchups.values().any(|catchup| {
-                    session
-                        .isupport()
-                        .casemapping()
-                        .eq(&catchup.target, &target)
-                }) {
-                    continue;
-                }
-                let Some(commands) = events.commands.upgrade() else {
-                    continue;
-                };
-                let client = Client {
-                    commands,
-                    state: Arc::clone(&events.state),
-                };
-                let messages = messages
-                    .into_iter()
-                    .filter_map(|item| {
-                        crate::MessageEvent::from_replay(
-                            item.message,
-                            client.clone(),
-                            crate::rt::now_wall(),
-                        )
-                        .ok()
-                    })
-                    .collect();
-                let event = Event::History(Box::new(crate::HistoryPage {
-                    target,
-                    messages,
-                    end,
-                }));
-                if !enqueue_event(events, pending_events, event) {
-                    return Ok(Some((
-                        papo_core::CloseKind::Other,
-                        SLOW_CONSUMER_REASON.to_owned(),
-                    )));
                 }
             }
             event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),
