@@ -625,10 +625,19 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
             ..
         })
     ));
+    within(client.reconnect()).await.unwrap();
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected {
+            will_retry: true,
+            ..
+        })
+    ));
+    assert_eq!(calls.load(Ordering::Relaxed), 2);
     within(client.quit(Some("cancel reconnect"))).await.unwrap();
     assert!(within(driver).await.unwrap().is_ok());
     tokio::time::advance(Duration::from_secs(10)).await;
-    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    assert_eq!(calls.load(Ordering::Relaxed), 2);
 }
 
 #[tokio::test(flavor = "current_thread")]
