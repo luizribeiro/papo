@@ -155,7 +155,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 ],
                 isupport: &[],
             },
-            run: account_notify,
+            run: __papo_scenario_account_notify,
         },
         ScenarioSpec {
             name: "away_notify",
@@ -712,34 +712,34 @@ async fn message_tags(context: Scenario) -> ScenarioResult {
     close_pair(receiver, sender).await
 }
 
-fn account_notify(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let account = context.unique();
-        register_account(&context.server, &account, PASSWORD).map_err(Failed::from)?;
-        let sender_nick = context.unique();
-        let receiver_nick = context.unique();
-        let channel = format!("#{}", context.unique());
-        let mut sender = context
-            .client_with(&sender_nick, Some(Sasl::plain(&account, PASSWORD)))
-            .await?;
-        join(&context, &mut sender, &channel).await?;
-        let mut receiver = context.client(&receiver_nick).await?;
-        join(&context, &mut receiver, &channel).await?;
-        let text = format!("authenticated message from {sender_nick}");
-        sender
-            .client
-            .privmsg(&channel, &text)
-            .await
-            .map_err(Failed::from)?;
-        context
+/// delivers an authenticated sender account
+#[scenario(requires(caps = ["account-tag", "account-notify"]))]
+async fn account_notify(context: Scenario) -> ScenarioResult {
+    let account = context.unique();
+    register_account(&context.server, &account, PASSWORD).map_err(Failed::from)?;
+    let sender_nick = context.unique();
+    let receiver_nick = context.unique();
+    let channel = format!("#{}", context.unique());
+    let mut sender = context
+        .client_with(&sender_nick, Some(Sasl::plain(&account, PASSWORD)))
+        .await?;
+    join(&context, &mut sender, &channel).await?;
+    let mut receiver = context.client(&receiver_nick).await?;
+    join(&context, &mut receiver, &channel).await?;
+    let text = format!("authenticated message from {sender_nick}");
+    sender
+        .client
+        .privmsg(&channel, &text)
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut receiver.events,
                 |event| matches!(event, Event::Message(message) if message.raw_text() == text && message.account() == Some(account.as_str())),
                 EXPECT_TIMEOUT,
             )
             .await?;
-        close_pair(receiver, sender).await
-    })
+    close_pair(receiver, sender).await
 }
 
 fn away_notify(context: Scenario) -> ScenarioFuture {
