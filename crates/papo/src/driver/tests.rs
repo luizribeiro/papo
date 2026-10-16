@@ -493,6 +493,48 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
+    let (stream, mut server) = tokio::io::duplex(4096);
+    let stream = Arc::new(Mutex::new(Some(Box::new(stream) as super::BoxConnection)));
+    let connector: super::Connector = Arc::new(move |_| {
+        let stream = stream.lock().unwrap().take().unwrap();
+        Box::pin(async move { Ok(stream) })
+    });
+    let (client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        1,
+        None,
+        super::PostRegistration::default(),
+        Reconnect::exponential(),
+        256,
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        false,
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test NOTICE papo-driver :maintenance soon\r\n",
+    )
+    .await;
+    while events.receiver.len() != 1 {
+        tokio::task::yield_now().await;
+    }
+
+    within(server.shutdown()).await.unwrap();
+    while client.is_connected() {
+        tokio::task::yield_now().await;
+    }
+    within(client.quit(None)).await.unwrap();
+    assert!(within(driver).await.unwrap().is_ok());
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn failed_connects_back_off_until_the_attempt_limit() {
     let attempts = Arc::new(Mutex::new(Vec::new()));

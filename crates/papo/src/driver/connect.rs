@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use super::{
     BackoffEntropy, BoxConnection, Command, ConnectFuture, ConnectionEnd, ConnectionPlan,
     Connector, EventSink, PostRegistration, RegistrationWait, SLOW_CONSUMER_REASON,
-    STABLE_CONNECTION, StsActions, finish, now, run_connection,
+    STABLE_CONNECTION, StsActions, enqueue_event, finish, now, run_connection,
 };
 use crate::{AddressError, Error, Event, Reconnect, address::Protocol, transport};
 
@@ -56,7 +56,7 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub(super) async fn run_plan(
     plan: Result<ConnectionPlan, AddressError>,
     mut session: Session,
@@ -77,6 +77,7 @@ pub(super) async fn run_plan(
     let mut attempts = 0_usize;
     let mut registered = false;
     let mut queued = VecDeque::new();
+    let mut pending_events = VecDeque::new();
     let mut sts_required = false;
     let mut last_sts_upgrade = None;
     loop {
@@ -101,7 +102,10 @@ pub(super) async fn run_plan(
         {
             ConnectionAttempt::Connected(stream) => stream,
             ConnectionAttempt::Retry => continue,
-            ConnectionAttempt::Stop => return Ok(()),
+            ConnectionAttempt::Stop => {
+                events.finish(pending_events);
+                return Ok(());
+            }
             ConnectionAttempt::Failed(error) => {
                 return finish_connection_failure(events, &mut registration, error);
             }
@@ -117,6 +121,7 @@ pub(super) async fn run_plan(
             &mut registered,
             &plan,
             sts_store,
+            std::mem::take(&mut pending_events),
         )
         .await;
         sts_store = end
@@ -124,7 +129,7 @@ pub(super) async fn run_plan(
             .take()
             .expect("planned connections retain their STS store");
         reschedule_stored_policy(sts_store.as_mut(), &plan.address.host);
-        let (mut end, upgrade_port) = match triage_connection_end(
+        let (end, upgrade_port) = match triage_connection_end(
             end,
             &plan,
             force_plaintext,
@@ -145,14 +150,10 @@ pub(super) async fn run_plan(
             base_plan.address.set_port(port);
             sts_required = true;
         }
-        send_pending(&events.regular, &mut end.pending_events).await;
-        _ = events
-            .regular
-            .send(Event::Disconnected {
-                reason: end.reason,
-                will_retry: true,
-            })
-            .await;
+        pending_events = match enqueue_retry_event(&events, end) {
+            Ok(pending) => pending,
+            Err(end) => return finish(events, *end, false),
+        };
         if upgrade_port.is_some() {
             continue;
         }
@@ -162,21 +163,36 @@ pub(super) async fn run_plan(
             &mut commands,
             &mut queued,
             disconnected_queue_capacity,
+            &events.regular,
+            &mut pending_events,
             entropy.as_mut(),
         )
         .await
         {
+            events.finish(pending_events);
             return Ok(());
         }
     }
 }
 
-async fn send_pending(events: &mpsc::Sender<Event>, pending: &mut VecDeque<Event>) {
-    while let Some(event) = pending.pop_front() {
-        if events.send(event).await.is_err() {
-            break;
-        }
+fn enqueue_retry_event(
+    events: &EventSink,
+    mut end: ConnectionEnd,
+) -> Result<VecDeque<Event>, Box<ConnectionEnd>> {
+    let reason = std::mem::take(&mut end.reason);
+    if enqueue_event(
+        events,
+        &mut end.pending_events,
+        Event::Disconnected {
+            reason,
+            will_retry: true,
+        },
+    ) {
+        return Ok(end.pending_events);
     }
+    SLOW_CONSUMER_REASON.clone_into(&mut end.reason);
+    end.error = Error::Disconnected;
+    Err(Box::new(end))
 }
 
 fn initial_connection_plan(
@@ -205,6 +221,7 @@ pub(super) async fn run_planned_connection(
     registered: &mut bool,
     plan: &ConnectionPlan,
     sts_store: Box<dyn StsStore + Send>,
+    pending_events: VecDeque<Event>,
 ) -> ConnectionEnd {
     let security = if plan.address.is_secure() {
         ConnectionSecurity::Secure
@@ -226,6 +243,7 @@ pub(super) async fn run_planned_connection(
         }),
         Some(sts_store),
         plan.address.port,
+        pending_events,
         &events.connected,
     )
     .await
@@ -316,7 +334,19 @@ async fn connect_or_wait(
             will_retry: true,
         })
         .await;
-    if wait_before_retry(reconnect, attempts, commands, queued, capacity, entropy).await {
+    let mut pending_events = VecDeque::new();
+    if wait_before_retry(
+        reconnect,
+        attempts,
+        commands,
+        queued,
+        capacity,
+        events,
+        &mut pending_events,
+        entropy,
+    )
+    .await
+    {
         ConnectionAttempt::Retry
     } else {
         ConnectionAttempt::Stop
@@ -341,13 +371,10 @@ fn finish_connection_failure(
     let reason = error.to_string();
     if registration.0.is_some() {
         registration.failed(error);
-        drop(events.regular);
-        _ = events
-            .disconnected
-            .send(VecDeque::from([Event::Disconnected {
-                reason,
-                will_retry: false,
-            }]));
+        events.finish(VecDeque::from([Event::Disconnected {
+            reason,
+            will_retry: false,
+        }]));
         return Ok(());
     }
     finish(
@@ -458,12 +485,15 @@ async fn connect_while_disconnected(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn wait_before_retry(
     reconnect: Reconnect,
     attempts: usize,
     commands: &mut mpsc::Receiver<Command>,
     queued: &mut VecDeque<Message>,
     capacity: usize,
+    events: &mpsc::Sender<Event>,
+    pending_events: &mut VecDeque<Event>,
     entropy: &mut (dyn FnMut() -> u64 + Send),
 ) -> bool {
     let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
@@ -472,6 +502,10 @@ async fn wait_before_retry(
     loop {
         tokio::select! {
             () = &mut sleep => return true,
+            permit = events.reserve(), if !pending_events.is_empty() => match permit {
+                Ok(permit) => permit.send(pending_events.pop_front().expect("pending event is present")),
+                Err(_) => pending_events.clear(),
+            },
             command = commands.recv() => {
                 if !handle_disconnected_command(command, queued, capacity) {
                     return false;

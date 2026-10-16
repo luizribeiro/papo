@@ -203,6 +203,13 @@ struct EventSink {
     commands: mpsc::WeakSender<Command>,
 }
 
+impl EventSink {
+    fn finish(self, pending: VecDeque<Event>) {
+        drop(self.regular);
+        _ = self.disconnected.send(pending);
+    }
+}
+
 pub(crate) struct Channels {
     pub(crate) client: Client,
     events: Events,
@@ -508,6 +515,7 @@ where
         None,
         None,
         0,
+        VecDeque::new(),
         &events.connected,
     )
     .await;
@@ -552,6 +560,7 @@ async fn run_connection<S>(
     connection: Option<Connection>,
     mut sts_store: Option<Box<dyn StsStore + Send>>,
     sts_port: u16,
+    mut pending_events: VecDeque<Event>,
     connected: &AtomicBool,
 ) -> ConnectionEnd
 where
@@ -571,7 +580,6 @@ where
     }
     let mut commands_open = true;
     let mut quit = None;
-    let mut pending_events = VecDeque::new();
     let mut requests = BTreeMap::new();
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
@@ -1139,13 +1147,12 @@ fn should_rejoin(session: &Session) -> bool {
 }
 
 fn finish(events: EventSink, end: ConnectionEnd, will_retry: bool) -> Result<(), Error> {
-    drop(events.regular);
     let mut pending = end.pending_events;
     pending.push_back(Event::Disconnected {
         reason: end.reason,
         will_retry,
     });
-    _ = events.disconnected.send(pending);
+    events.finish(pending);
     if let Some(quit) = end.quit {
         for response in quit.results {
             _ = response.send(if end.quit_timed_out {
