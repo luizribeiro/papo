@@ -101,7 +101,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: echo_message,
+            run: __papo_scenario_echo_message,
         },
         ScenarioSpec {
             name: "labeled_response",
@@ -125,7 +125,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: server_time,
+            run: __papo_scenario_server_time,
         },
         ScenarioSpec {
             name: "message_tags",
@@ -137,7 +137,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: message_tags,
+            run: __papo_scenario_message_tags,
         },
         ScenarioSpec {
             name: "account_notify",
@@ -552,39 +552,40 @@ fn validate_pong(message: &MessageRef<'_>, token: &str) -> Result<(), Failed> {
     }
 }
 
-fn echo_message(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let nick = context.unique();
-        let channel = format!("#{}", context.unique());
-        let text = format!("echo from {}", context.unique());
-        let mut connection = context.client(&nick).await?;
-        let registered_nick = connection.welcome.nick.clone();
-        connection
-            .client
-            .send(Message::join(&channel))
-            .await
-            .map_err(Failed::from)?;
-        context
-            .expect(
-                &mut connection.events,
-                |event| {
-                    matches!(
-                        event,
-                        Event::Joined {
-                            channel: joined,
-                            nick: joined_nick,
-                        } if joined == &channel && joined_nick == &registered_nick
-                    )
-                },
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-        connection
-            .client
-            .privmsg(&channel, &text)
-            .await
-            .map_err(Failed::from)?;
-        context
+/// echoes a channel PRIVMSG to its sender
+#[scenario(requires(caps = ["echo-message"]))]
+async fn echo_message(context: Scenario) -> ScenarioResult {
+    let nick = context.unique();
+    let channel = format!("#{}", context.unique());
+    let text = format!("echo from {}", context.unique());
+    let mut connection = context.client(&nick).await?;
+    let registered_nick = connection.welcome.nick.clone();
+    connection
+        .client
+        .send(Message::join(&channel))
+        .await
+        .map_err(Failed::from)?;
+    context
+        .expect(
+            &mut connection.events,
+            |event| {
+                matches!(
+                    event,
+                    Event::Joined {
+                        channel: joined,
+                        nick: joined_nick,
+                    } if joined == &channel && joined_nick == &registered_nick
+                )
+            },
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+    connection
+        .client
+        .privmsg(&channel, &text)
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut connection.events,
                 |event| {
@@ -599,8 +600,7 @@ fn echo_message(context: Scenario) -> ScenarioFuture {
                 EXPECT_TIMEOUT,
             )
             .await?;
-        connection.close().await
-    })
+    connection.close().await
 }
 
 async fn joined_pair(
@@ -669,16 +669,17 @@ fn labeled_response(context: Scenario) -> ScenarioFuture {
     })
 }
 
-fn server_time(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let (mut receiver, sender, channel) = joined_pair(&context).await?;
-        let text = format!("timestamped message from {}", sender.welcome.nick);
-        sender
-            .client
-            .privmsg(&channel, &text)
-            .await
-            .map_err(Failed::from)?;
-        context
+/// delivers a channel message with server time
+#[scenario(requires(caps = ["server-time"]))]
+async fn server_time(context: Scenario) -> ScenarioResult {
+    let (mut receiver, sender, channel) = joined_pair(&context).await?;
+    let text = format!("timestamped message from {}", sender.welcome.nick);
+    sender
+        .client
+        .privmsg(&channel, &text)
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut receiver.events,
                 |event| {
@@ -687,19 +688,19 @@ fn server_time(context: Scenario) -> ScenarioFuture {
                 EXPECT_TIMEOUT,
             )
             .await?;
-        close_pair(receiver, sender).await
-    })
+    close_pair(receiver, sender).await
 }
 
-fn message_tags(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let (mut receiver, sender, channel) = joined_pair(&context).await?;
-        sender
-            .client
-            .send(Message::new("TAGMSG", [&channel]).with_tag("+typing", "active"))
-            .await
-            .map_err(Failed::from)?;
-        context
+/// delivers a client-only typing tag
+#[scenario(requires(caps = ["message-tags"]))]
+async fn message_tags(context: Scenario) -> ScenarioResult {
+    let (mut receiver, sender, channel) = joined_pair(&context).await?;
+    sender
+        .client
+        .send(Message::new("TAGMSG", [&channel]).with_tag("+typing", "active"))
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut receiver.events,
                 |event| {
@@ -708,8 +709,7 @@ fn message_tags(context: Scenario) -> ScenarioFuture {
                 EXPECT_TIMEOUT,
             )
             .await?;
-        close_pair(receiver, sender).await
-    })
+    close_pair(receiver, sender).await
 }
 
 fn account_notify(context: Scenario) -> ScenarioFuture {
