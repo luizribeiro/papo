@@ -2618,64 +2618,6 @@ async fn disconnect_clears_monitor_presence_snapshot() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn webpush_sends_keys_and_returns_typed_failures() {
-    let settings = config().wanted_caps(["draft/webpush", "labeled-response"]);
-    let (mut server, client, mut events, driver) = scripted(settings);
-    let driver = tokio::spawn(driver);
-    complete_caps_registration(
-        &mut server,
-        &mut events,
-        "draft/webpush labeled-response",
-        "draft/webpush labeled-response",
-    )
-    .await;
-    let register = tokio::spawn({
-        let client = client.clone();
-        async move {
-            client
-                .webpush()
-                .register(
-                    "https://push.example.net/message/ErgoTest/alice",
-                    super::PushKeys {
-                        p256dh: "AQIDBAUGBwgJCgsMDQ4P_w".into(),
-                        auth: "-vv8_f7_".into(),
-                    },
-                )
-                .await
-        }
-    });
-    client_line(&mut server, b"@label=0 WEBPUSH REGISTER https://push.example.net/message/ErgoTest/alice p256dh=AQIDBAUGBwgJCgsMDQ4P_w;auth=-vv8_f7_\r\n").await;
-    server_line(
-        &mut server,
-        b"@label=0 :ergo.test WEBPUSH SUCCESS :Subscription registered\r\n",
-    )
-    .await;
-    assert!(register.await.unwrap().is_ok());
-
-    let unregister = tokio::spawn(async move {
-        client
-            .webpush()
-            .unregister("https://push.example.net/message/ErgoTest/alice")
-            .await
-    });
-    client_line(
-        &mut server,
-        b"@label=1 WEBPUSH UNREGISTER https://push.example.net/message/ErgoTest/alice\r\n",
-    )
-    .await;
-    server_line(
-        &mut server,
-        b"@label=1 :ergo.test FAIL WEBPUSH MAX_REGISTRATIONS :Too many registrations\r\n",
-    )
-    .await;
-    assert!(matches!(
-        unregister.await.unwrap(),
-        Err(Error::WebPush(papo_core::WebPushError::MaxRegistrations))
-    ));
-    driver.abort();
-}
-
-#[tokio::test(flavor = "current_thread")]
 async fn metadata_reads_writes_and_updates_state() {
     let settings = config().wanted_caps(["batch", "draft/metadata-2", "labeled-response"]);
     let (mut server, client, mut events, driver) = scripted(settings);

@@ -42,50 +42,6 @@ pub struct Sent {
     pub time: Option<SystemTime>,
 }
 
-/// Handle for Web Push subscription requests.
-pub struct WebPush<'a> {
-    client: &'a Client,
-}
-
-/// URL-safe encoded Web Push encryption keys.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PushKeys {
-    /// P-256 Diffie-Hellman public key.
-    pub p256dh: String,
-    /// Authentication secret.
-    pub auth: String,
-}
-
-impl WebPush<'_> {
-    /// Registers a Web Push endpoint and its URL-safe encoded keys.
-    ///
-    /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
-    pub async fn register(&self, endpoint: &str, keys: PushKeys) -> Result<(), Error> {
-        let response = self
-            .client
-            .core_request(CoreRequest::WebPushRegister {
-                endpoint: endpoint.into(),
-                p256dh: keys.p256dh,
-                auth: keys.auth,
-            })
-            .await?;
-        webpush_result(&response)
-    }
-
-    /// Unregisters a Web Push endpoint.
-    ///
-    /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
-    pub async fn unregister(&self, endpoint: &str) -> Result<(), Error> {
-        let response = self
-            .client
-            .core_request(CoreRequest::WebPushUnregister(endpoint.into()))
-            .await?;
-        webpush_result(&response)
-    }
-}
-
 impl Sent {
     pub(crate) fn from_response(response: &Response) -> Self {
         response.sent().map_or_else(Self::default, |sent| Self {
@@ -192,12 +148,6 @@ impl Client {
             return Err(Error::Relay(error));
         }
         crate::requests::empty(&response)
-    }
-
-    /// Returns a handle for Web Push subscriptions.
-    #[must_use]
-    pub const fn webpush(&self) -> WebPush<'_> {
-        WebPush { client: self }
     }
 
     /// Validates and queues an IRC message for transmission.
@@ -680,13 +630,6 @@ impl Client {
             .map_err(|_| Error::Disconnected)?;
         receiver.await.map_err(|_| Error::Disconnected)?
     }
-}
-
-fn webpush_result(response: &Response) -> Result<(), Error> {
-    if let Some(error) = response.webpush_error() {
-        return Err(Error::WebPush(error));
-    }
-    crate::requests::empty(response)
 }
 
 impl std::fmt::Debug for Client {

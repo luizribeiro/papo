@@ -32,9 +32,6 @@ use crate::{
     transport::{self, TlsConfig},
 };
 
-#[cfg(test)]
-use crate::client::PushKeys;
-
 pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const STABLE_CONNECTION: Duration = Duration::from_secs(60);
