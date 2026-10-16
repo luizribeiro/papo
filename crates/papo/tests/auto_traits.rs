@@ -70,10 +70,7 @@ fn request_futures_are_send() {
     assert_send(client.persistence().set(PersistenceSetting::On));
     assert_send(client.webpush().register(
         "https://push.example.net/message/ErgoTest/alice",
-        PushKeys {
-            p256dh: "AQIDBAUGBwgJCgsMDQ4P_w".into(),
-            auth: "-vv8_f7_".into(),
-        },
+        PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
     ));
     assert_send(
         client

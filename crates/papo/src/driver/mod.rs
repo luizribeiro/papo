@@ -82,7 +82,7 @@ pub(crate) enum CoreRequest {
     WebPushRegister {
         endpoint: String,
         p256dh: String,
-        auth: String,
+        auth: papo_core::Secret,
     },
     WebPushUnregister(String),
 }
@@ -112,7 +112,7 @@ impl CoreRequest {
                 endpoint,
                 p256dh,
                 auth,
-            } => return session.webpush_register(now(), &endpoint, &p256dh, &auth),
+            } => return session.webpush_register(now(), &endpoint, &p256dh, auth.expose()),
             Self::WebPushUnregister(endpoint) => {
                 return session.webpush_unregister(now(), &endpoint);
             }

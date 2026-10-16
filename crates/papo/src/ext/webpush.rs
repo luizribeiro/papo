@@ -10,10 +10,24 @@ pub struct WebPush<'a> {
 /// URL-safe encoded Web Push encryption keys.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PushKeys {
-    /// P-256 Diffie-Hellman public key.
-    pub p256dh: String,
-    /// Authentication secret.
-    pub auth: String,
+    p256dh: String,
+    auth: papo_core::Secret,
+}
+
+impl PushKeys {
+    /// Creates the encryption keys for a Web Push subscription.
+    ///
+    /// ```
+    /// let keys = papo::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_");
+    /// # _ = keys;
+    /// ```
+    #[must_use]
+    pub fn new(p256dh: impl Into<String>, auth: impl Into<papo_core::Secret>) -> Self {
+        Self {
+            p256dh: p256dh.into(),
+            auth: auth.into(),
+        }
+    }
 }
 
 impl WebPush<'_> {
@@ -84,10 +98,7 @@ mod tests {
                     .webpush()
                     .register(
                         "https://push.example.net/message/ErgoTest/alice",
-                        super::PushKeys {
-                            p256dh: "AQIDBAUGBwgJCgsMDQ4P_w".into(),
-                            auth: "-vv8_f7_".into(),
-                        },
+                        super::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
                     )
                     .await
             }
@@ -121,5 +132,15 @@ mod tests {
             Err(Error::WebPush(papo_core::WebPushError::MaxRegistrations))
         ));
         abort_task(driver).await;
+    }
+
+    #[test]
+    fn push_keys_debug_redacts_the_authentication_secret() {
+        let keys =
+            super::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "unique-webpush-auth-secret-4862");
+        let output = format!("{keys:?}");
+        assert!(output.contains("AQIDBAUGBwgJCgsMDQ4P_w"));
+        assert!(output.contains("[REDACTED]"));
+        assert!(!output.contains("unique-webpush-auth-secret-4862"));
     }
 }

@@ -451,8 +451,8 @@ pub async fn papo::Persistence<'_>::get(&self) -> core::result::Result<papo_core
 pub async fn papo::Persistence<'_>::set(&self, papo_core::PersistenceSetting) -> core::result::Result<papo_core::PersistenceStatus, papo::Error>
 pub fn papo::Persistence<'_>::state(&self) -> core::option::Option<papo_core::PersistenceStatus>
 pub struct papo::PushKeys
-pub papo::PushKeys::auth: alloc::string::String
-pub papo::PushKeys::p256dh: alloc::string::String
+impl papo::PushKeys
+pub fn papo::PushKeys::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::secret::Secret>) -> Self
 pub struct papo::Reconnect
 impl papo::Reconnect
 pub const fn papo::Reconnect::exponential() -> Self
