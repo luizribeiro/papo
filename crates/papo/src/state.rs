@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use papo_core::{Capabilities, Channel, Session, User};
@@ -80,6 +81,12 @@ impl State {
     #[must_use]
     pub const fn persistence(&self) -> Option<papo_core::PersistenceStatus> {
         self.core.persistence()
+    }
+
+    /// Returns cached metadata for `target`.
+    #[must_use]
+    pub fn metadata(&self, target: &str) -> Option<&HashMap<String, papo_core::MetadataValue>> {
+        self.core.metadata(target)
     }
 
     /// Returns a known user using the server's casemapping.

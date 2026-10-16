@@ -44,7 +44,7 @@ type BackoffEntropy = Box<dyn FnMut() -> u64 + Send>;
 type ReadMarkerSender = oneshot::Sender<Result<Option<SystemTime>, Error>>;
 type ReadMarkerWaiters = Vec<(String, ReadMarkerSender)>;
 
-enum CoreRequest {
+pub(crate) enum CoreRequest {
     Register {
         account: Option<String>,
         email: Option<String>,
@@ -56,6 +56,7 @@ enum CoreRequest {
     },
     PersistenceGet,
     PersistenceSet(papo_core::PersistenceSetting),
+    Metadata(papo_core::MetadataCommand),
 }
 
 impl CoreRequest {
@@ -72,6 +73,7 @@ impl CoreRequest {
             Self::Verify { account, code } => session.verify(now(), &account, &code)?,
             Self::PersistenceGet => session.persistence_get(now())?,
             Self::PersistenceSet(setting) => session.persistence_set(now(), setting)?,
+            Self::Metadata(command) => return session.metadata(now(), command),
         }
         Ok(before)
     }
@@ -405,7 +407,7 @@ impl Client {
         receiver.await.map_err(|_| Error::Disconnected)?
     }
 
-    async fn core_request(&self, request: CoreRequest) -> Result<Response, Error> {
+    pub(crate) async fn core_request(&self, request: CoreRequest) -> Result<Response, Error> {
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::CoreRequest { request, result })

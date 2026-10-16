@@ -66,6 +66,9 @@ pub enum Error {
     /// The IRC server rejected account registration or verification.
     #[error("account registration failed: {0:?}")]
     AccountRegistration(papo_core::AccountRegistrationError),
+    /// The IRC server rejected a metadata operation.
+    #[error("metadata operation failed: {0:?}")]
+    Metadata(papo_core::MetadataError),
 }
 
 #[cfg(test)]
