@@ -8,9 +8,8 @@ version.workspace = true
 publish.workspace = true
 
 [features]
-default = ["spawn", "tls-ring"]
+default = ["tls-ring"]
 bot = []
-spawn = []
 sts-file = ["dep:serde", "dep:serde_json"]
 websocket = ["dep:futures-util", "dep:tokio-tungstenite"]
 tls-aws-lc = [

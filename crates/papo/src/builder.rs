@@ -3,7 +3,6 @@ use std::{path::Path, time::Duration};
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
 use papo_core::{Config, RateLimit, Sasl};
 use tokio::io::{AsyncRead, AsyncWrite};
-#[cfg(feature = "spawn")]
 use tokio::sync::oneshot;
 
 use crate::{
@@ -299,7 +298,6 @@ impl Builder {
     /// # Errors
     ///
     /// Returns connection or registration errors that occur before welcome.
-    #[cfg(feature = "spawn")]
     pub async fn connect(self) -> Result<(crate::Client, crate::Events), Error> {
         let (sender, receiver) = oneshot::channel();
         let (client, events, driver) = self.build_with_registration(Some(sender));
@@ -316,7 +314,6 @@ impl Builder {
     /// # Errors
     ///
     /// Returns address or registration errors that occur before welcome.
-    #[cfg(feature = "spawn")]
     pub async fn connect_with<S>(self, stream: S) -> Result<(crate::Client, crate::Events), Error>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -588,7 +585,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "spawn")]
     #[tokio::test(flavor = "current_thread")]
     async fn connect_returns_a_deferred_address_error() {
         let error = within(Builder::new("irc://").connect())
@@ -598,7 +594,6 @@ mod tests {
         assert!(matches!(error, Error::InvalidInput(_)));
     }
 
-    #[cfg(feature = "spawn")]
     #[tokio::test(flavor = "current_thread")]
     async fn custom_stream_registers_once_without_reconnecting() {
         let (stream, mut server) = tokio::io::duplex(4096);
