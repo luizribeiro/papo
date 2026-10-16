@@ -105,7 +105,7 @@ impl MessageEvent {
         self.client
             .state(|state| match state.user(nick)?.account() {
                 Account::LoggedIn(account) => Some(account.clone()),
-                Account::Unknown | Account::LoggedOut => None,
+                _ => None,
             })
     }
 

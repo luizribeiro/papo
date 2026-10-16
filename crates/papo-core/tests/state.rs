@@ -2,7 +2,7 @@
 
 mod support;
 
-use std::time::Duration;
+use std::time::{Duration, UNIX_EPOCH};
 
 use papo_core::{Account, Config, Event, OwnedModeChange, RateLimit, StateLimit};
 use papo_proto::{Message, ModeKind};
@@ -417,10 +417,16 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
             assert_eq!(channel.mode('k'), Some(Some("swordfish")));
             assert_eq!(channel.mode('l'), Some(Some("10")));
             assert_eq!(channel.mode('n'), Some(None));
-            assert_eq!(channel.created_at(), Some(1_723_501_539));
+            assert_eq!(
+                channel.created_at(),
+                Some(UNIX_EPOCH + Duration::from_secs(1_723_501_539))
+            );
             assert_eq!(channel.topic(), Some("Welcome to the papo channel"));
             assert_eq!(channel.topic_set_by(), Some("alice"));
-            assert_eq!(channel.topic_set_at(), Some(1_723_501_612));
+            assert_eq!(
+                channel.topic_set_at(),
+                Some(UNIX_EPOCH + Duration::from_secs(1_723_501_612))
+            );
         })
         .no_event()
         .server(":alice!alice@staff.example MODE #papo -k")
@@ -516,15 +522,19 @@ fn only_our_nickname_changes_our_user_modes() {
 #[test]
 fn distinguishes_prefix_rank_and_channel_mode_argument_branches() {
     Transcript::new(Config::default().nick("emily"))
-        .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
+        .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
-        .server(":ergo.test 353 emily = #papo :+dan!dan@cloak.example")
+        .server(":ergo.test 353 emily = #papo :+dan!dan@cloak.example +erin!erin@cloak.example")
         .server(":alice!alice@staff.example MODE #papo +o dan")
         .server(":alice!alice@staff.example MODE #papo +l")
         .server(":alice!alice@staff.example MODE #papo +m")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.member("dan").unwrap().prefixes(), ['@', '+']);
+            assert_eq!(channel.member("dan").unwrap().highest_prefix(), Some('@'));
+            assert!(channel.member("dan").unwrap().is_voiced());
+            assert!(channel.member("dan").unwrap().is_halfop());
+            assert!(!channel.member("erin").unwrap().is_halfop());
             assert_eq!(channel.mode('l'), None);
             assert_eq!(channel.mode('m'), Some(None));
         })
@@ -589,7 +599,7 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
             assert!(channel.is_synced());
             assert_eq!(channel.mode('n'), Some(None));
             assert_eq!(channel.mode('k'), Some(Some("secret")));
-            assert_eq!(channel.created_at(), Some(1_760_529_342));
+            assert_eq!(channel.created_at(), Some(UNIX_EPOCH + Duration::from_secs(1_760_529_342)));
         })
         .no_event();
 }

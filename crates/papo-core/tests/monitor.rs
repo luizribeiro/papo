@@ -189,7 +189,7 @@ fn tracks_online_offline_and_list_full_replies() {
             let mut online: Vec<_> = session
                 .state()
                 .monitor_online()
-                .map(|user| (user.nick(), user.user(), user.host()))
+                .map(|user| (user.nick(), user.username(), user.host()))
                 .collect();
             online.sort_unstable();
             assert_eq!(

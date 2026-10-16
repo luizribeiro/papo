@@ -108,6 +108,6 @@ fn account(account: &Account) -> &str {
     match account {
         Account::LoggedIn(name) => name,
         Account::LoggedOut => "*",
-        Account::Unknown => "?",
+        _ => "?",
     }
 }

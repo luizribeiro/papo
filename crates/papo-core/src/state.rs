@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use papo_proto::{
@@ -52,10 +53,10 @@ pub struct Channel {
     casemapping: Casemapping,
     members: HashMap<CaseKey, Member>,
     modes: HashMap<char, Option<String>>,
-    created_at: Option<u64>,
+    created_at: Option<SystemTime>,
     topic: Option<String>,
     topic_set_by: Option<String>,
-    topic_set_at: Option<u64>,
+    topic_set_at: Option<SystemTime>,
     synced: bool,
     prefix_order: Arc<[char]>,
 }
@@ -84,6 +85,7 @@ pub struct User {
 
 /// A user's known account state.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Account {
     /// No source has reported whether the user is logged in.
     Unknown,
@@ -640,7 +642,7 @@ impl State {
                 channel.apply_modes(modestring, message.params().skip(3), isupport, true);
             }
         } else {
-            channel.created_at = message.param(2).and_then(|seconds| seconds.parse().ok());
+            channel.created_at = message.param(2).and_then(parse_unix_seconds);
         }
         true
     }
@@ -684,7 +686,7 @@ impl State {
                     return false;
                 };
                 channel.topic_set_by = message.param(2).map(str::to_owned);
-                channel.topic_set_at = message.param(3).and_then(|value| value.parse().ok());
+                channel.topic_set_at = message.param(3).and_then(parse_unix_seconds);
                 return true;
             }
             _ => return false,
@@ -1543,9 +1545,9 @@ impl Channel {
         self.topic_set_by.as_deref()
     }
 
-    /// Returns when the current topic was set, in seconds since the Unix epoch.
+    /// Returns when the current topic was set.
     #[must_use]
-    pub const fn topic_set_at(&self) -> Option<u64> {
+    pub const fn topic_set_at(&self) -> Option<SystemTime> {
         self.topic_set_at
     }
 
@@ -1562,9 +1564,9 @@ impl Channel {
             .map(|(mode, argument)| (*mode, argument.as_deref()))
     }
 
-    /// Returns the channel creation time in seconds since the Unix epoch.
+    /// Returns the channel creation time.
     #[must_use]
-    pub const fn created_at(&self) -> Option<u64> {
+    pub const fn created_at(&self) -> Option<SystemTime> {
         self.created_at
     }
 
@@ -1623,6 +1625,24 @@ impl Member {
     pub fn is_op(&self) -> bool {
         self.has_prefix_at_least('@')
     }
+
+    /// Reports whether the member has voice rank or higher.
+    #[must_use]
+    pub fn is_voiced(&self) -> bool {
+        self.has_prefix_at_least('+')
+    }
+
+    /// Reports whether the member has half-operator rank or higher.
+    #[must_use]
+    pub fn is_halfop(&self) -> bool {
+        self.has_prefix_at_least('%')
+    }
+
+    /// Returns the member's highest-ranked prefix.
+    #[must_use]
+    pub fn highest_prefix(&self) -> Option<char> {
+        self.prefixes.first().copied()
+    }
 }
 
 impl User {
@@ -1659,12 +1679,6 @@ impl User {
     #[must_use]
     pub fn username(&self) -> Option<&str> {
         self.username.as_deref()
-    }
-
-    /// Returns the user's username when known.
-    #[must_use]
-    pub fn user(&self) -> Option<&str> {
-        self.username()
     }
 
     /// Returns the user's hostname when known.
@@ -1709,6 +1723,13 @@ impl Account {
             Self::LoggedIn(account.to_owned())
         })
     }
+}
+
+fn parse_unix_seconds(value: &str) -> Option<SystemTime> {
+    value
+        .parse()
+        .ok()
+        .and_then(|seconds| UNIX_EPOCH.checked_add(Duration::from_secs(seconds)))
 }
 
 #[cfg(test)]

@@ -2451,7 +2451,7 @@ async fn public_state_accessors_report_the_registered_session() {
                 .collect::<Vec<_>>(),
             ["#Papo"]
         );
-        assert_eq!(state.user("ALICE").unwrap().user(), Some("~alice"));
+        assert_eq!(state.user("ALICE").unwrap().username(), Some("~alice"));
         assert_eq!(state.monitor_online().next().unwrap().nick(), "bob");
         assert_eq!(state.isupport().nicklen(), Some(27));
     });
