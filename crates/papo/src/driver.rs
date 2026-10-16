@@ -41,6 +41,8 @@ type BoxConnection = Box<dyn ConnectionIo>;
 type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>> + Send>>;
 pub(crate) type Connector = Arc<dyn Fn(ConnectionPlan) -> ConnectFuture + Send + Sync>;
 type BackoffEntropy = Box<dyn FnMut() -> u64 + Send>;
+type ReadMarkerSender = oneshot::Sender<Result<Option<SystemTime>, Error>>;
+type ReadMarkerWaiters = Vec<(String, ReadMarkerSender)>;
 
 enum Command {
     Send {
@@ -60,6 +62,10 @@ enum Command {
         target: String,
         time: SystemTime,
         result: oneshot::Sender<Result<Response, Error>>,
+    },
+    ReadMarker {
+        target: String,
+        result: ReadMarkerSender,
     },
     SendText {
         kind: TextKind,
@@ -380,6 +386,23 @@ impl Client {
             .map_err(|_| Error::Disconnected)?;
         let response = receiver.await.map_err(|_| Error::Disconnected)??;
         crate::requests::empty(&response)
+    }
+
+    /// Queries the server read marker for `target`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when read markers are unsupported or the query cannot complete.
+    pub async fn read_marker(&self, target: &str) -> Result<Option<SystemTime>, Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::ReadMarker {
+                target: target.to_owned(),
+                result,
+            })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        receiver.await.map_err(|_| Error::Disconnected)?
     }
 
     /// Sends a private message to a user or channel.
@@ -1390,6 +1413,10 @@ fn handle_disconnected_command(
             _ = result.send(Err(Error::Disconnected));
             true
         }
+        Some(Command::ReadMarker { result, .. }) => {
+            _ = result.send(Err(Error::Disconnected));
+            true
+        }
         Some(Command::Typing { result, .. } | Command::WaitChannelSync { result, .. }) => {
             _ = result.send(Err(Error::Disconnected));
             true
@@ -1492,6 +1519,7 @@ where
     let mut requests = BTreeMap::new();
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
+    let mut read_marker_waiters = Vec::new();
     let mut registered_at = None;
     let mut sts = StsActions::default();
     let mut buffer = [0; 4096];
@@ -1503,6 +1531,7 @@ where
             &mut pending_event,
             &mut requests,
             &mut sync_waiters,
+            &mut read_marker_waiters,
             registration,
             defaults,
             registered,
@@ -1578,6 +1607,18 @@ where
                 Some(Command::MarkRead { target, time, result }) => {
                     match session.mark_read(now(), &target, time) {
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
+                        Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
+                        Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
+                        Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
+                    }
+                }
+                Some(Command::ReadMarker { target, result }) => {
+                    match session.read_marker(&target) {
+                        Ok(()) => match session.state().read_marker(&target) {
+                            Some(marker) => { _ = result.send(Ok(marker.time)); }
+                            None if read_marker_waiters.len() < 256 => read_marker_waiters.push((target, result)),
+                            None => { _ = result.send(Err(Error::RequestLimit)); }
+                        },
                         Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
                         Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
                         Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
@@ -1664,6 +1705,9 @@ where
     for (_, result) in sync_waiters {
         _ = result.send(Err(Error::Disconnected));
     }
+    for (_, result) in read_marker_waiters {
+        _ = result.send(Err(Error::Disconnected));
+    }
     connected.store(false, Ordering::Relaxed);
     publish_state(events, session, false);
     let close_error = stream.flush().await.err().or(stream.shutdown().await.err());
@@ -1723,7 +1767,7 @@ async fn wait_until(deadline: Option<Instant>) {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 async fn drain<S>(
     stream: &mut S,
     session: &mut Session,
@@ -1731,6 +1775,7 @@ async fn drain<S>(
     pending_event: &mut Option<Event>,
     requests: &mut BTreeMap<RequestId, PendingRequest>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
+    read_marker_waiters: &mut ReadMarkerWaiters,
     registration: &mut RegistrationWait,
     defaults: &PostRegistration,
     registered: &mut bool,
@@ -1777,6 +1822,9 @@ where
                 };
                 if let Event::ChannelSynced { channel } = &event {
                     resolve_sync_waiters(session, sync_waiters, channel);
+                }
+                if let Event::ReadMarker(marker) = &event {
+                    resolve_read_marker_waiters(session, read_marker_waiters, marker);
                 }
                 if let Event::Raw(message) = event {
                     event = match events.commands.upgrade() {
@@ -1856,6 +1904,25 @@ fn resolve_sync_waiters(
                 None
             } else {
                 Some((waiting, result))
+            }
+        })
+        .collect();
+}
+
+fn resolve_read_marker_waiters(
+    session: &Session,
+    waiters: &mut ReadMarkerWaiters,
+    marker: &papo_core::ReadMarker,
+) {
+    let mapping = session.isupport().casemapping();
+    *waiters = std::mem::take(waiters)
+        .into_iter()
+        .filter_map(|(target, result)| {
+            if mapping.eq(&target, &marker.target) {
+                _ = result.send(Ok(marker.time));
+                None
+            } else {
+                Some((target, result))
             }
         })
         .collect();
@@ -2547,6 +2614,34 @@ mod tests {
         assert!(
             matches!(events.next().await, Some(Event::ReadMarker(marker)) if marker.target == "#papo")
         );
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn read_marker_resolves_fresh_and_cached_values() {
+        let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_read_marker_registration(&mut server, &mut events).await;
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.read_marker("#papo").await }
+        });
+        client_line(&mut server, b"MARKREAD #papo\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        let expected = UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
+        assert_eq!(request.await.unwrap().unwrap(), Some(expected));
+        assert_eq!(
+            client.state(|state| state.read_marker("#PAPO")),
+            Some(expected)
+        );
+
+        assert_eq!(client.read_marker("#papo").await.unwrap(), Some(expected));
+        client_line(&mut server, b"MARKREAD #papo\r\n").await;
         task.abort();
     }
 

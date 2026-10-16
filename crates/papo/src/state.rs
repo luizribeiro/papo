@@ -70,6 +70,12 @@ impl State {
         self.core.channels()
     }
 
+    /// Returns the newest read marker time reported for `target`.
+    #[must_use]
+    pub fn read_marker(&self, target: &str) -> Option<std::time::SystemTime> {
+        self.core.read_marker(target).and_then(|marker| marker.time)
+    }
+
     /// Returns a known user using the server's casemapping.
     #[must_use]
     pub fn user(&self, nick: &str) -> Option<&User> {
