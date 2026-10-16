@@ -2327,6 +2327,9 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         if self.caps.enabled().contains_key("labeled-response") {
             let track_sync = matches!(matcher, ResponseMatcher::Join(_));
+            if track_sync && self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
+                return Err(RequestError::PendingLimit);
+            }
             let id = self.request(now, message)?;
             if track_sync {
                 self.unlabelled_requests.push_back(UnlabelledRequest {

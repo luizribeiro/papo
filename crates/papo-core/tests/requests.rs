@@ -1109,6 +1109,42 @@ fn bounds_pending_requests_at_the_literal_limit() {
 }
 
 #[test]
+fn labelled_join_fallbacks_obey_the_literal_pending_limit() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    for channel in 0..256 {
+        let channel = format!("#project-{channel}");
+        session
+            .request_with_matcher(now, Message::join(&channel), ResponseMatcher::Join(channel))
+            .unwrap();
+        let line = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
+        let label = MessageRef::parse(&line)
+            .unwrap()
+            .tag("label")
+            .unwrap()
+            .into_owned();
+        session.handle_line(now, format!("@label={label} :ergo.test ACK").as_bytes());
+    }
+
+    assert_eq!(
+        session.request_with_matcher(
+            now,
+            Message::join("#overflow"),
+            ResponseMatcher::Join("#overflow".into()),
+        ),
+        Err(RequestError::PendingLimit)
+    );
+    assert_eq!(session.poll_transmit(), None);
+    session.handle_disconnected(now);
+    assert_eq!(
+        std::iter::from_fn(|| session.poll_event())
+            .filter(|event| matches!(event, Event::RequestAborted { .. }))
+            .count(),
+        256
+    );
+}
+
+#[test]
 fn generates_one_thousand_distinct_short_alphanumeric_labels() {
     let now = Instant::now();
     let mut session = labelled_session(now);
