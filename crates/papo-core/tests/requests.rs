@@ -71,6 +71,38 @@ fn unlabelled_join_waits_for_channel_sync() {
     );
 }
 
+#[test]
+fn unlabelled_mode_waits_for_its_matching_ping_fence() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let id = session
+        .request_with_matcher(
+            now,
+            Message::new("MODE", ["#papo", "+t"]),
+            ResponseMatcher::Mode("#papo".into()),
+        )
+        .unwrap();
+    assert_eq!(session.poll_transmit().unwrap(), b"MODE #papo +t\r\n");
+    assert_eq!(session.poll_transmit().unwrap(), b"PING :papo-mode-0\r\n");
+
+    session.handle_line(now, b":papo!papo@localhost MODE #papo +t");
+    assert!(
+        !std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(_)))
+    );
+    session.handle_line(now, b":ergo.test PONG ergo.test :wrong-token");
+    assert!(
+        !std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(_)))
+    );
+    session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-0");
+
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(response) if response.id == id))
+    );
+}
+
 fn assert_unlabelled(
     session: &mut Session,
     message: Message,
@@ -154,7 +186,10 @@ fn matches_other_unlabelled_request_boundaries() {
         &mut session,
         Message::new("MODE", ["#papo", "+t"]),
         ResponseMatcher::Mode("#papo".into()),
-        &[":ergo.test 482 papo #papo :You're not a channel operator"],
+        &[
+            ":ergo.test 482 papo #papo :You're not a channel operator",
+            ":ergo.test PONG ergo.test :papo-mode-3",
+        ],
     );
     assert_unlabelled(
         &mut session,
@@ -386,6 +421,8 @@ fn mode_echoes_and_errors_use_the_named_concurrent_target() {
         ":ergo.test 482 papo #rust :You're not a channel operator",
         ":alice!alice@staff.example MODE #unknown +m",
         ":papo!papo@localhost MODE #papo{ +t",
+        ":ergo.test PONG ergo.test :papo-mode-0",
+        ":ergo.test PONG ergo.test :papo-mode-1",
     ] {
         session.handle_line(now, line.as_bytes());
     }
@@ -529,6 +566,9 @@ fn standard_failures_require_fail_kind_and_matching_command() {
             )
             .as_bytes(),
         );
+        if command == "MODE" {
+            session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-0");
+        }
         assert_eq!(response_id(&mut session), id);
     }
 }

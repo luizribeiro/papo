@@ -730,6 +730,7 @@ struct UnlabelledRequest {
     id: RequestId,
     started: Instant,
     matcher: ResponseMatcher,
+    fence: Option<String>,
     lines: Vec<Message>,
 }
 
@@ -2182,6 +2183,7 @@ impl Session {
                     id,
                     started: now,
                     matcher,
+                    fence: None,
                     lines: Vec::new(),
                 });
             }
@@ -2193,14 +2195,21 @@ impl Session {
         }
         let line = message.to_line()?;
         let id = RequestId(self.next_request_id);
+        let fence = matches!(matcher, ResponseMatcher::Mode(_))
+            .then(|| format!("papo-mode-{}", self.next_request_id));
         self.next_request_id = self.next_request_id.wrapping_add(1);
         self.unlabelled_requests.push_back(UnlabelledRequest {
             id,
             started: now,
             matcher,
+            fence: fence.clone(),
             lines: Vec::new(),
         });
         self.outbox.transmit_raw(line.into());
+        if let Some(fence) = fence {
+            self.outbox
+                .transmit_raw(format!("PING :{fence}\r\n").into_bytes());
+        }
         Ok(id)
     }
 
@@ -2815,9 +2824,18 @@ impl Session {
                 .iter()
                 .enumerate()
                 .find_map(|(index, request)| {
-                    request
-                        .matcher
-                        .matches(message, mapping, self.registration.nick(), &self.state)
+                    let fence = request.fence.as_ref().and_then(|token| {
+                        (message.command() == Command::Pong
+                            && message.params().last() == Some(token.as_str()))
+                        .then_some(true)
+                    });
+                    fence
+                        .or_else(|| {
+                            request
+                                .matcher
+                                .matches(message, mapping, self.registration.nick(), &self.state)
+                                .map(|complete| complete && request.fence.is_none())
+                        })
                         .map(|done| (index, done))
                 })
         else {

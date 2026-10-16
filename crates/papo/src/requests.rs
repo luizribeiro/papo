@@ -346,6 +346,7 @@ mod tests {
             now,
             b":ergo.test 482 papo #papo :You're not a channel operator",
         );
+        session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-0");
         let response = std::iter::from_fn(|| session.poll_event())
             .find_map(|event| match event {
                 Event::Response(response) => Some(response),

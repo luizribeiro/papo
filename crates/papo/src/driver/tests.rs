@@ -1590,12 +1590,8 @@ async fn typed_requests_match_unlabelled_responses() {
         let client = client.clone();
         async move { client.mode("#papo", "+t", [] as [&str; 0]).await }
     });
-    client_line(&mut server, b"MODE #papo +t\r\n").await;
-    server_line(
-        &mut server,
-        b":papo-driver!papo@localhost MODE #papo +t\r\n",
-    )
-    .await;
+    client_line(&mut server, b"MODE #papo +t\r\nPING :papo-mode-4\r\n").await;
+    server_line(&mut server, b":ergo.test PONG ergo.test :papo-mode-4\r\n").await;
     within(mode).await.unwrap().unwrap();
 
     let topic = tokio::spawn({
@@ -1676,10 +1672,10 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
         let client = client.clone();
         async move { client.mode("#papo", "+t", [] as [&str; 0]).await }
     });
-    client_line(&mut server, b"MODE #papo +t\r\n").await;
+    client_line(&mut server, b"MODE #papo +t\r\nPING :papo-mode-0\r\n").await;
     server_line(
         &mut server,
-        b":papo-driver!papo@localhost MODE #papo +t\r\n",
+        b":papo-driver!papo@localhost MODE #papo +t\r\n:ergo.test PONG ergo.test :papo-mode-0\r\n",
     )
     .await;
     within(mode).await.unwrap().unwrap();
