@@ -923,12 +923,12 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
     let mut store = papo_core::sts::MemoryStsStore::new();
     papo_core::sts::StsStore::put(
         &mut store,
-        papo_core::sts::StoredPolicy {
-            host: "irc.example.net".into(),
-            port: 7443,
-            expires_at: std::time::SystemTime::now() + Duration::from_secs(3600),
-            duration: Duration::from_secs(3600),
-        },
+        papo_core::sts::StoredPolicy::new(
+            "irc.example.net",
+            7443,
+            std::time::SystemTime::now() + Duration::from_secs(3600),
+            Duration::from_secs(3600),
+        ),
     );
     let (client, _events, driver) = Driver::with_connector(
         Ok(ConnectionPlan {
@@ -965,12 +965,12 @@ async fn connector_failure_under_stored_sts_is_terminal() {
     let mut store = papo_core::sts::MemoryStsStore::new();
     papo_core::sts::StsStore::put(
         &mut store,
-        papo_core::sts::StoredPolicy {
-            host: "irc.example.net".into(),
-            port: 6697,
-            expires_at: SystemTime::now() + Duration::from_secs(3600),
-            duration: Duration::from_secs(3600),
-        },
+        papo_core::sts::StoredPolicy::new(
+            "irc.example.net",
+            6697,
+            SystemTime::now() + Duration::from_secs(3600),
+            Duration::from_secs(3600),
+        ),
     );
     let (registration, waiter) = tokio::sync::oneshot::channel();
     let (_client, mut events, driver) = Driver::with_connector(
@@ -1661,12 +1661,12 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
     let mut store = SharedStsStore::default();
     papo_core::sts::StsStore::put(
         &mut store,
-        papo_core::sts::StoredPolicy {
-            host: "irc.example.net".to_owned(),
-            port: 6697,
-            expires_at: SystemTime::now() + Duration::from_secs(3600),
-            duration: Duration::from_secs(3600),
-        },
+        papo_core::sts::StoredPolicy::new(
+            "irc.example.net",
+            6697,
+            SystemTime::now() + Duration::from_secs(3600),
+            Duration::from_secs(3600),
+        ),
     );
     let inspection = store.clone();
     let (_client, mut events, driver) = Driver::with_connector(

@@ -139,12 +139,12 @@ impl DiskPolicy {
     }
 
     fn to_stored(&self, host: String) -> Option<StoredPolicy> {
-        Some(StoredPolicy {
+        Some(StoredPolicy::new(
             host,
-            port: self.port,
-            expires_at: UNIX_EPOCH.checked_add(Duration::from_secs(self.expires_at_unix))?,
-            duration: Duration::from_secs(self.duration_secs),
-        })
+            self.port,
+            UNIX_EPOCH.checked_add(Duration::from_secs(self.expires_at_unix))?,
+            Duration::from_secs(self.duration_secs),
+        ))
     }
 }
 
@@ -227,12 +227,7 @@ fn nonempty(value: Option<OsString>) -> Option<OsString> {
 #[cfg(feature = "sts-file")]
 fn normalize_host(host: &str) -> String {
     let mut store = MemoryStsStore::new();
-    store.put(StoredPolicy {
-        host: host.to_owned(),
-        port: 6697,
-        expires_at: UNIX_EPOCH,
-        duration: Duration::ZERO,
-    });
+    store.put(StoredPolicy::new(host, 6697, UNIX_EPOCH, Duration::ZERO));
     store
         .get(host)
         .map_or_else(|| host.to_owned(), |policy| policy.host)
@@ -252,12 +247,12 @@ mod tests {
     }
 
     fn policy(host: &str, expires_at_unix: u64) -> StoredPolicy {
-        StoredPolicy {
-            host: host.to_owned(),
-            port: 6697,
-            expires_at: std::time::UNIX_EPOCH + Duration::from_secs(expires_at_unix),
-            duration: Duration::from_hours(4_320),
-        }
+        StoredPolicy::new(
+            host,
+            6697,
+            std::time::UNIX_EPOCH + Duration::from_secs(expires_at_unix),
+            Duration::from_hours(4_320),
+        )
     }
 
     #[test]

@@ -139,6 +139,7 @@ pub enum StsParseError {
 
 /// A persisted secure-only policy and the duration last advertised by its host.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct StoredPolicy {
     /// The hostname to which this policy applies.
     pub host: String,
@@ -151,6 +152,33 @@ pub struct StoredPolicy {
 }
 
 impl StoredPolicy {
+    /// Creates a persistent secure-only policy.
+    ///
+    /// ```
+    /// # use std::time::{Duration, SystemTime};
+    /// let policy = papo_core::sts::StoredPolicy::new(
+    ///     "irc.example.net",
+    ///     6697,
+    ///     SystemTime::now() + Duration::from_secs(3600),
+    ///     Duration::from_secs(3600),
+    /// );
+    /// # _ = policy;
+    /// ```
+    #[must_use]
+    pub fn new(
+        host: impl Into<String>,
+        port: u16,
+        expires_at: SystemTime,
+        duration: Duration,
+    ) -> Self {
+        Self {
+            host: host.into(),
+            port,
+            expires_at,
+            duration,
+        }
+    }
+
     /// Reports whether this policy still requires TLS at `now`.
     #[must_use]
     pub fn is_active_at(&self, now: SystemTime) -> bool {

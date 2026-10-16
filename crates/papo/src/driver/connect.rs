@@ -420,12 +420,7 @@ pub(super) fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &Sts
         StsAction::Persist { host, duration } => {
             let now = crate::rt::now_wall();
             if let Some(expires_at) = now.checked_add(*duration) {
-                store.put(StoredPolicy {
-                    host: host.clone(),
-                    port,
-                    expires_at,
-                    duration: *duration,
-                });
+                store.put(StoredPolicy::new(host, port, expires_at, *duration));
             }
         }
         StsAction::Remove { host } => store.remove(host),
