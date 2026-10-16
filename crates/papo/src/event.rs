@@ -735,6 +735,15 @@ pub enum Event {
         /// The new nickname.
         new: String,
     },
+    /// A joined channel was renamed.
+    ChannelRenamed {
+        /// The previous channel name.
+        old: String,
+        /// The new channel name.
+        new: String,
+        /// The server-supplied reason, which may be empty.
+        reason: String,
+    },
     /// A user's account state changed.
     AccountChanged {
         /// The affected user's nickname.
@@ -953,6 +962,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             channels,
         },
         papo_core::Event::NickChanged { old, new } => Event::NickChanged { old, new },
+        papo_core::Event::ChannelRenamed { old, new, reason } => {
+            Event::ChannelRenamed { old, new, reason }
+        }
         papo_core::Event::AccountChanged { nick, account } => {
             Event::AccountChanged { nick, account }
         }

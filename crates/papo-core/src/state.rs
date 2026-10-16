@@ -257,6 +257,9 @@ impl State {
             });
             return Handled::Yes;
         }
+        if self.handle_channel_rename(message, outbox) {
+            return Handled::Yes;
+        }
         let mode_reported = Self::report_mode_change(message, isupport, outbox);
         if self.handle_channel_mode(message, isupport)
             || self.handle_channel_metadata(message, isupport)
@@ -1230,6 +1233,40 @@ impl State {
         }
         self.users
             .retain(|_, user| user.monitored || !user.channels.is_empty());
+    }
+
+    fn handle_channel_rename(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
+        if message.command() != Command::Rename || message.len() != 3 {
+            return false;
+        }
+        let (Some(old), Some(new), Some(reason)) =
+            (message.param(0), message.param(1), message.param(2))
+        else {
+            return false;
+        };
+        let old_key = CaseKey::new(old, self.casemapping);
+        let new_key = CaseKey::new(new, self.casemapping);
+        if let Some(mut channel) = self.channels.remove(&old_key) {
+            new.clone_into(&mut channel.name);
+            self.channels.insert(new_key.clone(), channel);
+        }
+        for user in self.users.values_mut() {
+            if user.channels.remove(&old_key) {
+                user.channels.insert(new_key.clone());
+            }
+        }
+        if self.who_sweeps.remove(&old_key) {
+            self.who_sweeps.insert(new_key.clone());
+        }
+        if let Some(values) = self.metadata.remove(&old_key) {
+            self.metadata.insert(new_key, values);
+        }
+        outbox.event(Event::ChannelRenamed {
+            old: old.to_owned(),
+            new: new.to_owned(),
+            reason: reason.to_owned(),
+        });
+        true
     }
 
     fn remove_member(&mut self, channel: &str, nick: &str) {
