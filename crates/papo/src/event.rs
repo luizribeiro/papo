@@ -1,6 +1,6 @@
 use papo_core::{
-    Account, BatchAbandonReason, Capabilities, OwnedModeChange, RequestId, Response, StandardReply,
-    StateLimit, Welcome, sts::StsAction,
+    Account, BatchAbandonReason, Capabilities, OwnedModeChange, RequestId, Response, StateLimit,
+    Welcome, sts::StsAction,
 };
 use std::{
     fmt,
@@ -19,7 +19,9 @@ mod conversation;
 mod source;
 
 pub use connection::{CapsChanged, Disconnected, Registered};
-pub use conversation::{Reacted, ReadMarker, Redacted, TagMsg, TypingChanged};
+pub use conversation::{
+    Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
+};
 pub use source::Source;
 
 /// The semantic kind of an incoming chat message.
@@ -905,7 +907,18 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::RequestUnsupported { id, unsupported } => {
             return CoreEvent::RequestUnsupported { id, unsupported };
         }
-        papo_core::Event::StandardReply(reply) => Event::StandardReply(reply),
+        papo_core::Event::StandardReply(reply) => Event::StandardReply(StandardReply {
+            kind: match reply.kind {
+                papo_proto::StandardReplyKind::Fail => StandardReplyKind::Fail,
+                papo_proto::StandardReplyKind::Warn => StandardReplyKind::Warn,
+                papo_proto::StandardReplyKind::Note => StandardReplyKind::Note,
+                _ => return CoreEvent::Unknown,
+            },
+            command: reply.command,
+            code: reply.code,
+            context: reply.context,
+            description: reply.description,
+        }),
         papo_core::Event::AccountRegistered { account, logged_in } => {
             Event::AccountRegistered { account, logged_in }
         }
@@ -1041,12 +1054,14 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
-    use super::{CoreEvent, Event, MessageEvent, MessageKind, Origin, Source, from_core};
-    use papo_core::{
-        Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session, StandardReply,
-        StateLimit,
+    use super::{
+        CoreEvent, Event, MessageEvent, MessageKind, Origin, Source, StandardReplyKind, from_core,
     };
-    use papo_proto::{Isupport, Message, MessageRef, ModeKind, StandardReplyKind, Typing};
+    use papo_core::{
+        Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session,
+        StandardReply as CoreStandardReply, StateLimit,
+    };
+    use papo_proto::{Isupport, Message, MessageRef, ModeKind, Typing};
 
     fn event(
         message: Message,
@@ -1407,8 +1422,8 @@ mod tests {
 
     #[test]
     fn maps_standard_reply() {
-        let reply = StandardReply {
-            kind: StandardReplyKind::Warn,
+        let reply = CoreStandardReply {
+            kind: papo_proto::StandardReplyKind::Warn,
             command: "CHATHISTORY".into(),
             code: "RATE_LIMITED".into(),
             context: vec!["#papo".into()],
@@ -1419,7 +1434,11 @@ mod tests {
         else {
             panic!("standard reply was not forwarded")
         };
-        assert_eq!(mapped, reply);
+        assert_eq!(mapped.kind, StandardReplyKind::Warn);
+        assert_eq!(mapped.command, reply.command);
+        assert_eq!(mapped.code, reply.code);
+        assert_eq!(mapped.context, reply.context);
+        assert_eq!(mapped.description, reply.description);
     }
 
     #[test]

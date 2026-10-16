@@ -1,7 +1,7 @@
 use libtest_mimic::Failed;
-use papo::Event;
+use papo::{Event, event::StandardReplyKind};
 use papo_conformance_macros::scenario;
-use papo_proto::{Message, StandardReplyKind};
+use papo_proto::Message;
 
 use super::support::{EXPECT_TIMEOUT, history_page};
 use crate::{Scenario, ScenarioResult};

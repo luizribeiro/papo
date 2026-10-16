@@ -67,3 +67,31 @@ pub struct ReadMarker {
     /// The marker time, or `None` when the server reports `*`.
     pub time: Option<SystemTime>,
 }
+
+/// Severity of an `IRCv3` standard reply.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum StandardReplyKind {
+    /// The requested operation failed.
+    Fail,
+    /// The requested operation completed with a warning.
+    Warn,
+    /// The server supplied informational context.
+    Note,
+}
+
+/// An unsolicited `IRCv3` standard reply.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct StandardReply {
+    /// Reply severity.
+    pub kind: StandardReplyKind,
+    /// Case-normalized command associated with the reply.
+    pub command: String,
+    /// Case-normalized reply code.
+    pub code: String,
+    /// Additional diagnostic parameters.
+    pub context: Vec<String>,
+    /// Human-readable reply description.
+    pub description: String,
+}

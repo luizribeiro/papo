@@ -96,6 +96,10 @@ pub papo::event::Source::User::nick: alloc::string::String
 pub papo::event::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
+#[non_exhaustive] pub enum papo::event::StandardReplyKind
+pub papo::event::StandardReplyKind::Fail
+pub papo::event::StandardReplyKind::Note
+pub papo::event::StandardReplyKind::Warn
 #[non_exhaustive] pub struct papo::event::CapsChanged
 pub papo::event::CapsChanged::added: papo_core::Capabilities
 pub papo::event::CapsChanged::removed: papo_core::Capabilities
@@ -121,6 +125,12 @@ pub papo::event::Registered::caps: papo_core::Capabilities
 pub papo::event::Registered::nick: alloc::string::String
 pub papo::event::Registered::reconnected: bool
 pub papo::event::Registered::text: alloc::string::String
+#[non_exhaustive] pub struct papo::event::StandardReply
+pub papo::event::StandardReply::code: alloc::string::String
+pub papo::event::StandardReply::command: alloc::string::String
+pub papo::event::StandardReply::context: alloc::vec::Vec<alloc::string::String>
+pub papo::event::StandardReply::description: alloc::string::String
+pub papo::event::StandardReply::kind: papo::event::StandardReplyKind
 #[non_exhaustive] pub struct papo::event::TagMsg
 pub papo::event::TagMsg::source: core::option::Option<papo::Source>
 pub papo::event::TagMsg::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
@@ -277,7 +287,7 @@ pub papo::Event::RequestTimedOut::id: papo_core::RequestId
 pub papo::Event::RequestUntracked
 pub papo::Event::RequestUntracked::id: papo_core::RequestId
 pub papo::Event::Response(papo_core::Response)
-pub papo::Event::StandardReply(papo_core::StandardReply)
+pub papo::Event::StandardReply(papo::event::StandardReply)
 pub papo::Event::StateLimitReached
 pub papo::Event::StateLimitReached::limit: papo_core::StateLimit
 pub papo::Event::StsPolicy(papo_core::sts::StsAction)
