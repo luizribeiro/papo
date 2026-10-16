@@ -65,7 +65,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: sasl_plain,
+            run: __papo_scenario_sasl_plain,
         },
         ScenarioSpec {
             name: "sasl_scram_sha_256",
@@ -77,7 +77,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: sasl_scram_sha_256,
+            run: __papo_scenario_sasl_scram_sha_256,
         },
         ScenarioSpec {
             name: "ping",
@@ -359,7 +359,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: draft_account_registration,
+            run: __papo_scenario_draft_account_registration,
         },
         ScenarioSpec {
             name: "draft_message_redaction",
@@ -469,12 +469,16 @@ async fn validate_registration(connection: super::RegisteredClient, nick: &str) 
     connection.close().await
 }
 
-fn sasl_plain(context: Scenario) -> ScenarioFuture {
-    Box::pin(authenticate(context, false))
+/// authenticates an account with SASL PLAIN
+#[scenario(requires(caps = ["sasl"]))]
+async fn sasl_plain(context: Scenario) -> ScenarioResult {
+    authenticate(context, false).await
 }
 
-fn sasl_scram_sha_256(context: Scenario) -> ScenarioFuture {
-    Box::pin(authenticate(context, true))
+/// authenticates an account with SCRAM-SHA-256
+#[scenario(requires(caps = ["sasl=SCRAM-SHA-256"]))]
+async fn sasl_scram_sha_256(context: Scenario) -> ScenarioResult {
+    authenticate(context, true).await
 }
 
 async fn authenticate(context: Scenario, scram: bool) -> ScenarioResult {
@@ -1129,39 +1133,39 @@ fn draft_channel_rename(context: Scenario) -> ScenarioFuture {
     })
 }
 
-fn draft_account_registration(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let nick = context.unique();
-        let account = nick.clone();
-        let mut connection = context
-            .client_caps(&nick, &["draft/account-registration"])
-            .await?;
-        connection
-            .client
-            .send(Message::new("REGISTER", [&account, "*", PASSWORD]))
-            .await
-            .map_err(Failed::from)?;
-        context
-            .expect(
-                &mut connection.events,
-                |event| match event {
-                    Event::AccountRegistered {
-                        account: registered,
-                        logged_in: true,
-                    } => registered == &account,
-                    Event::Raw(message) => {
-                        let message = message.as_ref();
-                        message.command_is("REGISTER")
-                            && message.param(0) == Some("SUCCESS")
-                            && message.param(1) == Some(account.as_str())
-                    }
-                    _ => false,
-                },
-                EXPECT_TIMEOUT,
-            )
-            .await?;
-        connection.close().await
-    })
+/// registers and authenticates a new account
+#[scenario(requires(caps = ["draft/account-registration"]))]
+async fn draft_account_registration(context: Scenario) -> ScenarioResult {
+    let nick = context.unique();
+    let account = nick.clone();
+    let mut connection = context
+        .client_caps(&nick, &["draft/account-registration"])
+        .await?;
+    connection
+        .client
+        .send(Message::new("REGISTER", [&account, "*", PASSWORD]))
+        .await
+        .map_err(Failed::from)?;
+    context
+        .expect(
+            &mut connection.events,
+            |event| match event {
+                Event::AccountRegistered {
+                    account: registered,
+                    logged_in: true,
+                } => registered == &account,
+                Event::Raw(message) => {
+                    let message = message.as_ref();
+                    message.command_is("REGISTER")
+                        && message.param(0) == Some("SUCCESS")
+                        && message.param(1) == Some(account.as_str())
+                }
+                _ => false,
+            },
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+    connection.close().await
 }
 
 fn draft_message_redaction(context: Scenario) -> ScenarioFuture {
