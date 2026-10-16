@@ -77,6 +77,7 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "message-tags",
     "server-time",
     "batch",
+    "draft/event-playback",
     "echo-message",
     "account-tag",
     "extended-join",

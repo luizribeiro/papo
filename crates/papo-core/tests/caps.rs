@@ -58,12 +58,12 @@ fn ends_immediately_when_no_advertised_cap_is_wanted() {
 }
 
 #[test]
-fn requests_oper_tags_by_default() {
+fn requests_event_playback_and_oper_tags_by_default() {
     Transcript::new(Config::default())
         .connect_default()
-        .server("CAP * LS :draft/oper-tag")
-        .client("CAP REQ :draft/oper-tag")
-        .server("CAP * ACK :draft/oper-tag")
+        .server("CAP * LS :draft/event-playback draft/oper-tag")
+        .client("CAP REQ :draft/event-playback draft/oper-tag")
+        .server("CAP * ACK :draft/event-playback draft/oper-tag")
         .client("CAP END")
         .server(
             "@draft/oper=network-admin :alice!a@localhost PRIVMSG #papo :Maintenance begins soon",
