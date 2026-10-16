@@ -294,6 +294,48 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
             },
             run: draft_chathistory,
         },
+        ScenarioSpec {
+            name: "draft_multiline",
+            doc: "reassembles a client multiline message",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "draft/multiline",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: draft_multiline,
+        },
+        ScenarioSpec {
+            name: "draft_read_marker",
+            doc: "sets and receives a channel read marker",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "draft/read-marker",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: draft_read_marker,
+        },
+        ScenarioSpec {
+            name: "draft_metadata_2",
+            doc: "sets and receives client metadata",
+            requires: Requirements {
+                caps: &[
+                    CapRequirement {
+                        name: "batch",
+                        value: None,
+                    },
+                    CapRequirement {
+                        name: "draft/metadata-2",
+                        value: None,
+                    },
+                ],
+                isupport: &[],
+            },
+            run: draft_metadata_2,
+        },
     ]
 }
 
@@ -856,6 +898,102 @@ async fn history_page(context: Scenario) -> ScenarioResult {
         return Err("history batch did not contain the earlier message".into());
     }
     close_pair(writer, reader).await
+}
+
+fn draft_multiline(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let (receiver, mut sender, channel) = joined_pair(&context).await?;
+        let reference = context.unique().replace('_', "-");
+        sender
+            .client
+            .send(Message::new(
+                "BATCH",
+                [
+                    format!("+{reference}"),
+                    "draft/multiline".into(),
+                    channel.clone(),
+                ],
+            ))
+            .await
+            .map_err(Failed::from)?;
+        sender
+            .client
+            .send(Message::privmsg(&channel, "first ").with_tag("batch", reference.clone()))
+            .await
+            .map_err(Failed::from)?;
+        sender
+            .client
+            .send(
+                Message::privmsg(&channel, "second")
+                    .with_tag("batch", reference.clone())
+                    .with_tag("draft/multiline-concat", ""),
+            )
+            .await
+            .map_err(Failed::from)?;
+        sender
+            .client
+            .send(Message::new("BATCH", [format!("-{reference}")]))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut sender.events,
+                |event| matches!(event, Event::Message(message) if message.raw_text() == "first second"),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        close_pair(receiver, sender).await
+    })
+}
+
+fn draft_read_marker(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = context.unique();
+        let channel = format!("#{}", context.unique());
+        let mut connection = context.client_caps(&nick, &["draft/read-marker"]).await?;
+        join(&context, &mut connection, &channel).await?;
+        connection
+            .client
+            .send(Message::new(
+                "MARKREAD",
+                [&channel, "timestamp=2025-10-15T11:55:42.123Z"],
+            ))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut connection.events,
+                |event| matches!(event, Event::ReadMarker(marker) if marker.target == channel && marker.time.is_some()),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        connection.close().await
+    })
+}
+
+fn draft_metadata_2(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let nick = context.unique();
+        let key = "example.org/papo-conformance";
+        let value = context.unique();
+        let mut connection = context.client(&nick).await?;
+        let response = connection
+            .client
+            .raw(Message::new("METADATA", [&nick, "SET", key, &value]))
+            .await
+            .map_err(Failed::from)?;
+        if let Some(error) = response.error() {
+            return Err(format!("server rejected METADATA SET: {error:?}").into());
+        }
+        context
+            .expect(
+                &mut connection.events,
+                |event| matches!(event, Event::MetadataChanged { target, key: changed_key, value: Some(changed_value), .. } if target == &nick && changed_key == key && changed_value == &value),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        connection.close().await
+    })
 }
 
 #[cfg(test)]

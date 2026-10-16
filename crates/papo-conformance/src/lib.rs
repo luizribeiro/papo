@@ -439,7 +439,12 @@ async fn probe(
 impl Requirements {
     fn unsupported(&self, caps: &Capabilities, isupport: &Isupport) -> Option<String> {
         for requirement in self.caps {
-            let Some(value) = caps.get(requirement.name) else {
+            let value = caps.get(requirement.name).or_else(|| {
+                (requirement.name == "draft/metadata-2")
+                    .then(|| caps.get("draft/metadata-3"))
+                    .flatten()
+            });
+            let Some(value) = value else {
                 return Some(format!("server does not advertise {}", requirement.name));
             };
             if let Some(required) = requirement.value
