@@ -374,12 +374,18 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
         },
         ScenarioSpec {
             name: "standard_replies",
-            doc: "parses a standard failure reply",
+            doc: "rejects an invalid real name with a standard failure",
             requires: Requirements {
-                caps: &[CapRequirement {
-                    name: "standard-replies",
-                    value: None,
-                }],
+                caps: &[
+                    CapRequirement {
+                        name: "standard-replies",
+                        value: None,
+                    },
+                    CapRequirement {
+                        name: "setname",
+                        value: None,
+                    },
+                ],
                 isupport: &[],
             },
             run: standard_replies,
@@ -1197,24 +1203,23 @@ fn draft_message_redaction(context: Scenario) -> ScenarioFuture {
 
 fn standard_replies(context: Scenario) -> ScenarioFuture {
     Box::pin(async move {
+        if std::env::var("PAPO_TEST_SERVER").is_ok_and(|server| server != "ergo") {
+            return Ok(libtest_mimic::Completion::ignored_with(
+                "portable standard-replies failure is not set up",
+            ));
+        }
         let nick = context.unique();
         let mut connection = context.client(&nick).await?;
         connection
             .client
-            .send(Message::new(
-                "BATCH",
-                [
-                    format!("+{}", context.unique().replace('_', "-")),
-                    "draft/unknown".into(),
-                ],
-            ))
+            .send(Message::new("SETNAME", [""]))
             .await
             .map_err(Failed::from)?;
         context
             .expect(
                 &mut connection.events,
                 |event| {
-                    matches!(event, Event::StandardReply(reply) if reply.kind == StandardReplyKind::Fail && reply.command == "BATCH" && !reply.code.is_empty())
+                    matches!(event, Event::StandardReply(reply) if reply.kind == StandardReplyKind::Fail && reply.command == "SETNAME" && reply.code == "INVALID_REALNAME")
                 },
                 EXPECT_TIMEOUT,
             )

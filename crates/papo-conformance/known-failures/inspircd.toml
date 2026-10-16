@@ -1,2 +1,1 @@
-[standard_replies]
-reason = "InspIRCd advertises standard-replies but answers an unsupported BATCH command with legacy numeric 421 instead of a FAIL reply"
+# No known failures.
