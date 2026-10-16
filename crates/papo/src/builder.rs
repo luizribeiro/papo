@@ -20,7 +20,6 @@ pub struct Builder {
     pub(crate) event_capacity: usize,
     pub(crate) tls: TlsConfig,
     reconnect: Reconnect,
-    disconnected_queue_capacity: usize,
     sts_store: Box<dyn StsStore + Send>,
     stream: Option<Box<dyn crate::io_compat::FutureStream>>,
     bot: bool,
@@ -39,10 +38,6 @@ impl fmt::Debug for Builder {
             .field("event_capacity", &self.event_capacity)
             .field("tls", &self.tls)
             .field("reconnect", &self.reconnect)
-            .field(
-                "disconnected_queue_capacity",
-                &self.disconnected_queue_capacity,
-            )
             .field("sts_store", &"<STS store>")
             .field("stream", &self.stream.as_ref().map(|_| "<stream>"))
             .field("bot", &self.bot)
@@ -60,7 +55,6 @@ impl Builder {
             event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
             tls: TlsConfig::default(),
             reconnect: Reconnect::default(),
-            disconnected_queue_capacity: 256,
             sts_store: Box::new(MemoryStsStore::new()),
             stream: None,
             bot: false,
@@ -299,12 +293,6 @@ impl Builder {
         self
     }
 
-    /// Sets the number of commands retained while no transport is connected.
-    pub const fn disconnected_queue_capacity(mut self, capacity: usize) -> Self {
-        self.disconnected_queue_capacity = capacity;
-        self
-    }
-
     /// Sets the store used for IRC Strict Transport Security policies.
     pub fn sts_store(mut self, store: impl StsStore + Send + 'static) -> Self {
         self.sts_store = Box::new(store);
@@ -497,7 +485,6 @@ impl Builder {
             registration,
             defaults,
             self.reconnect,
-            self.disconnected_queue_capacity,
             self.sts_store,
         )
     }

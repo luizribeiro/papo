@@ -127,7 +127,6 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
         None,
         super::PostRegistration::default(),
         crate::Reconnect::exponential().max_attempts(2),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
         Box::new(|| 0),
@@ -176,7 +175,6 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
         Some(registration),
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -221,7 +219,6 @@ async fn registration_disconnect_does_not_enter_reconnect_backoff() {
         Some(registration),
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -266,7 +263,6 @@ async fn eof_reconnects_and_emits_reconnected() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -399,7 +395,6 @@ async fn explicit_reconnect_redials_without_backoff() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -463,7 +458,6 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
             history_on_reconnect: true,
         },
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -575,7 +569,7 @@ fn persistence_gates_rejoin_and_history_fetch() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn commands_queue_while_disconnected_and_overflow_is_rejected() {
+async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let results = Arc::new(Mutex::new(VecDeque::from([
         Err(Error::Unsupported("scripted connection failure")),
@@ -595,7 +589,6 @@ async fn commands_queue_while_disconnected_and_overflow_is_rejected() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        3,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -608,26 +601,29 @@ async fn commands_queue_while_disconnected_and_overflow_is_rejected() {
         })
     ));
 
-    within(client.send(Message::new("WHOIS", ["emily"])))
-        .await
-        .unwrap();
-    client
-        .privmsg("#papo", "queued during reconnect")
-        .await
-        .unwrap();
-    within(client.send(Message::new("MODE", ["#papo"])))
-        .await
-        .unwrap();
     assert!(matches!(
-        within(client.privmsg("#papo", "queue overflow")).await,
+        within(client.send(Message::new("WHOIS", ["emily"]))).await,
+        Err(Error::Disconnected)
+    ));
+    assert!(matches!(
+        within(client.privmsg("#papo", "lost during reconnect")).await,
+        Err(Error::Disconnected)
+    ));
+    assert!(matches!(
+        within(client.whois("emily")).await,
         Err(Error::Disconnected)
     ));
 
     tokio::time::advance(Duration::from_secs(2)).await;
     registration_burst(&mut server).await;
-    client_line(&mut server, b"WHOIS emily\r\n").await;
-    client_line(&mut server, b"PRIVMSG #papo :queued during reconnect\r\n").await;
-    client_line(&mut server, b"MODE #papo\r\n").await;
+    server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Registered(_))));
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut server, b"QUIT\r\n").await;
     within(server.shutdown()).await.unwrap();
@@ -655,7 +651,6 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -700,7 +695,6 @@ async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -743,7 +737,6 @@ fn failing_driver_with_one_event_slot() -> (super::Client, super::Events, Driver
         None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
         Box::new(|| 0),
@@ -818,7 +811,6 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential().max_attempts(3),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
         Box::new(|| 0),
@@ -871,7 +863,6 @@ async fn stable_registration_resets_the_backoff() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
         Box::new(|| 0),
@@ -949,7 +940,6 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(store),
         connector,
     );
@@ -993,7 +983,6 @@ async fn connector_failure_under_stored_sts_is_terminal() {
         Some(registration),
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(store),
         connector,
     );
@@ -1187,7 +1176,6 @@ async fn required_sasl_failure_does_not_reconnect() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -1482,7 +1470,6 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
         Some(registration),
         super::PostRegistration::default(),
         Reconnect::exponential(),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -1540,7 +1527,6 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
         None,
         super::PostRegistration::default(),
         Reconnect::exponential().max_attempts(1),
-        256,
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -1626,7 +1612,6 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
         None,
         super::PostRegistration::default(),
         Reconnect::never(),
-        256,
         Box::new(store),
         connector,
     );
@@ -1699,7 +1684,6 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
         None,
         super::PostRegistration::default(),
         Reconnect::never(),
-        256,
         Box::new(store),
         connector,
     );
@@ -1746,7 +1730,6 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
         None,
         super::PostRegistration::default(),
         Reconnect::never(),
-        256,
         Box::new(store),
         connector,
     );

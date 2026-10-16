@@ -410,7 +410,6 @@ impl Driver {
         registration: Option<RegistrationSender>,
         defaults: PostRegistration,
         reconnect: Reconnect,
-        disconnected_queue_capacity: usize,
         sts_store: Box<dyn StsStore + Send>,
     ) -> (Client, Events, Self) {
         Self::with_connector(
@@ -420,7 +419,6 @@ impl Driver {
             registration,
             defaults,
             reconnect,
-            disconnected_queue_capacity,
             sts_store,
             Arc::new(|plan| {
                 Box::pin(async move {
@@ -440,7 +438,6 @@ impl Driver {
         registration: Option<RegistrationSender>,
         defaults: PostRegistration,
         reconnect: Reconnect,
-        disconnected_queue_capacity: usize,
         sts_store: Box<dyn StsStore + Send>,
         connector: Connector,
     ) -> (Client, Events, Self) {
@@ -451,7 +448,6 @@ impl Driver {
             registration,
             defaults,
             reconnect,
-            disconnected_queue_capacity,
             sts_store,
             connector,
             Box::new(crate::OsEntropy::next_u64),
@@ -466,7 +462,6 @@ impl Driver {
         registration: Option<RegistrationSender>,
         defaults: PostRegistration,
         reconnect: Reconnect,
-        disconnected_queue_capacity: usize,
         sts_store: Box<dyn StsStore + Send>,
         connector: Connector,
         entropy: BackoffEntropy,
@@ -480,7 +475,6 @@ impl Driver {
             RegistrationWait(registration),
             defaults,
             reconnect,
-            disconnected_queue_capacity,
             sts_store,
             connector,
             entropy,
@@ -540,7 +534,6 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let mut registered = false;
-    let mut queued = VecDeque::new();
     let end = run_connection(
         stream,
         &mut session,
@@ -548,7 +541,6 @@ where
         &events,
         &mut registration,
         &mut defaults,
-        &mut queued,
         &mut registered,
         None,
         None,
@@ -595,7 +587,6 @@ async fn run_connection<S>(
     events: &EventSink,
     registration: &mut RegistrationWait,
     defaults: &mut PostRegistration,
-    queued: &mut VecDeque<Message>,
     registered: &mut bool,
     connection: Option<Connection>,
     mut sts_store: Option<Box<dyn StsStore + Send>>,
@@ -614,11 +605,6 @@ where
     }
     connected.store(true, Ordering::Relaxed);
     publish_state(events, session, true);
-    while let Some(message) = queued.pop_front() {
-        session
-            .send(now(), message)
-            .expect("disconnected commands were validated before queueing");
-    }
     let mut commands_open = true;
     let mut quit = None;
     let mut requests = BTreeMap::new();

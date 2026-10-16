@@ -274,7 +274,6 @@ pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client,
 pub fn papo::Builder::ctcp_source(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::ctcp_version(self, core::option::Option<&str>) -> Self
 pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub const fn papo::Builder::disconnected_queue_capacity(self, usize) -> Self
 pub fn papo::Builder::event_capacity(self, usize) -> Self
 pub const fn papo::Builder::history_on_reconnect(self, bool) -> Self
 pub fn papo::Builder::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>

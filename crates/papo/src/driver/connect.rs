@@ -4,7 +4,6 @@ use papo_core::{
     Connection, Session,
     sts::{ConnectionSecurity, StoredPolicy, StsAction, StsStore, reschedule_on_disconnect},
 };
-use papo_proto::Message;
 use tokio::sync::mpsc;
 
 use super::{
@@ -65,7 +64,6 @@ pub(super) async fn run_plan(
     mut registration: RegistrationWait,
     mut defaults: PostRegistration,
     reconnect: Reconnect,
-    disconnected_queue_capacity: usize,
     mut sts_store: Box<dyn StsStore + Send>,
     connector: Connector,
     mut entropy: BackoffEntropy,
@@ -75,7 +73,6 @@ pub(super) async fn run_plan(
     };
     let mut attempts = 0_usize;
     let mut registered = false;
-    let mut queued = VecDeque::new();
     let mut pending_events = VecDeque::new();
     let mut sts_required = false;
     let mut last_sts_upgrade = None;
@@ -86,8 +83,6 @@ pub(super) async fn run_plan(
         let stream = match connect_or_wait(
             connector(plan.clone()),
             &mut commands,
-            &mut queued,
-            disconnected_queue_capacity,
             &events,
             &mut pending_events,
             registration.0.is_some(),
@@ -118,7 +113,6 @@ pub(super) async fn run_plan(
             &events,
             &mut registration,
             &mut defaults,
-            &mut queued,
             &mut registered,
             &plan,
             sts_store,
@@ -163,8 +157,6 @@ pub(super) async fn run_plan(
             reconnect,
             attempts,
             &mut commands,
-            &mut queued,
-            disconnected_queue_capacity,
             &events.regular,
             &mut pending_events,
             entropy.as_mut(),
@@ -219,7 +211,6 @@ pub(super) async fn run_planned_connection(
     events: &EventSink,
     registration: &mut RegistrationWait,
     defaults: &mut PostRegistration,
-    queued: &mut VecDeque<Message>,
     registered: &mut bool,
     plan: &ConnectionPlan,
     sts_store: Box<dyn StsStore + Send>,
@@ -237,7 +228,6 @@ pub(super) async fn run_planned_connection(
         events,
         registration,
         defaults,
-        queued,
         registered,
         Some(Connection {
             host: plan.address.host.clone(),
@@ -312,8 +302,6 @@ enum ConnectionAttempt {
 async fn connect_or_wait(
     connection: ConnectFuture,
     commands: &mut mpsc::Receiver<Command>,
-    queued: &mut VecDeque<Message>,
-    capacity: usize,
     events: &EventSink,
     pending_events: &mut VecDeque<Event>,
     fail_fast: bool,
@@ -322,15 +310,8 @@ async fn connect_or_wait(
     attempts: usize,
     entropy: &mut (dyn FnMut() -> u64 + Send),
 ) -> ConnectionAttempt {
-    let Some(result) = connect_while_disconnected(
-        connection,
-        commands,
-        queued,
-        capacity,
-        &events.regular,
-        pending_events,
-    )
-    .await
+    let Some(result) =
+        connect_while_disconnected(connection, commands, &events.regular, pending_events).await
     else {
         return ConnectionAttempt::Stop;
     };
@@ -356,8 +337,6 @@ async fn connect_or_wait(
         reconnect,
         attempts,
         commands,
-        queued,
-        capacity,
         &events.regular,
         pending_events,
         entropy,
@@ -503,8 +482,6 @@ pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::Clos
 async fn connect_while_disconnected(
     mut connection: ConnectFuture,
     commands: &mut mpsc::Receiver<Command>,
-    queued: &mut VecDeque<Message>,
-    capacity: usize,
     events: &mpsc::Sender<Event>,
     pending_events: &mut VecDeque<Event>,
 ) -> Option<Result<BoxConnection, Error>> {
@@ -516,7 +493,7 @@ async fn connect_while_disconnected(
                 Err(_) => pending_events.clear(),
             },
             command = commands.recv() => {
-                if !handle_disconnected_command(command, queued, capacity) {
+                if !handle_disconnected_command(command) {
                     return None;
                 }
             }
@@ -529,8 +506,6 @@ async fn wait_before_retry(
     reconnect: Reconnect,
     attempts: usize,
     commands: &mut mpsc::Receiver<Command>,
-    queued: &mut VecDeque<Message>,
-    capacity: usize,
     events: &mpsc::Sender<Event>,
     pending_events: &mut VecDeque<Event>,
     entropy: &mut (dyn FnMut() -> u64 + Send),
@@ -552,7 +527,7 @@ async fn wait_before_retry(
                         return true;
                     }
                     command => {
-                        if !handle_disconnected_command(command, queued, capacity) {
+                        if !handle_disconnected_command(command) {
                             return false;
                         }
                     }
@@ -562,24 +537,8 @@ async fn wait_before_retry(
     }
 }
 
-fn handle_disconnected_command(
-    command: Option<Command>,
-    queued: &mut VecDeque<Message>,
-    capacity: usize,
-) -> bool {
+fn handle_disconnected_command(command: Option<Command>) -> bool {
     match command {
-        Some(Command::Send { message, result }) => {
-            let response = message.to_line().map_err(Error::Build).and_then(|_| {
-                if queued.len() < capacity {
-                    queued.push_back(message);
-                    Ok(())
-                } else {
-                    Err(Error::Disconnected)
-                }
-            });
-            _ = result.send(response);
-            true
-        }
         Some(
             Command::Request { result, .. }
             | Command::CoreRequest { result, .. }
@@ -597,7 +556,11 @@ fn handle_disconnected_command(
             _ = result.send(Err(Error::Disconnected));
             true
         }
-        Some(Command::Typing { result, .. } | Command::WaitChannelSync { result, .. }) => {
+        Some(
+            Command::Send { result, .. }
+            | Command::Typing { result, .. }
+            | Command::WaitChannelSync { result, .. },
+        ) => {
             _ = result.send(Err(Error::Disconnected));
             true
         }
