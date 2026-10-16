@@ -3,8 +3,8 @@
 mod support;
 
 use papo_core::{
-    Config, Event, Feature, HistoryQuery, MetadataCommand, PersistenceSetting, Session,
-    Unsupported, UnsupportedReason,
+    Config, Event, Feature, HistoryQuery, MetadataCommand, PersistenceSetting, ResponseMatcher,
+    Session, Unsupported, UnsupportedReason,
 };
 use papo_proto::Message;
 use support::{Transcript, unsupported_because};
@@ -267,6 +267,59 @@ fn fails_a_pending_request_when_its_feature_disappears() {
                     && unsupported.reason == UnsupportedReason::NotOffered)
         })
         .no_event();
+}
+
+#[test]
+fn failing_a_feature_request_keeps_other_join_tracking() {
+    Transcript::new(
+        Config::default()
+            .nick("papo")
+            .wanted_caps(["draft/chathistory", "labeled-response"]),
+    )
+    .connect_default()
+    .server("CAP * LS :draft/chathistory labeled-response")
+    .client("CAP REQ :draft/chathistory labeled-response")
+    .server("CAP * ACK :draft/chathistory labeled-response")
+    .client("CAP END")
+    .welcome(":ergo.test 001 papo :Welcome to Ergo")
+    .server(":ergo.test 005 papo CHATHISTORY=100 :are supported")
+    .server(":ergo.test 376 papo :End of MOTD")
+    .event(|event| matches!(event, Event::Registered(_)))
+    .update(|session| {
+        session
+            .chathistory(
+                std::time::Instant::now(),
+                HistoryQuery::Latest {
+                    target: "#papo".into(),
+                    after: None,
+                    limit: 50,
+                },
+            )
+            .unwrap();
+        session
+            .request_with_matcher(
+                std::time::Instant::now(),
+                Message::join("#papo"),
+                ResponseMatcher::Join("#papo".into()),
+            )
+            .unwrap();
+    })
+    .client("@label=0 CHATHISTORY LATEST #papo * 50")
+    .client("@label=1 JOIN #papo")
+    .server("CAP papo DEL :draft/chathistory")
+    .event(|event| matches!(event, Event::CapsChanged { .. }))
+    .event(|event| matches!(event, Event::FeaturesChanged { .. }))
+    .event(|event| matches!(event, Event::RequestUnsupported { .. }))
+    .server("@label=1 :papo!~papo@localhost JOIN #papo * :Papo Bot")
+    .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "papo"))
+    .no_event()
+    .server(":ergo.test 353 papo = #papo :@papo alice")
+    .server(":ergo.test 366 papo #papo :End of /NAMES list")
+    .client("MODE #papo")
+    .client("WHO #papo")
+    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+    .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 2))
+    .no_event();
 }
 
 #[test]
