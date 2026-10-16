@@ -115,9 +115,19 @@ fn required_env(name: &str) -> io::Result<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
     use crate::directory::TemporaryDirectory;
 
     use super::Configuration;
+
+    fn configuration(directory: &TemporaryDirectory) -> Configuration {
+        Configuration::at_addresses(
+            directory,
+            [7667, 7668, 7669, 7670]
+                .map(|port| SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port)),
+        )
+    }
 
     #[test]
     fn allocates_distinct_loopback_listeners() {
@@ -138,5 +148,40 @@ mod tests {
             4
         );
         assert!(addresses.iter().all(|address| address.ip().is_loopback()));
+    }
+
+    #[test]
+    fn enables_sts_with_the_tls_listener_and_one_hour_duration() {
+        let directory = TemporaryDirectory::create().unwrap();
+        let mut config = configuration(&directory);
+        config.enable_sts();
+
+        assert_eq!(
+            &config.overrides[7..],
+            &[
+                ("ERGO__SERVER__STS__ENABLED", "true".into()),
+                ("ERGO__SERVER__STS__PORT", "7668".into()),
+                ("ERGO__SERVER__STS__DURATION", "1h".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn disables_persistent_history_for_unregistered_channels() {
+        let directory = TemporaryDirectory::create().unwrap();
+        let mut config = configuration(&directory);
+        config.disable_persistent_unregistered_channels();
+
+        let override_value = config
+            .overrides
+            .iter()
+            .find(|(key, _)| *key == "ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS");
+        assert_eq!(
+            override_value,
+            Some(&(
+                "ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS",
+                "false".into()
+            ))
+        );
     }
 }
