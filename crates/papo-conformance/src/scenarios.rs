@@ -113,7 +113,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: labeled_response,
+            run: __papo_scenario_labeled_response,
         },
         ScenarioSpec {
             name: "server_time",
@@ -275,7 +275,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 ],
                 isupport: &[],
             },
-            run: batch,
+            run: __papo_scenario_batch,
         },
         ScenarioSpec {
             name: "draft_chathistory",
@@ -389,7 +389,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 ],
                 isupport: &[],
             },
-            run: standard_replies,
+            run: __papo_scenario_standard_replies,
         },
         ScenarioSpec {
             name: "bot_mode",
@@ -653,20 +653,20 @@ async fn close_pair(
     second.close().await
 }
 
-fn labeled_response(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let nick = context.unique();
-        let connection = context.client(&nick).await?;
-        let whois = connection
-            .client
-            .whois(&connection.welcome.nick)
-            .await
-            .map_err(Failed::from)?;
-        if whois.nick != connection.welcome.nick {
-            return Err("labelled WHOIS resolved for the wrong nickname".into());
-        }
-        connection.close().await
-    })
+/// correlates a labelled WHOIS response
+#[scenario(requires(caps = ["labeled-response"]))]
+async fn labeled_response(context: Scenario) -> ScenarioResult {
+    let nick = context.unique();
+    let connection = context.client(&nick).await?;
+    let whois = connection
+        .client
+        .whois(&connection.welcome.nick)
+        .await
+        .map_err(Failed::from)?;
+    if whois.nick != connection.welcome.nick {
+        return Err("labelled WHOIS resolved for the wrong nickname".into());
+    }
+    connection.close().await
 }
 
 /// delivers a channel message with server time
@@ -969,8 +969,10 @@ async fn chghost(context: Scenario) -> ScenarioResult {
     close_pair(observer, operator).await
 }
 
-fn batch(context: Scenario) -> ScenarioFuture {
-    Box::pin(history_page(context))
+/// delivers channel history in a batch
+#[scenario(requires(caps = ["batch", "draft/chathistory"]))]
+async fn batch(context: Scenario) -> ScenarioResult {
+    history_page(context).await
 }
 
 fn draft_chathistory(context: Scenario) -> ScenarioFuture {
@@ -1210,21 +1212,22 @@ async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
     close_pair(sender, receiver).await
 }
 
-fn standard_replies(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        if std::env::var("PAPO_TEST_SERVER").is_ok_and(|server| server != "ergo") {
-            return Ok(libtest_mimic::Completion::ignored_with(
-                "portable standard-replies failure is not set up",
-            ));
-        }
-        let nick = context.unique();
-        let mut connection = context.client(&nick).await?;
-        connection
-            .client
-            .send(Message::new("SETNAME", [""]))
-            .await
-            .map_err(Failed::from)?;
-        context
+/// rejects an invalid real name with a standard failure
+#[scenario(requires(caps = ["standard-replies", "setname"]))]
+async fn standard_replies(context: Scenario) -> ScenarioResult {
+    if std::env::var("PAPO_TEST_SERVER").is_ok_and(|server| server != "ergo") {
+        return Ok(libtest_mimic::Completion::ignored_with(
+            "portable standard-replies failure is not set up",
+        ));
+    }
+    let nick = context.unique();
+    let mut connection = context.client(&nick).await?;
+    connection
+        .client
+        .send(Message::new("SETNAME", [""]))
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut connection.events,
                 |event| {
@@ -1233,8 +1236,7 @@ fn standard_replies(context: Scenario) -> ScenarioFuture {
                 EXPECT_TIMEOUT,
             )
             .await?;
-        connection.close().await
-    })
+    connection.close().await
 }
 
 /// marks a client with the advertised bot mode
