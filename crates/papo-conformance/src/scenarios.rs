@@ -138,6 +138,48 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
             },
             run: message_tags,
         },
+        ScenarioSpec {
+            name: "account_notify",
+            doc: "delivers an authenticated sender account",
+            requires: Requirements {
+                caps: &[
+                    CapRequirement {
+                        name: "account-tag",
+                        value: None,
+                    },
+                    CapRequirement {
+                        name: "account-notify",
+                        value: None,
+                    },
+                ],
+                isupport: &[],
+            },
+            run: account_notify,
+        },
+        ScenarioSpec {
+            name: "away_notify",
+            doc: "notifies channel peers of away state",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "away-notify",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: away_notify,
+        },
+        ScenarioSpec {
+            name: "setname",
+            doc: "notifies channel peers of real-name changes",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "setname",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: setname,
+        },
     ]
 }
 
@@ -419,6 +461,76 @@ fn message_tags(context: Scenario) -> ScenarioFuture {
                 |event| {
                     matches!(event, Event::Typing(message) if message.target() == channel && message.typing() == Some(Typing::Active))
                 },
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        close_pair(receiver, sender).await
+    })
+}
+
+fn account_notify(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let account = context.unique();
+        register_account(&context.server, &account, PASSWORD).map_err(Failed::from)?;
+        let sender_nick = context.unique();
+        let receiver_nick = context.unique();
+        let channel = format!("#{}", context.unique());
+        let mut sender = context
+            .client_with(&sender_nick, Some(Sasl::plain(&account, PASSWORD)))
+            .await?;
+        join(&context, &mut sender, &channel).await?;
+        let mut receiver = context.client(&receiver_nick).await?;
+        join(&context, &mut receiver, &channel).await?;
+        let text = format!("authenticated message from {sender_nick}");
+        sender
+            .client
+            .privmsg(&channel, &text)
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut receiver.events,
+                |event| matches!(event, Event::Message(message) if message.raw_text() == text && message.account() == Some(account.as_str())),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        close_pair(receiver, sender).await
+    })
+}
+
+fn away_notify(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let (mut receiver, sender, _channel) = joined_pair(&context).await?;
+        let away = "reviewing the IRCv3 specification";
+        sender
+            .client
+            .send(Message::new("AWAY", [away]))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut receiver.events,
+                |event| matches!(event, Event::AwayChanged { nick, message: Some(message) } if nick == &sender.welcome.nick && message == away),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        close_pair(receiver, sender).await
+    })
+}
+
+fn setname(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let (mut receiver, sender, _channel) = joined_pair(&context).await?;
+        let realname = "Papo Conformance Client";
+        sender
+            .client
+            .send(Message::new("SETNAME", [realname]))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut receiver.events,
+                |event| matches!(event, Event::RealnameChanged { nick, realname: changed } if nick == &sender.welcome.nick && changed == realname),
                 EXPECT_TIMEOUT,
             )
             .await?;
