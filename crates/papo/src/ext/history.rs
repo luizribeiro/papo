@@ -584,10 +584,7 @@ mod tests {
         .await;
         let expected = UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
         assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));
-        assert_eq!(
-            client.state(|state| state.read_marker("#PAPO")),
-            Some(expected)
-        );
+        assert_eq!(client.snapshot().read_marker("#PAPO"), Some(expected));
 
         assert_eq!(
             within(client.read_marker("#papo")).await.unwrap(),

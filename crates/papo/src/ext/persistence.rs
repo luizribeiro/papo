@@ -53,7 +53,7 @@ impl Persistence<'_> {
     /// Returns the most recently reported persistence status.
     #[must_use]
     pub fn state(&self) -> Option<papo_core::PersistenceStatus> {
-        self.client.state(crate::State::persistence)
+        self.client.snapshot().persistence()
     }
 }
 

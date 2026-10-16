@@ -879,8 +879,8 @@ mod tests {
         .await
         .unwrap();
         let (client, mut events) = within(connecting).await.unwrap().unwrap();
-        assert!(client.state(crate::State::is_connected));
-        assert!(client.state(|state| state.is_connected() && state.nick() == "papo-custom"));
+        assert!(client.snapshot().is_connected());
+        assert!(client.snapshot().is_me("papo-custom"));
         assert!(matches!(
             events.next().await,
             Some(crate::Event::Registered(_))
@@ -902,7 +902,7 @@ mod tests {
                 ..
             })
         ));
-        assert!(!client.state(crate::State::is_connected));
+        assert!(!client.snapshot().is_connected());
         assert_eq!(lifecycle.load(Ordering::Relaxed), 2);
     }
 

@@ -57,7 +57,10 @@ impl Metadata<'_> {
         .await?;
         Ok(self
             .client
-            .state(|state| state.metadata(target).cloned().unwrap_or_default()))
+            .snapshot()
+            .metadata(target)
+            .cloned()
+            .unwrap_or_default())
     }
 
     /// Lists visible keys and returns the target's resulting cache.
@@ -76,7 +79,10 @@ impl Metadata<'_> {
         .await?;
         Ok(self
             .client
-            .state(|state| state.metadata(target).cloned().unwrap_or_default()))
+            .snapshot()
+            .metadata(target)
+            .cloned()
+            .unwrap_or_default())
     }
 
     /// Sets or removes one metadata key for the current nickname.
@@ -174,8 +180,7 @@ impl Metadata<'_> {
     /// Returns the cached metadata subscription list.
     #[must_use]
     pub fn subscriptions(&self) -> Vec<String> {
-        self.client
-            .state(|state| state.metadata_subscriptions().to_vec())
+        self.client.snapshot().metadata_subscriptions().to_vec()
     }
 
     /// Synchronizes cached metadata for a target.
@@ -227,9 +232,10 @@ mod tests {
             metadata["avatar"].value,
             "https://cdn.example.net/alice.png"
         );
-        client.state(|state| {
-            assert_eq!(state.metadata("ALICE").unwrap()["avatar"].visibility, "*");
-        });
+        assert_eq!(
+            client.snapshot().metadata("ALICE").unwrap()["avatar"].visibility,
+            "*"
+        );
 
         let list = tokio::spawn({
             let client = client.clone();
@@ -313,9 +319,10 @@ mod tests {
         .await;
         assert!(within(subscribe).await.unwrap().is_ok());
         assert_eq!(client.metadata().subscriptions(), ["avatar", "pronouns"]);
-        client.state(|state| {
-            assert_eq!(state.metadata_subscriptions(), ["avatar", "pronouns"]);
-        });
+        assert_eq!(
+            client.snapshot().metadata_subscriptions(),
+            ["avatar", "pronouns"]
+        );
 
         let unsubscribe = tokio::spawn({
             let client = client.clone();

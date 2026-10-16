@@ -102,11 +102,10 @@ impl MessageEvent {
         let Source::User { nick, .. } = self.source()? else {
             return None;
         };
-        self.client
-            .state(|state| match state.user(nick)?.account() {
-                Account::LoggedIn(account) => Some(account.clone()),
-                _ => None,
-            })
+        match self.client.snapshot().user(nick)?.account() {
+            Account::LoggedIn(account) => Some(account.clone()),
+            _ => None,
+        }
     }
 
     pub(crate) fn new(

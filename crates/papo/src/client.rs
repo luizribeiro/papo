@@ -91,11 +91,11 @@ impl Client {
     /// Returns the client's current nickname.
     #[must_use]
     pub fn nick(&self) -> String {
-        self.state(|state| state.nick().to_owned())
+        self.snapshot().nick().to_owned()
     }
 
-    fn require_feature(&self, feature: Feature) -> Result<(), Error> {
-        match self.state(|state| state.unsupported_reason(feature)) {
+    fn require_feature(state: &State, feature: Feature) -> Result<(), Error> {
+        match state.unsupported_reason(feature) {
             Some(reason) => Err(Error::Unsupported(Unsupported::new(feature, reason))),
             None => Ok(()),
         }
@@ -151,7 +151,7 @@ impl Client {
     /// returns [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
     /// [`Error::Disconnected`]. Server refusals remain in the returned [`Response`].
     pub async fn raw(&self, message: Message) -> Result<Response, Error> {
-        self.require_feature(Feature::LabeledResponse)?;
+        Self::require_feature(&self.snapshot(), Feature::LabeledResponse)?;
         self.correlated(message, None).await
     }
 
@@ -261,9 +261,9 @@ impl Client {
         emoji: &str,
         reaction_tag: &'static str,
     ) -> Result<(), Error> {
-        self.require_feature(Feature::Reactions)?;
-        let isupport = self.state(|state| Arc::clone(&state.isupport));
-        let denied = isupport.clienttagdeny();
+        let state = self.snapshot();
+        Self::require_feature(&state, Feature::Reactions)?;
+        let denied = state.isupport().clienttagdeny();
         let reply_tag = event::allowed_alias(&denied, "+reply", "+draft/reply")
             .expect("feature preflight requires an allowed reply tag");
         if denied.denies(reaction_tag) {
@@ -294,7 +294,8 @@ impl Client {
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
     pub async fn typing(&self, target: &str, state: Typing) -> Result<(), Error> {
-        self.require_feature(Feature::Typing)?;
+        let snapshot = self.snapshot();
+        Self::require_feature(&snapshot, Feature::Typing)?;
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::Typing {
@@ -322,7 +323,7 @@ impl Client {
         msgid: &str,
         reason: Option<&str>,
     ) -> Result<(), Error> {
-        self.require_feature(Feature::Redaction)?;
+        Self::require_feature(&self.snapshot(), Feature::Redaction)?;
         let mut params = vec![target, msgid];
         params.extend(reason);
         let response = self
@@ -338,7 +339,7 @@ impl Client {
         text: &str,
         tags: Vec<(String, String)>,
     ) -> Result<Sent, Error> {
-        if !self.state(State::is_connected) {
+        if !self.snapshot().is_connected() {
             let mut message = match kind {
                 TextKind::Privmsg => Message::privmsg(target, text),
                 TextKind::Notice => Message::notice(target, text),
@@ -389,8 +390,8 @@ impl Client {
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn who(&self, mask: &str) -> Result<Vec<crate::WhoEntry>, Error> {
-        let isupport = self.state(|state| Arc::clone(&state.isupport));
-        let extended = isupport.whox();
+        let state = self.snapshot();
+        let extended = state.isupport().whox();
         let message = if extended {
             Message::new("WHO", [mask, "%tcuhnfar"])
         } else {
@@ -399,7 +400,7 @@ impl Client {
         let response = self
             .correlated(message, Some(ResponseMatcher::Who(mask.to_owned())))
             .await?;
-        crate::requests::who(response, &isupport, extended)
+        crate::requests::who(response, state.isupport(), extended)
     }
 
     /// Joins a channel and waits for its topic and member list to synchronize.
@@ -424,14 +425,14 @@ impl Client {
         if let Some(error) = response.error() {
             return Err(Error::server(error));
         }
-        if self.state(|state| state.channel(channel).is_none()) {
+        if self.snapshot().channel(channel).is_none() {
             return Err(Error::disconnected());
         }
-        if !self.state(|state| {
-            state
-                .channel(channel)
-                .is_some_and(papo_core::Channel::is_synced)
-        }) {
+        if !self
+            .snapshot()
+            .channel(channel)
+            .is_some_and(papo_core::Channel::is_synced)
+        {
             let (result, receiver) = oneshot::channel();
             self.commands
                 .send(Command::WaitChannelSync {
@@ -442,13 +443,12 @@ impl Client {
                 .map_err(|_| Error::disconnected())?;
             receiver.await.map_err(|_| Error::disconnected())??;
         }
-        self.state(|state| {
-            let joined = state.channel(channel).ok_or_else(Error::disconnected)?;
-            Ok(crate::ChannelInfo {
-                name: joined.name().to_owned(),
-                topic: joined.topic().map(str::to_owned),
-                members_count: joined.members().count(),
-            })
+        let state = self.snapshot();
+        let joined = state.channel(channel).ok_or_else(Error::disconnected)?;
+        Ok(crate::ChannelInfo {
+            name: joined.name().to_owned(),
+            topic: joined.topic().map(str::to_owned),
+            members_count: joined.members().count(),
         })
     }
 
