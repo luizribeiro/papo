@@ -839,6 +839,43 @@ fn own_part_or_kick_ends_a_labelled_join_during_sync() {
 }
 
 #[test]
+fn other_join_departures_do_not_end_a_labelled_join() {
+    for departure in [
+        ":alice!alice@staff.example PART #papo :Leaving",
+        ":papo!~papo@localhost PART #rust :Registration required",
+        ":ergo.test KICK #papo alice :Channel is full",
+        ":ergo.test KICK #rust papo :Channel is full",
+    ] {
+        let now = Instant::now();
+        let mut session = labelled_session(now);
+        let id = session
+            .request_with_matcher(
+                now,
+                Message::join("#papo"),
+                ResponseMatcher::Join("#papo".into()),
+            )
+            .unwrap();
+        session.handle_line(
+            now,
+            b"@label=0 :papo!~papo@localhost JOIN #papo * :Papo Bot",
+        );
+        session.handle_line(now, departure.as_bytes());
+
+        assert!(
+            std::iter::from_fn(|| session.poll_event())
+                .all(|event| !matches!(event, Event::Response(response) if response.id == id)),
+            "irrelevant departure resolved the join: {departure}"
+        );
+        session.handle_line(now, b":ergo.test KICK #papo papo :Channel is full");
+        assert!(
+            std::iter::from_fn(|| session.poll_event())
+                .any(|event| matches!(event, Event::Response(response) if response.id == id)),
+            "matching departure did not resolve the join after: {departure}"
+        );
+    }
+}
+
+#[test]
 fn resolves_a_recorded_ergo_whois_batch_once() {
     let now = Instant::now();
     let mut session = labelled_session(now);
