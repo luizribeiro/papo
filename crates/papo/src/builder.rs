@@ -23,6 +23,7 @@ pub struct Builder {
     reconnect: Reconnect,
     disconnected_queue_capacity: usize,
     sts_store: Box<dyn StsStore + Send>,
+    stream: Option<Box<dyn crate::io_compat::FutureStream>>,
     bot: bool,
     channels: Vec<String>,
     history_on_reconnect: bool,
@@ -40,6 +41,7 @@ impl Builder {
             reconnect: Reconnect::default(),
             disconnected_queue_capacity: 256,
             sts_store: Box::new(MemoryStsStore::new()),
+            stream: None,
             bot: false,
             channels: Vec::new(),
             history_on_reconnect: false,
@@ -209,6 +211,17 @@ impl Builder {
         self
     }
 
+    /// Uses an already-connected asynchronous byte stream.
+    ///
+    /// Custom streams are driven once and do not reconnect or apply STS policies.
+    pub fn stream(
+        mut self,
+        stream: impl futures_io::AsyncRead + futures_io::AsyncWrite + Send + Unpin + 'static,
+    ) -> Self {
+        self.stream = Some(Box::new(stream));
+        self
+    }
+
     /// Trusts only the certificates in a PEM document.
     pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
         self.tls.roots = TlsRoots::Ca(pem.into());
@@ -274,8 +287,7 @@ impl Builder {
 
     /// Builds handles and a lazy driver without opening a connection.
     ///
-    /// The returned [`crate::Driver`] connects when it is first polled. Use
-    /// [`crate::Driver::new`] to drive an already-connected custom transport.
+    /// The returned [`crate::Driver`] connects when it is first polled.
     pub fn build(self) -> (crate::Client, crate::Events, crate::Driver) {
         self.build_with_registration(None)
     }
@@ -287,7 +299,7 @@ impl Builder {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        self.build_stream_with_registration(stream, None)
+        self.build_tokio_stream_with_registration(stream, None)
     }
 
     /// Connects in a spawned driver and waits for IRC registration.
@@ -319,13 +331,14 @@ impl Builder {
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let (sender, receiver) = oneshot::channel();
-        let (client, events, driver) = self.build_stream_with_registration(stream, Some(sender));
+        let (client, events, driver) =
+            self.build_tokio_stream_with_registration(stream, Some(sender));
         crate::rt::spawn(driver);
         receiver.await.map_err(|_| Error::Disconnected)??;
         Ok((client, events))
     }
 
-    fn build_stream_with_registration<S>(
+    fn build_tokio_stream_with_registration<S>(
         mut self,
         stream: S,
         registration: Option<crate::driver::RegistrationSender>,
@@ -360,10 +373,45 @@ impl Builder {
         )
     }
 
+    fn build_stream_with_registration(
+        mut self,
+        stream: Box<dyn crate::io_compat::FutureStream>,
+        registration: Option<crate::driver::RegistrationSender>,
+    ) -> (crate::Client, crate::Events, crate::Driver) {
+        if let Ok(address) = &self.address {
+            apply_address(&mut self.config, address);
+        }
+        let address_error = self.address.err();
+        let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
+        if let Some(error) = address_error {
+            drop(stream);
+            return crate::Driver::failed(
+                &session,
+                self.event_capacity,
+                registration,
+                Error::InvalidInput(error),
+            );
+        }
+        crate::Driver::with_stream_and_registration(
+            crate::io_compat::FuturesIo::new(stream),
+            session,
+            self.event_capacity,
+            registration,
+            PostRegistration {
+                bot: self.bot,
+                channels: self.channels,
+                history_on_reconnect: self.history_on_reconnect,
+            },
+        )
+    }
+
     fn build_with_registration(
         mut self,
         registration: Option<crate::driver::RegistrationSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
+        if let Some(stream) = self.stream.take() {
+            return self.build_stream_with_registration(stream, registration);
+        }
         let plan = self.address.map(|address| {
             apply_address(&mut self.config, &address);
             ConnectionPlan {
@@ -600,7 +648,8 @@ mod tests {
         let connecting = tokio::spawn(
             Builder::new("irc://custom.example")
                 .nick("papo-custom")
-                .connect_with(stream),
+                .stream(crate::io_compat::TokioIo(stream))
+                .connect(),
         );
         let expected = b"CAP LS 302\r\nNICK papo-custom\r\nUSER papo-custom 0 * papo-custom\r\n";
         let mut burst = vec![0; expected.len()];
@@ -618,6 +667,8 @@ mod tests {
         .await
         .unwrap();
         let (client, mut events) = within(connecting).await.unwrap().unwrap();
+        assert!(client.is_connected());
+        assert!(client.state(|state| state.connected() && state.nick() == "papo-custom"));
         assert!(matches!(
             events.next().await,
             Some(crate::Event::Registered(_))
@@ -631,12 +682,15 @@ mod tests {
             })
         ));
         assert!(!client.is_connected());
+        assert!(matches!(client.quit(None).await, Err(Error::Disconnected)));
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn build_with_defers_address_errors() {
+    async fn custom_stream_build_defers_address_errors() {
         let (stream, _server) = tokio::io::duplex(64);
-        let (_client, mut events, driver) = Builder::new("irc://").build_with(stream);
+        let (_client, mut events, driver) = Builder::new("irc://")
+            .stream(crate::io_compat::TokioIo(stream))
+            .build();
         assert!(matches!(within(driver).await, Err(Error::InvalidInput(_))));
         assert!(events.next().await.is_none());
     }
