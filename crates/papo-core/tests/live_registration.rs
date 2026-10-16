@@ -6,23 +6,17 @@
 
 mod support;
 
-use std::{
-    net::TcpStream,
-    time::{Duration, Instant},
-};
+use std::{net::TcpStream, time::Instant};
 
 use papo_core::{Config, Event, RateLimit, Session};
 use papo_proto::Casemapping;
 use papo_test_server::{from_env, unique};
-use support::drive_until;
+use support::{drive_until, within};
 
 #[test]
 fn registers_with_live_ergo() {
     let server = from_env();
     let mut stream = TcpStream::connect(server.plaintext_addr()).unwrap();
-    stream
-        .set_read_timeout(Some(Duration::from_secs(10)))
-        .unwrap();
     let nick = unique("papo-registration");
     let mut session = Session::new(
         Config::default()
@@ -33,8 +27,10 @@ fn registers_with_live_ergo() {
     );
     session.handle_connected(Instant::now());
 
-    let event = drive_until(&mut session, &mut stream, 64, |event| {
-        matches!(event, Event::Registered(_) | Event::Close { .. })
+    let event = within(&mut stream, |stream| {
+        drive_until(&mut session, stream, 64, |event| {
+            matches!(event, Event::Registered(_) | Event::Close { .. })
+        })
     })
     .expect("registration did not complete");
     if let Event::Close { reason, .. } = event {

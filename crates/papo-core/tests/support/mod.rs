@@ -4,12 +4,23 @@
 use std::{
     fs,
     io::{Read, Write},
+    net::TcpStream,
     path::Path,
     time::{Duration, Instant},
 };
 
 use papo_core::{Config, Connection, Entropy, Event, RateLimit, Session};
 use papo_proto::Message;
+
+/// Maximum time a blocking transcript operation may wait for the server.
+pub const TEST_DEADLINE: Duration = Duration::from_secs(5);
+
+/// Runs a blocking transcript operation with bounded socket reads and writes.
+pub fn within<T>(stream: &mut TcpStream, operation: impl FnOnce(&mut TcpStream) -> T) -> T {
+    stream.set_read_timeout(Some(TEST_DEADLINE)).unwrap();
+    stream.set_write_timeout(Some(TEST_DEADLINE)).unwrap();
+    operation(stream)
+}
 
 /// Drives a live stream until an event matches `finished`.
 pub fn drive_until(

@@ -6,14 +6,11 @@
 
 mod support;
 
-use std::{
-    net::TcpStream,
-    time::{Duration, Instant},
-};
+use std::{net::TcpStream, time::Instant};
 
 use papo_core::{Config, Entropy, Event, RateLimit, Sasl, Session};
 use papo_test_server::{ServerInfo, from_env, register_account, unique};
-use support::drive_until;
+use support::{drive_until, within};
 
 struct FixedEntropy;
 
@@ -57,9 +54,6 @@ fn authenticate(
     require_sasl: bool,
 ) -> Result<Session, String> {
     let mut stream = TcpStream::connect(server.plaintext_addr()).unwrap();
-    stream
-        .set_read_timeout(Some(Duration::from_secs(10)))
-        .unwrap();
     let config = Config::default()
         .nick(unique("papo-auth"))
         .username("papo")
@@ -70,8 +64,10 @@ fn authenticate(
     let mut session = Session::with_entropy(config, Box::new(FixedEntropy));
     session.handle_connected(Instant::now());
 
-    let event = drive_until(&mut session, &mut stream, 128, |event| {
-        matches!(event, Event::Registered(_) | Event::Close { .. })
+    let event = within(&mut stream, |stream| {
+        drive_until(&mut session, stream, 128, |event| {
+            matches!(event, Event::Registered(_) | Event::Close { .. })
+        })
     })
     .unwrap_or_else(|| panic!("Ergo did not finish SASL for {account}"));
     match event {

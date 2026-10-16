@@ -8,7 +8,12 @@ use std::{any::Any, panic};
 
 use papo_core::{Config, Event};
 use papo_proto::Message;
-use support::Transcript;
+use support::{TEST_DEADLINE, Transcript};
+
+#[test]
+fn shared_test_deadline_is_five_seconds() {
+    assert_eq!(TEST_DEADLINE, Duration::from_secs(5));
+}
 
 #[cfg(panic = "unwind")]
 fn panic_text(payload: &(dyn Any + Send)) -> String {
