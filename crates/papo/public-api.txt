@@ -760,6 +760,11 @@ impl core::cmp::PartialEq for papo::Tags
 pub fn papo::Tags::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::Tags
 pub fn papo::Tags::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct papo::TargetedMessageId
+impl papo::TargetedMessageId
+pub fn papo::TargetedMessageId::msgid(&self) -> &str
+pub fn papo::TargetedMessageId::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::TargetedMessageId::target(&self) -> &str
 pub struct papo::WebPush<'a>
 impl papo::WebPush<'_>
 pub async fn papo::WebPush<'_>::register(&self, &str, papo::PushKeys) -> core::result::Result<(), papo::Error>
