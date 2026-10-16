@@ -63,6 +63,19 @@ fn prefers_metadata_3_and_reads_known_limits() {
         session
             .metadata(
                 std::time::Instant::now(),
+                MetadataCommand::Set {
+                    target: "alice".into(),
+                    key: "pronouns".into(),
+                    value: Some("they/them".into()),
+                },
+            )
+            .unwrap();
+    })
+    .client("@label=1 METADATA alice SET pronouns they/them")
+    .update(|session| {
+        session
+            .metadata(
+                std::time::Instant::now(),
                 MetadataCommand::Get {
                     target: "alice".into(),
                     keys: vec!["avatar".into(), "pronouns".into()],
@@ -70,29 +83,39 @@ fn prefers_metadata_3_and_reads_known_limits() {
             )
             .unwrap();
     })
-    .client("@label=1 METADATA alice GET avatar pronouns")
+    .client("@label=2 METADATA alice GET avatar pronouns")
     .server("@label=0 :ergo.test 761 alice ALICE avatar * :https://cdn.example.net/a.png")
     .event(|event| matches!(event, Event::MetadataChanged { target, key, value: Some(value), visibility }
         if target == "ALICE" && key == "avatar"
             && value == "https://cdn.example.net/a.png" && visibility == "*"))
     .event(|event| matches!(event, Event::Response(_)))
+    .server("@label=1 :ergo.test 761 alice ALICE pronouns * :they/them")
+    .event(|event| matches!(event, Event::MetadataChanged { key, .. } if key == "pronouns"))
+    .event(|event| matches!(event, Event::Response(_)))
+    .server("@label=2 :ergo.test BATCH +reply labeled-response")
+    .server("@batch=reply :ergo.test 761 alice ALICE avatar * :https://cdn.example.net/a.png")
+    .server("@batch=reply :ergo.test 761 alice ALICE pronouns * :they/them")
+    .server(":ergo.test BATCH -reply")
+    .event(|event| matches!(event, Event::MetadataChanged { key, .. } if key == "avatar"))
+    .event(|event| matches!(event, Event::MetadataChanged { key, .. } if key == "pronouns"))
+    .event(|event| matches!(event, Event::Response(_)))
     .inspect(|session| {
-        let avatar = &session.state().metadata("alice").unwrap()["avatar"];
-        assert_eq!(avatar.value, "https://cdn.example.net/a.png");
-        assert_eq!(avatar.visibility, "*");
+        let metadata = session.state().metadata("alice").unwrap();
+        assert_eq!(metadata["avatar"].value, "https://cdn.example.net/a.png");
+        assert_eq!(metadata["avatar"].visibility, "*");
+        assert_eq!(metadata["pronouns"].value, "they/them");
     })
-    .server("@label=1 :ergo.test 766 alice ALICE avatar :key is not set")
+    .server(":ergo.test 766 alice ALICE avatar :key is not set")
     .event(|event| matches!(event, Event::MetadataChanged { key, value: None, .. }
         if key == "avatar"))
-    .event(|event| matches!(event, Event::Response(_)))
-    .inspect(|session| assert!(session.state().metadata("alice").is_none()))
+    .inspect(|session| assert!(!session.state().metadata("alice").unwrap().contains_key("avatar")))
     .update(|session| {
         session.metadata(std::time::Instant::now(), MetadataCommand::Clear {
             target: "alice".into(),
         }).unwrap();
     })
-    .client("@label=2 METADATA alice CLEAR")
-    .server("@label=2 :ergo.test FAIL METADATA VALUE_INVALID :Metadata value is invalid")
+    .client("@label=3 METADATA alice CLEAR")
+    .server("@label=3 :ergo.test FAIL METADATA VALUE_INVALID :Metadata value is invalid")
     .event(|event| matches!(event, Event::Response(response)
         if response.metadata_error() == Some(MetadataError::ValueInvalid)));
 }
