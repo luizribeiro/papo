@@ -19,7 +19,7 @@ mod conversation;
 mod source;
 
 pub use connection::{CapsChanged, Disconnected, Registered};
-pub use conversation::Reacted;
+pub use conversation::{Reacted, TypingChanged};
 pub use source::Source;
 
 /// The semantic kind of an incoming chat message.
@@ -595,7 +595,7 @@ pub enum Event {
     /// A tag-only reaction or unreaction.
     Reacted(Reacted),
     /// A tag-only typing notification.
-    Typing(TagMsg),
+    TypingChanged(TypingChanged),
     /// A message was redacted from a target's history.
     Redacted(papo_core::Redacted),
     /// A labelled request received its complete logical response.
@@ -930,8 +930,12 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                     msgid: reaction.reply_to,
                     removed,
                 })
-            } else if tag.typing().is_some() {
-                Event::Typing(tag)
+            } else if let Some(state) = tag.typing() {
+                Event::TypingChanged(TypingChanged {
+                    source: tag.source.map(Source::from_prefix),
+                    target: tag.target,
+                    state,
+                })
             } else {
                 Event::TagMsg(tag)
             }
@@ -1375,7 +1379,7 @@ mod tests {
             tags: vec![("+typing".into(), Some("active".into()))],
         };
         assert!(
-            matches!(forwarded(papo_core::Event::TagMessage(tag)), Event::Typing(tag) if tag.typing() == Some(Typing::Active))
+            matches!(forwarded(papo_core::Event::TagMessage(tag)), Event::TypingChanged(typing) if typing.state == Typing::Active)
         );
     }
 

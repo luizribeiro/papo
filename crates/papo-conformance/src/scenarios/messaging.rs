@@ -92,7 +92,7 @@ async fn message_tags(context: Scenario) -> ScenarioResult {
         .expect(
             &mut receiver.events,
             |event| {
-                matches!(event, Event::Typing(message) if message.target() == channel && message.typing() == Some(Typing::Active))
+                matches!(event, Event::TypingChanged(typing) if typing.target == channel && typing.state == Typing::Active)
             },
             EXPECT_TIMEOUT,
         )

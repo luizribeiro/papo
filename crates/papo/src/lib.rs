@@ -52,7 +52,9 @@ pub use state::State;
 
 /// Payloads carried by [`Event`].
 pub mod event {
-    pub use crate::event_impl::{CapsChanged, Disconnected, Reacted, Registered, Source, TagMsg};
+    pub use crate::event_impl::{
+        CapsChanged, Disconnected, Reacted, Registered, Source, TagMsg, TypingChanged,
+    };
 }
 
 /// Strict Transport Security policy stores.

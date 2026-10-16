@@ -123,7 +123,9 @@ async fn wait_message(events: &mut papo::Events, text: &str) -> MessageEvent {
 async fn wait_typing(events: &mut papo::Events, target: &str, state: Typing) {
     loop {
         match events.next().await {
-            Some(Event::Typing(tag)) if tag.target() == target && tag.typing() == Some(state) => {
+            Some(Event::TypingChanged(typing))
+                if typing.target == target && typing.state == state =>
+            {
                 return;
             }
             Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {

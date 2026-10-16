@@ -1,3 +1,5 @@
+use crate::Typing;
+
 use super::Source;
 
 /// A reaction was added to or removed from a message.
@@ -14,4 +16,16 @@ pub struct Reacted {
     pub msgid: String,
     /// Whether the reaction was removed.
     pub removed: bool,
+}
+
+/// A user's typing state changed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct TypingChanged {
+    /// The user or server that sent the notification.
+    pub source: Option<Source>,
+    /// The channel or nickname where typing is occurring.
+    pub target: String,
+    /// The new typing state.
+    pub state: Typing,
 }
