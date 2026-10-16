@@ -1201,7 +1201,10 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
             ..
         })
     ));
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[test]
@@ -1232,8 +1235,11 @@ async fn secure_sts_forwards_persistence_policy() {
         StsAction::Persist { host, duration }
     )) if host == "irc.example.net" && duration == Duration::from_secs(3600)));
     client_line(&mut server, b"CAP END\r\n").await;
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1280,8 +1286,11 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
     papo_core::sts::StsStore::put(&mut inspection, policy);
     client_line(&mut server, b"CAP END\r\n").await;
     let disconnect_started = SystemTime::now();
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
     let disconnect_finished = SystemTime::now();
     let refreshed = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
     assert!(
@@ -1348,8 +1357,11 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
     ));
     assert!(papo_core::sts::StsStore::get(&inspection, "irc.example.net").is_none());
     client_line(&mut server, b"CAP END\r\n").await;
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1407,8 +1419,11 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(matches!(events.next().await, Some(Event::StsPolicy(_))));
     client_line(&mut server, b"CAP END\r\n").await;
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1421,10 +1436,13 @@ async fn client_send_reaches_the_wire() {
         .await
         .unwrap();
     let mut whois = [0; 13];
-    server.read_exact(&mut whois).await.unwrap();
+    within(server.read_exact(&mut whois)).await.unwrap();
     assert_eq!(&whois, b"WHOIS emily\r\n");
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -1443,7 +1461,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
     });
     client_line(&mut server, b"@label=0 WHOIS alice\r\n").await;
     server_line(&mut server, b"@label=0 :ergo.test BATCH +whois-42 labeled-response\r\n@batch=whois-42 :ergo.test 311 papo-driver alice ~alice client.example * :Alice Example\r\n@batch=whois-42 :ergo.test 312 papo-driver alice ergo.test :Ergo Test Network\r\n@batch=whois-42 :ergo.test 317 papo-driver alice 42 1760544000 :seconds idle, signon time\r\n@batch=whois-42 :ergo.test 319 papo-driver alice :@#papo +#rust\r\n@batch=whois-42 :ergo.test 330 papo-driver alice alice :is logged in as\r\n@batch=whois-42 :ergo.test 301 papo-driver alice :away from keyboard\r\n@batch=whois-42 :ergo.test 335 papo-driver alice :is a bot\r\n@batch=whois-42 :ergo.test 671 papo-driver alice :is using a secure connection\r\n@batch=whois-42 :ergo.test 318 papo-driver alice :End of /WHOIS list\r\n:ergo.test BATCH -whois-42\r\n").await;
-    let whois = whois.await.unwrap().unwrap();
+    let whois = within(whois).await.unwrap().unwrap();
     assert_eq!(
         (whois.nick.as_str(), whois.user.as_deref()),
         ("alice", Some("~alice"))
@@ -1472,7 +1490,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
     });
     client_line(&mut server, b"@label=1 WHO #papo %tcuhnfar\r\n").await;
     server_line(&mut server, b"@label=1 :ergo.test BATCH +who-42 labeled-response\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~alice client.example alice H@B alice :Alice Example\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~dan user.example dan G+* 0 :Dan Away\r\n@batch=who-42 :ergo.test 315 papo-driver #papo :End of WHO list\r\n:ergo.test BATCH -who-42\r\n").await;
-    let who = who.await.unwrap().unwrap();
+    let who = within(who).await.unwrap().unwrap();
     assert_eq!(who.len(), 2);
     assert_eq!(
         (who[0].nick.as_str(), who[0].account.as_deref()),
@@ -1501,7 +1519,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
     )
     .await;
     assert!(matches!(
-        request.await.unwrap(),
+        within(request).await.unwrap(),
         Err(Error::Server(papo_core::ServerError::Numeric { numeric, .. })) if numeric.code() == 401
     ));
 
@@ -1511,13 +1529,22 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
     });
     client_line(&mut server, b"@label=9 WHOIS alice\r\n").await;
     tokio::time::advance(Duration::from_secs(1)).await;
-    assert!(matches!(timed_out.await.unwrap(), Err(Error::Timeout)));
+    assert!(matches!(
+        within(timed_out).await.unwrap(),
+        Err(Error::Timeout)
+    ));
 
     let aborted = tokio::spawn(async move { client.raw(Message::new("WHOIS", ["emily"])).await });
     client_line(&mut server, b"@label=A WHOIS emily\r\n").await;
-    server.shutdown().await.unwrap();
-    assert!(matches!(aborted.await.unwrap(), Err(Error::Disconnected)));
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(aborted).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1532,7 +1559,7 @@ async fn typed_requests_match_unlabelled_responses() {
     });
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(&mut server, b":ergo.test 311 papo-driver alice ~alice host * :Alice Example\r\n:ergo.test 318 papo-driver alice :End of /WHOIS list\r\n").await;
-    assert_eq!(whois.await.unwrap().unwrap().nick, "alice");
+    assert_eq!(within(whois).await.unwrap().unwrap().nick, "alice");
 
     let who = tokio::spawn({
         let client = client.clone();
@@ -1540,7 +1567,7 @@ async fn typed_requests_match_unlabelled_responses() {
     });
     client_line(&mut server, b"WHO #papo\r\n").await;
     server_line(&mut server, b":ergo.test 352 papo-driver #papo ~alice host ergo.test alice H@ :0 Alice Example\r\n:ergo.test 315 papo-driver #papo :End of WHO list\r\n").await;
-    assert_eq!(who.await.unwrap().unwrap()[0].nick, "alice");
+    assert_eq!(within(who).await.unwrap().unwrap()[0].nick, "alice");
 
     let join = tokio::spawn({
         let client = client.clone();
@@ -1548,7 +1575,7 @@ async fn typed_requests_match_unlabelled_responses() {
     });
     client_line(&mut server, b"JOIN #papo\r\n").await;
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
-    assert_eq!(join.await.unwrap().unwrap().members_count, 2);
+    assert_eq!(within(join).await.unwrap().unwrap().members_count, 2);
     client_line(&mut server, b"WHO #papo\r\n").await;
 
     let list = tokio::spawn({
@@ -1557,7 +1584,7 @@ async fn typed_requests_match_unlabelled_responses() {
     });
     client_line(&mut server, b"LIST\r\n").await;
     server_line(&mut server, b":ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n:ergo.test 323 papo-driver :End of /LIST\r\n").await;
-    assert_eq!(list.await.unwrap().unwrap()[0].members_count, 42);
+    assert_eq!(within(list).await.unwrap().unwrap()[0].members_count, 42);
 
     let mode = tokio::spawn({
         let client = client.clone();
@@ -1569,7 +1596,7 @@ async fn typed_requests_match_unlabelled_responses() {
         b":papo-driver!papo@localhost MODE #papo +t\r\n",
     )
     .await;
-    mode.await.unwrap().unwrap();
+    within(mode).await.unwrap().unwrap();
 
     let topic = tokio::spawn({
         let client = client.clone();
@@ -1582,7 +1609,7 @@ async fn typed_requests_match_unlabelled_responses() {
     )
     .await;
     assert_eq!(
-        topic.await.unwrap().unwrap().as_deref(),
+        within(topic).await.unwrap().unwrap().as_deref(),
         Some("Ergonomic IRC")
     );
 
@@ -1596,7 +1623,7 @@ async fn typed_requests_match_unlabelled_responses() {
         b":papo-driver!papo@localhost PART #papo :Leaving\r\n",
     )
     .await;
-    part.await.unwrap().unwrap();
+    within(part).await.unwrap().unwrap();
 
     let denied = tokio::spawn({
         let client = client.clone();
@@ -1608,7 +1635,10 @@ async fn typed_requests_match_unlabelled_responses() {
         b":ergo.test 473 papo-driver #invite-only :Cannot join channel (+i)\r\n",
     )
     .await;
-    assert!(matches!(denied.await.unwrap(), Err(Error::Server(_))));
+    assert!(matches!(
+        within(denied).await.unwrap(),
+        Err(Error::Server(_))
+    ));
 
     assert!(matches!(
         client
@@ -1622,8 +1652,11 @@ async fn typed_requests_match_unlabelled_responses() {
             .is_err()
     );
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(driver.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1685,7 +1718,9 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
     assert_eq!(
-        client.privmsg("#papo", &"a".repeat(600)).await.unwrap(),
+        within(client.privmsg("#papo", &"a".repeat(600)))
+            .await
+            .unwrap(),
         super::Sent::default()
     );
     let lines = format!(
@@ -1700,11 +1735,14 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
         .unwrap();
     client_line(&mut server, b"NOTICE papo-helper :maintenance soon\r\n").await;
     assert!(matches!(
-        client.privmsg("#papo", "\n").await,
+        within(client.privmsg("#papo", "\n")).await,
         Err(Error::EmptyText)
     ));
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1725,15 +1763,20 @@ async fn chat_text_uses_multiline_when_negotiated() {
     )
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
-    client.privmsg("#papo", &"a".repeat(600)).await.unwrap();
+    within(client.privmsg("#papo", &"a".repeat(600)))
+        .await
+        .unwrap();
     let batch = format!(
         "BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0 PRIVMSG #papo {}\r\n@batch=b0-0;draft/multiline-concat PRIVMSG #papo {}\r\nBATCH -b0-0\r\n",
         "a".repeat(413),
         "a".repeat(187)
     );
     client_line(&mut server, batch.as_bytes()).await;
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1763,15 +1806,18 @@ async fn chat_text_returns_metadata_from_a_labelled_echo() {
         b"@label=0;msgid=RfcBTzyxY120004;time=2026-02-03T04:05:06.789Z :papo-driver!papo@localhost PRIVMSG #papo :hello everyone\r\n",
     )
     .await;
-    let sent = sent.await.unwrap().unwrap();
+    let sent = within(sent).await.unwrap().unwrap();
     assert_eq!(sent.msgid.as_deref(), Some("RfcBTzyxY120004"));
     assert_eq!(
         sent.time,
         Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
     );
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1835,15 +1881,18 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     while !client.isupport().clienttagdeny().denies("typing") {
         tokio::task::yield_now().await;
     }
-    client.typing("emily", Typing::Done).await.unwrap();
+    within(client.typing("emily", Typing::Done)).await.unwrap();
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
             .await
             .is_err()
     );
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1885,7 +1934,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
         b"@label=0 :papo-driver!papo@localhost REDACT #papo RfcBTzyxY120004 :duplicate message\r\n",
     )
     .await;
-    assert!(redacted.await.unwrap().is_ok());
+    assert!(within(redacted).await.unwrap().is_ok());
 
     let sender = client.clone();
     let rejected =
@@ -1897,7 +1946,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     )
     .await;
     assert!(matches!(
-        rejected.await.unwrap(),
+        within(rejected).await.unwrap(),
         Err(Error::Server(papo_core::ServerError::Standard { command, code, .. }))
             if command == "REDACT" && code == "FORBIDDEN"
     ));
@@ -1911,12 +1960,15 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
-        client.redact("#papo", "RfcBTzyxY120006", None).await,
+        within(client.redact("#papo", "RfcBTzyxY120006", None)).await,
         Err(Error::Unsupported("draft/message-redaction"))
     ));
 
-    server.shutdown().await.unwrap();
-    assert!(matches!(task.await.unwrap(), Err(Error::Disconnected)));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
