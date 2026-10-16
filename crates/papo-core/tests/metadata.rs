@@ -121,6 +121,40 @@ fn prefers_metadata_3_and_reads_known_limits() {
 }
 
 #[test]
+fn keeps_legacy_metadata_when_modern_metadata_is_not_both_wanted_and_available() {
+    Transcript::new(Config::default().wanted_caps(["metadata-notify"]))
+        .connect_default()
+        .server("CAP * LS :metadata-notify draft/metadata-3")
+        .client("CAP REQ :metadata-notify");
+
+    Transcript::new(Config::default().wanted_caps(["metadata-notify", "draft/metadata-3"]))
+        .connect_default()
+        .server("CAP * LS :metadata-notify")
+        .client("CAP REQ :metadata-notify");
+}
+
+#[test]
+fn cap_new_keeps_legacy_metadata_without_a_modern_preference() {
+    registered("max-subs=100,max-keys=100")
+        .server("CAP alice NEW :metadata-notify")
+        .no_client();
+
+    Transcript::new(Config::default().wanted_caps(["metadata-notify"]))
+        .connect_default()
+        .server("CAP * LS :draft/metadata-3")
+        .client("CAP END")
+        .server("CAP papo NEW :metadata-notify")
+        .client("CAP REQ :metadata-notify");
+
+    Transcript::new(Config::default().wanted_caps(["metadata-notify", "draft/metadata-3"]))
+        .connect_default()
+        .server("CAP * LS :")
+        .client("CAP END")
+        .server("CAP papo NEW :metadata-notify")
+        .client("CAP REQ :metadata-notify");
+}
+
+#[test]
 fn falls_back_to_metadata_2() {
     Transcript::new(Config::default().wanted_caps(["draft/metadata-3"]))
         .connect_default()
@@ -317,6 +351,19 @@ fn tracks_sub_subs_and_unsub_replies() {
         .client("METADATA * UNSUB avatar status pronouns")
         .server(":ergo.test 771 alice avatar status")
         .inspect(|session| assert!(session.state().metadata_subscriptions().is_empty()));
+}
+
+#[test]
+fn unsubscribe_reply_removes_only_the_acknowledged_key() {
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test 770 alice avatar pronouns status")
+        .server(":ergo.test 771 alice pronouns")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().metadata_subscriptions(),
+                ["avatar", "status"]
+            );
+        });
 }
 
 #[test]
