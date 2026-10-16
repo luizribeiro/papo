@@ -92,10 +92,10 @@ async fn message_accessors_use_captured_session_facts() {
 #[tokio::test(flavor = "current_thread")]
 async fn registration_is_forwarded() {
     let (mut server, client, mut events, driver) = scripted(config());
-    assert!(!client.state(crate::State::is_connected));
+    assert!(!client.snapshot().is_connected());
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    assert!(client.state(crate::State::is_connected));
+    assert!(client.snapshot().is_connected());
     within(server.write_all(b":ergo.test CAP * LS :\r\n"))
         .await
         .unwrap();
@@ -108,7 +108,7 @@ async fn registration_is_forwarded() {
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
-    assert!(!client.state(crate::State::is_connected));
+    assert!(!client.snapshot().is_connected());
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -289,7 +289,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     ));
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
-    assert!(client.state(crate::State::is_connected));
+    assert!(client.snapshot().is_connected());
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
@@ -298,7 +298,7 @@ async fn eof_reconnects_and_emits_reconnected() {
             ..
         })
     ));
-    assert!(!client.state(crate::State::is_connected));
+    assert!(!client.snapshot().is_connected());
 
     tokio::time::advance(Duration::from_secs(2)).await;
     registration_burst(&mut second_server).await;
@@ -316,7 +316,7 @@ async fn eof_reconnects_and_emits_reconnected() {
             .await
             .is_err()
     );
-    assert!(client.state(crate::State::is_connected));
+    assert!(client.snapshot().is_connected());
 
     let quit = tokio::spawn(async move { client.quit(None).await });
     client_line(&mut second_server, b"QUIT\r\n").await;
@@ -731,7 +731,7 @@ async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
     }
 
     within(server.shutdown()).await.unwrap();
-    while client.state(crate::State::is_connected) {
+    while client.snapshot().is_connected() {
         tokio::task::yield_now().await;
     }
     within(client.quit(None)).await.unwrap();
@@ -2395,7 +2395,12 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
         b":ergo.test 005 papo-driver CLIENTTAGDENY=typing :are supported\r\n",
     )
     .await;
-    while client.state(|state| !state.isupport().clienttagdeny().denies("typing")) {
+    while !client
+        .snapshot()
+        .isupport()
+        .clienttagdeny()
+        .denies("typing")
+    {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
@@ -2477,7 +2482,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
         b":ergo.test CAP * DEL :draft/message-redaction\r\n",
     )
     .await;
-    while client.state(|state| state.has_cap("draft/message-redaction")) {
+    while client.snapshot().has_cap("draft/message-redaction") {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
@@ -2880,11 +2885,10 @@ async fn client_reads_owned_state_snapshots() {
     )
     .await;
     while !matches!(events.next().await, Some(Event::ChannelSynced { .. })) {}
-    client.state(|state| {
-        let channel = state.channel("#papo").unwrap();
-        assert!(channel.is_synced());
-        assert_eq!(channel.member("EMILY").unwrap().prefixes(), &['+']);
-    });
+    let state = client.snapshot();
+    let channel = state.channel("#papo").unwrap();
+    assert!(channel.is_synced());
+    assert_eq!(channel.member("EMILY").unwrap().prefixes(), &['+']);
 
     let unchanged = client.snapshot();
     server_line(
@@ -2902,7 +2906,7 @@ async fn client_reads_owned_state_snapshots() {
     .await;
     assert!(matches!(events.next().await, Some(Event::Parted { .. })));
     assert!(!Arc::ptr_eq(&unchanged, &client.snapshot()));
-    assert!(client.state(|state| state.channel("#papo").is_none()));
+    assert!(client.snapshot().channel("#papo").is_none());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -2944,29 +2948,28 @@ async fn public_state_accessors_report_the_registered_session() {
     while !matches!(events.next().await, Some(Event::MonitorOnline { .. })) {}
 
     assert_eq!(client.nick(), "papo-driver");
-    client.state(|state| {
-        assert_eq!(state.nick(), "papo-driver");
-        assert_eq!(state.account(), Some("emily"));
-        assert!(state.away());
-        let mut modes: Vec<_> = state.user_modes().collect();
-        modes.sort_unstable();
-        assert_eq!(modes, ['i', 'w']);
-        assert_eq!(
-            state
-                .channels()
-                .map(papo_core::Channel::name)
-                .collect::<Vec<_>>(),
-            ["#Papo"]
-        );
-        assert_eq!(state.user("ALICE").unwrap().username(), Some("~alice"));
-        assert_eq!(state.monitor_online().next().unwrap().nick(), "bob");
-        assert_eq!(state.isupport().nicklen(), Some(27));
-        assert!(
-            state
-                .features()
-                .any(|feature| feature == papo_core::Feature::Monitor)
-        );
-    });
+    let state = client.snapshot();
+    assert!(state.is_me("papo-driver"));
+    assert_eq!(state.account(), Some("emily"));
+    assert!(state.away());
+    let mut modes: Vec<_> = state.user_modes().collect();
+    modes.sort_unstable();
+    assert_eq!(modes, ['i', 'w']);
+    assert_eq!(
+        state
+            .channels()
+            .map(papo_core::Channel::name)
+            .collect::<Vec<_>>(),
+        ["#Papo"]
+    );
+    assert_eq!(state.user("ALICE").unwrap().username(), Some("~alice"));
+    assert_eq!(state.monitor_online().next().unwrap().nick(), "bob");
+    assert_eq!(state.isupport().nicklen(), Some(27));
+    assert!(
+        state
+            .features()
+            .any(|feature| feature == papo_core::Feature::Monitor)
+    );
     let snapshot = client.snapshot();
     assert_eq!(snapshot.nick(), "papo-driver");
     assert_eq!(snapshot.account(), Some("emily"));
@@ -3123,23 +3126,21 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     .await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 
-    assert!(client.state(|state| state.has_cap("no-implicit-names")));
-    assert!(client.state(|state| state.has_cap("draft/no-implicit-names")));
-    assert!(!client.state(|state| state.has_cap("message-tags")));
-    assert_eq!(client.state(|state| state.isupport().nicklen()), Some(27));
-    client.state(|state| {
-        assert!(state.is_connected());
-        assert!(state.is_me("PAPO-DRIVER"));
-        assert!(state.has_cap("draft/no-implicit-names"));
-        assert!(state.casemapping().eq("#Papo", "#papo"));
-        assert!(!state.casemapping().eq("#PAPO[dev]", "#papo{dev}"));
-        assert!(!state.supports(crate::Feature::History));
-        assert!(
-            !state
-                .features()
-                .any(|feature| feature == crate::Feature::History)
-        );
-    });
+    let state = client.snapshot();
+    assert!(state.has_cap("no-implicit-names"));
+    assert!(state.has_cap("draft/no-implicit-names"));
+    assert!(!state.has_cap("message-tags"));
+    assert_eq!(state.isupport().nicklen(), Some(27));
+    assert!(state.is_connected());
+    assert!(state.is_me("PAPO-DRIVER"));
+    assert!(state.casemapping().eq("#Papo", "#papo"));
+    assert!(!state.casemapping().eq("#PAPO[dev]", "#papo{dev}"));
+    assert!(!state.supports(crate::Feature::History));
+    assert!(
+        !state
+            .features()
+            .any(|feature| feature == crate::Feature::History)
+    );
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -3169,13 +3170,14 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
     ));
 
     server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::MonitorOffline { nick }) if nick == "alice"));
-    let online: Vec<_> = client.state(|state| {
-        state
-            .monitor_online()
-            .map(|user| user.nick().to_owned())
-            .collect()
-    });
+    assert!(
+        matches!(events.next().await, Some(Event::MonitorOffline { nick }) if client.snapshot().casemapping().eq(&nick, "alice"))
+    );
+    let online: Vec<_> = client
+        .snapshot()
+        .monitor_online()
+        .map(|user| user.nick().to_owned())
+        .collect();
     assert_eq!(online, ["bob"]);
 
     within(server.shutdown()).await.unwrap();
@@ -3197,12 +3199,12 @@ async fn disconnect_clears_monitor_presence_snapshot() {
         events.next().await,
         Some(Event::MonitorOnline { .. })
     ));
-    assert_eq!(client.state(|state| state.monitor_online().count()), 1);
+    assert_eq!(client.snapshot().monitor_online().count(), 1);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())
     ));
-    assert_eq!(client.state(|state| state.monitor_online().count()), 0);
+    assert_eq!(client.snapshot().monitor_online().count(), 0);
 }
