@@ -15,6 +15,7 @@ server_pid=
 server_input=
 ca_file=
 export PAPO_TEST_PID=$$
+export PAPO_TEST_SERVER=${PAPO_TEST_SERVER-ergo}
 
 # The EXIT trap is the only caller.
 # shellcheck disable=SC2329
@@ -51,10 +52,10 @@ start_server() {
       -p papo-test-server --bin papo-test-server
     helper=$repo_root/target/debug/papo-test-server
   fi
-  coproc PAPO_ERGO { "$helper"; }
-  server_output=${PAPO_ERGO[0]}
-  server_input=${PAPO_ERGO[1]}
-  server_pid=$PAPO_ERGO_PID
+  coproc PAPO_SERVER { "$helper"; }
+  server_output=${PAPO_SERVER[0]}
+  server_input=${PAPO_SERVER[1]}
+  server_pid=$PAPO_SERVER_PID
   IFS= read -r PAPO_TEST_PLAINTEXT <&"$server_output"
   IFS= read -r PAPO_TEST_TLS <&"$server_output"
   IFS= read -r PAPO_TEST_WS <&"$server_output"
@@ -86,6 +87,7 @@ if [[ $artifact == *.wasm ]]; then
       --env PAPO_TEST_WS
       --env PAPO_TEST_WSS
       --env PAPO_TEST_CA
+      --env PAPO_TEST_SERVER
     )
   fi
   wasmtime_args+=(-S inherit-network -S allow-ip-name-lookup)

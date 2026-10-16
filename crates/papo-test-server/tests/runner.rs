@@ -48,6 +48,30 @@ fn live_binary_respects_preset_server_variables() {
 }
 
 #[test]
+fn live_binary_forwards_the_selected_server_kind() {
+    let directory = directory();
+    let helper = executable(
+        &directory,
+        "server-helper",
+        r#"test "$PAPO_TEST_SERVER" = unrealircd
+printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem
+read -r _ || true"#,
+    );
+    let binary = executable(
+        &directory,
+        "live_selected-deadbeef",
+        "test \"$PAPO_TEST_SERVER\" = unrealircd",
+    );
+    let status = runner(&binary)
+        .env("PAPO_TEST_SERVER", "unrealircd")
+        .env("PAPO_TEST_SERVER_BIN", helper)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
 fn plain_binary_does_not_start_a_server() {
     let directory = directory();
     let binary = executable(&directory, "parser_tests-deadbeef", "exit 0");
@@ -68,7 +92,8 @@ fn runner(binary: &Path) -> Command {
         .env_remove("PAPO_TEST_TLS")
         .env_remove("PAPO_TEST_WS")
         .env_remove("PAPO_TEST_WSS")
-        .env_remove("PAPO_TEST_CA");
+        .env_remove("PAPO_TEST_CA")
+        .env_remove("PAPO_TEST_SERVER");
     command
 }
 

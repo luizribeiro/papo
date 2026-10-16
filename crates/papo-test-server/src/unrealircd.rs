@@ -1,7 +1,7 @@
 use std::{
     env, fs, io,
     net::{TcpListener, TcpStream},
-    path::Path,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     thread,
     time::{Duration, Instant},
@@ -130,14 +130,21 @@ saslserv {{ nick = "SaslServ"; }};
     }
 }
 
-pub(crate) struct TestServer {
+#[doc(hidden)]
+/// An UnrealIRCd process linked to Atheme for the target runner.
+pub struct TestServer {
     children: Vec<Child>,
     directory: TemporaryDirectory,
     config: Configuration,
 }
 
 impl TestServer {
-    pub(crate) fn start() -> io::Result<Self> {
+    /// Starts `UnrealIRCd` and Atheme and waits for their services link.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when configuration, process startup, or readiness fails.
+    pub fn start() -> io::Result<Self> {
         for _ in 0..4 {
             if let Ok(server) = Self::start_once() {
                 return Ok(server);
@@ -208,6 +215,29 @@ impl TestServer {
     fn services_linked(&self) -> bool {
         fs::read_to_string(self.directory.path().join("atheme.log"))
             .is_ok_and(|log| log.contains("finished synching with uplink"))
+    }
+
+    /// Returns the plaintext, TLS, WebSocket, and secure WebSocket listeners.
+    #[must_use]
+    pub const fn endpoints(&self) -> [std::net::SocketAddr; 4] {
+        [
+            self.config.plaintext,
+            self.config.tls,
+            self.config.websocket,
+            self.config.secure_websocket,
+        ]
+    }
+
+    /// Returns the generated CA certificate path.
+    #[must_use]
+    pub fn ca_pem_path(&self) -> PathBuf {
+        self.directory.path().join("ca.pem")
+    }
+
+    /// Returns the `UnrealIRCd` process identifier.
+    #[must_use]
+    pub fn process_id(&self) -> u32 {
+        self.children[0].id()
     }
 }
 
