@@ -327,6 +327,44 @@
               CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
             }
           );
+          conformance-inspircd = craneLib.cargoTest (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "-p papo-conformance";
+              nativeBuildInputs = [
+                pkgs.openssl
+                pkgs.atheme
+                pkgs.inspircd
+              ];
+              PAPO_TEST_SERVER = "inspircd";
+              ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
+              ATHEME_MODULES = "${pkgs.atheme}/modules";
+              INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";
+              INSPIRCD_MODULES = "${pkgs.lib.getLib pkgs.inspircd}/lib/inspircd";
+              CARGO_INCREMENTAL = "0";
+              CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
+            }
+          );
+          conformance-solanum = craneLib.cargoTest (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "-p papo-conformance";
+              nativeBuildInputs = [
+                pkgs.openssl
+                pkgs.atheme
+                solanum
+              ];
+              PAPO_TEST_SERVER = "solanum";
+              ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
+              ATHEME_MODULES = "${pkgs.atheme}/modules";
+              SOLANUM_BIN = pkgs.lib.getExe solanum;
+              SOLANUM_MODULES = "${solanum}/lib/solanum/modules";
+              CARGO_INCREMENTAL = "0";
+              CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
+            }
+          );
           conformance-matrix = craneLib.mkCargoDerivation (
             craneArgs
             // {
@@ -335,7 +373,9 @@
               nativeBuildInputs = [
                 pkgs.openssl
                 pkgs.atheme
+                pkgs.inspircd
                 pkgs.python3
+                solanum
                 unrealircd
               ];
               ERGO_BIN = pkgs.lib.getExe ergochat;
@@ -343,6 +383,10 @@
               ERGO_LANGUAGES = "${ergochat.src}/languages";
               ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
               ATHEME_MODULES = "${pkgs.atheme}/modules";
+              INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";
+              INSPIRCD_MODULES = "${pkgs.lib.getLib pkgs.inspircd}/lib/inspircd";
+              SOLANUM_BIN = pkgs.lib.getExe solanum;
+              SOLANUM_MODULES = "${solanum}/lib/solanum/modules";
               UNREALIRCD_BIN = pkgs.lib.getExe' unrealircd "unrealircd";
               UNREALIRCD_CONFIG = "${unrealircd}/share/unrealircd/conf";
               CARGO_INCREMENTAL = "0";
