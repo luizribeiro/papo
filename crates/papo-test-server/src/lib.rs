@@ -16,7 +16,9 @@ mod inspircd;
 mod inspircd_config;
 #[cfg(not(target_family = "wasm"))]
 mod server;
-#[cfg(all(test, not(target_family = "wasm")))]
+#[cfg(not(target_family = "wasm"))]
+mod solanum;
+#[cfg(not(target_family = "wasm"))]
 mod solanum_config;
 #[cfg(not(target_family = "wasm"))]
 mod unrealircd;
@@ -28,6 +30,9 @@ pub use environment::{ServerInfo, from_env, unique};
 pub use inspircd::TestServer as InspIrcdServer;
 #[cfg(not(target_family = "wasm"))]
 pub use server::TestServer;
+#[cfg(not(target_family = "wasm"))]
+#[doc(hidden)]
+pub use solanum::TestServer as SolanumServer;
 #[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
 pub use unrealircd::TestServer as UnrealIrcdServer;
