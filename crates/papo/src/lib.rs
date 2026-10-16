@@ -21,12 +21,13 @@ pub mod bot;
 
 pub use address::AddressError;
 pub use builder::Builder;
-pub use client::{Client, Persistence, PushKeys, Sent, WebPush};
+pub use client::{Client, PushKeys, Sent, WebPush};
 pub use driver::{Driver, Events};
 pub use entropy::OsEntropy;
 pub use error::Error;
 pub use event::{Event, MessageEvent, MessageKind, Origin};
 pub use ext::accounts::AccountRegistration;
+pub use ext::persistence::Persistence;
 pub use history::{History, HistoryPage, HistoryReference, HistoryRequest};
 pub use metadata::Metadata;
 pub use papo_core::WebIrc;

@@ -2618,63 +2618,6 @@ async fn disconnect_clears_monitor_presence_snapshot() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn reads_changes_and_caches_persistence() {
-    let settings = config().wanted_caps(["draft/persistence", "labeled-response"]);
-    let (mut server, client, mut events, driver) = scripted(settings);
-    let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
-    server_line(
-        &mut server,
-        b":ergo.test CAP * LS :draft/persistence labeled-response\r\n",
-    )
-    .await;
-    client_line(
-        &mut server,
-        b"CAP REQ :draft/persistence labeled-response\r\n",
-    )
-    .await;
-    server_line(
-        &mut server,
-        b":ergo.test CAP * ACK :draft/persistence labeled-response\r\n",
-    )
-    .await;
-    client_line(&mut server, b"CAP END\r\n").await;
-    server_line(&mut server, b":ergo.test 001 papo-driver :Welcome\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
-
-    let get = tokio::spawn({
-        let client = client.clone();
-        async move { client.persistence().get().await }
-    });
-    client_line(&mut server, b"@label=0 PERSISTENCE GET\r\n").await;
-    server_line(
-        &mut server,
-        b"@label=0 :ergo.test PERSISTENCE STATUS OFF OFF\r\n",
-    )
-    .await;
-    assert!(!get.await.unwrap().unwrap().effective);
-
-    let set = tokio::spawn({
-        let client = client.clone();
-        async move {
-            client
-                .persistence()
-                .set(papo_core::PersistenceSetting::On)
-                .await
-        }
-    });
-    client_line(&mut server, b"@label=1 PERSISTENCE SET ON\r\n").await;
-    server_line(
-        &mut server,
-        b"@label=1 :ergo.test PERSISTENCE STATUS ON ON\r\n",
-    )
-    .await;
-    assert!(set.await.unwrap().unwrap().effective);
-    assert!(client.persistence().state().unwrap().effective);
-    driver.abort();
-}
-
-#[tokio::test(flavor = "current_thread")]
 async fn webpush_sends_keys_and_returns_typed_failures() {
     let settings = config().wanted_caps(["draft/webpush", "labeled-response"]);
     let (mut server, client, mut events, driver) = scripted(settings);

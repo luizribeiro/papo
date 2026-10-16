@@ -42,11 +42,6 @@ pub struct Sent {
     pub time: Option<SystemTime>,
 }
 
-/// Handle for account persistence requests.
-pub struct Persistence<'a> {
-    client: &'a Client,
-}
-
 /// Handle for Web Push subscription requests.
 pub struct WebPush<'a> {
     client: &'a Client,
@@ -88,41 +83,6 @@ impl WebPush<'_> {
             .core_request(CoreRequest::WebPushUnregister(endpoint.into()))
             .await?;
         webpush_result(&response)
-    }
-}
-
-impl Persistence<'_> {
-    /// Requests the server's current persistence status.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the request is unsupported or interrupted.
-    pub async fn get(&self) -> Result<papo_core::PersistenceStatus, Error> {
-        self.client
-            .core_request(CoreRequest::PersistenceGet)
-            .await?;
-        self.state().ok_or(Error::Disconnected)
-    }
-
-    /// Changes the account persistence preference.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the request is unsupported or interrupted.
-    pub async fn set(
-        &self,
-        setting: papo_core::PersistenceSetting,
-    ) -> Result<papo_core::PersistenceStatus, Error> {
-        self.client
-            .core_request(CoreRequest::PersistenceSet(setting))
-            .await?;
-        self.state().ok_or(Error::Disconnected)
-    }
-
-    /// Returns the most recently reported persistence status.
-    #[must_use]
-    pub fn state(&self) -> Option<papo_core::PersistenceStatus> {
-        self.client.state(crate::State::persistence)
     }
 }
 
@@ -196,12 +156,6 @@ impl Client {
     #[must_use]
     pub fn casemap(&self, name: &str) -> String {
         self.state(|state| state.casemap(name))
-    }
-
-    /// Returns a handle for account persistence requests and cached state.
-    #[must_use]
-    pub const fn persistence(&self) -> Persistence<'_> {
-        Persistence { client: self }
     }
 
     /// Requests a channel rename.
