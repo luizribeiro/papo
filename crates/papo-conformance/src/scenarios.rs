@@ -293,7 +293,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 ],
                 isupport: &[],
             },
-            run: draft_chathistory,
+            run: __papo_scenario_draft_chathistory,
         },
         ScenarioSpec {
             name: "draft_multiline",
@@ -317,7 +317,7 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
                 }],
                 isupport: &[],
             },
-            run: draft_read_marker,
+            run: __papo_scenario_draft_read_marker,
         },
         ScenarioSpec {
             name: "draft_metadata_2",
@@ -975,8 +975,10 @@ async fn batch(context: Scenario) -> ScenarioResult {
     history_page(context).await
 }
 
-fn draft_chathistory(context: Scenario) -> ScenarioFuture {
-    Box::pin(history_page(context))
+/// retrieves a channel history page
+#[scenario(requires(caps = ["batch", "draft/chathistory"]))]
+async fn draft_chathistory(context: Scenario) -> ScenarioResult {
+    history_page(context).await
 }
 
 async fn history_page(context: Scenario) -> ScenarioResult {
@@ -1059,29 +1061,29 @@ async fn draft_multiline(context: Scenario) -> ScenarioResult {
     close_pair(receiver, sender).await
 }
 
-fn draft_read_marker(context: Scenario) -> ScenarioFuture {
-    Box::pin(async move {
-        let nick = context.unique();
-        let channel = format!("#{}", context.unique());
-        let mut connection = context.client_caps(&nick, &["draft/read-marker"]).await?;
-        join(&context, &mut connection, &channel).await?;
-        connection
-            .client
-            .send(Message::new(
-                "MARKREAD",
-                [&channel, "timestamp=2025-10-15T11:55:42.123Z"],
-            ))
-            .await
-            .map_err(Failed::from)?;
-        context
+/// sets and receives a channel read marker
+#[scenario(requires(caps = ["draft/read-marker"]))]
+async fn draft_read_marker(context: Scenario) -> ScenarioResult {
+    let nick = context.unique();
+    let channel = format!("#{}", context.unique());
+    let mut connection = context.client_caps(&nick, &["draft/read-marker"]).await?;
+    join(&context, &mut connection, &channel).await?;
+    connection
+        .client
+        .send(Message::new(
+            "MARKREAD",
+            [&channel, "timestamp=2025-10-15T11:55:42.123Z"],
+        ))
+        .await
+        .map_err(Failed::from)?;
+    context
             .expect(
                 &mut connection.events,
                 |event| matches!(event, Event::ReadMarker(marker) if marker.target == channel && marker.time.is_some()),
                 EXPECT_TIMEOUT,
             )
             .await?;
-        connection.close().await
-    })
+    connection.close().await
 }
 
 fn draft_metadata_2(context: Scenario) -> ScenarioFuture {
