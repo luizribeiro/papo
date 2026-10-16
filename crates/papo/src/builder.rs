@@ -501,7 +501,16 @@ fn apply_address(config: &mut Config, address: &ServerAddress) {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{
+        io,
+        pin::Pin,
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        },
+        task::{Context, Poll},
+        time::Duration,
+    };
 
     use papo_core::{DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, sts::ConnectionSecurity};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -511,6 +520,42 @@ mod tests {
         Error, InvalidInput, NewAccount, address::Protocol, driver::test_support::within,
         transport::TlsRoots,
     };
+
+    struct ObservedStream {
+        inner: crate::io_compat::TokioIo<tokio::io::DuplexStream>,
+        lifecycle: Arc<AtomicUsize>,
+    }
+
+    impl futures_io::AsyncRead for ObservedStream {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            context: &mut Context<'_>,
+            buffer: &mut [u8],
+        ) -> Poll<io::Result<usize>> {
+            Pin::new(&mut self.inner).poll_read(context, buffer)
+        }
+    }
+
+    impl futures_io::AsyncWrite for ObservedStream {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            context: &mut Context<'_>,
+            buffer: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            Pin::new(&mut self.inner).poll_write(context, buffer)
+        }
+
+        fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+            self.lifecycle.store(1, Ordering::Relaxed);
+            Pin::new(&mut self.inner).poll_flush(context)
+        }
+
+        fn poll_close(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+            assert_eq!(self.lifecycle.load(Ordering::Relaxed), 1);
+            self.lifecycle.store(2, Ordering::Relaxed);
+            Pin::new(&mut self.inner).poll_close(context)
+        }
+    }
 
     #[test]
     fn fills_every_session_configuration_field() {
@@ -768,10 +813,14 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn custom_stream_registers_once_without_reconnecting() {
         let (stream, mut server) = tokio::io::duplex(4096);
+        let lifecycle = Arc::new(AtomicUsize::new(0));
         let connecting = tokio::spawn(
             Builder::new("irc://custom.example")
                 .nick("papo-custom")
-                .stream(crate::io_compat::TokioIo(stream))
+                .stream(ObservedStream {
+                    inner: crate::io_compat::TokioIo(stream),
+                    lifecycle: Arc::clone(&lifecycle),
+                })
                 .connect(),
         );
         let expected = b"CAP LS 302\r\nNICK papo-custom\r\nUSER papo-custom 0 * papo-custom\r\n";
@@ -797,7 +846,15 @@ mod tests {
             Some(crate::Event::Registered(_))
         ));
         assert!(matches!(client.reconnect().await, Err(Error::Disconnected)));
+        let quitting = tokio::spawn({
+            let client = client.clone();
+            async move { client.quit(None).await }
+        });
+        let mut quit = [0; 6];
+        within(server.read_exact(&mut quit)).await.unwrap();
+        assert_eq!(&quit, b"QUIT\r\n");
         within(server.shutdown()).await.unwrap();
+        assert!(within(quitting).await.unwrap().is_ok());
         assert!(matches!(
             events.next().await,
             Some(crate::Event::Disconnected {
@@ -806,7 +863,7 @@ mod tests {
             })
         ));
         assert!(!client.is_connected());
-        assert!(matches!(client.quit(None).await, Err(Error::Disconnected)));
+        assert_eq!(lifecycle.load(Ordering::Relaxed), 2);
     }
 
     #[tokio::test(flavor = "current_thread")]
