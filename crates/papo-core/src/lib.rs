@@ -944,6 +944,22 @@ pub enum RequestError {
     EmailRequired,
     /// The server requires the account name to match the current nickname.
     CustomAccountNameUnsupported,
+    /// A metadata key is empty or contains a character outside `[a-z0-9_./-]`.
+    InvalidMetadataKey,
+    /// A metadata value exceeds the server's advertised byte limit.
+    MetadataValueTooLong {
+        /// Advertised maximum.
+        maximum: usize,
+        /// Supplied byte length.
+        actual: usize,
+    },
+    /// A metadata subscription request exceeds the server's advertised limit.
+    TooManyMetadataSubscriptions {
+        /// Advertised maximum.
+        maximum: usize,
+        /// Supplied key count.
+        actual: usize,
+    },
 }
 
 /// Machine-readable reason that a session requested connection closure.
@@ -980,6 +996,11 @@ impl std::fmt::Display for RequestError {
             Self::CustomAccountNameUnsupported => {
                 formatter.write_str("server does not support a custom account name")
             }
+            Self::InvalidMetadataKey => formatter.write_str("invalid metadata key"),
+            Self::MetadataValueTooLong { .. } => formatter.write_str("metadata value is too long"),
+            Self::TooManyMetadataSubscriptions { .. } => {
+                formatter.write_str("too many metadata subscriptions")
+            }
         }
     }
 }
@@ -993,7 +1014,10 @@ impl std::error::Error for RequestError {
             | Self::Unsupported(_)
             | Self::InvalidMessageReference
             | Self::EmailRequired
-            | Self::CustomAccountNameUnsupported => None,
+            | Self::CustomAccountNameUnsupported
+            | Self::InvalidMetadataKey
+            | Self::MetadataValueTooLong { .. }
+            | Self::TooManyMetadataSubscriptions { .. } => None,
         }
     }
 }

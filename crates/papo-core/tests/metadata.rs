@@ -2,8 +2,20 @@
 
 mod support;
 
-use papo_core::{Config, Event, MetadataCommand, MetadataLimits};
+use papo_core::{Config, Event, MetadataCommand, MetadataLimits, RequestError};
 use support::Transcript;
+
+fn registered(value: &str) -> Transcript {
+    Transcript::new(Config::default().wanted_caps(["draft/metadata-2"]))
+        .connect_default()
+        .server(&format!("CAP * LS :draft/metadata-2={value}"))
+        .client("CAP REQ :draft/metadata-2")
+        .server("CAP * ACK :draft/metadata-2")
+        .client("CAP END")
+        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .server(":ergo.test 422 alice :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+}
 
 #[test]
 fn prefers_metadata_3_and_reads_known_limits() {
@@ -69,4 +81,71 @@ fn falls_back_to_metadata_2() {
         .inspect(|session| {
             assert_eq!(session.metadata_limits().unwrap().max_keys, Some(100));
         });
+}
+
+#[test]
+fn rejects_invalid_keys_values_and_subscription_counts_locally() {
+    registered("max-subs=2,max-keys=100,max-value-bytes=8")
+        .update(|session| {
+            let now = std::time::Instant::now();
+            session
+                .metadata(
+                    now,
+                    MetadataCommand::Set {
+                        target: "alice".into(),
+                        key: "a0_./-".into(),
+                        value: Some("12345678".into()),
+                    },
+                )
+                .unwrap();
+            session
+                .metadata(
+                    now,
+                    MetadataCommand::Sub {
+                        keys: vec!["avatar".into(), "pronouns".into()],
+                    },
+                )
+                .unwrap();
+            assert_eq!(
+                session.metadata(
+                    now,
+                    MetadataCommand::Get {
+                        target: "alice".into(),
+                        keys: vec!["Avatar".into()],
+                    },
+                ),
+                Err(RequestError::InvalidMetadataKey)
+            );
+            assert_eq!(
+                session.metadata(
+                    now,
+                    MetadataCommand::Set {
+                        target: "alice".into(),
+                        key: "pronouns".into(),
+                        value: Some("they/them!".into()),
+                    },
+                ),
+                Err(RequestError::MetadataValueTooLong {
+                    maximum: 8,
+                    actual: 10,
+                })
+            );
+            assert_eq!(
+                session.metadata(
+                    now,
+                    MetadataCommand::Sub {
+                        keys: vec!["avatar".into(), "pronouns".into(), "status".into()],
+                    },
+                ),
+                Err(RequestError::TooManyMetadataSubscriptions {
+                    maximum: 2,
+                    actual: 3,
+                })
+            );
+        })
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .client("METADATA alice SET a0_./- 12345678")
+        .client("METADATA * SUB avatar pronouns")
+        .no_client();
 }

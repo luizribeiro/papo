@@ -104,25 +104,38 @@ impl Session {
         now: Instant,
         command: MetadataCommand,
     ) -> Result<RequestId, RequestError> {
-        self.metadata_limits()
+        let limits = self
+            .metadata_limits()
             .ok_or(RequestError::Unsupported("metadata"))?;
         let mut params = Vec::new();
         match command {
             MetadataCommand::Get { target, keys } => {
+                validate_keys(&keys)?;
                 params.extend([target, "GET".into()]);
                 params.extend(keys);
             }
             MetadataCommand::List { target } => params.extend([target, "LIST".into()]),
             MetadataCommand::Set { target, key, value } => {
+                validate_keys(std::slice::from_ref(&key))?;
+                if let (Some(maximum), Some(value)) = (limits.max_value_bytes, value.as_ref())
+                    && value.len() > maximum
+                {
+                    return Err(RequestError::MetadataValueTooLong {
+                        maximum,
+                        actual: value.len(),
+                    });
+                }
                 params.extend([target, "SET".into(), key]);
                 params.extend(value);
             }
             MetadataCommand::Clear { target } => params.extend([target, "CLEAR".into()]),
             MetadataCommand::Sub { keys } => {
+                validate_subscriptions(&keys, limits)?;
                 params.extend(["*".into(), "SUB".into()]);
                 params.extend(keys);
             }
             MetadataCommand::Unsub { keys } => {
+                validate_subscriptions(&keys, limits)?;
                 params.extend(["*".into(), "UNSUB".into()]);
                 params.extend(keys);
             }
@@ -131,4 +144,29 @@ impl Session {
         }
         self.request(now, Message::new("METADATA", params))
     }
+}
+
+fn validate_keys(keys: &[String]) -> Result<(), RequestError> {
+    (!keys.is_empty()
+        && keys.iter().all(|key| {
+            !key.is_empty()
+                && key.bytes().all(|byte| {
+                    byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"_./-".contains(&byte)
+                })
+        }))
+    .then_some(())
+    .ok_or(RequestError::InvalidMetadataKey)
+}
+
+fn validate_subscriptions(keys: &[String], limits: MetadataLimits) -> Result<(), RequestError> {
+    validate_keys(keys)?;
+    if let Some(maximum) = limits.max_subscriptions
+        && keys.len() > maximum
+    {
+        return Err(RequestError::TooManyMetadataSubscriptions {
+            maximum,
+            actual: keys.len(),
+        });
+    }
+    Ok(())
 }
