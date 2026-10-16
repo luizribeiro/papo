@@ -1,1 +1,2 @@
-# No known failures for UnrealIRCd.
+[invite_notify]
+reason = "UnrealIRCd advertises invite-notify but does not broadcast the fixture's successful INVITE to another channel member"

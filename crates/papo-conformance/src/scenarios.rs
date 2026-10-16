@@ -216,6 +216,48 @@ pub(super) const fn all() -> &'static [ScenarioSpec] {
             },
             run: userhost_in_names,
         },
+        ScenarioSpec {
+            name: "invite_notify",
+            doc: "notifies channel members about invitations",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "invite-notify",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: invite_notify,
+        },
+        ScenarioSpec {
+            name: "monitor",
+            doc: "reports monitored users with extended-monitor enabled",
+            requires: Requirements {
+                caps: &[
+                    CapRequirement {
+                        name: "extended-monitor",
+                        value: None,
+                    },
+                    CapRequirement {
+                        name: "away-notify",
+                        value: None,
+                    },
+                ],
+                isupport: &["MONITOR"],
+            },
+            run: monitor,
+        },
+        ScenarioSpec {
+            name: "chghost",
+            doc: "notifies channel peers of operator host changes",
+            requires: Requirements {
+                caps: &[CapRequirement {
+                    name: "chghost",
+                    value: None,
+                }],
+                isupport: &[],
+            },
+            run: chghost,
+        },
     ]
 }
 
@@ -642,6 +684,99 @@ fn userhost_in_names(context: Scenario) -> ScenarioFuture {
             return Err(format!("NAMES did not include a complete userhost: {userhost:?}").into());
         }
         close_pair(receiver, sender).await
+    })
+}
+
+fn invite_notify(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let (mut observer, inviter, channel) = joined_pair(&context).await?;
+        let target_nick = context.unique();
+        let target = context.client(&target_nick).await?;
+        inviter
+            .client
+            .send(Message::new("INVITE", [&target_nick, &channel]))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut observer.events,
+                |event| {
+                    matches!(event, Event::Raw(message) if {
+                        let message = message.as_ref();
+                        message.command_is("INVITE")
+                            && message.param(0) == Some(target_nick.as_str())
+                            && message.param(1) == Some(channel.as_str())
+                    })
+                },
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        observer.close().await?;
+        close_pair(inviter, target).await
+    })
+}
+
+fn monitor(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let observer_nick = context.unique();
+        let target_nick = context.unique();
+        let mut observer = context.client(&observer_nick).await?;
+        let target = context.client(&target_nick).await?;
+        observer
+            .client
+            .send(Message::new("MONITOR", ["+", &target_nick]))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut observer.events,
+                |event| match event {
+                    Event::MonitorOnline { nick, .. } => nick == &target_nick,
+                    Event::Raw(message) => {
+                        let message = message.as_ref();
+                        message.command_is("730") && message.param(1) == Some(target_nick.as_str())
+                    }
+                    _ => false,
+                },
+                EXPECT_TIMEOUT,
+            )
+            .await
+            .map_err(|_| Failed::from("timed out waiting for MONITOR presence"))?;
+        close_pair(observer, target).await
+    })
+}
+
+fn chghost(context: Scenario) -> ScenarioFuture {
+    Box::pin(async move {
+        let oper = match required_environment("PAPO_TEST_OPER") {
+            Ok(oper) => oper,
+            Err(ignored) => return Ok(ignored),
+        };
+        let Some((oper_name, password)) = oper.split_once(':') else {
+            return Err("PAPO_TEST_OPER must contain name:password".into());
+        };
+        let (mut observer, operator, _channel) = joined_pair(&context).await?;
+        operator
+            .client
+            .send(Message::new("OPER", [oper_name, password]))
+            .await
+            .map_err(Failed::from)?;
+        operator
+            .client
+            .send(Message::new(
+                "CHGHOST",
+                [&observer.welcome.nick, "conformance.example"],
+            ))
+            .await
+            .map_err(Failed::from)?;
+        context
+            .expect(
+                &mut observer.events,
+                |event| matches!(event, Event::HostChanged { nick, host, .. } if nick == &observer.welcome.nick && host == "conformance.example"),
+                EXPECT_TIMEOUT,
+            )
+            .await?;
+        close_pair(observer, operator).await
     })
 }
 
