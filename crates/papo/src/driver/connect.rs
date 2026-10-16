@@ -92,7 +92,8 @@ pub(super) async fn run_plan(
             &mut commands,
             &mut queued,
             disconnected_queue_capacity,
-            &events.regular,
+            &events,
+            &mut pending_events,
             sts_required,
             reconnect,
             attempts,
@@ -105,6 +106,9 @@ pub(super) async fn run_plan(
             ConnectionAttempt::Stop => {
                 events.finish(pending_events);
                 return Ok(());
+            }
+            ConnectionAttempt::SlowConsumer => {
+                return finish_slow_consumer(events, &mut registration, pending_events);
             }
             ConnectionAttempt::Failed(error) => {
                 return finish_connection_failure(events, &mut registration, error);
@@ -302,6 +306,7 @@ enum ConnectionAttempt {
     Retry,
     Stop,
     Failed(Error),
+    SlowConsumer,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -310,13 +315,22 @@ async fn connect_or_wait(
     commands: &mut mpsc::Receiver<Command>,
     queued: &mut VecDeque<Message>,
     capacity: usize,
-    events: &mpsc::Sender<Event>,
+    events: &EventSink,
+    pending_events: &mut VecDeque<Event>,
     sts_required: bool,
     reconnect: Reconnect,
     attempts: usize,
     entropy: &mut (dyn FnMut() -> u64 + Send),
 ) -> ConnectionAttempt {
-    let Some(result) = connect_while_disconnected(connection, commands, queued, capacity).await
+    let Some(result) = connect_while_disconnected(
+        connection,
+        commands,
+        queued,
+        capacity,
+        &events.regular,
+        pending_events,
+    )
+    .await
     else {
         return ConnectionAttempt::Stop;
     };
@@ -328,21 +342,24 @@ async fn connect_or_wait(
     if sts_required || is_fatal_failure(&error, None) || !reconnect.permits(attempts) {
         return ConnectionAttempt::Failed(error);
     }
-    _ = events
-        .send(Event::Disconnected {
+    if !enqueue_event(
+        events,
+        pending_events,
+        Event::Disconnected {
             reason,
             will_retry: true,
-        })
-        .await;
-    let mut pending_events = VecDeque::new();
+        },
+    ) {
+        return ConnectionAttempt::SlowConsumer;
+    }
     if wait_before_retry(
         reconnect,
         attempts,
         commands,
         queued,
         capacity,
-        events,
-        &mut pending_events,
+        &events.regular,
+        pending_events,
         entropy,
     )
     .await
@@ -389,6 +406,29 @@ fn finish_connection_failure(
             sts: StsActions::default(),
             sts_store: None,
             pending_events: VecDeque::new(),
+        },
+        false,
+    )
+}
+
+fn finish_slow_consumer(
+    events: EventSink,
+    registration: &mut RegistrationWait,
+    pending_events: VecDeque<Event>,
+) -> Result<(), Error> {
+    registration.failed(Error::Registration(SLOW_CONSUMER_REASON.to_owned()));
+    finish(
+        events,
+        ConnectionEnd {
+            reason: SLOW_CONSUMER_REASON.to_owned(),
+            error: Error::Disconnected,
+            close_kind: None,
+            quit: None,
+            quit_timed_out: false,
+            registered_at: None,
+            sts: StsActions::default(),
+            sts_store: None,
+            pending_events,
         },
         false,
     )
@@ -472,10 +512,16 @@ async fn connect_while_disconnected(
     commands: &mut mpsc::Receiver<Command>,
     queued: &mut VecDeque<Message>,
     capacity: usize,
+    events: &mpsc::Sender<Event>,
+    pending_events: &mut VecDeque<Event>,
 ) -> Option<Result<BoxConnection, Error>> {
     loop {
         tokio::select! {
             result = &mut connection => return Some(result),
+            permit = events.reserve(), if !pending_events.is_empty() => match permit {
+                Ok(permit) => permit.send(pending_events.pop_front().expect("pending event is present")),
+                Err(_) => pending_events.clear(),
+            },
             command = commands.recv() => {
                 if !handle_disconnected_command(command, queued, capacity) {
                     return None;

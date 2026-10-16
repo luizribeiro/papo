@@ -535,6 +535,82 @@ async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
     assert!(within(driver).await.unwrap().is_ok());
 }
 
+fn failing_driver_with_one_event_slot() -> (super::Client, super::Events, Driver, Arc<AtomicUsize>)
+{
+    let calls = Arc::new(AtomicUsize::new(0));
+    let connector: super::Connector = Arc::new({
+        let calls = Arc::clone(&calls);
+        move |_| {
+            calls.fetch_add(1, Ordering::Relaxed);
+            Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+        }
+    });
+    let (client, events, driver) = Driver::with_connector_and_entropy(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        1,
+        None,
+        super::PostRegistration::default(),
+        Reconnect::exponential(),
+        256,
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        false,
+        connector,
+        Box::new(|| 0),
+    );
+    (client, events, driver, calls)
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn stalled_consumer_does_not_block_quit_after_connect_failure() {
+    let (client, events, driver, calls) = failing_driver_with_one_event_slot();
+    let driver = tokio::spawn(driver);
+    while events.receiver.len() != 1 {
+        tokio::task::yield_now().await;
+    }
+    tokio::time::advance(Duration::from_secs(1)).await;
+    while calls.load(Ordering::Relaxed) != 2 {
+        tokio::task::yield_now().await;
+    }
+
+    within(client.quit(None)).await.unwrap();
+    assert!(within(driver).await.unwrap().is_ok());
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn failed_connect_events_obey_the_overflow_bound() {
+    let (_client, mut events, driver, calls) = failing_driver_with_one_event_slot();
+    let driver = tokio::spawn(driver);
+    while events.receiver.len() != 1 {
+        tokio::task::yield_now().await;
+    }
+    tokio::time::advance(Duration::from_secs(1)).await;
+    while calls.load(Ordering::Relaxed) != 2 {
+        tokio::task::yield_now().await;
+    }
+    tokio::time::advance(Duration::from_secs(2)).await;
+
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected { .. })
+    ));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected { .. })
+    ));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected { reason, .. }) if reason == "SlowConsumer"
+    ));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn failed_connects_back_off_until_the_attempt_limit() {
     let attempts = Arc::new(Mutex::new(Vec::new()));
