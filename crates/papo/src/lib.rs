@@ -10,6 +10,8 @@ mod entropy;
 mod error;
 mod event;
 mod ext;
+#[allow(dead_code)]
+mod io_compat;
 mod reconnect;
 mod requests;
 mod rt;
