@@ -41,6 +41,8 @@ pub enum Origin {
     OtherSession,
     /// A message associated with a server batch.
     Replay,
+    /// A message returned by an explicit history request.
+    History,
 }
 
 /// An incoming `PRIVMSG` or `NOTICE` with connection context.
@@ -1248,6 +1250,14 @@ mod tests {
             assert_eq!(live.origin(), Origin::Live);
             assert!(live.is_live());
         }
+    }
+
+    #[test]
+    fn explicit_history_has_a_non_live_origin() {
+        let mut history = chat("PRIVMSG", "earlier");
+        history.origin = Origin::History;
+        assert_eq!(history.origin(), Origin::History);
+        assert!(!history.is_live());
     }
 
     #[test]
