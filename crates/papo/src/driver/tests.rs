@@ -373,7 +373,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
     assert!(defaults.channels.is_empty());
 }
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn explicit_reconnect_redials_without_backoff() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
@@ -381,11 +381,19 @@ async fn explicit_reconnect_redials_without_backoff() {
         Box::new(first_stream) as super::BoxConnection,
         Box::new(second_stream) as super::BoxConnection,
     ])));
-    let connector: super::Connector = Arc::new(move |_| {
-        let stream = streams.lock().unwrap().pop_front().unwrap();
-        Box::pin(async move { Ok(stream) })
+    let connection_times = Arc::new(Mutex::new(Vec::new()));
+    let connector: super::Connector = Arc::new({
+        let connection_times = Arc::clone(&connection_times);
+        move |_| {
+            connection_times
+                .lock()
+                .unwrap()
+                .push(tokio::time::Instant::now());
+            let stream = streams.lock().unwrap().pop_front().unwrap();
+            Box::pin(async move { Ok(stream) })
+        }
     });
-    let (client, mut events, driver) = Driver::with_connector(
+    let (client, mut events, driver) = Driver::with_connector_and_entropy(
         Ok(ConnectionPlan {
             address: "irc://irc.example.net".parse().unwrap(),
             tls: TlsConfig::default(),
@@ -397,10 +405,12 @@ async fn explicit_reconnect_redials_without_backoff() {
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
+        Box::new(|| 0),
     );
     let driver = tokio::spawn(driver);
     complete_registration(&mut first_server, &mut events).await;
 
+    let reconnect_requested_at = tokio::time::Instant::now();
     within(client.reconnect()).await.unwrap();
     assert!(matches!(
         events.next().await,
@@ -410,6 +420,13 @@ async fn explicit_reconnect_redials_without_backoff() {
         })
     ));
     registration_burst(&mut second_server).await;
+    {
+        let connection_times = connection_times.lock().unwrap();
+        assert_eq!(connection_times.len(), 2);
+        assert!(
+            connection_times[1].duration_since(reconnect_requested_at) < Duration::from_millis(800)
+        );
+    }
     server_line(&mut second_server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut second_server, b"CAP END\r\n").await;
     server_line(
@@ -972,7 +989,6 @@ async fn connector_failure_under_stored_sts_is_terminal() {
             Duration::from_secs(3600),
         ),
     );
-    let (registration, waiter) = tokio::sync::oneshot::channel();
     let (_client, mut events, driver) = Driver::with_connector(
         Ok(ConnectionPlan {
             address: "irc://irc.example.net".parse().unwrap(),
@@ -980,16 +996,15 @@ async fn connector_failure_under_stored_sts_is_terminal() {
         }),
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
-        Some(registration),
+        None,
         super::PostRegistration::default(),
         Reconnect::exponential(),
         Box::new(store),
         connector,
     );
 
-    assert!(matches!(within(driver).await, Ok(())));
     assert!(matches!(
-        within(waiter).await.unwrap(),
+        within(driver).await,
         Err(Error::Unsupported("scripted TLS failure"))
     ));
     assert!(matches!(
