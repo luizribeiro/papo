@@ -482,32 +482,6 @@ fn validate_account_reply(message: &MessageRef<'_>, account: &str) -> Result<(),
     }
 }
 
-/// answers a client PING with the matching PONG
-#[scenario(requires(caps = ["labeled-response"]))]
-async fn ping(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let connection = context.client(&nick).await?;
-    let token = context.unique();
-    let response = connection
-        .client
-        .raw(Message::new("PING", [&token]))
-        .await
-        .map_err(Failed::from)?;
-    let Some(message) = response.lines.first() else {
-        return Err("server returned an empty PING response".into());
-    };
-    validate_pong(&message.as_ref(), &token)?;
-    connection.close().await
-}
-
-fn validate_pong(message: &MessageRef<'_>, token: &str) -> Result<(), Failed> {
-    if message.command_is("PONG") && message.params().last() == Some(token) {
-        Ok(())
-    } else {
-        Err("server PONG did not contain the PING token".into())
-    }
-}
-
 /// echoes a channel PRIVMSG to its sender
 #[scenario(requires(caps = ["echo-message"]))]
 async fn echo_message(context: Scenario) -> ScenarioResult {
@@ -1188,7 +1162,7 @@ async fn whox(context: Scenario) -> ScenarioResult {
 mod tests {
     use papo_proto::MessageRef;
 
-    use super::{all, validate_account_reply, validate_pong};
+    use super::{all, validate_account_reply};
 
     #[test]
     fn registered_scenarios_are_complete_and_sorted() {
@@ -1245,16 +1219,6 @@ mod tests {
         assert_eq!(
             error.message(),
             Some("server account reply did not contain the authenticated account")
-        );
-    }
-
-    #[test]
-    fn wrong_pong_token_fails() {
-        let message = MessageRef::parse(":ergo.test PONG ergo.test :wrong-token").unwrap();
-        let error = validate_pong(&message, "papo-ping-417").unwrap_err();
-        assert_eq!(
-            error.message(),
-            Some("server PONG did not contain the PING token")
         );
     }
 }
