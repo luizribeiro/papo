@@ -106,6 +106,13 @@ impl Transcript {
         self.server_bytes(line.as_bytes())
     }
 
+    /// Plays and consumes a server welcome numeric.
+    pub fn welcome(self, line: &str) -> Self {
+        self.server(line).event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("001")),
+        )
+    }
+
     /// Plays one server line as raw bytes without its line ending.
     pub fn server_bytes(mut self, line: &[u8]) -> Self {
         self.session.handle_line(self.now, line);

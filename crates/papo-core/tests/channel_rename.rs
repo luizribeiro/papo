@@ -12,7 +12,7 @@ fn registered() -> Transcript {
         .client("CAP REQ :draft/channel-rename labeled-response")
         .server("CAP * ACK :draft/channel-rename labeled-response")
         .client("CAP END")
-        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
         .event(|event| matches!(event, Event::Registered(_)))
 }

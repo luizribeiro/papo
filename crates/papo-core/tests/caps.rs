@@ -165,14 +165,14 @@ fn ignores_cap_errors_and_waits_for_welcome() {
         .connect_default()
         .server(":legacy.example 421 papo CAP :Unknown command")
         .no_client()
-        .server(":legacy.example 001 papo :Welcome")
+        .welcome(":legacy.example 001 papo :Welcome")
         .no_client();
 
     Transcript::new(Config::default())
         .connect_default()
         .server(":broken.example 410 papo LS :Invalid CAP command")
         .no_client()
-        .server(":broken.example 001 papo :Welcome")
+        .welcome(":broken.example 001 papo :Welcome")
         .no_client();
 }
 

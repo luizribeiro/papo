@@ -21,7 +21,7 @@ fn welcomed(realname: &str) -> Transcript {
     .client("CAP REQ :draft/whoami")
     .server("CAP * ACK :draft/whoami")
     .client("CAP END")
-    .server(":ergo.test 001 alice :Welcome to Ergo")
+    .welcome(":ergo.test 001 alice :Welcome to Ergo")
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn setname_without_whoami_does_not_supply_connection_identity() {
         .client("CAP LS 302")
         .client("NICK alice")
         .client("USER client 0 * papo")
-        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":Alice!~alice@users/alice SETNAME :Alice Example")
         .event(|event| matches!(event, Event::RealnameChanged { .. }))
         .inspect(|session| {

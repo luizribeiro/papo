@@ -23,7 +23,7 @@ fn starts_with_configured_identity_and_empty_shared_state() {
 #[test]
 fn welcome_adopts_the_server_assigned_nick_in_state() {
     Transcript::new(Config::default().nick("oldnick"))
-        .server(":irc.example 001 account :Welcome to the network")
+        .welcome(":irc.example 001 account :Welcome to the network")
         .inspect(|session| assert_eq!(session.state().nick(), "account"))
         .no_event();
 }

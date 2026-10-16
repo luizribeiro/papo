@@ -14,7 +14,7 @@ fn registered() -> Transcript {
     .client("CAP REQ :draft/account-registration labeled-response")
     .server("CAP * ACK :draft/account-registration labeled-response")
     .client("CAP END")
-    .server(":ergo.test 001 tester :Welcome to Ergo")
+    .welcome(":ergo.test 001 tester :Welcome to Ergo")
     .server(":ergo.test 422 tester :MOTD File is missing")
     .event(|event| matches!(event, Event::Registered(_)))
 }
@@ -248,7 +248,7 @@ fn enforces_account_registration_capability_values_locally() {
         .client("CAP REQ :draft/account-registration")
         .server("CAP * ACK :draft/account-registration")
         .client("CAP END")
-        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
         .event(|event| matches!(event, Event::Registered(_)))
         .update(|session| {

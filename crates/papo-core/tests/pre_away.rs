@@ -42,7 +42,7 @@ fn sends_only_message_away_after_registration_without_the_capability() {
     .connect_default()
     .server("CAP * LS :")
     .client("CAP END")
-    .server(":ergo.test 001 alice :Welcome to Ergo")
+    .welcome(":ergo.test 001 alice :Welcome to Ergo")
     .server(":ergo.test 376 alice :End of MOTD")
     .client("AWAY :Reviewing patches")
     .event(|event| matches!(event, Event::Registered(_)));
@@ -51,7 +51,7 @@ fn sends_only_message_away_after_registration_without_the_capability() {
         .connect_default()
         .server("CAP * LS :")
         .client("CAP END")
-        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 376 alice :End of MOTD")
         .event(|event| matches!(event, Event::Registered(_)))
         .no_client();

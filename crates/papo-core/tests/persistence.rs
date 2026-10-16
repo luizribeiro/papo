@@ -12,7 +12,7 @@ fn registered(caps: &[&str]) -> Transcript {
         .client(&format!("CAP REQ :{}", caps.join(" ")))
         .server(&format!("CAP * ACK :{}", caps.join(" ")))
         .client("CAP END")
-        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
         .event(|event| matches!(event, Event::Registered(_)))
 }
@@ -25,7 +25,7 @@ fn stores_a_persistence_push_before_motd() {
         .client("CAP REQ :draft/persistence")
         .server("CAP * ACK :draft/persistence")
         .client("CAP END")
-        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test PERSISTENCE STATUS DEFAULT ON")
         .event(|event| {
             matches!(

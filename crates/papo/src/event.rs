@@ -875,7 +875,12 @@ pub(crate) enum CoreEvent {
 pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Registered(welcome) => Event::Registered(welcome),
-        papo_core::Event::Message(message) => return CoreEvent::Message(message),
+        papo_core::Event::Message(message) => {
+            if message.as_ref().command_is("001") {
+                return CoreEvent::Unknown;
+            }
+            return CoreEvent::Message(message);
+        }
         papo_core::Event::MultilineMessage(message) => Event::Raw(message.message),
         papo_core::Event::TagMessage(message) => {
             let tag = TagMsg {

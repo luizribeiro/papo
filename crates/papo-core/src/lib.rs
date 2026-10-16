@@ -137,6 +137,8 @@ impl Default for CtcpReplies {
 pub struct Welcome {
     /// The nickname assigned by the server.
     pub nick: String,
+    /// The human-readable text from the server's `001` welcome numeric.
+    pub text: String,
     /// The enabled capabilities and their advertised values.
     pub caps: Capabilities,
     /// The accumulated server feature advertisement.

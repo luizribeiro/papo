@@ -15,7 +15,7 @@ fn registered(value: &str) -> Transcript {
         .client("CAP REQ :draft/metadata-2")
         .server("CAP * ACK :draft/metadata-2")
         .client("CAP END")
-        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
         .event(|event| matches!(event, Event::Registered(_)))
 }
@@ -43,7 +43,7 @@ fn prefers_metadata_3_and_reads_known_limits() {
             })
         );
     })
-    .server(":ergo.test 001 alice :Welcome to Ergo")
+    .welcome(":ergo.test 001 alice :Welcome to Ergo")
     .server(":ergo.test 422 alice :MOTD File is missing")
     .event(|event| matches!(event, Event::Registered(_)))
     .update(|session| {
@@ -459,7 +459,7 @@ fn subscribes_before_cap_end_and_resubscribes_with_an_empty_cache() {
         .server("CAP * ACK :draft/metadata-2 labeled-response")
         .client("@label=0 METADATA * SUB avatar pronouns")
         .client("CAP END")
-        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
         .event(|event| matches!(event, Event::Registered(_)))
         .server("@label=0 :ergo.test 770 alice avatar pronouns")
@@ -490,7 +490,7 @@ fn subscribes_after_registration_without_before_connect() {
         .client("CAP REQ :draft/metadata-2 labeled-response")
         .server("CAP * ACK :draft/metadata-2 labeled-response")
         .client("CAP END")
-        .server(":ergo.test 001 alice :Welcome to Ergo")
+        .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .no_client()
         .server(":ergo.test 422 alice :MOTD File is missing")
         .event(|event| matches!(event, Event::Registered(_)))

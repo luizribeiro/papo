@@ -277,7 +277,7 @@ fn authenticates_when_sasl_arrives_after_registration() {
         .server("CAP * LS :")
         .client("CAP END")
         .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
-        .server(":ergo.test 001 papo :Welcome")
+        .welcome(":ergo.test 001 papo :Welcome")
         .server(":ergo.test 376 papo :End of MOTD")
         .event(|event| matches!(event, Event::Registered(_)))
         .server("CAP papo NEW :sasl=PLAIN")
@@ -302,7 +302,7 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
         .server("CAP * LS :")
         .client("CAP END")
         .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
-        .server(":ergo.test 001 papo :Welcome")
+        .welcome(":ergo.test 001 papo :Welcome")
         .server(":ergo.test 376 papo :End of MOTD")
         .event(|event| matches!(event, Event::Registered(_)))
         .server("CAP papo NEW :sasl=PLAIN")
@@ -651,6 +651,7 @@ fn replays_recorded_ergo_plain_login() {
     )
     .connect_default()
     .load("tests/data/ergo-sasl-plain.irc")
+    .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("001")))
     .inspect(|session| {
         assert_eq!(session.account(), Some("paposasl"));
         assert_eq!(session.nick(), "paposasl");
@@ -670,6 +671,7 @@ fn replays_recorded_ergo_scram_login() {
     )
     .connect_default()
     .load("tests/data/ergo-sasl-scram.irc")
+    .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("001")))
     .inspect(|session| {
         assert_eq!(session.account(), Some("paposasl"));
         assert_eq!(session.nick(), "paposasl");

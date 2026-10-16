@@ -16,7 +16,7 @@ fn registered(value: Option<&str>) -> Transcript {
         .client("CAP REQ :draft/relaymsg labeled-response")
         .server("CAP * ACK :draft/relaymsg labeled-response")
         .client("CAP END")
-        .server(":ergo.test 001 bridge :Welcome to Ergo")
+        .welcome(":ergo.test 001 bridge :Welcome to Ergo")
         .server(":ergo.test 422 bridge :MOTD File is missing")
         .event(|event| matches!(event, Event::Registered(_)))
 }

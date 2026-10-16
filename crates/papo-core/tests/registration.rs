@@ -32,7 +32,7 @@ fn welcome_adopts_the_server_nick_and_cancels_the_timeout() {
         .client("NICK oldnick")
         .client("USER papo 0 * papo")
         .advance(Duration::from_secs(1))
-        .server(":irc.example 001 account :Welcome to the network")
+        .welcome(":irc.example 001 account :Welcome to the network")
         .inspect(|session| assert_eq!(session.nick(), "account"))
         .deadline(Some(Duration::from_secs(10)));
 }
@@ -72,7 +72,7 @@ fn tries_alternative_nicks_then_appends_bounded_underscores() {
     .client("NICK emily-work_")
     .server(":ergo.test 436 * emily-work_ :Nickname collision")
     .client("NICK emily-work__")
-    .server(":ergo.test 001 emily-work__ :Welcome")
+    .welcome(":ergo.test 001 emily-work__ :Welcome")
     .server(":ergo.test 433 emily-work__ someone :Nickname is already in use")
     .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("433")));
 }
@@ -136,7 +136,7 @@ fn requests_and_applies_extended_isupport_before_welcome() {
     })
     .server(":ergo.test 433 * long-client-nickname :Nickname is already in use")
     .client("NICK long-client_")
-    .server(":ergo.test 001 long-client_ :Welcome to Ergo")
+    .welcome(":ergo.test 001 long-client_ :Welcome to Ergo")
     .server(":ergo.test 422 long-client_ :MOTD File is missing")
     .event(|event| {
         matches!(event, Event::Registered(welcome)
@@ -218,7 +218,7 @@ fn completes_after_motd_with_capabilities_and_isupport() {
     .client("CAP REQ :server-time")
     .server("CAP * ACK :server-time")
     .client("CAP END")
-    .server(":ergo.test 001 account :Welcome to Ergo")
+    .welcome(":ergo.test 001 account :Welcome to Ergo")
     .server(":ergo.test 005 account CASEMAPPING=ascii NICKLEN=32 :are supported by this server")
     .server(":ergo.test 005 account NETWORK=Ergo UTF8ONLY :are supported by this server")
     .server(":ergo.test 376 account :End of MOTD")
@@ -236,10 +236,50 @@ fn completes_after_motd_with_capabilities_and_isupport() {
 }
 
 #[test]
+fn emits_the_welcome_burst_in_wire_order_before_registration() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 001 emily :Welcome to the Ergo test network")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("001")),
+        )
+        .server(":ergo.test 002 emily :Your host is ergo.test, running version ergo-2.16.0")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("002")),
+        )
+        .server(":ergo.test 003 emily :This server was created Wed Oct 15 2025")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("003")),
+        )
+        .server(":ergo.test 004 emily ergo.test ergo-2.16.0 BioZ beI,k,l,imnst")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("004")),
+        )
+        .server(":ergo.test 005 emily NETWORK=ErgoTest UTF8ONLY :are supported by this server")
+        .server(":ergo.test 251 emily :There are 4 users and 0 invisible on 1 server")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("251")),
+        )
+        .server(":ergo.test 375 emily :- ergo.test Message of the Day -")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("375")),
+        )
+        .server(":ergo.test 372 emily :- Be kind to one another.")
+        .event(
+            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("372")),
+        )
+        .server(":ergo.test 376 emily :End of MOTD")
+        .event(|event| {
+            matches!(event, Event::Registered(welcome)
+                if welcome.text == "Welcome to the Ergo test network")
+        })
+        .no_event();
+}
+
+#[test]
 fn no_motd_numeric_completes_registration() {
     Transcript::new(Config::default())
         .connect_default()
-        .server(":solanum.example 001 papo :Welcome")
+        .welcome(":solanum.example 001 papo :Welcome")
         .server(":solanum.example 422 papo :MOTD File is missing")
         .event(|event| {
             matches!(
@@ -255,7 +295,7 @@ fn no_motd_numeric_completes_registration() {
 fn completes_ten_seconds_after_welcome_when_motd_never_finishes() {
     Transcript::new(Config::default())
         .connect_default()
-        .server(":soju.example 001 papo :Welcome")
+        .welcome(":soju.example 001 papo :Welcome")
         .deadline(Some(Duration::from_secs(10)))
         .advance(Duration::from_secs(9))
         .inspect(|session| assert!(!session.is_registered()))
@@ -282,7 +322,7 @@ fn reconnect_resets_all_registration_state() {
     .server(":ergo.test 433 * papo :Nickname is already in use")
     .client("NICK papo-away")
     .server(":ergo.test 005 * NICKLEN=32 NETWORK=ErgoTest :are supported by this server")
-    .server(":ergo.test 001 papo-away :Welcome to Ergo")
+    .welcome(":ergo.test 001 papo-away :Welcome to Ergo")
     .server(":ergo.test 422 papo-away :MOTD File is missing")
     .event(|event| matches!(event, Event::Registered(_)))
     .inspect(|session| {
