@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::Typing;
 
-use super::Source;
+use super::{Source, Tags};
 
 /// A reaction was added to or removed from a message.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -54,8 +54,8 @@ pub struct TagMsg {
     pub source: Option<Source>,
     /// The message target.
     pub target: String,
-    /// Tags in wire order.
-    pub tags: Vec<(String, Option<String>)>,
+    /// Tags in wire order with last-wins lookup.
+    pub tags: Tags,
 }
 
 /// A target's read marker changed.

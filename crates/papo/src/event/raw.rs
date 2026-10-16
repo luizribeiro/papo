@@ -2,14 +2,14 @@ use std::fmt;
 
 use papo_proto::Message;
 
-use super::Source;
+use super::{Source, Tags};
 
 /// An owned IRC line not represented by a typed event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RawLine {
     command: String,
     params: Vec<String>,
-    tags: Vec<(String, Option<String>)>,
+    tags: Tags,
     source: Option<Source>,
 }
 
@@ -29,11 +29,13 @@ impl RawLine {
     /// Returns the last value for a case-sensitive tag key.
     #[must_use]
     pub fn tag(&self, key: &str) -> Option<&str> {
-        self.tags
-            .iter()
-            .rev()
-            .find(|(candidate, _)| candidate == key)
-            .and_then(|(_, value)| value.as_deref())
+        self.tags.get(key)
+    }
+
+    /// Returns the message tags.
+    #[must_use]
+    pub const fn tags(&self) -> &Tags {
+        &self.tags
     }
 
     /// Returns the parsed source, when supplied by the server.
@@ -49,10 +51,7 @@ impl RawLine {
         Self {
             command: message.raw_command().to_owned(),
             params: message.params().map(str::to_owned).collect(),
-            tags: message
-                .tags()
-                .map(|(key, value)| (key.to_owned(), value.map(std::borrow::Cow::into_owned)))
-                .collect(),
+            tags: Tags::from_message(&message),
             source: message.source().map(Source::from_proto),
         }
     }
@@ -149,7 +148,7 @@ mod tests {
             .to_owned();
         let line = RawLine::from_proto(&message);
 
-        assert_eq!(line.tag("bot"), None);
+        assert_eq!(line.tag("bot"), Some(""));
         assert_eq!(line.params(), ["papo", ""]);
         assert!(matches!(
             line.source(),

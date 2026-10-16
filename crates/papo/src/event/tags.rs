@@ -1,6 +1,5 @@
 use std::fmt;
 
-#[cfg(test)]
 use papo_proto::MessageRef;
 
 /// Owned IRC message tags.
@@ -45,7 +44,6 @@ impl Tags {
         self.0.is_empty()
     }
 
-    #[cfg(test)]
     pub(crate) fn from_message(message: &MessageRef<'_>) -> Self {
         Self(
             message
@@ -53,6 +51,10 @@ impl Tags {
                 .map(|(key, value)| (key.to_owned(), value.map(std::borrow::Cow::into_owned)))
                 .collect(),
         )
+    }
+
+    pub(crate) fn from_pairs(tags: Vec<(String, Option<String>)>) -> Self {
+        Self(tags)
     }
 }
 

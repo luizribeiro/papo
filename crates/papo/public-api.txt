@@ -244,7 +244,7 @@ pub papo::event::StandardReply::description: alloc::string::String
 pub papo::event::StandardReply::kind: papo::event::StandardReplyKind
 #[non_exhaustive] pub struct papo::event::TagMsg
 pub papo::event::TagMsg::source: core::option::Option<papo::Source>
-pub papo::event::TagMsg::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
+pub papo::event::TagMsg::tags: papo::Tags
 pub papo::event::TagMsg::target: alloc::string::String
 #[non_exhaustive] pub struct papo::event::TopicChanged
 pub papo::event::TopicChanged::by: papo::Source
@@ -703,6 +703,7 @@ pub fn papo::RawLine::command(&self) -> &str
 pub fn papo::RawLine::params(&self) -> &[alloc::string::String]
 pub fn papo::RawLine::source(&self) -> core::option::Option<papo::Source>
 pub fn papo::RawLine::tag(&self, &str) -> core::option::Option<&str>
+pub const fn papo::RawLine::tags(&self) -> &papo::Tags
 impl core::fmt::Display for papo::RawLine
 pub fn papo::RawLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Reconnect

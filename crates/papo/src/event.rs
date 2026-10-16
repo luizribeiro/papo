@@ -554,13 +554,6 @@ fn tag_owned(message: &MessageRef<'_>, keys: &[&str]) -> Option<String> {
         .find_map(|key| message.tag(key).map(std::borrow::Cow::into_owned))
 }
 
-fn tag_value<'a>(tags: &'a [(String, Option<String>)], key: &str) -> Option<&'a str> {
-    tags.iter()
-        .rev()
-        .find(|(candidate, _)| candidate == key)
-        .and_then(|(_, value)| value.as_deref())
-}
-
 /// An event emitted by an IRC client.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -779,14 +772,20 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             let tag = TagMsg {
                 source: message.source.map(Source::from_prefix),
                 target: message.target,
-                tags: message.tags,
+                tags: Tags::from_pairs(message.tags),
             };
-            let reply_to =
-                tag_value(&tag.tags, "+reply").or_else(|| tag_value(&tag.tags, "+draft/reply"));
-            let reaction = tag_value(&tag.tags, "+draft/react")
+            let reply_to = tag
+                .tags
+                .get("+reply")
+                .or_else(|| tag.tags.get("+draft/reply"));
+            let reaction = tag
+                .tags
+                .get("+draft/react")
                 .map(|reaction| (reaction, false))
                 .or_else(|| {
-                    tag_value(&tag.tags, "+draft/unreact").map(|reaction| (reaction, true))
+                    tag.tags
+                        .get("+draft/unreact")
+                        .map(|reaction| (reaction, true))
                 });
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
@@ -796,14 +795,12 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                     msgid: msgid.to_owned(),
                     removed,
                 })
-            } else if let Some(state) =
-                tag_value(&tag.tags, "+typing").and_then(|state| match state {
-                    "active" => Some(crate::Typing::Active),
-                    "paused" => Some(crate::Typing::Paused),
-                    "done" => Some(crate::Typing::Done),
-                    _ => None,
-                })
-            {
+            } else if let Some(state) = tag.tags.get("+typing").and_then(|state| match state {
+                "active" => Some(crate::Typing::Active),
+                "paused" => Some(crate::Typing::Paused),
+                "done" => Some(crate::Typing::Done),
+                _ => None,
+            }) {
                 Event::TypingChanged(TypingChanged {
                     source: tag.source,
                     target: tag.target,
