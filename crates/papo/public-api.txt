@@ -214,14 +214,6 @@ pub papo::event::PersistenceChanged::setting: papo::event::PersistenceSetting
 pub papo::event::Quit::channels: alloc::vec::Vec<alloc::string::String>
 pub papo::event::Quit::nick: alloc::string::String
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
-pub struct papo::event::RawLine
-impl papo::RawLine
-pub fn papo::RawLine::command(&self) -> &str
-pub fn papo::RawLine::params(&self) -> &[alloc::string::String]
-pub fn papo::RawLine::source(&self) -> core::option::Option<papo::Source>
-pub fn papo::RawLine::tag(&self, &str) -> core::option::Option<&str>
-impl core::fmt::Display for papo::RawLine
-pub fn papo::RawLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct papo::event::Reacted
 pub papo::event::Reacted::msgid: alloc::string::String
 pub papo::event::Reacted::reaction: alloc::string::String

@@ -56,9 +56,9 @@ pub mod event {
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, ChannelRenamed,
         ChannelSynced, Departed, Disconnected, HostChanged, Invited, Joined, Kicked,
         MetadataChanged, ModeChange, ModeChanged, MonitorOffline, MonitorOnline, Netjoin, Netsplit,
-        NickChanged, Parted, PersistenceChanged, PersistenceSetting, Quit, RawLine, Reacted,
-        ReadMarker, RealnameChanged, Redacted, Registered, Source, StandardReply,
-        StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, Warning,
+        NickChanged, Parted, PersistenceChanged, PersistenceSetting, Quit, Reacted, ReadMarker,
+        RealnameChanged, Redacted, Registered, Source, StandardReply, StandardReplyKind,
+        StateLimit, TagMsg, TopicChanged, TypingChanged, Warning,
     };
 }
 
