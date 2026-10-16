@@ -35,6 +35,25 @@ fn early_registration_waiting() -> Transcript {
 }
 
 #[test]
+fn configured_registration_waits_for_before_connect_capability() {
+    let config = Config::default()
+        .wanted_caps(["draft/account-registration"])
+        .register_on_connect(
+            Some("alice"),
+            Some("alice@example.org"),
+            "unique-registration-password",
+        );
+    assert!(!format!("{config:?}").contains("unique-registration-password"));
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect,custom-account-name")
+        .client("CAP REQ :draft/account-registration")
+        .server("CAP * ACK :draft/account-registration")
+        .client("REGISTER alice alice@example.org unique-registration-password")
+        .event(|event| matches!(event, Event::RequestUntracked { .. }));
+}
+
+#[test]
 fn registers_an_account_with_a_labelled_response() {
     registered()
         .update(|session| {

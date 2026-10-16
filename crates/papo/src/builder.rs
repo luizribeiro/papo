@@ -117,6 +117,17 @@ impl Builder {
         self
     }
 
+    /// Registers an account before connection registration completes.
+    pub fn register_on_connect(
+        mut self,
+        account: Option<impl Into<String>>,
+        email: Option<impl Into<String>>,
+        password: papo_core::Secret,
+    ) -> Self {
+        self.config = self.config.register_on_connect(account, email, password);
+        self
+    }
+
     /// Replaces the capability names requested when advertised.
     pub fn caps<I, S>(mut self, caps: I) -> Self
     where

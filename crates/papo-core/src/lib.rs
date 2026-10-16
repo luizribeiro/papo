@@ -234,6 +234,7 @@ pub struct Config {
     pub away_on_connect: Option<AwayOnConnect>,
     /// Metadata keys subscribed on every connection.
     pub metadata_subscriptions: Vec<String>,
+    registration_on_connect: Option<PendingRegistration>,
 }
 
 impl std::fmt::Debug for Config {
@@ -266,6 +267,7 @@ impl std::fmt::Debug for Config {
             .field("ctcp", &self.ctcp)
             .field("away_on_connect", &self.away_on_connect)
             .field("metadata_subscriptions", &self.metadata_subscriptions)
+            .field("registration_on_connect", &self.registration_on_connect)
             .finish()
     }
 }
@@ -311,6 +313,7 @@ impl Default for Config {
             ctcp: CtcpReplies::default(),
             away_on_connect: None,
             metadata_subscriptions: Vec::new(),
+            registration_on_connect: None,
         }
     }
 }
@@ -355,6 +358,22 @@ impl Config {
     #[must_use]
     pub fn webirc(mut self, webirc: WebIrc) -> Self {
         self.webirc = Some(webirc);
+        self
+    }
+
+    /// Stages account registration for servers supporting the before-connect extension.
+    #[must_use]
+    pub fn register_on_connect(
+        mut self,
+        account: Option<impl Into<String>>,
+        email: Option<impl Into<String>>,
+        password: impl Into<Secret>,
+    ) -> Self {
+        self.registration_on_connect = Some(PendingRegistration {
+            account: account.map(Into::into),
+            email: email.map(Into::into),
+            password: password.into(),
+        });
         self
     }
 
@@ -1788,6 +1807,9 @@ impl Session {
         self.unlabelled_requests.clear();
         self.rate_limit.reset(now);
         self.account_registration.handle_disconnected();
+        if let Some(pending) = self.config.registration_on_connect.clone() {
+            self.account_registration.begin(pending);
+        }
         self.away_on_connect_sent = false;
         self.metadata_subscriptions_sent = false;
         self.caps.handle_connected(now);

@@ -2,7 +2,7 @@ use papo_proto::MessageRef;
 
 use crate::{Event, Handled, Outbox, Secret};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct PendingRegistration {
     pub(super) account: Option<String>,
     pub(super) email: Option<String>,
