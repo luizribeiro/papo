@@ -1660,6 +1660,48 @@ async fn typed_requests_match_unlabelled_responses() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn action_confirmation_is_enqueued_after_state_changes() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,CEMRUimnstu :are supported\r\n",
+    )
+    .await;
+    server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo\r\n").await;
+    assert!(matches!(events.next().await, Some(Event::Joined { .. })));
+
+    let mode = tokio::spawn({
+        let client = client.clone();
+        async move { client.mode("#papo", "+t", [] as [&str; 0]).await }
+    });
+    client_line(&mut server, b"MODE #papo +t\r\n").await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost MODE #papo +t\r\n",
+    )
+    .await;
+    within(mode).await.unwrap().unwrap();
+
+    assert_eq!(events.receiver.len(), 1);
+    assert_eq!(
+        client.snapshot().channel("#papo").unwrap().mode('t'),
+        Some(None)
+    );
+    assert!(matches!(
+        events.next().await,
+        Some(Event::ModeChanged { .. })
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected)
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn message_reply_obeys_tags_and_clienttagdeny() {
     let tagged = b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG #papo :!ping\r\n";
     assert_reply_wire(
