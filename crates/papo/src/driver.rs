@@ -56,6 +56,11 @@ enum Command {
         query: HistoryQuery,
         result: oneshot::Sender<Result<Response, Error>>,
     },
+    MarkRead {
+        target: String,
+        time: SystemTime,
+        result: oneshot::Sender<Result<Response, Error>>,
+    },
     SendText {
         kind: TextKind,
         target: String,
@@ -356,6 +361,25 @@ impl Client {
         .await?
         .history_targets
         .ok_or(Error::Disconnected)
+    }
+
+    /// Sets the server read marker for `target`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when read markers are unsupported or the request cannot complete.
+    pub async fn mark_read(&self, target: &str, time: SystemTime) -> Result<(), Error> {
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::MarkRead {
+                target: target.to_owned(),
+                time,
+                result,
+            })
+            .await
+            .map_err(|_| Error::Disconnected)?;
+        let response = receiver.await.map_err(|_| Error::Disconnected)??;
+        crate::requests::empty(&response)
     }
 
     /// Sends a private message to a user or channel.
@@ -1354,7 +1378,11 @@ fn handle_disconnected_command(
             _ = result.send(response);
             true
         }
-        Some(Command::Request { result, .. } | Command::History { result, .. }) => {
+        Some(
+            Command::Request { result, .. }
+            | Command::History { result, .. }
+            | Command::MarkRead { result, .. },
+        ) => {
             _ = result.send(Err(Error::Disconnected));
             true
         }
@@ -1544,6 +1572,14 @@ where
                         Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
                         Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
                         Err(RequestError::InvalidMessageReference) => { _ = result.send(Err(Error::Unsupported("message reference"))); }
+                        Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
+                    }
+                }
+                Some(Command::MarkRead { target, time, result }) => {
+                    match session.mark_read(now(), &target, time) {
+                        Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
+                        Err(RequestError::Unsupported(feature)) => { _ = result.send(Err(Error::Unsupported(feature))); }
+                        Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
                         Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
                     }
                 }
@@ -2070,6 +2106,27 @@ mod tests {
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
     }
 
+    async fn complete_read_marker_registration(
+        server: &mut DuplexStream,
+        events: &mut super::Events,
+    ) {
+        registration_burst(server).await;
+        server_line(
+            server,
+            b":ergo.test CAP * LS :draft/read-marker labeled-response\r\n",
+        )
+        .await;
+        client_line(server, b"CAP REQ :draft/read-marker labeled-response\r\n").await;
+        server_line(
+            server,
+            b":ergo.test CAP * ACK :draft/read-marker labeled-response\r\n",
+        )
+        .await;
+        client_line(server, b"CAP END\r\n").await;
+        server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    }
+
     async fn history_response(server: &mut DuplexStream, label: usize) {
         let reply = format!(
             "@label={label} :ergo.test BATCH +reply{label} labeled-response\r\n@batch=reply{label};draft/chathistory-end :ergo.test BATCH +history{label} chathistory #papo\r\n@batch=history{label};time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY12{label:04} :emily!~e@localhost PRIVMSG #papo :page {label}\r\n@batch=reply{label} :ergo.test BATCH -history{label}\r\n:ergo.test BATCH -reply{label}\r\n"
@@ -2458,6 +2515,37 @@ mod tests {
         assert_eq!(
             targets,
             [("#papo".into(), UNIX_EPOCH + Duration::from_hours(497_796))]
+        );
+        task.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn mark_read_sets_a_millisecond_server_timestamp() {
+        let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_read_marker_registration(&mut server, &mut events).await;
+        let request = tokio::spawn(async move {
+            client
+                .mark_read(
+                    "#papo",
+                    UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999),
+                )
+                .await
+        });
+        client_line(
+            &mut server,
+            b"@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=0 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        request.await.unwrap().unwrap();
+        assert!(
+            matches!(events.next().await, Some(Event::ReadMarker(marker)) if marker.target == "#papo")
         );
         task.abort();
     }
