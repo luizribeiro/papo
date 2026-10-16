@@ -24,7 +24,9 @@ pub fn register_account(server: &ServerInfo, name: &str, password: &str) -> io::
         Err(env::VarError::NotPresent) | Ok("ergo") => {
             register_account_at(server.plaintext_addr(), name, password)
         }
-        Ok("inspircd" | "unrealircd") => register_atheme(server.plaintext_addr(), name, password),
+        Ok("inspircd" | "solanum" | "unrealircd") => {
+            register_atheme(server.plaintext_addr(), name, password)
+        }
         Err(error) => Err(io::Error::other(format!("PAPO_TEST_SERVER: {error}"))),
         Ok(server) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,

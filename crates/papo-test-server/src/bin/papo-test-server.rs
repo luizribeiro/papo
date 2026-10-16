@@ -8,12 +8,13 @@ use std::{
 };
 
 #[cfg(not(target_family = "wasm"))]
-use papo_test_server::{InspIrcdServer, TestServer, UnrealIrcdServer};
+use papo_test_server::{InspIrcdServer, SolanumServer, TestServer, UnrealIrcdServer};
 
 #[cfg(not(target_family = "wasm"))]
 enum Server {
     Ergo(TestServer),
     InspIrcd(InspIrcdServer),
+    Solanum(SolanumServer),
     UnrealIrcd(UnrealIrcdServer),
 }
 
@@ -23,6 +24,7 @@ impl Server {
         match kind {
             "ergo" => TestServer::start_with_ephemeral_channels().map(Self::Ergo),
             "inspircd" => InspIrcdServer::start().map(Self::InspIrcd),
+            "solanum" => SolanumServer::start().map(Self::Solanum),
             "unrealircd" => UnrealIrcdServer::start().map(Self::UnrealIrcd),
             kind => Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -48,6 +50,15 @@ impl Server {
                     format!("wss://localhost:{}/", secure_websocket.port()),
                 )
             }
+            Self::Solanum(server) => {
+                let [plaintext, tls] = server.endpoints();
+                (
+                    plaintext.to_string(),
+                    tls.to_string(),
+                    String::new(),
+                    String::new(),
+                )
+            }
             Self::UnrealIrcd(server) => {
                 let [plaintext, tls, websocket, secure_websocket] = server.endpoints();
                 (
@@ -64,6 +75,7 @@ impl Server {
         match self {
             Self::Ergo(server) => server.ca_pem_path(),
             Self::InspIrcd(server) => server.ca_pem_path(),
+            Self::Solanum(server) => server.ca_pem_path(),
             Self::UnrealIrcd(server) => server.ca_pem_path(),
         }
     }
@@ -72,6 +84,7 @@ impl Server {
         match self {
             Self::Ergo(server) => server.process_id(),
             Self::InspIrcd(server) => server.process_id(),
+            Self::Solanum(server) => server.process_id(),
             Self::UnrealIrcd(server) => server.process_id(),
         }
     }

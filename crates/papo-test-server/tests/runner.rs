@@ -49,7 +49,7 @@ fn live_binary_respects_preset_server_variables() {
 
 #[test]
 fn live_binary_forwards_the_selected_server_kind() {
-    for server in ["inspircd", "unrealircd"] {
+    for server in ["inspircd", "solanum", "unrealircd"] {
         let directory = directory();
         let helper = executable(
             &directory,

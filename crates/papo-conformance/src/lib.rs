@@ -480,7 +480,10 @@ fn required_environment_from(
     name: &str,
     lookup: impl FnOnce(&str) -> Result<String, env::VarError>,
 ) -> Result<String, Completion> {
-    lookup(name).map_err(|_| Completion::ignored_with(format!("{name} is not set up")))
+    match lookup(name) {
+        Ok(value) if !value.is_empty() => Ok(value),
+        Ok(_) | Err(_) => Err(Completion::ignored_with(format!("{name} is not set up"))),
+    }
 }
 
 fn connect_client(
@@ -799,6 +802,8 @@ mod tests {
             }) => assert_eq!(reason, "PAPO_TEST_OPER is not set up"),
             _ => panic!("an unset setup variable must ignore the scenario with a reason"),
         }
+        let empty = required_environment_from("PAPO_TEST_WS", |_| Ok(String::new()));
+        assert!(matches!(empty, Err(Completion::Ignored { .. })));
     }
 
     #[test]
