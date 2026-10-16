@@ -699,6 +699,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-register"
+version = "0.0.0"
+dependencies = [
+ "papo",
+ "papo-core",
+ "tokio",
+]
+
+[[package]]
 name = "papo-test-server"
 version = "0.0.0"
 dependencies = [

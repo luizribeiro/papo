@@ -1,0 +1,20 @@
+[package]
+name = "papo-register"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "register"
+path = "src/main.rs"
+
+[dependencies]
+papo = { path = "../../crates/papo", version = "=0.0.0" }
+papo-core = { path = "../../crates/papo-core", version = "=0.0.0" }
+tokio = { version = "1.53.3", features = ["macros", "rt"] }
+
+[lints]
+workspace = true

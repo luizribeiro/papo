@@ -12,6 +12,7 @@ members = [
   "examples/admin-bot",
   "examples/echo-bot",
   "examples/catchup",
+  "examples/register",
 ]
 exclude = ["fuzz"]
 
