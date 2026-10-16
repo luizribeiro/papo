@@ -61,6 +61,7 @@ pub struct MessageEvent {
     account: Option<String>,
     bot: bool,
     reply_to: Option<String>,
+    relayed_by: Option<String>,
     batch_type: Option<String>,
     origin: Origin,
     caps: Capabilities,
@@ -226,6 +227,7 @@ impl MessageEvent {
         let account = tag_owned(&message, &["account"]);
         let bot = message.tags().any(|(key, _)| key == "bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]);
+        let relayed_by = tag_owned(&message, &["draft/relaymsg"]);
         let replay = batch_type.as_deref().is_some_and(|kind| {
             matches!(
                 kind,
@@ -255,6 +257,7 @@ impl MessageEvent {
             account,
             bot,
             reply_to,
+            relayed_by,
             batch_type,
             origin,
             caps: caps.clone(),
@@ -381,6 +384,12 @@ impl MessageEvent {
     #[must_use]
     pub fn reply_to(&self) -> Option<&str> {
         self.reply_to.as_deref()
+    }
+
+    /// Returns the nickname of the client that submitted a relayed message.
+    #[must_use]
+    pub fn relayed_by(&self) -> Option<&str> {
+        self.relayed_by.as_deref()
     }
 
     /// Returns the containing batch type, when known.
@@ -1125,6 +1134,7 @@ mod tests {
                 .with_tag("msgid", "RfcBTzyxY120004")
                 .with_tag("account", "emily")
                 .with_tag("bot", "")
+                .with_tag("draft/relaymsg", "bridge-bot")
                 .with_tag("+draft/reply", "RfcBTzyxY120003"),
             &Isupport::default(),
             "papo",
@@ -1138,6 +1148,7 @@ mod tests {
         assert_eq!(tagged.account(), Some("emily"));
         assert!(tagged.is_bot());
         assert_eq!(tagged.reply_to(), Some("RfcBTzyxY120003"));
+        assert_eq!(tagged.relayed_by(), Some("bridge-bot"));
         assert!(!chat("PRIVMSG", "human message").is_bot());
 
         for time in [None, Some("not-a-time")] {

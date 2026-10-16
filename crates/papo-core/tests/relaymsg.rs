@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, RequestError};
+use papo_core::{Config, Event, RelayError, RequestError};
 use support::Transcript;
 
 fn registered(value: Option<&str>) -> Transcript {
@@ -85,4 +85,30 @@ fn requires_the_relaymsg_capability() {
             );
         })
         .no_client();
+}
+
+#[test]
+fn types_every_relaymsg_failure() {
+    for (code, expected) in [
+        ("NOT_ENABLED", RelayError::NotEnabled),
+        ("PRIVS_NEEDED", RelayError::PrivilegesNeeded),
+        ("BLANK_MSG", RelayError::BlankMessage),
+        ("INVALID_NICK", RelayError::InvalidNick),
+        ("BANNED", RelayError::Banned),
+    ] {
+        registered(Some("/"))
+            .server(&format!(
+                ":ergo.test FAIL RELAYMSG {code} #bridged :Relay request rejected"
+            ))
+            .event(|event| {
+                matches!(event, Event::StandardReply(reply)
+                if reply.relay_error() == Some(expected))
+            });
+    }
+    registered(Some("/"))
+        .server(":ergo.test FAIL PRIVMSG BANNED #bridged :Message rejected")
+        .event(|event| {
+            matches!(event, Event::StandardReply(reply)
+            if reply.relay_error().is_none())
+        });
 }

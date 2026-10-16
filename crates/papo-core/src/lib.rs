@@ -48,6 +48,7 @@ pub use outgoing::TextKind;
 pub use ratelimit::RateLimit;
 use ratelimit::RateLimiter;
 use registration::Registration;
+pub use relaymsg::RelayError;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
 use state::MetadataContext;
@@ -726,6 +727,12 @@ impl Response {
     pub fn channel_rename_error(&self) -> Option<ChannelRenameError> {
         self.error()?.channel_rename_error()
     }
+
+    /// Returns a typed relay-message failure from this response.
+    #[must_use]
+    pub fn relay_error(&self) -> Option<RelayError> {
+        self.error()?.relay_error()
+    }
 }
 
 /// A standardized `REGISTER` or `VERIFY` failure code.
@@ -847,6 +854,15 @@ impl ServerError {
             Self::Numeric { .. } => None,
         }
     }
+
+    /// Returns the typed relay-message code when this is a matching standard failure.
+    #[must_use]
+    pub fn relay_error(&self) -> Option<RelayError> {
+        match self {
+            Self::Standard { command, code, .. } => RelayError::parse(command, code),
+            Self::Numeric { .. } => None,
+        }
+    }
 }
 
 /// Owned `IRCv3` standard reply received outside a correlated request.
@@ -928,6 +944,14 @@ impl StandardReply {
     pub fn channel_rename_error(&self) -> Option<ChannelRenameError> {
         (self.kind == StandardReplyKind::Fail)
             .then(|| ChannelRenameError::parse(&self.command, &self.code))
+            .flatten()
+    }
+
+    /// Returns the typed relay-message code when this is a matching failure.
+    #[must_use]
+    pub fn relay_error(&self) -> Option<RelayError> {
+        (self.kind == StandardReplyKind::Fail)
+            .then(|| RelayError::parse(&self.command, &self.code))
             .flatten()
     }
 }
