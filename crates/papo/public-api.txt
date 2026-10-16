@@ -355,6 +355,9 @@ pub fn papo::Driver::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Cont
 pub struct papo::Events
 impl papo::Events
 pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::Event>
+impl futures_core::stream::Stream for papo::Events
+pub type papo::Events::Item = papo::Event
+pub fn papo::Events::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
 pub struct papo::History<'a>
 impl<'a> papo::History<'a>
 pub fn papo::History<'a>::after(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>

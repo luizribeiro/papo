@@ -3,6 +3,7 @@
 
 use std::{future::IntoFuture, time::SystemTime};
 
+use futures_core::Stream;
 use papo::{
     Client, Error, Event, Events, ListFilter, MessageEvent, PersistenceSetting, PushKeys, Secret,
 };
@@ -13,6 +14,8 @@ fn assert_send<T: Send>(_: T) {}
 fn assert_send_sync<T: Send + Sync>() {}
 
 fn assert_clone<T: Clone>() {}
+
+fn assert_event_stream<T: Stream<Item = Event>>() {}
 
 fn assert_message_request_futures(client: &Client, message: &MessageEvent) {
     assert_send(client.react(message, "👍"));
@@ -27,6 +30,7 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
     assert_send_sync::<Event>();
     assert_send_sync::<Error>();
     assert_clone::<Client>();
+    assert_event_stream::<Events>();
 }
 
 #[test]

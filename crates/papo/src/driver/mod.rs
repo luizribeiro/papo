@@ -22,6 +22,7 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
+use futures_core::Stream;
 use papo_core::{
     Connection, HistoryQuery, RequestError, RequestId, Response, ResponseMatcher, Session,
     TextKind, sts::StsStore,
@@ -262,23 +263,45 @@ pub struct Events {
 impl Events {
     /// Waits for the next event, or returns `None` after the driver stops.
     pub async fn next(&mut self) -> Option<Event> {
+        let next = std::future::poll_fn(|context| Pin::new(&mut *self).poll_next(context));
+        #[cfg(test)]
+        let event = test_support::within(next).await;
+        #[cfg(not(test))]
+        let event = next.await;
+        event
+    }
+}
+
+impl Stream for Events {
+    type Item = Event;
+
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        context: &mut task::Context<'_>,
+    ) -> task::Poll<Option<Self::Item>> {
         if let Some(event) = self.pending.pop_front() {
-            return Some(event);
+            return task::Poll::Ready(Some(event));
         }
-        #[cfg(test)]
-        let event = test_support::within(self.receiver.recv()).await;
-        #[cfg(not(test))]
-        let event = self.receiver.recv().await;
-        if let Some(event) = event {
-            return Some(event);
+        match self.receiver.poll_recv(context) {
+            task::Poll::Ready(Some(event)) => return task::Poll::Ready(Some(event)),
+            task::Poll::Pending => return task::Poll::Pending,
+            task::Poll::Ready(None) => {}
         }
-        let disconnected = self.disconnected.take()?;
-        #[cfg(test)]
-        let events = test_support::within(disconnected).await;
-        #[cfg(not(test))]
-        let events = disconnected.await;
-        self.pending = events.ok()?;
-        self.pending.pop_front()
+        let Some(disconnected) = &mut self.disconnected else {
+            return task::Poll::Ready(None);
+        };
+        match Pin::new(disconnected).poll(context) {
+            task::Poll::Ready(Ok(events)) => {
+                self.disconnected = None;
+                self.pending = events;
+                task::Poll::Ready(self.pending.pop_front())
+            }
+            task::Poll::Ready(Err(_)) => {
+                self.disconnected = None;
+                task::Poll::Ready(None)
+            }
+            task::Poll::Pending => task::Poll::Pending,
+        }
     }
 }
 
