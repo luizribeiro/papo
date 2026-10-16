@@ -352,6 +352,11 @@ pub fn papo::Driver::new(papo::transport::Stream, papo_core::Session) -> (papo::
 impl core::future::future::Future for papo::Driver
 pub type papo::Driver::Output = core::result::Result<(), papo::Error>
 pub fn papo::Driver::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
+pub struct papo::Endpoint(_)
+impl papo::Endpoint
+pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>, u16) -> Self
+pub fn papo::Endpoint::tls(impl core::convert::Into<alloc::string::String>, u16) -> Self
+pub fn papo::Endpoint::websocket(impl core::convert::AsRef<str>) -> core::result::Result<Self, papo::InvalidInput>
 pub struct papo::Events
 impl papo::Events
 pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::Event>

@@ -25,6 +25,85 @@ pub enum InvalidInput {
     UnexpectedPath,
 }
 
+/// The network endpoint used by an IRC client.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Endpoint(ServerAddress);
+
+impl Endpoint {
+    /// Creates a TLS-protected TCP endpoint.
+    ///
+    /// ```
+    /// let endpoint = papo::Endpoint::tls("irc.example.net", 6697);
+    /// # _ = endpoint;
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics when `port` is zero.
+    #[cfg(any(
+        not(target_family = "wasm"),
+        all(target_os = "wasi", not(target_env = "p1"))
+    ))]
+    pub fn tls(host: impl Into<String>, port: u16) -> Self {
+        Self::tcp(host, port, Protocol::Ircs)
+    }
+
+    /// Creates an unencrypted TCP endpoint that remains eligible for STS upgrades.
+    ///
+    /// ```
+    /// let endpoint = papo::Endpoint::plaintext("irc.example.net", 6667);
+    /// # _ = endpoint;
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics when `port` is zero.
+    #[cfg(any(
+        not(target_family = "wasm"),
+        all(target_os = "wasi", not(target_env = "p1"))
+    ))]
+    pub fn plaintext(host: impl Into<String>, port: u16) -> Self {
+        Self::tcp(host, port, Protocol::Irc)
+    }
+
+    /// Creates a WebSocket endpoint from a `ws://` or `wss://` URL.
+    ///
+    /// ```
+    /// let endpoint = papo::Endpoint::websocket("wss://irc.example.net/webirc")?;
+    /// # Ok::<(), papo::InvalidInput>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidInput`] for another scheme, user information, or a
+    /// malformed URL.
+    pub fn websocket(url: impl AsRef<str>) -> Result<Self, InvalidInput> {
+        let url = url.as_ref();
+        let Some((scheme, _)) = url.split_once("://") else {
+            return Err(InvalidInput::UnsupportedScheme(String::new()));
+        };
+        if !scheme.eq_ignore_ascii_case("ws") && !scheme.eq_ignore_ascii_case("wss") {
+            return Err(InvalidInput::UnsupportedScheme(scheme.to_owned()));
+        }
+        url.parse().map(Self)
+    }
+
+    #[cfg(any(
+        not(target_family = "wasm"),
+        all(target_os = "wasi", not(target_env = "p1"))
+    ))]
+    fn tcp(host: impl Into<String>, port: u16, protocol: Protocol) -> Self {
+        assert!(port > 0, "server port must be positive");
+        Self(ServerAddress {
+            protocol,
+            host: host.into(),
+            port,
+            explicit_port: true,
+            websocket_path: None,
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Protocol {
     Irc,
@@ -161,7 +240,43 @@ fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), 
 
 #[cfg(test)]
 mod tests {
-    use super::{InvalidInput, Protocol, ServerAddress};
+    use super::{Endpoint, InvalidInput, Protocol, ServerAddress};
+
+    #[test]
+    fn typed_constructors_preserve_transport_details() {
+        let tls = Endpoint::tls("irc.example.net", 7443).0;
+        assert_eq!(
+            (tls.protocol, tls.host.as_str(), tls.port),
+            (Protocol::Ircs, "irc.example.net", 7443)
+        );
+
+        let plain = Endpoint::plaintext("irc.example.net", 7000).0;
+        assert_eq!(
+            (plain.protocol, plain.host.as_str(), plain.port),
+            (Protocol::Irc, "irc.example.net", 7000)
+        );
+
+        let websocket = Endpoint::websocket("wss://irc.example.net:8443/webirc")
+            .unwrap()
+            .0;
+        assert_eq!(
+            (websocket.protocol, websocket.host.as_str(), websocket.port),
+            (Protocol::Wss, "irc.example.net", 8443)
+        );
+        assert_eq!(websocket.websocket_path.as_deref(), Some("/webirc"));
+    }
+
+    #[test]
+    fn websocket_rejects_non_websocket_schemes_and_userinfo() {
+        for url in [
+            "irc.example.net",
+            "irc://irc.example.net",
+            "https://irc.example.net/webirc",
+            "wss://alice@irc.example.net/webirc",
+        ] {
+            assert!(Endpoint::websocket(url).is_err(), "accepted {url:?}");
+        }
+    }
 
     #[test]
     fn parses_every_server_address_form() {
