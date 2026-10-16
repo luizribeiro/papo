@@ -44,6 +44,19 @@ impl TestServer {
         })
     }
 
+    /// Starts Ergo with ephemeral history for unregistered channels.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if setup fails or Ergo does not become ready in time.
+    pub fn start_with_ephemeral_channels() -> io::Result<Self> {
+        Self::start_with(|directory| {
+            let mut configuration = Configuration::new(directory)?;
+            configuration.disable_persistent_unregistered_channels();
+            Ok(configuration)
+        })
+    }
+
     /// Returns the plaintext IRC listener address.
     #[must_use]
     pub const fn plaintext_addr(&self) -> SocketAddr {

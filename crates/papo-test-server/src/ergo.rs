@@ -44,6 +44,15 @@ impl Configuration {
             .push(("ERGO__SERVER__STS__DURATION", "1h".into()));
     }
 
+    pub(crate) fn disable_persistent_unregistered_channels(&mut self) {
+        let (_, value) = self
+            .overrides
+            .iter_mut()
+            .find(|(key, _)| *key == "ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS")
+            .expect("persistent history override is configured");
+        *value = "false".into();
+    }
+
     fn from_addresses(
         directory: &TemporaryDirectory,
         addresses: [std::net::SocketAddr; 4],
