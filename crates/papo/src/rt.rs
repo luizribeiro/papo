@@ -1,7 +1,5 @@
-use std::{
-    future::Future,
-    time::{Instant, SystemTime},
-};
+use std::{future::Future, time::SystemTime};
+use web_time::Instant;
 
 pub(crate) fn spawn<F>(future: F) -> tokio::task::JoinHandle<F::Output>
 where

@@ -1,7 +1,8 @@
 use std::{
     collections::{HashMap, HashSet},
-    time::{Duration, Instant},
+    time::Duration,
 };
+use web_time::Instant;
 
 use papo_proto::{Command, Message, MessageRef, Reaction, time};
 
@@ -639,7 +640,7 @@ mod tests {
     use super::{BatchAction, BatchEvent, Batches};
     use crate::Config;
     use papo_proto::MessageRef;
-    use std::time::Instant;
+    use web_time::Instant;
 
     fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
         let message = MessageRef::parse(line).unwrap();

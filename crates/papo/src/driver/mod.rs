@@ -19,8 +19,9 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     task,
-    time::{Duration, Instant, SystemTime},
+    time::{Duration, SystemTime},
 };
+use web_time::Instant;
 
 use futures_core::Stream;
 use papo_core::{

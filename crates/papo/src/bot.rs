@@ -3,8 +3,9 @@
 use std::{
     collections::{HashMap, VecDeque},
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::Duration,
 };
+use web_time::Instant;
 
 use crate::{Client, Error, Event, MessageEvent, MessageKind};
 

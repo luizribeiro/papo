@@ -1,7 +1,5 @@
-use std::{
-    collections::{BTreeSet, VecDeque},
-    time::Instant,
-};
+use std::collections::{BTreeSet, VecDeque};
+use web_time::Instant;
 
 use papo_proto::{MAX_MESSAGE_LEN, MessageRef, NAME_ALIASES, NameKind};
 

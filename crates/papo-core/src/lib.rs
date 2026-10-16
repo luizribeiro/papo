@@ -28,8 +28,9 @@ pub use webpush::WebPushError;
 
 use std::{
     collections::{BTreeMap, VecDeque},
-    time::{Duration, Instant},
+    time::Duration,
 };
+use web_time::Instant;
 
 use papo_proto::{
     BuildError, Casemapping, Command, Ctcp, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message,

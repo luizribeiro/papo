@@ -1,4 +1,5 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use web_time::Instant;
 
 /// Outbound token-bucket configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

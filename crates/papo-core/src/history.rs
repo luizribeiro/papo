@@ -1,4 +1,5 @@
-use std::time::{Instant, SystemTime};
+use std::time::SystemTime;
+use web_time::Instant;
 
 use papo_proto::{LimitValue, Message, time};
 

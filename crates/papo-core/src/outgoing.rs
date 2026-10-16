@@ -58,7 +58,7 @@ pub(super) fn multiline_limits(caps: &Capabilities) -> Option<MultilineLimits> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
+    use web_time::Instant;
 
     use super::TextKind;
     use crate::{Config, Session};

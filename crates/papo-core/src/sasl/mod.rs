@@ -1,9 +1,7 @@
 pub(crate) mod scram;
 
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use std::{collections::VecDeque, time::Duration};
+use web_time::Instant;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::MessageRef;
