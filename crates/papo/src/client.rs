@@ -735,6 +735,89 @@ impl Client {
         })
     }
 
+    /// Changes this client's nickname.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
+    pub fn set_nick(&self, nick: impl Into<crate::Nick>) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let nick = nick.into();
+        crate::RequestFuture::new(async move {
+            nick.check(client.state().isupport())
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let response = client
+                .correlated(
+                    Message::new("NICK", [nick.to_string()]),
+                    Some(ResponseMatcher::Nick(nick.to_string())),
+                )
+                .await?;
+            crate::requests::empty(&response)
+        })
+    }
+
+    /// Marks this client away with a nonempty message.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidInput`] for an empty message, or a typed server refusal,
+    /// timeout, or disconnect.
+    pub fn set_away(&self, text: impl Into<String>) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let text = text.into();
+        crate::RequestFuture::new(async move {
+            if text.is_empty() {
+                return Err(InvalidInput::EmptyText.into());
+            }
+            let response = client
+                .correlated(
+                    Message::new("AWAY", [text]),
+                    Some(ResponseMatcher::Away(true)),
+                )
+                .await?;
+            crate::requests::empty(&response)
+        })
+    }
+
+    /// Clears this client's away status.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed server refusal, timeout, or disconnect.
+    pub fn clear_away(&self) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            let response = client
+                .correlated(
+                    Message::new("AWAY", Vec::<String>::new()),
+                    Some(ResponseMatcher::Away(false)),
+                )
+                .await?;
+            crate::requests::empty(&response)
+        })
+    }
+
+    /// Changes this client's realname through the `setname` capability.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unsupported`] when `setname` is unavailable, or a typed server refusal,
+    /// invalid-input error, timeout, or disconnect.
+    pub fn set_realname(&self, realname: impl Into<String>) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let realname = realname.into();
+        crate::RequestFuture::new(async move {
+            Self::require_feature(&client.state(), Feature::SetName)?;
+            let response = client
+                .correlated(
+                    Message::new("SETNAME", [realname.clone()]),
+                    Some(ResponseMatcher::SetName(realname)),
+                )
+                .await?;
+            crate::requests::empty(&response)
+        })
+    }
+
     /// Sets the topic for `channel`.
     ///
     /// # Errors

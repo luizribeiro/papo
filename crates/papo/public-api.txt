@@ -569,6 +569,7 @@ pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Re
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
+pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl core::convert::Into<papo_proto::id::ChannelName>) -> papo::RequestFuture<()>
 pub fn papo::Client::invite(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::Nick>) -> papo::RequestFuture<()>
 pub fn papo::Client::join(&self, impl core::convert::Into<papo_proto::id::ChannelName>) -> papo::JoinChannel
@@ -585,6 +586,9 @@ pub async fn papo::Client::redact(&self, &papo_proto::id::Target, &papo_proto::i
 pub fn papo::Client::reply(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub async fn papo::Client::request_raw(&self, &str) -> core::result::Result<alloc::vec::Vec<papo::RawLine>, papo::Error>
 pub async fn papo::Client::send_raw(&self, &str) -> core::result::Result<(), papo::Error>
+pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_nick(&self, impl core::convert::Into<papo_proto::id::Nick>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_topic(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub async fn papo::Client::typing(&self, &str, papo_proto::client_tags::Typing) -> core::result::Result<(), papo::Error>
