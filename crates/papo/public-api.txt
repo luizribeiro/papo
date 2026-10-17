@@ -245,10 +245,10 @@ pub papo::Event::VerificationRequired
 pub papo::Event::VerificationRequired::account: alloc::string::String
 pub papo::Event::VerificationRequired::message: alloc::string::String
 #[non_exhaustive] pub enum papo::InvalidInput
-pub papo::InvalidInput::Empty
-pub papo::InvalidInput::InvalidHost
+pub papo::InvalidInput::Empty(alloc::string::String)
+pub papo::InvalidInput::InvalidHost(alloc::string::String)
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
-pub papo::InvalidInput::UnexpectedPath
+pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
 pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
 #[non_exhaustive] pub enum papo::MessageKind<'a>
@@ -365,7 +365,7 @@ pub struct papo::Endpoint(_)
 impl papo::Endpoint
 pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>, u16) -> Self
 pub fn papo::Endpoint::tls(impl core::convert::Into<alloc::string::String>, u16) -> Self
-pub fn papo::Endpoint::websocket(impl core::convert::AsRef<str>) -> core::result::Result<Self, papo::InvalidInput>
+pub fn papo::Endpoint::websocket(impl core::convert::AsRef<str>) -> Self
 impl papo::IntoEndpoint for papo::Endpoint
 pub struct papo::Events
 impl papo::Events

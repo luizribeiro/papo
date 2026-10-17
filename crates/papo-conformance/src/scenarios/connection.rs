@@ -37,7 +37,7 @@ async fn register_over_environment(context: Scenario, variable: &'static str) ->
         Ok(address) => address,
         Err(ignored) => return Ok(ignored),
     };
-    let endpoint = Endpoint::websocket(address)?;
+    let endpoint = Endpoint::websocket(address);
     register_over(context, endpoint).await
 }
 
