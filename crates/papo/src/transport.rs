@@ -440,7 +440,7 @@ fn tls_connector(
     };
     let mut config = if let Some(identity) = &settings.client_certificate {
         let chain = certificates(&identity.certificate_chain)?;
-        let key = PrivateKeyDer::from_pem_slice(identity.private_key.expose().as_bytes())
+        let key = PrivateKeyDer::from_pem_slice(identity.private_key.expose_bytes())
             .map_err(|error| invalid_pem("client private key", error))?;
         builder
             .with_client_auth_cert(chain, key)
