@@ -1,4 +1,4 @@
-use std::{fmt, io, sync::Arc};
+use std::{fmt, io, sync::Arc, time::Duration};
 
 use papo_proto::BuildError;
 use thiserror::Error;
@@ -231,6 +231,97 @@ impl fmt::Display for ServerError {
 
 impl std::error::Error for ServerError {}
 
+/// A failure while registering an IRC connection.
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+#[non_exhaustive]
+pub enum RegistrationError {
+    /// Required SASL authentication failed.
+    #[error("SASL authentication failed: {message}")]
+    Sasl {
+        /// The bounded diagnostic reported by the server.
+        message: String,
+    },
+    /// The server does not offer a required SASL mechanism.
+    #[error("required SASL authentication is unavailable")]
+    SaslUnavailable,
+    /// The server rejected its connection password.
+    #[error("the server password is incorrect")]
+    PasswordIncorrect,
+    /// The server banned this connection.
+    #[error("the server banned this connection: {message}")]
+    Banned {
+        /// The bounded diagnostic reported by the server.
+        message: String,
+    },
+    /// Every configured nickname was unavailable.
+    #[error("every configured nickname is unavailable")]
+    NickUnavailable,
+    /// Registration did not finish before its deadline.
+    #[error("IRC registration timed out")]
+    Timeout,
+    /// A server requested consecutive STS upgrades without registering.
+    #[error("repeated STS upgrade for {host} without registration")]
+    StsUpgradeLoop {
+        /// The hostname whose server repeated the upgrade.
+        host: String,
+    },
+}
+
+/// Why an established or pending IRC connection ended.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum DisconnectCause {
+    /// The transport reached EOF or otherwise vanished.
+    ConnectionLost,
+    /// The server sent `ERROR` with bounded explanatory text.
+    Server {
+        /// The server's bounded explanation.
+        message: String,
+    },
+    /// The server did not answer a keepalive probe.
+    PingTimeout,
+    /// Incoming data violated a protocol or resource bound.
+    Protocol {
+        /// A bounded diagnostic suitable for display.
+        message: String,
+    },
+    /// The event consumer remained full past its bounded overflow.
+    SlowConsumer,
+    /// The client deliberately ended the connection.
+    Requested,
+}
+
+impl fmt::Display for DisconnectCause {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ConnectionLost => formatter.write_str("the connection was lost"),
+            Self::Server { message } => write!(formatter, "the server disconnected: {message}"),
+            Self::PingTimeout => formatter.write_str("the server stopped responding"),
+            Self::Protocol { message } => write!(formatter, "protocol failure: {message}"),
+            Self::SlowConsumer => formatter.write_str("the event consumer was too slow"),
+            Self::Requested => formatter.write_str("the client disconnected"),
+        }
+    }
+}
+
+/// A disconnected operation and the driver's next retry delay.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Disconnected {
+    /// Why the connection ended.
+    pub cause: DisconnectCause,
+    /// Delay before the next connection attempt, when one is scheduled.
+    pub retry_in: Option<Duration>,
+}
+
+impl fmt::Display for Disconnected {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.cause.fmt(formatter)
+    }
+}
+
+impl std::error::Error for Disconnected {}
+
 /// An error produced by the asynchronous IRC client.
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -284,9 +375,28 @@ impl Error {
 
 #[cfg(test)]
 mod tests {
-    use std::io;
+    use std::{io, time::Duration};
 
-    use super::{ConnectError, ConnectErrorKind, Error, Refusal, ServerError};
+    use super::{
+        ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
+        RegistrationError, ServerError,
+    };
+
+    #[test]
+    fn terminal_payloads_preserve_bounded_diagnostics() {
+        let registration = RegistrationError::Banned {
+            message: "K-lined: open proxy".into(),
+        };
+        assert!(registration.to_string().contains("K-lined: open proxy"));
+        let disconnected = Disconnected {
+            cause: DisconnectCause::Server {
+                message: "Closing Link: maintenance".into(),
+            },
+            retry_in: Some(Duration::from_secs(8)),
+        };
+        assert!(disconnected.to_string().contains("maintenance"));
+        assert_eq!(disconnected.retry_in, Some(Duration::from_secs(8)));
+    }
 
     #[test]
     fn server_errors_hide_core_shapes_behind_accessors() {

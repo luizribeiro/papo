@@ -26,7 +26,10 @@ pub use builder::Builder;
 pub use client::{Client, Sent};
 pub use driver::{Driver, Events};
 pub use entropy::OsEntropy;
-pub use error::{ConnectError, ConnectErrorKind, Error, Refusal, ServerError};
+pub use error::{
+    ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
+    RegistrationError, ServerError,
+};
 pub use event::{Event, MessageEvent, MessageKind, Origin};
 pub use ext::accounts::{AccountRegistration, NewAccount};
 pub use ext::history::{History, HistoryPage, HistoryReference, HistoryRequest};
