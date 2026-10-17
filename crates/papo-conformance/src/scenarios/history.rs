@@ -1,8 +1,9 @@
+use std::time::{Duration, SystemTime};
+
 use libtest_mimic::Failed;
-use papo::Event;
 use papo_conformance_macros::scenario;
 
-use super::support::{EXPECT_TIMEOUT, history_page, join};
+use super::support::{history_page, join};
 use crate::{Scenario, ScenarioResult};
 
 /// retrieves a channel history page
@@ -18,19 +19,14 @@ async fn draft_read_marker(context: Scenario) -> ScenarioResult {
     let channel = format!("#{}", context.unique());
     let mut connection = context.client_caps(&nick, &["draft/read-marker"]).await?;
     join(&context, &mut connection, &channel).await?;
-    connection
+    let time = SystemTime::UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
+    let observed = connection
         .client
-        .send_raw(format!(
-            "MARKREAD {channel} timestamp=2025-10-15T11:55:42.123Z"
-        ))
+        .mark_read(&channel, time)
         .await
         .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut connection.events,
-            |event| matches!(event, Event::ReadMarker(marker) if marker.target == channel.as_str() && marker.time.is_some()),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
+    if observed != Some(time) {
+        return Err("MARKREAD did not return the set timestamp".into());
+    }
     connection.close().await
 }

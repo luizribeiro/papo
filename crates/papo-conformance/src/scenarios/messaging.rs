@@ -82,7 +82,7 @@ async fn message_tags(context: Scenario) -> ScenarioResult {
     let (mut receiver, sender, channel) = joined_pair(&context).await?;
     sender
         .client
-        .send_raw(format!("@+typing=active TAGMSG {channel}"))
+        .typing(&channel, Typing::Active)
         .await
         .map_err(Failed::from)?;
     context

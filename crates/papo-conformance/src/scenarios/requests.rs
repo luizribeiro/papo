@@ -39,7 +39,7 @@ async fn standard_replies(context: Scenario) -> ScenarioResult {
     let mut connection = context.client(&nick).await?;
     connection
         .client
-        .send_raw("SETNAME :")
+        .send_command("SETNAME", [""])
         .await
         .map_err(Failed::from)?;
     context

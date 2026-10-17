@@ -42,11 +42,7 @@ async fn account_notify(context: Scenario) -> ScenarioResult {
 async fn away_notify(context: Scenario) -> ScenarioResult {
     let (mut receiver, sender, _channel) = joined_pair(&context).await?;
     let away = "reviewing the IRCv3 specification";
-    sender
-        .client
-        .send_raw(format!("AWAY :{away}"))
-        .await
-        .map_err(Failed::from)?;
+    sender.client.set_away(away).await.map_err(Failed::from)?;
     context
         .expect(
             &mut receiver.events,
@@ -64,7 +60,7 @@ async fn setname(context: Scenario) -> ScenarioResult {
     let realname = "Papo Conformance Client";
     sender
         .client
-        .send_raw(format!("SETNAME :{realname}"))
+        .set_realname(realname)
         .await
         .map_err(Failed::from)?;
     context
@@ -90,15 +86,15 @@ async fn chghost(context: Scenario) -> ScenarioResult {
     let (mut observer, operator, _channel) = joined_pair(&context).await?;
     operator
         .client
-        .send_raw(format!("OPER {oper_name} :{password}"))
+        .oper(oper_name, password)
         .await
         .map_err(Failed::from)?;
     operator
         .client
-        .send_raw(format!(
-            "CHGHOST {} conformance.example",
-            observer.welcome.nick
-        ))
+        .send_command(
+            "CHGHOST",
+            [observer.welcome.nick.as_str(), "conformance.example"],
+        )
         .await
         .map_err(Failed::from)?;
     context
@@ -123,7 +119,8 @@ async fn monitor(context: Scenario) -> ScenarioResult {
     let target = context.client(&target_nick).await?;
     observer
         .client
-        .send_raw(format!("MONITOR + {target_nick}"))
+        .monitor()
+        .add([target_nick.clone()])
         .await
         .map_err(Failed::from)?;
     context
@@ -145,7 +142,7 @@ async fn bot_mode(context: Scenario) -> ScenarioResult {
     let registered = connection.welcome.nick.clone();
     connection
         .client
-        .send_raw(format!("MODE {registered} +B"))
+        .send_command("MODE", [registered.as_str(), "+B"])
         .await
         .map_err(Failed::from)?;
     context

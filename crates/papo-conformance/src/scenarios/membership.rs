@@ -74,7 +74,8 @@ async fn multi_prefix(context: Scenario) -> ScenarioResult {
     join(&context, &mut first, &channel).await?;
     first
         .client
-        .send_raw(format!("MODE {channel} +v {first_nick}"))
+        .mode(&channel)
+        .voice(&first_nick)
         .await
         .map_err(Failed::from)?;
     let casemapping = first.client.state().casemapping();
@@ -113,7 +114,8 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
     }
     inviter
         .client
-        .send_raw(format!("MODE {channel} +o {observer_nick}"))
+        .mode(&channel)
+        .op(&observer_nick)
         .await
         .map_err(Failed::from)?;
     let casemapping = observer.client.state().casemapping();
@@ -139,7 +141,7 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
     let mut target = context.client(&target_nick).await?;
     inviter
         .client
-        .send_raw(format!("INVITE {target_nick} {channel}"))
+        .invite(&channel, &target_nick)
         .await
         .map_err(Failed::from)?;
     context
