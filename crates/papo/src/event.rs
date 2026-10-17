@@ -85,7 +85,14 @@ pub enum Origin {
 pub struct MessageEvent {
     client: Client,
     raw: Message,
+    sender: Option<Source>,
+    target: String,
+    status: Option<String>,
+    raw_text: String,
     text: String,
+    tags: Tags,
+    channel_context: Option<String>,
+    private: bool,
     kind: StoredKind,
     isupport: Isupport,
     msgid: Option<String>,
@@ -105,7 +112,14 @@ pub struct MessageEvent {
 impl PartialEq for MessageEvent {
     fn eq(&self, other: &Self) -> bool {
         self.raw == other.raw
+            && self.sender == other.sender
+            && self.target == other.target
+            && self.status == other.status
+            && self.raw_text == other.raw_text
             && self.text == other.text
+            && self.tags == other.tags
+            && self.channel_context == other.channel_context
+            && self.private == other.private
             && self.kind == other.kind
             && self.isupport == other.isupport
             && self.msgid == other.msgid
@@ -257,7 +271,7 @@ impl MessageEvent {
         received_at: SystemTime,
     ) -> Result<Self, Message> {
         let message = raw.as_ref();
-        let Some(raw_text) = message.param(0).and_then(|_| message.param(1)) else {
+        let Some((raw_target, raw_text)) = message.param(0).zip(message.param(1)) else {
             return Err(raw);
         };
         let plain = if message.command_is("PRIVMSG") {
@@ -275,12 +289,29 @@ impl MessageEvent {
             None => (plain, raw_text),
         };
         let text = strip_formatting(displayed).into_owned();
+        let raw_text = raw_text.to_owned();
+        let status_len = raw_target
+            .chars()
+            .take_while(|prefix| {
+                isupport
+                    .statusmsg()
+                    .is_some_and(|set| set.contains(*prefix))
+            })
+            .map(char::len_utf8)
+            .sum();
+        let (status, target) = raw_target.split_at(status_len);
+        let status = (!status.is_empty()).then(|| status.to_owned());
+        let target = target.to_owned();
+        let private = !isupport.is_channel(&target);
+        let sender = message.source().map(Source::from_proto);
+        let tags = Tags::from_message(&message);
+        let channel_context = tag_owned(&message, &["+channel-context", "+draft/channel-context"]);
         let msgid = tag_owned(&message, &["msgid"]);
         let time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
             .and_then(|value| time::parse(&value))
             .unwrap_or(received_at);
         let account = tag_owned(&message, &["account"]);
-        let bot = message.tags().any(|(key, _)| key == "bot");
+        let bot = tags.contains("bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]);
         let relayed_by = tag_owned(&message, &["draft/relaymsg"]);
         let oper = message
@@ -308,7 +339,14 @@ impl MessageEvent {
         Ok(Self {
             client,
             raw,
+            sender,
+            target,
+            status,
+            raw_text,
             text,
+            tags,
+            channel_context,
+            private,
             kind,
             isupport: isupport.clone(),
             msgid,
@@ -346,10 +384,7 @@ impl MessageEvent {
                 notice = notice.with_tag(tag, msgid);
             }
             let context = if self.is_private() {
-                tag_owned(
-                    &self.as_ref(),
-                    &["+channel-context", "+draft/channel-context"],
-                )
+                self.channel_context.clone()
             } else {
                 Some(self.target().to_owned())
             };
@@ -383,32 +418,32 @@ impl MessageEvent {
     /// Returns the text parameter exactly as received.
     #[must_use]
     pub fn raw_text(&self) -> &str {
-        self.raw.as_ref().param(1).unwrap_or("")
+        &self.raw_text
     }
 
     /// Returns the parsed source, when the server supplied one.
     #[must_use]
     pub fn source(&self) -> Option<Source> {
-        self.raw.as_ref().source().map(Source::from_proto)
+        self.sender.clone()
     }
 
     /// Returns the message target.
     #[must_use]
     pub fn target(&self) -> &str {
-        self.raw.as_ref().param(0).unwrap_or("")
+        &self.target
     }
 
     /// Reports whether the target is not a channel under the captured `CHANTYPES` value.
     #[must_use]
     pub fn is_private(&self) -> bool {
-        !self.isupport.is_channel(self.target())
+        self.private
     }
 
     /// Returns the channel target, or the sender for a private message.
     #[must_use]
     pub fn reply_target(&self) -> &str {
         if self.is_private()
-            && let Some(papo_proto::Source::User { nick, .. }) = self.raw.as_ref().source()
+            && let Some(Source::User { nick, .. }) = &self.sender
         {
             nick
         } else {
@@ -508,10 +543,7 @@ impl MessageEvent {
                 reply = reply.with_tag(tag, msgid);
             }
             if self.is_private()
-                && let Some(context) = tag_owned(
-                    &self.as_ref(),
-                    &["+channel-context", "+draft/channel-context"],
-                )
+                && let Some(context) = self.channel_context.clone()
                 && let Some(tag) =
                     allowed_alias(&denied, "+channel-context", "+draft/channel-context")
             {
@@ -1178,6 +1210,25 @@ mod tests {
         );
         assert!(private.is_private());
         assert_eq!(private.reply_target(), "emily");
+    }
+
+    #[test]
+    fn separates_status_prefixes_from_the_channel_target() {
+        let mut isupport = Isupport::default();
+        isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
+        let message = event(
+            Message::privmsg("@+#papo", "operators and voiced members")
+                .with_source("emily!~emily@localhost")
+                .with_tag("bot", ""),
+            &isupport,
+            "papo",
+            UNIX_EPOCH,
+        );
+
+        assert_eq!(message.status.as_deref(), Some("@+"));
+        assert_eq!(message.target(), "#papo");
+        assert!(!message.is_private());
+        assert_eq!(message.tags.get("bot"), Some(""));
     }
 
     #[test]
