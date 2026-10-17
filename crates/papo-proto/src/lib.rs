@@ -6,6 +6,7 @@ mod client_tags;
 mod command;
 mod ctcp;
 mod formatting;
+mod id;
 mod isupport;
 mod message;
 mod modes;
@@ -22,6 +23,7 @@ pub use client_tags::{Reaction, Typing};
 pub use command::Command;
 pub use ctcp::Ctcp;
 pub use formatting::{Color, FormatBuilder, Formatted, Span, Style, strip_formatting};
+pub use id::{AccountName, ChannelName, Mask, MessageId, MetadataKey, Nick, Target};
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, Extban, Isupport, Limit, LimitValue, Prefix,
 };
