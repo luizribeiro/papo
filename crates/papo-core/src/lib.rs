@@ -1657,6 +1657,15 @@ pub enum Event {
         /// The optional kick reason.
         reason: Option<String>,
     },
+    /// A user was invited to a channel.
+    Invited {
+        /// The invited channel.
+        channel: String,
+        /// The invited user's nickname.
+        nick: String,
+        /// The user or server prefix that sent the invitation.
+        by: String,
+    },
     /// A user sharing channels with the session disconnected.
     Quit {
         /// The disconnected user's nickname.
@@ -2911,9 +2920,12 @@ impl Session {
         let tag_message = !response && emit_unhandled && self.report_tag_message(message);
         let redacted =
             !response && !tag_message && emit_unhandled && self.report_redaction(message);
+        let invited =
+            !response && !tag_message && !redacted && emit_unhandled && self.report_invite(message);
         let standard_reply = !response
             && !tag_message
             && !redacted
+            && !invited
             && emit_unhandled
             && self.report_standard_reply(message);
         self.maybe_subscribe_metadata(now);
@@ -2921,7 +2933,14 @@ impl Session {
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
             &mut self.outbox,
         );
-        if !handled && !response && !tag_message && !redacted && !standard_reply && emit_unhandled {
+        if !handled
+            && !response
+            && !tag_message
+            && !redacted
+            && !invited
+            && !standard_reply
+            && emit_unhandled
+        {
             let received = self.received_message(
                 message.to_owned(),
                 context.batch_type().map(str::to_owned),
@@ -3106,6 +3125,22 @@ impl Session {
             msgid: msgid.to_owned(),
             reason: message.param(2).map(str::to_owned),
         }));
+        true
+    }
+
+    fn report_invite(&mut self, message: &MessageRef<'_>) -> bool {
+        let (Some(nick), Some(channel), Some(by)) = (
+            message.param(0).filter(|_| message.command_is("INVITE")),
+            message.param(1),
+            message.raw_source(),
+        ) else {
+            return false;
+        };
+        self.outbox.event(Event::Invited {
+            channel: channel.to_owned(),
+            nick: nick.to_owned(),
+            by: by.to_owned(),
+        });
         true
     }
 

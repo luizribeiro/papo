@@ -146,11 +146,10 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
         .expect(
             &mut observer.events,
             |event| {
-                matches!(event, Event::Raw(message) if {
-                    message.command().eq_ignore_ascii_case("INVITE")
-                        && message.params().first().is_some_and(|value| value == &target_nick)
-                        && message.params().get(1).is_some_and(|value| value == &channel)
-                })
+                matches!(event, Event::Invited(invite_event)
+                    if invite_event.nick.as_ref() == target_nick
+                        && invite_event.channel.as_ref() == channel
+                        && !invite_event.is_self)
             },
             EXPECT_TIMEOUT,
         )

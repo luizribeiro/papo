@@ -879,6 +879,12 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             reason,
             is_self: false,
         }),
+        papo_core::Event::Invited { channel, nick, by } => Event::Invited(Invited {
+            channel: channel.into(),
+            nick: nick.into(),
+            by: Source::from_prefix(by),
+            is_self: false,
+        }),
         papo_core::Event::Quit {
             nick,
             reason,
@@ -1210,6 +1216,24 @@ mod tests {
         let changed = event.as_features_changed().unwrap();
         assert_eq!(changed.added, [Feature::Reactions, Feature::Typing]);
         assert_eq!(changed.removed, [Feature::History]);
+    }
+
+    #[test]
+    fn maps_invitation_source_details() {
+        let event = forwarded(papo_core::Event::Invited {
+            channel: "#papo".to_owned(),
+            nick: "papo".to_owned(),
+            by: "emily!~emily@localhost".to_owned(),
+        });
+        let invited = event.as_invited().unwrap();
+        assert_eq!(invited.channel, "#papo");
+        assert_eq!(invited.nick, "papo");
+        assert!(matches!(
+            &invited.by,
+            Source::User { nick, user: Some(user), host: Some(host) }
+                if nick == "emily" && user == "~emily" && host == "localhost"
+        ));
+        assert!(!invited.is_self);
     }
 
     fn mapped_message(event: papo_core::Event) -> ChatMessage {
