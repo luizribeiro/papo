@@ -351,7 +351,37 @@ pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> wh
 pub papo::metadata::MetadataValue::value: alloc::string::String
 pub papo::metadata::MetadataValue::visibility: alloc::string::String
 pub mod papo::numeric
+pub const papo::numeric::ERR_BADCHANMASK: u16
+pub const papo::numeric::ERR_BADCHANNELKEY: u16
+pub const papo::numeric::ERR_BANNEDFROMCHAN: u16
+pub const papo::numeric::ERR_CANNOTSENDTOCHAN: u16
+pub const papo::numeric::ERR_CHANNELISFULL: u16
+pub const papo::numeric::ERR_CHANOPRIVSNEEDED: u16
+pub const papo::numeric::ERR_ERRONEUSNICKNAME: u16
+pub const papo::numeric::ERR_INPUTTOOLONG: u16
+pub const papo::numeric::ERR_INVALIDMODEPARAM: u16
+pub const papo::numeric::ERR_INVITEONLYCHAN: u16
+pub const papo::numeric::ERR_NEEDMOREPARAMS: u16
+pub const papo::numeric::ERR_NICKCOLLISION: u16
+pub const papo::numeric::ERR_NICKNAMEINUSE: u16
 pub const papo::numeric::ERR_NOMOTD: u16
+pub const papo::numeric::ERR_NOOPERHOST: u16
+pub const papo::numeric::ERR_NOPRIVILEGES: u16
+pub const papo::numeric::ERR_NOSUCHCHANNEL: u16
+pub const papo::numeric::ERR_NOSUCHNICK: u16
+pub const papo::numeric::ERR_NOSUCHSERVER: u16
+pub const papo::numeric::ERR_NOTEXTTOSEND: u16
+pub const papo::numeric::ERR_NOTONCHANNEL: u16
+pub const papo::numeric::ERR_PASSWDMISMATCH: u16
+pub const papo::numeric::ERR_SECUREONLYCHAN: u16
+pub const papo::numeric::ERR_TOOMANYCHANNELS: u16
+pub const papo::numeric::ERR_UMODEUNKNOWNFLAG: u16
+pub const papo::numeric::ERR_UNAVAILRESOURCE: u16
+pub const papo::numeric::ERR_UNKNOWNCOMMAND: u16
+pub const papo::numeric::ERR_UNKNOWNMODE: u16
+pub const papo::numeric::ERR_USERONCHANNEL: u16
+pub const papo::numeric::ERR_USERSDONTMATCH: u16
+pub const papo::numeric::ERR_WASNOSUCHNICK: u16
 pub const papo::numeric::RPL_AWAY: u16
 pub const papo::numeric::RPL_CREATED: u16
 pub const papo::numeric::RPL_ENDOFMOTD: u16
@@ -376,6 +406,7 @@ pub const papo::numeric::RPL_NAMREPLY: u16
 pub const papo::numeric::RPL_NOTOPIC: u16
 pub const papo::numeric::RPL_TOPIC: u16
 pub const papo::numeric::RPL_TOPICWHOTIME: u16
+pub const papo::numeric::RPL_TRYAGAIN: u16
 pub const papo::numeric::RPL_WELCOME: u16
 pub const papo::numeric::RPL_WHOISACCOUNT: u16
 pub const papo::numeric::RPL_WHOISACTUALLY: u16

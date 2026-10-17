@@ -57,6 +57,40 @@ numerics! {
     RPL_WHOISSECURE = 671,
 }
 
+numerics! {
+    RPL_TRYAGAIN = 263,
+    ERR_NOSUCHNICK = 401,
+    ERR_NOSUCHSERVER = 402,
+    ERR_NOSUCHCHANNEL = 403,
+    ERR_CANNOTSENDTOCHAN = 404,
+    ERR_TOOMANYCHANNELS = 405,
+    ERR_WASNOSUCHNICK = 406,
+    ERR_NOTEXTTOSEND = 412,
+    ERR_INPUTTOOLONG = 417,
+    ERR_UNKNOWNCOMMAND = 421,
+    ERR_ERRONEUSNICKNAME = 432,
+    ERR_NICKNAMEINUSE = 433,
+    ERR_NICKCOLLISION = 436,
+    ERR_UNAVAILRESOURCE = 437,
+    ERR_NOTONCHANNEL = 442,
+    ERR_USERONCHANNEL = 443,
+    ERR_NEEDMOREPARAMS = 461,
+    ERR_PASSWDMISMATCH = 464,
+    ERR_CHANNELISFULL = 471,
+    ERR_UNKNOWNMODE = 472,
+    ERR_INVITEONLYCHAN = 473,
+    ERR_BANNEDFROMCHAN = 474,
+    ERR_BADCHANNELKEY = 475,
+    ERR_BADCHANMASK = 476,
+    ERR_NOPRIVILEGES = 481,
+    ERR_CHANOPRIVSNEEDED = 482,
+    ERR_SECUREONLYCHAN = 489,
+    ERR_NOOPERHOST = 491,
+    ERR_UMODEUNKNOWNFLAG = 501,
+    ERR_USERSDONTMATCH = 502,
+    ERR_INVALIDMODEPARAM = 696,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,5 +143,40 @@ mod tests {
         assert_eq!(RPL_WHOISHOST, 378);
         assert_eq!(RPL_WHOISMODES, 379);
         assert_eq!(RPL_WHOISSECURE, 671);
+    }
+
+    #[test]
+    fn classified_error_values_match_the_wire() {
+        assert_eq!(RPL_TRYAGAIN, 263);
+        assert_eq!(ERR_NOSUCHNICK, 401);
+        assert_eq!(ERR_NOSUCHSERVER, 402);
+        assert_eq!(ERR_NOSUCHCHANNEL, 403);
+        assert_eq!(ERR_CANNOTSENDTOCHAN, 404);
+        assert_eq!(ERR_TOOMANYCHANNELS, 405);
+        assert_eq!(ERR_WASNOSUCHNICK, 406);
+        assert_eq!(ERR_NOTEXTTOSEND, 412);
+        assert_eq!(ERR_INPUTTOOLONG, 417);
+        assert_eq!(ERR_UNKNOWNCOMMAND, 421);
+        assert_eq!(ERR_ERRONEUSNICKNAME, 432);
+        assert_eq!(ERR_NICKNAMEINUSE, 433);
+        assert_eq!(ERR_NICKCOLLISION, 436);
+        assert_eq!(ERR_UNAVAILRESOURCE, 437);
+        assert_eq!(ERR_NOTONCHANNEL, 442);
+        assert_eq!(ERR_USERONCHANNEL, 443);
+        assert_eq!(ERR_NEEDMOREPARAMS, 461);
+        assert_eq!(ERR_PASSWDMISMATCH, 464);
+        assert_eq!(ERR_CHANNELISFULL, 471);
+        assert_eq!(ERR_UNKNOWNMODE, 472);
+        assert_eq!(ERR_INVITEONLYCHAN, 473);
+        assert_eq!(ERR_BANNEDFROMCHAN, 474);
+        assert_eq!(ERR_BADCHANNELKEY, 475);
+        assert_eq!(ERR_BADCHANMASK, 476);
+        assert_eq!(ERR_NOPRIVILEGES, 481);
+        assert_eq!(ERR_CHANOPRIVSNEEDED, 482);
+        assert_eq!(ERR_SECUREONLYCHAN, 489);
+        assert_eq!(ERR_NOOPERHOST, 491);
+        assert_eq!(ERR_UMODEUNKNOWNFLAG, 501);
+        assert_eq!(ERR_USERSDONTMATCH, 502);
+        assert_eq!(ERR_INVALIDMODEPARAM, 696);
     }
 }
