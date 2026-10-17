@@ -1,7 +1,7 @@
 use std::{future::Future, pin::Pin, time::SystemTime};
 
 use papo_core::{HistoryQuery, MsgRef, Response};
-use papo_proto::Reaction;
+use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -73,6 +73,23 @@ pub(crate) fn history_item(
         }
         papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.message, reaction),
         papo_core::HistoryItem::Redacted(item) => typed_or_raw(&item.message, redaction),
+        papo_core::HistoryItem::Joined(item) => {
+            typed_or_raw(&item.message, |message| joined(message, client))
+        }
+        papo_core::HistoryItem::Parted(item) => {
+            typed_or_raw(&item.message, |message| parted(message, client))
+        }
+        papo_core::HistoryItem::Quit(item) => typed_or_raw(&item.message, quit),
+        papo_core::HistoryItem::Kicked(item) => {
+            typed_or_raw(&item.message, |message| kicked(message, client))
+        }
+        papo_core::HistoryItem::NickChanged(item) => {
+            typed_or_raw(&item.message, |message| nick_changed(message, client))
+        }
+        papo_core::HistoryItem::TopicChanged(item) => typed_or_raw(&item.message, topic_changed),
+        papo_core::HistoryItem::ModeChanged(item) => {
+            typed_or_raw(&item.message, |message| mode_changed(message, client))
+        }
         item => {
             let raw = item.into_raw().message;
             HistoryItem::Other(RawLine::from_proto(&raw))
@@ -80,10 +97,10 @@ pub(crate) fn history_item(
     }
 }
 
-fn typed_or_raw(
-    raw: &papo_proto::Message,
-    convert: fn(&papo_proto::MessageRef<'_>) -> Option<HistoryItem>,
-) -> HistoryItem {
+fn typed_or_raw<F>(raw: &papo_proto::Message, convert: F) -> HistoryItem
+where
+    F: FnOnce(&papo_proto::MessageRef<'_>) -> Option<HistoryItem>,
+{
     convert(&raw.as_ref()).unwrap_or_else(|| HistoryItem::Other(RawLine::from_proto(raw)))
 }
 
@@ -109,6 +126,96 @@ fn redaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
         id: TargetedMessageId::new(message.param(0)?, message.param(1)?),
         reason: message.param(2).map(str::to_owned),
     }))
+}
+
+fn joined(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+    let nick = source_nick(message)?;
+    Some(HistoryItem::Joined(Joined {
+        channel: message.param(0)?.to_owned(),
+        is_self: is_self(client, &nick),
+        nick,
+    }))
+}
+
+fn parted(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+    let nick = source_nick(message)?;
+    Some(HistoryItem::Parted(Parted {
+        channel: message.param(0)?.to_owned(),
+        is_self: is_self(client, &nick),
+        nick,
+        reason: message.param(1).map(str::to_owned),
+    }))
+}
+
+fn quit(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
+    Some(HistoryItem::Quit(Quit {
+        nick: source_nick(message)?,
+        reason: message.param(0).map(str::to_owned),
+        channels: Vec::new(),
+    }))
+}
+
+fn kicked(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+    let nick = message.param(1)?.to_owned();
+    Some(HistoryItem::Kicked(Kicked {
+        channel: message.param(0)?.to_owned(),
+        is_self: is_self(client, &nick),
+        nick,
+        by: Source::from_proto(message.source()?),
+        reason: message.param(2).map(str::to_owned),
+    }))
+}
+
+fn nick_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+    let old = source_nick(message)?;
+    Some(HistoryItem::NickChanged(NickChanged {
+        is_self: is_self(client, &old),
+        old,
+        new: message.param(0)?.to_owned(),
+    }))
+}
+
+fn topic_changed(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
+    Some(HistoryItem::TopicChanged(TopicChanged {
+        channel: message.param(0)?.to_owned(),
+        topic: message
+            .param(1)
+            .filter(|topic| !topic.is_empty())
+            .map(str::to_owned),
+        by: Source::from_proto(message.source()?),
+    }))
+}
+
+fn mode_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+    let state = client.state();
+    let changes = ModeChanges::parse(
+        message.param(1)?,
+        message.params().skip(2),
+        state.isupport(),
+    )
+    .map(|change| crate::event::ModeChange {
+        set: change.set,
+        mode: change.mode,
+        arg: change.arg.map(str::to_owned),
+    })
+    .collect();
+    Some(HistoryItem::ModeChanged(ModeChanged {
+        target: message.param(0)?.to_owned(),
+        by: Source::from_proto(message.source()?),
+        changes,
+    }))
+}
+
+fn source_nick(message: &papo_proto::MessageRef<'_>) -> Option<String> {
+    match message.source()? {
+        papo_proto::Source::User { nick, .. } => Some(nick.to_owned()),
+        papo_proto::Source::Server(_) => None,
+    }
+}
+
+fn is_self(client: &Client, nick: &str) -> bool {
+    let state = client.state();
+    state.isupport().casemapping().eq(state.nick(), nick)
 }
 
 /// A page of requested chat history.
@@ -506,6 +613,24 @@ mod tests {
             crate::Origin::History,
         );
         assert!(matches!(item, HistoryItem::Other(line) if line.command() == "REDACT"));
+    }
+
+    #[test]
+    fn maps_replayed_channel_activity() {
+        let client = crate::Client::disconnected_for_test();
+        let joined = history_item(
+            papo_core::HistoryItem::Joined(core_item(
+                ":emily!~e@localhost JOIN #papo emily :Emily Smith",
+            )),
+            &client,
+            UNIX_EPOCH,
+            crate::Origin::Replay,
+        );
+        assert!(matches!(
+            joined,
+            HistoryItem::Joined(event)
+                if event.channel == "#papo" && event.nick == "emily" && !event.is_self
+        ));
     }
 
     #[test]
