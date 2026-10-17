@@ -82,6 +82,12 @@ impl std::error::Error for ConnectError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Refusal {
+    /// The requested nickname is not connected (`401`).
+    NoSuchNick,
+    /// The requested server is unknown (`402`).
+    NoSuchServer,
+    /// The requested channel does not exist (`403`).
+    NoSuchChannel,
     /// The message could not be sent to the channel (`404`).
     CannotSendToChannel,
     /// The session has joined too many channels (`405`).
@@ -92,16 +98,42 @@ pub enum Refusal {
     InputTooLong,
     /// The server does not recognize the command (`421`).
     UnknownCommand,
+    /// The nickname is malformed (`432`).
+    ErroneousNickname,
+    /// The nickname is already in use (`433`).
+    NicknameInUse,
     /// A nickname collided during a network split (`436`).
     NickCollision,
     /// A nickname or channel is temporarily unavailable (`437`).
     NickUnavailable,
+    /// The session is not on the channel (`442`).
+    NotOnChannel,
+    /// The named user is already on the channel (`443`).
+    UserOnChannel,
+    /// A required command parameter is missing (`461`).
+    NeedMoreParameters,
+    /// The server password is incorrect (`464`).
+    PasswordIncorrect,
+    /// The channel has reached its user limit (`471`).
+    ChannelIsFull,
+    /// The requested channel mode is unknown (`472`).
+    UnknownMode,
+    /// The channel is invite-only (`473`).
+    InviteOnlyChannel,
+    /// The session is banned from the channel (`474`).
+    BannedFromChannel,
+    /// The supplied channel key is incorrect (`475`).
+    BadChannelKey,
     /// A channel mask is malformed (`476`).
     BadChannelMask,
     /// The channel accepts only secure connections (`489`).
     SecureOnlyChannel,
     /// The host is not authorized for operator access (`491`).
     NoOperHost,
+    /// The action requires IRC operator privileges (`481`).
+    NoPrivileges,
+    /// The action requires channel operator privileges (`482`).
+    ChannelOperatorPrivilegesNeeded,
     /// A user mode flag is unknown (`501`).
     UnknownUserMode,
     /// The session tried to change another user's modes (`502`).
@@ -134,6 +166,28 @@ impl Refusal {
             papo_core::RefusalKind::InvalidModeParam => Self::InvalidModeParameter,
             papo_core::RefusalKind::TryAgain => Self::TryAgain,
             _ => Self::Other,
+        }
+    }
+
+    fn from_numeric(code: u16, fallback: papo_core::RefusalKind) -> Self {
+        match code {
+            401 => Self::NoSuchNick,
+            402 => Self::NoSuchServer,
+            403 => Self::NoSuchChannel,
+            432 => Self::ErroneousNickname,
+            433 => Self::NicknameInUse,
+            442 => Self::NotOnChannel,
+            443 => Self::UserOnChannel,
+            461 => Self::NeedMoreParameters,
+            464 => Self::PasswordIncorrect,
+            471 => Self::ChannelIsFull,
+            472 => Self::UnknownMode,
+            473 => Self::InviteOnlyChannel,
+            474 => Self::BannedFromChannel,
+            475 => Self::BadChannelKey,
+            481 => Self::NoPrivileges,
+            482 => Self::ChannelOperatorPrivilegesNeeded,
+            _ => Self::from_core(fallback),
         }
     }
 }
@@ -180,7 +234,7 @@ impl ServerError {
     }
 
     pub(crate) fn from_core(error: papo_core::ServerError) -> Self {
-        let kind = Refusal::from_core(error.refusal_kind());
+        let fallback = error.refusal_kind();
         match error {
             papo_core::ServerError::Standard {
                 command,
@@ -188,14 +242,14 @@ impl ServerError {
                 context,
                 description,
             } => Self {
-                kind,
+                kind: Refusal::from_core(fallback),
                 command,
                 code,
                 description,
                 params: context,
             },
             papo_core::ServerError::Numeric { numeric, params } => Self {
-                kind,
+                kind: Refusal::from_numeric(numeric.code(), fallback),
                 command: String::new(),
                 code: format!("{:03}", numeric.code()),
                 description: params.last().cloned().unwrap_or_default(),
@@ -495,6 +549,38 @@ mod tests {
         for (core, public) in cases {
             assert_eq!(Refusal::from_core(core), public);
         }
+    }
+
+    #[test]
+    fn refusal_mapping_covers_common_action_numerics() {
+        let cases = [
+            (401, Refusal::NoSuchNick),
+            (402, Refusal::NoSuchServer),
+            (403, Refusal::NoSuchChannel),
+            (432, Refusal::ErroneousNickname),
+            (433, Refusal::NicknameInUse),
+            (442, Refusal::NotOnChannel),
+            (443, Refusal::UserOnChannel),
+            (461, Refusal::NeedMoreParameters),
+            (464, Refusal::PasswordIncorrect),
+            (471, Refusal::ChannelIsFull),
+            (472, Refusal::UnknownMode),
+            (473, Refusal::InviteOnlyChannel),
+            (474, Refusal::BannedFromChannel),
+            (475, Refusal::BadChannelKey),
+            (481, Refusal::NoPrivileges),
+            (482, Refusal::ChannelOperatorPrivilegesNeeded),
+        ];
+        for (code, public) in cases {
+            assert_eq!(
+                Refusal::from_numeric(code, papo_core::RefusalKind::Other),
+                public
+            );
+        }
+        assert_eq!(
+            Refusal::from_numeric(999, papo_core::RefusalKind::Other),
+            Refusal::Other
+        );
     }
 
     #[test]
