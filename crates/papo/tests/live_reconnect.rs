@@ -34,7 +34,6 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
             "draft/chathistory",
         ])
         .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
-        .unwrap()
         .autojoin([&channel])
         .history_on_reconnect(true)
         .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)))

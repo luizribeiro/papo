@@ -246,6 +246,7 @@ pub papo::Event::VerificationRequired::account: alloc::string::String
 pub papo::Event::VerificationRequired::message: alloc::string::String
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::Empty(alloc::string::String)
+pub papo::InvalidInput::EventCapacity(usize)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
 pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
@@ -296,7 +297,7 @@ pub fn papo::Builder::tls_extra_ca_pem(self, impl core::convert::Into<alloc::vec
 pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::webirc(self, papo_core::WebIrc) -> Self
-pub fn papo::Builder::without_caps<I, S>(self, I) -> core::result::Result<Self, papo::InvalidInput> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::without_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::ChannelInfo

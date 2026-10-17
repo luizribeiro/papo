@@ -29,7 +29,6 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             "draft/read-marker",
         ])
         .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
-        .unwrap()
         .autojoin([&channel])
         .connect()
         .await

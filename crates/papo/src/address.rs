@@ -26,6 +26,9 @@ pub enum InvalidInput {
     /// A capability cannot be removed because papo does not request it by default.
     #[error("papo does not request capability {0:?} by default")]
     UnknownCapability(String),
+    /// The event queue capacity is zero.
+    #[error("event queue capacity {0} must be positive")]
+    EventCapacity(usize),
 }
 
 /// The network endpoint used by an IRC client.

@@ -27,6 +27,7 @@ pub struct Builder {
     history_on_reconnect: bool,
     username_set: bool,
     realname_set: bool,
+    invalid_input: Option<InvalidInput>,
 }
 
 impl fmt::Debug for Builder {
@@ -43,6 +44,7 @@ impl fmt::Debug for Builder {
             .field("bot", &self.bot)
             .field("autojoin", &self.autojoin)
             .field("history_on_reconnect", &self.history_on_reconnect)
+            .field("invalid_input", &self.invalid_input)
             .finish_non_exhaustive()
     }
 }
@@ -62,6 +64,7 @@ impl Builder {
             history_on_reconnect: false,
             username_set: false,
             realname_set: false,
+            invalid_input: None,
         }
     }
 
@@ -177,30 +180,25 @@ impl Builder {
 
     /// Removes default capability names from the request set.
     ///
-    /// # Errors
-    ///
-    /// Returns [`InvalidInput::UnknownCapability`] for a name papo does not request by default.
-    ///
     /// ```
-    /// # fn main() -> Result<(), papo::InvalidInput> {
     /// let builder = papo::Client::builder("irc.example.net")
-    ///     .without_caps([papo::cap::AWAY_NOTIFY])?;
+    ///     .without_caps([papo::cap::AWAY_NOTIFY]);
     /// # _ = builder;
-    /// # Ok(())
-    /// # }
     /// ```
-    pub fn without_caps<I, S>(mut self, caps: I) -> Result<Self, InvalidInput>
+    pub fn without_caps<I, S>(mut self, caps: I) -> Self
     where
         I: IntoIterator<Item = S>,
         S: Into<String>,
     {
         for capability in caps.into_iter().map(Into::into) {
             if !DEFAULT_WANTED_CAPS.contains(&capability.as_str()) {
-                return Err(InvalidInput::UnknownCapability(capability));
+                self.invalid_input
+                    .get_or_insert(InvalidInput::UnknownCapability(capability));
+                continue;
             }
             self.config.wanted_caps.retain(|name| name != &capability);
         }
-        Ok(self)
+        self
     }
 
     /// Sets metadata keys subscribed on every connection.
@@ -278,11 +276,11 @@ impl Builder {
 
     /// Sets the bounded event queue capacity.
     ///
-    /// # Panics
-    ///
-    /// Panics when `capacity` is zero.
     pub fn event_capacity(mut self, capacity: usize) -> Self {
-        assert!(capacity > 0, "event capacity must be positive");
+        if capacity == 0 {
+            self.invalid_input
+                .get_or_insert(InvalidInput::EventCapacity(capacity));
+        }
         self.event_capacity = capacity;
         self
     }
@@ -434,13 +432,13 @@ impl Builder {
         if let Ok(address) = &self.address {
             apply_address(&mut self.config, address);
         }
-        let address_error = self.address.err();
+        let input_error = self.address.err().or(self.invalid_input);
         let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
-        if let Some(error) = address_error {
+        if let Some(error) = input_error {
             drop(stream);
             return crate::Driver::failed(
                 &session,
-                self.event_capacity,
+                self.event_capacity.max(1),
                 registration,
                 Error::InvalidInput(error),
             );
@@ -465,12 +463,15 @@ impl Builder {
         if let Some(stream) = self.stream.take() {
             return self.build_stream_with_registration(stream, registration);
         }
-        let plan = self.address.map(|address| {
+        let plan = self.address.and_then(|address| {
+            if let Some(error) = self.invalid_input {
+                return Err(error);
+            }
             apply_address(&mut self.config, &address);
-            ConnectionPlan {
+            Ok(ConnectionPlan {
                 address,
                 tls: self.tls,
-            }
+            })
         });
         let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
         let defaults = PostRegistration {
@@ -481,7 +482,7 @@ impl Builder {
         crate::Driver::with_plan(
             plan,
             session,
-            self.event_capacity,
+            self.event_capacity.max(1),
             registration,
             defaults,
             self.reconnect,
@@ -614,8 +615,7 @@ mod tests {
     fn capabilities_extend_defaults_and_only_known_defaults_can_be_removed() {
         let builder = Builder::new("irc.example.net")
             .request_caps(["message-tags", "soju.im/bouncer-networks"])
-            .without_caps(["away-notify"])
-            .unwrap();
+            .without_caps(["away-notify"]);
         assert!(
             !builder
                 .config
@@ -628,8 +628,10 @@ mod tests {
             Some("soju.im/bouncer-networks")
         );
         assert!(matches!(
-            Builder::new("irc.example.net").without_caps(["soju.im/bouncer-networks"]),
-            Err(InvalidInput::UnknownCapability(name)) if name == "soju.im/bouncer-networks"
+            Builder::new("irc.example.net")
+                .without_caps(["soju.im/bouncer-networks"])
+                .invalid_input,
+            Some(InvalidInput::UnknownCapability(name)) if name == "soju.im/bouncer-networks"
         ));
     }
 
@@ -710,10 +712,33 @@ mod tests {
         }
     }
 
-    #[test]
-    #[should_panic(expected = "event capacity must be positive")]
-    fn rejects_an_empty_event_queue() {
-        _ = Builder::new("irc.example.net").event_capacity(0);
+    #[tokio::test(flavor = "current_thread")]
+    async fn defers_invalid_setters_and_typed_ports_until_build() {
+        let cases = [
+            (
+                Builder::new("irc.example.net").event_capacity(0),
+                InvalidInput::EventCapacity(0),
+            ),
+            (
+                Builder::new("irc.example.net").without_caps(["soju.im/bouncer-networks"]),
+                InvalidInput::UnknownCapability("soju.im/bouncer-networks".into()),
+            ),
+            (
+                crate::Client::builder(crate::Endpoint::tls("irc.example.net", 0)),
+                InvalidInput::InvalidPort("0".into()),
+            ),
+            (
+                crate::Client::builder(crate::Endpoint::plaintext("irc.example.net", 0)),
+                InvalidInput::InvalidPort("0".into()),
+            ),
+        ];
+        for (builder, expected) in cases {
+            let (_client, _events, driver) = builder.build();
+            assert!(matches!(
+                within(driver).await,
+                Err(Error::InvalidInput(actual)) if actual == expected
+            ));
+        }
     }
 
     #[test]
@@ -808,6 +833,14 @@ mod tests {
             .err()
             .unwrap();
         assert!(matches!(error, Error::InvalidInput(_)));
+        let error = within(Builder::new("irc.example.net").event_capacity(0).connect())
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(
+            error.to_string(),
+            "invalid server address: event queue capacity 0 must be positive"
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]
