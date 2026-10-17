@@ -1846,12 +1846,12 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
 
     let request = tokio::spawn({
         let client = client.clone();
-        async move { client.whois("missing-nick").await }
+        async move { client.whois("ghost").await }
     });
-    client_line(&mut server, b"@label=7 WHOIS missing-nick\r\n").await;
+    client_line(&mut server, b"@label=7 WHOIS ghost\r\n").await;
     server_line(
         &mut server,
-        b"@label=7 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
+        b"@label=7 :ergo.test 401 papo-driver ghost :No such nick\r\n",
     )
     .await;
     assert!(matches!(

@@ -612,14 +612,20 @@ impl Client {
     /// [`crate::Refusal::NoSuchServer`], [`crate::Refusal::TryAgain`], or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub async fn whois(&self, nick: &str) -> Result<crate::Whois, Error> {
-        let response = self
-            .correlated(
-                Message::new("WHOIS", [nick]),
-                Some(ResponseMatcher::Whois(nick.to_owned())),
-            )
-            .await?;
-        crate::requests::whois(response, nick, self.state().isupport())
+    pub fn whois(&self, nick: impl Into<crate::Nick>) -> crate::RequestFuture<crate::Whois> {
+        let client = self.clone();
+        let nick = nick.into();
+        crate::RequestFuture::new(async move {
+            nick.check(client.state().isupport())
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let response = client
+                .correlated(
+                    Message::new("WHOIS", [nick.to_string()]),
+                    Some(ResponseMatcher::Whois(nick.to_string())),
+                )
+                .await?;
+            crate::requests::whois(response, &nick, client.state().isupport())
+        })
     }
 
     /// Requests the users matching a channel or mask.
@@ -629,18 +635,24 @@ impl Client {
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub async fn who(&self, mask: &str) -> Result<Vec<crate::WhoEntry>, Error> {
-        let state = self.state();
-        let extended = state.isupport().whox();
-        let message = if extended {
-            Message::new("WHO", [mask, "%tcuhnfar"])
-        } else {
-            Message::new("WHO", [mask])
-        };
-        let response = self
-            .correlated(message, Some(ResponseMatcher::Who(mask.to_owned())))
-            .await?;
-        crate::requests::who(response, state.isupport(), extended)
+    pub fn who(&self, mask: impl Into<crate::Mask>) -> crate::RequestFuture<Vec<crate::WhoEntry>> {
+        let client = self.clone();
+        let mask = mask.into();
+        crate::RequestFuture::new(async move {
+            mask.check()
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let state = client.state();
+            let extended = state.isupport().whox();
+            let message = if extended {
+                Message::new("WHO", [mask.to_string(), "%tcuhnfar".into()])
+            } else {
+                Message::new("WHO", [mask.to_string()])
+            };
+            let response = client
+                .correlated(message, Some(ResponseMatcher::Who(mask.to_string())))
+                .await?;
+            crate::requests::who(response, state.isupport(), extended)
+        })
     }
 
     /// Joins a channel and waits for its topic and member list to synchronize.
@@ -985,15 +997,18 @@ impl Client {
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub async fn list(&self, filter: crate::ListFilter) -> Result<Vec<crate::ListEntry>, Error> {
-        let message = match filter.parameter() {
-            Some(parameter) => Message::new("LIST", [parameter]),
-            None => Message::new("LIST", Vec::<String>::new()),
-        };
-        let response = self
-            .correlated(message, Some(ResponseMatcher::List))
-            .await?;
-        crate::requests::list(response)
+    pub fn list(&self, filter: crate::ListFilter) -> crate::RequestFuture<Vec<crate::ListEntry>> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            let message = match filter.parameter() {
+                Some(parameter) => Message::new("LIST", [parameter]),
+                None => Message::new("LIST", Vec::<String>::new()),
+            };
+            let response = client
+                .correlated(message, Some(ResponseMatcher::List))
+                .await?;
+            crate::requests::list(response)
+        })
     }
 
     /// Requests a clean disconnect and waits for the peer to close.

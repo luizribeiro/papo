@@ -574,7 +574,7 @@ pub fn papo::Client::clear_topic(&self, impl core::convert::Into<papo_proto::id:
 pub fn papo::Client::invite(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::Nick>) -> papo::RequestFuture<()>
 pub fn papo::Client::join(&self, impl core::convert::Into<papo_proto::id::ChannelName>) -> papo::JoinChannel
 pub fn papo::Client::kick(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::Nick>, &str) -> papo::RequestFuture<()>
-pub async fn papo::Client::list(&self, papo::ListFilter) -> core::result::Result<alloc::vec::Vec<papo::ListEntry>, papo::Error>
+pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc::vec::Vec<papo::ListEntry>>
 pub fn papo::Client::nick(&self) -> papo_proto::id::Nick
 pub fn papo::Client::notice(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::secret::Secret>) -> papo::RequestFuture<()>
@@ -596,8 +596,8 @@ pub fn papo::Client::set_topic(&self, impl core::convert::Into<papo_proto::id::C
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl core::convert::Into<papo_proto::id::Target>, papo_proto::client_tags::Typing) -> papo::RequestFuture<()>
 pub fn papo::Client::unreact(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub async fn papo::Client::who(&self, &str) -> core::result::Result<alloc::vec::Vec<papo::WhoEntry>, papo::Error>
-pub async fn papo::Client::whois(&self, &str) -> core::result::Result<papo::Whois, papo::Error>
+pub fn papo::Client::who(&self, impl core::convert::Into<papo_proto::id::Mask>) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
+pub fn papo::Client::whois(&self, impl core::convert::Into<papo_proto::id::Nick>) -> papo::RequestFuture<papo::Whois>
 impl papo::Client
 pub fn papo::Client::history(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::History
 pub async fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> core::result::Result<alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>, papo::Error>

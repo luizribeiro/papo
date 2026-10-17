@@ -59,8 +59,8 @@ fn request_futures_are_send() {
         MessageId::from("RfcBTzyxY120004"),
         "",
     ));
-    assert_send(client.whois("emily"));
-    assert_send(client.who("#papo"));
+    assert_send_static(client.whois("emily"));
+    assert_send_static(client.who("#papo"));
     assert_send_static(client.join("#papo").into_future());
     assert_send_static(client.part("#papo", "tests complete"));
     assert_send_static(client.kick("#papo", "spambot", "flooding"));
@@ -74,7 +74,7 @@ fn request_futures_are_send() {
     assert_send_static(client.mode("#papo").add('t').into_future());
     assert_send_static(client.set_topic("#papo", "Ergonomic IRC"));
     assert_send_static(client.clear_topic("#papo"));
-    assert_send(client.list(ListFilter::default()));
+    assert_send_static(client.list(ListFilter::default()));
     assert_send_static(client.quit("trait check complete"));
 
     assert_send_static(client.history("#papo").latest(10).into_future());
