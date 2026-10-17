@@ -18,6 +18,18 @@ pub mod keys {
     pub const PRONOUNS: &str = "pronouns";
     /// Free-form status text.
     pub const STATUS: &str = "status";
+    /// Whether a target is pinned in a Soju-compatible client.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub const PINNED: &str = "soju.im/pinned";
+    /// Whether a target is muted in a Soju-compatible client.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub const MUTED: &str = "soju.im/muted";
+    /// Whether a target is blocked in a Soju-compatible client.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub const BLOCKED: &str = "soju.im/blocked";
 }
 
 #[cfg(test)]
@@ -31,5 +43,13 @@ mod tests {
         assert_eq!(super::keys::HOMEPAGE, "homepage");
         assert_eq!(super::keys::PRONOUNS, "pronouns");
         assert_eq!(super::keys::STATUS, "status");
+    }
+
+    #[cfg(feature = "unstable")]
+    #[test]
+    fn vendor_keys_match_soju() {
+        assert_eq!(super::keys::PINNED, "soju.im/pinned");
+        assert_eq!(super::keys::MUTED, "soju.im/muted");
+        assert_eq!(super::keys::BLOCKED, "soju.im/blocked");
     }
 }

@@ -271,10 +271,13 @@ pub papo::event::TypingChanged::target: papo_proto::id::Target
 pub mod papo::metadata
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
+pub const papo::metadata::keys::BLOCKED: &str
 pub const papo::metadata::keys::BOT: &str
 pub const papo::metadata::keys::COLOR: &str
 pub const papo::metadata::keys::DISPLAY_NAME: &str
 pub const papo::metadata::keys::HOMEPAGE: &str
+pub const papo::metadata::keys::MUTED: &str
+pub const papo::metadata::keys::PINNED: &str
 pub const papo::metadata::keys::PRONOUNS: &str
 pub const papo::metadata::keys::STATUS: &str
 pub struct papo::metadata::Metadata<'a>
