@@ -897,10 +897,7 @@ mod tests {
         assert!(within(quitting).await.unwrap().is_ok());
         assert!(matches!(
             events.next().await,
-            Some(crate::Event::Disconnected(crate::event::Disconnected {
-                will_retry: false,
-                ..
-            }))
+            Some(crate::Event::Disconnected(disconnected)) if !disconnected.is_retrying()
         ));
         assert!(!client.state().is_connected());
         assert_eq!(lifecycle.load(Ordering::Relaxed), 2);

@@ -135,18 +135,12 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: true,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
     ));
     tokio::time::advance(Duration::from_secs(2)).await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: false,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -187,10 +181,7 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
     ));
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: false,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
     ));
     assert!(within(driver).await.unwrap().is_ok());
     assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -233,10 +224,7 @@ async fn registration_disconnect_does_not_enter_reconnect_backoff() {
     ));
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: false,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
     ));
     assert!(within(driver).await.unwrap().is_err());
     assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -287,10 +275,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: true,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
     ));
     assert!(!client.state().is_connected());
 
@@ -422,10 +407,7 @@ async fn explicit_reconnect_redials_without_backoff() {
     within(client.reconnect()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: true,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
     ));
     registration_burst(&mut second_server).await;
     {
@@ -622,10 +604,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: true,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
     ));
 
     assert!(matches!(
@@ -684,18 +663,12 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: true,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
     ));
     within(client.reconnect()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: true,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 2);
     within(client.quit(Some("cancel reconnect"))).await.unwrap();
@@ -841,7 +814,7 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
     for expected in [true, true, false] {
         assert!(matches!(
             events.next().await,
-            Some(Event::Disconnected(crate::event::Disconnected { will_retry, .. })) if will_retry == expected
+            Some(Event::Disconnected(disconnected)) if disconnected.is_retrying() == expected
         ));
     }
     assert!(matches!(
@@ -1001,10 +974,7 @@ async fn connector_failure_under_stored_sts_is_terminal() {
     assert!(matches!(within(driver).await, Err(Error::Connect(_))));
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: false,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
@@ -1188,10 +1158,7 @@ async fn required_sasl_failure_does_not_reconnect() {
 
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: false,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1471,10 +1438,7 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
     server_line(&mut first_server, b":ergo.test CAP * LS :sts=port=6699\r\n").await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: true,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
     ));
     registration_burst(&mut second_server).await;
     assert_eq!(&*requested.lock().unwrap(), &[(false, 6667), (true, 6699)]);
@@ -1524,10 +1488,7 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected {
-            will_retry: false,
-            ..
-        }))
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
