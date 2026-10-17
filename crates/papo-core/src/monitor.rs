@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
-use papo_proto::{Folded, Isupport, LimitValue, MAX_MESSAGE_LEN, MessageRef};
+use papo_proto::{Folded, Isupport, LimitValue, MAX_MESSAGE_LEN, MessageRef, Nick};
 
 use crate::{Event, Handled, Outbox};
 
 const MAX_DESIRED: usize = 10_000;
 const MONITOR_PAYLOAD_LEN: usize = MAX_MESSAGE_LEN - "MONITOR + \r\n".len();
-type CaseKey = Folded<String>;
+type NickKey = Folded<Nick>;
 
 #[derive(Debug, Default)]
 pub(super) struct Monitor {
@@ -83,10 +83,10 @@ impl Monitor {
         let mut known: HashSet<_> = self
             .desired
             .iter()
-            .map(|nick| CaseKey::new(nick, mapping))
+            .map(|nick| NickKey::new(nick, mapping))
             .collect();
         for nick in nicks.into_iter().map(Into::into) {
-            if !known.insert(CaseKey::new(&nick, mapping)) {
+            if !known.insert(NickKey::new(nick.as_str(), mapping)) {
                 continue;
             }
             if self.desired.len() == MAX_DESIRED {
