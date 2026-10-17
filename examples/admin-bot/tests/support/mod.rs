@@ -86,7 +86,7 @@ pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
                     pending.swap_remove(index);
                 }
             }
-            Some(Event::Disconnected { reason, .. }) => panic!("join failed: {reason}"),
+            Some(papo::__papo_disconnected!(reason, _)) => panic!("join failed: {reason}"),
             Some(_) => {}
             None => panic!("driver stopped while joining"),
         }
@@ -97,7 +97,7 @@ pub(super) async fn wait_message(events: &mut Events, text: &str) -> MessageEven
     loop {
         match events.next().await {
             Some(Event::Message(message)) if message.text() == text => return message,
-            Some(Event::Disconnected { reason, .. }) => panic!("message failed: {reason}"),
+            Some(papo::__papo_disconnected!(reason, _)) => panic!("message failed: {reason}"),
             Some(_) => {}
             None => panic!("driver stopped while waiting for {text}"),
         }
@@ -116,7 +116,7 @@ pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
             {
                 return;
             }
-            Some(Event::Disconnected { reason, .. }) => panic!("mode failed: {reason}"),
+            Some(papo::__papo_disconnected!(reason, _)) => panic!("mode failed: {reason}"),
             Some(_) => {}
             None => panic!("driver stopped while waiting for +o {nick}"),
         }

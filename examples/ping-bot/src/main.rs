@@ -75,7 +75,7 @@ async fn handle(event: Event) -> Result<(), papo::Error> {
             eprintln!("reconnected as {}", registered.nick);
         }
         Event::Registered(registered) => eprintln!("connected as {}", registered.nick),
-        Event::Disconnected { reason, will_retry } => {
+        papo::__papo_disconnected!(reason, will_retry) => {
             eprintln!("disconnected: {reason}; reconnecting: {will_retry}");
         }
         Event::Message(message) if message.is_live() && message.text() == "!ping" => {

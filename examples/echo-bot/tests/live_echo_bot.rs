@@ -98,7 +98,7 @@ async fn wait_synced(events: &mut papo::Events, channel: &str) {
     loop {
         match events.next().await {
             Some(Event::ChannelSynced { channel: joined }) if joined == channel => return,
-            Some(Event::Disconnected { reason, .. }) => panic!("join failed: {reason}"),
+            Some(papo::__papo_disconnected!(reason, _)) => panic!("join failed: {reason}"),
             Some(_) => {}
             None => panic!("driver stopped while joining"),
         }
@@ -109,7 +109,7 @@ async fn wait_message(events: &mut papo::Events, text: &str) -> MessageEvent {
     loop {
         match events.next().await {
             Some(Event::Message(message)) if message.text() == text => return message,
-            Some(Event::Disconnected { reason, .. }) => panic!("message failed: {reason}"),
+            Some(papo::__papo_disconnected!(reason, _)) => panic!("message failed: {reason}"),
             Some(_) => {}
             None => panic!("driver stopped while waiting for {text}"),
         }
@@ -122,7 +122,7 @@ async fn wait_typing(events: &mut papo::Events, target: &str, state: Typing) {
             Some(Event::Typing(tag)) if tag.target() == target && tag.typing() == Some(state) => {
                 return;
             }
-            Some(Event::Disconnected { reason, .. }) => panic!("typing failed: {reason}"),
+            Some(papo::__papo_disconnected!(reason, _)) => panic!("typing failed: {reason}"),
             Some(_) => {}
             None => panic!("driver stopped while waiting for typing state"),
         }
@@ -136,7 +136,7 @@ async fn wait_reaction(events: &mut papo::Events) -> (Option<String>, String) {
                 let reaction = tag.reaction().expect("complete reaction tags");
                 return (reaction.react, reaction.reply_to);
             }
-            Some(Event::Disconnected { reason, .. }) => panic!("reaction failed: {reason}"),
+            Some(papo::__papo_disconnected!(reason, _)) => panic!("reaction failed: {reason}"),
             Some(_) => {}
             None => panic!("driver stopped while waiting for a reaction"),
         }

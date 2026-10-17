@@ -52,7 +52,7 @@ async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
                 channel: joined,
                 nick: joined_nick,
             }) if joined == channel && joined_nick == nick => return,
-            Some(Event::Disconnected { reason, .. }) => {
+            Some(papo::__papo_disconnected!(reason, _)) => {
                 panic!("disconnected while waiting for JOIN: {reason}")
             }
             Some(_) => {}
@@ -88,7 +88,7 @@ async fn wait_registered(events: &mut papo::Events, nick: &str) {
                 assert_eq!(welcome.nick, nick);
                 return;
             }
-            Some(Event::Disconnected { reason, .. }) => {
+            Some(papo::__papo_disconnected!(reason, _)) => {
                 panic!("disconnected while waiting for registration: {reason}")
             }
             Some(_) => {}
@@ -105,7 +105,7 @@ async fn wait_for(
         match events.next().await {
             Some(Event::Message(message)) if accepted(&message.as_ref()) => return,
             Some(Event::Raw(message)) if accepted(&message.as_ref()) => return,
-            Some(Event::Disconnected { reason, .. }) => {
+            Some(papo::__papo_disconnected!(reason, _)) => {
                 panic!("disconnected while waiting: {reason}")
             }
             Some(_) => {}

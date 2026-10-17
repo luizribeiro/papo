@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 logged_in: true,
             } => logged_in = Some(account),
             Event::Registered(_) => registered = true,
-            Event::Disconnected { reason, .. } => return Err(reason.into()),
+            papo::__papo_disconnected!(reason, _) => return Err(reason.into()),
             _ => {}
         }
         if registered && let Some(account) = &logged_in {
