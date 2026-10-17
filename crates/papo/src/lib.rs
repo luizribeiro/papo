@@ -22,7 +22,7 @@ mod transport;
 pub mod bot;
 pub mod cap;
 
-pub use address::{Endpoint, IntoEndpoint, InvalidInput};
+pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
 pub use client::{Client, Sent};
 pub use driver::{Driver, Events};

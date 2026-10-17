@@ -306,6 +306,11 @@ pub papo::DisconnectCause::Server::message: alloc::string::String
 pub papo::DisconnectCause::SlowConsumer
 impl core::fmt::Display for papo::DisconnectCause
 pub fn papo::DisconnectCause::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum papo::EndpointKind
+pub papo::EndpointKind::Plaintext
+pub papo::EndpointKind::SecureWebSocket
+pub papo::EndpointKind::Tls
+pub papo::EndpointKind::WebSocket
 #[non_exhaustive] pub enum papo::Error
 pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected(papo::Disconnected)
@@ -629,9 +634,14 @@ pub type papo::Driver::Output = core::result::Result<(), papo::Error>
 pub fn papo::Driver::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
 pub struct papo::Endpoint(_)
 impl papo::Endpoint
+pub fn papo::Endpoint::host(&self) -> core::option::Option<&str>
+pub fn papo::Endpoint::kind(&self) -> core::option::Option<papo::EndpointKind>
 pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>, u16) -> Self
+pub fn papo::Endpoint::port(&self) -> core::option::Option<u16>
 pub fn papo::Endpoint::tls(impl core::convert::Into<alloc::string::String>, u16) -> Self
 pub fn papo::Endpoint::websocket(impl core::convert::AsRef<str>) -> Self
+impl core::fmt::Display for papo::Endpoint
+pub fn papo::Endpoint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl papo::IntoEndpoint for papo::Endpoint
 pub struct papo::Events
 impl papo::Events

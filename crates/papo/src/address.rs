@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 use thiserror::Error;
 
@@ -78,6 +78,20 @@ pub enum InvalidInput {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Endpoint(Result<ServerAddress, InvalidInput>);
 
+/// The transport and security used by an [`Endpoint`].
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum EndpointKind {
+    /// Unencrypted IRC over TCP.
+    Plaintext,
+    /// IRC over TLS.
+    Tls,
+    /// An unencrypted WebSocket.
+    WebSocket,
+    /// A WebSocket protected by TLS.
+    SecureWebSocket,
+}
+
 impl Endpoint {
     /// Creates a TLS-protected TCP endpoint.
     ///
@@ -127,6 +141,29 @@ impl Endpoint {
         Self(url.parse())
     }
 
+    /// Returns the endpoint's hostname, or `None` when construction recorded invalid input.
+    #[must_use]
+    pub fn host(&self) -> Option<&str> {
+        self.0.as_ref().ok().map(|address| address.host.as_str())
+    }
+
+    /// Returns the endpoint's service port, or `None` when construction recorded invalid input.
+    #[must_use]
+    pub fn port(&self) -> Option<u16> {
+        self.0.as_ref().ok().map(|address| address.port)
+    }
+
+    /// Returns the endpoint's transport kind, or `None` when construction recorded invalid input.
+    #[must_use]
+    pub fn kind(&self) -> Option<EndpointKind> {
+        self.0.as_ref().ok().map(|address| match address.protocol {
+            Protocol::Irc => EndpointKind::Plaintext,
+            Protocol::Ircs => EndpointKind::Tls,
+            Protocol::Ws => EndpointKind::WebSocket,
+            Protocol::Wss => EndpointKind::SecureWebSocket,
+        })
+    }
+
     #[cfg(any(
         not(target_family = "wasm"),
         all(target_os = "wasi", not(target_env = "p1"))
@@ -148,6 +185,15 @@ impl Endpoint {
 
     pub(crate) fn into_address(self) -> Result<ServerAddress, InvalidInput> {
         self.0
+    }
+}
+
+impl fmt::Display for Endpoint {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            Ok(address) => address.fmt(formatter),
+            Err(error) => error.fmt(formatter),
+        }
     }
 }
 
@@ -306,6 +352,30 @@ impl ServerAddress {
     }
 }
 
+impl fmt::Display for ServerAddress {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let scheme = match self.protocol {
+            Protocol::Irc => "irc",
+            Protocol::Ircs => "ircs",
+            Protocol::Ws => "ws",
+            Protocol::Wss => "wss",
+        };
+        let (open, close) = if self.host.contains(':') {
+            ("[", "]")
+        } else {
+            ("", "")
+        };
+        write!(formatter, "{scheme}://{open}{}{close}", self.host)?;
+        if self.explicit_port {
+            write!(formatter, ":{}", self.port)?;
+        }
+        if let Some(path) = &self.websocket_path {
+            formatter.write_str(path)?;
+        }
+        Ok(())
+    }
+}
+
 const fn default_port(protocol: Protocol) -> u16 {
     match protocol {
         Protocol::Irc => 6667,
@@ -347,7 +417,7 @@ fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), 
 
 #[cfg(test)]
 mod tests {
-    use super::{Endpoint, InvalidInput, Protocol, ServerAddress};
+    use super::{Endpoint, EndpointKind, InvalidInput, Protocol, ServerAddress};
 
     #[test]
     fn typed_constructors_preserve_transport_details() {
@@ -371,6 +441,27 @@ mod tests {
             (Protocol::Wss, "irc.example.net", 8443)
         );
         assert_eq!(websocket.websocket_path.as_deref(), Some("/webirc"));
+    }
+
+    #[test]
+    fn endpoint_accessors_and_display_preserve_configuration() {
+        let tls = Endpoint::tls("2001:db8::7", 6697);
+        assert_eq!(tls.host(), Some("2001:db8::7"));
+        assert_eq!(tls.port(), Some(6697));
+        assert_eq!(tls.kind(), Some(EndpointKind::Tls));
+        assert_eq!(tls.to_string(), "ircs://[2001:db8::7]:6697");
+
+        let socket = Endpoint::websocket("ws://irc.example.net/webirc");
+        assert_eq!(socket.host(), Some("irc.example.net"));
+        assert_eq!(socket.port(), Some(80));
+        assert_eq!(socket.kind(), Some(EndpointKind::WebSocket));
+        assert_eq!(socket.to_string(), "ws://irc.example.net/webirc");
+
+        let invalid = Endpoint::websocket("https://irc.example.net");
+        assert_eq!(invalid.host(), None);
+        assert_eq!(invalid.port(), None);
+        assert_eq!(invalid.kind(), None);
+        assert_eq!(invalid.to_string(), "unsupported scheme \"https\"");
     }
 
     #[test]
