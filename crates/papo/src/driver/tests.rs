@@ -1811,6 +1811,44 @@ async fn client_send_raw_parses_and_obeys_the_rate_limit() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn command_builder_quotes_real_commands_and_obeys_the_rate_limit() {
+    let (mut server, client, _events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500))));
+    let task = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+
+    client
+        .send_command("KILL", ["alice", "policy violation"])
+        .await
+        .unwrap();
+    client
+        .send_command("WALLOPS", ["maintenance now"])
+        .await
+        .unwrap();
+    client_line(&mut server, b"KILL alice :policy violation\r\n").await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+            .await
+            .is_err()
+    );
+    tokio::time::advance(Duration::from_millis(500)).await;
+    client_line(&mut server, b"WALLOPS :maintenance now\r\n").await;
+
+    client.send_command("WHOWAS", ["emily", "2"]).await.unwrap();
+    tokio::time::advance(Duration::from_millis(500)).await;
+    client_line(&mut server, b"WHOWAS emily 2\r\n").await;
+    client
+        .send_command("MOTD", std::iter::empty::<&str>())
+        .await
+        .unwrap();
+    tokio::time::advance(Duration::from_millis(500)).await;
+    client_line(&mut server, b"MOTD\r\n").await;
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn raw_requests_resolve_fail_time_out_and_abort() {
     let (mut server, client, mut events, driver) = scripted(
         config()

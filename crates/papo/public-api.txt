@@ -652,7 +652,9 @@ pub fn papo::Client::react_to(&self, &papo::Message, impl core::convert::Into<al
 pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::redact(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MessageId>, &str) -> papo::RequestFuture<()>
 pub fn papo::Client::reply(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
+pub fn papo::Client::request_command<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<alloc::vec::Vec<papo::RawLine>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Client::request_raw(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<alloc::vec::Vec<papo::RawLine>>
+pub fn papo::Client::send_command<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Client::send_raw(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_nick(&self, impl core::convert::Into<papo::Nick>) -> papo::RequestFuture<()>
