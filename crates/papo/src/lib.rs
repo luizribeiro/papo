@@ -50,33 +50,6 @@ pub use reconnect::Reconnect;
 pub use requests::{ChannelInfo, ListEntry, ListFilter, WhoEntry, Whois};
 pub use state::State;
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __papo_disconnected {
-    (_, _) => {
-        $crate::Event::Disconnected($crate::event::Disconnected { .. })
-    };
-    ($reason:pat, _) => {
-        $crate::Event::Disconnected($crate::event::Disconnected {
-            reason: $reason,
-            ..
-        })
-    };
-    (_, $will_retry:pat) => {
-        $crate::Event::Disconnected($crate::event::Disconnected {
-            will_retry: $will_retry,
-            ..
-        })
-    };
-    ($reason:pat, $will_retry:pat) => {
-        $crate::Event::Disconnected($crate::event::Disconnected {
-            reason: $reason,
-            will_retry: $will_retry,
-            ..
-        })
-    };
-}
-
 /// Payloads carried by [`Event`].
 pub mod event {
     pub use crate::event_impl::{CapsChanged, Disconnected, Registered, Source, TagMsg};
