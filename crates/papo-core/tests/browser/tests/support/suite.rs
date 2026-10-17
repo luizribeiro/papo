@@ -3,7 +3,7 @@ use papo_proto::MessageRef;
 use wasm_bindgen_test::wasm_bindgen_test;
 use web_time::Instant;
 #[path = "../../../../../papo/src/rt.rs"]
-mod papo_rt;
+mod rt;
 #[path = "../../../../../papo/src/transport/websocket_browser.rs"]
 mod websocket_browser;
 
@@ -41,7 +41,7 @@ fn reads_a_monotonic_instant() {
 
 #[wasm_bindgen_test]
 fn receives_the_local_ergo_websocket_url() {
-    _ = papo_rt::now_wall();
+    _ = rt::now_wall();
     let url = env!("PAPO_BROWSER_WS");
     assert!(url.starts_with("ws://127.0.0.1:"));
     assert!(url.ends_with('/'));
