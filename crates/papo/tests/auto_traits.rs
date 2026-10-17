@@ -128,6 +128,7 @@ fn request_futures_are_send() {
     assert_send_static(client.monitor().remove(["bob"]));
     assert_send_static(client.monitor().clear());
     assert_send_static(client.rename_channel("#rust", "#rust-lang", "Project renamed"));
+    #[cfg(feature = "unstable")]
     assert_send_static(client.relay("#bridged", "matrix|alice", "Hello from Matrix"));
 
     _ = assert_message_request_futures;

@@ -19,6 +19,7 @@ mod outgoing;
 mod persistence;
 mod ratelimit;
 mod registration;
+#[cfg(feature = "unstable")]
 mod relaymsg;
 mod sasl;
 mod secret;
@@ -59,6 +60,8 @@ pub use outgoing::TextKind;
 pub use ratelimit::RateLimit;
 use ratelimit::RateLimiter;
 use registration::Registration;
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use relaymsg::RelayError;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
@@ -109,6 +112,7 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     #[cfg(feature = "unstable")]
     "draft/persistence",
     "draft/channel-rename",
+    #[cfg(feature = "unstable")]
     "draft/relaymsg",
     "draft/message-redaction",
     #[cfg(feature = "unstable")]
@@ -930,6 +934,8 @@ impl Response {
     }
 
     /// Returns a typed relay-message failure from this response.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[must_use]
     pub fn relay_error(&self) -> Option<RelayError> {
         self.error()?.relay_error()
@@ -1134,6 +1140,8 @@ impl ServerError {
     }
 
     /// Returns the typed relay-message code when this is a matching standard failure.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[must_use]
     pub fn relay_error(&self) -> Option<RelayError> {
         match self {
@@ -1242,6 +1250,8 @@ impl StandardReply {
     }
 
     /// Returns the typed relay-message code when this is a matching failure.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[must_use]
     pub fn relay_error(&self) -> Option<RelayError> {
         (self.kind == StandardReplyKind::Fail)
@@ -1437,6 +1447,7 @@ pub enum RequestError {
         actual: usize,
     },
     /// A relayed nickname contains none of the server-advertised separator characters.
+    #[cfg(feature = "unstable")]
     InvalidRelayNickname,
     /// A web push endpoint is not a nonempty HTTPS URL.
     #[cfg(feature = "unstable")]
@@ -1487,6 +1498,7 @@ impl std::fmt::Display for RequestError {
             Self::TooManyMetadataSubscriptions { .. } => {
                 formatter.write_str("too many metadata subscriptions")
             }
+            #[cfg(feature = "unstable")]
             Self::InvalidRelayNickname => {
                 formatter.write_str("relayed nickname does not contain an allowed separator")
             }
@@ -1510,8 +1522,9 @@ impl std::error::Error for RequestError {
             | Self::CustomAccountNameUnsupported
             | Self::InvalidMetadataKey
             | Self::MetadataValueTooLong { .. }
-            | Self::TooManyMetadataSubscriptions { .. }
-            | Self::InvalidRelayNickname => None,
+            | Self::TooManyMetadataSubscriptions { .. } => None,
+            #[cfg(feature = "unstable")]
+            Self::InvalidRelayNickname => None,
             #[cfg(feature = "unstable")]
             Self::InvalidWebPushEndpoint | Self::InvalidWebPushKey => None,
         }

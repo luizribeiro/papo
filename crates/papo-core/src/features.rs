@@ -47,6 +47,8 @@ pub enum Feature {
     /// `IRCv3` draft channel renaming, requiring `draft/channel-rename`.
     ChannelRename,
     /// `IRCv3` draft relay messages, requiring `draft/relaymsg`.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     Relay,
     /// Ratified `IRCv3` labelled responses, requiring `labeled-response`.
     LabeledResponse,
@@ -78,6 +80,7 @@ impl Feature {
         #[cfg(feature = "unstable")]
         Self::WebPush,
         Self::ChannelRename,
+        #[cfg(feature = "unstable")]
         Self::Relay,
         Self::LabeledResponse,
         Self::AwayTracking,
@@ -106,6 +109,7 @@ impl Feature {
             #[cfg(feature = "unstable")]
             Self::WebPush => "webpush",
             Self::ChannelRename => "channel rename",
+            #[cfg(feature = "unstable")]
             Self::Relay => "relaymsg",
             Self::LabeledResponse => "labeled-response",
             Self::AwayTracking => "away tracking",
@@ -129,6 +133,7 @@ impl Feature {
             #[cfg(feature = "unstable")]
             Self::WebPush => &["draft/webpush", "soju.im/webpush"],
             Self::ChannelRename => &["draft/channel-rename"],
+            #[cfg(feature = "unstable")]
             Self::Relay => &["draft/relaymsg"],
             Self::LabeledResponse => &["labeled-response"],
             Self::AwayTracking => &["away-notify"],

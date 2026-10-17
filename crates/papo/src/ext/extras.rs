@@ -45,8 +45,10 @@ impl Client {
     /// [`crate::UnsupportedReason::DisabledByClient`]. An invalid relayed nickname returns
     /// [`crate::Error::InvalidInput`]; a refusal returns [`crate::Error::Server`] with
     /// [`crate::Refusal::CannotSendToChannel`], [`crate::Refusal::BannedFromChannel`], or
-    /// [`crate::Refusal::Other`]. It can also return [`crate::Error::RequestLimit`], [`crate::Error::Timeout`],
-    /// or [`crate::Error::Disconnected`].
+    /// [`crate::Refusal::Other`]. It can also return [`crate::Error::RequestLimit`],
+    /// [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn relay(
         &self,
         channel: impl Into<crate::ChannelName>,
@@ -75,7 +77,7 @@ impl Client {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "unstable"))]
 mod tests {
     use crate::Error;
     use crate::driver::test_support::*;

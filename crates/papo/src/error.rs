@@ -494,6 +494,7 @@ impl Error {
             Request::TooManyMetadataSubscriptions { maximum, actual } => {
                 Self::InvalidInput(InvalidInput::MetadataSubscriptions { maximum, actual })
             }
+            #[cfg(feature = "unstable")]
             Request::InvalidRelayNickname => Self::InvalidInput(InvalidInput::RelayNickname),
             #[cfg(feature = "unstable")]
             Request::InvalidWebPushEndpoint => Self::InvalidInput(InvalidInput::WebPushEndpoint),

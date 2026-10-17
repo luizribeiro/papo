@@ -105,6 +105,7 @@ fn defaults_cover_every_implemented_negotiable_capability() {
             "draft/read-marker",
             "draft/persistence",
             "draft/channel-rename",
+            #[cfg(feature = "unstable")]
             "draft/relaymsg",
             "draft/message-redaction",
             #[cfg(feature = "unstable")]

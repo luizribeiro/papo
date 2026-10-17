@@ -1,4 +1,5 @@
 //! Transcript tests for `draft/relaymsg`.
+#![cfg(feature = "unstable")]
 
 mod support;
 

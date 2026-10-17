@@ -200,6 +200,7 @@ const FEATURES: &[Feature] = &[
     #[cfg(feature = "unstable")]
     Feature::WebPush,
     Feature::ChannelRename,
+    #[cfg(feature = "unstable")]
     Feature::Relay,
     Feature::LabeledResponse,
     Feature::AwayTracking,

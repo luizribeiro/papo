@@ -59,6 +59,8 @@ pub const PERSISTENCE: &str = "draft/persistence";
 /// Channel renaming.
 pub const CHANNEL_RENAME: &str = "draft/channel-rename";
 /// Relayed messages.
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub const RELAYMSG: &str = "draft/relaymsg";
 /// Message redaction.
 pub const MESSAGE_REDACTION: &str = "draft/message-redaction";

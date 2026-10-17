@@ -64,6 +64,8 @@ pub enum InvalidInput {
         actual: usize,
     },
     /// A relayed nickname lacks an advertised separator.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[error("relayed nickname has no allowed separator")]
     RelayNickname,
     /// A Web Push endpoint is not a nonempty HTTPS URL.

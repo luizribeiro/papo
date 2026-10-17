@@ -88,6 +88,7 @@ pub(crate) enum CoreRequest {
         new: String,
         reason: String,
     },
+    #[cfg(feature = "unstable")]
     Relay {
         channel: String,
         nick: String,
@@ -121,6 +122,7 @@ impl CoreRequest {
             Self::PersistenceSet(setting) => session.persistence_set(now(), setting)?,
             Self::Metadata(command) => return session.metadata(now(), command),
             Self::Rename { old, new, reason } => return session.rename(now(), &old, &new, &reason),
+            #[cfg(feature = "unstable")]
             Self::Relay {
                 channel,
                 nick,

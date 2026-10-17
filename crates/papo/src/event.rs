@@ -1,8 +1,10 @@
 use papo_core::{Account, Capabilities, RequestId, Response, Welcome, sts::StsAction};
 use std::time::SystemTime;
 
+#[cfg(feature = "unstable")]
+use papo_proto::Nick;
 use papo_proto::{
-    AccountName, ChannelName, Ctcp, Isupport, Message as ProtoMessage, MessageId, MessageRef, Nick,
+    AccountName, ChannelName, Ctcp, Isupport, Message as ProtoMessage, MessageId, MessageRef,
     Target, strip_formatting, time,
 };
 
@@ -111,6 +113,7 @@ pub struct Message {
     /// Channel context attached to a private message.
     pub channel_context: Option<ChannelName>,
     /// Nickname of the client that submitted a relayed message.
+    #[cfg(feature = "unstable")]
     pub relayed_by: Option<Nick>,
     /// Whether the message carried the `bot` tag.
     pub is_bot: bool,
@@ -255,6 +258,7 @@ impl Message {
         let account = tag_owned(&message, &["account"]).map(AccountName::from);
         let is_bot = tags.contains("bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]).map(MessageId::from);
+        #[cfg(feature = "unstable")]
         let relayed_by = tag_owned(&message, &["draft/relaymsg"]).map(Nick::from);
         let oper = message
             .tags()
@@ -283,6 +287,7 @@ impl Message {
             account,
             reply_to,
             channel_context,
+            #[cfg(feature = "unstable")]
             relayed_by,
             is_bot,
             oper,
@@ -397,6 +402,8 @@ impl Message {
 
     /// Returns the nickname of the client that submitted a relayed message.
     #[must_use]
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn relayed_by(&self) -> Option<&str> {
         self.relayed_by.as_deref()
     }
@@ -1153,6 +1160,7 @@ mod tests {
         assert_eq!(tagged.account(), Some("emily"));
         assert!(tagged.is_bot());
         assert_eq!(tagged.reply_to(), Some("RfcBTzyxY120003"));
+        #[cfg(feature = "unstable")]
         assert_eq!(tagged.relayed_by(), Some("bridge-bot"));
         assert!(!chat("PRIVMSG", "human message").is_bot());
 
