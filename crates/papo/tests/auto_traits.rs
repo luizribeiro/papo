@@ -4,14 +4,12 @@
 use std::{future::IntoFuture, time::SystemTime};
 
 use futures_core::Stream;
-#[cfg(feature = "unstable")]
-use papo::PersistenceSetting;
-#[cfg(feature = "unstable")]
-use papo::PushKeys;
 use papo::{
     Client, Error, Event, Events, ListFilter, Message as ChatMessage, MessageId, NewAccount,
     RequestFuture, Target,
 };
+#[cfg(feature = "unstable")]
+use papo::{NetworkConfig, NetworkId, PersistenceSetting, PushKeys};
 use papo_proto::Typing;
 
 fn assert_send_sync<T: Send + Sync>() {}
@@ -96,6 +94,15 @@ fn request_futures_are_send() {
     {
         assert_send_static(client.persistence().get());
         assert_send_static(client.persistence().set(PersistenceSetting::On));
+        let network = NetworkId::new("42");
+        assert_send_static(client.bouncer().networks());
+        assert_send_static(client.bouncer().add(NetworkConfig::new("irc.libera.chat")));
+        assert_send_static(
+            client
+                .bouncer()
+                .change(&network, NetworkConfig::new("irc.libera.chat")),
+        );
+        assert_send_static(client.bouncer().remove(&network));
     }
     #[cfg(feature = "unstable")]
     {

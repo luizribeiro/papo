@@ -14,8 +14,6 @@ pub use papo::MessageId
 pub use papo::MetadataKey
 pub use papo::ModeKind
 pub use papo::Nick
-pub use papo::PersistenceSetting
-pub use papo::PersistenceStatus
 pub use papo::RateLimit
 pub use papo::Sasl
 pub use papo::Secret
@@ -75,7 +73,6 @@ pub const papo::cap::MULTILINE: &str
 pub const papo::cap::MULTI_PREFIX: &str
 pub const papo::cap::NO_IMPLICIT_NAMES: &str
 pub const papo::cap::OPER_TAG: &str
-pub const papo::cap::PERSISTENCE: &str
 pub const papo::cap::PRE_AWAY: &str
 pub const papo::cap::READ_MARKER: &str
 pub const papo::cap::SASL: &str
@@ -91,10 +88,6 @@ pub papo::event::BatchAbandonReason::ByteLimit
 pub papo::event::BatchAbandonReason::LineLimit
 pub papo::event::BatchAbandonReason::OpenBatchLimit
 pub papo::event::BatchAbandonReason::Timeout
-#[non_exhaustive] pub enum papo::event::PersistenceSetting
-pub papo::event::PersistenceSetting::Default
-pub papo::event::PersistenceSetting::Off
-pub papo::event::PersistenceSetting::On
 #[non_exhaustive] pub enum papo::event::Source
 #[non_exhaustive] pub papo::event::Source::Server
 pub papo::event::Source::Server::name: alloc::string::String
@@ -219,9 +212,6 @@ pub papo::event::Parted::channel: papo_proto::id::ChannelName
 pub papo::event::Parted::is_self: bool
 pub papo::event::Parted::nick: papo_proto::id::Nick
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
-#[non_exhaustive] pub struct papo::event::PersistenceChanged
-pub papo::event::PersistenceChanged::effective: bool
-pub papo::event::PersistenceChanged::setting: papo::event::PersistenceSetting
 #[non_exhaustive] pub struct papo::event::Quit
 pub papo::event::Quit::channels: alloc::vec::Vec<papo_proto::id::ChannelName>
 pub papo::event::Quit::nick: papo_proto::id::Nick
@@ -275,17 +265,19 @@ pub const papo::metadata::keys::DISPLAY_NAME: &str
 pub const papo::metadata::keys::HOMEPAGE: &str
 pub const papo::metadata::keys::PRONOUNS: &str
 pub const papo::metadata::keys::STATUS: &str
-pub struct papo::metadata::Metadata<'a>
-impl papo::Metadata<'_>
-pub async fn papo::Metadata<'_>::clear(&self) -> core::result::Result<(), papo::Error>
-pub async fn papo::Metadata<'_>::get<I, S>(&self, &str, I) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub async fn papo::Metadata<'_>::list(&self, &str) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error>
-pub async fn papo::Metadata<'_>::set(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
-pub async fn papo::Metadata<'_>::set_on(&self, &str, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
-pub async fn papo::Metadata<'_>::subscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub fn papo::Metadata<'_>::subscriptions(&self) -> alloc::vec::Vec<alloc::string::String>
-pub async fn papo::Metadata<'_>::sync(&self, &str) -> core::result::Result<(), papo::Error>
-pub async fn papo::Metadata<'_>::unsubscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub struct papo::metadata::Metadata
+impl papo::Metadata
+pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
+pub fn papo::Metadata::clear_on(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo_proto::id::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
+pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::remove_on(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set(&self, impl core::convert::Into<papo_proto::id::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set_on(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
+pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
 pub mod papo::sts
 pub use papo::sts::MemoryStsStore
 pub use papo::sts::StsPolicy
@@ -361,7 +353,6 @@ pub papo::Event::Netjoin(papo::event::Netjoin)
 pub papo::Event::Netsplit(papo::event::Netsplit)
 pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Parted(papo::event::Parted)
-pub papo::Event::PersistenceChanged(papo::event::PersistenceChanged)
 pub papo::Event::Quit(papo::event::Quit)
 pub papo::Event::Raw(papo::RawLine)
 pub papo::Event::Reacted(papo::event::Reacted)
@@ -418,8 +409,6 @@ impl papo::Event
 pub const fn papo::Event::as_nick_changed(&self) -> core::option::Option<&papo::event::NickChanged>
 impl papo::Event
 pub const fn papo::Event::as_parted(&self) -> core::option::Option<&papo::event::Parted>
-impl papo::Event
-pub const fn papo::Event::as_persistence_changed(&self) -> core::option::Option<&papo::event::PersistenceChanged>
 impl papo::Event
 pub const fn papo::Event::as_quit(&self) -> core::option::Option<&papo::event::Quit>
 impl papo::Event
@@ -860,7 +849,6 @@ pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::opt
 pub fn papo::State::metadata_subscriptions(&self) -> &[alloc::string::String]
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::User>
 pub fn papo::State::nick(&self) -> &papo_proto::id::Nick
-pub const fn papo::State::persistence(&self) -> core::option::Option<papo_core::PersistenceStatus>
 pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::time::SystemTime>
 pub fn papo::State::supports(&self, papo_core::features::Feature) -> bool
 pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::state::User>
