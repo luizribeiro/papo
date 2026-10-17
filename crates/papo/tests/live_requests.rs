@@ -37,9 +37,11 @@ async fn typed_requests_round_trip_against_ergo() {
         let whois = client.whois(&nick).await.unwrap();
         assert_eq!(whois.nick, nick.as_str());
 
-        let joined = client.join(&channel).await.unwrap();
-        assert_eq!(joined.name, channel.as_str());
-        assert_eq!(joined.members_count, 1);
+        client.join(&channel).await.unwrap();
+        assert_eq!(
+            client.state().channel(&channel).unwrap().members().count(),
+            1
+        );
         assert!(
             client
                 .who(&channel)

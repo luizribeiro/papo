@@ -1901,6 +1901,7 @@ async fn request_raw_returns_state_changing_lines_without_an_event() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+#[allow(clippy::too_many_lines)]
 async fn typed_requests_match_unlabelled_responses() {
     let (mut server, client, mut events, driver) =
         scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
@@ -1929,7 +1930,11 @@ async fn typed_requests_match_unlabelled_responses() {
     });
     client_line(&mut server, b"JOIN #papo\r\n").await;
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
-    assert_eq!(within(join).await.unwrap().unwrap().members_count, 2);
+    within(join).await.unwrap().unwrap();
+    assert_eq!(
+        client.state().channel("#papo").unwrap().members().count(),
+        2
+    );
     client_line(&mut server, b"MODE #papo\r\n").await;
     client_line(&mut server, b"WHO #papo\r\n").await;
 
@@ -2075,6 +2080,35 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
     );
     assert!(matches!(events.next().await, Some(Event::ModeChanged(_))));
 
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn keyed_join_redacts_the_key_and_waits_for_channel_sync() {
+    let (mut server, client, _events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    let join = client
+        .join("#ergo-ops")
+        .key("unique-dynamic-channel-key-4862");
+    let debug = format!("{join:?}");
+    assert!(debug.contains("[REDACTED]"));
+    assert!(!debug.contains("unique-dynamic-channel-key-4862"));
+
+    let join = tokio::spawn(async move { join.await });
+    client_line(
+        &mut server,
+        b"JOIN #ergo-ops unique-dynamic-channel-key-4862\r\n",
+    )
+    .await;
+    server_line(&mut server, b":papo-driver!papo@localhost JOIN #ergo-ops * :Papo Client\r\n:ergo.test 353 papo-driver = #ergo-ops :@papo-driver alice\r\n:ergo.test 366 papo-driver #ergo-ops :End of /NAMES list\r\n").await;
+    within(join).await.unwrap().unwrap();
+    client_line(&mut server, b"MODE #ergo-ops\r\n").await;
+    client_line(&mut server, b"WHO #ergo-ops\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),

@@ -566,14 +566,10 @@ pub fn papo::Builder::webirc(self, papo_core::WebIrc) -> Self
 pub fn papo::Builder::without_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub struct papo::ChannelInfo
-pub papo::ChannelInfo::members_count: usize
-pub papo::ChannelInfo::name: papo_proto::id::ChannelName
-pub papo::ChannelInfo::topic: core::option::Option<alloc::string::String>
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
-pub async fn papo::Client::join(&self, &str) -> core::result::Result<papo::ChannelInfo, papo::Error>
+pub fn papo::Client::join(&self, impl core::convert::Into<papo_proto::id::ChannelName>) -> papo::JoinChannel
 pub async fn papo::Client::list(&self, papo::ListFilter) -> core::result::Result<alloc::vec::Vec<papo::ListEntry>, papo::Error>
 pub async fn papo::Client::mode<I, S>(&self, &str, &str, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Client::nick(&self) -> papo_proto::id::Nick
@@ -680,6 +676,13 @@ impl core::future::into_future::IntoFuture for papo::HistoryRequest
 pub type papo::HistoryRequest::IntoFuture = papo::RequestFuture<papo::HistoryPage>
 pub type papo::HistoryRequest::Output = core::result::Result<papo::HistoryPage, papo::Error>
 pub fn papo::HistoryRequest::into_future(self) -> Self::IntoFuture
+pub struct papo::JoinChannel
+impl papo::JoinChannel
+pub fn papo::JoinChannel::key(self, impl core::convert::Into<papo_core::secret::Secret>) -> Self
+impl core::future::into_future::IntoFuture for papo::JoinChannel
+pub type papo::JoinChannel::IntoFuture = papo::RequestFuture<()>
+pub type papo::JoinChannel::Output = core::result::Result<(), papo::Error>
+pub fn papo::JoinChannel::into_future(self) -> Self::IntoFuture
 pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
 pub papo::ListEntry::name: papo_proto::id::ChannelName

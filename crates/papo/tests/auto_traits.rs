@@ -59,7 +59,7 @@ fn request_futures_are_send() {
     ));
     assert_send(client.whois("emily"));
     assert_send(client.who("#papo"));
-    assert_send(client.join("#papo"));
+    assert_send_static(client.join("#papo").into_future());
     assert_send(client.part("#papo", Some("tests complete")));
     assert_send(client.mode("#papo", "+t", [] as [&str; 0]));
     assert_send(client.topic("#papo", Some("Ergonomic IRC")));

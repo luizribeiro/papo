@@ -52,6 +52,34 @@ pub struct SendMessage {
     tags: Vec<(String, String)>,
 }
 
+/// Builds a channel join request.
+#[derive(Debug)]
+pub struct JoinChannel {
+    client: Client,
+    channel: crate::ChannelName,
+    key: Option<crate::Secret>,
+}
+
+impl JoinChannel {
+    /// Supplies the channel key without exposing it through `Debug` output.
+    #[must_use]
+    pub fn key(mut self, key: impl Into<crate::Secret>) -> Self {
+        self.key = Some(key.into());
+        self
+    }
+}
+
+impl IntoFuture for JoinChannel {
+    type Output = Result<(), Error>;
+    type IntoFuture = crate::RequestFuture<()>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        crate::RequestFuture::new(
+            async move { self.client.join_channel(self.channel, self.key).await },
+        )
+    }
+}
+
 impl SendMessage {
     /// Marks this message as a reply to `message` when replies are available.
     #[must_use]
@@ -556,41 +584,51 @@ impl Client {
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
     /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
     /// [`Error::Disconnected`].
-    pub async fn join(&self, channel: &str) -> Result<crate::ChannelInfo, Error> {
+    pub fn join(&self, channel: impl Into<crate::ChannelName>) -> JoinChannel {
+        JoinChannel {
+            client: self.clone(),
+            channel: channel.into(),
+            key: None,
+        }
+    }
+
+    async fn join_channel(
+        &self,
+        channel: crate::ChannelName,
+        key: Option<crate::Secret>,
+    ) -> Result<(), Error> {
+        let params = match &key {
+            Some(key) => vec![channel.to_string(), key.expose().to_owned()],
+            None => vec![channel.to_string()],
+        };
         let response = self
             .correlated(
-                Message::join(channel),
-                Some(ResponseMatcher::Join(channel.to_owned())),
+                Message::new("JOIN", params),
+                Some(ResponseMatcher::Join(channel.to_string())),
             )
             .await?;
         if let Some(error) = response.error() {
             return Err(Error::server(error));
         }
-        if self.state().channel(channel).is_none() {
+        if self.state().channel(&channel).is_none() {
             return Err(Error::disconnected());
         }
         if !self
             .state()
-            .channel(channel)
+            .channel(&channel)
             .is_some_and(papo_core::Channel::is_synced)
         {
             let (result, receiver) = oneshot::channel();
             self.commands
                 .send(Command::WaitChannelSync {
-                    channel: channel.to_owned(),
+                    channel: channel.to_string(),
                     result,
                 })
                 .await
                 .map_err(|_| Error::disconnected())?;
             receiver.await.map_err(|_| Error::disconnected())??;
         }
-        let state = self.state();
-        let joined = state.channel(channel).ok_or_else(Error::disconnected)?;
-        Ok(crate::ChannelInfo {
-            name: joined.name().as_ref().into(),
-            topic: joined.topic().map(str::to_owned),
-            members_count: joined.members().count(),
-        })
+        Ok(())
     }
 
     /// Leaves a channel, optionally supplying a reason.

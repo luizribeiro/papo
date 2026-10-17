@@ -69,17 +69,6 @@ pub struct WhoEntry {
     pub prefixes: Vec<char>,
 }
 
-/// State established by a completed channel join.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ChannelInfo {
-    /// Channel name as reported by the server.
-    pub name: ChannelName,
-    /// Current channel topic, when one is set.
-    pub topic: Option<String>,
-    /// Number of members present after initial synchronization.
-    pub members_count: usize,
-}
-
 /// Optional channel names or masks supplied to `LIST`.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ListFilter {

@@ -294,12 +294,11 @@ pub(crate) async fn assert_join_waits_for_sync(server: &mut DuplexStream, client
     tokio::task::yield_now().await;
     assert!(!join.is_finished());
     server_line(server, b":ergo.test 332 papo-driver #papo :Ergonomic IRC\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
-    let joined = within(join).await.unwrap().unwrap();
-    assert_eq!(
-        (joined.name.as_ref(), joined.topic.as_deref()),
-        ("#papo", Some("Ergonomic IRC"))
-    );
-    assert_eq!(joined.members_count, 2);
+    within(join).await.unwrap().unwrap();
+    let state = client.state();
+    let joined = state.channel("#papo").unwrap();
+    assert_eq!(joined.topic(), Some("Ergonomic IRC"));
+    assert_eq!(joined.members().count(), 2);
     client_line(server, b"MODE #papo\r\n").await;
     client_line(server, b"WHO #papo %tcuhnfar,152\r\n").await;
 }
