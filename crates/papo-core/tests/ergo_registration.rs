@@ -10,7 +10,8 @@ fn replays_recorded_ergo_registration() {
     let config = Config::default()
         .nick("papo-fixture")
         .username("papo")
-        .realname("papo registration fixture");
+        .realname("papo registration fixture")
+        .without_caps(["draft/persistence", "draft/relaymsg"]);
     Transcript::new(config)
         .connect()
         .load("tests/data/ergo-registration.irc")
