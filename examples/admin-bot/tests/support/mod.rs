@@ -111,12 +111,11 @@ pub(super) async fn wait_message(events: &mut Events, text: &str) -> MessageEven
 pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
     loop {
         match events.next().await {
-            Some(Event::ModeChanged {
-                target, changes, ..
-            }) if target == channel
-                && changes.iter().any(|change| {
-                    change.set && change.mode == 'o' && change.arg.as_deref() == Some(nick)
-                }) =>
+            Some(Event::ModeChanged(changed))
+                if changed.target == channel
+                    && changed.changes.iter().any(|change| {
+                        change.set && change.mode == 'o' && change.arg.as_deref() == Some(nick)
+                    }) =>
             {
                 return;
             }

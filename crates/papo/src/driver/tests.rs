@@ -2063,10 +2063,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
         client.state().channel("#papo").unwrap().mode('t'),
         Some(None)
     );
-    assert!(matches!(
-        events.next().await,
-        Some(Event::ModeChanged { .. })
-    ));
+    assert!(matches!(events.next().await, Some(Event::ModeChanged(_))));
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -2964,10 +2961,7 @@ async fn every_state_change_replaces_the_snapshot() {
     assert!(previous.channel("#papo").is_some());
 
     server_line(&mut server, b":ergo.test MODE papo-driver +i\r\n").await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::ModeChanged { .. })
-    ));
+    assert!(matches!(events.next().await, Some(Event::ModeChanged(_))));
     previous = changed_snapshot(&client, &previous, "MODE");
     assert_eq!(previous.user_modes().collect::<Vec<_>>(), ['i']);
 

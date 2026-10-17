@@ -83,7 +83,7 @@ async fn multi_prefix(context: Scenario) -> ScenarioResult {
         .expect(
             &mut first.events,
             |event| {
-                matches!(event, Event::ModeChanged { target, .. } if casemapping.eq(target, &channel))
+                matches!(event, Event::ModeChanged(changed) if casemapping.eq(&changed.target, &channel))
             },
             EXPECT_TIMEOUT,
         )
@@ -122,7 +122,7 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
         .expect(
             &mut observer.events,
             |event| {
-                matches!(event, Event::ModeChanged { target, .. } if casemapping.eq(target, &channel))
+                matches!(event, Event::ModeChanged(changed) if casemapping.eq(&changed.target, &channel))
             },
             EXPECT_TIMEOUT,
         )

@@ -152,7 +152,7 @@ async fn bot_mode(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut connection.events,
-            |event| matches!(event, Event::ModeChanged { target, .. } if target == &registered),
+            |event| matches!(event, Event::ModeChanged(changed) if changed.target == registered),
             EXPECT_TIMEOUT,
         )
         .await?;

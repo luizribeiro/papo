@@ -46,12 +46,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("quit {nick} [{channels}]: {reason}");
             }
             Event::NickChanged { old, new } => println!("nick {old} -> {new}"),
-            Event::ModeChanged {
-                target,
-                by,
-                changes,
-            } => {
-                let changes = changes
+            Event::ModeChanged(event) => {
+                let changes = event
+                    .changes
                     .into_iter()
                     .map(|change| {
                         let sign = if change.set { '+' } else { '-' };
@@ -59,7 +56,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     })
                     .collect::<Vec<_>>()
                     .join(" ");
-                println!("mode {target} by {by}: {changes}");
+                println!("mode {} by {}: {changes}", event.target, event.by);
             }
             Event::TopicChanged { channel, topic, by } => {
                 let topic = topic.as_deref().unwrap_or("-");

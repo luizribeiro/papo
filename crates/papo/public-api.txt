@@ -269,10 +269,7 @@ pub papo::Event::MetadataChanged::visibility: alloc::string::String
 pub papo::Event::MetadataSyncLater
 pub papo::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
 pub papo::Event::MetadataSyncLater::target: alloc::string::String
-pub papo::Event::ModeChanged
-pub papo::Event::ModeChanged::by: alloc::string::String
-pub papo::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::OwnedModeChange>
-pub papo::Event::ModeChanged::target: alloc::string::String
+pub papo::Event::ModeChanged(papo::event::ModeChanged)
 pub papo::Event::MonitorListFull
 pub papo::Event::MonitorListFull::limit: usize
 pub papo::Event::MonitorListFull::nicks: alloc::vec::Vec<alloc::string::String>

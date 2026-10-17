@@ -122,5 +122,5 @@ fn joined(event: &Event, nick: &str) -> bool {
 }
 
 fn mode(event: &Event, mode: char) -> bool {
-    matches!(event, Event::ModeChanged { changes, .. } if changes.iter().any(|change| change.set && change.mode == mode))
+    matches!(event, Event::ModeChanged(changed) if changed.changes.iter().any(|change| change.set && change.mode == mode))
 }

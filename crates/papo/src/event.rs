@@ -1,6 +1,6 @@
 use papo_core::{
-    Account, BatchAbandonReason, Capabilities, OwnedModeChange, RequestId, Response, StateLimit,
-    Welcome, sts::StsAction,
+    Account, BatchAbandonReason, Capabilities, RequestId, Response, StateLimit, Welcome,
+    sts::StsAction,
 };
 use std::{
     fmt,
@@ -726,14 +726,7 @@ pub enum Event {
         realname: String,
     },
     /// A user or channel mode changed.
-    ModeChanged {
-        /// The mode target.
-        target: String,
-        /// The user or server that changed the modes.
-        by: String,
-        /// Parsed mode operations in wire order.
-        changes: Vec<OwnedModeChange>,
-    },
+    ModeChanged(ModeChanged),
     /// A channel topic changed live.
     TopicChanged {
         /// The affected channel.
@@ -1035,11 +1028,18 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             target,
             by,
             changes,
-        } => Event::ModeChanged {
+        } => Event::ModeChanged(ModeChanged {
             target,
-            by,
-            changes,
-        },
+            by: Source::from_name(by),
+            changes: changes
+                .into_iter()
+                .map(|change| ModeChange {
+                    set: change.set,
+                    mode: change.mode,
+                    arg: change.arg,
+                })
+                .collect(),
+        }),
         papo_core::Event::TopicChanged { channel, topic, by } => {
             Event::TopicChanged { channel, topic, by }
         }
@@ -1064,7 +1064,7 @@ mod tests {
         CoreEvent, Event, MessageEvent, MessageKind, Origin, Source, StandardReplyKind, from_core,
     };
     use papo_core::{
-        Account, BatchAbandonReason, Capabilities, Config, OwnedModeChange, Session,
+        Account, BatchAbandonReason, Capabilities, Config, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
     use papo_proto::{Isupport, Message, MessageRef, ModeKind, Typing};
@@ -1684,7 +1684,7 @@ mod tests {
 
     #[test]
     fn maps_mode_changed() {
-        let changes = vec![OwnedModeChange {
+        let mode_changes = vec![papo_core::OwnedModeChange {
             set: true,
             mode: 'o',
             arg: Some("emily".into()),
@@ -1694,10 +1694,15 @@ mod tests {
             forwarded(papo_core::Event::ModeChanged {
                 target: "#papo".into(),
                 by: "alice".into(),
-                changes: changes.clone(),
+                changes: mode_changes.clone(),
             }),
-            Event::ModeChanged { target, by, changes: forwarded_changes }
-                if target == "#papo" && by == "alice" && forwarded_changes == changes
+            Event::ModeChanged(mode)
+                if mode.target == "#papo"
+                    && mode.by.nick() == Some("alice")
+                    && mode.changes.len() == 1
+                    && mode.changes[0].set
+                    && mode.changes[0].mode == 'o'
+                    && mode.changes[0].arg.as_deref() == Some("emily")
         ));
     }
 
