@@ -2319,6 +2319,46 @@ async fn keyed_join_redacts_the_key_and_waits_for_channel_sync() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn oper_and_ping_return_server_outcomes() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+
+    let oper = tokio::spawn({
+        let client = client.clone();
+        async move { client.oper("papo", "unique-oper-password-4928").await }
+    });
+    client_line(&mut server, b"OPER papo unique-oper-password-4928\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 464 papo-driver :Password incorrect\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(oper).await.unwrap(),
+        Err(Error::Server(error)) if error.code() == "464"
+    ));
+
+    let ping = tokio::spawn({
+        let client = client.clone();
+        async move { client.ping().await }
+    });
+    client_line(&mut server, b"PING papo-lag-0\r\n").await;
+    tokio::time::advance(Duration::from_millis(37)).await;
+    server_line(&mut server, b":ergo.test PONG ergo.test :papo-lag-0\r\n").await;
+    assert_eq!(
+        within(ping).await.unwrap().unwrap(),
+        Duration::from_millis(37)
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn labelled_join_timeout_kick_and_part_end_the_action() {
     let settings = config()
         .wanted_caps(["labeled-response"])
