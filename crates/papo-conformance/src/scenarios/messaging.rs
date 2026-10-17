@@ -1,7 +1,7 @@
 use libtest_mimic::Failed;
 use papo::{Event, MessageKind, Source};
 use papo_conformance_macros::scenario;
-use papo_proto::{Message, Typing};
+use papo_proto::Typing;
 
 use super::support::{EXPECT_TIMEOUT, close_pair, join, joined_pair};
 use crate::{Scenario, ScenarioResult};
@@ -16,7 +16,7 @@ async fn echo_message(context: Scenario) -> ScenarioResult {
     let registered_nick = connection.welcome.nick.clone();
     connection
         .client
-        .send(Message::join(&channel))
+        .join(&channel)
         .await
         .map_err(Failed::from)?;
     context
@@ -82,7 +82,7 @@ async fn message_tags(context: Scenario) -> ScenarioResult {
     let (mut receiver, sender, channel) = joined_pair(&context).await?;
     sender
         .client
-        .send(Message::new("TAGMSG", [&channel]).with_tag("+typing", "active"))
+        .send_raw(&format!("@+typing=active TAGMSG {channel}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -104,33 +104,24 @@ async fn draft_multiline(context: Scenario) -> ScenarioResult {
     let reference = context.unique().replace('_', "-");
     sender
         .client
-        .send(Message::new(
-            "BATCH",
-            [
-                format!("+{reference}"),
-                "draft/multiline".into(),
-                channel.clone(),
-            ],
+        .send_raw(&format!("BATCH +{reference} draft/multiline {channel}"))
+        .await
+        .map_err(Failed::from)?;
+    sender
+        .client
+        .send_raw(&format!("@batch={reference} PRIVMSG {channel} :first "))
+        .await
+        .map_err(Failed::from)?;
+    sender
+        .client
+        .send_raw(&format!(
+            "@batch={reference};draft/multiline-concat PRIVMSG {channel} second"
         ))
         .await
         .map_err(Failed::from)?;
     sender
         .client
-        .send(Message::privmsg(&channel, "first ").with_tag("batch", reference.clone()))
-        .await
-        .map_err(Failed::from)?;
-    sender
-        .client
-        .send(
-            Message::privmsg(&channel, "second")
-                .with_tag("batch", reference.clone())
-                .with_tag("draft/multiline-concat", ""),
-        )
-        .await
-        .map_err(Failed::from)?;
-    sender
-        .client
-        .send(Message::new("BATCH", [format!("-{reference}")]))
+        .send_raw(&format!("BATCH -{reference}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -177,26 +168,23 @@ async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
         .client_caps(&receiver_nick, &["draft/message-redaction"])
         .await?;
     join(&context, &mut receiver, &channel).await?;
-    let response = sender
+    let sent = sender
         .client
-        .raw(Message::privmsg(&channel, "message to redact"))
+        .privmsg(&channel, "message to redact")
         .await
         .map_err(Failed::from)?;
-    let Some(sent) = response.sent() else {
+    let Some(id) = sent.id else {
         return Err("echoed message did not include a message identifier".into());
     };
     sender
         .client
-        .send(Message::new(
-            "REDACT",
-            [&channel, &sent.msgid, "conformance redaction"],
-        ))
+        .redact(&id, Some("conformance redaction"))
         .await
         .map_err(Failed::from)?;
     context
         .expect(
             &mut receiver.events,
-            |event| matches!(event, Event::Redacted(redacted) if redacted.id.target() == channel && redacted.id.msgid() == sent.msgid),
+            |event| matches!(event, Event::Redacted(redacted) if redacted.id.target() == channel && redacted.id.msgid() == id.msgid()),
             EXPECT_TIMEOUT,
         )
         .await?;

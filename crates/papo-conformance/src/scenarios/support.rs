@@ -1,6 +1,5 @@
 use libtest_mimic::Failed;
 use papo::Event;
-use papo_proto::Message;
 
 use crate::{Scenario, ScenarioResult};
 
@@ -36,7 +35,7 @@ pub(super) async fn join(
 ) -> Result<(), Failed> {
     connection
         .client
-        .send(Message::join(channel))
+        .join(channel)
         .await
         .map_err(Failed::from)?;
     context
@@ -73,18 +72,13 @@ pub(super) async fn history_page(context: Scenario) -> ScenarioResult {
         .client_caps(&reader_nick, &["draft/chathistory"])
         .await?;
     join(&context, &mut reader, &channel).await?;
-    let response = reader
+    let history = reader
         .client
-        .raw(Message::new("CHATHISTORY", ["LATEST", &channel, "*", "10"]))
+        .history(&channel)
+        .latest(10)
         .await
         .map_err(Failed::from)?;
-    let Some(history) = response.history else {
-        return Err("CHATHISTORY response did not contain a history batch".into());
-    };
-    if !history
-        .messages()
-        .any(|message| message.as_ref().param(1) == Some(text.as_str()))
-    {
+    if !history.messages().any(|message| message.raw_text() == text) {
         return Err("history batch did not contain the earlier message".into());
     }
     close_pair(writer, reader).await

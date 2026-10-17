@@ -1,7 +1,6 @@
 use libtest_mimic::Failed;
 use papo::Endpoint;
 use papo_conformance_macros::scenario;
-use papo_proto::{Message, MessageRef};
 
 use crate::{RegisteredClient, Scenario, ScenarioResult, required_environment};
 
@@ -62,18 +61,22 @@ async fn ping(context: Scenario) -> ScenarioResult {
     let token = context.unique();
     let response = connection
         .client
-        .raw(Message::new("PING", [&token]))
+        .request_raw(&format!("PING {token}"))
         .await
         .map_err(Failed::from)?;
-    let Some(message) = response.lines.first() else {
+    let Some(message) = response.first() else {
         return Err("server returned an empty PING response".into());
     };
-    validate_pong(&message.as_ref(), &token)?;
+    validate_pong(
+        message.command(),
+        message.params().last().map(String::as_str),
+        &token,
+    )?;
     connection.close().await
 }
 
-fn validate_pong(message: &MessageRef<'_>, token: &str) -> Result<(), Failed> {
-    if message.command_is("PONG") && message.params().last() == Some(token) {
+fn validate_pong(command: &str, last_param: Option<&str>, token: &str) -> Result<(), Failed> {
+    if command.eq_ignore_ascii_case("PONG") && last_param == Some(token) {
         Ok(())
     } else {
         Err("server PONG did not contain the PING token".into())
@@ -82,14 +85,11 @@ fn validate_pong(message: &MessageRef<'_>, token: &str) -> Result<(), Failed> {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::MessageRef;
-
     use super::validate_pong;
 
     #[test]
     fn wrong_pong_token_fails() {
-        let message = MessageRef::parse(":ergo.test PONG ergo.test :wrong-token").unwrap();
-        let error = validate_pong(&message, "papo-ping-417").unwrap_err();
+        let error = validate_pong("PONG", Some("wrong-token"), "papo-ping-417").unwrap_err();
         assert_eq!(
             error.message(),
             Some("server PONG did not contain the PING token")
