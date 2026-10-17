@@ -888,7 +888,11 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             is_self: false,
         }),
         papo_core::Event::ChannelRenamed { old, new, reason } => {
-            Event::ChannelRenamed(ChannelRenamed { old, new, reason })
+            Event::ChannelRenamed(ChannelRenamed {
+                old: old.into(),
+                new: new.into(),
+                reason,
+            })
         }
         papo_core::Event::AccountChanged { nick, account } => {
             Event::AccountChanged(AccountChanged {
@@ -919,13 +923,14 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             by,
             changes,
         } => Event::ModeChanged(ModeChanged {
-            target,
+            target: target.into(),
             by: Source::from_name(by),
             changes: changes
                 .into_iter()
                 .map(|change| ModeChange {
                     set: change.set,
                     mode: change.mode,
+                    kind: change.kind,
                     arg: change.arg,
                 })
                 .collect(),
@@ -1640,6 +1645,7 @@ mod tests {
                     && mode.changes.len() == 1
                     && mode.changes[0].set
                     && mode.changes[0].mode == 'o'
+                    && mode.changes[0].kind == ModeKind::Prefix(0)
                     && mode.changes[0].arg.as_deref() == Some("emily")
         ));
     }

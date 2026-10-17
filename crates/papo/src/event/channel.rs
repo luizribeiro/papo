@@ -1,4 +1,4 @@
-use crate::{ChannelName, Nick};
+use crate::{ChannelName, ModeKind, Nick, Target};
 
 use super::Source;
 
@@ -86,7 +86,9 @@ pub struct ModeChange {
     pub set: bool,
     /// The mode letter.
     pub mode: char,
-    /// The mode argument, when supplied.
+    /// The mode's advertised parameter behavior.
+    pub kind: ModeKind,
+    /// The argument required by [`Self::kind`], when supplied by the server.
     pub arg: Option<String>,
 }
 
@@ -95,7 +97,7 @@ pub struct ModeChange {
 #[non_exhaustive]
 pub struct ModeChanged {
     /// The mode target.
-    pub target: String,
+    pub target: Target,
     /// The user or server that changed the modes.
     pub by: Source,
     /// Parsed mode operations in wire order.
@@ -107,9 +109,9 @@ pub struct ModeChanged {
 #[non_exhaustive]
 pub struct ChannelRenamed {
     /// The previous channel name.
-    pub old: String,
+    pub old: ChannelName,
     /// The new channel name.
-    pub new: String,
+    pub new: ChannelName,
     /// The server-supplied reason, which may be empty.
     pub reason: String,
 }

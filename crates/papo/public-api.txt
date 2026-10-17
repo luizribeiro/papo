@@ -12,6 +12,7 @@ pub use papo::Mask
 pub use papo::Member
 pub use papo::MessageId
 pub use papo::MetadataKey
+pub use papo::ModeKind
 pub use papo::Nick
 pub use papo::PersistenceSetting
 pub use papo::PersistenceStatus
@@ -146,8 +147,8 @@ pub papo::event::AwayChanged::nick: papo_proto::id::Nick
 pub papo::event::CapsChanged::added: papo_core::Capabilities
 pub papo::event::CapsChanged::removed: papo_core::Capabilities
 #[non_exhaustive] pub struct papo::event::ChannelRenamed
-pub papo::event::ChannelRenamed::new: alloc::string::String
-pub papo::event::ChannelRenamed::old: alloc::string::String
+pub papo::event::ChannelRenamed::new: papo_proto::id::ChannelName
+pub papo::event::ChannelRenamed::old: papo_proto::id::ChannelName
 pub papo::event::ChannelRenamed::reason: alloc::string::String
 #[non_exhaustive] pub struct papo::event::ChannelSynced
 pub papo::event::ChannelSynced::channel: papo_proto::id::ChannelName
@@ -183,12 +184,13 @@ pub papo::event::MetadataChanged::value: core::option::Option<alloc::string::Str
 pub papo::event::MetadataChanged::visibility: papo::event::Visibility
 #[non_exhaustive] pub struct papo::event::ModeChange
 pub papo::event::ModeChange::arg: core::option::Option<alloc::string::String>
+pub papo::event::ModeChange::kind: papo_proto::modes::ModeKind
 pub papo::event::ModeChange::mode: char
 pub papo::event::ModeChange::set: bool
 #[non_exhaustive] pub struct papo::event::ModeChanged
 pub papo::event::ModeChanged::by: papo::Source
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
-pub papo::event::ModeChanged::target: alloc::string::String
+pub papo::event::ModeChanged::target: papo_proto::id::Target
 #[non_exhaustive] pub struct papo::event::MonitorOffline
 pub papo::event::MonitorOffline::nick: papo_proto::id::Nick
 #[non_exhaustive] pub struct papo::event::MonitorOnline

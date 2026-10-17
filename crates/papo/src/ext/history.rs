@@ -201,11 +201,12 @@ fn mode_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option
     .map(|change| crate::event::ModeChange {
         set: change.set,
         mode: change.mode,
+        kind: change.kind,
         arg: change.arg.map(str::to_owned),
     })
     .collect();
     Some(HistoryItem::ModeChanged(ModeChanged {
-        target: message.param(0)?.to_owned(),
+        target: message.param(0)?.into(),
         by: Source::from_proto(message.source()?),
         changes,
     }))
