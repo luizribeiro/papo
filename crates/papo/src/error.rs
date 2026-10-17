@@ -138,6 +138,102 @@ impl Refusal {
     }
 }
 
+/// A server refusal with its wire-level diagnostic context.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(dead_code)]
+pub struct ServerError {
+    kind: Refusal,
+    command: String,
+    code: String,
+    description: String,
+    params: Vec<String>,
+}
+
+#[allow(dead_code)]
+impl ServerError {
+    /// Returns the stable refusal category.
+    #[must_use]
+    pub const fn kind(&self) -> Refusal {
+        self.kind
+    }
+
+    /// Returns the command named by a standard reply, or an empty string for a numeric.
+    #[must_use]
+    pub fn command(&self) -> &str {
+        &self.command
+    }
+
+    /// Returns the standard-reply code or three-digit numeric.
+    #[must_use]
+    pub fn code(&self) -> &str {
+        &self.code
+    }
+
+    /// Returns the server's human-readable description.
+    #[must_use]
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    /// Returns additional server-supplied parameters in wire order.
+    #[must_use]
+    pub fn params(&self) -> &[String] {
+        &self.params
+    }
+
+    pub(crate) fn from_core(error: papo_core::ServerError) -> Self {
+        let kind = Refusal::from_core(error.refusal_kind());
+        match error {
+            papo_core::ServerError::Standard {
+                command,
+                code,
+                context,
+                description,
+            } => Self {
+                kind,
+                command,
+                code,
+                description,
+                params: context,
+            },
+            papo_core::ServerError::Numeric { numeric, params } => Self {
+                kind,
+                command: String::new(),
+                code: format!("{:03}", numeric.code()),
+                description: params.last().cloned().unwrap_or_default(),
+                params,
+            },
+            other => Self {
+                kind: Refusal::Other,
+                command: String::new(),
+                code: String::new(),
+                description: format!("{other:?}"),
+                params: Vec::new(),
+            },
+        }
+    }
+}
+
+impl fmt::Display for ServerError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.command.is_empty() {
+            write!(
+                formatter,
+                "server refusal {}: {}",
+                self.code, self.description
+            )
+        } else {
+            write!(
+                formatter,
+                "{} {}: {}",
+                self.command, self.code, self.description
+            )
+        }
+    }
+}
+
+impl std::error::Error for ServerError {}
+
 /// An error produced by the asynchronous IRC client.
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -202,7 +298,21 @@ pub enum Error {
 mod tests {
     use std::io;
 
-    use super::{ConnectError, ConnectErrorKind, Error, Refusal};
+    use super::{ConnectError, ConnectErrorKind, Error, Refusal, ServerError};
+
+    #[test]
+    fn server_errors_hide_core_shapes_behind_accessors() {
+        let error = ServerError::from_core(papo_core::ServerError::Numeric {
+            numeric: papo_proto::Numeric::ERR_CANNOTSENDTOCHAN,
+            params: vec!["papo-driver".into(), "#rust".into(), "Cannot send".into()],
+        });
+        assert_eq!(error.kind(), Refusal::CannotSendToChannel);
+        assert_eq!(error.command(), "");
+        assert_eq!(error.code(), "404");
+        assert_eq!(error.description(), "Cannot send");
+        assert_eq!(error.params()[1], "#rust");
+        assert_eq!(error.to_string(), "server refusal 404: Cannot send");
+    }
 
     #[test]
     fn refusal_mapping_preserves_every_classified_numeric() {
