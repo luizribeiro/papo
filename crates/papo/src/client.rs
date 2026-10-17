@@ -253,6 +253,40 @@ impl Client {
             .await
     }
 
+    #[cfg(feature = "bot")]
+    pub(crate) async fn private_notice(
+        &self,
+        message: &crate::MessageEvent,
+        text: &str,
+    ) -> Result<(), Error> {
+        let Some(target) = message.sender_nick() else {
+            return Ok(());
+        };
+        let mut notice = Message::notice(target, text);
+        let state = self.state();
+        if state.has_cap("message-tags") {
+            let isupport = state.isupport();
+            let denied = isupport.clienttagdeny();
+            if let Some(id) = message.id()
+                && let Some(tag) = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
+            {
+                notice = notice.with_tag(tag, id.msgid());
+            }
+            let context = if message.is_private() {
+                message.channel_context()
+            } else {
+                Some(message.target())
+            };
+            if let Some(context) = context
+                && let Some(tag) =
+                    event_impl::allowed_alias(&denied, "+channel-context", "+draft/channel-context")
+            {
+                notice = notice.with_tag(tag, context);
+            }
+        }
+        self.send(notice).await
+    }
+
     /// Adds `emoji` as a reaction to `message`.
     ///
     /// # Errors

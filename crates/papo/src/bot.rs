@@ -246,7 +246,7 @@ impl Command {
         {
             return Ok(ReplyStatus::Dropped);
         }
-        self.message.private_notice(text).await?;
+        self.client().private_notice(&self.message, text).await?;
         Ok(ReplyStatus::Sent)
     }
 }

@@ -491,7 +491,9 @@ pub(crate) async fn assert_reply_wire(
         }
         #[cfg(feature = "bot")]
         ReplyKind::PrivateNotice => {
-            within(message.private_notice("denied")).await.unwrap();
+            within(client.private_notice(&message, "denied"))
+                .await
+                .unwrap();
         }
     }
     client_line(&mut server, expected).await;
