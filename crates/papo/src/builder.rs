@@ -129,6 +129,14 @@ impl Builder {
         self
     }
 
+    /// Selects an upstream bouncer network before registration completes.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub fn bouncer_network(mut self, id: crate::NetworkId) -> Self {
+        self.config.bouncer_network = Some(id);
+        self
+    }
+
     /// Sets the Ergo multiclient device identifier.
     pub fn device(mut self, device: impl Into<String>) -> Self {
         self.config.device = Some(device.into());

@@ -292,8 +292,18 @@ impl Caps {
         })
     }
 
-    pub(super) fn maybe_finish(&mut self, authentication_finished: bool, outbox: &mut Outbox) {
+    pub(super) fn maybe_finish(
+        &mut self,
+        authentication_finished: bool,
+        bouncer_network: Option<&str>,
+        outbox: &mut Outbox,
+    ) {
         if self.negotiating && authentication_finished && self.pending.is_empty() && !self.ended {
+            if self.enabled.contains_key("soju.im/bouncer-networks")
+                && let Some(id) = bouncer_network
+            {
+                outbox.transmit_immediate("BOUNCER", ["BIND", id]);
+            }
             outbox.transmit_raw(b"CAP END\r\n".to_vec());
             self.ended = true;
         }

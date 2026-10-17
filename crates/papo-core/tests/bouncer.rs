@@ -20,6 +20,20 @@ fn registered() -> Transcript {
 }
 
 #[test]
+fn binds_the_configured_network_before_cap_end() {
+    let mut config = Config::default().wanted_caps(["soju.im/bouncer-networks"]);
+    config.bouncer_network = Some(NetworkId::new("42"));
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :soju.im/bouncer-networks")
+        .client("CAP REQ :soju.im/bouncer-networks")
+        .server("CAP * ACK :soju.im/bouncer-networks")
+        .inspect(|session| assert_eq!(session.supports(papo_core::Feature::Bouncer), Ok(())))
+        .client("BOUNCER BIND 42")
+        .client("CAP END");
+}
+
+#[test]
 fn sends_each_bouncer_network_operation() {
     let config = NetworkConfig::new("irc.libera.chat")
         .name("Libera Chat")

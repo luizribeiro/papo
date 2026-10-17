@@ -273,13 +273,17 @@ pub struct Config {
     pub away_on_connect: Option<AwayOnConnect>,
     /// Metadata keys subscribed on every connection.
     pub metadata_subscriptions: Vec<String>,
+    /// Upstream bouncer network selected before registration completes.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub bouncer_network: Option<NetworkId>,
     registration_on_connect: Option<PendingRegistration>,
 }
 
 impl std::fmt::Debug for Config {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("Config")
+        let mut debug = formatter.debug_struct("Config");
+        debug
             .field("decoding", &self.decoding)
             .field("nick", &self.nick)
             .field("username", &self.username)
@@ -305,7 +309,10 @@ impl std::fmt::Debug for Config {
             .field("request_timeout", &self.request_timeout)
             .field("ctcp", &self.ctcp)
             .field("away_on_connect", &self.away_on_connect)
-            .field("metadata_subscriptions", &self.metadata_subscriptions)
+            .field("metadata_subscriptions", &self.metadata_subscriptions);
+        #[cfg(feature = "unstable")]
+        debug.field("bouncer_network", &self.bouncer_network);
+        debug
             .field("registration_on_connect", &self.registration_on_connect)
             .finish()
     }
@@ -352,6 +359,8 @@ impl Default for Config {
             ctcp: CtcpReplies::default(),
             away_on_connect: None,
             metadata_subscriptions: Vec::new(),
+            #[cfg(feature = "unstable")]
+            bouncer_network: None,
             registration_on_connect: None,
         }
     }
@@ -2310,8 +2319,17 @@ impl Session {
         }
         self.sasl.handle_timeout(now, &mut self.outbox);
         self.maybe_subscribe_metadata(now);
+        let bouncer_network = {
+            #[cfg(feature = "unstable")]
+            {
+                self.config.bouncer_network.as_ref().map(NetworkId::as_str)
+            }
+            #[cfg(not(feature = "unstable"))]
+            None
+        };
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
+            bouncer_network,
             &mut self.outbox,
         );
         self.keepalive.handle_timeout(now, &mut self.outbox);
@@ -3072,8 +3090,17 @@ impl Session {
             && emit_unhandled
             && self.report_standard_reply(message);
         self.maybe_subscribe_metadata(now);
+        let bouncer_network = {
+            #[cfg(feature = "unstable")]
+            {
+                self.config.bouncer_network.as_ref().map(NetworkId::as_str)
+            }
+            #[cfg(not(feature = "unstable"))]
+            None
+        };
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
+            bouncer_network,
             &mut self.outbox,
         );
         if !handled
