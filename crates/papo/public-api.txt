@@ -594,7 +594,7 @@ pub async fn papo::Client::unreact(&self, &papo_proto::id::Target, &papo_proto::
 pub async fn papo::Client::who(&self, &str) -> core::result::Result<alloc::vec::Vec<papo::WhoEntry>, papo::Error>
 pub async fn papo::Client::whois(&self, &str) -> core::result::Result<papo::Whois, papo::Error>
 impl papo::Client
-pub fn papo::Client::history(&self, &str) -> papo::History<'_>
+pub fn papo::Client::history(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::History
 pub async fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> core::result::Result<alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>, papo::Error>
 pub async fn papo::Client::mark_read(&self, &str, std::time::SystemTime) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::read_marker(&self, &str) -> core::result::Result<core::option::Option<std::time::SystemTime>, papo::Error>
@@ -649,13 +649,13 @@ pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::Event>
 impl futures_core::stream::Stream for papo::Events
 pub type papo::Events::Item = papo::Event
 pub fn papo::Events::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
-pub struct papo::History<'a>
-impl<'a> papo::History<'a>
-pub fn papo::History<'a>::after(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
-pub fn papo::History<'a>::around(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
-pub fn papo::History<'a>::before(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
-pub fn papo::History<'a>::between(self, impl core::convert::Into<papo::HistoryReference>, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest<'a>
-pub fn papo::History<'a>::latest(self, usize) -> papo::HistoryRequest<'a>
+pub struct papo::History
+impl papo::History
+pub fn papo::History::after(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
+pub fn papo::History::around(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
+pub fn papo::History::before(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
+pub fn papo::History::between(self, impl core::convert::Into<papo::HistoryReference>, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
+pub fn papo::History::latest(self, usize) -> papo::HistoryRequest
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::end: bool
 pub papo::HistoryPage::items: alloc::vec::Vec<papo::HistoryItem>
@@ -673,13 +673,13 @@ impl core::convert::From<alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(alloc::string::String) -> Self
 impl core::convert::From<std::time::SystemTime> for papo::HistoryReference
 pub fn papo::HistoryReference::from(std::time::SystemTime) -> Self
-pub struct papo::HistoryRequest<'a>
-impl papo::HistoryRequest<'_>
-pub fn papo::HistoryRequest<'_>::limit(self, usize) -> Self
-impl<'a> core::future::into_future::IntoFuture for papo::HistoryRequest<'a>
-pub type papo::HistoryRequest<'a>::IntoFuture = core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = <papo::HistoryRequest<'a> as core::future::into_future::IntoFuture>::Output> + core::marker::Send + 'a)>>
-pub type papo::HistoryRequest<'a>::Output = core::result::Result<papo::HistoryPage, papo::Error>
-pub fn papo::HistoryRequest<'a>::into_future(self) -> Self::IntoFuture
+pub struct papo::HistoryRequest
+impl papo::HistoryRequest
+pub fn papo::HistoryRequest::limit(self, usize) -> Self
+impl core::future::into_future::IntoFuture for papo::HistoryRequest
+pub type papo::HistoryRequest::IntoFuture = papo::RequestFuture<papo::HistoryPage>
+pub type papo::HistoryRequest::Output = core::result::Result<papo::HistoryPage, papo::Error>
+pub fn papo::HistoryRequest::into_future(self) -> Self::IntoFuture
 pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
 pub papo::ListEntry::name: papo_proto::id::ChannelName
@@ -772,6 +772,10 @@ pub const fn papo::Reconnect::max_delay(self, core::time::Duration) -> Self
 pub const fn papo::Reconnect::never() -> Self
 impl core::default::Default for papo::Reconnect
 pub fn papo::Reconnect::default() -> Self
+pub struct papo::RequestFuture<T>
+impl<T> core::future::future::Future for papo::RequestFuture<T>
+pub type papo::RequestFuture<T>::Output = core::result::Result<T, papo::Error>
+pub fn papo::RequestFuture<T>::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
 pub struct papo::Sent
 pub papo::Sent::id: core::option::Option<papo_proto::id::MessageId>
 pub papo::Sent::target: papo_proto::id::Target

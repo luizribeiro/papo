@@ -2,6 +2,7 @@
 //!
 //! TLS uses ring when both `tls-ring` and `tls-aws-lc` are enabled.
 
+mod action;
 mod address;
 mod builder;
 mod client;
@@ -22,6 +23,7 @@ mod transport;
 pub mod bot;
 pub mod cap;
 
+pub use action::RequestFuture;
 pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
 pub use client::{Client, Sent};

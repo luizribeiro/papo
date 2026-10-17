@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin, time::SystemTime};
+use std::{future::IntoFuture, time::SystemTime};
 
 use papo_core::{HistoryQuery, MsgRef, Response};
 use papo_proto::{ModeChanges, Reaction};
@@ -244,15 +244,15 @@ impl HistoryPage {
 }
 
 /// Builds a history request for one channel or nickname.
-pub struct History<'a> {
-    pub(crate) client: &'a Client,
+pub struct History {
+    pub(crate) client: Client,
     pub(crate) target: String,
 }
 
-impl<'a> History<'a> {
+impl History {
     /// Requests the newest `limit` messages.
     #[must_use]
-    pub fn latest(self, limit: usize) -> HistoryRequest<'a> {
+    pub fn latest(self, limit: usize) -> HistoryRequest {
         HistoryRequest {
             client: self.client,
             query: Ok(HistoryQuery::Latest {
@@ -265,7 +265,7 @@ impl<'a> History<'a> {
 
     /// Requests messages before `reference`.
     #[must_use]
-    pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
+    pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         let query = reference
             .into()
             .0
@@ -282,7 +282,7 @@ impl<'a> History<'a> {
 
     /// Requests messages after `reference`.
     #[must_use]
-    pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
+    pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         let query = reference
             .into()
             .0
@@ -299,7 +299,7 @@ impl<'a> History<'a> {
 
     /// Requests messages surrounding `reference`.
     #[must_use]
-    pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
+    pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         let query = reference
             .into()
             .0
@@ -320,7 +320,7 @@ impl<'a> History<'a> {
         self,
         start: impl Into<HistoryReference>,
         end: impl Into<HistoryReference>,
-    ) -> HistoryRequest<'a> {
+    ) -> HistoryRequest {
         let start = start
             .into()
             .0
@@ -385,12 +385,12 @@ impl From<&ChatMessage> for HistoryReference {
 /// [`crate::UnsupportedReason::DisabledByClient`]. An unusable reference returns
 /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with [`crate::Refusal::Other`]. It
 /// can also return [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
-pub struct HistoryRequest<'a> {
-    client: &'a Client,
+pub struct HistoryRequest {
+    client: Client,
     query: Result<HistoryQuery, Error>,
 }
 
-impl HistoryRequest<'_> {
+impl HistoryRequest {
     /// Sets the maximum number of returned messages.
     #[must_use]
     pub fn limit(mut self, limit: usize) -> Self {
@@ -408,14 +408,16 @@ impl HistoryRequest<'_> {
     }
 }
 
-impl<'a> IntoFuture for HistoryRequest<'a> {
+impl IntoFuture for HistoryRequest {
     type Output = Result<HistoryPage, Error>;
-    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send + 'a>>;
+    type IntoFuture = crate::RequestFuture<HistoryPage>;
 
     fn into_future(self) -> Self::IntoFuture {
         match self.query {
-            Ok(query) => Box::pin(self.client.history_page(query)),
-            Err(error) => Box::pin(async move { Err(error) }),
+            Ok(query) => {
+                crate::RequestFuture::new(async move { self.client.history_page(query).await })
+            }
+            Err(error) => crate::RequestFuture::new(async move { Err(error) }),
         }
     }
 }
@@ -423,10 +425,10 @@ impl<'a> IntoFuture for HistoryRequest<'a> {
 impl Client {
     /// Starts a chat history request for `target`.
     #[must_use]
-    pub fn history(&self, target: &str) -> crate::History<'_> {
+    pub fn history(&self, target: impl Into<crate::Target>) -> crate::History {
         crate::History {
-            client: self,
-            target: target.to_owned(),
+            client: self.clone(),
+            target: target.into().into_string(),
         }
     }
 

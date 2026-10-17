@@ -6,13 +6,15 @@ use std::{future::IntoFuture, time::SystemTime};
 use futures_core::Stream;
 use papo::{
     Client, Error, Event, Events, ListFilter, Message as ChatMessage, MessageId, NewAccount,
-    PersistenceSetting, PushKeys, Target,
+    PersistenceSetting, PushKeys, RequestFuture, Target,
 };
 use papo_proto::Typing;
 
 fn assert_send<T: Send>(_: T) {}
 
 fn assert_send_sync<T: Send + Sync>() {}
+
+fn assert_send_static<T: Send + 'static>(_: T) {}
 
 fn assert_clone<T: Clone>() {}
 
@@ -34,6 +36,7 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
     assert_send_sync::<Error>();
     assert_clone::<Client>();
     assert_event_stream::<Events>();
+    _ = assert_send_static::<RequestFuture<()>>;
 }
 
 #[test]
@@ -59,7 +62,7 @@ fn request_futures_are_send() {
     assert_send(client.list(ListFilter::default()));
     assert_send(client.quit(Some("trait check complete")));
 
-    assert_send(client.history("#papo").latest(10).into_future());
+    assert_send_static(client.history("#papo").latest(10).into_future());
     assert_send(client.history_targets(SystemTime::UNIX_EPOCH, SystemTime::now()));
     assert_send(client.mark_read("#papo", SystemTime::UNIX_EPOCH));
     assert_send(client.read_marker("#papo"));
