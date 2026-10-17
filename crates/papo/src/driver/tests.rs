@@ -1752,18 +1752,22 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
     ));
 }
 
-#[tokio::test(flavor = "current_thread")]
-async fn client_send_reaches_the_wire() {
-    let (mut server, client, _events, driver) = scripted(config());
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn client_send_raw_parses_and_obeys_the_rate_limit() {
+    let (mut server, client, _events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500))));
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    client
-        .raw_unlabeled(papo_proto::Message::new("WHOIS", ["emily"]))
-        .await
-        .unwrap();
-    let mut whois = [0; 13];
-    within(server.read_exact(&mut whois)).await.unwrap();
-    assert_eq!(&whois, b"WHOIS emily\r\n");
+    client.send_raw("WHOIS emily").await.unwrap();
+    client.send_raw("WHOIS alice").await.unwrap();
+    client_line(&mut server, b"WHOIS emily\r\n").await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+            .await
+            .is_err()
+    );
+    tokio::time::advance(Duration::from_millis(500)).await;
+    client_line(&mut server, b"WHOIS alice\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
@@ -1845,10 +1849,9 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
         within(request).await.unwrap(),
         Err(Error::Server(error)) if error.code() == "401"
     ));
-
     let timed_out = tokio::spawn({
         let client = client.clone();
-        async move { client.raw(Message::new("WHOIS", ["alice"])).await }
+        async move { client.request_raw("WHOIS alice").await }
     });
     client_line(&mut server, b"@label=9 WHOIS alice\r\n").await;
     tokio::time::advance(Duration::from_secs(1)).await;
@@ -1857,13 +1860,48 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
         Err(Error::Timeout)
     ));
 
-    let aborted = tokio::spawn(async move { client.raw(Message::new("WHOIS", ["emily"])).await });
+    let aborted = tokio::spawn(async move { client.request_raw("WHOIS emily").await });
     client_line(&mut server, b"@label=A WHOIS emily\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(aborted).await.unwrap(),
         Err(disconnected!())
     ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn request_raw_returns_state_changing_lines_without_an_event() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_labelled_registration(&mut server, &mut events).await;
+
+    let renamed = tokio::spawn({
+        let client = client.clone();
+        async move { client.request_raw("NICK papo-renamed").await }
+    });
+    client_line(&mut server, b"@label=0 NICK papo-renamed\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0 :papo-driver!papo@localhost NICK :papo-renamed\r\n",
+    )
+    .await;
+    let lines = within(renamed).await.unwrap().unwrap();
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].command(), "NICK");
+    assert_eq!(lines[0].params(), ["papo-renamed"]);
+    assert_eq!(client.nick(), "papo-renamed");
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), events.next())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())
@@ -1962,9 +2000,7 @@ async fn typed_requests_match_unlabelled_responses() {
     ));
 
     assert!(matches!(
-        client
-            .raw(Message::new("VERSION", Vec::<String>::new()))
-            .await,
+        client.request_raw("VERSION").await,
         Err(Error::Unsupported(crate::Unsupported {
             feature: crate::Feature::LabeledResponse,
             reason: crate::UnsupportedReason::NotOffered,
@@ -2544,7 +2580,7 @@ async fn private_notice_adds_the_source_channel_context() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn client_send_rejects_an_invalid_message() {
+async fn client_send_raw_rejects_malformed_or_delimited_input() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
@@ -2557,6 +2593,18 @@ async fn client_send_rejects_an_invalid_message() {
         Error::InvalidInput(crate::InvalidInput::InvalidMessage(message))
             if message.contains("command")
     ));
+    for line in [
+        "",
+        "   ",
+        "WHOIS emily\r\n",
+        "WHOIS emily\nPRIVMSG #papo :injected",
+        "PING \0token",
+    ] {
+        assert!(matches!(
+            client.send_raw(line).await,
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+        ));
+    }
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }

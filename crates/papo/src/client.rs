@@ -4,11 +4,11 @@ use std::{
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
-use papo_proto::{Message, Typing, time};
+use papo_proto::{Message, MessageRef, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
-    Error, Feature, Unsupported, UnsupportedReason,
+    Error, Feature, InvalidInput, RawLine, Unsupported, UnsupportedReason,
     driver::{Command, CoreRequest},
     event_impl,
     state::State,
@@ -118,6 +118,35 @@ impl Client {
             .await
             .map_err(|_| Error::disconnected())?;
         receiver.await.map_err(|_| Error::disconnected())?
+    }
+
+    /// Parses and queues one IRC protocol line for transmission.
+    ///
+    /// The line must not include a line ending. Sending is subject to the
+    /// client's normal outbound rate limit.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidInput`] when the line is malformed or contains
+    /// CR, LF, or NUL, or [`Error::Disconnected`] if the driver has stopped.
+    pub async fn send_raw(&self, line: &str) -> Result<(), Error> {
+        self.send(parse_raw(line)?).await
+    }
+
+    /// Sends one IRC protocol line and waits for its labelled response.
+    ///
+    /// Response lines are returned here rather than emitted by the event
+    /// stream. Their state changes are still applied before this future
+    /// completes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidInput`] when the line is malformed or contains
+    /// CR, LF, or NUL. Returns an error when labelled responses are unavailable,
+    /// the request limit is reached, the response times out, or the driver stops.
+    pub async fn request_raw(&self, line: &str) -> Result<Vec<RawLine>, Error> {
+        let response = self.correlated(parse_raw(line)?, None).await?;
+        Ok(response.lines.iter().map(RawLine::from_proto).collect())
     }
 
     /// Validates and queues an IRC message for transmission.
@@ -615,6 +644,17 @@ impl Client {
             .map_err(|_| Error::disconnected())?;
         receiver.await.map_err(|_| Error::disconnected())?
     }
+}
+
+fn parse_raw(line: &str) -> Result<Message, Error> {
+    if line.contains(['\r', '\n', '\0']) {
+        return Err(
+            InvalidInput::InvalidMessage("raw IRC line contains CR, LF, or NUL".into()).into(),
+        );
+    }
+    MessageRef::parse(line)
+        .map(|message| message.to_owned())
+        .map_err(|_| InvalidInput::InvalidMessage("malformed raw IRC line".into()).into())
 }
 
 impl std::fmt::Debug for Client {

@@ -564,7 +564,9 @@ pub async fn papo::Client::react(&self, &papo::TargetedMessageId, &str) -> core:
 pub async fn papo::Client::reconnect(&self) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::redact(&self, &papo::TargetedMessageId, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::reply(&self, &papo::Message, &str) -> core::result::Result<papo::Sent, papo::Error>
+pub async fn papo::Client::request_raw(&self, &str) -> core::result::Result<alloc::vec::Vec<papo::RawLine>, papo::Error>
 pub async fn papo::Client::send(&self, papo_proto::message::Message) -> core::result::Result<(), papo::Error>
+pub async fn papo::Client::send_raw(&self, &str) -> core::result::Result<(), papo::Error>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub async fn papo::Client::topic(&self, &str, core::option::Option<&str>) -> core::result::Result<core::option::Option<alloc::string::String>, papo::Error>
 pub async fn papo::Client::typing(&self, &str, papo_proto::client_tags::Typing) -> core::result::Result<(), papo::Error>
