@@ -618,7 +618,7 @@ impl ConnectionEnd {
                 message: self.reason.clone(),
             },
             Some(papo_core::CloseKind::AccountRequired) => {
-                crate::RegistrationError::SaslUnavailable
+                crate::RegistrationError::AccountRequired
             }
             Some(papo_core::CloseKind::RegistrationTimeout) => crate::RegistrationError::Timeout,
             _ if self.reason.to_ascii_lowercase().contains("password") => {

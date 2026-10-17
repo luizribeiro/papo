@@ -508,6 +508,7 @@ pub papo::Refusal::UnknownUserMode
 pub papo::Refusal::UserOnChannel
 pub papo::Refusal::UsersDontMatch
 #[non_exhaustive] pub enum papo::RegistrationError
+pub papo::RegistrationError::AccountRequired
 pub papo::RegistrationError::Banned
 pub papo::RegistrationError::Banned::message: alloc::string::String
 pub papo::RegistrationError::NickUnavailable

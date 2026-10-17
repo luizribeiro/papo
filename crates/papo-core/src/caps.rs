@@ -215,6 +215,13 @@ impl Caps {
         if self.handle_sts(connection, outbox) {
             return;
         }
+        if config.sasl.is_none() && self.advertised.contains_key("soju.im/account-required") {
+            outbox.close(
+                CloseKind::AccountRequired,
+                "the server requires an authenticated account".to_owned(),
+            );
+            return;
+        }
         self.negotiating = true;
 
         self.enabled.insert("cap-notify".to_owned(), None);

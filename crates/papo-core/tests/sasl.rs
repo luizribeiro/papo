@@ -407,6 +407,27 @@ fn account_required_closes_and_verification_note_surfaces() {
 }
 
 #[test]
+fn informational_account_required_cap_closes_without_credentials() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server("CAP * LS :soju.im/account-required sasl=PLAIN standard-replies")
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::AccountRequired, reason }
+            if reason.contains("requires an authenticated account"))
+        })
+        .no_client();
+}
+
+#[test]
+fn informational_account_required_cap_is_not_requested_with_credentials() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+        .connect_default()
+        .server("CAP * LS :soju.im/account-required sasl=PLAIN standard-replies")
+        .client("CAP REQ :standard-replies sasl")
+        .no_event();
+}
+
+#[test]
 fn unrelated_fail_replies_do_not_trigger_account_required_policy() {
     for reply in [
         ":ergo.test FAIL AUTHENTICATE ACCOUNT_REQUIRED :Authentication required",

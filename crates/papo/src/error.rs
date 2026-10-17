@@ -299,8 +299,15 @@ pub enum RegistrationError {
         message: String,
     },
     /// The server does not offer a required SASL mechanism.
+    ///
+    /// [`crate::State::isupport`] can report whether the network requires authentication.
     #[error("required SASL authentication is unavailable")]
     SaslUnavailable,
+    /// The server requires authentication but no account credentials were configured.
+    ///
+    /// [`crate::State::isupport`] exposes the corresponding ISUPPORT indication when supplied.
+    #[error("the server requires an authenticated account")]
+    AccountRequired,
     /// The server rejected its connection password.
     #[error("the server password is incorrect")]
     PasswordIncorrect,
