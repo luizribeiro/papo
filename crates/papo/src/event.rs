@@ -44,7 +44,7 @@ pub use source::Source;
 pub use tags::Tags;
 pub use user::{
     AccountChanged, AwayChanged, Departed, HostChanged, MonitorOffline, MonitorOnline, Netjoin,
-    Netsplit, NickChanged, Quit, RealnameChanged,
+    Netsplit, NickChanged, Quit, RealnameChanged, SplitServers,
 };
 
 /// A parsed Client-to-Client Protocol message body.
@@ -855,7 +855,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             time: marker.time,
         }),
         papo_core::Event::Netsplit { servers, quits } => Event::Netsplit(Netsplit {
-            servers,
+            servers: servers.into(),
             quits: quits
                 .into_iter()
                 .filter_map(|message| {
@@ -872,7 +872,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                 .collect(),
         }),
         papo_core::Event::Netjoin { servers, joins } => Event::Netjoin(Netjoin {
-            servers,
+            servers: servers.into(),
             joins: joins
                 .into_iter()
                 .filter_map(|message| {
@@ -1919,7 +1919,8 @@ mod tests {
         }) else {
             panic!("netsplit was not forwarded")
         };
-        assert_eq!(netsplit.servers, ["irc.example", "irc.remote"]);
+        assert_eq!(netsplit.servers.first, "irc.example");
+        assert_eq!(netsplit.servers.second, "irc.remote");
         assert_eq!(netsplit.quits.len(), 1);
         assert_eq!(netsplit.quits[0].nick, "alice");
         assert_eq!(
@@ -1937,7 +1938,8 @@ mod tests {
         }) else {
             panic!("netjoin was not forwarded")
         };
-        assert_eq!(netjoin.servers, ["irc.example", "irc.remote"]);
+        assert_eq!(netjoin.servers.first, "irc.example");
+        assert_eq!(netjoin.servers.second, "irc.remote");
         assert_eq!(netjoin.joins.len(), 1);
         assert_eq!(netjoin.joins[0].channel, "#papo");
         assert_eq!(netjoin.joins[0].nick, "alice");
@@ -1979,7 +1981,10 @@ mod tests {
                 is_self: false,
             }),
             Event::Netjoin(super::Netjoin {
-                servers: ["irc.example".to_owned(), "irc.remote".to_owned()],
+                servers: super::SplitServers {
+                    first: "irc.example".to_owned(),
+                    second: "irc.remote".to_owned(),
+                },
                 joins: vec![super::Joined {
                     channel: "#papo".into(),
                     nick: "Papo[Bot]".into(),

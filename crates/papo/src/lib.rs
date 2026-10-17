@@ -106,8 +106,8 @@ pub mod event {
         ChannelSynced, Departed, Disconnected, FeaturesChanged, HostChanged, Invited, Joined,
         Kicked, MetadataChanged, ModeChange, ModeChanged, MonitorOffline, MonitorOnline, Netjoin,
         Netsplit, NickChanged, Parted, Quit, Reacted, ReadMarker, RealnameChanged, Redacted,
-        Registered, Source, StandardReply, StandardReplyKind, StateLimit, TagMsg, TopicChanged,
-        TypingChanged, Visibility, Warning,
+        Registered, Source, SplitServers, StandardReply, StandardReplyKind, StateLimit, TagMsg,
+        TopicChanged, TypingChanged, Visibility, Warning,
     };
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]

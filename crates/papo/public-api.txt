@@ -197,10 +197,10 @@ pub papo::event::MonitorOnline::nick: papo::Nick
 pub papo::event::MonitorOnline::user: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Netjoin
 pub papo::event::Netjoin::joins: alloc::vec::Vec<papo::event::Joined>
-pub papo::event::Netjoin::servers: [alloc::string::String; 2]
+pub papo::event::Netjoin::servers: papo::event::SplitServers
 #[non_exhaustive] pub struct papo::event::Netsplit
 pub papo::event::Netsplit::quits: alloc::vec::Vec<papo::event::Departed>
-pub papo::event::Netsplit::servers: [alloc::string::String; 2]
+pub papo::event::Netsplit::servers: papo::event::SplitServers
 #[non_exhaustive] pub struct papo::event::NickChanged
 pub papo::event::NickChanged::is_self: bool
 pub papo::event::NickChanged::new: papo::Nick
@@ -236,6 +236,11 @@ pub papo::event::Registered::caps: papo::Capabilities
 pub papo::event::Registered::nick: papo::Nick
 pub papo::event::Registered::reconnected: bool
 pub papo::event::Registered::text: alloc::string::String
+#[non_exhaustive] pub struct papo::event::SplitServers
+pub papo::event::SplitServers::first: alloc::string::String
+pub papo::event::SplitServers::second: alloc::string::String
+impl core::convert::From<[alloc::string::String; 2]> for papo::event::SplitServers
+pub fn papo::event::SplitServers::from([alloc::string::String; 2]) -> Self
 #[non_exhaustive] pub struct papo::event::StandardReply
 pub papo::event::StandardReply::code: alloc::string::String
 pub papo::event::StandardReply::command: alloc::string::String

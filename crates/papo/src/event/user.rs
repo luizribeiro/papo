@@ -98,12 +98,30 @@ pub struct Departed {
     pub reason: Option<String>,
 }
 
+/// Server names attached to a netsplit or netjoin batch, in wire order.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct SplitServers {
+    /// The first server name in the batch parameters.
+    pub first: String,
+    /// The second server name in the batch parameters.
+    ///
+    /// Wire order does not establish which server is nearer to this client.
+    pub second: String,
+}
+
+impl From<[String; 2]> for SplitServers {
+    fn from([first, second]: [String; 2]) -> Self {
+        Self { first, second }
+    }
+}
+
 /// Users departed because connectivity between two servers was lost.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Netsplit {
-    /// The servers on either side of the lost link.
-    pub servers: [String; 2],
+    /// The server names reported for the lost link.
+    pub servers: SplitServers,
     /// The grouped departures in wire order.
     pub quits: Vec<Departed>,
 }
@@ -112,8 +130,8 @@ pub struct Netsplit {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Netjoin {
-    /// The servers on either side of the restored link.
-    pub servers: [String; 2],
+    /// The server names reported for the restored link.
+    pub servers: SplitServers,
     /// The grouped joins in wire order.
     pub joins: Vec<Joined>,
 }
