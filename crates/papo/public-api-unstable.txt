@@ -1,6 +1,7 @@
 pub mod papo
 pub use papo::Account
 pub use papo::AccountName
+pub use papo::BouncerNetwork
 pub use papo::Capabilities
 pub use papo::Casemapping
 pub use papo::Channel
@@ -13,6 +14,9 @@ pub use papo::Member
 pub use papo::MessageId
 pub use papo::MetadataKey
 pub use papo::ModeKind
+pub use papo::NetworkConfig
+pub use papo::NetworkId
+pub use papo::NetworkState
 pub use papo::Nick
 pub use papo::PersistenceSetting
 pub use papo::PersistenceStatus
@@ -113,6 +117,7 @@ pub papo::event::StandardReplyKind::Fail
 pub papo::event::StandardReplyKind::Note
 pub papo::event::StandardReplyKind::Warn
 #[non_exhaustive] pub enum papo::event::StateLimit
+pub papo::event::StateLimit::BouncerNetworks
 pub papo::event::StateLimit::Channels
 pub papo::event::StateLimit::Members
 pub papo::event::StateLimit::MetadataKeys
@@ -143,6 +148,9 @@ pub papo::event::AccountChanged::nick: papo_proto::id::Nick
 #[non_exhaustive] pub struct papo::event::AwayChanged
 pub papo::event::AwayChanged::message: core::option::Option<alloc::string::String>
 pub papo::event::AwayChanged::nick: papo_proto::id::Nick
+#[non_exhaustive] pub struct papo::event::BouncerNetworkChanged
+pub papo::event::BouncerNetworkChanged::id: papo_core::bouncer::NetworkId
+pub papo::event::BouncerNetworkChanged::network: core::option::Option<papo_core::bouncer::BouncerNetwork>
 #[non_exhaustive] pub struct papo::event::CapsChanged
 pub papo::event::CapsChanged::added: papo_core::Capabilities
 pub papo::event::CapsChanged::removed: papo_core::Capabilities
@@ -347,6 +355,7 @@ pub papo::Error::Unsupported(papo_core::features::Unsupported)
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
 pub papo::Event::AccountRegistration(papo::AccountRegistration)
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
+pub papo::Event::BouncerNetwork(papo::event::BouncerNetworkChanged)
 pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
 pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
@@ -386,6 +395,9 @@ pub const fn papo::Event::as_account_registration(&self) -> core::option::Option
 impl papo::Event
 pub const fn papo::Event::as_away_changed(&self) -> core::option::Option<&papo::event::AwayChanged>
 impl papo::Event
+pub const fn papo::Event::as_bouncer_network(&self) -> core::option::Option<&papo::event::BouncerNetworkChanged>
+pub const fn papo::Event::as_persistence_changed(&self) -> core::option::Option<&papo::event::PersistenceChanged>
+impl papo::Event
 pub const fn papo::Event::as_caps_changed(&self) -> core::option::Option<&papo::event::CapsChanged>
 impl papo::Event
 pub const fn papo::Event::as_channel_renamed(&self) -> core::option::Option<&papo::event::ChannelRenamed>
@@ -423,8 +435,6 @@ impl papo::Event
 pub const fn papo::Event::as_nick_changed(&self) -> core::option::Option<&papo::event::NickChanged>
 impl papo::Event
 pub const fn papo::Event::as_parted(&self) -> core::option::Option<&papo::event::Parted>
-impl papo::Event
-pub const fn papo::Event::as_persistence_changed(&self) -> core::option::Option<&papo::event::PersistenceChanged>
 impl papo::Event
 pub const fn papo::Event::as_quit(&self) -> core::option::Option<&papo::event::Quit>
 impl papo::Event
@@ -847,6 +857,8 @@ pub struct papo::State
 impl papo::State
 pub fn papo::State::account(&self) -> core::option::Option<&papo_proto::id::AccountName>
 pub const fn papo::State::away(&self) -> bool
+pub const fn papo::State::bouncer_network(&self) -> core::option::Option<&papo_core::bouncer::NetworkId>
+pub fn papo::State::bouncer_networks(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::bouncer::BouncerNetwork>
 pub const fn papo::State::caps(&self) -> &papo_core::Capabilities
 pub fn papo::State::casemapping(&self) -> papo_proto::casemapping::Casemapping
 pub fn papo::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::state::Channel>

@@ -58,6 +58,9 @@ pub use papo_core::WebIrc;
 pub use papo_core::{Account, Capabilities, Channel, Feature, Member, User};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{PersistenceSetting, PersistenceStatus};
 pub use papo_core::{RateLimit, Sasl};
 pub use papo_core::{Unsupported, UnsupportedReason};
@@ -81,7 +84,7 @@ pub mod event {
     };
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    pub use crate::event_impl::{PersistenceChanged, PersistenceSetting};
+    pub use crate::event_impl::{BouncerNetworkChanged, PersistenceChanged, PersistenceSetting};
 }
 
 /// Strict Transport Security policy stores.

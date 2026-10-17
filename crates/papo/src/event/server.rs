@@ -2,6 +2,18 @@ use std::fmt;
 
 use crate::{MetadataKey, Nick, Target};
 
+/// An upstream bouncer network was added, updated, or removed.
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct BouncerNetworkChanged {
+    /// Bouncer-assigned network identifier.
+    pub id: crate::NetworkId,
+    /// Complete cached network state, or `None` when removed.
+    pub network: Option<crate::BouncerNetwork>,
+}
+
 /// Visibility of a metadata value.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -78,6 +90,9 @@ pub enum StateLimit {
     MetadataTargets,
     /// Metadata keys retained for one target.
     MetadataKeys,
+    /// Upstream bouncer networks.
+    #[cfg(feature = "unstable")]
+    BouncerNetworks,
 }
 
 /// A recoverable protocol or configuration warning.

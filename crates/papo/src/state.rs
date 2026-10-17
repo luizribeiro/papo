@@ -14,6 +14,8 @@ pub struct State {
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     account: Option<AccountName>,
+    #[cfg(feature = "unstable")]
+    bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
     connected: bool,
     generation: u64,
@@ -36,6 +38,11 @@ impl State {
             caps: session.caps().clone(),
             isupport: Arc::new(session.isupport().clone()),
             account: session.account().map(AccountName::from),
+            #[cfg(feature = "unstable")]
+            bouncer_network: match session.isupport().get("BOUNCER_NETID") {
+                papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::new(id)),
+                _ => None,
+            },
             unsupported,
             connected,
             generation: session.state_generation(),
@@ -108,6 +115,21 @@ impl State {
     /// Iterates over joined channels in unspecified order.
     pub fn channels(&self) -> impl Iterator<Item = &Channel> {
         self.core.channels()
+    }
+
+    /// Returns the upstream network bound to this bouncer connection.
+    #[must_use]
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub const fn bouncer_network(&self) -> Option<&papo_core::NetworkId> {
+        self.bouncer_network.as_ref()
+    }
+
+    /// Iterates over upstream networks reported by the bouncer.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub fn bouncer_networks(&self) -> impl Iterator<Item = &papo_core::BouncerNetwork> {
+        self.core.bouncer_networks()
     }
 
     /// Returns the newest read marker time reported for `target`.

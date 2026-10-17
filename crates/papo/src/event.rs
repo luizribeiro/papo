@@ -39,7 +39,7 @@ pub use raw::RawLine;
 pub use server::{BatchAbandonReason, MetadataChanged, StateLimit, Visibility, Warning};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use server::{PersistenceChanged, PersistenceSetting};
+pub use server::{BouncerNetworkChanged, PersistenceChanged, PersistenceSetting};
 pub use source::Source;
 pub use tags::Tags;
 pub use user::{
@@ -487,6 +487,9 @@ pub enum Event {
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
     PersistenceChanged(PersistenceChanged),
+    /// An upstream bouncer network was added, updated, or removed.
+    #[cfg(feature = "unstable")]
+    BouncerNetwork(BouncerNetworkChanged),
     /// A target's cached metadata changed.
     MetadataChanged(MetadataChanged),
     /// A completed history or playback batch.
@@ -621,6 +624,17 @@ impl Event {
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const fn as_persistence_changed(&self) -> Option<&PersistenceChanged> {
         if let Self::PersistenceChanged(payload) = self {
+            Some(payload)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the payload when this is [`Event::BouncerNetwork`].
+    #[must_use]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub const fn as_bouncer_network(&self) -> Option<&BouncerNetworkChanged> {
+        if let Self::BouncerNetwork(payload) = self {
             Some(payload)
         } else {
             None
@@ -777,6 +791,10 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                 },
                 effective,
             })
+        }
+        #[cfg(feature = "unstable")]
+        papo_core::Event::BouncerNetwork { id, network } => {
+            Event::BouncerNetwork(BouncerNetworkChanged { id, network })
         }
         papo_core::Event::MetadataChanged {
             target,
@@ -975,6 +993,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                     papo_core::StateLimit::Members => StateLimit::Members,
                     papo_core::StateLimit::MetadataTargets => StateLimit::MetadataTargets,
                     papo_core::StateLimit::MetadataKeys => StateLimit::MetadataKeys,
+                    #[cfg(feature = "unstable")]
+                    papo_core::StateLimit::BouncerNetworks => StateLimit::BouncerNetworks,
                     _ => return CoreEvent::Unknown,
                 },
             })
@@ -1482,6 +1502,14 @@ mod tests {
             }),
             Event::PersistenceChanged(changed)
                 if changed.setting == PersistenceSetting::Default && changed.effective
+        ));
+        assert!(matches!(
+            forwarded(papo_core::Event::BouncerNetwork {
+                id: papo_core::NetworkId::new("42"),
+                network: None,
+            }),
+            Event::BouncerNetwork(changed)
+                if changed.id.as_str() == "42" && changed.network.is_none()
         ));
     }
 
