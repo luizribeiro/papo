@@ -16,6 +16,7 @@ mod error;
 #[path = "event.rs"]
 mod event_impl;
 mod ext;
+pub mod format;
 mod io_compat;
 pub mod metadata;
 mod mode;
@@ -23,6 +24,7 @@ mod reconnect;
 mod requests;
 mod rt;
 mod state;
+pub mod time;
 mod transport;
 
 #[cfg(feature = "bot")]

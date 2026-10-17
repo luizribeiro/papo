@@ -276,6 +276,8 @@ pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String
 pub papo::event::TypingChanged::source: core::option::Option<papo::Source>
 pub papo::event::TypingChanged::state: papo_proto::client_tags::Typing
 pub papo::event::TypingChanged::target: papo_proto::id::Target
+pub mod papo::format
+pub use papo::format::strip
 pub mod papo::metadata
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
@@ -314,6 +316,8 @@ impl papo_core::sts::StsStore for papo::sts::FileStsStore
 pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo_core::sts::StsPolicy>
 pub fn papo::sts::FileStsStore::put(&mut self, papo_core::sts::StsPolicy)
 pub fn papo::sts::FileStsStore::remove(&mut self, &str)
+pub mod papo::time
+pub use papo::time::format
 #[non_exhaustive] pub enum papo::AccountRegistration
 pub papo::AccountRegistration::Registered
 pub papo::AccountRegistration::Registered::account: alloc::string::String
