@@ -41,6 +41,40 @@ fn releases_five_lines_then_one_every_500_milliseconds() {
 }
 
 #[test]
+fn default_limiter_honors_both_saferate_spellings() {
+    for token in ["SAFERATE", "soju.im/SAFERATE"] {
+        let mut transcript = Transcript::rate_limited(Config::default()).server(&format!(
+            ":ergo.test 005 papo {token} :are supported by this server"
+        ));
+        for index in 1..=8 {
+            transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+        }
+        for index in 1..=8 {
+            transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
+        }
+        transcript
+            .no_client()
+            .inspect(|session| assert_eq!(session.queued_len(), 0));
+    }
+}
+
+#[test]
+fn strict_limiter_ignores_saferate() {
+    let mut transcript =
+        Transcript::rate_limited(Config::default().rate_limit(RateLimit::default().strict()))
+            .server(":ergo.test 005 papo SAFERATE :are supported by this server");
+    for index in 1..=6 {
+        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+    }
+    for index in 1..=5 {
+        transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
+    }
+    transcript
+        .no_client()
+        .inspect(|session| assert_eq!(session.queued_len(), 1));
+}
+
+#[test]
 fn one_interval_refills_exactly_one_token() {
     let mut transcript = Transcript::rate_limited(Config::default());
     for index in 1..=8 {

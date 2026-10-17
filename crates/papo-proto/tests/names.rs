@@ -14,6 +14,7 @@ fn maps_every_draft_name_and_preserves_every_ratified_name() {
         ),
         (NameKind::Capability, "draft/chathistory", "chathistory"),
         (NameKind::Isupport, "draft/CHATHISTORY", "CHATHISTORY"),
+        (NameKind::Isupport, "soju.im/SAFERATE", "SAFERATE"),
     ];
 
     assert_eq!(NAME_ALIASES, expected);
@@ -50,6 +51,17 @@ fn isupport_normalizes_draft_history_names_case_insensitively() {
 
     support.apply_tokens(["-DRAFT/CHATHISTORY"]);
     assert_eq!(support.get("CHATHISTORY"), Advertised::Absent);
+}
+
+#[test]
+fn isupport_normalizes_saferate_names_case_insensitively() {
+    let mut support = Isupport::default();
+    support.apply_tokens(["soju.im/SAFERATE"]);
+    assert!(support.saferate());
+    assert_eq!(support.get("SAFERATE"), Advertised::Bare);
+
+    support.apply_tokens(["-SAFERATE"]);
+    assert!(!support.saferate());
 }
 
 #[test]

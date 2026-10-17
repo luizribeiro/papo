@@ -212,6 +212,9 @@ impl Builder {
     }
 
     /// Sets the outbound line rate limit.
+    ///
+    /// The limit is ignored while the server advertises `SAFERATE` unless
+    /// [`RateLimit::strict`] was selected.
     pub fn rate_limit(mut self, rate_limit: RateLimit) -> Self {
         self.config.rate_limit = rate_limit;
         self

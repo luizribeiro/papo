@@ -2,10 +2,14 @@ use std::time::Duration;
 use web_time::Instant;
 
 /// Outbound token-bucket configuration.
+///
+/// The default permits a burst of five lines and then two lines per second. A server's
+/// `SAFERATE` token disables local pacing unless [`Self::strict`] is selected.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RateLimit {
     burst: usize,
     refill: Duration,
+    strict: bool,
 }
 
 impl RateLimit {
@@ -18,7 +22,11 @@ impl RateLimit {
     pub const fn new(burst: usize, refill: Duration) -> Self {
         assert!(burst > 0, "rate-limit burst must be positive");
         assert!(!refill.is_zero(), "rate-limit refill must be positive");
-        Self { burst, refill }
+        Self {
+            burst,
+            refill,
+            strict: false,
+        }
     }
 
     /// Disables outbound rate limiting.
@@ -27,7 +35,15 @@ impl RateLimit {
         Self {
             burst: usize::MAX,
             refill: Duration::MAX,
+            strict: false,
         }
+    }
+
+    /// Keeps this limit active when the server advertises `SAFERATE`.
+    #[must_use]
+    pub const fn strict(mut self) -> Self {
+        self.strict = true;
+        self
     }
 }
 
@@ -72,8 +88,8 @@ impl RateLimiter {
         }
     }
 
-    pub(super) fn take(&mut self) -> bool {
-        if self.config.burst == usize::MAX {
+    pub(super) fn take(&mut self, saferate: bool) -> bool {
+        if self.config.burst == usize::MAX || (saferate && !self.config.strict) {
             return true;
         }
         if self.tokens == 0 {
@@ -92,8 +108,12 @@ impl RateLimiter {
         self.next_token = next_token;
     }
 
-    pub(super) const fn next_deadline(&self, queued: bool) -> Option<Instant> {
-        if queued { self.next_token } else { None }
+    pub(super) const fn next_deadline(&self, queued: bool, saferate: bool) -> Option<Instant> {
+        if queued && (!saferate || self.config.strict) {
+            self.next_token
+        } else {
+            None
+        }
     }
 }
 

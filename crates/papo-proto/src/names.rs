@@ -22,6 +22,7 @@ pub const NAME_ALIASES: &[(NameKind, &str, &str)] = &[
     ),
     (NameKind::Capability, "draft/chathistory", "chathistory"),
     (NameKind::Isupport, "draft/CHATHISTORY", "CHATHISTORY"),
+    (NameKind::Isupport, "soju.im/SAFERATE", "SAFERATE"),
 ];
 
 /// Returns the ratified spelling of a protocol name when one is known.

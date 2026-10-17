@@ -318,6 +318,8 @@ impl Isupport {
         account_required => "DRAFT/ACCOUNTREQUIRED",
         /// Reports whether safe `LIST` behavior is available.
         safelist => "SAFELIST",
+        /// Reports whether the server permits clients to send without local pacing.
+        saferate => "SAFERATE",
     }
 
     /// Returns the user mode used to identify bots.

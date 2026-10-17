@@ -220,7 +220,7 @@ pub struct Config {
     pub ping_interval: Duration,
     /// Maximum silence before the session closes the connection.
     pub ping_timeout: Duration,
-    /// Outbound line rate limit.
+    /// Outbound line rate limit, ignored when the server advertises `SAFERATE` unless strict.
     pub rate_limit: RateLimit,
     /// Default transport security used by [`Session::handle_connected`].
     pub connection_security: ConnectionSecurity,
@@ -419,6 +419,9 @@ impl Config {
     }
 
     /// Sets the outbound line rate limit.
+    ///
+    /// The limit is ignored while the server advertises `SAFERATE` unless
+    /// [`RateLimit::strict`] was selected.
     #[must_use]
     pub const fn rate_limit(mut self, rate_limit: RateLimit) -> Self {
         self.rate_limit = rate_limit;
@@ -2622,7 +2625,9 @@ impl Session {
         if !batch_open && let Some(line) = self.outbox.immediate.pop_front() {
             return Some(line);
         }
-        if self.outbox.transmits.is_empty() || !self.rate_limit.take() {
+        if self.outbox.transmits.is_empty()
+            || !self.rate_limit.take(self.isupport.value().saferate())
+        {
             return None;
         }
         match self.outbox.transmits.pop_front()? {
@@ -2652,8 +2657,10 @@ impl Session {
             self.registration.next_deadline(),
             self.sasl.next_deadline(),
             self.keepalive.next_deadline(),
-            self.rate_limit
-                .next_deadline(!self.outbox.transmits.is_empty()),
+            self.rate_limit.next_deadline(
+                !self.outbox.transmits.is_empty(),
+                self.isupport.value().saferate(),
+            ),
             self.batches.next_deadline(),
             self.requests
                 .values()
