@@ -29,6 +29,49 @@ pub enum InvalidInput {
     /// The event queue capacity is zero.
     #[error("event queue capacity {0} must be positive")]
     EventCapacity(usize),
+    /// An outbound IRC message cannot be represented on the wire.
+    #[error("invalid IRC message: {0}")]
+    InvalidMessage(String),
+    /// Outgoing chat text has no nonempty lines.
+    #[error("chat text is empty")]
+    EmptyText,
+    /// A history or reply reference lacks a server message identifier.
+    #[error("the message reference has no server identifier")]
+    MessageReference,
+    /// An account operation omitted a required email address.
+    #[error("account registration requires an email address")]
+    EmailRequired,
+    /// The server requires an account name to match the current nickname.
+    #[error("the server does not support a custom account name")]
+    CustomAccountName,
+    /// A metadata key does not follow the negotiated syntax.
+    #[error("invalid metadata key")]
+    MetadataKey,
+    /// A metadata value exceeds the server's advertised byte limit.
+    #[error("metadata value length {actual} exceeds limit {maximum}")]
+    MetadataValue {
+        /// The advertised maximum length.
+        maximum: usize,
+        /// The supplied length.
+        actual: usize,
+    },
+    /// A metadata subscription exceeds the server's advertised limit.
+    #[error("metadata subscription count {actual} exceeds limit {maximum}")]
+    MetadataSubscriptions {
+        /// The advertised maximum count.
+        maximum: usize,
+        /// The supplied count.
+        actual: usize,
+    },
+    /// A relayed nickname lacks an advertised separator.
+    #[error("relayed nickname has no allowed separator")]
+    RelayNickname,
+    /// A Web Push endpoint is not a nonempty HTTPS URL.
+    #[error("invalid Web Push endpoint")]
+    WebPushEndpoint,
+    /// A Web Push key is not valid URL-safe base64.
+    #[error("invalid Web Push key")]
+    WebPushKey,
 }
 
 /// The network endpoint used by an IRC client.

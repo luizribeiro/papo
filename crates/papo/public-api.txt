@@ -115,10 +115,8 @@ pub papo::DisconnectCause::SlowConsumer
 impl core::fmt::Display for papo::DisconnectCause
 pub fn papo::DisconnectCause::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub enum papo::Error
-pub papo::Error::Build(papo_proto::message::BuildError)
 pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected
-pub papo::Error::EmptyText
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::Io(core::io::error::Error)
 pub papo::Error::Registration(alloc::string::String)
@@ -250,13 +248,28 @@ pub papo::Event::VerificationRequired
 pub papo::Event::VerificationRequired::account: alloc::string::String
 pub papo::Event::VerificationRequired::message: alloc::string::String
 #[non_exhaustive] pub enum papo::InvalidInput
+pub papo::InvalidInput::CustomAccountName
+pub papo::InvalidInput::EmailRequired
 pub papo::InvalidInput::Empty(alloc::string::String)
+pub papo::InvalidInput::EmptyText
 pub papo::InvalidInput::EventCapacity(usize)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)
+pub papo::InvalidInput::InvalidMessage(alloc::string::String)
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
+pub papo::InvalidInput::MessageReference
+pub papo::InvalidInput::MetadataKey
+pub papo::InvalidInput::MetadataSubscriptions
+pub papo::InvalidInput::MetadataSubscriptions::actual: usize
+pub papo::InvalidInput::MetadataSubscriptions::maximum: usize
+pub papo::InvalidInput::MetadataValue
+pub papo::InvalidInput::MetadataValue::actual: usize
+pub papo::InvalidInput::MetadataValue::maximum: usize
+pub papo::InvalidInput::RelayNickname
 pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
 pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
+pub papo::InvalidInput::WebPushEndpoint
+pub papo::InvalidInput::WebPushKey
 #[non_exhaustive] pub enum papo::MessageKind<'a>
 pub papo::MessageKind::Action
 pub papo::MessageKind::Ctcp(&'a str)

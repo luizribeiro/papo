@@ -1,6 +1,5 @@
 use std::{fmt, io, sync::Arc, time::Duration};
 
-use papo_proto::BuildError;
 use thiserror::Error;
 
 use crate::InvalidInput;
@@ -341,18 +340,12 @@ pub enum Error {
         /// The hostname whose server repeated the upgrade.
         host: String,
     },
-    /// The requested transport is not available in this build.
-    #[error("unsupported transport: {0}")]
+    /// The requested transport or protocol behavior is unavailable.
+    #[error("unsupported behavior: {0}")]
     Unsupported(&'static str),
-    /// An outbound IRC message is not valid on the wire.
-    #[error("invalid IRC message: {0}")]
-    Build(#[from] BuildError),
     /// The connection already has 256 requests awaiting replies.
     #[error("too many IRC requests are awaiting replies")]
     RequestLimit,
-    /// The outgoing chat text contains no nonempty lines.
-    #[error("chat text is empty")]
-    EmptyText,
     /// Registration ended before the server welcomed the client.
     #[error("IRC registration failed: {0}")]
     Registration(String),
@@ -368,8 +361,39 @@ pub enum Error {
 }
 
 impl Error {
+    pub(crate) fn build(error: papo_proto::BuildError) -> Self {
+        Self::InvalidInput(InvalidInput::InvalidMessage(error.to_string()))
+    }
+
     pub(crate) fn server(error: papo_core::ServerError) -> Self {
         Self::Server(ServerError::from_core(error))
+    }
+
+    pub(crate) fn request(error: papo_core::RequestError) -> Self {
+        use papo_core::RequestError as Request;
+        match error {
+            Request::Build(error) => {
+                Self::InvalidInput(InvalidInput::InvalidMessage(error.to_string()))
+            }
+            Request::EmptyText => Self::InvalidInput(InvalidInput::EmptyText),
+            Request::Unsupported(unsupported) => Self::Unsupported(unsupported.feature.name()),
+            Request::InvalidMessageReference => Self::InvalidInput(InvalidInput::MessageReference),
+            Request::EmailRequired => Self::InvalidInput(InvalidInput::EmailRequired),
+            Request::CustomAccountNameUnsupported => {
+                Self::InvalidInput(InvalidInput::CustomAccountName)
+            }
+            Request::InvalidMetadataKey => Self::InvalidInput(InvalidInput::MetadataKey),
+            Request::MetadataValueTooLong { maximum, actual } => {
+                Self::InvalidInput(InvalidInput::MetadataValue { maximum, actual })
+            }
+            Request::TooManyMetadataSubscriptions { maximum, actual } => {
+                Self::InvalidInput(InvalidInput::MetadataSubscriptions { maximum, actual })
+            }
+            Request::InvalidRelayNickname => Self::InvalidInput(InvalidInput::RelayNickname),
+            Request::InvalidWebPushEndpoint => Self::InvalidInput(InvalidInput::WebPushEndpoint),
+            Request::InvalidWebPushKey => Self::InvalidInput(InvalidInput::WebPushKey),
+            _ => Self::RequestLimit,
+        }
     }
 }
 

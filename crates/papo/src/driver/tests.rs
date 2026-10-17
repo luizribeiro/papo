@@ -2185,7 +2185,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     client_line(&mut server, b"NOTICE papo-helper :maintenance soon\r\n").await;
     assert!(matches!(
         within(client.privmsg("#papo", "\n")).await,
-        Err(Error::EmptyText)
+        Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
     ));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -2520,7 +2520,8 @@ async fn client_send_rejects_an_invalid_message() {
         .unwrap_err();
     assert!(matches!(
         error,
-        Error::Build(papo_proto::BuildError::InvalidCommand)
+        Error::InvalidInput(crate::InvalidInput::InvalidMessage(message))
+            if message.contains("command")
     ));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(

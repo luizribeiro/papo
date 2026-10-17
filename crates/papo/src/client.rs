@@ -150,7 +150,7 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Build`] if the message is invalid, or
+    /// Returns [`Error::InvalidInput`] if the message is invalid, or
     /// [`Error::Disconnected`] if the driver has stopped.
     pub async fn send(&self, message: Message) -> Result<(), Error> {
         let (result, receiver) = oneshot::channel();

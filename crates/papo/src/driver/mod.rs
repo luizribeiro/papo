@@ -675,7 +675,7 @@ where
             },
             command = commands.recv(), if commands_open => match command {
                 Some(Command::Send { message, result }) => {
-                    _ = result.send(session.send(now(), message).map_err(Error::Build));
+                    _ = result.send(session.send(now(), message).map_err(Error::build));
                 }
                 Some(Command::Request { message, matcher, result }) => {
                     let requested = match matcher {
@@ -693,37 +693,26 @@ where
                             requests.insert(id, PendingRequest::Response(result));
                         }
                         Err(error) => {
-                            let error = match error {
-                                RequestError::Build(error) => Error::Build(error),
-                                _ => Error::RequestLimit,
-                            };
-                            _ = result.send(Err(error));
+                            _ = result.send(Err(Error::request(error)));
                         }
                     }
                 }
                 Some(Command::CoreRequest { request, result }) => {
                     match request.start(session) {
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
-                        Err(RequestError::Unsupported(unsupported)) => { _ = result.send(Err(Error::Unsupported(unsupported.feature.name()))); }
-                        Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
-                        Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
+                        Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }
                 Some(Command::History { query, result }) => {
                     match session.chathistory(now(), query) {
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
-                        Err(RequestError::Unsupported(unsupported)) => { _ = result.send(Err(Error::Unsupported(unsupported.feature.name()))); }
-                        Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
-                        Err(RequestError::InvalidMessageReference) => { _ = result.send(Err(Error::Unsupported("message reference"))); }
-                        Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
+                        Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }
                 Some(Command::MarkRead { target, time, result }) => {
                     match session.mark_read(now(), &target, time) {
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
-                        Err(RequestError::Unsupported(unsupported)) => { _ = result.send(Err(Error::Unsupported(unsupported.feature.name()))); }
-                        Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
-                        Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
+                        Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }
                 Some(Command::ReadMarker { target, result }) => {
@@ -733,9 +722,7 @@ where
                             None if read_marker_waiters.len() < 256 => read_marker_waiters.push((target, result)),
                             None => { _ = result.send(Err(Error::RequestLimit)); }
                         },
-                        Err(RequestError::Unsupported(unsupported)) => { _ = result.send(Err(Error::Unsupported(unsupported.feature.name()))); }
-                        Err(RequestError::Build(error)) => { _ = result.send(Err(Error::Build(error))); }
-                        Err(_) => { _ = result.send(Err(Error::RequestLimit)); }
+                        Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }
                 Some(Command::SendText { kind, target, text, tags, result }) => {
@@ -746,12 +733,7 @@ where
                         }
                         Ok(None) => _ = result.send(Ok(Sent::default())),
                         Err(error) => {
-                            let error = match error {
-                                RequestError::Build(error) => Error::Build(error),
-                                RequestError::EmptyText => Error::EmptyText,
-                                _ => Error::RequestLimit,
-                            };
-                            _ = result.send(Err(error));
+                            _ = result.send(Err(Error::request(error)));
                         }
                     }
                 }
@@ -774,7 +756,7 @@ where
                         };
                         session
                             .send(current, Message::tagmsg(target).with_tag("+typing", value))
-                            .map_err(Error::Build)
+                            .map_err(Error::build)
                     } else {
                         Ok(())
                     };
@@ -885,7 +867,7 @@ fn request_quit(
         }
         Err(error) => {
             if let Some(result) = result {
-                _ = result.send(Err(Error::Build(error)));
+                _ = result.send(Err(Error::build(error)));
             }
         }
     }
