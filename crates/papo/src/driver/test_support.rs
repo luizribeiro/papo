@@ -461,7 +461,7 @@ pub(crate) async fn assert_reply_wire(
     kind: ReplyKind,
 ) {
     let wanted = message_tags.then_some("message-tags");
-    let (mut server, _client, mut events, driver) = scripted(config().wanted_caps(wanted));
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(wanted));
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
     if message_tags {
@@ -487,7 +487,7 @@ pub(crate) async fn assert_reply_wire(
     };
     match kind {
         ReplyKind::Reply => {
-            within(message.reply("pong")).await.unwrap();
+            within(client.reply(&message, "pong")).await.unwrap();
         }
         #[cfg(feature = "bot")]
         ReplyKind::PrivateNotice => {

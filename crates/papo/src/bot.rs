@@ -212,7 +212,7 @@ impl Command {
         if !self.replies.check(&target) {
             return Ok(ReplyStatus::Dropped);
         }
-        self.message.reply(text).await?;
+        self.client().reply(&self.message, text).await?;
         Ok(ReplyStatus::Sent)
     }
 

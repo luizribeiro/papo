@@ -53,7 +53,7 @@ async fn run(client: Client, mut events: papo::Events) -> Result<(), papo::Error
                 return Ok(());
             }
             event = events.next() => match event {
-                Some(event) => handle(event).await?,
+                Some(event) => handle(&client, event).await?,
                 None => return Ok(()),
             },
         }
@@ -62,14 +62,14 @@ async fn run(client: Client, mut events: papo::Events) -> Result<(), papo::Error
 
 // WASI has no process signals, so the connection lifetime controls shutdown.
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
-async fn run(_client: Client, mut events: papo::Events) -> Result<(), papo::Error> {
+async fn run(client: Client, mut events: papo::Events) -> Result<(), papo::Error> {
     while let Some(event) = events.next().await {
-        handle(event).await?;
+        handle(&client, event).await?;
     }
     Ok(())
 }
 
-async fn handle(event: Event) -> Result<(), papo::Error> {
+async fn handle(client: &Client, event: Event) -> Result<(), papo::Error> {
     match event {
         Event::Registered(registered) if registered.reconnected => {
             eprintln!("reconnected as {}", registered.nick);
@@ -81,7 +81,7 @@ async fn handle(event: Event) -> Result<(), papo::Error> {
             eprintln!("disconnected: {reason}; reconnecting: {will_retry}");
         }
         Event::Message(message) if message.is_live() && message.text() == "!ping" => {
-            message.reply("pong").await?;
+            client.reply(&message, "pong").await?;
         }
         _ => {}
     }

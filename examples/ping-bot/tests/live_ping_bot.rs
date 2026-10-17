@@ -94,13 +94,14 @@ impl Bot {
                 .connect()
                 .await
                 .unwrap();
+        let bot = client.clone();
         let task = tokio::spawn(async move {
             while let Some(event) = events.next().await {
                 if let Event::Message(message) = event
                     && message.is_live()
                     && message.text() == "!ping"
                 {
-                    message.reply("pong").await.unwrap();
+                    bot.reply(&message, "pong").await.unwrap();
                 }
             }
         });

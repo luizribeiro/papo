@@ -22,7 +22,7 @@ fn assert_message_request_futures(client: &Client, message: &MessageEvent) {
     let id = TargetedMessageId::new("#papo", "RfcBTzyxY120004");
     assert_send(client.react(&id, "👍"));
     assert_send(client.unreact(&id, "👍"));
-    assert_send(message.reply("Acknowledged"));
+    assert_send(client.reply(message, "Acknowledged"));
 }
 
 #[test]

@@ -370,12 +370,15 @@ impl MessageEvent {
         })
     }
 
-    #[cfg(feature = "bot")]
     pub(crate) fn sender_nick(&self) -> Option<&str> {
-        match self.raw.as_ref().source()? {
-            papo_proto::Source::User { nick, .. } => Some(nick),
-            papo_proto::Source::Server(_) => None,
+        match self.sender.as_ref()? {
+            Source::User { nick, .. } => Some(nick),
+            Source::Server { .. } => None,
         }
+    }
+
+    pub(crate) fn channel_context(&self) -> Option<&str> {
+        self.channel_context.as_deref()
     }
 
     #[cfg(feature = "bot")]

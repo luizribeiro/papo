@@ -225,6 +225,34 @@ impl Client {
             .await
     }
 
+    /// Sends a private message threaded as a reply to `message` when supported.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the text is empty or invalid, or the driver has stopped.
+    pub async fn reply(&self, message: &crate::MessageEvent, text: &str) -> Result<Sent, Error> {
+        let mut tags = Vec::new();
+        let state = self.state();
+        if state.has_cap("message-tags") {
+            let isupport = state.isupport();
+            let denied = isupport.clienttagdeny();
+            if let Some(id) = message.id()
+                && let Some(tag) = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
+            {
+                tags.push((tag.to_owned(), id.msgid().to_owned()));
+            }
+            if message.is_private()
+                && let Some(context) = message.channel_context()
+                && let Some(tag) =
+                    event_impl::allowed_alias(&denied, "+channel-context", "+draft/channel-context")
+            {
+                tags.push((tag.to_owned(), context.to_owned()));
+            }
+        }
+        self.send_text(TextKind::Privmsg, message.reply_target(), text, tags)
+            .await
+    }
+
     /// Adds `emoji` as a reaction to `message`.
     ///
     /// # Errors
