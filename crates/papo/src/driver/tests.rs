@@ -1918,6 +1918,78 @@ async fn request_raw_returns_state_changing_lines_without_an_event() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn identity_and_away_actions_match_unlabelled_confirmations() {
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(["setname"]));
+    let driver = tokio::spawn(driver);
+    complete_caps_registration(&mut server, &mut events, "setname", "setname").await;
+
+    let rename = tokio::spawn({
+        let client = client.clone();
+        async move { client.set_nick("paporev").await }
+    });
+    client_line(&mut server, b"NICK paporev\r\n").await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost NICK :paporev\r\n",
+    )
+    .await;
+    within(rename).await.unwrap().unwrap();
+    assert_eq!(client.state().nick(), "paporev");
+
+    let away = tokio::spawn({
+        let client = client.clone();
+        async move { client.set_away("reviewing patches").await }
+    });
+    client_line(&mut server, b"AWAY :reviewing patches\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 306 paporev :You have been marked as being away\r\n",
+    )
+    .await;
+    within(away).await.unwrap().unwrap();
+
+    let back = tokio::spawn({
+        let client = client.clone();
+        async move { client.clear_away().await }
+    });
+    client_line(&mut server, b"AWAY\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 305 paporev :You are no longer marked as being away\r\n",
+    )
+    .await;
+    within(back).await.unwrap().unwrap();
+
+    let realname = tokio::spawn({
+        let client = client.clone();
+        async move { client.set_realname("Papo Review Client").await }
+    });
+    client_line(&mut server, b"SETNAME :Papo Review Client\r\n").await;
+    server_line(
+        &mut server,
+        b":paporev!papo@localhost SETNAME :Papo Review Client\r\n",
+    )
+    .await;
+    within(realname).await.unwrap().unwrap();
+
+    assert!(matches!(
+        client.set_away("").await,
+        Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn membership_actions_confirm_success_and_refusal() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
