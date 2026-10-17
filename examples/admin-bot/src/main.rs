@@ -134,7 +134,7 @@ async fn handle(
             command
                 .client()
                 .mode(channel)
-                .add_with('o', command.args()[0].as_str())
+                .op(command.args()[0].as_str())
                 .await?;
         }
         _ => {}

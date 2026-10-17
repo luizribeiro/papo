@@ -1,7 +1,7 @@
 use std::future::IntoFuture;
 
 use papo_core::ResponseMatcher;
-use papo_proto::{Isupport, Mask, Message, ModeKind, Target};
+use papo_proto::{Isupport, Mask, Message, ModeKind, Nick, Target};
 
 use crate::{Client, Error, InvalidInput, RequestFuture};
 
@@ -17,40 +17,88 @@ impl SetModes {
     #[must_use]
     #[allow(clippy::should_implement_trait)]
     pub fn add(self, mode: char) -> Self {
-        self.change(true, mode, None)
+        self.change(true, Selector::Letter(mode), None)
     }
 
     /// Removes a mode that takes no argument.
     #[must_use]
     pub fn remove(self, mode: char) -> Self {
-        self.change(false, mode, None)
+        self.change(false, Selector::Letter(mode), None)
     }
 
     /// Adds a mode with its required argument.
     #[must_use]
     pub fn add_with(self, mode: char, argument: impl Into<String>) -> Self {
-        self.change(true, mode, Some(Argument::Raw(argument.into())))
+        self.change(
+            true,
+            Selector::Letter(mode),
+            Some(Argument::Raw(argument.into())),
+        )
     }
 
     /// Removes a mode with its required argument.
     #[must_use]
     pub fn remove_with(self, mode: char, argument: impl Into<String>) -> Self {
-        self.change(false, mode, Some(Argument::Raw(argument.into())))
+        self.change(
+            false,
+            Selector::Letter(mode),
+            Some(Argument::Raw(argument.into())),
+        )
     }
 
     /// Adds `mask` to the channel ban list.
     #[must_use]
     pub fn ban(self, mask: impl Into<Mask>) -> Self {
-        self.change(true, 'b', Some(Argument::Mask(mask.into())))
+        self.change(
+            true,
+            Selector::Letter('b'),
+            Some(Argument::Mask(mask.into())),
+        )
     }
 
     /// Removes `mask` from the channel ban list.
     #[must_use]
     pub fn unban(self, mask: impl Into<Mask>) -> Self {
-        self.change(false, 'b', Some(Argument::Mask(mask.into())))
+        self.change(
+            false,
+            Selector::Letter('b'),
+            Some(Argument::Mask(mask.into())),
+        )
     }
 
-    fn change(mut self, set: bool, mode: char, arg: Option<Argument>) -> Self {
+    /// Grants channel-operator privileges to `nick`.
+    #[must_use]
+    pub fn op(self, nick: impl Into<Nick>) -> Self {
+        self.prefix(true, 'o', nick)
+    }
+
+    /// Removes channel-operator privileges from `nick`.
+    #[must_use]
+    pub fn deop(self, nick: impl Into<Nick>) -> Self {
+        self.prefix(false, 'o', nick)
+    }
+
+    /// Grants voice privileges to `nick`.
+    #[must_use]
+    pub fn voice(self, nick: impl Into<Nick>) -> Self {
+        self.prefix(true, 'v', nick)
+    }
+
+    /// Removes voice privileges from `nick`.
+    #[must_use]
+    pub fn devoice(self, nick: impl Into<Nick>) -> Self {
+        self.prefix(false, 'v', nick)
+    }
+
+    fn prefix(self, set: bool, mode: char, nick: impl Into<Nick>) -> Self {
+        self.change(
+            set,
+            Selector::Prefix(mode),
+            Some(Argument::Nick(nick.into())),
+        )
+    }
+
+    fn change(mut self, set: bool, mode: Selector, arg: Option<Argument>) -> Self {
         self.changes.push(Change { set, mode, arg });
         self
     }
@@ -92,12 +140,18 @@ impl Client {
 
 pub(crate) struct Change {
     pub(crate) set: bool,
-    mode: char,
+    mode: Selector,
     arg: Option<Argument>,
+}
+
+enum Selector {
+    Letter(char),
+    Prefix(char),
 }
 
 enum Argument {
     Raw(String),
+    Nick(Nick),
     Mask(Mask),
 }
 
@@ -105,13 +159,17 @@ impl Argument {
     fn text(&self) -> &str {
         match self {
             Self::Raw(value) => value,
+            Self::Nick(value) => value,
             Self::Mask(value) => value,
         }
     }
 
-    fn check(&self, _isupport: &Isupport) -> Result<(), Error> {
+    fn check(&self, isupport: &Isupport) -> Result<(), Error> {
         match self {
             Self::Raw(_) => Ok(()),
+            Self::Nick(value) => value
+                .check(isupport)
+                .map_err(|error| invalid(error.to_string())),
             Self::Mask(value) => value.check().map_err(|error| invalid(error.to_string())),
         }
     }
@@ -160,7 +218,15 @@ pub(crate) fn encode(
 }
 
 fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
-    let mode = change.mode;
+    let mode = match change.mode {
+        Selector::Letter(mode) => mode,
+        Selector::Prefix(mode) => isupport
+            .prefix()
+            .into_iter()
+            .find(|prefix| prefix.mode == mode)
+            .map(|prefix| prefix.mode)
+            .ok_or_else(|| invalid(format!("prefix mode {mode} was not advertised")))?,
+    };
     if let Some(argument) = &change.arg {
         argument.check(isupport)?;
     }
@@ -202,7 +268,7 @@ fn invalid(message: impl Into<String>) -> Error {
 mod tests {
     use papo_proto::{Isupport, MessageRef, Target};
 
-    use super::{Argument, Change, encode};
+    use super::{Argument, Change, Selector, encode};
 
     fn isupport() -> Isupport {
         let mut support = Isupport::default();
@@ -218,17 +284,17 @@ mod tests {
         let changes = [
             Change {
                 set: true,
-                mode: 'o',
-                arg: Some(Argument::Raw("alice".into())),
+                mode: Selector::Prefix('o'),
+                arg: Some(Argument::Nick("alice".into())),
             },
             Change {
                 set: true,
-                mode: 'v',
-                arg: Some(Argument::Raw("carol".into())),
+                mode: Selector::Prefix('v'),
+                arg: Some(Argument::Nick("carol".into())),
             },
             Change {
                 set: false,
-                mode: 'm',
+                mode: Selector::Letter('m'),
                 arg: None,
             },
         ];
@@ -248,23 +314,33 @@ mod tests {
         for change in [
             Change {
                 set: true,
-                mode: 'x',
+                mode: Selector::Letter('x'),
                 arg: None,
             },
             Change {
                 set: true,
-                mode: 'k',
+                mode: Selector::Letter('k'),
                 arg: None,
             },
             Change {
                 set: false,
-                mode: 'l',
+                mode: Selector::Letter('l'),
                 arg: Some(Argument::Raw("20".into())),
             },
             Change {
                 set: true,
-                mode: 'b',
+                mode: Selector::Letter('b'),
                 arg: Some(Argument::Mask(":*!*@spam.example".into())),
+            },
+            Change {
+                set: true,
+                mode: Selector::Prefix('o'),
+                arg: Some(Argument::Nick("bad,nick".into())),
+            },
+            Change {
+                set: true,
+                mode: Selector::Prefix('y'),
+                arg: Some(Argument::Nick("alice".into())),
             },
         ] {
             assert!(encode(&support, &target, &[change]).is_err());
