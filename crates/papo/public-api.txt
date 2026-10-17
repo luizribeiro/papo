@@ -305,12 +305,8 @@ pub papo::Event::MonitorListFull::nicks: alloc::vec::Vec<alloc::string::String>
 pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
 pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
 pub papo::Event::MonitorUnsupported
-pub papo::Event::Netjoin
-pub papo::Event::Netjoin::joins: alloc::vec::Vec<papo_proto::message::Message>
-pub papo::Event::Netjoin::servers: [alloc::string::String; 2]
-pub papo::Event::Netsplit
-pub papo::Event::Netsplit::quits: alloc::vec::Vec<papo_proto::message::Message>
-pub papo::Event::Netsplit::servers: [alloc::string::String; 2]
+pub papo::Event::Netjoin(papo::event::Netjoin)
+pub papo::Event::Netsplit(papo::event::Netsplit)
 pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Parted(papo::event::Parted)
 pub papo::Event::PersistenceStatus

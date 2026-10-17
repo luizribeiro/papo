@@ -629,22 +629,12 @@ pub enum Event {
     ///
     /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
     /// separate [`Event::Message`] values.
-    Netsplit {
-        /// The servers on either side of the lost link.
-        servers: [String; 2],
-        /// The grouped `QUIT` messages.
-        quits: Vec<Message>,
-    },
+    Netsplit(Netsplit),
     /// Users returned after connectivity between two servers was restored.
     ///
     /// This event is emitted for an empty batch. Non-`JOIN` lines are delivered as
     /// separate [`Event::Message`] values.
-    Netjoin {
-        /// The servers on either side of the restored link.
-        servers: [String; 2],
-        /// The grouped `JOIN` messages.
-        joins: Vec<Message>,
-    },
+    Netjoin(Netjoin),
     /// A server batch exceeded a retention bound or deadline.
     BatchAbandoned {
         /// The opaque batch reference.
@@ -765,6 +755,11 @@ impl Event {
         };
         if let Some((candidate, is_self)) = candidate {
             *is_self = casemapping.eq(candidate, nick);
+        }
+        if let Self::Netjoin(netjoin) = self {
+            for joined in &mut netjoin.joins {
+                joined.is_self = casemapping.eq(&joined.nick, nick);
+            }
         }
     }
 }
@@ -908,8 +903,41 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             target: marker.target,
             time: marker.time,
         }),
-        papo_core::Event::Netsplit { servers, quits } => Event::Netsplit { servers, quits },
-        papo_core::Event::Netjoin { servers, joins } => Event::Netjoin { servers, joins },
+        papo_core::Event::Netsplit { servers, quits } => Event::Netsplit(Netsplit {
+            servers,
+            quits: quits
+                .into_iter()
+                .filter_map(|message| {
+                    let message = message.as_ref();
+                    let nick = match message.source()? {
+                        papo_proto::Source::User { nick, .. } => nick.to_owned(),
+                        papo_proto::Source::Server(_) => return None,
+                    };
+                    Some(Departed {
+                        nick,
+                        reason: message.param(0).map(str::to_owned),
+                    })
+                })
+                .collect(),
+        }),
+        papo_core::Event::Netjoin { servers, joins } => Event::Netjoin(Netjoin {
+            servers,
+            joins: joins
+                .into_iter()
+                .filter_map(|message| {
+                    let message = message.as_ref();
+                    let nick = match message.source()? {
+                        papo_proto::Source::User { nick, .. } => nick.to_owned(),
+                        papo_proto::Source::Server(_) => return None,
+                    };
+                    Some(Joined {
+                        channel: message.param(0)?.to_owned(),
+                        nick,
+                        is_self: false,
+                    })
+                })
+                .collect(),
+        }),
         papo_core::Event::BatchAbandoned {
             reference,
             batch_type,
@@ -1813,28 +1841,36 @@ mod tests {
 
     #[test]
     fn maps_netsplit() {
-        let quit = Message::new("QUIT", ["irc.example irc.remote"]);
-        let Event::Netsplit { servers, quits } = forwarded(papo_core::Event::Netsplit {
+        let quit =
+            Message::new("QUIT", ["irc.example irc.remote"]).with_source("alice!~a@remote.example");
+        let Event::Netsplit(netsplit) = forwarded(papo_core::Event::Netsplit {
             servers: ["irc.example".into(), "irc.remote".into()],
-            quits: vec![quit.clone()],
+            quits: vec![quit],
         }) else {
             panic!("netsplit was not forwarded")
         };
-        assert_eq!(servers, ["irc.example", "irc.remote"]);
-        assert_eq!(quits, vec![quit]);
+        assert_eq!(netsplit.servers, ["irc.example", "irc.remote"]);
+        assert_eq!(netsplit.quits.len(), 1);
+        assert_eq!(netsplit.quits[0].nick, "alice");
+        assert_eq!(
+            netsplit.quits[0].reason.as_deref(),
+            Some("irc.example irc.remote")
+        );
     }
 
     #[test]
     fn maps_netjoin() {
         let join = Message::join("#papo").with_source("alice!~a@remote.example");
-        let Event::Netjoin { servers, joins } = forwarded(papo_core::Event::Netjoin {
+        let Event::Netjoin(netjoin) = forwarded(papo_core::Event::Netjoin {
             servers: ["irc.example".into(), "irc.remote".into()],
-            joins: vec![join.clone()],
+            joins: vec![join],
         }) else {
             panic!("netjoin was not forwarded")
         };
-        assert_eq!(servers, ["irc.example", "irc.remote"]);
-        assert_eq!(joins, vec![join]);
+        assert_eq!(netjoin.servers, ["irc.example", "irc.remote"]);
+        assert_eq!(netjoin.joins.len(), 1);
+        assert_eq!(netjoin.joins[0].channel, "#papo");
+        assert_eq!(netjoin.joins[0].nick, "alice");
     }
 
     #[test]
