@@ -233,9 +233,12 @@ dependencies = [
 name = "papo-core-browser-tests"
 version = "0.0.0"
 dependencies = [
+ "js-sys",
  "papo-core",
  "papo-proto",
+ "tokio",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "web-time",
 ]

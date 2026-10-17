@@ -340,7 +340,10 @@ impl Stream for Events {
 /// A future that owns and drives an IRC session and its transport.
 #[must_use = "a Driver does nothing unless awaited or spawned"]
 pub struct Driver {
+    #[cfg(not(browser))]
     inner: Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>,
+    #[cfg(browser)]
+    inner: Pin<Box<dyn Future<Output = Result<(), Error>>>>,
 }
 
 impl Driver {
