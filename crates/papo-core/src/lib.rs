@@ -1235,6 +1235,7 @@ impl PersistenceSetting {
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct PersistenceStatus {
     /// The account's configured preference.
     pub setting: PersistenceSetting,

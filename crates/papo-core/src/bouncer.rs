@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use papo_proto::escape_tag_value;
-use papo_proto::{Message, MessageRef};
+use papo_proto::{Message, MessageRef, Nick};
 use web_time::Instant;
 
 use crate::{Feature, RequestError, RequestId, Secret, Session};
@@ -58,7 +58,7 @@ pub struct BouncerNetwork {
     /// Whether the upstream connection uses TLS.
     pub tls: Option<bool>,
     /// Registration nickname.
-    pub nickname: Option<String>,
+    pub nickname: Option<Nick>,
     /// Registration username.
     pub username: Option<String>,
     /// Registration real name.
@@ -134,7 +134,7 @@ impl BouncerNetwork {
                         _ => None,
                     });
                 }
-                "nickname" => self.nickname = value,
+                "nickname" => self.nickname = value.map(Nick::from),
                 "username" => self.username = value,
                 "realname" => self.realname = value,
                 "error" => self.error = value,
@@ -163,7 +163,7 @@ pub struct NetworkConfig {
     name: Option<String>,
     port: Option<u16>,
     tls: Option<bool>,
-    nickname: Option<String>,
+    nickname: Option<Nick>,
     username: Option<String>,
     realname: Option<String>,
     password: Option<Secret>,
@@ -208,7 +208,7 @@ impl NetworkConfig {
 
     /// Sets the registration nickname.
     #[must_use]
-    pub fn nickname(mut self, nickname: impl Into<String>) -> Self {
+    pub fn nickname(mut self, nickname: impl Into<Nick>) -> Self {
         self.nickname = Some(nickname.into());
         self
     }

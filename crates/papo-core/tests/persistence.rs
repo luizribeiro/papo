@@ -3,7 +3,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, PersistenceSetting, PersistenceStatus};
+use papo_core::{Config, Event, PersistenceSetting};
 use support::Transcript;
 
 fn registered(caps: &[&str]) -> Transcript {
@@ -38,13 +38,9 @@ fn stores_a_persistence_push_before_motd() {
             )
         })
         .inspect(|session| {
-            assert_eq!(
-                session.state().persistence(),
-                Some(PersistenceStatus {
-                    setting: PersistenceSetting::Default,
-                    effective: true,
-                })
-            );
+            let status = session.state().persistence().unwrap();
+            assert_eq!(status.setting, PersistenceSetting::Default);
+            assert!(status.effective);
             assert!(session.server_rejoins_channels());
         })
         .server(":ergo.test 376 alice :End of MOTD")
