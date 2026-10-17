@@ -31,7 +31,7 @@ pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
     RegistrationError, ServerError,
 };
-pub use event_impl::{Event, MessageEvent, MessageKind, Origin, Source};
+pub use event_impl::{Event, MessageEvent, MessageKind, Origin, RawLine, Source};
 pub use ext::accounts::{AccountRegistration, NewAccount};
 pub use ext::history::{History, HistoryPage, HistoryReference, HistoryRequest};
 pub use ext::metadata::Metadata;
@@ -56,9 +56,9 @@ pub mod event {
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, ChannelRenamed,
         ChannelSynced, Departed, Disconnected, HostChanged, Invited, Joined, Kicked,
         MetadataChanged, ModeChange, ModeChanged, MonitorOffline, MonitorOnline, Netjoin, Netsplit,
-        NickChanged, Parted, PersistenceChanged, PersistenceSetting, Quit, Reacted, ReadMarker,
-        RealnameChanged, Redacted, Registered, Source, StandardReply, StandardReplyKind,
-        StateLimit, TagMsg, TopicChanged, TypingChanged, Warning,
+        NickChanged, Parted, PersistenceChanged, PersistenceSetting, Quit, RawLine, Reacted,
+        ReadMarker, RealnameChanged, Redacted, Registered, Source, StandardReply,
+        StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, Warning,
     };
 }
 

@@ -573,7 +573,7 @@ mod tests {
     };
 
     use papo_core::Capabilities;
-    use papo_proto::{Isupport, Message};
+    use papo_proto::Isupport;
 
     use libtest_mimic::{Arguments, Completion, Failed, Trial};
 
@@ -625,25 +625,30 @@ mod tests {
     fn expect_skips_non_matching_events() {
         let mut events = ScriptedEvents {
             events: [
-                Event::Raw(
-                    Message::new("401", ["papo", "missing", "No such nick"])
-                        .with_source("ergo.test"),
-                ),
-                Event::Raw(
-                    Message::new("330", ["papo", "alice", "alice", "is logged in as"])
-                        .with_source("ergo.test"),
-                ),
+                Event::AccountRegistered {
+                    account: "first".to_owned(),
+                    logged_in: true,
+                },
+                Event::Warning(papo::event::Warning::MonitorUnsupported),
             ]
             .into(),
         };
         let event = runtime()
             .block_on(expect_event(
                 &mut events,
-                |event| matches!(event, Event::Raw(message) if message.as_ref().command_is("330")),
+                |event| {
+                    matches!(
+                        event,
+                        Event::Warning(papo::event::Warning::MonitorUnsupported)
+                    )
+                },
                 Duration::from_secs(1),
             ))
             .unwrap();
-        assert!(matches!(event, Event::Raw(message) if message.as_ref().command_is("330")));
+        assert!(matches!(
+            event,
+            Event::Warning(papo::event::Warning::MonitorUnsupported)
+        ));
     }
 
     #[test]

@@ -1018,23 +1018,6 @@ where
                 if let Event::ReadMarker(marker) = &event {
                     resolve_read_marker_waiters(session, read_marker_waiters, marker);
                 }
-                if let Event::Raw(message) = event {
-                    event = match events.commands.upgrade() {
-                        Some(commands) => crate::MessageEvent::new(
-                            message,
-                            session.isupport(),
-                            session.nick(),
-                            Client {
-                                commands,
-                                state: Arc::clone(&events.state),
-                            },
-                            session.caps(),
-                            crate::rt::now_wall(),
-                        )
-                        .map_or_else(Event::Raw, Event::Message),
-                        None => Event::Raw(message),
-                    };
-                }
                 match &event {
                     Event::StsUpgrade { port } => sts.upgrade = Some(*port),
                     Event::StsPolicy(action) => {
@@ -1079,8 +1062,8 @@ where
                 }
             }
             event::CoreEvent::Message(message) => {
-                let event = match events.commands.upgrade() {
-                    Some(commands) => crate::MessageEvent::from_core(
+                let event = if let Some(commands) = events.commands.upgrade() {
+                    crate::MessageEvent::from_core(
                         message,
                         session.isupport(),
                         Client {
@@ -1090,8 +1073,39 @@ where
                         session.caps(),
                         crate::rt::now_wall(),
                     )
-                    .map_or_else(Event::Raw, Event::Message),
-                    None => Event::Raw(message.into_message()),
+                    .map_or_else(
+                        |message| Event::Raw(crate::RawLine::from_proto(&message)),
+                        Event::Message,
+                    )
+                } else {
+                    let message = message.into_message();
+                    Event::Raw(crate::RawLine::from_proto(&message))
+                };
+                if !enqueue_event(events, pending_events, event) {
+                    return Ok(Some((
+                        papo_core::CloseKind::Other,
+                        SLOW_CONSUMER_REASON.to_owned(),
+                    )));
+                }
+            }
+            event::CoreEvent::Raw(message) => {
+                let event = match events.commands.upgrade() {
+                    Some(commands) => crate::MessageEvent::new(
+                        message,
+                        session.isupport(),
+                        session.nick(),
+                        Client {
+                            commands,
+                            state: Arc::clone(&events.state),
+                        },
+                        session.caps(),
+                        crate::rt::now_wall(),
+                    )
+                    .map_or_else(
+                        |message| Event::Raw(crate::RawLine::from_proto(&message)),
+                        Event::Message,
+                    ),
+                    None => Event::Raw(crate::RawLine::from_proto(&message)),
                 };
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((

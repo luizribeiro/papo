@@ -15,7 +15,6 @@ mod connection;
 #[path = "event/conversation.rs"]
 mod conversation;
 #[path = "event/raw.rs"]
-#[allow(dead_code)]
 mod raw;
 #[path = "event/server.rs"]
 mod server;
@@ -32,6 +31,7 @@ pub use connection::{CapsChanged, Disconnected, Registered};
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
+pub use raw::RawLine;
 pub use server::{
     BatchAbandonReason, MetadataChanged, PersistenceChanged, PersistenceSetting, StateLimit,
     Warning,
@@ -551,7 +551,10 @@ pub enum Event {
     /// An incoming `PRIVMSG` or `NOTICE`.
     Message(MessageEvent),
     /// A parsed message without a typed event variant.
-    Raw(Message),
+    ///
+    /// A minor release may start typing a command, which then arrives as its typed variant.
+    /// Match on `Raw` only for display and logging.
+    Raw(RawLine),
     /// A tag-only message with typed accessors for known client tags.
     TagMsg(TagMsg),
     /// A tag-only reaction or unreaction.
@@ -733,6 +736,7 @@ pub(crate) enum CoreEvent {
     Forward(Event),
     Registered(Welcome),
     Message(papo_core::ReceivedMessage),
+    Raw(Message),
     History {
         target: String,
         messages: Vec<papo_core::HistoryMessage>,
@@ -760,7 +764,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             }
             return CoreEvent::Message(message);
         }
-        papo_core::Event::MultilineMessage(message) => Event::Raw(message.message),
+        papo_core::Event::MultilineMessage(message) => return CoreEvent::Raw(message.message),
         papo_core::Event::TagMessage(message) => {
             let tag = TagMsg {
                 source: message.source.map(Source::from_prefix),
@@ -1303,8 +1307,8 @@ mod tests {
             message: Message::privmsg("#papo", "first\nsecond"),
         };
         assert!(matches!(
-            forwarded(papo_core::Event::MultilineMessage(multiline)),
-            Event::Raw(message) if message.as_ref().param(1) == Some("first\nsecond")
+            from_core(papo_core::Event::MultilineMessage(multiline)),
+            CoreEvent::Raw(message) if message.as_ref().param(1) == Some("first\nsecond")
         ));
     }
 

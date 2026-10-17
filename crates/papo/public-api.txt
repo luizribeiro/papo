@@ -214,6 +214,14 @@ pub papo::event::PersistenceChanged::setting: papo::event::PersistenceSetting
 pub papo::event::Quit::channels: alloc::vec::Vec<alloc::string::String>
 pub papo::event::Quit::nick: alloc::string::String
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
+pub struct papo::event::RawLine
+impl papo::RawLine
+pub fn papo::RawLine::command(&self) -> &str
+pub fn papo::RawLine::params(&self) -> &[alloc::string::String]
+pub fn papo::RawLine::source(&self) -> core::option::Option<papo::Source>
+pub fn papo::RawLine::tag(&self, &str) -> core::option::Option<&str>
+impl core::fmt::Display for papo::RawLine
+pub fn papo::RawLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct papo::event::Reacted
 pub papo::event::Reacted::msgid: alloc::string::String
 pub papo::event::Reacted::reaction: alloc::string::String
@@ -334,7 +342,7 @@ pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Parted(papo::event::Parted)
 pub papo::Event::PersistenceChanged(papo::event::PersistenceChanged)
 pub papo::Event::Quit(papo::event::Quit)
-pub papo::Event::Raw(papo_proto::message::Message)
+pub papo::Event::Raw(papo::RawLine)
 pub papo::Event::Reacted(papo::event::Reacted)
 pub papo::Event::ReadMarker(papo::event::ReadMarker)
 pub papo::Event::RealnameChanged(papo::event::RealnameChanged)
@@ -657,6 +665,14 @@ pub fn papo::Persistence<'_>::state(&self) -> core::option::Option<papo_core::Pe
 pub struct papo::PushKeys
 impl papo::PushKeys
 pub fn papo::PushKeys::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::secret::Secret>) -> Self
+pub struct papo::RawLine
+impl papo::RawLine
+pub fn papo::RawLine::command(&self) -> &str
+pub fn papo::RawLine::params(&self) -> &[alloc::string::String]
+pub fn papo::RawLine::source(&self) -> core::option::Option<papo::Source>
+pub fn papo::RawLine::tag(&self, &str) -> core::option::Option<&str>
+impl core::fmt::Display for papo::RawLine
+pub fn papo::RawLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Reconnect
 impl papo::Reconnect
 pub const fn papo::Reconnect::exponential() -> Self
