@@ -125,7 +125,7 @@ async fn reactions_reach_another_client_with_reply_context() {
         let incoming =
             wait_message(&mut events_b, |message| message.text() == "excellent news").await;
         let id = incoming.id().unwrap();
-        client_b.react(&incoming, "🎉").await.unwrap();
+        client_b.react(&id, "🎉").await.unwrap();
         let reaction = wait_reaction(&mut events_a).await;
         assert_eq!(reaction.id, id);
 

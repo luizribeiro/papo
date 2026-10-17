@@ -6,7 +6,7 @@ use std::{future::IntoFuture, time::SystemTime};
 use futures_core::Stream;
 use papo::{
     Client, Error, Event, Events, ListFilter, MessageEvent, NewAccount, PersistenceSetting,
-    PushKeys,
+    PushKeys, TargetedMessageId,
 };
 use papo_proto::{Message, Typing};
 
@@ -19,8 +19,9 @@ fn assert_clone<T: Clone>() {}
 fn assert_event_stream<T: Stream<Item = Event>>() {}
 
 fn assert_message_request_futures(client: &Client, message: &MessageEvent) {
-    assert_send(client.react(message, "👍"));
-    assert_send(client.unreact(message, "👍"));
+    let id = TargetedMessageId::new("#papo", "RfcBTzyxY120004");
+    assert_send(client.react(&id, "👍"));
+    assert_send(client.unreact(&id, "👍"));
     assert_send(message.reply("Acknowledged"));
 }
 
@@ -44,7 +45,7 @@ fn request_futures_are_send() {
     assert_send(client.privmsg("#papo", "hello from the trait test"));
     assert_send(client.notice("emily", "maintenance soon"));
     assert_send(client.typing("#papo", Typing::Active));
-    assert_send(client.redact("#papo", "RfcBTzyxY120004", None));
+    assert_send(client.redact(&TargetedMessageId::new("#papo", "RfcBTzyxY120004"), None));
     assert_send(client.whois("emily"));
     assert_send(client.who("#papo"));
     assert_send(client.join("#papo"));

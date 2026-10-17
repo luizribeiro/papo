@@ -522,10 +522,11 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
     )
     .await;
     let message = next_message(&mut events).await;
+    let id = message.id().unwrap();
     let result = if remove {
-        within(client.unreact(&message, "👍")).await
+        within(client.unreact(&id, "👍")).await
     } else {
-        within(client.react(&message, "👍")).await
+        within(client.react(&id, "👍")).await
     };
     if let Some(expected) = expected {
         result.unwrap();

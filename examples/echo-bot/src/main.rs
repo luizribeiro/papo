@@ -74,7 +74,12 @@ async fn handle(client: &Client, event: &Event, config: &BotConfig) -> Result<()
         "echo" => {
             command.reply(&command.args().join(" ")).await?;
         }
-        "react" => command.client().react(command.message(), "👍").await?,
+        "react" => {
+            let id = command.message().id().ok_or(papo::Error::InvalidInput(
+                papo::InvalidInput::MessageReference,
+            ))?;
+            command.client().react(&id, "👍").await?;
+        }
         _ => {}
     }
     Ok(())

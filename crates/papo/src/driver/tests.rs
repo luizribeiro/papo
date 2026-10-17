@@ -2412,7 +2412,10 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     let sender = client.clone();
     let redacted = tokio::spawn(async move {
         sender
-            .redact("#papo", "RfcBTzyxY120004", Some("duplicate message"))
+            .redact(
+                &TargetedMessageId::new("#papo", "RfcBTzyxY120004"),
+                Some("duplicate message"),
+            )
             .await
     });
     client_line(
@@ -2428,8 +2431,11 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     assert!(within(redacted).await.unwrap().is_ok());
 
     let sender = client.clone();
-    let rejected =
-        tokio::spawn(async move { sender.redact("#papo", "RfcBTzyxY120005", None).await });
+    let rejected = tokio::spawn(async move {
+        sender
+            .redact(&TargetedMessageId::new("#papo", "RfcBTzyxY120005"), None)
+            .await
+    });
     client_line(&mut server, b"@label=1 REDACT #papo RfcBTzyxY120005\r\n").await;
     server_line(
         &mut server,
@@ -2451,7 +2457,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
-        within(client.redact("#papo", "RfcBTzyxY120006", None)).await,
+        within(client.redact(&TargetedMessageId::new("#papo", "RfcBTzyxY120006"), None)).await,
         Err(Error::Unsupported(crate::Unsupported {
             feature: crate::Feature::Redaction,
             reason: crate::UnsupportedReason::NotOffered,

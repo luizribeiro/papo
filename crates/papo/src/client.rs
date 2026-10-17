@@ -8,7 +8,7 @@ use papo_proto::{Message, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
-    Error, Feature, InvalidInput, Unsupported, UnsupportedReason,
+    Error, Feature, Unsupported, UnsupportedReason,
     driver::{Command, CoreRequest},
     event_impl,
     state::State,
@@ -231,11 +231,10 @@ impl Client {
     ///
     /// Returns [`Error::Unsupported`] for [`Feature::Reactions`] with reason
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
-    /// [`UnsupportedReason::TagDenied`]. A missing message identifier returns
-    /// [`Error::InvalidInput`]; encoding or driver failure returns [`Error::InvalidInput`] or
-    /// [`Error::Disconnected`].
-    pub async fn react(&self, message: &crate::MessageEvent, emoji: &str) -> Result<(), Error> {
-        self.reaction(message, emoji, "+draft/react").await
+    /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
+    /// [`Error::InvalidInput`] or [`Error::Disconnected`].
+    pub async fn react(&self, id: &crate::TargetedMessageId, emoji: &str) -> Result<(), Error> {
+        self.reaction(id, emoji, "+draft/react").await
     }
 
     /// Removes `emoji` as a reaction to `message`.
@@ -244,16 +243,15 @@ impl Client {
     ///
     /// Returns [`Error::Unsupported`] for [`Feature::Reactions`] with reason
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
-    /// [`UnsupportedReason::TagDenied`]. A missing message identifier returns
-    /// [`Error::InvalidInput`]; encoding or driver failure returns [`Error::InvalidInput`] or
-    /// [`Error::Disconnected`].
-    pub async fn unreact(&self, message: &crate::MessageEvent, emoji: &str) -> Result<(), Error> {
-        self.reaction(message, emoji, "+draft/unreact").await
+    /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
+    /// [`Error::InvalidInput`] or [`Error::Disconnected`].
+    pub async fn unreact(&self, id: &crate::TargetedMessageId, emoji: &str) -> Result<(), Error> {
+        self.reaction(id, emoji, "+draft/unreact").await
     }
 
     async fn reaction(
         &self,
-        message: &crate::MessageEvent,
+        id: &crate::TargetedMessageId,
         emoji: &str,
         reaction_tag: &'static str,
     ) -> Result<(), Error> {
@@ -268,12 +266,9 @@ impl Client {
                 UnsupportedReason::TagDenied,
             )));
         }
-        let msgid = message
-            .msgid()
-            .ok_or(Error::InvalidInput(InvalidInput::MessageReference))?;
         self.send(
-            Message::tagmsg(message.reply_target())
-                .with_tag(reply_tag, msgid)
+            Message::tagmsg(id.target())
+                .with_tag(reply_tag, id.msgid())
                 .with_tag(reaction_tag, emoji),
         )
         .await
@@ -315,12 +310,11 @@ impl Client {
     /// [`Error::Disconnected`].
     pub async fn redact(
         &self,
-        target: &str,
-        msgid: &str,
+        id: &crate::TargetedMessageId,
         reason: Option<&str>,
     ) -> Result<(), Error> {
         Self::require_feature(&self.state(), Feature::Redaction)?;
-        let mut params = vec![target, msgid];
+        let mut params = vec![id.target(), id.msgid()];
         params.extend(reason);
         let response = self
             .correlated(Message::new("REDACT", params), None)
