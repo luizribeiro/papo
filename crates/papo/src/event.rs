@@ -29,7 +29,7 @@ pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChange, ModeChanged, Parted,
     TopicChanged,
 };
-pub use connection::{CapsChanged, Disconnected, Registered};
+pub use connection::{CapsChanged, Disconnected, FeaturesChanged, Registered};
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
@@ -505,6 +505,8 @@ pub enum Event {
     Warning(Warning),
     /// The capabilities enabled on an established connection changed.
     CapsChanged(CapsChanged),
+    /// Optional behaviors available on an established connection changed.
+    FeaturesChanged(FeaturesChanged),
     /// A user joined a channel shared with the client.
     Joined(Joined),
     /// Initial channel membership synchronization completed.
@@ -581,6 +583,7 @@ event_accessors! {
     (Registered, as_registered, Registered),
     (Disconnected, as_disconnected, Disconnected),
     (CapsChanged, as_caps_changed, CapsChanged),
+    (FeaturesChanged, as_features_changed, FeaturesChanged),
     (Reacted, as_reacted, Reacted),
     (Redacted, as_redacted, Redacted),
     (TypingChanged, as_typing_changed, TypingChanged),
@@ -841,6 +844,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::CapsChanged { added, removed } => {
             Event::CapsChanged(CapsChanged { added, removed })
         }
+        papo_core::Event::FeaturesChanged { added, removed } => {
+            Event::FeaturesChanged(FeaturesChanged { added, removed })
+        }
         papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined { channel, nick } => Event::Joined(Joined {
@@ -983,7 +989,7 @@ mod tests {
         PersistenceSetting, Source, StandardReplyKind, Visibility, Warning, from_core,
     };
     use papo_core::{
-        Account, BatchAbandonReason, Capabilities, Config, Session,
+        Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
     use papo_proto::{Isupport, Message, MessageRef, ModeKind, Typing};
@@ -1193,6 +1199,17 @@ mod tests {
             panic!("event was not forwarded")
         };
         event
+    }
+
+    #[test]
+    fn maps_feature_changes() {
+        let event = forwarded(papo_core::Event::FeaturesChanged {
+            added: vec![Feature::Reactions, Feature::Typing],
+            removed: vec![Feature::History],
+        });
+        let changed = event.as_features_changed().unwrap();
+        assert_eq!(changed.added, [Feature::Reactions, Feature::Typing]);
+        assert_eq!(changed.removed, [Feature::History]);
     }
 
     fn mapped_message(event: papo_core::Event) -> ChatMessage {

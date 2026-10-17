@@ -164,6 +164,9 @@ pub const fn papo::Disconnected::new(papo::DisconnectCause, core::option::Option
 impl core::error::Error for papo::Disconnected
 impl core::fmt::Display for papo::Disconnected
 pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub struct papo::event::FeaturesChanged
+pub papo::event::FeaturesChanged::added: alloc::vec::Vec<papo_core::features::Feature>
+pub papo::event::FeaturesChanged::removed: alloc::vec::Vec<papo_core::features::Feature>
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::host: alloc::string::String
 pub papo::event::HostChanged::nick: papo_proto::id::Nick
@@ -320,6 +323,7 @@ pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
 pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
 pub papo::Event::Disconnected(papo::Disconnected)
+pub papo::Event::FeaturesChanged(papo::event::FeaturesChanged)
 pub papo::Event::History(alloc::boxed::Box<papo::HistoryPage>)
 pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
@@ -361,6 +365,8 @@ impl papo::Event
 pub const fn papo::Event::as_channel_synced(&self) -> core::option::Option<&papo::event::ChannelSynced>
 impl papo::Event
 pub const fn papo::Event::as_disconnected(&self) -> core::option::Option<&papo::Disconnected>
+impl papo::Event
+pub const fn papo::Event::as_features_changed(&self) -> core::option::Option<&papo::event::FeaturesChanged>
 impl papo::Event
 pub fn papo::Event::as_history(&self) -> core::option::Option<&papo::HistoryPage>
 impl papo::Event

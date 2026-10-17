@@ -1,4 +1,4 @@
-use crate::{Capabilities, Nick};
+use crate::{Capabilities, Feature, Nick};
 
 pub use crate::Disconnected;
 
@@ -24,4 +24,14 @@ pub struct CapsChanged {
     pub added: Capabilities,
     /// Capabilities removed by the server.
     pub removed: Capabilities,
+}
+
+/// Optional behaviors available on an established connection changed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct FeaturesChanged {
+    /// Behaviors that became available.
+    pub added: Vec<Feature>,
+    /// Behaviors that became unavailable.
+    pub removed: Vec<Feature>,
 }
