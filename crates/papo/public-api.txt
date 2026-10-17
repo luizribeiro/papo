@@ -662,6 +662,7 @@ pub fn papo::MessageEvent::relayed_by(&self) -> core::option::Option<&str>
 pub fn papo::MessageEvent::reply_target(&self) -> &str
 pub fn papo::MessageEvent::reply_to(&self) -> core::option::Option<&str>
 pub fn papo::MessageEvent::source(&self) -> core::option::Option<papo::Source>
+pub const fn papo::MessageEvent::tags(&self) -> &papo::Tags
 pub fn papo::MessageEvent::target(&self) -> &str
 pub fn papo::MessageEvent::text(&self) -> &str
 pub fn papo::MessageEvent::time(&self) -> std::time::SystemTime

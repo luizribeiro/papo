@@ -1236,7 +1236,7 @@ async fn successful_registration_preserves_earlier_events() {
     assert!(within(waiter).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
-        Some(Event::Message(message)) if message.as_ref().as_ref().command_is("NOTICE")
+        Some(Event::Message(message)) if message.kind() == MessageKind::Notice
     ));
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
     within(server.shutdown()).await.unwrap();

@@ -104,7 +104,6 @@ async fn wait_for(
 ) {
     loop {
         match events.next().await {
-            Some(Event::Message(message)) if accepted(&message.as_ref().as_ref()) => return,
             Some(Event::Raw(message))
                 if accepted(&papo_proto::MessageRef::parse(&message.to_string()).unwrap()) =>
             {

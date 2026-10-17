@@ -60,11 +60,11 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
         .await;
         assert_eq!(refusal.kind(), MessageKind::Notice);
         assert!(refusal.is_private());
-        let raw = refusal.as_ref();
-        let context = raw
-            .tag("+channel-context")
-            .or_else(|| raw.tag("+draft/channel-context"));
-        assert_eq!(context.as_deref(), Some(channels[2].as_str()));
+        let context = refusal
+            .tags()
+            .get("+channel-context")
+            .or_else(|| refusal.tags().get("+draft/channel-context"));
+        assert_eq!(context, Some(channels[2].as_str()));
 
         admin
             .privmsg(&channels[2], &format!("!op {user_nick}"))

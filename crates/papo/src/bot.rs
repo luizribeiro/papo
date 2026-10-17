@@ -365,14 +365,9 @@ mod tests {
 
     #[test]
     fn authorizes_only_known_accounts() {
-        let Event::Message(message) = event("!op alice") else {
-            unreachable!()
-        };
         let tagged = MessageEvent::new(
-            message
-                .as_ref()
-                .as_ref()
-                .to_owned()
+            Message::privmsg("#papo", "!op alice")
+                .with_source("emily!~emily@localhost")
                 .with_tag("account", "Emily"),
             &Isupport::default(),
             "papo",

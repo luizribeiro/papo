@@ -376,6 +376,12 @@ impl MessageEvent {
         &self.raw_text
     }
 
+    /// Returns all message tags in wire order.
+    #[must_use]
+    pub const fn tags(&self) -> &Tags {
+        &self.tags
+    }
+
     /// Returns the parsed source, when the server supplied one.
     #[must_use]
     pub fn source(&self) -> Option<Source> {
