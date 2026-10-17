@@ -26,7 +26,9 @@ async fn typed_requests_round_trip_against_ergo() {
         loop {
             match events.next().await {
                 Some(Event::Registered(_)) => break,
-                Some(papo::__papo_disconnected!(reason, _)) => panic!("disconnected: {reason}"),
+                Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
+                    panic!("disconnected: {reason}")
+                }
                 Some(_) => {}
                 None => panic!("driver stopped during registration"),
             }

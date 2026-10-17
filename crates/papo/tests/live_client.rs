@@ -32,7 +32,7 @@ async fn registers_messages_itself_and_quits() {
                     assert_eq!(welcome.nick, nick);
                     break;
                 }
-                papo::__papo_disconnected!(reason, _) => {
+                Event::Disconnected(papo::event::Disconnected { reason, .. }) => {
                     panic!("disconnected while registering: {reason}")
                 }
                 _ => {}
@@ -54,7 +54,7 @@ async fn registers_messages_itself_and_quits() {
                         break;
                     }
                 }
-                papo::__papo_disconnected!(reason, _) => {
+                Event::Disconnected(papo::event::Disconnected { reason, .. }) => {
                     panic!("disconnected before echo: {reason}")
                 }
                 _ => {}
@@ -67,7 +67,7 @@ async fn registers_messages_itself_and_quits() {
             .unwrap();
         loop {
             match events.next().await {
-                Some(papo::__papo_disconnected!(_, _)) => break,
+                Some(Event::Disconnected(_)) => break,
                 Some(_) => {}
                 None => panic!("driver stopped without a disconnected event"),
             }

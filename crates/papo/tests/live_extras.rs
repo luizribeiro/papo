@@ -55,7 +55,9 @@ async fn subscriber_receives_another_clients_metadata() {
                     assert_eq!(value, "available for review");
                     break;
                 }
-                Some(papo::__papo_disconnected!(reason, _)) => panic!("disconnected: {reason}"),
+                Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
+                    panic!("disconnected: {reason}")
+                }
                 Some(_) => {}
                 None => panic!("reader stopped before metadata arrived"),
             }
@@ -114,7 +116,9 @@ async fn member_sees_channel_rename_and_relay_attribution() {
                     );
                     break;
                 }
-                Some(papo::__papo_disconnected!(reason, _)) => panic!("disconnected: {reason}"),
+                Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
+                    panic!("disconnected: {reason}")
+                }
                 Some(_) => {}
                 None => panic!("member stopped before the rename arrived"),
             }
@@ -130,7 +134,9 @@ async fn member_sees_channel_rename_and_relay_attribution() {
                     assert_eq!(message.relayed_by(), Some(operator_nick.as_str()));
                     break;
                 }
-                Some(papo::__papo_disconnected!(reason, _)) => panic!("disconnected: {reason}"),
+                Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
+                    panic!("disconnected: {reason}")
+                }
                 Some(_) => {}
                 None => panic!("member stopped before the relayed message arrived"),
             }
@@ -145,7 +151,9 @@ async fn wait_synced(events: &mut papo::Events, channel: &str) {
     loop {
         match events.next().await {
             Some(Event::ChannelSynced { channel: synced }) if synced == channel => return,
-            Some(papo::__papo_disconnected!(reason, _)) => panic!("disconnected: {reason}"),
+            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
+                panic!("disconnected: {reason}")
+            }
             Some(_) => {}
             None => panic!("driver stopped while joining"),
         }

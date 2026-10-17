@@ -49,15 +49,33 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
             .unwrap();
         server.stop().unwrap();
         wait_for(&mut events, |event| {
-            matches!(event, papo::__papo_disconnected!(_, true))
+            matches!(
+                event,
+                Event::Disconnected(papo::event::Disconnected {
+                    will_retry: true,
+                    ..
+                })
+            )
         })
         .await;
         wait_for(&mut events, |event| {
-            matches!(event, papo::__papo_disconnected!(_, true))
+            matches!(
+                event,
+                Event::Disconnected(papo::event::Disconnected {
+                    will_retry: true,
+                    ..
+                })
+            )
         })
         .await;
         wait_for(&mut events, |event| {
-            matches!(event, papo::__papo_disconnected!(_, true))
+            matches!(
+                event,
+                Event::Disconnected(papo::event::Disconnected {
+                    will_retry: true,
+                    ..
+                })
+            )
         })
         .await;
         server.restart().unwrap();
@@ -121,7 +139,9 @@ async fn wait_history(events: &mut papo::Events, target: &str) -> Vec<papo::Mess
                 messages,
                 ..
             }) if received == target => return messages,
-            Some(papo::__papo_disconnected!(reason, _)) => panic!("disconnected: {reason}"),
+            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
+                panic!("disconnected: {reason}")
+            }
             Some(_) => {}
             None => panic!("driver stopped before history arrived"),
         }
