@@ -369,10 +369,24 @@
               inherit cargoArtifacts;
               cargoExtraArgs = "--workspace --locked";
               cargoNextestPartitionsExtraArgs = "--no-tests=pass";
-              nativeBuildInputs = [ pkgs.openssl ];
+              nativeBuildInputs = [
+                pkgs.openssl
+                pkgs.atheme
+                pkgs.inspircd
+                solanum
+                unrealircd
+              ];
               ERGO_BIN = pkgs.lib.getExe ergochat;
               ERGO_CONFIG = ergoConfig;
               ERGO_LANGUAGES = "${ergochat.src}/languages";
+              ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
+              ATHEME_MODULES = "${pkgs.atheme}/modules";
+              INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";
+              INSPIRCD_MODULES = "${pkgs.lib.getLib pkgs.inspircd}/lib/inspircd";
+              SOLANUM_BIN = pkgs.lib.getExe solanum;
+              SOLANUM_MODULES = "${solanum}/lib/solanum/modules";
+              UNREALIRCD_BIN = pkgs.lib.getExe' unrealircd "unrealircd";
+              UNREALIRCD_CONFIG = "${unrealircd}/share/unrealircd/conf";
               CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
               CARGO_TARGET_WASM32_WASIP1_RUNNER = nixTestRunner;
               CARGO_TARGET_WASM32_WASIP2_RUNNER = nixTestRunner;
