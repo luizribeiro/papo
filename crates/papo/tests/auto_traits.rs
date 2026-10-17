@@ -67,6 +67,8 @@ fn request_futures_are_send() {
     assert_send_static(client.set_away("reviewing patches"));
     assert_send_static(client.clear_away());
     assert_send_static(client.set_realname("Papo Test Client"));
+    assert_send_static(client.oper("papo", "correct horse battery staple"));
+    assert_send_static(client.ping());
     assert_send_static(client.mode("#papo").add('t').into_future());
     assert_send_static(client.set_topic("#papo", "Ergonomic IRC"));
     assert_send_static(client.clear_topic("#papo"));

@@ -1,7 +1,10 @@
 use std::{
     future::IntoFuture,
-    sync::{Arc, RwLock},
-    time::SystemTime,
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::{Duration, SystemTime},
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
@@ -19,6 +22,8 @@ use crate::{
 use crate::driver::channels;
 #[cfg(test)]
 use papo_core::Session;
+
+static NEXT_PING: AtomicU64 = AtomicU64::new(0);
 
 /// A cheap, cloneable handle to a running IRC client.
 ///
@@ -815,6 +820,51 @@ impl Client {
                 )
                 .await?;
             crate::requests::empty(&response)
+        })
+    }
+
+    /// Authenticates as an IRC operator.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
+    pub fn oper(
+        &self,
+        name: impl Into<String>,
+        password: impl Into<crate::Secret>,
+    ) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let name = name.into();
+        let password = password.into();
+        crate::RequestFuture::new(async move {
+            let response = client
+                .correlated(
+                    Message::new("OPER", [name, password.expose().to_owned()]),
+                    Some(ResponseMatcher::Oper),
+                )
+                .await?;
+            crate::requests::empty(&response)
+        })
+    }
+
+    /// Measures a server round trip using `PING` and its matching `PONG`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed server refusal, timeout, or disconnect.
+    pub fn ping(&self) -> crate::RequestFuture<Duration> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            let token = format!("papo-lag-{}", NEXT_PING.fetch_add(1, Ordering::Relaxed));
+            let started = crate::rt::now_mono();
+            let response = client
+                .correlated(
+                    Message::new("PING", [token.clone()]),
+                    Some(ResponseMatcher::Ping(token)),
+                )
+                .await?;
+            crate::requests::empty(&response)?;
+            Ok(crate::rt::now_mono().saturating_duration_since(started))
         })
     }
 
