@@ -242,7 +242,9 @@ impl From<&ChannelName> for Target {
 mod tests {
     use std::{borrow::Borrow, collections::HashMap, fmt, hash::Hash, ops::Deref};
 
-    use super::{AccountName, ChannelName, Mask, MessageId, MetadataKey, Nick, Target};
+    use super::{
+        AccountName, ChannelName, InvalidIdentifier, Mask, MessageId, MetadataKey, Nick, Target,
+    };
 
     fn assert_contract<T>()
     where
@@ -293,5 +295,31 @@ mod tests {
     fn targets_accept_typed_nicks_and_channels() {
         assert_eq!(Target::from(Nick::from("alice")), "alice");
         assert_eq!(Target::from(&ChannelName::from("#papo")), "#papo");
+    }
+
+    #[test]
+    fn validates_exact_and_structured_identifiers() {
+        assert_eq!(AccountName::from("emily").check(), Ok(()));
+        assert_eq!(Mask::from("*!*@cloak.example").check(), Ok(()));
+        assert_eq!(MetadataKey::from("profile/display-name").check(), Ok(()));
+        assert_eq!(MessageId::from("8VX4P6dUQ44L").check(), Ok(()));
+
+        assert_eq!(
+            AccountName::from("*").check(),
+            Err(InvalidIdentifier::InvalidCharacter('*'))
+        );
+        assert_eq!(Mask::from("").check(), Err(InvalidIdentifier::Empty));
+        assert_eq!(
+            MetadataKey::from("Avatar").check(),
+            Err(InvalidIdentifier::InvalidCharacter('A'))
+        );
+        assert_eq!(
+            MessageId::from(":8VX4P6dUQ44L").check(),
+            Err(InvalidIdentifier::InvalidPrefix(':'))
+        );
+        assert_eq!(
+            MessageId::from("8VX4 P6dUQ44L").check(),
+            Err(InvalidIdentifier::InvalidCharacter(' '))
+        );
     }
 }
