@@ -2195,7 +2195,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
     assert_eq!(
-        within(client.privmsg("#papo", &"a".repeat(600)))
+        within(client.privmsg("#papo", "a".repeat(600)))
             .await
             .unwrap(),
         super::Sent::without_echo("#papo")
@@ -2237,7 +2237,7 @@ async fn chat_text_uses_multiline_when_negotiated() {
     )
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
-    within(client.privmsg("#papo", &"a".repeat(600)))
+    within(client.privmsg("#papo", "a".repeat(600)))
         .await
         .unwrap();
     let batch = format!(

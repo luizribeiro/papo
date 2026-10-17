@@ -577,14 +577,14 @@ pub async fn papo::Client::join(&self, &str) -> core::result::Result<papo::Chann
 pub async fn papo::Client::list(&self, papo::ListFilter) -> core::result::Result<alloc::vec::Vec<papo::ListEntry>, papo::Error>
 pub async fn papo::Client::mode<I, S>(&self, &str, &str, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Client::nick(&self) -> papo_proto::id::Nick
-pub async fn papo::Client::notice(&self, &str, &str) -> core::result::Result<papo::Sent, papo::Error>
+pub fn papo::Client::notice(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub async fn papo::Client::part(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub fn papo::Client::privmsg(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub async fn papo::Client::quit(&self, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::react(&self, &papo_proto::id::Target, &papo_proto::id::MessageId, &str) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::reconnect(&self) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::redact(&self, &papo_proto::id::Target, &papo_proto::id::MessageId, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
-pub async fn papo::Client::reply(&self, &papo::Message, &str) -> core::result::Result<papo::Sent, papo::Error>
+pub fn papo::Client::reply(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub async fn papo::Client::request_raw(&self, &str) -> core::result::Result<alloc::vec::Vec<papo::RawLine>, papo::Error>
 pub async fn papo::Client::send_raw(&self, &str) -> core::result::Result<(), papo::Error>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>

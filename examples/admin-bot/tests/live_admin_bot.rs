@@ -42,7 +42,7 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
             "Ergo chat"
         );
 
-        user.privmsg(&channels[1], &format!("{bot_nick}: ping"))
+        user.privmsg(&channels[1], format!("{bot_nick}: ping"))
             .await
             .unwrap();
         assert_eq!(
@@ -50,7 +50,7 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
             channels[1]
         );
 
-        user.privmsg(&channels[2], &format!("!op {admin_nick}"))
+        user.privmsg(&channels[2], format!("!op {admin_nick}"))
             .await
             .unwrap();
         let refusal = wait_message(
@@ -67,7 +67,7 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
         assert_eq!(context, Some(channels[2].as_str()));
 
         admin
-            .privmsg(&channels[2], &format!("!op {user_nick}"))
+            .privmsg(&channels[2], format!("!op {user_nick}"))
             .await
             .unwrap();
         wait_op(&mut admin_events, &channels[2], &user_nick).await;

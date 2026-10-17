@@ -41,7 +41,7 @@ pub struct Sent {
     pub time: Option<SystemTime>,
 }
 
-/// Builds a chat message with optional IRCv3 client tags.
+/// Builds a chat message with optional `IRCv3` client tags.
 pub struct SendMessage {
     client: Client,
     kind: TextKind,
@@ -309,9 +309,16 @@ impl Client {
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
-    pub async fn notice(&self, target: &str, text: &str) -> Result<Sent, Error> {
-        self.send_text(TextKind::Notice, target, text, Vec::new())
-            .await
+    pub fn notice(&self, target: impl Into<crate::Target>, text: impl Into<String>) -> SendMessage {
+        SendMessage {
+            client: self.clone(),
+            kind: TextKind::Notice,
+            target: target.into(),
+            text: text.into(),
+            reply_to: None,
+            channel_context: None,
+            tags: Vec::new(),
+        }
     }
 
     /// Sends a private message threaded as a reply to `message` when supported.
@@ -319,27 +326,17 @@ impl Client {
     /// # Errors
     ///
     /// Returns an error if the text is empty or invalid, or the driver has stopped.
-    pub async fn reply(&self, message: &crate::Message, text: &str) -> Result<Sent, Error> {
-        let mut tags = Vec::new();
-        let state = self.state();
-        if state.has_cap("message-tags") {
-            let isupport = state.isupport();
-            let denied = isupport.clienttagdeny();
-            if let Some(id) = message.id()
-                && let Some(tag) = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
-            {
-                tags.push((tag.to_owned(), id.to_string()));
-            }
-            if message.is_private()
-                && let Some(context) = message.channel_context()
-                && let Some(tag) =
-                    event_impl::allowed_alias(&denied, "+channel-context", "+draft/channel-context")
-            {
-                tags.push((tag.to_owned(), context.to_owned()));
-            }
+    pub fn reply(&self, message: &crate::Message, text: impl Into<String>) -> SendMessage {
+        let mut request = self.privmsg(message.reply_target(), text);
+        if let Some(id) = message.id() {
+            request = request.reply_to(&id.into());
         }
-        self.send_text(TextKind::Privmsg, message.reply_target(), text, tags)
-            .await
+        if message.is_private()
+            && let Some(context) = message.channel_context()
+        {
+            request = request.channel_context(&context.into());
+        }
+        request
     }
 
     #[cfg(feature = "bot")]
@@ -351,29 +348,19 @@ impl Client {
         let Some(target) = message.sender_nick() else {
             return Ok(());
         };
-        let mut notice = Message::notice(target, text);
-        let state = self.state();
-        if state.has_cap("message-tags") {
-            let isupport = state.isupport();
-            let denied = isupport.clienttagdeny();
-            if let Some(id) = message.id()
-                && let Some(tag) = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
-            {
-                notice = notice.with_tag(tag, id.as_ref());
-            }
-            let context = if message.is_private() {
-                message.channel_context()
-            } else {
-                Some(message.target())
-            };
-            if let Some(context) = context
-                && let Some(tag) =
-                    event_impl::allowed_alias(&denied, "+channel-context", "+draft/channel-context")
-            {
-                notice = notice.with_tag(tag, context);
-            }
+        let mut request = self.notice(target, text);
+        if let Some(id) = message.id() {
+            request = request.reply_to(&id.into());
         }
-        self.send_message(notice).await
+        let context = if message.is_private() {
+            message.channel_context()
+        } else {
+            Some(message.target())
+        };
+        if let Some(context) = context {
+            request = request.channel_context(&context.into());
+        }
+        request.await.map(drop)
     }
 
     /// Adds `emoji` as a reaction to `message`.

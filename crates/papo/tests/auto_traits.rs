@@ -25,7 +25,7 @@ fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
     let id = MessageId::from("RfcBTzyxY120004");
     assert_send(client.react(&target, &id, "👍"));
     assert_send(client.unreact(&target, &id, "👍"));
-    assert_send(client.reply(message, "Acknowledged"));
+    assert_send_static(client.reply(message, "Acknowledged").into_future());
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn request_futures_are_send() {
             .privmsg("#papo", "hello from the trait test")
             .into_future(),
     );
-    assert_send(client.notice("emily", "maintenance soon"));
+    assert_send_static(client.notice("emily", "maintenance soon").into_future());
     assert_send(client.typing("#papo", Typing::Active));
     assert_send(client.redact(
         &Target::from("#papo"),
