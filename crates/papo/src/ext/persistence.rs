@@ -14,18 +14,22 @@ impl Client {
 }
 
 impl Persistence<'_> {
+    async fn request(&self, request: CoreRequest) -> Result<(), Error> {
+        let response = self.client.core_request(request).await?;
+        crate::requests::empty(&response)
+    }
+
     /// Requests the server's current persistence status.
     ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Persistence`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
-    /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
-    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// or [`Error::Disconnected`].
     pub async fn get(&self) -> Result<papo_core::PersistenceStatus, Error> {
-        self.client
-            .core_request(CoreRequest::PersistenceGet)
-            .await?;
+        self.request(CoreRequest::PersistenceGet).await?;
         self.state().ok_or_else(Error::disconnected)
     }
 
@@ -35,15 +39,14 @@ impl Persistence<'_> {
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Persistence`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
-    /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
-    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// or [`Error::Disconnected`].
     pub async fn set(
         &self,
         setting: papo_core::PersistenceSetting,
     ) -> Result<papo_core::PersistenceStatus, Error> {
-        self.client
-            .core_request(CoreRequest::PersistenceSet(setting))
-            .await?;
+        self.request(CoreRequest::PersistenceSet(setting)).await?;
         self.state().ok_or_else(Error::disconnected)
     }
 
@@ -112,6 +115,21 @@ mod tests {
         .await;
         assert!(within(set).await.unwrap().unwrap().effective);
         assert!(client.persistence().state().unwrap().effective);
+
+        let get = tokio::spawn({
+            let client = client.clone();
+            async move { client.persistence().get().await }
+        });
+        client_line(&mut server, b"@label=2 PERSISTENCE GET\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=2 :ergo.test FAIL PERSISTENCE NEEDS_ACCOUNT :An account is required\r\n",
+        )
+        .await;
+        assert!(matches!(
+            within(get).await.unwrap(),
+            Err(Error::Server(error)) if error.code() == "NEEDS_ACCOUNT"
+        ));
         abort_task(driver).await;
     }
 }
