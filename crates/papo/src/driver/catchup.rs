@@ -53,7 +53,7 @@ pub(super) fn advance_catchup(
         .messages
         .into_iter()
         .filter_map(|message| {
-            crate::MessageEvent::from_history(message, client.clone(), crate::rt::now_wall()).ok()
+            crate::MessageEvent::from_history(message, &client, crate::rt::now_wall()).ok()
         })
         .collect();
     Some(Event::History(Box::new(crate::HistoryPage {

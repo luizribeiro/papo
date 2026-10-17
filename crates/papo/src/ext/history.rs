@@ -223,8 +223,7 @@ impl Client {
             .into_iter()
             .filter_map(papo_core::HistoryItem::into_message)
             .filter_map(|item| {
-                crate::MessageEvent::from_history(item.message, self.clone(), crate::rt::now_wall())
-                    .ok()
+                crate::MessageEvent::from_history(item.message, self, crate::rt::now_wall()).ok()
             })
             .collect();
         Ok(crate::HistoryPage {
@@ -337,7 +336,7 @@ mod tests {
         );
         let event = crate::MessageEvent::from_history(
             Message::privmsg("#papo", "earlier").with_tag("msgid", "RfcBTzyxY120004"),
-            crate::Client::disconnected_for_test(),
+            &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
         )
         .unwrap();

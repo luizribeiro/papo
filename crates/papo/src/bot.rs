@@ -341,13 +341,12 @@ mod tests {
     }
 
     fn event_to(target: &str, text: &str, isupport: &Isupport) -> Event {
-        let session = papo_core::Session::new(papo_core::Config::default().nick("papo{bot}"));
         Event::Message(Box::new(
             MessageEvent::new(
                 Message::privmsg(target, text).with_source("emily!~emily@localhost"),
                 isupport,
                 "papo{bot}",
-                crate::Client::from_session_for_test(&session),
+                crate::Client::disconnected_for_test(),
                 &Capabilities::new(),
                 UNIX_EPOCH,
             )

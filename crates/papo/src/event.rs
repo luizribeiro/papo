@@ -1,5 +1,5 @@
 use papo_core::{Account, Capabilities, RequestId, Response, Welcome, sts::StsAction};
-use std::{fmt, time::SystemTime};
+use std::time::SystemTime;
 
 use papo_proto::{Ctcp, Isupport, Message, MessageRef, strip_formatting, time};
 
@@ -83,10 +83,8 @@ pub enum Origin {
 }
 
 /// An incoming `PRIVMSG` or `NOTICE` with connection context.
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MessageEvent {
-    client: Client,
-    raw: Message,
     sender: Option<Source>,
     target: String,
     status: Option<String>,
@@ -96,7 +94,6 @@ pub struct MessageEvent {
     channel_context: Option<String>,
     private: bool,
     kind: StoredKind,
-    isupport: Isupport,
     msgid: Option<String>,
     server_time: Option<SystemTime>,
     received_at: SystemTime,
@@ -107,39 +104,8 @@ pub struct MessageEvent {
     // All three states distinguish absent, bare, and named protocol tags.
     #[allow(clippy::option_option)]
     oper: Option<Option<String>>,
-    batch_type: Option<String>,
     origin: Origin,
-    caps: Capabilities,
 }
-
-impl PartialEq for MessageEvent {
-    fn eq(&self, other: &Self) -> bool {
-        self.raw == other.raw
-            && self.sender == other.sender
-            && self.target == other.target
-            && self.status == other.status
-            && self.raw_text == other.raw_text
-            && self.text == other.text
-            && self.tags == other.tags
-            && self.channel_context == other.channel_context
-            && self.private == other.private
-            && self.kind == other.kind
-            && self.isupport == other.isupport
-            && self.msgid == other.msgid
-            && self.server_time == other.server_time
-            && self.received_at == other.received_at
-            && self.account == other.account
-            && self.bot == other.bot
-            && self.reply_to == other.reply_to
-            && self.relayed_by == other.relayed_by
-            && self.oper == other.oper
-            && self.batch_type == other.batch_type
-            && self.origin == other.origin
-            && self.caps == other.caps
-    }
-}
-
-impl Eq for MessageEvent {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum StoredKind {
@@ -155,7 +121,7 @@ impl MessageEvent {
         raw: Message,
         isupport: &Isupport,
         nick: &str,
-        client: Client,
+        _client: Client,
         caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
@@ -172,8 +138,6 @@ impl MessageEvent {
             echo && !other_session,
             other_session,
             isupport,
-            client,
-            caps,
             received_at,
         )
     }
@@ -181,26 +145,24 @@ impl MessageEvent {
     pub(crate) fn from_core(
         received: papo_core::ReceivedMessage,
         isupport: &Isupport,
-        client: Client,
-        caps: &Capabilities,
+        _client: Client,
+        _caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
         let (raw, batch_type, echo, other_session) = received.into_context_parts();
         Self::new_with_context(
             raw,
-            batch_type,
+            batch_type.as_deref(),
             echo,
             other_session,
             isupport,
-            client,
-            caps,
             received_at,
         )
     }
 
     pub(crate) fn from_history(
         message: Message,
-        client: Client,
+        client: &Client,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
         Self::from_historical(message, client, received_at, Origin::History)
@@ -208,7 +170,7 @@ impl MessageEvent {
 
     pub(crate) fn from_replay(
         message: Message,
-        client: Client,
+        client: &Client,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
         Self::from_historical(message, client, received_at, Origin::Replay)
@@ -216,7 +178,7 @@ impl MessageEvent {
 
     fn from_historical(
         message: Message,
-        client: Client,
+        client: &Client,
         received_at: SystemTime,
         origin: Origin,
     ) -> Result<Self, Message> {
@@ -227,8 +189,6 @@ impl MessageEvent {
             false,
             false,
             snapshot.isupport(),
-            client,
-            snapshot.caps(),
             received_at,
         )?;
         event.origin = origin;
@@ -238,12 +198,10 @@ impl MessageEvent {
     #[allow(clippy::too_many_arguments)]
     fn new_with_context(
         raw: Message,
-        batch_type: Option<String>,
+        batch_type: Option<&str>,
         echo: bool,
         other_session: bool,
         isupport: &Isupport,
-        client: Client,
-        caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
         let message = raw.as_ref();
@@ -296,7 +254,7 @@ impl MessageEvent {
             .tags()
             .find(|(key, _)| *key == "draft/oper")
             .map(|(_, value)| value.map(std::borrow::Cow::into_owned));
-        let replay = batch_type.as_deref().is_some_and(|kind| {
+        let replay = batch_type.is_some_and(|kind| {
             matches!(
                 kind,
                 "chathistory"
@@ -315,8 +273,6 @@ impl MessageEvent {
             Origin::Live
         };
         Ok(Self {
-            client,
-            raw,
             sender,
             target,
             status,
@@ -326,7 +282,6 @@ impl MessageEvent {
             channel_context,
             private,
             kind,
-            isupport: isupport.clone(),
             msgid,
             server_time,
             received_at,
@@ -335,9 +290,7 @@ impl MessageEvent {
             reply_to,
             relayed_by,
             oper,
-            batch_type,
             origin,
-            caps: caps.clone(),
         })
     }
 
@@ -464,12 +417,6 @@ impl MessageEvent {
         self.oper.as_ref().map(|name| name.as_deref())
     }
 
-    /// Returns the containing batch type, when known.
-    #[must_use]
-    pub fn batch_type(&self) -> Option<&str> {
-        self.batch_type.as_deref()
-    }
-
     /// Returns how this message relates to the current session.
     #[must_use]
     pub fn origin(&self) -> Origin {
@@ -496,22 +443,6 @@ impl MessageEvent {
     #[must_use]
     pub fn ctcp(&self) -> Option<Ctcp<'_>> {
         Ctcp::parse(&self.raw_text)
-    }
-
-    /// Borrows the underlying IRC message.
-    #[must_use]
-    pub fn as_ref(&self) -> papo_proto::MessageRef<'_> {
-        self.raw.as_ref()
-    }
-}
-
-impl fmt::Debug for MessageEvent {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("MessageEvent")
-            .field("client", &self.client)
-            .field("raw", &self.raw)
-            .finish_non_exhaustive()
     }
 }
 
@@ -1106,13 +1037,13 @@ mod tests {
     }
 
     #[test]
-    fn debug_hides_connection_internals() {
+    fn debug_contains_data_without_connection_internals() {
         let client = crate::Client::disconnected_for_test();
         assert_eq!(format!("{client:?}"), "Client { .. }");
 
         let rendered = format!("{:?}", chat("PRIVMSG", "hello from Ergo"));
-        assert!(rendered.contains("client: Client { .. }"));
-        for field in ["commands:", "connected:", "isupport:", "caps:", "reply_to:"] {
+        assert!(rendered.contains("raw_text: \"hello from Ergo\""));
+        for field in ["commands:", "connected:", "isupport:", "caps:"] {
             assert!(!rendered.contains(field), "{rendered}");
         }
     }
@@ -1530,7 +1461,6 @@ mod tests {
 
         for kind in ["netsplit", "vendor/sync"] {
             let live = batched_message(kind, "NOTICE papo :live batch");
-            assert_eq!(live.batch_type(), Some(kind));
             assert_eq!(live.origin(), Origin::Live);
             assert!(live.is_live());
         }

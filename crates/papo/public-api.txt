@@ -645,8 +645,6 @@ pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::tr
 pub struct papo::MessageEvent
 impl papo::MessageEvent
 pub fn papo::MessageEvent::account(&self) -> core::option::Option<&str>
-pub fn papo::MessageEvent::as_ref(&self) -> papo_proto::message::MessageRef<'_>
-pub fn papo::MessageEvent::batch_type(&self) -> core::option::Option<&str>
 pub fn papo::MessageEvent::ctcp(&self) -> core::option::Option<papo_proto::ctcp::Ctcp<'_>>
 pub fn papo::MessageEvent::id(&self) -> core::option::Option<papo::TargetedMessageId>
 pub fn papo::MessageEvent::is_bot(&self) -> bool
@@ -666,13 +664,8 @@ pub const fn papo::MessageEvent::tags(&self) -> &papo::Tags
 pub fn papo::MessageEvent::target(&self) -> &str
 pub fn papo::MessageEvent::text(&self) -> &str
 pub fn papo::MessageEvent::time(&self) -> std::time::SystemTime
-impl core::cmp::Eq for papo::MessageEvent
-impl core::cmp::PartialEq for papo::MessageEvent
-pub fn papo::MessageEvent::eq(&self, &Self) -> bool
 impl core::convert::From<&papo::MessageEvent> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::MessageEvent) -> Self
-impl core::fmt::Debug for papo::MessageEvent
-pub fn papo::MessageEvent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Metadata<'a>
 impl papo::Metadata<'_>
 pub async fn papo::Metadata<'_>::clear(&self) -> core::result::Result<(), papo::Error>

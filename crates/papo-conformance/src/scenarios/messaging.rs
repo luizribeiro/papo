@@ -68,7 +68,7 @@ async fn server_time(context: Scenario) -> ScenarioResult {
         .expect(
             &mut receiver.events,
             |event| {
-                matches!(event, Event::Message(message) if message.raw_text() == text && message.as_ref().as_ref().tag("time").is_some())
+                matches!(event, Event::Message(message) if message.raw_text() == text && message.tags().contains("time"))
             },
             EXPECT_TIMEOUT,
         )

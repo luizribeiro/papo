@@ -1082,7 +1082,7 @@ where
                     .filter_map(|item| {
                         crate::MessageEvent::from_replay(
                             item.message,
-                            client.clone(),
+                            &client,
                             crate::rt::now_wall(),
                         )
                         .ok()
