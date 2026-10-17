@@ -59,7 +59,14 @@ async fn run(
     loop {
         tokio::select! {
             signal = &mut shutdown => {
-                signal?;
+                signal.map_err(|error| {
+                    PapoError::DisconnectedWith(papo::Disconnected::new(
+                        papo::DisconnectCause::Protocol {
+                            message: error.to_string(),
+                        },
+                        None,
+                    ))
+                })?;
                 client.quit(Some("shutting down")).await?;
                 return Ok(());
             }

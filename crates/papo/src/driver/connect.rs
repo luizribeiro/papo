@@ -186,7 +186,7 @@ fn enqueue_retry_event(
         return Ok(end.pending_events);
     }
     SLOW_CONSUMER_REASON.clone_into(&mut end.reason);
-    end.error = Error::Disconnected;
+    end.error = Error::disconnected_slow_consumer();
     Err(Box::new(end))
 }
 
@@ -406,7 +406,7 @@ fn finish_slow_consumer(
         events,
         ConnectionEnd {
             reason: SLOW_CONSUMER_REASON.to_owned(),
-            error: Error::Disconnected,
+            error: Error::disconnected_slow_consumer(),
             close_kind: None,
             quit: None,
             quit_timed_out: false,
@@ -548,15 +548,15 @@ fn handle_disconnected_command(command: Option<Command>) -> bool {
             | Command::History { result, .. }
             | Command::MarkRead { result, .. },
         ) => {
-            _ = result.send(Err(Error::Disconnected));
+            _ = result.send(Err(Error::disconnected()));
             true
         }
         Some(Command::SendText { result, .. }) => {
-            _ = result.send(Err(Error::Disconnected));
+            _ = result.send(Err(Error::disconnected()));
             true
         }
         Some(Command::ReadMarker { result, .. }) => {
-            _ = result.send(Err(Error::Disconnected));
+            _ = result.send(Err(Error::disconnected()));
             true
         }
         Some(
@@ -564,7 +564,7 @@ fn handle_disconnected_command(command: Option<Command>) -> bool {
             | Command::Typing { result, .. }
             | Command::WaitChannelSync { result, .. },
         ) => {
-            _ = result.send(Err(Error::Disconnected));
+            _ = result.send(Err(Error::disconnected()));
             true
         }
         Some(Command::Reconnect { result }) => {

@@ -149,8 +149,8 @@ impl Client {
         self.commands
             .send(Command::Reconnect { result })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)?
+            .map_err(|_| Error::disconnected())?;
+        receiver.await.map_err(|_| Error::disconnected())?
     }
 
     /// Validates and queues an IRC message for transmission.
@@ -164,8 +164,8 @@ impl Client {
         self.commands
             .send(Command::Send { message, result })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)?
+            .map_err(|_| Error::disconnected())?;
+        receiver.await.map_err(|_| Error::disconnected())?
     }
 
     /// Sends an IRC message and waits for its labelled response.
@@ -195,8 +195,8 @@ impl Client {
                 result,
             })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)?
+            .map_err(|_| Error::disconnected())?;
+        receiver.await.map_err(|_| Error::disconnected())?
     }
 
     pub(crate) async fn core_request(&self, request: CoreRequest) -> Result<Response, Error> {
@@ -204,8 +204,8 @@ impl Client {
         self.commands
             .send(Command::CoreRequest { request, result })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)?
+            .map_err(|_| Error::disconnected())?;
+        receiver.await.map_err(|_| Error::disconnected())?
     }
 
     /// Sends an IRC message without waiting for a correlated response.
@@ -309,8 +309,8 @@ impl Client {
                 result,
             })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)?
+            .map_err(|_| Error::disconnected())?;
+        receiver.await.map_err(|_| Error::disconnected())?
     }
 
     /// Redacts a message from a target's history.
@@ -362,8 +362,8 @@ impl Client {
                 result,
             })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)?
+            .map_err(|_| Error::disconnected())?;
+        receiver.await.map_err(|_| Error::disconnected())?
     }
 
     /// Requests information about a nickname.
@@ -416,7 +416,7 @@ impl Client {
             return Err(Error::server(error));
         }
         if self.state(|state| state.channel(channel).is_none()) {
-            return Err(Error::Disconnected);
+            return Err(Error::disconnected());
         }
         if !self.state(|state| {
             state
@@ -430,11 +430,11 @@ impl Client {
                     result,
                 })
                 .await
-                .map_err(|_| Error::Disconnected)?;
-            receiver.await.map_err(|_| Error::Disconnected)??;
+                .map_err(|_| Error::disconnected())?;
+            receiver.await.map_err(|_| Error::disconnected())??;
         }
         self.state(|state| {
-            let joined = state.channel(channel).ok_or(Error::Disconnected)?;
+            let joined = state.channel(channel).ok_or_else(Error::disconnected)?;
             Ok(crate::ChannelInfo {
                 name: joined.name().to_owned(),
                 topic: joined.topic().map(str::to_owned),
@@ -535,8 +535,8 @@ impl Client {
                 result,
             })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)?
+            .map_err(|_| Error::disconnected())?;
+        receiver.await.map_err(|_| Error::disconnected())?
     }
 }
 

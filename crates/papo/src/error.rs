@@ -390,6 +390,10 @@ impl Error {
         Self::DisconnectedWith(Disconnected::new(cause, None))
     }
 
+    pub(crate) const fn disconnected_slow_consumer() -> Self {
+        Self::DisconnectedWith(Disconnected::new(DisconnectCause::SlowConsumer, None))
+    }
+
     pub(crate) const fn disconnected_requested() -> Self {
         Self::DisconnectedWith(Disconnected::new(DisconnectCause::Requested, None))
     }

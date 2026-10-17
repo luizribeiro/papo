@@ -100,15 +100,19 @@ fn account_registration_result(response: &Response) -> Result<AccountRegistratio
     if let Some(error) = response.error() {
         return Err(Error::server(error));
     }
-    let message = response.lines.first().ok_or(Error::Disconnected)?.as_ref();
-    let account = message.param(1).ok_or(Error::Disconnected)?.to_owned();
+    let message = response
+        .lines
+        .first()
+        .ok_or_else(Error::disconnected)?
+        .as_ref();
+    let account = message.param(1).ok_or_else(Error::disconnected)?.to_owned();
     match message.param(0) {
         Some("SUCCESS") => Ok(AccountRegistration::Registered { account }),
         Some("VERIFICATION_REQUIRED") => Ok(AccountRegistration::VerificationRequired {
             account,
             message: message.param(2).unwrap_or_default().to_owned(),
         }),
-        _ => Err(Error::Disconnected),
+        _ => Err(Error::disconnected()),
     }
 }
 

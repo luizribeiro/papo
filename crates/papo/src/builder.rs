@@ -420,7 +420,7 @@ impl Builder {
         let (sender, receiver) = oneshot::channel();
         let (client, events, driver) = self.build_with_registration(Some(sender));
         crate::rt::spawn(driver);
-        receiver.await.map_err(|_| Error::Disconnected)??;
+        receiver.await.map_err(|_| Error::disconnected())??;
         Ok((client, events))
     }
 

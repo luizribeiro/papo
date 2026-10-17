@@ -23,7 +23,7 @@ impl Persistence<'_> {
         self.client
             .core_request(CoreRequest::PersistenceGet)
             .await?;
-        self.state().ok_or(Error::Disconnected)
+        self.state().ok_or_else(Error::disconnected)
     }
 
     /// Changes the account persistence preference.
@@ -38,7 +38,7 @@ impl Persistence<'_> {
         self.client
             .core_request(CoreRequest::PersistenceSet(setting))
             .await?;
-        self.state().ok_or(Error::Disconnected)
+        self.state().ok_or_else(Error::disconnected)
     }
 
     /// Returns the most recently reported persistence status.

@@ -198,7 +198,7 @@ impl Client {
         query: HistoryQuery,
     ) -> Result<crate::HistoryPage, Error> {
         let response = self.history_response(query).await?;
-        let page = response.history.ok_or(Error::Disconnected)?;
+        let page = response.history.ok_or_else(Error::disconnected)?;
         let messages = page
             .items
             .into_iter()
@@ -219,8 +219,8 @@ impl Client {
         self.commands
             .send(Command::History { query, result })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        let response = receiver.await.map_err(|_| Error::Disconnected)??;
+            .map_err(|_| Error::disconnected())?;
+        let response = receiver.await.map_err(|_| Error::disconnected())??;
         if let Some(error) = response.error() {
             return Err(Error::server(error));
         }
@@ -244,7 +244,7 @@ impl Client {
         })
         .await?
         .history_targets
-        .ok_or(Error::Disconnected)
+        .ok_or_else(Error::disconnected)
     }
 
     /// Sets the server read marker for `target`.
@@ -261,8 +261,8 @@ impl Client {
                 result,
             })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        let response = receiver.await.map_err(|_| Error::Disconnected)??;
+            .map_err(|_| Error::disconnected())?;
+        let response = receiver.await.map_err(|_| Error::disconnected())??;
         crate::requests::empty(&response)
     }
 
@@ -279,8 +279,8 @@ impl Client {
                 result,
             })
             .await
-            .map_err(|_| Error::Disconnected)?;
-        receiver.await.map_err(|_| Error::Disconnected)?
+            .map_err(|_| Error::disconnected())?;
+        receiver.await.map_err(|_| Error::disconnected())?
     }
 }
 
