@@ -37,6 +37,7 @@ pub struct Client {
 
 /// Server-assigned metadata for a sent chat message.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Sent {
     /// Target to which the message was sent.
     pub target: crate::Target,

@@ -106,6 +106,7 @@ impl BotConfig {
 /// Whether a bot response was sent or dropped by its rate limiter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[must_use = "the reply may have been dropped by the rate limiter"]
+#[non_exhaustive]
 pub enum ReplyStatus {
     /// The response was accepted by the client driver.
     Sent,

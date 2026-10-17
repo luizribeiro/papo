@@ -10,6 +10,7 @@ use crate::Error;
 
 /// Information returned by a `WHOIS` request.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Whois {
     /// Nickname reported by the server.
     pub nick: Nick,
@@ -37,6 +38,7 @@ pub struct Whois {
 
 /// One channel reported by a `WHOIS` request.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct WhoisChannel {
     /// Channel name without membership prefixes.
     pub name: ChannelName,
@@ -46,6 +48,7 @@ pub struct WhoisChannel {
 
 /// One user returned by a `WHO` request.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct WhoEntry {
     /// Channel associated with this reply, when present.
     pub channel: Option<ChannelName>,
@@ -100,6 +103,7 @@ impl ListFilter {
 
 /// One channel returned by `LIST`.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct ListEntry {
     /// Channel name.
     pub name: ChannelName,

@@ -13,6 +13,7 @@ pub struct WebPush {
 /// secret from the push subscription. Pass the encoded strings, not their decoded bytes or
 /// standard-Base64 forms using `+` and `/`.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct PushKeys {
     p256dh: String,
     auth: papo_core::Secret,

@@ -22,7 +22,7 @@ pub use papo::Unsupported
 pub use papo::UnsupportedReason
 pub use papo::User
 pub mod papo::bot
-pub enum papo::bot::ReplyStatus
+#[non_exhaustive] pub enum papo::bot::ReplyStatus
 pub papo::bot::ReplyStatus::Dropped
 pub papo::bot::ReplyStatus::Sent
 pub struct papo::bot::BotConfig
@@ -802,7 +802,7 @@ impl core::future::into_future::IntoFuture for papo::JoinChannel
 pub type papo::JoinChannel::IntoFuture = papo::RequestFuture<()>
 pub type papo::JoinChannel::Output = core::result::Result<(), papo::Error>
 pub fn papo::JoinChannel::into_future(self) -> Self::IntoFuture
-pub struct papo::ListEntry
+#[non_exhaustive] pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
 pub papo::ListEntry::name: papo_proto::id::ChannelName
 pub papo::ListEntry::topic: alloc::string::String
@@ -907,7 +907,7 @@ impl core::future::into_future::IntoFuture for papo::SendMessage
 pub type papo::SendMessage::IntoFuture = papo::RequestFuture<papo::Sent>
 pub type papo::SendMessage::Output = core::result::Result<papo::Sent, papo::Error>
 pub fn papo::SendMessage::into_future(self) -> Self::IntoFuture
-pub struct papo::Sent
+#[non_exhaustive] pub struct papo::Sent
 pub papo::Sent::id: core::option::Option<papo_proto::id::MessageId>
 pub papo::Sent::target: papo_proto::id::Target
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>
@@ -975,7 +975,7 @@ pub fn papo::WebIrc::flag(self, impl core::convert::Into<alloc::string::String>)
 pub fn papo::WebIrc::hostname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::WebIrc::new(impl core::convert::Into<papo_core::secret::Secret>, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::WebIrc::option(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
-pub struct papo::WhoEntry
+#[non_exhaustive] pub struct papo::WhoEntry
 pub papo::WhoEntry::account: core::option::Option<papo_proto::id::AccountName>
 pub papo::WhoEntry::away: bool
 pub papo::WhoEntry::channel: core::option::Option<papo_proto::id::ChannelName>
@@ -986,7 +986,7 @@ pub papo::WhoEntry::nick: papo_proto::id::Nick
 pub papo::WhoEntry::prefixes: alloc::vec::Vec<char>
 pub papo::WhoEntry::realname: alloc::string::String
 pub papo::WhoEntry::user: alloc::string::String
-pub struct papo::Whois
+#[non_exhaustive] pub struct papo::Whois
 pub papo::Whois::account: core::option::Option<papo_proto::id::AccountName>
 pub papo::Whois::away: core::option::Option<alloc::string::String>
 pub papo::Whois::channels: alloc::vec::Vec<papo::WhoisChannel>
@@ -998,7 +998,7 @@ pub papo::Whois::realname: core::option::Option<alloc::string::String>
 pub papo::Whois::secure: bool
 pub papo::Whois::server: core::option::Option<alloc::string::String>
 pub papo::Whois::user: core::option::Option<alloc::string::String>
-pub struct papo::WhoisChannel
+#[non_exhaustive] pub struct papo::WhoisChannel
 pub papo::WhoisChannel::name: papo_proto::id::ChannelName
 pub papo::WhoisChannel::prefixes: alloc::vec::Vec<char>
 pub const papo::VERSION: &str
