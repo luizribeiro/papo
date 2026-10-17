@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::Typing;
 
-use super::{Source, Tags};
+use super::{Source, Tags, TargetedMessageId};
 
 /// A reaction was added to or removed from a message.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,12 +10,10 @@ use super::{Source, Tags};
 pub struct Reacted {
     /// The user or server that changed the reaction.
     pub source: Option<Source>,
-    /// The channel or nickname containing the message.
-    pub target: String,
+    /// The message being reacted to.
+    pub id: TargetedMessageId,
     /// The reaction text.
     pub reaction: String,
-    /// The identifier of the message being reacted to.
-    pub msgid: String,
     /// Whether the reaction was removed.
     pub removed: bool,
 }
@@ -26,10 +24,8 @@ pub struct Reacted {
 pub struct Redacted {
     /// The user or server that removed the message.
     pub source: Option<Source>,
-    /// The history target containing the message.
-    pub target: String,
-    /// The identifier of the removed message.
-    pub msgid: String,
+    /// The message removed from history.
+    pub id: TargetedMessageId,
     /// The optional human-readable reason.
     pub reason: Option<String>,
 }

@@ -196,7 +196,7 @@ async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut receiver.events,
-            |event| matches!(event, Event::Redacted(redacted) if redacted.target == channel && redacted.msgid == sent.msgid),
+            |event| matches!(event, Event::Redacted(redacted) if redacted.id.target() == channel && redacted.id.msgid() == sent.msgid),
             EXPECT_TIMEOUT,
         )
         .await?;

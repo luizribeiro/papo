@@ -124,10 +124,10 @@ async fn reactions_reach_another_client_with_reply_context() {
         client_a.privmsg(&channel, "excellent news").await.unwrap();
         let incoming =
             wait_message(&mut events_b, |message| message.text() == "excellent news").await;
-        let msgid = incoming.msgid().unwrap().to_owned();
+        let id = incoming.id().unwrap();
         client_b.react(&incoming, "🎉").await.unwrap();
         let reaction = wait_reaction(&mut events_a).await;
-        assert_eq!(reaction.msgid, msgid);
+        assert_eq!(reaction.id, id);
 
         client_b.quit(Some("reaction test complete")).await.unwrap();
         client_a.quit(Some("reaction test complete")).await.unwrap();

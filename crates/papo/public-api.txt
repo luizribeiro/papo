@@ -215,11 +215,10 @@ pub papo::event::Quit::channels: alloc::vec::Vec<alloc::string::String>
 pub papo::event::Quit::nick: alloc::string::String
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Reacted
-pub papo::event::Reacted::msgid: alloc::string::String
+pub papo::event::Reacted::id: papo::TargetedMessageId
 pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::source: core::option::Option<papo::Source>
-pub papo::event::Reacted::target: alloc::string::String
 #[non_exhaustive] pub struct papo::event::ReadMarker
 pub papo::event::ReadMarker::target: alloc::string::String
 pub papo::event::ReadMarker::time: core::option::Option<std::time::SystemTime>
@@ -227,10 +226,9 @@ pub papo::event::ReadMarker::time: core::option::Option<std::time::SystemTime>
 pub papo::event::RealnameChanged::nick: alloc::string::String
 pub papo::event::RealnameChanged::realname: alloc::string::String
 #[non_exhaustive] pub struct papo::event::Redacted
-pub papo::event::Redacted::msgid: alloc::string::String
+pub papo::event::Redacted::id: papo::TargetedMessageId
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::source: core::option::Option<papo::Source>
-pub papo::event::Redacted::target: alloc::string::String
 #[non_exhaustive] pub struct papo::event::Registered
 pub papo::event::Registered::caps: papo_core::Capabilities
 pub papo::event::Registered::nick: alloc::string::String
@@ -647,6 +645,7 @@ impl papo::MessageEvent
 pub fn papo::MessageEvent::account(&self) -> core::option::Option<&str>
 pub fn papo::MessageEvent::as_ref(&self) -> papo_proto::message::MessageRef<'_>
 pub fn papo::MessageEvent::batch_type(&self) -> core::option::Option<&str>
+pub fn papo::MessageEvent::id(&self) -> core::option::Option<papo::TargetedMessageId>
 pub fn papo::MessageEvent::is_bot(&self) -> bool
 pub fn papo::MessageEvent::is_live(&self) -> bool
 pub fn papo::MessageEvent::is_private(&self) -> bool

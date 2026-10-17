@@ -422,6 +422,15 @@ impl MessageEvent {
         self.msgid.as_deref()
     }
 
+    /// Returns the targeted message identifier, when the server supplied one.
+    ///
+    /// `None` means the message had no `msgid` tag.
+    #[must_use]
+    pub fn id(&self) -> Option<TargetedMessageId> {
+        self.msgid()
+            .map(|msgid| TargetedMessageId::new(self.reply_target(), msgid))
+    }
+
     /// Returns server time when valid, or the local receipt time.
     #[must_use]
     pub fn time(&self) -> SystemTime {
@@ -793,9 +802,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
                     source: tag.source,
-                    target: tag.target,
+                    id: TargetedMessageId::new(tag.target, msgid),
                     reaction: reaction.to_owned(),
-                    msgid: msgid.to_owned(),
                     removed,
                 })
             } else if let Some(state) = tag.tags.get("+typing").and_then(|state| match state {
@@ -815,8 +823,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         }
         papo_core::Event::Redacted(redacted) => Event::Redacted(Redacted {
             source: redacted.source.map(Source::from_prefix),
-            target: redacted.target,
-            msgid: redacted.msgid,
+            id: TargetedMessageId::new(redacted.target, redacted.msgid),
             reason: redacted.reason,
         }),
         papo_core::Event::Response(response) => return CoreEvent::Response(response),
@@ -1192,7 +1199,8 @@ mod tests {
             tagged.time(),
             UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
         );
-        assert_eq!(tagged.msgid(), Some("RfcBTzyxY120004"));
+        assert_eq!(tagged.id().unwrap().target(), "#papo");
+        assert_eq!(tagged.id().unwrap().msgid(), "RfcBTzyxY120004");
         assert_eq!(tagged.account(), Some("emily"));
         assert!(tagged.is_bot());
         assert_eq!(tagged.reply_to(), Some("RfcBTzyxY120003"));
@@ -1332,9 +1340,9 @@ mod tests {
             panic!("expected reaction")
         };
         assert!(matches!(reaction.source, Some(Source::User { ref nick, .. }) if nick == "alice"));
-        assert_eq!(reaction.target, "#papo");
+        assert_eq!(reaction.id.target(), "#papo");
         assert_eq!(reaction.reaction, "👍");
-        assert_eq!(reaction.msgid, "RKi9Cw");
+        assert_eq!(reaction.id.msgid(), "RKi9Cw");
         assert!(!reaction.removed);
     }
 
@@ -1378,8 +1386,8 @@ mod tests {
             forwarded(papo_core::Event::Redacted(redacted.clone())),
             Event::Redacted(mapped)
                 if matches!(mapped.source, Some(Source::User { ref nick, .. }) if nick == "alice")
-                    && mapped.target == redacted.target
-                    && mapped.msgid == redacted.msgid
+                    && mapped.id.target() == redacted.target
+                    && mapped.id.msgid() == redacted.msgid
                     && mapped.reason == redacted.reason
         ));
     }
