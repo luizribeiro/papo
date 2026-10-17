@@ -570,7 +570,10 @@ impl core::fmt::Display for papo::Source
 pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Bouncer<'a>
 impl papo::Bouncer<'_>
+pub async fn papo::Bouncer<'_>::add(&self, papo_core::bouncer::NetworkConfig) -> core::result::Result<papo_core::bouncer::NetworkId, papo::Error>
+pub async fn papo::Bouncer<'_>::change(&self, &papo_core::bouncer::NetworkId, papo_core::bouncer::NetworkConfig) -> core::result::Result<(), papo::Error>
 pub async fn papo::Bouncer<'_>::networks(&self) -> core::result::Result<alloc::vec::Vec<papo_core::bouncer::BouncerNetwork>, papo::Error>
+pub async fn papo::Bouncer<'_>::remove(&self, &papo_core::bouncer::NetworkId) -> core::result::Result<(), papo::Error>
 pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
