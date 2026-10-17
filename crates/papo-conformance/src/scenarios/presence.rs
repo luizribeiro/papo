@@ -44,7 +44,7 @@ async fn away_notify(context: Scenario) -> ScenarioResult {
     let away = "reviewing the IRCv3 specification";
     sender
         .client
-        .send_raw(&format!("AWAY :{away}"))
+        .send_raw(format!("AWAY :{away}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -64,7 +64,7 @@ async fn setname(context: Scenario) -> ScenarioResult {
     let realname = "Papo Conformance Client";
     sender
         .client
-        .send_raw(&format!("SETNAME :{realname}"))
+        .send_raw(format!("SETNAME :{realname}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -90,12 +90,12 @@ async fn chghost(context: Scenario) -> ScenarioResult {
     let (mut observer, operator, _channel) = joined_pair(&context).await?;
     operator
         .client
-        .send_raw(&format!("OPER {oper_name} :{password}"))
+        .send_raw(format!("OPER {oper_name} :{password}"))
         .await
         .map_err(Failed::from)?;
     operator
         .client
-        .send_raw(&format!(
+        .send_raw(format!(
             "CHGHOST {} conformance.example",
             observer.welcome.nick
         ))
@@ -123,7 +123,7 @@ async fn monitor(context: Scenario) -> ScenarioResult {
     let target = context.client(&target_nick).await?;
     observer
         .client
-        .send_raw(&format!("MONITOR + {target_nick}"))
+        .send_raw(format!("MONITOR + {target_nick}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -145,7 +145,7 @@ async fn bot_mode(context: Scenario) -> ScenarioResult {
     let registered = connection.welcome.nick.clone();
     connection
         .client
-        .send_raw(&format!("MODE {registered} +B"))
+        .send_raw(format!("MODE {registered} +B"))
         .await
         .map_err(Failed::from)?;
     context

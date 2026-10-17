@@ -82,7 +82,7 @@ async fn message_tags(context: Scenario) -> ScenarioResult {
     let (mut receiver, sender, channel) = joined_pair(&context).await?;
     sender
         .client
-        .send_raw(&format!("@+typing=active TAGMSG {channel}"))
+        .send_raw(format!("@+typing=active TAGMSG {channel}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -104,24 +104,24 @@ async fn draft_multiline(context: Scenario) -> ScenarioResult {
     let reference = context.unique().replace('_', "-");
     sender
         .client
-        .send_raw(&format!("BATCH +{reference} draft/multiline {channel}"))
+        .send_raw(format!("BATCH +{reference} draft/multiline {channel}"))
         .await
         .map_err(Failed::from)?;
     sender
         .client
-        .send_raw(&format!("@batch={reference} PRIVMSG {channel} :first "))
+        .send_raw(format!("@batch={reference} PRIVMSG {channel} :first "))
         .await
         .map_err(Failed::from)?;
     sender
         .client
-        .send_raw(&format!(
+        .send_raw(format!(
             "@batch={reference};draft/multiline-concat PRIVMSG {channel} second"
         ))
         .await
         .map_err(Failed::from)?;
     sender
         .client
-        .send_raw(&format!("BATCH -{reference}"))
+        .send_raw(format!("BATCH -{reference}"))
         .await
         .map_err(Failed::from)?;
     context

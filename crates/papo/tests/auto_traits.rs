@@ -44,8 +44,9 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
 fn request_futures_are_send() {
     let (client, _events, _driver) = Client::builder("irc.example.net").build();
 
-    assert_send(client.send_raw("PRIVMSG #papo :hello from the trait test"));
-    assert_send(client.request_raw("WHOIS emily"));
+    assert_send_static(client.send_raw("PRIVMSG #papo :hello from the trait test"));
+    assert_send_static(client.request_raw("WHOIS emily"));
+    assert_send_static(client.reconnect());
     assert_send_static(
         client
             .privmsg("#papo", "hello from the trait test")

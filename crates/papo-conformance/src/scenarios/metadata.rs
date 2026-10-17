@@ -14,7 +14,7 @@ async fn draft_metadata_2(context: Scenario) -> ScenarioResult {
     let mut connection = context.client(&nick).await?;
     connection
         .client
-        .send_raw(&format!("METADATA {nick} SET {key} {value}"))
+        .send_raw(format!("METADATA {nick} SET {key} {value}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -39,7 +39,7 @@ async fn draft_channel_rename(context: Scenario) -> ScenarioResult {
     join(&context, &mut connection, &old).await?;
     connection
         .client
-        .send_raw(&format!("RENAME {old} {new} :conformance rename"))
+        .send_raw(format!("RENAME {old} {new} :conformance rename"))
         .await
         .map_err(Failed::from)?;
     context

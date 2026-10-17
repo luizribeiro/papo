@@ -32,7 +32,7 @@ async fn authenticate(context: Scenario, scram: bool) -> ScenarioResult {
     let registered_nick = connection.welcome.nick.clone();
     connection
         .client
-        .send_raw(&format!("WHOIS {registered_nick}"))
+        .send_raw(format!("WHOIS {registered_nick}"))
         .await
         .map_err(Failed::from)?;
     let event = context
@@ -75,7 +75,7 @@ async fn draft_account_registration(context: Scenario) -> ScenarioResult {
         .await?;
     connection
         .client
-        .send_raw(&format!("REGISTER {account} * {PASSWORD}"))
+        .send_raw(format!("REGISTER {account} * {PASSWORD}"))
         .await
         .map_err(Failed::from)?;
     context

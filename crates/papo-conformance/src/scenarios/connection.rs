@@ -61,7 +61,7 @@ async fn ping(context: Scenario) -> ScenarioResult {
     let token = context.unique();
     let response = connection
         .client
-        .request_raw(&format!("PING {token}"))
+        .request_raw(format!("PING {token}"))
         .await
         .map_err(Failed::from)?;
     let Some(message) = response.first() else {

@@ -20,7 +20,7 @@ async fn draft_read_marker(context: Scenario) -> ScenarioResult {
     join(&context, &mut connection, &channel).await?;
     connection
         .client
-        .send_raw(&format!(
+        .send_raw(format!(
             "MARKREAD {channel} timestamp=2025-10-15T11:55:42.123Z"
         ))
         .await
