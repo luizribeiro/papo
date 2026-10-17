@@ -102,6 +102,9 @@ impl SendMessage {
     }
 
     /// Adds a client-only message tag.
+    ///
+    /// The reply, reaction, and channel-context keys in [`crate::tags::keys`] are managed by
+    /// typed methods; setting them here can conflict with those methods.
     #[must_use]
     pub fn tag(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.tags.push((key.into(), value.into()));
@@ -472,6 +475,9 @@ impl Client {
 
     /// Adds `emoji` as a reaction to `message`.
     ///
+    /// A reaction is usually an emoji but may be any nonempty text. Reactions are compared
+    /// exactly, without case folding or Unicode normalization.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`Feature::Reactions`] with reason
@@ -488,6 +494,8 @@ impl Client {
     }
 
     /// Removes `emoji` as a reaction to `message`.
+    ///
+    /// `emoji` must exactly match the added reaction; papo performs no Unicode normalization.
     ///
     /// # Errors
     ///
@@ -510,6 +518,8 @@ impl Client {
     }
 
     /// Adds `emoji` as a reaction to `message` using its routing target.
+    ///
+    /// A reaction is usually an emoji but may be any nonempty text and is compared exactly.
     ///
     /// # Errors
     ///
@@ -535,6 +545,16 @@ impl Client {
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
+            if emoji.is_empty() {
+                return Err(InvalidInput::EmptyText.into());
+            }
+            if emoji.len() > papo_proto::MAX_CLIENT_TAG_DATA_LEN {
+                return Err(InvalidInput::Reaction {
+                    maximum: papo_proto::MAX_CLIENT_TAG_DATA_LEN,
+                    actual: emoji.len(),
+                }
+                .into());
+            }
             let state = client.state();
             Self::require_feature(&state, Feature::Reactions)?;
             target

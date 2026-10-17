@@ -2805,6 +2805,26 @@ async fn reactions_obey_clienttagdeny() {
     .await;
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn reactions_reject_empty_and_oversized_text() {
+    let (_server, client, _events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+
+    assert!(matches!(
+        within(client.react("#papo", "RfcBTzyxY120004", "")).await,
+        Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
+    ));
+    assert!(matches!(
+        within(client.react("#papo", "RfcBTzyxY120004", "x".repeat(4095))).await,
+        Err(Error::InvalidInput(crate::InvalidInput::Reaction {
+            maximum: 4094,
+            actual: 4095,
+        }))
+    ));
+
+    task.abort();
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     let (mut server, client, _events, driver) = scripted(config().wanted_caps(["message-tags"]));

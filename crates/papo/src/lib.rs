@@ -40,6 +40,7 @@ mod webirc;
 #[cfg(feature = "bot")]
 pub mod bot;
 pub mod cap;
+pub mod tags;
 
 /// The version of the `papo` crate.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

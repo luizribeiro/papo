@@ -420,6 +420,15 @@ impl papo::sts::StsStore for papo::sts::FileStsStore
 pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo::sts::StsPolicy>
 pub fn papo::sts::FileStsStore::put(&mut self, papo::sts::StsPolicy)
 pub fn papo::sts::FileStsStore::remove(&mut self, &str)
+pub mod papo::tags
+pub mod papo::tags::keys
+pub const papo::tags::keys::CHANNEL_CONTEXT: &str
+pub const papo::tags::keys::DRAFT_CHANNEL_CONTEXT: &str
+pub const papo::tags::keys::DRAFT_REACT: &str
+pub const papo::tags::keys::DRAFT_REPLY: &str
+pub const papo::tags::keys::DRAFT_UNREACT: &str
+pub const papo::tags::keys::REPLY: &str
+pub const papo::tags::keys::TYPING: &str
 pub mod papo::time
 pub use papo::time::format
 #[non_exhaustive] pub enum papo::AccountRegistration
@@ -595,6 +604,9 @@ pub papo::InvalidInput::MetadataSubscriptions::maximum: usize
 pub papo::InvalidInput::MetadataValue
 pub papo::InvalidInput::MetadataValue::actual: usize
 pub papo::InvalidInput::MetadataValue::maximum: usize
+pub papo::InvalidInput::Reaction
+pub papo::InvalidInput::Reaction::actual: usize
+pub papo::InvalidInput::Reaction::maximum: usize
 pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
 pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)

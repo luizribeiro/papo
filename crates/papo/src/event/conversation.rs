@@ -14,7 +14,9 @@ pub struct Reacted {
     pub target: Target,
     /// The message being reacted to.
     pub message: MessageId,
-    /// The reaction text.
+    /// The reaction text, usually an emoji.
+    ///
+    /// Compare it exactly; papo performs no case folding or Unicode normalization.
     pub reaction: String,
     /// Whether the reaction was removed.
     pub removed: bool,

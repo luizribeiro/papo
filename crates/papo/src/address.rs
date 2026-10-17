@@ -35,6 +35,14 @@ pub enum InvalidInput {
     /// Outgoing chat text has no nonempty lines.
     #[error("chat text is empty")]
     EmptyText,
+    /// Reaction text exceeds the IRC client-tag data limit.
+    #[error("reaction length {actual} exceeds client-tag limit {maximum}")]
+    Reaction {
+        /// The `IRCv3` client-tag data limit.
+        maximum: usize,
+        /// The supplied reaction length in bytes.
+        actual: usize,
+    },
     /// A history or reply reference lacks a server message identifier.
     #[error("the message reference has no server identifier")]
     MessageReference,
