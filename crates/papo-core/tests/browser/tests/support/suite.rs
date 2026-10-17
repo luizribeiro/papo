@@ -8,6 +8,8 @@ mod papo_rt;
 mod read;
 #[path = "../../../../../papo/src/transport/websocket_browser/write.rs"]
 mod write;
+#[path = "../../../../../papo/src/transport/websocket_browser/handshake.rs"]
+mod handshake;
 
 #[wasm_bindgen_test]
 fn parses_an_ergo_message() {
