@@ -404,13 +404,13 @@ impl Client {
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
-    pub async fn react(
+    pub fn react(
         &self,
-        target: &crate::Target,
-        message: &crate::MessageId,
-        emoji: &str,
-    ) -> Result<(), Error> {
-        self.reaction(target, message, emoji, "+draft/react").await
+        target: impl Into<crate::Target>,
+        message: impl Into<crate::MessageId>,
+        emoji: impl Into<String>,
+    ) -> crate::RequestFuture<()> {
+        self.reaction(target.into(), message.into(), emoji.into(), "+draft/react")
     }
 
     /// Removes `emoji` as a reaction to `message`.
@@ -421,40 +421,71 @@ impl Client {
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
-    pub async fn unreact(
+    pub fn unreact(
         &self,
-        target: &crate::Target,
-        message: &crate::MessageId,
-        emoji: &str,
-    ) -> Result<(), Error> {
-        self.reaction(target, message, emoji, "+draft/unreact")
-            .await
+        target: impl Into<crate::Target>,
+        message: impl Into<crate::MessageId>,
+        emoji: impl Into<String>,
+    ) -> crate::RequestFuture<()> {
+        self.reaction(
+            target.into(),
+            message.into(),
+            emoji.into(),
+            "+draft/unreact",
+        )
     }
 
-    async fn reaction(
+    /// Adds `emoji` as a reaction to `message` using its routing target.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidInput`] when the message has no identifier, or the same errors as
+    /// [`Client::react`].
+    pub fn react_to(
         &self,
-        target: &crate::Target,
-        message: &crate::MessageId,
-        emoji: &str,
+        message: &crate::Message,
+        emoji: impl Into<String>,
+    ) -> crate::RequestFuture<()> {
+        let Some(id) = message.id() else {
+            return crate::RequestFuture::new(async { Err(InvalidInput::MessageReference.into()) });
+        };
+        self.react(message.target(), id, emoji)
+    }
+
+    fn reaction(
+        &self,
+        target: crate::Target,
+        message: crate::MessageId,
+        emoji: String,
         reaction_tag: &'static str,
-    ) -> Result<(), Error> {
-        let state = self.state();
-        Self::require_feature(&state, Feature::Reactions)?;
-        let denied = state.isupport().clienttagdeny();
-        let reply_tag = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
-            .expect("feature preflight requires an allowed reply tag");
-        if denied.denies(reaction_tag) {
-            return Err(Error::Unsupported(Unsupported::new(
-                Feature::Reactions,
-                UnsupportedReason::TagDenied,
-            )));
-        }
-        self.send_message(
-            Message::tagmsg(target.as_ref())
+    ) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            let state = client.state();
+            Self::require_feature(&state, Feature::Reactions)?;
+            target
+                .check(state.isupport())
+                .and_then(|()| message.check())
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let denied = state.isupport().clienttagdeny();
+            let reply_tag = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
+                .expect("feature preflight requires an allowed reply tag");
+            if denied.denies(reaction_tag) {
+                return Err(Error::Unsupported(Unsupported::new(
+                    Feature::Reactions,
+                    UnsupportedReason::TagDenied,
+                )));
+            }
+            let message = Message::tagmsg(target.as_ref())
                 .with_tag(reply_tag, message.as_ref())
-                .with_tag(reaction_tag, emoji),
-        )
-        .await
+                .with_tag(reaction_tag, emoji);
+            if state.supports(Feature::LabeledResponse) {
+                let response = client.correlated(message, None).await?;
+                crate::requests::empty(&response)
+            } else {
+                client.send_message(message).await
+            }
+        })
     }
 
     /// Sends a typing state for `target`.
