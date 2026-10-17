@@ -1998,7 +1998,11 @@ async fn typed_requests_match_unlabelled_responses() {
         client
             .raw(Message::new("VERSION", Vec::<String>::new()))
             .await,
-        Err(Error::Unsupported("labeled-response"))
+        Err(Error::Unsupported(crate::Unsupported {
+            feature: crate::Feature::LabeledResponse,
+            reason: crate::UnsupportedReason::NotOffered,
+            ..
+        }))
     ));
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
@@ -2341,7 +2345,14 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     while !client.isupport().clienttagdeny().denies("typing") {
         tokio::task::yield_now().await;
     }
-    within(client.typing("emily", Typing::Done)).await.unwrap();
+    assert!(matches!(
+        within(client.typing("emily", Typing::Done)).await,
+        Err(Error::Unsupported(crate::Unsupported {
+            feature: crate::Feature::Typing,
+            reason: crate::UnsupportedReason::TagDenied,
+            ..
+        }))
+    ));
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
             .await
@@ -2421,7 +2432,11 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     }
     assert!(matches!(
         within(client.redact("#papo", "RfcBTzyxY120006", None)).await,
-        Err(Error::Unsupported("draft/message-redaction"))
+        Err(Error::Unsupported(crate::Unsupported {
+            feature: crate::Feature::Redaction,
+            reason: crate::UnsupportedReason::NotOffered,
+            ..
+        }))
     ));
 
     within(server.shutdown()).await.unwrap();

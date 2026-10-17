@@ -684,7 +684,13 @@ where
                             session.request(now(), message)
                         }
                         None => {
-                            _ = result.send(Err(Error::Unsupported("labeled-response")));
+                            let reason = session
+                                .supports(crate::Feature::LabeledResponse)
+                                .expect_err("labeled-response is unavailable");
+                            _ = result.send(Err(Error::Unsupported(crate::Unsupported::new(
+                                crate::Feature::LabeledResponse,
+                                reason,
+                            ))));
                             continue;
                         }
                     };

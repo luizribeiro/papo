@@ -11,7 +11,7 @@ use papo_proto::{Message, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
-    Error,
+    Error, Feature, InvalidInput, Unsupported, UnsupportedReason,
     driver::{Command, CoreRequest},
     event,
     state::State,
@@ -122,6 +122,13 @@ impl Client {
         self.state(|state| state.casemap(name))
     }
 
+    fn require_feature(&self, feature: Feature) -> Result<(), Error> {
+        match self.state(|state| state.unsupported_reason(feature)) {
+            Some(reason) => Err(Error::Unsupported(Unsupported::new(feature, reason))),
+            None => Ok(()),
+        }
+    }
+
     /// Disconnects the current transport and starts a new connection immediately.
     ///
     /// This skips any reconnect backoff. A builder configured with
@@ -171,6 +178,7 @@ impl Client {
     /// Returns an error if the message is invalid, the request limit is reached,
     /// the response times out, or the driver disconnects.
     pub async fn raw(&self, message: Message) -> Result<Response, Error> {
+        self.require_feature(Feature::LabeledResponse)?;
         self.correlated(message, None).await
     }
 
@@ -261,17 +269,20 @@ impl Client {
         emoji: &str,
         reaction_tag: &'static str,
     ) -> Result<(), Error> {
-        if !self.has_cap("message-tags") {
-            return Err(Error::Unsupported("message-tags"));
-        }
+        self.require_feature(Feature::Reactions)?;
         let isupport = self.isupport();
         let denied = isupport.clienttagdeny();
         let reply_tag = event::allowed_alias(&denied, "+reply", "+draft/reply")
-            .ok_or(Error::Unsupported("reply tag"))?;
+            .expect("feature preflight requires an allowed reply tag");
         if denied.denies(reaction_tag) {
-            return Err(Error::Unsupported("reaction tag"));
+            return Err(Error::Unsupported(Unsupported::new(
+                Feature::Reactions,
+                UnsupportedReason::TagDenied,
+            )));
         }
-        let msgid = message.msgid().ok_or(Error::Unsupported("message id"))?;
+        let msgid = message
+            .msgid()
+            .ok_or(Error::InvalidInput(InvalidInput::MessageReference))?;
         self.send(
             Message::tagmsg(message.reply_target())
                 .with_tag(reply_tag, msgid)
@@ -289,9 +300,7 @@ impl Client {
     ///
     /// Returns an error if the driver stops or the resulting message is invalid.
     pub async fn typing(&self, target: &str, state: Typing) -> Result<(), Error> {
-        if !self.has_cap("message-tags") || self.isupport().clienttagdeny().denies("typing") {
-            return Ok(());
-        }
+        self.require_feature(Feature::Typing)?;
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::Typing {
@@ -316,9 +325,7 @@ impl Client {
         msgid: &str,
         reason: Option<&str>,
     ) -> Result<(), Error> {
-        if !self.has_cap("draft/message-redaction") {
-            return Err(Error::Unsupported("draft/message-redaction"));
-        }
+        self.require_feature(Feature::Redaction)?;
         let mut params = vec![target, msgid];
         params.extend(reason);
         let response = self

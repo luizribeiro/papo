@@ -37,7 +37,10 @@ impl<'a> History<'a> {
     /// Requests messages before `reference`.
     #[must_use]
     pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
-        let query = reference.into().0.ok_or(Error::Unsupported("message id"));
+        let query = reference
+            .into()
+            .0
+            .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference));
         HistoryRequest {
             client: self.client,
             query: query.map(|before| HistoryQuery::Before {
@@ -51,7 +54,10 @@ impl<'a> History<'a> {
     /// Requests messages after `reference`.
     #[must_use]
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
-        let query = reference.into().0.ok_or(Error::Unsupported("message id"));
+        let query = reference
+            .into()
+            .0
+            .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference));
         HistoryRequest {
             client: self.client,
             query: query.map(|after| HistoryQuery::After {
@@ -65,7 +71,10 @@ impl<'a> History<'a> {
     /// Requests messages surrounding `reference`.
     #[must_use]
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest<'a> {
-        let query = reference.into().0.ok_or(Error::Unsupported("message id"));
+        let query = reference
+            .into()
+            .0
+            .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference));
         HistoryRequest {
             client: self.client,
             query: query.map(|around| HistoryQuery::Around {
@@ -83,11 +92,14 @@ impl<'a> History<'a> {
         start: impl Into<HistoryReference>,
         end: impl Into<HistoryReference>,
     ) -> HistoryRequest<'a> {
-        let start = start.into().0.ok_or(Error::Unsupported("message id"));
+        let start = start
+            .into()
+            .0
+            .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference));
         let query = start.and_then(|start| {
             end.into()
                 .0
-                .ok_or(Error::Unsupported("message id"))
+                .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference))
                 .map(|end| HistoryQuery::Between {
                     target: self.target,
                     start,
@@ -455,7 +467,11 @@ mod tests {
         complete_registration(&mut server, &mut events).await;
         assert!(matches!(
             within(async { client.history("#papo").latest(10).await }).await,
-            Err(Error::Unsupported("chathistory"))
+            Err(Error::Unsupported(crate::Unsupported {
+                feature: crate::Feature::History,
+                reason: crate::UnsupportedReason::NotOffered,
+                ..
+            }))
         ));
         assert!(
             tokio::time::timeout(Duration::from_millis(1), server.read_u8())

@@ -530,7 +530,14 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
         result.unwrap();
         client_line(&mut server, expected).await;
     } else {
-        assert!(matches!(result, Err(Error::Unsupported("reaction tag"))));
+        assert!(matches!(
+            result,
+            Err(Error::Unsupported(crate::Unsupported {
+                feature: crate::Feature::Reactions,
+                reason: crate::UnsupportedReason::TagDenied,
+                ..
+            }))
+        ));
         assert!(
             tokio::time::timeout(Duration::from_millis(1), server.read_u8())
                 .await

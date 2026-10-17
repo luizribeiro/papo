@@ -2,7 +2,7 @@ use std::{fmt, io, sync::Arc, time::Duration};
 
 use thiserror::Error;
 
-use crate::InvalidInput;
+use crate::{InvalidInput, Unsupported};
 
 /// Broad classification of a connection-opening failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -342,9 +342,9 @@ pub enum Error {
         /// The hostname whose server repeated the upgrade.
         host: String,
     },
-    /// The requested transport or protocol behavior is unavailable.
-    #[error("unsupported behavior: {0}")]
-    Unsupported(&'static str),
+    /// The requested optional IRC behavior is unavailable.
+    #[error("{0}")]
+    Unsupported(Unsupported),
     /// The connection already has 256 requests awaiting replies.
     #[error("too many IRC requests are awaiting replies")]
     RequestLimit,
@@ -383,7 +383,7 @@ impl Error {
                 Self::InvalidInput(InvalidInput::InvalidMessage(error.to_string()))
             }
             Request::EmptyText => Self::InvalidInput(InvalidInput::EmptyText),
-            Request::Unsupported(unsupported) => Self::Unsupported(unsupported.feature.name()),
+            Request::Unsupported(unsupported) => Self::Unsupported(unsupported),
             Request::InvalidMessageReference => Self::InvalidInput(InvalidInput::MessageReference),
             Request::EmailRequired => Self::InvalidInput(InvalidInput::EmailRequired),
             Request::CustomAccountNameUnsupported => {

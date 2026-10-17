@@ -51,6 +51,10 @@ impl State {
             .filter(|feature| self.supports(*feature))
     }
 
+    pub(crate) fn unsupported_reason(&self, feature: Feature) -> Option<UnsupportedReason> {
+        self.unsupported.get(&feature).copied()
+    }
+
     pub(crate) const fn matches(&self, session: &Session, connected: bool) -> bool {
         self.generation == session.state_generation() && self.connected == connected
     }

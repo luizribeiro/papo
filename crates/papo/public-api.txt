@@ -125,7 +125,7 @@ pub papo::Error::Server(papo::ServerError)
 pub papo::Error::StsUpgradeLoop
 pub papo::Error::StsUpgradeLoop::host: alloc::string::String
 pub papo::Error::Timeout
-pub papo::Error::Unsupported(&'static str)
+pub papo::Error::Unsupported(papo_core::features::Unsupported)
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged
 pub papo::Event::AccountChanged::account: papo_core::state::Account
