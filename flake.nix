@@ -174,6 +174,20 @@
             inherit stages;
           };
         offlineHooks = {
+          no-merge-commits = {
+            enable = true;
+            always_run = true;
+            pass_filenames = false;
+            entry = toString (
+              pkgs.writeShellScript "check-no-merge-commits" ''
+                if ${pkgs.git}/bin/git rev-parse --verify --quiet refs/remotes/upstream/main >/dev/null \
+                  || ${pkgs.git}/bin/git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null \
+                  || ${pkgs.git}/bin/git rev-parse --verify --quiet refs/heads/main >/dev/null; then
+                  exec ${pkgs.bash}/bin/bash ${./scripts/check-no-merge-commits}
+                fi
+              ''
+            );
+          };
           nixfmt.enable = true;
           deadnix = {
             enable = true;
@@ -325,6 +339,10 @@
       in
       {
         checks = {
+          no-merge-commits = pkgs.runCommand "test-no-merge-commits" { nativeBuildInputs = [ pkgs.git ]; } ''
+            ${pkgs.bash}/bin/bash ${./scripts/test_no_merge_commits.sh} ${./scripts/check-no-merge-commits}
+            touch $out
+          '';
           pre-commit = git-hooks.lib.${system}.run {
             src = ./.;
             hooks = offlineHooks;
