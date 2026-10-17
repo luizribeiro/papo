@@ -49,7 +49,7 @@ pub(super) fn advance_catchup(
                 item,
                 &client,
                 crate::rt::now_wall(),
-                crate::Origin::Replay,
+                crate::Origin::History,
             )
         })
         .collect();

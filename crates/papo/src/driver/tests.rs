@@ -547,7 +547,7 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     assert!(
         history
             .messages()
-            .all(|message| message.origin() == Origin::Replay && !message.is_live())
+            .all(|message| message.origin() == Origin::History && !message.is_live())
     );
     assert!(history.end);
     abort_task(driver).await;
