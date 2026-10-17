@@ -34,7 +34,13 @@ impl Metadata<'_> {
     /// Gets selected keys and returns the target's resulting cache.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid keys return
+    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
+    /// [`Error`] variants.
     pub async fn get<I, S>(
         &self,
         target: &str,
@@ -57,7 +63,12 @@ impl Metadata<'_> {
     /// Lists visible keys and returns the target's resulting cache.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
+    /// [`Error`] variants.
     pub async fn list(&self, target: &str) -> Result<HashMap<String, MetadataValue>, Error> {
         self.request(MetadataCommand::List {
             target: target.into(),
@@ -71,7 +82,13 @@ impl Metadata<'_> {
     /// Sets or removes one metadata key for the current nickname.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid keys or oversized values return
+    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
+    /// [`Error`] variants.
     pub async fn set(&self, key: &str, value: Option<&str>) -> Result<(), Error> {
         let target = self.client.nick();
         self.set_on(&target, key, value).await
@@ -80,7 +97,13 @@ impl Metadata<'_> {
     /// Sets or removes one metadata key on `target`.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid keys or oversized values return
+    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
+    /// [`Error`] variants.
     pub async fn set_on(&self, target: &str, key: &str, value: Option<&str>) -> Result<(), Error> {
         self.request(MetadataCommand::Set {
             target: target.into(),
@@ -93,7 +116,12 @@ impl Metadata<'_> {
     /// Clears all metadata for the current nickname.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
+    /// [`Error`] variants.
     pub async fn clear(&self) -> Result<(), Error> {
         self.request(MetadataCommand::Clear {
             target: self.client.nick(),
@@ -104,7 +132,13 @@ impl Metadata<'_> {
     /// Subscribes to metadata keys.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid keys or too many subscriptions
+    /// return [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
+    /// [`Error`] variants.
     pub async fn subscribe<I, S>(&self, keys: I) -> Result<(), Error>
     where
         I: IntoIterator<Item = S>,
@@ -119,7 +153,13 @@ impl Metadata<'_> {
     /// Unsubscribes from metadata keys.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid keys return
+    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
+    /// [`Error`] variants.
     pub async fn unsubscribe<I, S>(&self, keys: I) -> Result<(), Error>
     where
         I: IntoIterator<Item = S>,
@@ -141,7 +181,12 @@ impl Metadata<'_> {
     /// Synchronizes cached metadata for a target.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
+    /// [`Error`] variants.
     pub async fn sync(&self, target: &str) -> Result<(), Error> {
         self.request(MetadataCommand::Sync {
             target: target.into(),

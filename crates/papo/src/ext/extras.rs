@@ -4,7 +4,12 @@ impl Client {
     /// Requests a channel rename.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::ChannelRename`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
+    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn rename(&self, old: &str, new: &str, reason: &str) -> Result<(), Error> {
         let response = self
             .core_request(CoreRequest::Rename {
@@ -19,7 +24,14 @@ impl Client {
     /// Sends a message attributed to a relayed nickname.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Relay`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. An invalid relayed nickname returns
+    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::CannotSendToChannel`], [`crate::Refusal::BannedFromChannel`], or
+    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// or [`Error::Disconnected`].
     pub async fn relay(&self, channel: &str, nick: &str, text: &str) -> Result<(), Error> {
         let response = self
             .core_request(CoreRequest::Relay {

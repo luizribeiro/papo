@@ -148,6 +148,14 @@ impl From<&MessageEvent> for HistoryReference {
 }
 
 /// A history request with a configurable page limit.
+///
+/// # Errors
+///
+/// Awaiting the request returns [`Error::Unsupported`] for [`crate::Feature::History`] with reason
+/// [`crate::UnsupportedReason::NotOffered`] or
+/// [`crate::UnsupportedReason::DisabledByClient`]. An unusable reference returns
+/// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with [`crate::Refusal::Other`]. It
+/// can also return [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
 pub struct HistoryRequest<'a> {
     client: &'a Client,
     query: Result<HistoryQuery, Error>,
@@ -231,7 +239,11 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when history is unsupported or the request cannot complete.
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::History`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
+    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn history_targets(
         &self,
         since: SystemTime,
@@ -251,7 +263,12 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when read markers are unsupported or the request cannot complete.
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::ReadMarkers`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. An unencodable timestamp returns
+    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// or [`Error::Disconnected`].
     pub async fn mark_read(&self, target: &str, time: SystemTime) -> Result<(), Error> {
         let (result, receiver) = oneshot::channel();
         self.commands
@@ -270,7 +287,11 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when read markers are unsupported or the query cannot complete.
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::ReadMarkers`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
+    /// [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`]; server refusals are classified as [`crate::Refusal::Other`].
     pub async fn read_marker(&self, target: &str) -> Result<Option<SystemTime>, Error> {
         let (result, receiver) = oneshot::channel();
         self.commands

@@ -65,7 +65,12 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::AccountRegistration`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid account or email policy returns
+    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// or [`Error::Disconnected`].
     pub async fn register_account(
         &self,
         account: NewAccount,
@@ -84,7 +89,11 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::AccountRegistration`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
+    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn verify(&self, account: &str, code: &str) -> Result<AccountRegistration, Error> {
         let response = self
             .core_request(CoreRequest::Verify {

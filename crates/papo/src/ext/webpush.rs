@@ -34,7 +34,13 @@ impl WebPush<'_> {
     /// Registers a Web Push endpoint and its URL-safe encoded keys.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::WebPush`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid endpoints or keys return
+    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// or [`Error::Disconnected`].
     pub async fn register(&self, endpoint: &str, keys: PushKeys) -> Result<(), Error> {
         let response = self
             .client
@@ -50,7 +56,13 @@ impl WebPush<'_> {
     /// Unregisters a Web Push endpoint.
     ///
     /// # Errors
-    /// Returns an error when the request is unsupported, rejected, or interrupted.
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::WebPush`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. An invalid endpoint returns
+    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// or [`Error::Disconnected`].
     pub async fn unregister(&self, endpoint: &str) -> Result<(), Error> {
         let response = self
             .client

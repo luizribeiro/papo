@@ -18,7 +18,10 @@ impl Persistence<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error when the request is unsupported or interrupted.
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Persistence`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
+    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn get(&self) -> Result<papo_core::PersistenceStatus, Error> {
         self.client
             .core_request(CoreRequest::PersistenceGet)
@@ -30,7 +33,10 @@ impl Persistence<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error when the request is unsupported or interrupted.
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::Persistence`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
+    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn set(
         &self,
         setting: papo_core::PersistenceSetting,
