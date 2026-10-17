@@ -196,7 +196,12 @@ impl Command {
     ///
     /// # Errors
     ///
-    /// Returns an error if the response is invalid or the driver has stopped.
+    /// Returns [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`] with the same conditions as [`crate::Client::privmsg`]. A refusal
+    /// returns [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
+    /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
+    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
+    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub async fn reply(&self, text: &str) -> Result<ReplyStatus, Error> {
         let target = self.client().casemap(self.message.reply_target());
         if !self.replies.check(&target) {
@@ -210,7 +215,12 @@ impl Command {
     ///
     /// # Errors
     ///
-    /// Returns an error if the response is invalid or the driver has stopped.
+    /// Returns [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`] with the same conditions as [`crate::Client::notice`]. A refusal
+    /// returns [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
+    /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
+    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
+    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub async fn private_notice(&self, text: &str) -> Result<ReplyStatus, Error> {
         let Some(target) = self.message.sender_nick() else {
             return Ok(ReplyStatus::Dropped);

@@ -414,8 +414,9 @@ impl Builder {
     ///
     /// # Errors
     ///
-    /// Returns connection or registration errors that occur before registration
-    /// or a verification challenge.
+    /// Returns [`Error::InvalidInput`] for deferred endpoint or builder validation,
+    /// [`Error::Connect`] when the transport cannot open, or [`Error::Registration`] when IRC
+    /// registration fails before welcome or an account-verification challenge.
     pub async fn connect(self) -> Result<(crate::Client, crate::Events), Error> {
         let (sender, receiver) = oneshot::channel();
         let (client, events, driver) = self.build_with_registration(Some(sender));

@@ -431,7 +431,12 @@ impl MessageEvent {
     ///
     /// # Errors
     ///
-    /// Returns an error if the message is invalid or the driver has stopped.
+    /// Returns [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`] with the same conditions as [`crate::Client::privmsg`]. A refusal
+    /// returns [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
+    /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
+    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
+    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub async fn reply(&self, text: &str) -> Result<crate::Sent, Error> {
         let mut reply = Message::privmsg(self.reply_target(), text);
         if self.caps.contains_key("message-tags") {
