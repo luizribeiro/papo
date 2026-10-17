@@ -51,7 +51,7 @@ async fn away_notify(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut receiver.events,
-            |event| matches!(event, Event::AwayChanged { nick, message: Some(message) } if nick == &sender.welcome.nick && message == away),
+            |event| matches!(event, Event::AwayChanged(changed) if changed.nick == sender.welcome.nick && changed.message.as_deref() == Some(away)),
             EXPECT_TIMEOUT,
         )
         .await?;
@@ -71,7 +71,7 @@ async fn setname(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut receiver.events,
-            |event| matches!(event, Event::RealnameChanged { nick, realname: changed } if nick == &sender.welcome.nick && changed == realname),
+            |event| matches!(event, Event::RealnameChanged(changed) if changed.nick == sender.welcome.nick && changed.realname == realname),
             EXPECT_TIMEOUT,
         )
         .await?;
@@ -105,7 +105,7 @@ async fn chghost(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut observer.events,
-            |event| matches!(event, Event::HostChanged { nick, host, .. } if nick == &observer.welcome.nick && host == "conformance.example"),
+            |event| matches!(event, Event::HostChanged(changed) if changed.nick == observer.welcome.nick && changed.host == "conformance.example"),
             EXPECT_TIMEOUT,
         )
         .await?;

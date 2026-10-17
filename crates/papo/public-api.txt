@@ -263,17 +263,13 @@ pub papo::Error::Server(papo::ServerError)
 pub papo::Error::Timeout
 pub papo::Error::Unsupported(papo_core::features::Unsupported)
 #[non_exhaustive] pub enum papo::Event
-pub papo::Event::AccountChanged
-pub papo::Event::AccountChanged::account: papo_core::state::Account
-pub papo::Event::AccountChanged::nick: alloc::string::String
+pub papo::Event::AccountChanged(papo::event::AccountChanged)
 pub papo::Event::AccountRegistered
 pub papo::Event::AccountRegistered::account: alloc::string::String
 pub papo::Event::AccountRegistered::logged_in: bool
 pub papo::Event::AuthenticationFailed
 pub papo::Event::AuthenticationFailed::reason: alloc::string::String
-pub papo::Event::AwayChanged
-pub papo::Event::AwayChanged::message: core::option::Option<alloc::string::String>
-pub papo::Event::AwayChanged::nick: alloc::string::String
+pub papo::Event::AwayChanged(papo::event::AwayChanged)
 pub papo::Event::BatchAbandoned
 pub papo::Event::BatchAbandoned::batch_type: alloc::string::String
 pub papo::Event::BatchAbandoned::reason: papo_core::BatchAbandonReason
@@ -287,10 +283,7 @@ pub papo::Event::History::end: bool
 pub papo::Event::History::messages: alloc::vec::Vec<papo::MessageEvent>
 pub papo::Event::History::target: alloc::string::String
 pub papo::Event::HistoryTargets(alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>)
-pub papo::Event::HostChanged
-pub papo::Event::HostChanged::host: alloc::string::String
-pub papo::Event::HostChanged::nick: alloc::string::String
-pub papo::Event::HostChanged::user: alloc::string::String
+pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
@@ -331,9 +324,7 @@ pub papo::Event::Quit(papo::event::Quit)
 pub papo::Event::Raw(papo_proto::message::Message)
 pub papo::Event::Reacted(papo::event::Reacted)
 pub papo::Event::ReadMarker(papo::event::ReadMarker)
-pub papo::Event::RealnameChanged
-pub papo::Event::RealnameChanged::nick: alloc::string::String
-pub papo::Event::RealnameChanged::realname: alloc::string::String
+pub papo::Event::RealnameChanged(papo::event::RealnameChanged)
 pub papo::Event::Redacted(papo::event::Redacted)
 pub papo::Event::Registered(papo::event::Registered)
 pub papo::Event::RequestAborted

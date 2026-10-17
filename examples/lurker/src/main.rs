@@ -58,12 +58,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let topic = event.topic.as_deref().unwrap_or("-");
                 println!("topic {} by {}: {topic}", event.channel, event.by);
             }
-            Event::AccountChanged { nick, account } => {
-                println!("account {nick}: {}", self::account(&account));
+            Event::AccountChanged(event) => {
+                println!(
+                    "account {}: {}",
+                    event.nick,
+                    event.account.as_deref().unwrap_or("*")
+                );
             }
-            Event::AwayChanged { nick, message } => {
-                let message = message.as_deref().unwrap_or("back");
-                println!("away {nick}: {message}");
+            Event::AwayChanged(event) => {
+                let message = event.message.as_deref().unwrap_or("back");
+                println!("away {}: {message}", event.nick);
             }
             _ => {}
         }

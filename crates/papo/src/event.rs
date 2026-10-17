@@ -690,35 +690,13 @@ pub enum Event {
     /// A joined channel was renamed.
     ChannelRenamed(ChannelRenamed),
     /// A user's account state changed.
-    AccountChanged {
-        /// The affected user's nickname.
-        nick: String,
-        /// The user's new account state.
-        account: Account,
-    },
+    AccountChanged(AccountChanged),
     /// A user's away state changed.
-    AwayChanged {
-        /// The affected user's nickname.
-        nick: String,
-        /// The away message, or `None` when the user returned.
-        message: Option<String>,
-    },
+    AwayChanged(AwayChanged),
     /// A user's username or hostname changed.
-    HostChanged {
-        /// The affected user's nickname.
-        nick: String,
-        /// The user's new username.
-        user: String,
-        /// The user's new hostname.
-        host: String,
-    },
+    HostChanged(HostChanged),
     /// A user's real name changed.
-    RealnameChanged {
-        /// The affected user's nickname.
-        nick: String,
-        /// The user's new real name.
-        realname: String,
-    },
+    RealnameChanged(RealnameChanged),
     /// A user or channel mode changed.
     ModeChanged(ModeChanged),
     /// A channel topic changed live.
@@ -1007,14 +985,22 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             Event::ChannelRenamed(ChannelRenamed { old, new, reason })
         }
         papo_core::Event::AccountChanged { nick, account } => {
-            Event::AccountChanged { nick, account }
+            Event::AccountChanged(AccountChanged {
+                nick,
+                account: match account {
+                    Account::LoggedIn(account) => Some(account.into_string()),
+                    _ => None,
+                },
+            })
         }
-        papo_core::Event::AwayChanged { nick, message } => Event::AwayChanged { nick, message },
+        papo_core::Event::AwayChanged { nick, message } => {
+            Event::AwayChanged(AwayChanged { nick, message })
+        }
         papo_core::Event::HostChanged { nick, user, host } => {
-            Event::HostChanged { nick, user, host }
+            Event::HostChanged(HostChanged { nick, user, host })
         }
         papo_core::Event::RealnameChanged { nick, realname } => {
-            Event::RealnameChanged { nick, realname }
+            Event::RealnameChanged(RealnameChanged { nick, realname })
         }
         papo_core::Event::ModeChanged {
             target,
@@ -1636,8 +1622,8 @@ mod tests {
                 nick: "emily".into(),
                 account: Account::LoggedIn("emily".into()),
             }),
-            Event::AccountChanged { nick, account }
-                if nick == "emily" && account == Account::LoggedIn("emily".into())
+            Event::AccountChanged(changed)
+                if changed.nick == "emily" && changed.account.as_deref() == Some("emily")
         ));
     }
 
@@ -1648,8 +1634,8 @@ mod tests {
                 nick: "emily".into(),
                 message: Some("Gone to lunch".into()),
             }),
-            Event::AwayChanged { nick, message }
-                if nick == "emily" && message.as_deref() == Some("Gone to lunch")
+            Event::AwayChanged(changed)
+                if changed.nick == "emily" && changed.message.as_deref() == Some("Gone to lunch")
         ));
     }
 
@@ -1661,8 +1647,8 @@ mod tests {
                 user: "~em".into(),
                 host: "users/emily".into(),
             }),
-            Event::HostChanged { nick, user, host }
-                if nick == "emily" && user == "~em" && host == "users/emily"
+            Event::HostChanged(changed)
+                if changed.nick == "emily" && changed.user == "~em" && changed.host == "users/emily"
         ));
     }
 
@@ -1673,8 +1659,8 @@ mod tests {
                 nick: "emily".into(),
                 realname: "Emily Smith".into(),
             }),
-            Event::RealnameChanged { nick, realname }
-                if nick == "emily" && realname == "Emily Smith"
+            Event::RealnameChanged(changed)
+                if changed.nick == "emily" && changed.realname == "Emily Smith"
         ));
     }
 

@@ -2984,7 +2984,7 @@ async fn every_state_change_replaces_the_snapshot() {
     .await;
     assert!(matches!(
         events.next().await,
-        Some(Event::AccountChanged { .. })
+        Some(Event::AccountChanged(_))
     ));
     previous = changed_snapshot(&client, &previous, "ACCOUNT");
     assert_eq!(
@@ -2997,10 +2997,7 @@ async fn every_state_change_replaces_the_snapshot() {
         b":papo-driver!papo@localhost AWAY :Gone to lunch\r\n",
     )
     .await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::AwayChanged { .. })
-    ));
+    assert!(matches!(events.next().await, Some(Event::AwayChanged(_))));
     previous = changed_snapshot(&client, &previous, "AWAY");
     assert_eq!(
         previous.user("papo-driver").unwrap().away(),
