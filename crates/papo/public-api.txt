@@ -546,7 +546,7 @@ impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::ChannelInfo
 pub papo::ChannelInfo::members_count: usize
-pub papo::ChannelInfo::name: alloc::string::String
+pub papo::ChannelInfo::name: papo_proto::id::ChannelName
 pub papo::ChannelInfo::topic: core::option::Option<alloc::string::String>
 pub struct papo::Client
 impl papo::Client
@@ -654,11 +654,11 @@ pub type papo::HistoryRequest<'a>::Output = core::result::Result<papo::HistoryPa
 pub fn papo::HistoryRequest<'a>::into_future(self) -> Self::IntoFuture
 pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
-pub papo::ListEntry::name: alloc::string::String
+pub papo::ListEntry::name: papo_proto::id::ChannelName
 pub papo::ListEntry::topic: alloc::string::String
 pub struct papo::ListFilter
 impl papo::ListFilter
-pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::Mask>
 #[non_exhaustive] pub struct papo::Message
 pub papo::Message::account: core::option::Option<papo_proto::id::AccountName>
 pub papo::Message::channel_context: core::option::Option<papo_proto::id::ChannelName>
@@ -796,28 +796,31 @@ impl papo::WebPush<'_>
 pub async fn papo::WebPush<'_>::register(&self, &str, papo::PushKeys) -> core::result::Result<(), papo::Error>
 pub async fn papo::WebPush<'_>::unregister(&self, &str) -> core::result::Result<(), papo::Error>
 pub struct papo::WhoEntry
-pub papo::WhoEntry::account: core::option::Option<alloc::string::String>
+pub papo::WhoEntry::account: core::option::Option<papo_proto::id::AccountName>
 pub papo::WhoEntry::away: bool
-pub papo::WhoEntry::channel: core::option::Option<alloc::string::String>
+pub papo::WhoEntry::channel: core::option::Option<papo_proto::id::ChannelName>
 pub papo::WhoEntry::host: alloc::string::String
 pub papo::WhoEntry::is_bot: bool
 pub papo::WhoEntry::is_oper: bool
-pub papo::WhoEntry::nick: alloc::string::String
+pub papo::WhoEntry::nick: papo_proto::id::Nick
 pub papo::WhoEntry::prefixes: alloc::vec::Vec<char>
 pub papo::WhoEntry::realname: alloc::string::String
 pub papo::WhoEntry::user: alloc::string::String
 pub struct papo::Whois
-pub papo::Whois::account: core::option::Option<alloc::string::String>
+pub papo::Whois::account: core::option::Option<papo_proto::id::AccountName>
 pub papo::Whois::away: core::option::Option<alloc::string::String>
-pub papo::Whois::channels: alloc::vec::Vec<alloc::string::String>
+pub papo::Whois::channels: alloc::vec::Vec<papo::WhoisChannel>
 pub papo::Whois::host: core::option::Option<alloc::string::String>
 pub papo::Whois::idle: core::option::Option<core::time::Duration>
 pub papo::Whois::is_bot: bool
-pub papo::Whois::nick: alloc::string::String
+pub papo::Whois::nick: papo_proto::id::Nick
 pub papo::Whois::realname: core::option::Option<alloc::string::String>
 pub papo::Whois::secure: bool
 pub papo::Whois::server: core::option::Option<alloc::string::String>
 pub papo::Whois::user: core::option::Option<alloc::string::String>
+pub struct papo::WhoisChannel
+pub papo::WhoisChannel::name: papo_proto::id::ChannelName
+pub papo::WhoisChannel::prefixes: alloc::vec::Vec<char>
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String

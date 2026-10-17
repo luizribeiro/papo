@@ -455,7 +455,7 @@ impl Client {
                 Some(ResponseMatcher::Whois(nick.to_owned())),
             )
             .await?;
-        crate::requests::whois(response, nick)
+        crate::requests::whois(response, nick, self.state().isupport())
     }
 
     /// Requests the users matching a channel or mask.
@@ -522,7 +522,7 @@ impl Client {
         let state = self.state();
         let joined = state.channel(channel).ok_or_else(Error::disconnected)?;
         Ok(crate::ChannelInfo {
-            name: joined.name().as_ref().to_owned(),
+            name: joined.name().as_ref().into(),
             topic: joined.topic().map(str::to_owned),
             members_count: joined.members().count(),
         })

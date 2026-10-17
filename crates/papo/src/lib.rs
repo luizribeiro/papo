@@ -47,7 +47,7 @@ pub use papo_proto::{
     Nick, Target, Typing,
 };
 pub use reconnect::Reconnect;
-pub use requests::{ChannelInfo, ListEntry, ListFilter, WhoEntry, Whois};
+pub use requests::{ChannelInfo, ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};
 pub use state::State;
 
 /// Payloads carried by [`Event`].

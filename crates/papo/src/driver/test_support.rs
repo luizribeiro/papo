@@ -295,7 +295,7 @@ pub(crate) async fn assert_join_waits_for_sync(server: &mut DuplexStream, client
     server_line(server, b":ergo.test 332 papo-driver #papo :Ergonomic IRC\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
     let joined = within(join).await.unwrap().unwrap();
     assert_eq!(
-        (joined.name.as_str(), joined.topic.as_deref()),
+        (joined.name.as_ref(), joined.topic.as_deref()),
         ("#papo", Some("Ergonomic IRC"))
     );
     assert_eq!(joined.members_count, 2);
@@ -365,7 +365,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
     client_line(server, b"@label=7 LIST\r\n").await;
     server_line(server, b"@label=7 :ergo.test BATCH +list-42 labeled-response\r\n@batch=list-42 :ergo.test 321 papo-driver Channel :Users Name\r\n@batch=list-42 :ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n@batch=list-42 :ergo.test 322 papo-driver #rust 17 :The Rust Programming Language\r\n@batch=list-42 :ergo.test 323 papo-driver :End of /LIST\r\n:ergo.test BATCH -list-42\r\n").await;
     let list = within(list).await.unwrap().unwrap();
-    assert_eq!((list.len(), list[0].name.as_str()), (2, "#papo"));
+    assert_eq!((list.len(), list[0].name.as_ref()), (2, "#papo"));
     assert_eq!(
         (list[1].members_count, list[1].topic.as_str()),
         (17, "The Rust Programming Language")

@@ -15,7 +15,7 @@ async fn labeled_response(context: Scenario) -> ScenarioResult {
         .whois(&connection.welcome.nick)
         .await
         .map_err(Failed::from)?;
-    if whois.nick != connection.welcome.nick {
+    if whois.nick != connection.welcome.nick.as_str() {
         return Err("labelled WHOIS resolved for the wrong nickname".into());
     }
     connection.close().await

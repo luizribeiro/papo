@@ -1,7 +1,10 @@
 use std::time::Duration;
 
 use papo_core::Response;
-use papo_proto::{Command, Isupport, Message, Numeric, WhoxPresence, WhoxReply};
+use papo_proto::{
+    AccountName, ChannelName, Command, Isupport, Mask, Message, Nick, Numeric, WhoxPresence,
+    WhoxReply,
+};
 
 use crate::Error;
 
@@ -9,7 +12,7 @@ use crate::Error;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Whois {
     /// Nickname reported by the server.
-    pub nick: String,
+    pub nick: Nick,
     /// Username reported by `RPL_WHOISUSER`.
     pub user: Option<String>,
     /// Hostname reported by `RPL_WHOISUSER`.
@@ -17,11 +20,11 @@ pub struct Whois {
     /// Real name reported by `RPL_WHOISUSER`.
     pub realname: Option<String>,
     /// Logged-in account name.
-    pub account: Option<String>,
+    pub account: Option<AccountName>,
     /// Server to which the user is connected.
     pub server: Option<String>,
     /// Visible channels, retaining membership prefixes.
-    pub channels: Vec<String>,
+    pub channels: Vec<WhoisChannel>,
     /// Away message, when the user is away.
     pub away: Option<String>,
     /// Whether the server identifies the user as a bot.
@@ -32,19 +35,28 @@ pub struct Whois {
     pub idle: Option<Duration>,
 }
 
+/// One channel reported by a `WHOIS` request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WhoisChannel {
+    /// Channel name without membership prefixes.
+    pub name: ChannelName,
+    /// Membership prefixes in server-advertised order.
+    pub prefixes: Vec<char>,
+}
+
 /// One user returned by a `WHO` request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WhoEntry {
     /// Channel associated with this reply, when present.
-    pub channel: Option<String>,
+    pub channel: Option<ChannelName>,
     /// Nickname of the user.
-    pub nick: String,
+    pub nick: Nick,
     /// Username of the user.
     pub user: String,
     /// Visible hostname of the user.
     pub host: String,
     /// Logged-in account name.
-    pub account: Option<String>,
+    pub account: Option<AccountName>,
     /// Real name of the user.
     pub realname: String,
     /// Whether the user is away.
@@ -61,7 +73,7 @@ pub struct WhoEntry {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChannelInfo {
     /// Channel name as reported by the server.
-    pub name: String,
+    pub name: ChannelName,
     /// Current channel topic, when one is set.
     pub topic: Option<String>,
     /// Number of members present after initial synchronization.
@@ -71,7 +83,7 @@ pub struct ChannelInfo {
 /// Optional channel names or masks supplied to `LIST`.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ListFilter {
-    channels: Vec<String>,
+    channels: Vec<Mask>,
 }
 
 impl ListFilter {
@@ -80,14 +92,20 @@ impl ListFilter {
     pub fn channels<I, S>(mut self, channels: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: Into<Mask>,
     {
         self.channels = channels.into_iter().map(Into::into).collect();
         self
     }
 
     pub(crate) fn parameter(&self) -> Option<String> {
-        (!self.channels.is_empty()).then(|| self.channels.join(","))
+        (!self.channels.is_empty()).then(|| {
+            self.channels
+                .iter()
+                .map(AsRef::as_ref)
+                .collect::<Vec<_>>()
+                .join(",")
+        })
     }
 }
 
@@ -95,19 +113,23 @@ impl ListFilter {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ListEntry {
     /// Channel name.
-    pub name: String,
+    pub name: ChannelName,
     /// Number of visible members reported by the server.
     pub members_count: usize,
     /// Channel topic.
     pub topic: String,
 }
 
-pub(crate) fn whois(response: Response, requested_nick: &str) -> Result<Whois, Error> {
+pub(crate) fn whois(
+    response: Response,
+    requested_nick: &str,
+    isupport: &Isupport,
+) -> Result<Whois, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));
     }
     let mut result = Whois {
-        nick: requested_nick.to_owned(),
+        nick: requested_nick.into(),
         user: None,
         host: None,
         realname: None,
@@ -126,10 +148,7 @@ pub(crate) fn whois(response: Response, requested_nick: &str) -> Result<Whois, E
         };
         match numeric {
             Numeric::RPL_WHOISUSER => {
-                message
-                    .param(1)
-                    .unwrap_or(requested_nick)
-                    .clone_into(&mut result.nick);
+                result.nick = message.param(1).unwrap_or(requested_nick).into();
                 result.user = message.param(2).map(str::to_owned);
                 result.host = message.param(3).map(str::to_owned);
                 result.realname = message.param(5).map(str::to_owned);
@@ -146,9 +165,9 @@ pub(crate) fn whois(response: Response, requested_nick: &str) -> Result<Whois, E
                     .param(2)
                     .into_iter()
                     .flat_map(str::split_ascii_whitespace)
-                    .map(str::to_owned),
+                    .map(|value| whois_channel(value, isupport)),
             ),
-            Numeric::RPL_WHOISACCOUNT => result.account = message.param(2).map(str::to_owned),
+            Numeric::RPL_WHOISACCOUNT => result.account = message.param(2).map(AccountName::from),
             Numeric::RPL_AWAY => result.away = message.param(2).map(str::to_owned),
             Numeric::RPL_WHOISBOT => result.is_bot = true,
             Numeric::RPL_WHOISSECURE => result.secure = true,
@@ -156,6 +175,23 @@ pub(crate) fn whois(response: Response, requested_nick: &str) -> Result<Whois, E
         }
     }
     Ok(result)
+}
+
+fn whois_channel(value: &str, isupport: &Isupport) -> WhoisChannel {
+    let prefixes: Vec<_> = value
+        .chars()
+        .take_while(|symbol| {
+            isupport
+                .prefix()
+                .iter()
+                .any(|prefix| prefix.symbol == *symbol)
+        })
+        .collect();
+    let offset = prefixes.iter().map(|symbol| symbol.len_utf8()).sum();
+    WhoisChannel {
+        name: value[offset..].into(),
+        prefixes,
+    }
 }
 
 pub(crate) fn who(
@@ -175,11 +211,11 @@ pub(crate) fn who(
                 let reply = WhoxReply::parse(&message, "%tcuhnfar")?;
                 let flags = reply.flags(isupport)?;
                 Some(WhoEntry {
-                    channel: reply.channel.map(str::to_owned),
-                    nick: reply.nick?.to_owned(),
+                    channel: reply.channel.map(ChannelName::from),
+                    nick: reply.nick?.into(),
                     user: reply.user?.to_owned(),
                     host: reply.host?.to_owned(),
-                    account: reply.account.map(str::to_owned),
+                    account: reply.account.map(AccountName::from),
                     realname: reply.realname?.to_owned(),
                     away: flags.presence == Some(WhoxPresence::Gone),
                     is_oper: flags.oper,
@@ -201,10 +237,10 @@ fn plain_who(message: &papo_proto::MessageRef<'_>, isupport: &Isupport) -> Optio
         channel: message
             .param(1)
             .filter(|value| *value != "*")
-            .map(str::to_owned),
+            .map(ChannelName::from),
         user: message.param(2)?.to_owned(),
         host: message.param(3)?.to_owned(),
-        nick: message.param(5)?.to_owned(),
+        nick: message.param(5)?.into(),
         account: None,
         realname: message.param(7)?.split_once(' ')?.1.to_owned(),
         away: flags.contains('G'),
@@ -261,7 +297,7 @@ fn list_entries(lines: impl IntoIterator<Item = Message>) -> Vec<ListEntry> {
                 return None;
             }
             Some(ListEntry {
-                name: message.param(1)?.to_owned(),
+                name: message.param(1)?.into(),
                 members_count: message.param(2)?.parse().ok()?,
                 topic: message.param(3)?.to_owned(),
             })
@@ -277,7 +313,7 @@ mod tests {
     use papo_core::{Config, Event, ResponseMatcher, Session};
     use papo_proto::{Isupport, Message};
 
-    use super::{ListFilter, empty, list_entries, plain_who};
+    use super::{ListFilter, empty, list_entries, plain_who, whois_channel};
     use crate::Error;
 
     #[test]
@@ -290,6 +326,14 @@ mod tests {
                 .as_deref(),
             Some("#papo,#rust-*,##chat")
         );
+    }
+
+    #[test]
+    fn whois_channels_separate_advertised_membership_prefixes() {
+        let channel = whois_channel("@+#papo", &Isupport::default());
+
+        assert_eq!(channel.name, "#papo");
+        assert_eq!(channel.prefixes, vec!['@', '+']);
     }
 
     #[test]
