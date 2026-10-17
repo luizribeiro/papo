@@ -316,8 +316,8 @@ pub struct papo::metadata::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
 pub fn papo::Metadata::clear_on(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo_proto::id::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo_proto::id::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
 pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::remove_on(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::set(&self, impl core::convert::Into<papo_proto::id::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -325,6 +325,9 @@ pub fn papo::Metadata::set_on(&self, impl core::convert::Into<papo_proto::id::Ta
 pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
 pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
+#[non_exhaustive] pub struct papo::metadata::MetadataValue
+pub papo::metadata::MetadataValue::value: alloc::string::String
+pub papo::metadata::MetadataValue::visibility: alloc::string::String
 pub mod papo::sts
 pub use papo::sts::MemoryStsStore
 pub use papo::sts::StsPolicy
@@ -845,8 +848,8 @@ pub struct papo::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
 pub fn papo::Metadata::clear_on(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo_proto::id::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo_proto::id::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
 pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::remove_on(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::set(&self, impl core::convert::Into<papo_proto::id::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -854,6 +857,9 @@ pub fn papo::Metadata::set_on(&self, impl core::convert::Into<papo_proto::id::Ta
 pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
 pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
+#[non_exhaustive] pub struct papo::MetadataValue
+pub papo::MetadataValue::value: alloc::string::String
+pub papo::MetadataValue::visibility: alloc::string::String
 pub struct papo::Monitor
 impl papo::Monitor
 pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::Nick>
@@ -940,7 +946,7 @@ pub fn papo::State::has_cap(&self, &str) -> bool
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::is_me(&self, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::isupport(&self) -> &papo::isupport::Isupport
-pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
+pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> &[alloc::string::String]
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::User>
 pub fn papo::State::nick(&self) -> &papo_proto::id::Nick

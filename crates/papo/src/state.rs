@@ -153,8 +153,13 @@ impl State {
     pub fn metadata(
         &self,
         target: impl AsRef<str>,
-    ) -> Option<&HashMap<String, papo_core::MetadataValue>> {
-        self.core.metadata(target)
+    ) -> Option<HashMap<String, crate::MetadataValue>> {
+        self.core.metadata(target).map(|values| {
+            values
+                .iter()
+                .map(|(key, value)| (key.clone(), crate::MetadataValue::from_core(value)))
+                .collect()
+        })
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.

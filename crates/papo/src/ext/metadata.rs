@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use papo_core::{MetadataCommand, MetadataValue};
+use papo_core::MetadataCommand;
 
-use crate::{Client, Error, driver::CoreRequest};
+use crate::{Client, Error, MetadataValue, driver::CoreRequest};
 
 #[cfg(test)]
 use crate::driver::test_support::*;
@@ -86,7 +86,6 @@ impl Metadata {
                 .client
                 .state()
                 .metadata(&target)
-                .cloned()
                 .unwrap_or_default())
         })
     }
@@ -121,7 +120,6 @@ impl Metadata {
                 .client
                 .state()
                 .metadata(&target)
-                .cloned()
                 .unwrap_or_default())
         })
     }
