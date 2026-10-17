@@ -66,7 +66,10 @@ fn decode(value: JsValue, protocol: Protocol) -> io::Result<Vec<u8>> {
         Protocol::Binary if value.is_instance_of::<ArrayBuffer>() => {
             Ok(Uint8Array::new(&value).to_vec())
         }
-        Protocol::Text => value.as_string().map(String::into_bytes).ok_or_else(wrong_type),
+        Protocol::Text => value
+            .as_string()
+            .map(String::into_bytes)
+            .ok_or_else(wrong_type),
         Protocol::Binary => Err(wrong_type()),
     }
 }

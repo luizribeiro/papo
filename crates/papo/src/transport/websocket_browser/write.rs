@@ -83,8 +83,14 @@ mod tests {
     fn emits_one_message_per_complete_irc_line() {
         let mut state = WriteState::default();
         assert!(matches!(state.push(b"CAP LS").unwrap(), Write::Buffered(6)));
-        assert_eq!(frame(&mut state, b" 302\r\nNICK papo\r\n"), (6, b"CAP LS 302".to_vec()));
-        assert_eq!(frame(&mut state, b"NICK papo\r\r\n"), (12, b"NICK papo".to_vec()));
+        assert_eq!(
+            frame(&mut state, b" 302\r\nNICK papo\r\n"),
+            (6, b"CAP LS 302".to_vec())
+        );
+        assert_eq!(
+            frame(&mut state, b"NICK papo\r\r\n"),
+            (12, b"NICK papo".to_vec())
+        );
         assert_eq!(state.len(), 0);
     }
 
@@ -96,7 +102,10 @@ mod tests {
         assert_eq!(frame(&mut complete, &accepted).1.len(), 8_701);
 
         let mut split = WriteState::default();
-        assert!(matches!(split.push(&vec![b'x'; 8_701]).unwrap(), Write::Buffered(8_701)));
+        assert!(matches!(
+            split.push(&vec![b'x'; 8_701]).unwrap(),
+            Write::Buffered(8_701)
+        ));
         assert_eq!(frame(&mut split, b"\r\n").1.len(), 8_701);
 
         let mut rejected = WriteState::default();
@@ -112,6 +121,9 @@ mod tests {
     fn rejects_shutdown_with_a_partial_line() {
         let mut state = WriteState::default();
         state.push(b"AUTHENTICATE c2VjcmV0").unwrap();
-        assert_eq!(state.finish().unwrap_err().kind(), io::ErrorKind::InvalidData);
+        assert_eq!(
+            state.finish().unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
     }
 }

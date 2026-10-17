@@ -59,7 +59,10 @@ impl ReadState {
         let suffix = if end == 0 { "" } else { ": " };
         self.fail(io::Error::new(
             io::ErrorKind::ConnectionAborted,
-            format!("WebSocket closed with code {code}{suffix}{}", &reason[..end]),
+            format!(
+                "WebSocket closed with code {code}{suffix}{}",
+                &reason[..end]
+            ),
         ));
     }
 

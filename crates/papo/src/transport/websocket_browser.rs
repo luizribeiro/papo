@@ -9,8 +9,9 @@ mod write;
 
 use std::{
     cell::RefCell,
-    fmt, io,
+    fmt,
     future::Future,
+    io,
     pin::Pin,
     rc::Rc,
     task::{Context, Poll},
@@ -26,6 +27,7 @@ use write::WriteState;
 
 pub(super) struct WebSocket {
     socket: web_sys::WebSocket,
+    secure: bool,
     protocol: Protocol,
     read: Rc<RefCell<ReadState>>,
     write: WriteState,
@@ -37,20 +39,21 @@ pub(super) struct WebSocket {
 impl WebSocket {
     pub(super) async fn connect(url: &str) -> Result<Self, String> {
         let (socket, protocol) = handshake::open(url).await?;
-        Ok(Self::from_open(socket, protocol))
+        Ok(Self::from_open(socket, protocol, url.starts_with("wss:")))
     }
 
     #[cfg(test)]
     async fn connect_with(url: &str, offered: &[&str]) -> Result<Self, String> {
         let (socket, protocol) = handshake::open_with(url, offered).await?;
-        Ok(Self::from_open(socket, protocol))
+        Ok(Self::from_open(socket, protocol, url.starts_with("wss:")))
     }
 
-    fn from_open(socket: web_sys::WebSocket, protocol: Protocol) -> Self {
+    fn from_open(socket: web_sys::WebSocket, protocol: Protocol, secure: bool) -> Self {
         let read = Rc::new(RefCell::new(ReadState::default()));
         let callbacks = Callbacks::install(&socket, protocol, Rc::clone(&read));
         Self {
             socket,
+            secure,
             protocol,
             read,
             write: WriteState::default(),
@@ -60,11 +63,18 @@ impl WebSocket {
         }
     }
 
-    fn poll_below(
-        &mut self,
-        context: &mut Context<'_>,
-        ceiling: u32,
-    ) -> Poll<io::Result<()>> {
+    pub(super) const fn is_secure(&self) -> bool {
+        self.secure
+    }
+
+    pub(super) const fn subprotocol(&self) -> Option<&'static str> {
+        Some(match self.protocol {
+            Protocol::Binary => handshake::BINARY,
+            Protocol::Text => handshake::TEXT,
+        })
+    }
+
+    fn poll_below(&mut self, context: &mut Context<'_>, ceiling: u32) -> Poll<io::Result<()>> {
         if self.socket.ready_state() != web_sys::WebSocket::OPEN {
             return Poll::Ready(Err(io::Error::new(
                 io::ErrorKind::NotConnected,
@@ -112,6 +122,7 @@ impl fmt::Debug for WebSocket {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("WebSocket")
+            .field("secure", &self.secure)
             .field("protocol", &self.protocol)
             .field("buffered_write_bytes", &self.write.len())
             .finish_non_exhaustive()
@@ -198,9 +209,10 @@ mod tests {
 
     #[wasm_bindgen_test]
     async fn text_mode_rejects_invalid_utf8_and_shutdown_releases_callbacks() {
-        let mut stream = WebSocket::connect_with(env!("PAPO_BROWSER_WS"), &[super::handshake::TEXT])
-            .await
-            .unwrap();
+        let mut stream =
+            WebSocket::connect_with(env!("PAPO_BROWSER_WS"), &[super::handshake::TEXT])
+                .await
+                .unwrap();
         assert_eq!(
             stream.write_all(&[0xff, b'\n']).await.unwrap_err().kind(),
             std::io::ErrorKind::InvalidData

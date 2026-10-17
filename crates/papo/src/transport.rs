@@ -19,6 +19,9 @@ use tokio_rustls::client::TlsStream;
 
 #[cfg(all(feature = "websocket", sockets))]
 mod websocket;
+#[cfg(browser)]
+#[path = "transport/websocket_browser.rs"]
+mod websocket_browser;
 
 #[cfg(test)]
 mod live;
@@ -113,6 +116,8 @@ enum StreamInner {
     Tls(Box<TlsStream<TcpStream>>),
     #[cfg(all(feature = "websocket", sockets))]
     WebSocket(Box<websocket::WebSocket>),
+    #[cfg(browser)]
+    BrowserWebSocket(Box<websocket_browser::WebSocket>),
     #[cfg(all(test, feature = "websocket"))]
     BrokenPeer,
     #[cfg(not(sockets))]
@@ -132,6 +137,8 @@ impl Stream {
             StreamInner::Tls(_) => true,
             #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => stream.is_secure(),
+            #[cfg(browser)]
+            StreamInner::BrowserWebSocket(stream) => stream.is_secure(),
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => false,
             #[cfg(not(sockets))]
@@ -146,6 +153,8 @@ impl Stream {
         match &self.inner {
             #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => stream.subprotocol(),
+            #[cfg(browser)]
+            StreamInner::BrowserWebSocket(stream) => stream.subprotocol(),
             _ => None,
         }
     }
@@ -165,6 +174,10 @@ impl AsyncRead for Stream {
             StreamInner::Tls(stream) => Pin::new(stream).poll_read(context, buffer),
             #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_read(context, buffer),
+            #[cfg(browser)]
+            StreamInner::BrowserWebSocket(stream) => {
+                Pin::new(stream.as_mut()).poll_read(context, buffer)
+            }
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
             #[cfg(not(sockets))]
@@ -187,6 +200,10 @@ impl AsyncWrite for Stream {
             StreamInner::Tls(stream) => Pin::new(stream).poll_write(context, buffer),
             #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_write(context, buffer),
+            #[cfg(browser)]
+            StreamInner::BrowserWebSocket(stream) => {
+                Pin::new(stream.as_mut()).poll_write(context, buffer)
+            }
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
             #[cfg(not(sockets))]
@@ -202,6 +219,8 @@ impl AsyncWrite for Stream {
             StreamInner::Tls(stream) => Pin::new(stream).poll_flush(context),
             #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_flush(context),
+            #[cfg(browser)]
+            StreamInner::BrowserWebSocket(stream) => Pin::new(stream.as_mut()).poll_flush(context),
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
             #[cfg(not(sockets))]
@@ -217,6 +236,10 @@ impl AsyncWrite for Stream {
             StreamInner::Tls(stream) => Pin::new(stream).poll_shutdown(context),
             #[cfg(all(feature = "websocket", sockets))]
             StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_shutdown(context),
+            #[cfg(browser)]
+            StreamInner::BrowserWebSocket(stream) => {
+                Pin::new(stream.as_mut()).poll_shutdown(context)
+            }
             #[cfg(all(test, feature = "websocket"))]
             StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
             #[cfg(not(sockets))]
@@ -277,6 +300,10 @@ pub(crate) enum ConnectError {
     #[cfg(all(feature = "websocket", sockets))]
     #[error("WebSocket failed: {0}")]
     WebSocket(#[source] tokio_tungstenite::tungstenite::Error),
+    /// The browser rejected or closed a WebSocket connection.
+    #[cfg(browser)]
+    #[error("WebSocket failed: {0}")]
+    BrowserWebSocket(String),
 }
 
 /// Opens a WebSocket connection over the existing TCP and TLS transports.
@@ -295,6 +322,24 @@ pub(crate) async fn connect_websocket(
     websocket::connect(url, tls).await.map(|stream| Stream {
         inner: StreamInner::WebSocket(Box::new(stream)),
     })
+}
+
+/// Opens a browser WebSocket connection.
+///
+/// # Errors
+///
+/// Returns an error when the browser rejects the URL or the opening handshake fails.
+#[cfg(browser)]
+pub async fn connect_websocket(
+    url: &str,
+    _tls: Option<&TlsConfig>,
+) -> Result<Stream, ConnectError> {
+    websocket_browser::WebSocket::connect(url)
+        .await
+        .map(|stream| Stream {
+            inner: StreamInner::BrowserWebSocket(Box::new(stream)),
+        })
+        .map_err(ConnectError::BrowserWebSocket)
 }
 
 /// Resolves a host and connects to each address in order until one succeeds.

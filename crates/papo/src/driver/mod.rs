@@ -48,10 +48,19 @@ const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const STABLE_CONNECTION: Duration = Duration::from_secs(60);
 pub(super) const SLOW_CONSUMER_REASON: &str = "SlowConsumer";
 
+#[cfg(not(browser))]
 pub(crate) trait ConnectionIo: AsyncRead + AsyncWrite + Unpin + Send {}
+#[cfg(not(browser))]
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> ConnectionIo for T {}
+#[cfg(browser)]
+pub(crate) trait ConnectionIo: AsyncRead + AsyncWrite + Unpin {}
+#[cfg(browser)]
+impl<T: AsyncRead + AsyncWrite + Unpin> ConnectionIo for T {}
 type BoxConnection = Box<dyn ConnectionIo>;
+#[cfg(not(browser))]
 type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>> + Send>>;
+#[cfg(browser)]
+type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>>>>;
 pub(crate) type Connector = Arc<dyn Fn(ConnectionPlan) -> ConnectFuture + Send + Sync>;
 type BackoffEntropy = Box<dyn FnMut() -> u64 + Send>;
 type ReadMarkerSender = oneshot::Sender<Result<Option<SystemTime>, Error>>;
@@ -350,7 +359,7 @@ impl Driver {
     #[cfg(test)]
     fn with_stream<S>(stream: S, session: Session) -> (Client, Events, Self)
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: ConnectionIo + 'static,
     {
         Self::with_stream_and_capacity(stream, session, DEFAULT_CHANNEL_CAPACITY)
     }
@@ -362,7 +371,7 @@ impl Driver {
         capacity: usize,
     ) -> (Client, Events, Self)
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: ConnectionIo + 'static,
     {
         Self::with_stream_and_registration(
             stream,
@@ -381,7 +390,7 @@ impl Driver {
         defaults: PostRegistration,
     ) -> (Client, Events, Self)
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: ConnectionIo + 'static,
     {
         let channels = channels(capacity, &session);
         let inner = Box::pin(run(
