@@ -585,7 +585,7 @@ pub async fn papo::Client::quit(&self, core::option::Option<&str>) -> core::resu
 pub fn papo::Client::react(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::react_to(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub async fn papo::Client::reconnect(&self) -> core::result::Result<(), papo::Error>
-pub async fn papo::Client::redact(&self, &papo_proto::id::Target, &papo_proto::id::MessageId, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub fn papo::Client::redact(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MessageId>, &str) -> papo::RequestFuture<()>
 pub fn papo::Client::reply(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub async fn papo::Client::request_raw(&self, &str) -> core::result::Result<alloc::vec::Vec<papo::RawLine>, papo::Error>
 pub async fn papo::Client::send_raw(&self, &str) -> core::result::Result<(), papo::Error>

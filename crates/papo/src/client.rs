@@ -522,19 +522,32 @@ impl Client {
     /// returns [`Error::Server`], currently classified as [`crate::Refusal::Other`]. It can also
     /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
     /// [`Error::Disconnected`].
-    pub async fn redact(
+    pub fn redact(
         &self,
-        target: &crate::Target,
-        message: &crate::MessageId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        Self::require_feature(&self.state(), Feature::Redaction)?;
-        let mut params = vec![target.as_ref(), message.as_ref()];
-        params.extend(reason);
-        let response = self
-            .correlated(Message::new("REDACT", params), None)
-            .await?;
-        crate::requests::empty(&response)
+        target: impl Into<crate::Target>,
+        message: impl Into<crate::MessageId>,
+        reason: &str,
+    ) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let target = target.into();
+        let message = message.into();
+        let reason = reason.to_owned();
+        crate::RequestFuture::new(async move {
+            let state = client.state();
+            Self::require_feature(&state, Feature::Redaction)?;
+            target
+                .check(state.isupport())
+                .and_then(|()| message.check())
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let mut params = vec![target.to_string(), message.to_string()];
+            if !reason.is_empty() {
+                params.push(reason);
+            }
+            let response = client
+                .correlated(Message::new("REDACT", params), None)
+                .await?;
+            crate::requests::empty(&response)
+        })
     }
 
     pub(crate) async fn send_text(

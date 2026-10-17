@@ -2745,9 +2745,9 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     let redacted = tokio::spawn(async move {
         sender
             .redact(
-                &crate::Target::from("#papo"),
-                &crate::MessageId::from("RfcBTzyxY120004"),
-                Some("duplicate message"),
+                crate::Target::from("#papo"),
+                crate::MessageId::from("RfcBTzyxY120004"),
+                "duplicate message",
             )
             .await
     });
@@ -2767,9 +2767,9 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     let rejected = tokio::spawn(async move {
         sender
             .redact(
-                &crate::Target::from("#papo"),
-                &crate::MessageId::from("RfcBTzyxY120005"),
-                None,
+                crate::Target::from("#papo"),
+                crate::MessageId::from("RfcBTzyxY120005"),
+                "",
             )
             .await
     });
@@ -2795,9 +2795,9 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     }
     assert!(matches!(
         within(client.redact(
-            &crate::Target::from("#papo"),
-            &crate::MessageId::from("RfcBTzyxY120006"),
-            None,
+            crate::Target::from("#papo"),
+            crate::MessageId::from("RfcBTzyxY120006"),
+            "",
         ))
         .await,
         Err(Error::Unsupported(crate::Unsupported {

@@ -53,10 +53,10 @@ fn request_futures_are_send() {
     );
     assert_send_static(client.notice("emily", "maintenance soon").into_future());
     assert_send(client.typing("#papo", Typing::Active));
-    assert_send(client.redact(
-        &Target::from("#papo"),
-        &MessageId::from("RfcBTzyxY120004"),
-        None,
+    assert_send_static(client.redact(
+        Target::from("#papo"),
+        MessageId::from("RfcBTzyxY120004"),
+        "",
     ));
     assert_send(client.whois("emily"));
     assert_send(client.who("#papo"));

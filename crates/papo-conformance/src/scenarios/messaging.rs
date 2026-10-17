@@ -178,11 +178,7 @@ async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
     };
     sender
         .client
-        .redact(
-            &papo::Target::from(&channel),
-            &id,
-            Some("conformance redaction"),
-        )
+        .redact(papo::Target::from(&channel), &id, "conformance redaction")
         .await
         .map_err(Failed::from)?;
     context
