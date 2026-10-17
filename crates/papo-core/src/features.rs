@@ -35,6 +35,10 @@ pub enum Feature {
     BotMode,
     /// `IRCv3` draft account registration, requiring `draft/account-registration`.
     AccountRegistration,
+    /// Upstream network management on an IRC bouncer.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    Bouncer,
     /// `IRCv3` draft account persistence, requiring `draft/persistence`.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -76,6 +80,8 @@ impl Feature {
         Self::BotMode,
         Self::AccountRegistration,
         #[cfg(feature = "unstable")]
+        Self::Bouncer,
+        #[cfg(feature = "unstable")]
         Self::Persistence,
         #[cfg(feature = "unstable")]
         Self::WebPush,
@@ -105,6 +111,8 @@ impl Feature {
             Self::BotMode => "bot mode",
             Self::AccountRegistration => "account-registration",
             #[cfg(feature = "unstable")]
+            Self::Bouncer => "bouncer networks",
+            #[cfg(feature = "unstable")]
             Self::Persistence => "persistence",
             #[cfg(feature = "unstable")]
             Self::WebPush => "webpush",
@@ -128,6 +136,8 @@ impl Feature {
             Self::Metadata => &["draft/metadata-3", "draft/metadata-2"],
             Self::SetName => &["setname"],
             Self::AccountRegistration => &["draft/account-registration"],
+            #[cfg(feature = "unstable")]
+            Self::Bouncer => &["soju.im/bouncer-networks"],
             #[cfg(feature = "unstable")]
             Self::Persistence => &["draft/persistence"],
             #[cfg(feature = "unstable")]

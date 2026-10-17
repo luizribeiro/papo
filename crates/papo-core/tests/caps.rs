@@ -101,8 +101,13 @@ fn defaults_cover_every_implemented_negotiable_capability() {
             "draft/oper-tag",
             "draft/metadata-2",
             "draft/account-registration",
+            #[cfg(feature = "unstable")]
+            "soju.im/bouncer-networks",
+            #[cfg(feature = "unstable")]
+            "soju.im/bouncer-networks-notify",
             "draft/chathistory",
             "draft/read-marker",
+            #[cfg(feature = "unstable")]
             "draft/persistence",
             "draft/channel-rename",
             #[cfg(feature = "unstable")]

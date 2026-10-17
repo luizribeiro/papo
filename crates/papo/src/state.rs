@@ -208,6 +208,8 @@ const FEATURES: &[Feature] = &[
     Feature::BotMode,
     Feature::AccountRegistration,
     #[cfg(feature = "unstable")]
+    Feature::Bouncer,
+    #[cfg(feature = "unstable")]
     Feature::Persistence,
     #[cfg(feature = "unstable")]
     Feature::WebPush,

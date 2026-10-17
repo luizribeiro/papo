@@ -10,7 +10,7 @@ use papo_core::{
 use papo_proto::Message;
 use support::{Transcript, unsupported_because};
 
-const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response away-notify account-notify account-tag chghost";
+const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration soju.im/bouncer-networks draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response away-notify account-notify account-tag chghost";
 
 fn session(caps: &str) -> Session {
     session_with(
@@ -46,6 +46,7 @@ fn recognizes_every_capability_backed_feature() {
         Feature::Metadata,
         Feature::SetName,
         Feature::AccountRegistration,
+        Feature::Bouncer,
         Feature::Persistence,
         Feature::WebPush,
         Feature::ChannelRename,
@@ -118,6 +119,7 @@ fn distinguishes_client_disabled_and_server_absent_features() {
         Feature::Metadata,
         Feature::SetName,
         Feature::AccountRegistration,
+        Feature::Bouncer,
         Feature::Persistence,
         Feature::WebPush,
         Feature::ChannelRename,

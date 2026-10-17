@@ -112,6 +112,10 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "draft/oper-tag",
     "draft/metadata-2",
     "draft/account-registration",
+    #[cfg(feature = "unstable")]
+    "soju.im/bouncer-networks",
+    #[cfg(feature = "unstable")]
+    "soju.im/bouncer-networks-notify",
     "draft/chathistory",
     "draft/read-marker",
     #[cfg(feature = "unstable")]

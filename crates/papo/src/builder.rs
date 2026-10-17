@@ -641,16 +641,29 @@ mod tests {
                 .iter()
                 .any(|name| name == "away-notify")
         );
-        assert_eq!(
-            builder.config.wanted_caps.last().map(String::as_str),
-            Some("soju.im/bouncer-networks")
+        assert!(
+            builder
+                .config
+                .wanted_caps
+                .iter()
+                .any(|name| name == "soju.im/bouncer-networks")
         );
+        #[cfg(not(feature = "unstable"))]
         assert!(matches!(
             Builder::new("irc.example.net")
                 .without_caps(["soju.im/bouncer-networks"])
                 .invalid_input,
             Some(InvalidInput::UnknownCapability(name)) if name == "soju.im/bouncer-networks"
         ));
+        #[cfg(feature = "unstable")]
+        assert!(
+            !Builder::new("irc.example.net")
+                .without_caps(["soju.im/bouncer-networks"])
+                .config
+                .wanted_caps
+                .iter()
+                .any(|name| name == "soju.im/bouncer-networks")
+        );
     }
 
     #[test]
@@ -737,6 +750,7 @@ mod tests {
                 Builder::new("irc.example.net").event_capacity(0),
                 InvalidInput::EventCapacity(0),
             ),
+            #[cfg(not(feature = "unstable"))]
             (
                 Builder::new("irc.example.net").without_caps(["soju.im/bouncer-networks"]),
                 InvalidInput::UnknownCapability("soju.im/bouncer-networks".into()),
