@@ -360,6 +360,9 @@ impl Builder {
 
     /// Adds channels to join after registration.
     ///
+    /// Repeated exact names are replaced by the last entry. Once the server's casemapping is
+    /// known, names that compare equal under that mapping are also deduplicated before joining.
+    ///
     /// ```
     /// # _ = papo::Client::builder("irc.example.net").autojoin(["#papo"]);
     /// ```
@@ -368,15 +371,16 @@ impl Builder {
         I: IntoIterator<Item = S>,
         S: Into<String>,
     {
-        self.autojoin.extend(
-            channels
-                .into_iter()
-                .map(|channel| Autojoin::new(channel, None)),
-        );
+        for channel in channels {
+            self.push_autojoin(Autojoin::new(channel, None));
+        }
         self
     }
 
     /// Adds a keyed channel to join after registration.
+    ///
+    /// This replaces an exact configured name. Once the server's casemapping is known, names
+    /// that compare equal under that mapping are also deduplicated before joining.
     ///
     /// ```
     /// # _ = papo::Client::builder("irc.example.net").autojoin_with_key("#staff", "secret");
@@ -386,10 +390,14 @@ impl Builder {
         channel: impl Into<String>,
         key: impl Into<papo_core::Secret>,
     ) -> Self {
-        let channel = channel.into();
-        self.autojoin.retain(|entry| entry.channel != channel);
-        self.autojoin.push(Autojoin::new(channel, Some(key.into())));
+        self.push_autojoin(Autojoin::new(channel, Some(key.into())));
         self
+    }
+
+    fn push_autojoin(&mut self, entry: Autojoin) {
+        self.autojoin
+            .retain(|configured| configured.channel != entry.channel);
+        self.autojoin.push(entry);
     }
 
     /// Sets whether reconnects fetch history missed while disconnected.
@@ -794,6 +802,22 @@ mod tests {
         );
         assert!(builder.autojoin[2].key.is_some());
         assert!(builder.history_on_reconnect);
+    }
+
+    #[test]
+    fn autojoin_replaces_only_exact_names_before_registration() {
+        let builder = Builder::new("irc.example.net")
+            .autojoin(["#papo", "#papo", "#PAPO"])
+            .autojoin_with_key("#papo", "private channel key");
+        assert_eq!(
+            builder
+                .autojoin
+                .iter()
+                .map(|entry| entry.channel.as_str())
+                .collect::<Vec<_>>(),
+            ["#PAPO", "#papo"]
+        );
+        assert!(builder.autojoin[1].key.is_some());
     }
 
     #[tokio::test(flavor = "current_thread")]

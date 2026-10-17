@@ -1184,6 +1184,17 @@ fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, ev
     }
 }
 
+fn dedupe_autojoin(session: &Session, defaults: &mut PostRegistration) {
+    let casemapping = session.isupport().casemapping();
+    let mut deduplicated = Vec::with_capacity(defaults.channels.len());
+    for entry in defaults.channels.drain(..) {
+        deduplicated
+            .retain(|configured: &Autojoin| !casemapping.eq(&configured.channel, &entry.channel));
+        deduplicated.push(entry);
+    }
+    defaults.channels = deduplicated;
+}
+
 fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
     let event = if pending.is_empty() {
         match events.regular.try_send(event) {
@@ -1257,8 +1268,9 @@ fn publish_state(events: &EventSink, session: &Session, connected: bool) {
 fn after_registration(
     session: &mut Session,
     welcome: &papo_core::Welcome,
-    defaults: &PostRegistration,
+    defaults: &mut PostRegistration,
 ) -> Result<(), io::Error> {
+    dedupe_autojoin(session, defaults);
     if defaults.bot
         && let Some(mode) = welcome.isupport.bot_mode()
     {

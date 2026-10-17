@@ -1302,6 +1302,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
             bot: true,
             channels: vec![
                 "#papo".into(),
+                super::Autojoin::new("#PAPO", Some("replacement-channel-key".into())),
                 super::Autojoin::new("#papo-bots", Some("private-channel-key".into())),
             ],
             history_on_reconnect: false,
@@ -1319,7 +1320,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
     client_line(
         &mut server,
-        b"MODE papo-driver +B\r\nJOIN #papo\r\nJOIN #papo-bots private-channel-key\r\n",
+        b"MODE papo-driver +B\r\nJOIN #PAPO replacement-channel-key\r\nJOIN #papo-bots private-channel-key\r\n",
     )
     .await;
     within(server.shutdown()).await.unwrap();
