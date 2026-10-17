@@ -1155,9 +1155,11 @@ async fn required_sasl_failure_rejects_registration_waiter() {
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
     server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
 
-    assert!(
-        matches!(within(waiter).await.unwrap(), Err(Error::Registration(reason)) if reason.contains("SASL"))
-    );
+    assert!(matches!(
+        within(waiter).await.unwrap(),
+        Err(Error::Registration(crate::RegistrationError::Sasl { message }))
+            if message.contains("SASL")
+    ));
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Disconnected)
@@ -1575,7 +1577,8 @@ fn consecutive_sts_upgrades_are_a_typed_error() {
     assert!(super::record_sts_upgrade(&mut last_host, "irc.example.net").is_ok());
     assert!(matches!(
         super::record_sts_upgrade(&mut last_host, "irc.example.net"),
-        Err(Error::StsUpgradeLoop { host }) if host == "irc.example.net"
+        Err(Error::Registration(crate::RegistrationError::StsUpgradeLoop { host }))
+            if host == "irc.example.net"
     ));
 }
 

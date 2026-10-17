@@ -119,11 +119,9 @@ pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::Io(core::io::error::Error)
-pub papo::Error::Registration(alloc::string::String)
+pub papo::Error::Registration(papo::RegistrationError)
 pub papo::Error::RequestLimit
 pub papo::Error::Server(papo::ServerError)
-pub papo::Error::StsUpgradeLoop
-pub papo::Error::StsUpgradeLoop::host: alloc::string::String
 pub papo::Error::Timeout
 pub papo::Error::Unsupported(papo_core::features::Unsupported)
 #[non_exhaustive] pub enum papo::Event

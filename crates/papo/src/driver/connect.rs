@@ -352,9 +352,11 @@ async fn connect_or_wait(
 
 pub(super) fn record_sts_upgrade(last_host: &mut Option<String>, host: &str) -> Result<(), Error> {
     if last_host.as_deref() == Some(host) {
-        return Err(Error::StsUpgradeLoop {
-            host: host.to_owned(),
-        });
+        return Err(Error::Registration(
+            crate::RegistrationError::StsUpgradeLoop {
+                host: host.to_owned(),
+            },
+        ));
     }
     *last_host = Some(host.to_owned());
     Ok(())
@@ -397,7 +399,9 @@ fn finish_slow_consumer(
     registration: &mut RegistrationWait,
     pending_events: VecDeque<Event>,
 ) -> Result<(), Error> {
-    registration.failed(Error::Registration(SLOW_CONSUMER_REASON.to_owned()));
+    registration.failed(Error::Registration(crate::RegistrationError::Banned {
+        message: SLOW_CONSUMER_REASON.to_owned(),
+    }));
     finish(
         events,
         ConnectionEnd {

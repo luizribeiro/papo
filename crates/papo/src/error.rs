@@ -336,12 +336,6 @@ pub enum Error {
     /// Opening the connection failed.
     #[error("connection failed: {0}")]
     Connect(#[from] ConnectError),
-    /// A server requested consecutive STS upgrades without registering.
-    #[error("repeated STS upgrade for {host} without registration")]
-    StsUpgradeLoop {
-        /// The hostname whose server repeated the upgrade.
-        host: String,
-    },
     /// The requested optional IRC behavior is unavailable.
     #[error("{0}")]
     Unsupported(Unsupported),
@@ -350,7 +344,7 @@ pub enum Error {
     RequestLimit,
     /// Registration ended before the server welcomed the client.
     #[error("IRC registration failed: {0}")]
-    Registration(String),
+    Registration(RegistrationError),
     /// The server disconnected before the requested operation completed.
     #[error("the IRC connection closed")]
     Disconnected,
