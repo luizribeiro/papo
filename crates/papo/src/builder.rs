@@ -51,9 +51,11 @@ impl fmt::Debug for Builder {
 
 impl Builder {
     pub(crate) fn new(address: &str) -> Self {
+        let mut config = Config::default();
+        config.ctcp.version = Some(format!("papo {}", crate::VERSION));
         Self {
             address: address.parse(),
-            config: Config::default(),
+            config,
             event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
             tls: TlsConfig::default(),
             reconnect: Reconnect::default(),
@@ -713,6 +715,14 @@ mod tests {
 
     #[test]
     fn configures_away_and_ctcp_replies() {
+        assert_eq!(
+            Builder::new("irc.example.net")
+                .config
+                .ctcp
+                .version
+                .as_deref(),
+            Some(concat!("papo ", env!("CARGO_PKG_VERSION")))
+        );
         let builder = Builder::new("irc.example.net")
             .away_on_connect("Reviewing patches")
             .ctcp_version(None)

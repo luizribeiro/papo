@@ -29,6 +29,9 @@ mod transport;
 pub mod bot;
 pub mod cap;
 
+/// The version of the `papo` crate.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub use action::RequestFuture;
 pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::Builder;

@@ -957,6 +957,7 @@ pub papo::Whois::user: core::option::Option<alloc::string::String>
 pub struct papo::WhoisChannel
 pub papo::WhoisChannel::name: papo_proto::id::ChannelName
 pub papo::WhoisChannel::prefixes: alloc::vec::Vec<char>
+pub const papo::VERSION: &str
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String
