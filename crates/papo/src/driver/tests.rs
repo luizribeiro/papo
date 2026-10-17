@@ -1918,6 +1918,66 @@ async fn request_raw_returns_state_changing_lines_without_an_event() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn mode_helpers_await_every_command_and_return_refusals() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_labelled_registration(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver PREFIX=(ov)@+ CHANMODES=beI,k,l,imnst MODES=2 :are supported\r\n",
+    )
+    .await;
+
+    let modes = tokio::spawn({
+        let client = client.clone();
+        async move {
+            client
+                .mode("#papo")
+                .op("alice")
+                .voice("carol")
+                .ban("*!*@spam.example")
+                .await
+        }
+    });
+    client_line(&mut server, b"@label=0 MODE #papo +ov alice carol\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0 :papo-driver!papo@localhost MODE #papo +ov alice carol\r\n",
+    )
+    .await;
+    client_line(&mut server, b"@label=1 MODE #papo +b *!*@spam.example\r\n").await;
+    assert!(!modes.is_finished());
+    server_line(
+        &mut server,
+        b"@label=1 :papo-driver!papo@localhost MODE #papo +b *!*@spam.example\r\n",
+    )
+    .await;
+    within(modes).await.unwrap().unwrap();
+
+    let refused = tokio::spawn({
+        let client = client.clone();
+        async move { client.mode("#papo").deop("alice").await }
+    });
+    client_line(&mut server, b"@label=2 MODE #papo -o alice\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=2 :ergo.test 482 papo-driver #papo :You're not a channel operator\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(refused).await.unwrap(),
+        Err(Error::Server(error)) if error.code() == "482"
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 #[allow(clippy::too_many_lines)]
 async fn typed_requests_match_unlabelled_responses() {
     let (mut server, client, mut events, driver) =
