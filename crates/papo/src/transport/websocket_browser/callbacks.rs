@@ -33,8 +33,12 @@ impl Callbacks {
                 "browser WebSocket reported an error",
             ));
         }) as Box<dyn FnMut(_)>);
+        let closing = socket.clone();
         let close = Closure::wrap(Box::new(move |event: CloseEvent| {
             state.borrow_mut().close(event.code(), &event.reason());
+            closing.set_onmessage(None);
+            closing.set_onerror(None);
+            closing.set_onclose(None);
         }) as Box<dyn FnMut(_)>);
         socket.set_onmessage(Some(message.as_ref().unchecked_ref()));
         socket.set_onerror(Some(error.as_ref().unchecked_ref()));

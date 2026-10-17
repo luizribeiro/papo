@@ -4,14 +4,8 @@ use wasm_bindgen_test::wasm_bindgen_test;
 use web_time::Instant;
 #[path = "../../../../../papo/src/rt.rs"]
 mod papo_rt;
-#[path = "../../../../../papo/src/transport/websocket_browser/read.rs"]
-mod read;
-#[path = "../../../../../papo/src/transport/websocket_browser/write.rs"]
-mod write;
-#[path = "../../../../../papo/src/transport/websocket_browser/handshake.rs"]
-mod handshake;
-#[path = "../../../../../papo/src/transport/websocket_browser/callbacks.rs"]
-mod callbacks;
+#[path = "../../../../../papo/src/transport/websocket_browser.rs"]
+mod websocket_browser;
 
 #[wasm_bindgen_test]
 fn parses_an_ergo_message() {
