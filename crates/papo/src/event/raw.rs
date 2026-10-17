@@ -111,3 +111,50 @@ fn escape_tag(value: &str) -> String {
         .replace('\r', "\\r")
         .replace('\n', "\\n")
 }
+
+#[cfg(test)]
+mod tests {
+    use papo_proto::MessageRef;
+
+    use super::{RawLine, Source};
+
+    #[test]
+    fn owns_and_formats_every_wire_component() {
+        let message = MessageRef::parse(
+            "@account=alice;example.org/note=one\\stwo\\:three :alice!~a@cloak.example NOTICE #papo :maintenance soon",
+        )
+        .unwrap()
+        .to_owned();
+        let line = RawLine::from_proto(&message);
+
+        assert_eq!(line.command(), "NOTICE");
+        assert_eq!(line.params(), ["#papo", "maintenance soon"]);
+        assert_eq!(line.tag("account"), Some("alice"));
+        assert_eq!(line.tag("example.org/note"), Some("one two;three"));
+        assert!(matches!(
+            line.source(),
+            Some(Source::User { nick, user: Some(user), host: Some(host) })
+                if nick == "alice" && user == "~a" && host == "cloak.example"
+        ));
+        assert_eq!(
+            line.to_string(),
+            "@account=alice;example.org/note=one\\stwo\\:three :alice!~a@cloak.example NOTICE #papo :maintenance soon"
+        );
+    }
+
+    #[test]
+    fn preserves_bare_tags_and_empty_trailing_parameters() {
+        let message = MessageRef::parse("@bot :ergo.test 372 papo :")
+            .unwrap()
+            .to_owned();
+        let line = RawLine::from_proto(&message);
+
+        assert_eq!(line.tag("bot"), None);
+        assert_eq!(line.params(), ["papo", ""]);
+        assert!(matches!(
+            line.source(),
+            Some(Source::Server { name }) if name == "ergo.test"
+        ));
+        assert_eq!(line.to_string(), "@bot :ergo.test 372 papo :");
+    }
+}
