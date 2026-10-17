@@ -85,7 +85,7 @@ async fn wait_for_channels(
         match events.next().await {
             Some(Event::ChannelSynced { channel }) => _ = pending.remove(&channel),
             Some(Event::Disconnected { .. }) | None => {
-                return Err(papo::Error::DisconnectedWith(papo::Disconnected::new(
+                return Err(papo::Error::Disconnected(papo::Disconnected::new(
                     papo::DisconnectCause::ConnectionLost,
                     None,
                 )));

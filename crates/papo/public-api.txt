@@ -116,10 +116,8 @@ impl core::fmt::Display for papo::DisconnectCause
 pub fn papo::DisconnectCause::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub enum papo::Error
 pub papo::Error::Connect(papo::ConnectError)
-pub papo::Error::Disconnected
-pub papo::Error::DisconnectedWith(papo::Disconnected)
+pub papo::Error::Disconnected(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
-pub papo::Error::Io(core::io::error::Error)
 pub papo::Error::Registration(papo::RegistrationError)
 pub papo::Error::RequestLimit
 pub papo::Error::Server(papo::ServerError)

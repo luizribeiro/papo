@@ -338,9 +338,6 @@ pub enum Error {
     /// The configured server address is invalid.
     #[error("invalid server address: {0}")]
     InvalidInput(#[from] InvalidInput),
-    /// Reading from or writing to the connection failed.
-    #[error("connection I/O failed: {0}")]
-    Io(#[from] io::Error),
     /// Opening the connection failed.
     #[error("connection failed: {0}")]
     Connect(#[from] ConnectError),
@@ -353,12 +350,9 @@ pub enum Error {
     /// Registration ended before the server welcomed the client.
     #[error("IRC registration failed: {0}")]
     Registration(RegistrationError),
-    /// The server disconnected before the requested operation completed.
-    #[error("the IRC connection closed")]
-    Disconnected,
-    /// Details about an established connection ending.
+    /// The established connection ended.
     #[error("{0}")]
-    DisconnectedWith(Disconnected),
+    Disconnected(Disconnected),
     /// An operation did not complete before its deadline.
     #[error("the IRC operation timed out")]
     Timeout,
@@ -369,11 +363,11 @@ pub enum Error {
 
 impl Error {
     pub(crate) const fn disconnected() -> Self {
-        Self::DisconnectedWith(Disconnected::new(DisconnectCause::ConnectionLost, None))
+        Self::Disconnected(Disconnected::new(DisconnectCause::ConnectionLost, None))
     }
 
     pub(crate) fn disconnected_protocol(message: impl Into<String>) -> Self {
-        Self::DisconnectedWith(Disconnected::new(
+        Self::Disconnected(Disconnected::new(
             DisconnectCause::Protocol {
                 message: message.into(),
             },
@@ -387,15 +381,15 @@ impl Error {
             papo_core::CloseKind::PingTimeout => DisconnectCause::PingTimeout,
             _ => DisconnectCause::Protocol { message },
         };
-        Self::DisconnectedWith(Disconnected::new(cause, None))
+        Self::Disconnected(Disconnected::new(cause, None))
     }
 
     pub(crate) const fn disconnected_slow_consumer() -> Self {
-        Self::DisconnectedWith(Disconnected::new(DisconnectCause::SlowConsumer, None))
+        Self::Disconnected(Disconnected::new(DisconnectCause::SlowConsumer, None))
     }
 
     pub(crate) const fn disconnected_requested() -> Self {
-        Self::DisconnectedWith(Disconnected::new(DisconnectCause::Requested, None))
+        Self::Disconnected(Disconnected::new(DisconnectCause::Requested, None))
     }
 
     #[allow(dead_code)]
@@ -517,7 +511,7 @@ mod tests {
 
     #[test]
     fn protocol_disconnect_keeps_its_diagnostic() {
-        let error = Error::DisconnectedWith(Disconnected::new(
+        let error = Error::Disconnected(Disconnected::new(
             DisconnectCause::Protocol {
                 message: "connection reset by peer".into(),
             },
@@ -532,7 +526,7 @@ mod tests {
     #[test]
     fn terminal_errors_have_distinct_messages() {
         assert_eq!(
-            Error::DisconnectedWith(Disconnected::new(DisconnectCause::ConnectionLost, None))
+            Error::Disconnected(Disconnected::new(DisconnectCause::ConnectionLost, None))
                 .to_string(),
             "the connection was lost"
         );

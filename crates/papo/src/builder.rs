@@ -524,7 +524,7 @@ mod tests {
 
     macro_rules! disconnected {
         () => {
-            Error::Disconnected | Error::DisconnectedWith(_)
+            Error::Disconnected(_)
         };
     }
 

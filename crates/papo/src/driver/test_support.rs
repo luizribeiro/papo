@@ -27,7 +27,7 @@ pub(crate) use crate::{
 
 macro_rules! disconnected {
     () => {
-        Error::Disconnected | Error::DisconnectedWith(_)
+        Error::Disconnected(_)
     };
 }
 

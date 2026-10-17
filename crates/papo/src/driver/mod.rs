@@ -867,7 +867,7 @@ where
     if let Some(close_error) = close_error
         && !matches!(
             error,
-            Error::DisconnectedWith(crate::Disconnected {
+            Error::Disconnected(crate::Disconnected {
                 cause: crate::DisconnectCause::Protocol { .. },
                 ..
             })

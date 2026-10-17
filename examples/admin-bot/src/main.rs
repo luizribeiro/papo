@@ -60,7 +60,7 @@ async fn run(
         tokio::select! {
             signal = &mut shutdown => {
                 signal.map_err(|error| {
-                    PapoError::DisconnectedWith(papo::Disconnected::new(
+                    PapoError::Disconnected(papo::Disconnected::new(
                         papo::DisconnectCause::Protocol {
                             message: error.to_string(),
                         },

@@ -2,7 +2,7 @@ use super::test_support::*;
 
 macro_rules! disconnected {
     () => {
-        Error::Disconnected | Error::DisconnectedWith(_)
+        Error::Disconnected(_)
     };
 }
 
@@ -1049,7 +1049,7 @@ async fn shutdown_error_overrides_a_non_io_terminal_cause() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::DisconnectedWith(crate::Disconnected {
+        Err(Error::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Protocol { message },
             ..
         })) if message == "shutdown failed"
@@ -1070,7 +1070,7 @@ async fn shutdown_error_does_not_replace_an_io_terminal_cause() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::DisconnectedWith(crate::Disconnected {
+        Err(Error::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Protocol { message },
             ..
         })) if message == "original read failure"
