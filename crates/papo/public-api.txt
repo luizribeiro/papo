@@ -608,7 +608,7 @@ pub const fn papo::Client::metadata(&self) -> papo::Metadata<'_>
 impl papo::Client
 pub fn papo::Client::mode(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::SetModes
 impl papo::Client
-pub const fn papo::Client::persistence(&self) -> papo::Persistence<'_>
+pub fn papo::Client::persistence(&self) -> papo::Persistence
 impl papo::Client
 pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountRegistration>
 pub fn papo::Client::verify_account(&self, impl core::convert::Into<papo_proto::id::AccountName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
@@ -616,7 +616,7 @@ impl papo::Client
 pub fn papo::Client::relay(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::Nick>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::ChannelName>, &str) -> papo::RequestFuture<()>
 impl papo::Client
-pub const fn papo::Client::webpush(&self) -> papo::WebPush<'_>
+pub fn papo::Client::webpush(&self) -> papo::WebPush
 impl core::fmt::Debug for papo::Client
 pub fn papo::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::ConnectError(_)
@@ -764,11 +764,10 @@ pub fn papo::NewAccount::new(impl core::convert::Into<papo_core::secret::Secret>
 pub struct papo::OsEntropy
 impl papo_core::sasl::Entropy for papo::OsEntropy
 pub fn papo::OsEntropy::fill(&mut self, &mut [u8])
-pub struct papo::Persistence<'a>
-impl papo::Persistence<'_>
-pub async fn papo::Persistence<'_>::get(&self) -> core::result::Result<papo_core::PersistenceStatus, papo::Error>
-pub async fn papo::Persistence<'_>::set(&self, papo_core::PersistenceSetting) -> core::result::Result<papo_core::PersistenceStatus, papo::Error>
-pub fn papo::Persistence<'_>::state(&self) -> core::option::Option<papo_core::PersistenceStatus>
+pub struct papo::Persistence
+impl papo::Persistence
+pub fn papo::Persistence::get(&self) -> papo::RequestFuture<papo_core::PersistenceStatus>
+pub fn papo::Persistence::set(&self, papo_core::PersistenceSetting) -> papo::RequestFuture<papo_core::PersistenceStatus>
 pub struct papo::PushKeys
 impl papo::PushKeys
 pub fn papo::PushKeys::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::secret::Secret>) -> Self
@@ -865,10 +864,10 @@ impl core::cmp::PartialEq for papo::Tags
 pub fn papo::Tags::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::Tags
 pub fn papo::Tags::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub struct papo::WebPush<'a>
-impl papo::WebPush<'_>
-pub async fn papo::WebPush<'_>::register(&self, &str, papo::PushKeys) -> core::result::Result<(), papo::Error>
-pub async fn papo::WebPush<'_>::unregister(&self, &str) -> core::result::Result<(), papo::Error>
+pub struct papo::WebPush
+impl papo::WebPush
+pub fn papo::WebPush::register(&self, impl core::convert::Into<alloc::string::String>, papo::PushKeys) -> papo::RequestFuture<()>
+pub fn papo::WebPush::unregister(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub struct papo::WhoEntry
 pub papo::WhoEntry::account: core::option::Option<papo_proto::id::AccountName>
 pub papo::WhoEntry::away: bool

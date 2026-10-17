@@ -89,13 +89,13 @@ fn request_futures_are_send() {
         ),
     );
     assert_send_static(client.verify_account("alice", "392814"));
-    assert_send(client.persistence().get());
-    assert_send(client.persistence().set(PersistenceSetting::On));
-    assert_send(client.webpush().register(
+    assert_send_static(client.persistence().get());
+    assert_send_static(client.persistence().set(PersistenceSetting::On));
+    assert_send_static(client.webpush().register(
         "https://push.example.net/message/ErgoTest/alice",
         PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
     ));
-    assert_send(
+    assert_send_static(
         client
             .webpush()
             .unregister("https://push.example.net/message/ErgoTest/alice"),

@@ -3,8 +3,8 @@ use papo_core::Response;
 use crate::{Client, Error, driver::CoreRequest};
 
 /// Handle for Web Push subscription requests.
-pub struct WebPush<'a> {
-    client: &'a Client,
+pub struct WebPush {
+    client: Client,
 }
 
 /// Web Push encryption keys encoded with the URL-safe Base64 alphabet.
@@ -37,7 +37,7 @@ impl PushKeys {
     }
 }
 
-impl WebPush<'_> {
+impl WebPush {
     /// Registers a Web Push endpoint and its URL-safe encoded keys.
     ///
     /// # Errors
@@ -48,16 +48,23 @@ impl WebPush<'_> {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub async fn register(&self, endpoint: &str, keys: PushKeys) -> Result<(), Error> {
-        let response = self
-            .client
-            .core_request(CoreRequest::WebPushRegister {
-                endpoint: endpoint.into(),
-                p256dh: keys.p256dh,
-                auth: keys.auth,
-            })
-            .await?;
-        webpush_result(&response)
+    pub fn register(
+        &self,
+        endpoint: impl Into<String>,
+        keys: PushKeys,
+    ) -> crate::RequestFuture<()> {
+        let client = self.client.clone();
+        let endpoint = endpoint.into();
+        crate::RequestFuture::new(async move {
+            let response = client
+                .core_request(CoreRequest::WebPushRegister {
+                    endpoint,
+                    p256dh: keys.p256dh,
+                    auth: keys.auth,
+                })
+                .await?;
+            webpush_result(&response)
+        })
     }
 
     /// Unregisters a Web Push endpoint.
@@ -70,20 +77,25 @@ impl WebPush<'_> {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub async fn unregister(&self, endpoint: &str) -> Result<(), Error> {
-        let response = self
-            .client
-            .core_request(CoreRequest::WebPushUnregister(endpoint.into()))
-            .await?;
-        webpush_result(&response)
+    pub fn unregister(&self, endpoint: impl Into<String>) -> crate::RequestFuture<()> {
+        let client = self.client.clone();
+        let endpoint = endpoint.into();
+        crate::RequestFuture::new(async move {
+            let response = client
+                .core_request(CoreRequest::WebPushUnregister(endpoint))
+                .await?;
+            webpush_result(&response)
+        })
     }
 }
 
 impl Client {
     /// Returns a handle for Web Push subscriptions.
     #[must_use]
-    pub const fn webpush(&self) -> WebPush<'_> {
-        WebPush { client: self }
+    pub fn webpush(&self) -> WebPush {
+        WebPush {
+            client: self.clone(),
+        }
     }
 }
 

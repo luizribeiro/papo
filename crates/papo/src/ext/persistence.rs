@@ -1,24 +1,21 @@
 use crate::{Client, Error, driver::CoreRequest};
 
 /// Handle for account persistence requests.
-pub struct Persistence<'a> {
-    client: &'a Client,
+pub struct Persistence {
+    client: Client,
 }
 
 impl Client {
     /// Returns a handle for account persistence requests and cached state.
     #[must_use]
-    pub const fn persistence(&self) -> Persistence<'_> {
-        Persistence { client: self }
+    pub fn persistence(&self) -> Persistence {
+        Persistence {
+            client: self.clone(),
+        }
     }
 }
 
-impl Persistence<'_> {
-    async fn request(&self, request: CoreRequest) -> Result<(), Error> {
-        let response = self.client.core_request(request).await?;
-        crate::requests::empty(&response)
-    }
-
+impl Persistence {
     /// Requests the server's current persistence status.
     ///
     /// # Errors
@@ -28,9 +25,13 @@ impl Persistence<'_> {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub async fn get(&self) -> Result<papo_core::PersistenceStatus, Error> {
-        self.request(CoreRequest::PersistenceGet).await?;
-        self.state().ok_or_else(Error::disconnected)
+    pub fn get(&self) -> crate::RequestFuture<papo_core::PersistenceStatus> {
+        let client = self.client.clone();
+        crate::RequestFuture::new(async move {
+            let response = client.core_request(CoreRequest::PersistenceGet).await?;
+            crate::requests::empty(&response)?;
+            client.state().persistence().ok_or_else(Error::disconnected)
+        })
     }
 
     /// Changes the account persistence preference.
@@ -42,18 +43,18 @@ impl Persistence<'_> {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub async fn set(
+    pub fn set(
         &self,
         setting: papo_core::PersistenceSetting,
-    ) -> Result<papo_core::PersistenceStatus, Error> {
-        self.request(CoreRequest::PersistenceSet(setting)).await?;
-        self.state().ok_or_else(Error::disconnected)
-    }
-
-    /// Returns the most recently reported persistence status.
-    #[must_use]
-    pub fn state(&self) -> Option<papo_core::PersistenceStatus> {
-        self.client.state().persistence()
+    ) -> crate::RequestFuture<papo_core::PersistenceStatus> {
+        let client = self.client.clone();
+        crate::RequestFuture::new(async move {
+            let response = client
+                .core_request(CoreRequest::PersistenceSet(setting))
+                .await?;
+            crate::requests::empty(&response)?;
+            client.state().persistence().ok_or_else(Error::disconnected)
+        })
     }
 }
 
@@ -114,7 +115,7 @@ mod tests {
         )
         .await;
         assert!(within(set).await.unwrap().unwrap().effective);
-        assert!(client.persistence().state().unwrap().effective);
+        assert!(client.state().persistence().unwrap().effective);
 
         let get = tokio::spawn({
             let client = client.clone();
