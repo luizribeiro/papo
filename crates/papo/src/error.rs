@@ -377,6 +377,12 @@ impl Disconnected {
     pub const fn new(cause: DisconnectCause, retry_in: Option<Duration>) -> Self {
         Self { cause, retry_in }
     }
+
+    /// Whether another connection attempt is scheduled.
+    #[must_use]
+    pub const fn is_retrying(&self) -> bool {
+        self.retry_in.is_some()
+    }
 }
 
 impl fmt::Display for Disconnected {

@@ -158,6 +158,10 @@ pub papo::event::Departed::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Disconnected
 pub papo::event::Disconnected::reason: alloc::string::String
 pub papo::event::Disconnected::will_retry: bool
+impl papo::event::Disconnected
+pub const fn papo::event::Disconnected::is_retrying(&self) -> bool
+impl core::fmt::Display for papo::event::Disconnected
+pub fn papo::event::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::host: alloc::string::String
 pub papo::event::HostChanged::nick: papo_proto::id::Nick
@@ -606,6 +610,7 @@ pub fn papo::ConnectError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fm
 pub papo::Disconnected::cause: papo::DisconnectCause
 pub papo::Disconnected::retry_in: core::option::Option<core::time::Duration>
 impl papo::Disconnected
+pub const fn papo::Disconnected::is_retrying(&self) -> bool
 pub const fn papo::Disconnected::new(papo::DisconnectCause, core::option::Option<core::time::Duration>) -> Self
 impl core::error::Error for papo::Disconnected
 impl core::fmt::Display for papo::Disconnected

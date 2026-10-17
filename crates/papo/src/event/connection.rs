@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{Capabilities, Nick};
 
 /// A connection completed IRC registration.
@@ -22,6 +24,20 @@ pub struct Disconnected {
     pub reason: String,
     /// Whether the client will try to connect again.
     pub will_retry: bool,
+}
+
+impl Disconnected {
+    /// Whether another connection attempt is scheduled.
+    #[must_use]
+    pub const fn is_retrying(&self) -> bool {
+        self.will_retry
+    }
+}
+
+impl fmt::Display for Disconnected {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.reason)
+    }
 }
 
 /// The capabilities enabled on an established connection changed.
