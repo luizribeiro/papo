@@ -10,6 +10,8 @@ mod read;
 mod write;
 #[path = "../../../../../papo/src/transport/websocket_browser/handshake.rs"]
 mod handshake;
+#[path = "../../../../../papo/src/transport/websocket_browser/callbacks.rs"]
+mod callbacks;
 
 #[wasm_bindgen_test]
 fn parses_an_ergo_message() {
