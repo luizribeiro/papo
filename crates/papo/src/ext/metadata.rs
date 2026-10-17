@@ -130,7 +130,7 @@ impl Metadata<'_> {
     /// [`Error`] variants.
     pub async fn clear(&self) -> Result<(), Error> {
         self.request(MetadataCommand::Clear {
-            target: self.client.nick(),
+            target: self.client.nick().into_string(),
         })
         .await
     }

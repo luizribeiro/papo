@@ -61,7 +61,10 @@ async fn registers_then_logs_in_with_sasl() {
             .unwrap();
         wait_registered(&mut authenticated_events, &account).await;
         assert_eq!(
-            authenticated.state().account().map(str::to_owned),
+            authenticated
+                .state()
+                .account()
+                .map(|account| account.as_ref().to_owned()),
             Some(account.clone())
         );
         authenticated

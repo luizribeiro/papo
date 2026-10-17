@@ -41,7 +41,10 @@ pub use papo_core::{Account, Capabilities, Channel, Feature, Member, Response, U
 pub use papo_core::{PersistenceSetting, PersistenceStatus, Secret};
 pub use papo_core::{RateLimit, Sasl};
 pub use papo_core::{Unsupported, UnsupportedReason};
-pub use papo_proto::{Casemapping, Typing};
+pub use papo_proto::{
+    AccountName, Casemapping, ChannelName, Folded, InvalidIdentifier, Mask, MessageId, MetadataKey,
+    Nick, Target, Typing,
+};
 pub use reconnect::Reconnect;
 pub use requests::{ChannelInfo, ListEntry, ListFilter, WhoEntry, Whois};
 pub use state::State;

@@ -86,7 +86,7 @@ impl Client {
 
     /// Returns the client's current nickname.
     #[must_use]
-    pub fn nick(&self) -> String {
+    pub fn nick(&self) -> crate::Nick {
         self.state().nick().to_owned()
     }
 

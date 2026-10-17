@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use papo_core::{Capabilities, Channel, Feature, Session, UnsupportedReason, User};
-use papo_proto::{Casemapping, Isupport, NAME_ALIASES, NameKind};
+use papo_proto::{AccountName, Casemapping, Isupport, NAME_ALIASES, NameKind, Nick};
 
 /// An immutable snapshot of an IRC client's known state.
 ///
@@ -13,7 +13,7 @@ pub struct State {
     core: papo_core::State,
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
-    account: Option<String>,
+    account: Option<AccountName>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
     connected: bool,
     generation: u64,
@@ -34,7 +34,7 @@ impl State {
             core: session.state().clone(),
             caps: session.caps().clone(),
             isupport: Arc::new(session.isupport().clone()),
-            account: session.account().map(str::to_owned),
+            account: session.account().map(AccountName::from),
             unsupported,
             connected,
             generation: session.state_generation(),
@@ -70,20 +70,20 @@ impl State {
 
     /// Returns the client's current nickname.
     #[must_use]
-    pub fn nick(&self) -> &str {
+    pub fn nick(&self) -> &Nick {
         self.core.nick()
     }
 
     /// Reports whether `nick` identifies this client under the server's casemapping.
     #[must_use]
-    pub fn is_me(&self, nick: &str) -> bool {
-        self.casemapping().eq(self.nick(), nick)
+    pub fn is_me(&self, nick: impl AsRef<str>) -> bool {
+        self.casemapping().eq(self.nick(), nick.as_ref())
     }
 
     /// Returns the authenticated account name when known.
     #[must_use]
-    pub fn account(&self) -> Option<&str> {
-        self.account.as_deref()
+    pub fn account(&self) -> Option<&AccountName> {
+        self.account.as_ref()
     }
 
     /// Reports whether the client is marked away.
@@ -99,7 +99,7 @@ impl State {
 
     /// Returns a joined channel using the server's casemapping.
     #[must_use]
-    pub fn channel(&self, name: &str) -> Option<&Channel> {
+    pub fn channel(&self, name: impl AsRef<str>) -> Option<&Channel> {
         self.core.channel(name)
     }
 
@@ -110,7 +110,7 @@ impl State {
 
     /// Returns the newest read marker time reported for `target`.
     #[must_use]
-    pub fn read_marker(&self, target: &str) -> Option<std::time::SystemTime> {
+    pub fn read_marker(&self, target: impl AsRef<str>) -> Option<std::time::SystemTime> {
         self.core.read_marker(target).and_then(|marker| marker.time)
     }
 
@@ -122,7 +122,10 @@ impl State {
 
     /// Returns cached metadata for `target`.
     #[must_use]
-    pub fn metadata(&self, target: &str) -> Option<&HashMap<String, papo_core::MetadataValue>> {
+    pub fn metadata(
+        &self,
+        target: impl AsRef<str>,
+    ) -> Option<&HashMap<String, papo_core::MetadataValue>> {
         self.core.metadata(target)
     }
 
@@ -134,7 +137,7 @@ impl State {
 
     /// Returns a known user using the server's casemapping.
     #[must_use]
-    pub fn user(&self, nick: &str) -> Option<&User> {
+    pub fn user(&self, nick: impl AsRef<str>) -> Option<&User> {
         self.core.user(nick)
     }
 

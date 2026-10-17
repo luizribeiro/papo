@@ -2942,10 +2942,11 @@ async fn public_state_accessors_report_the_registered_session() {
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 :are supported\r\n:ergo.test 306 papo-driver :You have been marked as being away\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
     while !matches!(events.next().await, Some(Event::MonitorOnline { .. })) {}
 
-    assert_eq!(client.nick(), "papo-driver");
+    let nick: crate::Nick = client.nick();
+    assert_eq!(nick, "papo-driver");
     let state = client.state();
-    assert!(state.is_me("papo-driver"));
-    assert_eq!(state.account(), Some("emily"));
+    assert!(state.is_me(&nick));
+    assert_eq!(state.account().map(AsRef::as_ref), Some("emily"));
     assert!(state.away());
     let mut modes: Vec<_> = state.user_modes().collect();
     modes.sort_unstable();
@@ -2957,7 +2958,10 @@ async fn public_state_accessors_report_the_registered_session() {
             .collect::<Vec<_>>(),
         ["#Papo"]
     );
-    assert_eq!(state.user("ALICE").unwrap().username(), Some("~alice"));
+    assert_eq!(
+        state.user(crate::Nick::from("ALICE")).unwrap().username(),
+        Some("~alice")
+    );
     assert_eq!(state.monitor_online().next().unwrap().nick(), "bob");
     assert_eq!(state.isupport().nicklen(), Some(27));
     assert!(
@@ -2967,7 +2971,7 @@ async fn public_state_accessors_report_the_registered_session() {
     );
     let snapshot = client.state();
     assert_eq!(snapshot.nick(), "papo-driver");
-    assert_eq!(snapshot.account(), Some("emily"));
+    assert_eq!(snapshot.account().map(AsRef::as_ref), Some("emily"));
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(

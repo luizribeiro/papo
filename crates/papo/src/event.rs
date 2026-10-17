@@ -86,7 +86,7 @@ impl MessageEvent {
 
     #[cfg(feature = "bot")]
     pub(crate) fn client_nick(&self) -> String {
-        self.client.nick()
+        self.client.nick().into_string()
     }
 
     #[cfg(feature = "bot")]
