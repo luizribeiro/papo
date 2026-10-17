@@ -28,6 +28,7 @@ mod io_compat;
 pub mod isupport;
 pub mod metadata;
 mod mode;
+pub mod numeric;
 mod reconnect;
 mod requests;
 mod rt;

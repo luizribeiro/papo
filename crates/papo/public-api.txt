@@ -328,6 +328,23 @@ pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> wh
 #[non_exhaustive] pub struct papo::metadata::MetadataValue
 pub papo::metadata::MetadataValue::value: alloc::string::String
 pub papo::metadata::MetadataValue::visibility: alloc::string::String
+pub mod papo::numeric
+pub const papo::numeric::ERR_NOMOTD: u16
+pub const papo::numeric::RPL_CREATED: u16
+pub const papo::numeric::RPL_ENDOFMOTD: u16
+pub const papo::numeric::RPL_GLOBALUSERS: u16
+pub const papo::numeric::RPL_ISUPPORT: u16
+pub const papo::numeric::RPL_LOCALUSERS: u16
+pub const papo::numeric::RPL_LUSERCHANNELS: u16
+pub const papo::numeric::RPL_LUSERCLIENT: u16
+pub const papo::numeric::RPL_LUSERME: u16
+pub const papo::numeric::RPL_LUSEROP: u16
+pub const papo::numeric::RPL_LUSERUNKNOWN: u16
+pub const papo::numeric::RPL_MOTD: u16
+pub const papo::numeric::RPL_MOTDSTART: u16
+pub const papo::numeric::RPL_MYINFO: u16
+pub const papo::numeric::RPL_WELCOME: u16
+pub const papo::numeric::RPL_YOURHOST: u16
 pub mod papo::sts
 pub use papo::sts::MemoryStsStore
 pub use papo::sts::StsPolicy
