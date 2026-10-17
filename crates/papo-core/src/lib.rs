@@ -62,8 +62,8 @@ use keepalive::Keepalive;
 pub use metadata::{MetadataCommand, MetadataError, MetadataLimits, MetadataValue};
 use monitor::Monitor;
 pub use outgoing::TextKind;
-pub use ratelimit::RateLimit;
 use ratelimit::RateLimiter;
+pub use ratelimit::{InvalidRateLimit, RateLimit};
 use registration::Registration;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]

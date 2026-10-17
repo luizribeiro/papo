@@ -1796,8 +1796,9 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn client_send_raw_parses_and_obeys_the_rate_limit() {
-    let (mut server, client, _events, driver) =
-        scripted(config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500))));
+    let (mut server, client, _events, driver) = scripted(
+        config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500)).unwrap()),
+    );
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
     client.send_raw("WHOIS emily").await.unwrap();
@@ -1816,8 +1817,9 @@ async fn client_send_raw_parses_and_obeys_the_rate_limit() {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn command_builder_quotes_real_commands_and_obeys_the_rate_limit() {
-    let (mut server, client, _events, driver) =
-        scripted(config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500))));
+    let (mut server, client, _events, driver) = scripted(
+        config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500)).unwrap()),
+    );
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
 

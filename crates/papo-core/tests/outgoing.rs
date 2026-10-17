@@ -287,7 +287,7 @@ fn every_batch_wire_line_consumes_one_rate_limit_token() {
         now,
         "max-bytes=40,max-lines=3",
         false,
-        RateLimit::new(4, Duration::from_millis(500)),
+        RateLimit::new(4, Duration::from_millis(500)).unwrap(),
     );
     session
         .send_text(now, TextKind::Privmsg, "#papo", "one\ntwo\nthree", &[])

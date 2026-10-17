@@ -887,7 +887,7 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     Transcript::rate_limited(
         Config::default()
             .nick("emily")
-            .rate_limit(RateLimit::new(1, Duration::from_millis(500))),
+            .rate_limit(RateLimit::new(1, Duration::from_millis(500)).unwrap()),
     )
     .connect()
     .client("CAP LS 302")

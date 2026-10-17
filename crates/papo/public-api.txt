@@ -8,6 +8,7 @@ pub use papo::ChannelName
 pub use papo::Feature
 pub use papo::Folded
 pub use papo::InvalidIdentifier
+pub use papo::InvalidRateLimit
 pub use papo::Mask
 pub use papo::Member
 pub use papo::MessageId

@@ -1,6 +1,27 @@
 use std::time::Duration;
 use web_time::Instant;
 
+/// Why an outbound rate-limit configuration is invalid.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum InvalidRateLimit {
+    /// The bucket cannot hold any tokens.
+    EmptyBurst,
+    /// Tokens would never be replenished.
+    ZeroRefill,
+}
+
+impl std::fmt::Display for InvalidRateLimit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EmptyBurst => formatter.write_str("rate-limit burst must be positive"),
+            Self::ZeroRefill => formatter.write_str("rate-limit refill must be positive"),
+        }
+    }
+}
+
+impl std::error::Error for InvalidRateLimit {}
+
 /// Outbound token-bucket configuration.
 ///
 /// The default permits a burst of five lines and then two lines per second. A server's
@@ -15,18 +36,21 @@ pub struct RateLimit {
 impl RateLimit {
     /// Creates a bucket with `burst` initial tokens and one token per `refill`.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics when `burst` is zero or `refill` is zero.
-    #[must_use]
-    pub const fn new(burst: usize, refill: Duration) -> Self {
-        assert!(burst > 0, "rate-limit burst must be positive");
-        assert!(!refill.is_zero(), "rate-limit refill must be positive");
-        Self {
+    /// Returns [`InvalidRateLimit`] when `burst` or `refill` is zero.
+    pub const fn new(burst: usize, refill: Duration) -> Result<Self, InvalidRateLimit> {
+        if burst == 0 {
+            return Err(InvalidRateLimit::EmptyBurst);
+        }
+        if refill.is_zero() {
+            return Err(InvalidRateLimit::ZeroRefill);
+        }
+        Ok(Self {
             burst,
             refill,
             strict: false,
-        }
+        })
     }
 
     /// Disables outbound rate limiting.
@@ -49,7 +73,11 @@ impl RateLimit {
 
 impl Default for RateLimit {
     fn default() -> Self {
-        Self::new(5, Duration::from_millis(500))
+        Self {
+            burst: 5,
+            refill: Duration::from_millis(500),
+            strict: false,
+        }
     }
 }
 
@@ -123,14 +151,18 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    #[should_panic(expected = "burst must be positive")]
     fn rejects_an_empty_burst() {
-        let _ = RateLimit::new(0, Duration::from_millis(500));
+        assert_eq!(
+            RateLimit::new(0, Duration::from_millis(500)),
+            Err(super::InvalidRateLimit::EmptyBurst)
+        );
     }
 
     #[test]
-    #[should_panic(expected = "refill must be positive")]
     fn rejects_a_zero_refill_interval() {
-        let _ = RateLimit::new(5, Duration::ZERO);
+        assert_eq!(
+            RateLimit::new(5, Duration::ZERO),
+            Err(super::InvalidRateLimit::ZeroRefill)
+        );
     }
 }

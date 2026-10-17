@@ -87,7 +87,7 @@ pub use papo_core::{Account, Capabilities, Channel, Feature, Member, User};
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 #[doc(inline)]
-pub use papo_core::{RateLimit, Sasl};
+pub use papo_core::{InvalidRateLimit, RateLimit, Sasl};
 #[doc(inline)]
 pub use papo_core::{Unsupported, UnsupportedReason};
 #[doc(inline)]

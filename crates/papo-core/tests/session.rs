@@ -22,7 +22,7 @@ fn config_builders_set_registration_identity_and_timeout() {
         .registration_timeout(Duration::from_secs(23))
         .ping_interval(Duration::from_secs(41))
         .ping_timeout(Duration::from_secs(82))
-        .rate_limit(RateLimit::new(7, Duration::from_millis(250)))
+        .rate_limit(RateLimit::new(7, Duration::from_millis(250)).unwrap())
         .max_channels(17)
         .max_members_per_channel(23)
         .max_open_batches(3)
@@ -52,7 +52,7 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(config.request_timeout, Duration::from_secs(11));
     assert_eq!(
         config.rate_limit,
-        RateLimit::new(7, Duration::from_millis(250))
+        RateLimit::new(7, Duration::from_millis(250)).unwrap()
     );
     assert_eq!(
         config.wanted_caps,
