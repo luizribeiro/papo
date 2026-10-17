@@ -1287,10 +1287,6 @@ async fn verification_challenge_resolves_registration_before_welcome() {
         b"REGISTER alice alice@example.org :correct horse battery staple\r\n",
     )
     .await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::RequestUntracked { .. })
-    ));
     server_line(
         &mut server,
         b":ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent\r\n",

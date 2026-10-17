@@ -409,7 +409,7 @@ impl Builder {
     ///
     /// The [`crate::Event::Registered`] event remains available from the
     /// returned event stream. When account registration requires email
-    /// verification, this returns after [`crate::Event::VerificationRequired`]
+    /// verification, this returns after [`crate::AccountRegistration::VerificationRequired`]
     /// because the server holds IRC registration open until verification.
     ///
     /// # Errors

@@ -981,36 +981,6 @@ where
     {
         match event::from_core(core_event) {
             event::CoreEvent::Forward(mut event) => {
-                event = match event {
-                    Event::Response(response) => {
-                        if let Some(catchup) = catchups.remove(&response.id) {
-                            match advance_catchup(session, events, catchups, catchup, response) {
-                                Some(event) => event,
-                                None => continue,
-                            }
-                        } else if let Some(result) = requests.remove(&response.id) {
-                            result.respond(response);
-                            continue;
-                        } else {
-                            Event::Response(response)
-                        }
-                    }
-                    Event::RequestTimedOut { id } => {
-                        if let Some(result) = requests.remove(&id) {
-                            result.fail(Error::Timeout);
-                            continue;
-                        }
-                        Event::RequestTimedOut { id }
-                    }
-                    Event::RequestAborted { id } => {
-                        if let Some(result) = requests.remove(&id) {
-                            result.fail(Error::disconnected());
-                            continue;
-                        }
-                        Event::RequestAborted { id }
-                    }
-                    event => event,
-                };
                 event.mark_self(session.nick(), session.isupport().casemapping());
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);
@@ -1117,6 +1087,34 @@ where
                         papo_core::CloseKind::Other,
                         SLOW_CONSUMER_REASON.to_owned(),
                     )));
+                }
+            }
+            event::CoreEvent::Response(response) => {
+                if let Some(catchup) = catchups.remove(&response.id) {
+                    if let Some(event) =
+                        advance_catchup(session, events, catchups, catchup, response)
+                        && !enqueue_event(events, pending_events, event)
+                    {
+                        return Ok(Some((
+                            papo_core::CloseKind::Other,
+                            SLOW_CONSUMER_REASON.to_owned(),
+                        )));
+                    }
+                } else if let Some(result) = requests.remove(&response.id) {
+                    result.respond(response);
+                }
+            }
+            event::CoreEvent::RequestUntracked(id) => {
+                requests.remove(&id);
+            }
+            event::CoreEvent::RequestTimedOut(id) => {
+                if let Some(result) = requests.remove(&id) {
+                    result.fail(Error::Timeout);
+                }
+            }
+            event::CoreEvent::RequestAborted(id) => {
+                if let Some(result) = requests.remove(&id) {
+                    result.fail(Error::disconnected());
                 }
             }
             event::CoreEvent::History {

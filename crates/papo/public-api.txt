@@ -346,13 +346,6 @@ pub papo::Event::ReadMarker(papo::event::ReadMarker)
 pub papo::Event::RealnameChanged(papo::event::RealnameChanged)
 pub papo::Event::Redacted(papo::event::Redacted)
 pub papo::Event::Registered(papo::event::Registered)
-pub papo::Event::RequestAborted
-pub papo::Event::RequestAborted::id: papo_core::RequestId
-pub papo::Event::RequestTimedOut
-pub papo::Event::RequestTimedOut::id: papo_core::RequestId
-pub papo::Event::RequestUntracked
-pub papo::Event::RequestUntracked::id: papo_core::RequestId
-pub papo::Event::Response(papo_core::Response)
 pub papo::Event::StandardReply(papo::event::StandardReply)
 pub papo::Event::StsPolicy(papo_core::sts::StsAction)
 pub papo::Event::StsUpgrade

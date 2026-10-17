@@ -563,23 +563,6 @@ pub enum Event {
     TypingChanged(TypingChanged),
     /// A message was redacted from a target's history.
     Redacted(Redacted),
-    /// A labelled request received its complete logical response.
-    Response(Response),
-    /// A request was sent without protocol-level response correlation.
-    RequestUntracked {
-        /// Identifier assigned to the request.
-        id: RequestId,
-    },
-    /// A labelled request did not receive a response before its deadline.
-    RequestTimedOut {
-        /// Identifier assigned to the request.
-        id: RequestId,
-    },
-    /// A labelled request was pending when the connection ended.
-    RequestAborted {
-        /// Identifier assigned to the request.
-        id: RequestId,
-    },
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
     /// Account creation completed and the connection is authenticated.
@@ -725,6 +708,10 @@ pub(crate) enum CoreEvent {
     Registered(Welcome),
     Message(papo_core::ReceivedMessage),
     Raw(Message),
+    Response(Response),
+    RequestUntracked(RequestId),
+    RequestTimedOut(RequestId),
+    RequestAborted(RequestId),
     History {
         target: String,
         messages: Vec<papo_core::HistoryMessage>,
@@ -797,10 +784,10 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             msgid: redacted.msgid,
             reason: redacted.reason,
         }),
-        papo_core::Event::Response(response) => Event::Response(response),
-        papo_core::Event::RequestUntracked { id } => Event::RequestUntracked { id },
-        papo_core::Event::RequestTimedOut { id } => Event::RequestTimedOut { id },
-        papo_core::Event::RequestAborted { id } => Event::RequestAborted { id },
+        papo_core::Event::Response(response) => return CoreEvent::Response(response),
+        papo_core::Event::RequestUntracked { id } => return CoreEvent::RequestUntracked(id),
+        papo_core::Event::RequestTimedOut { id } => return CoreEvent::RequestTimedOut(id),
+        papo_core::Event::RequestAborted { id } => return CoreEvent::RequestAborted(id),
         papo_core::Event::RequestUnsupported { id, unsupported } => {
             return CoreEvent::RequestUnsupported { id, unsupported };
         }
@@ -1288,7 +1275,7 @@ mod tests {
             .unwrap();
         session.handle_line(now, b"@label=0 :ergo.test ACK");
         assert!(
-            matches!(forwarded(session.poll_event().unwrap()), Event::Response(response) if response.id == id)
+            matches!(from_core(session.poll_event().unwrap()), CoreEvent::Response(response) if response.id == id)
         );
     }
 
@@ -1380,8 +1367,8 @@ mod tests {
         while session.poll_transmit().is_some() {}
         session.persistence_get(now).unwrap();
         assert!(matches!(
-            forwarded(session.poll_event().unwrap()),
-            Event::RequestUntracked { .. }
+            from_core(session.poll_event().unwrap()),
+            CoreEvent::RequestUntracked(_)
         ));
     }
 
@@ -1394,7 +1381,7 @@ mod tests {
             .unwrap();
         session.handle_timeout(now);
         assert!(
-            matches!(forwarded(session.poll_event().unwrap()), Event::RequestTimedOut { id: mapped } if mapped == id)
+            matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestTimedOut(mapped) if mapped == id)
         );
     }
 
@@ -1407,7 +1394,7 @@ mod tests {
             .unwrap();
         session.handle_disconnected(now);
         assert!(
-            matches!(forwarded(session.poll_event().unwrap()), Event::RequestAborted { id: mapped } if mapped == id)
+            matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestAborted(mapped) if mapped == id)
         );
     }
 
