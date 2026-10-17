@@ -31,9 +31,7 @@ pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
     RegistrationError, ServerError,
 };
-pub use event_impl::{
-    Event, Message, MessageKind, Origin, RawLine, Source, Tags, TargetedMessageId,
-};
+pub use event_impl::{Event, Message, MessageKind, Origin, RawLine, Source, Tags};
 pub use ext::accounts::{AccountRegistration, NewAccount};
 pub use ext::history::{History, HistoryItem, HistoryPage, HistoryReference, HistoryRequest};
 pub use ext::metadata::Metadata;

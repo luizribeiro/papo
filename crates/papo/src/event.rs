@@ -14,8 +14,6 @@ mod channel;
 mod connection;
 #[path = "event/conversation.rs"]
 mod conversation;
-#[path = "event/message_id.rs"]
-mod message_id;
 #[path = "event/raw.rs"]
 mod raw;
 #[path = "event/server.rs"]
@@ -35,7 +33,6 @@ pub use connection::{CapsChanged, Disconnected, Registered};
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
-pub use message_id::TargetedMessageId;
 pub use raw::RawLine;
 pub use server::{
     BatchAbandonReason, MetadataChanged, PersistenceChanged, PersistenceSetting, StateLimit,
