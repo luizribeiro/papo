@@ -404,6 +404,42 @@ mod tests {
         );
     }
 
+    #[test]
+    fn rejects_every_parameter_delimiter_and_empty_opaque_value() {
+        for (value, character) in [
+            ("emily\0staff", '\0'),
+            ("emily\rstaff", '\r'),
+            ("emily\nstaff", '\n'),
+            ("emily staff", ' '),
+        ] {
+            assert_eq!(
+                AccountName::from(value).check(),
+                Err(InvalidIdentifier::InvalidCharacter(character))
+            );
+        }
+        assert_eq!(AccountName::from("").check(), Err(InvalidIdentifier::Empty));
+        assert_eq!(
+            Mask::from(":*!*@localhost").check(),
+            Err(InvalidIdentifier::InvalidPrefix(':'))
+        );
+        assert_eq!(
+            Mask::from("*!*@local host").check(),
+            Err(InvalidIdentifier::InvalidCharacter(' '))
+        );
+        assert_eq!(MessageId::from("").check(), Err(InvalidIdentifier::Empty));
+        assert_eq!(
+            MessageId::from("RfcBTzyx\nY120004").check(),
+            Err(InvalidIdentifier::InvalidCharacter('\n'))
+        );
+
+        assert_eq!(MetadataKey::from("a0_./-").check(), Ok(()));
+        assert_eq!(MetadataKey::from("").check(), Err(InvalidIdentifier::Empty));
+        assert_eq!(
+            MetadataKey::from("profile+color").check(),
+            Err(InvalidIdentifier::InvalidCharacter('+'))
+        );
+    }
+
     fn libera_isupport() -> Isupport {
         let line = MessageRef::parse(
             ":irc.libera.chat 005 papo CASEMAPPING=rfc1459 CHANTYPES=# PREFIX=(ov)@+ NICKLEN=16 CHANNELLEN=50 STATUSMSG=@+ :are supported",
@@ -440,8 +476,43 @@ mod tests {
     }
 
     #[test]
+    fn validates_literal_default_name_limits() {
+        let support = Isupport::default();
+        assert_eq!(Nick::from("abcdefghi").check(&support), Ok(()));
+        assert_eq!(
+            Nick::from("abcdefghij").check(&support),
+            Err(InvalidIdentifier::TooLong {
+                length: 10,
+                maximum: 9,
+            })
+        );
+        assert_eq!(
+            ChannelName::from(format!("#{}", "p".repeat(49))).check(&support),
+            Ok(())
+        );
+        assert_eq!(
+            ChannelName::from(format!("#{}", "p".repeat(50))).check(&support),
+            Err(InvalidIdentifier::TooLong {
+                length: 51,
+                maximum: 50,
+            })
+        );
+    }
+
+    #[test]
     fn rejects_name_delimiters_and_unadvertised_prefixes() {
         let support = libera_isupport();
+        for (nick, character) in [
+            ("alice\0staff", '\0'),
+            ("alice\rstaff", '\r'),
+            ("alice\nstaff", '\n'),
+            ("alice staff", ' '),
+        ] {
+            assert_eq!(
+                Nick::from(nick).check(&support),
+                Err(InvalidIdentifier::InvalidCharacter(character))
+            );
+        }
         for (nick, character) in [
             ("alice,bob", ','),
             ("alice*", '*'),
@@ -469,10 +540,19 @@ mod tests {
             ChannelName::from("papo").check(&support),
             Err(InvalidIdentifier::InvalidPrefix('p'))
         );
-        assert_eq!(
-            ChannelName::from("#papo,dev").check(&support),
-            Err(InvalidIdentifier::InvalidCharacter(','))
-        );
+        for (channel, character) in [
+            ("#papo\0dev", '\0'),
+            ("#papo\rdev", '\r'),
+            ("#papo\ndev", '\n'),
+            ("#papo dev", ' '),
+            ("#papo\u{7}dev", '\u{7}'),
+            ("#papo,dev", ','),
+        ] {
+            assert_eq!(
+                ChannelName::from(channel).check(&support),
+                Err(InvalidIdentifier::InvalidCharacter(character))
+            );
+        }
     }
 
     #[test]
