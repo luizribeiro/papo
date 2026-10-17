@@ -943,9 +943,10 @@ pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::tr
 pub papo::Message::account: core::option::Option<papo::AccountName>
 pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
 pub papo::Message::is_bot: bool
+pub papo::Message::is_oper: bool
 pub papo::Message::kind: papo::MessageKind
 pub papo::Message::msgid: core::option::Option<papo::MessageId>
-pub papo::Message::oper: core::option::Option<core::option::Option<alloc::string::String>>
+pub papo::Message::oper: core::option::Option<alloc::string::String>
 pub papo::Message::origin: papo::Origin
 pub papo::Message::raw_text: alloc::string::String
 pub papo::Message::received_at: std::time::SystemTime
@@ -953,7 +954,7 @@ pub papo::Message::relayed_by: core::option::Option<papo::Nick>
 pub papo::Message::reply_to: core::option::Option<papo::MessageId>
 pub papo::Message::sender: core::option::Option<papo::Source>
 pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
-pub papo::Message::status: core::option::Option<alloc::string::String>
+pub papo::Message::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::Message::tags: papo::Tags
 pub papo::Message::target: papo::Target
 pub papo::Message::text: alloc::string::String
@@ -963,11 +964,12 @@ pub fn papo::Message::ctcp(&self) -> core::option::Option<papo::Ctcp<'_>>
 pub fn papo::Message::id(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Message::is_bot(&self) -> bool
 pub fn papo::Message::is_live(&self) -> bool
+pub fn papo::Message::is_oper(&self) -> bool
 pub fn papo::Message::is_own(&self) -> bool
 pub fn papo::Message::is_private(&self) -> bool
 pub const fn papo::Message::kind(&self) -> papo::MessageKind
 pub fn papo::Message::msgid(&self) -> core::option::Option<&str>
-pub fn papo::Message::oper(&self) -> core::option::Option<core::option::Option<&str>>
+pub fn papo::Message::oper(&self) -> core::option::Option<&str>
 pub fn papo::Message::origin(&self) -> papo::Origin
 pub fn papo::Message::raw_text(&self) -> &str
 pub fn papo::Message::relayed_by(&self) -> core::option::Option<&str>
@@ -1108,7 +1110,7 @@ impl papo::Tags
 pub fn papo::Tags::contains(&self, &str) -> bool
 pub fn papo::Tags::get(&self, &str) -> core::option::Option<&str>
 pub const fn papo::Tags::is_empty(&self) -> bool
-pub fn papo::Tags::iter(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, core::option::Option<&str>)>
+pub fn papo::Tags::iter(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, &str)>
 impl core::cmp::Eq for papo::Tags
 impl core::cmp::PartialEq for papo::Tags
 pub fn papo::Tags::eq(&self, &Self) -> bool

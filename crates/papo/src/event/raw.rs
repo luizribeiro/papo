@@ -82,9 +82,7 @@ impl fmt::Display for RawLine {
                     formatter.write_str(";")?;
                 }
                 formatter.write_str(key)?;
-                if let Some(value) = value {
-                    write!(formatter, "={}", escape_tag(value))?;
-                }
+                write!(formatter, "={}", escape_tag(value))?;
             }
             formatter.write_str(" ")?;
         }
@@ -176,6 +174,6 @@ mod tests {
             line.source(),
             Some(Source::Server { name }) if name == "ergo.test"
         ));
-        assert_eq!(line.to_string(), "@bot :ergo.test 372 papo :");
+        assert_eq!(line.to_string(), "@bot= :ergo.test 372 papo :");
     }
 }

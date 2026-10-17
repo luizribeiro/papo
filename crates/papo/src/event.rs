@@ -120,8 +120,8 @@ pub struct Message {
     pub sender: Option<Source>,
     /// The channel or nickname addressed by the message.
     pub target: Target,
-    /// `STATUSMSG` prefixes removed from [`Self::target`].
-    pub status: Option<String>,
+    /// `STATUSMSG` prefixes removed from [`Self::target`], in wire order.
+    pub status: Option<Vec<char>>,
     /// Display text with IRC formatting removed.
     pub text: String,
     /// The text parameter exactly as received.
@@ -145,9 +145,10 @@ pub struct Message {
     pub relayed_by: Option<Nick>,
     /// Whether the message carried the `bot` tag.
     pub is_bot: bool,
-    /// IRC operator name, with nested `None` representing a valueless oper tag.
-    #[allow(clippy::option_option)]
-    pub oper: Option<Option<String>>,
+    /// Whether the message carried the IRC operator tag.
+    pub is_oper: bool,
+    /// IRC operator name, when the operator tag supplied one.
+    pub oper: Option<String>,
     /// How the message relates to the current session.
     pub origin: Origin,
     /// All message tags in wire order.
@@ -273,7 +274,7 @@ impl Message {
             .map(char::len_utf8)
             .sum();
         let (status, target) = raw_target.split_at(status_len);
-        let status = (!status.is_empty()).then(|| status.to_owned());
+        let status = (!status.is_empty()).then(|| status.chars().collect());
         let target = Target::from(target);
         let private = !isupport.is_channel(&target);
         let sender = message.source().map(Source::from_proto);
@@ -288,10 +289,9 @@ impl Message {
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]).map(MessageId::from);
         #[cfg(feature = "unstable")]
         let relayed_by = tag_owned(&message, &["draft/relaymsg"]).map(Nick::from);
-        let oper = message
-            .tags()
-            .find(|(key, _)| *key == "draft/oper")
-            .map(|(_, value)| value.map(std::borrow::Cow::into_owned));
+        let oper_tag = message.tags().find(|(key, _)| *key == "draft/oper");
+        let is_oper = oper_tag.is_some();
+        let oper = oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned));
         let replay = batch_type.is_some_and(|kind| !matches!(kind, "netsplit" | "netjoin"));
         let origin = if echo {
             Origin::Echo
@@ -318,6 +318,7 @@ impl Message {
             #[cfg(feature = "unstable")]
             relayed_by,
             is_bot,
+            is_oper,
             oper,
             origin,
             tags,
@@ -436,11 +437,16 @@ impl Message {
         self.relayed_by.as_deref()
     }
 
-    /// Returns whether the sender is an IRC operator and their oper name when supplied.
+    /// Reports whether the message carried the IRC operator tag.
     #[must_use]
-    #[allow(clippy::option_option)]
-    pub fn oper(&self) -> Option<Option<&str>> {
-        self.oper.as_ref().map(|name| name.as_deref())
+    pub fn is_oper(&self) -> bool {
+        self.is_oper
+    }
+
+    /// Returns the sender's IRC operator name when supplied.
+    #[must_use]
+    pub fn oper(&self) -> Option<&str> {
+        self.oper.as_deref()
     }
 
     /// Returns how this message relates to the current session.
@@ -1178,7 +1184,7 @@ mod tests {
             UNIX_EPOCH,
         );
 
-        assert_eq!(message.status.as_deref(), Some("@+"));
+        assert_eq!(message.status.as_deref(), Some(['@', '+'].as_slice()));
         assert_eq!(message.target(), "#papo");
         assert!(!message.is_private());
         assert_eq!(message.tags.get("bot"), Some(""));
@@ -1239,13 +1245,14 @@ mod tests {
                 "@draft/oper=network-admin :alice!a@localhost PRIVMSG #papo :Scheduled maintenance"
             )
             .oper(),
-            Some(Some("network-admin"))
+            Some("network-admin")
         );
-        assert_eq!(
-            tagged("@draft/oper :alice!a@localhost PRIVMSG #papo :Scheduled maintenance").oper(),
-            Some(None)
-        );
-        assert_eq!(chat("PRIVMSG", "ordinary message").oper(), None);
+        let unnamed = tagged("@draft/oper :alice!a@localhost PRIVMSG #papo :Scheduled maintenance");
+        assert!(unnamed.is_oper());
+        assert_eq!(unnamed.oper(), None);
+        let ordinary = chat("PRIVMSG", "ordinary message");
+        assert!(!ordinary.is_oper());
+        assert_eq!(ordinary.oper(), None);
     }
 
     #[test]

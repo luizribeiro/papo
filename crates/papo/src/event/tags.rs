@@ -30,12 +30,13 @@ impl Tags {
 
     /// Iterates over tag keys and values in wire order.
     ///
-    /// A valueless tag has a `None` value. Duplicate keys remain visible.
+    /// A tag without a value has an empty value, matching [`Self::get`]. Duplicate keys remain
+    /// visible.
     #[must_use]
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&str, Option<&str>)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&str, &str)> {
         self.0
             .iter()
-            .map(|(key, value)| (key.as_str(), value.as_deref()))
+            .map(|(key, value)| (key.as_str(), value.as_deref().unwrap_or("")))
     }
 
     /// Reports whether no tags were supplied.
@@ -101,7 +102,8 @@ mod tests {
         assert_eq!(tags.get("missing"), None);
         assert!(tags.contains("bot"));
         assert_eq!(tags.iter().count(), 5);
-        assert_eq!(tags.iter().nth(1), Some(("draft/label", Some("old"))));
+        assert_eq!(tags.iter().nth(1), Some(("draft/label", "old")));
+        assert_eq!(tags.iter().nth(2), Some(("bot", "")));
     }
 
     #[test]
