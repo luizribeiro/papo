@@ -268,6 +268,26 @@ pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String
 pub papo::event::TypingChanged::source: core::option::Option<papo::Source>
 pub papo::event::TypingChanged::state: papo_proto::client_tags::Typing
 pub papo::event::TypingChanged::target: papo_proto::id::Target
+pub mod papo::metadata
+pub mod papo::metadata::keys
+pub const papo::metadata::keys::AVATAR: &str
+pub const papo::metadata::keys::BOT: &str
+pub const papo::metadata::keys::COLOR: &str
+pub const papo::metadata::keys::DISPLAY_NAME: &str
+pub const papo::metadata::keys::HOMEPAGE: &str
+pub const papo::metadata::keys::PRONOUNS: &str
+pub const papo::metadata::keys::STATUS: &str
+pub struct papo::metadata::Metadata<'a>
+impl papo::Metadata<'_>
+pub async fn papo::Metadata<'_>::clear(&self) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata<'_>::get<I, S>(&self, &str, I) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub async fn papo::Metadata<'_>::list(&self, &str) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error>
+pub async fn papo::Metadata<'_>::set(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata<'_>::set_on(&self, &str, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata<'_>::subscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Metadata<'_>::subscriptions(&self) -> alloc::vec::Vec<alloc::string::String>
+pub async fn papo::Metadata<'_>::sync(&self, &str) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata<'_>::unsubscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub mod papo::sts
 pub use papo::sts::MemoryStsStore
 pub use papo::sts::StsPolicy

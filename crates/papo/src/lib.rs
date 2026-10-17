@@ -17,6 +17,7 @@ mod error;
 mod event_impl;
 mod ext;
 mod io_compat;
+pub mod metadata;
 mod mode;
 mod reconnect;
 mod requests;
