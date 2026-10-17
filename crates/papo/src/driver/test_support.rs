@@ -524,7 +524,7 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
     )
     .await;
     let message = next_message(&mut events).await;
-    let id = message.id().unwrap();
+    let id = TargetedMessageId::new(message.target(), message.id().unwrap().as_ref());
     let result = if remove {
         within(client.unreact(&id, "👍")).await
     } else {

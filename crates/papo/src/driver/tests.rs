@@ -2206,7 +2206,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
         within(client.privmsg("#papo", &"a".repeat(600)))
             .await
             .unwrap(),
-        super::Sent::default()
+        super::Sent::without_echo("#papo")
     );
     let lines = format!(
         "PRIVMSG #papo {}\r\nPRIVMSG #papo {}\r\n",
@@ -2286,14 +2286,8 @@ async fn chat_text_returns_metadata_from_a_labelled_echo() {
     )
     .await;
     let sent = within(sent).await.unwrap().unwrap();
-    assert_eq!(
-        sent.id.as_ref().map(TargetedMessageId::msgid),
-        Some("RfcBTzyxY120004")
-    );
-    assert_eq!(
-        sent.id.as_ref().map(TargetedMessageId::target),
-        Some("#papo")
-    );
+    assert_eq!(sent.id.as_deref(), Some("RfcBTzyxY120004"));
+    assert_eq!(Some(sent.target.as_ref()), Some("#papo"));
     assert_eq!(
         sent.time,
         Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))

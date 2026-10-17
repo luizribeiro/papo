@@ -176,15 +176,16 @@ async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
     let Some(id) = sent.id else {
         return Err("echoed message did not include a message identifier".into());
     };
+    let routed = papo::TargetedMessageId::new(&channel, id.as_ref());
     sender
         .client
-        .redact(&id, Some("conformance redaction"))
+        .redact(&routed, Some("conformance redaction"))
         .await
         .map_err(Failed::from)?;
     context
         .expect(
             &mut receiver.events,
-            |event| matches!(event, Event::Redacted(redacted) if redacted.id.target() == channel && redacted.id.msgid() == id.msgid()),
+            |event| matches!(event, Event::Redacted(redacted) if redacted.id.target() == channel && redacted.id.msgid() == id.as_ref()),
             EXPECT_TIMEOUT,
         )
         .await?;

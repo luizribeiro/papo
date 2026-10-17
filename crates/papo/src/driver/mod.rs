@@ -794,7 +794,7 @@ where
                         Ok(Some(id)) => {
                             requests.insert(id, PendingRequest::Text { target, result });
                         }
-                        Ok(None) => _ = result.send(Ok(Sent::default())),
+                        Ok(None) => _ = result.send(Ok(Sent::without_echo(&target))),
                         Err(error) => {
                             _ = result.send(Err(Error::request(error)));
                         }

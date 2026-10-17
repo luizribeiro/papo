@@ -1,7 +1,10 @@
 use papo_core::{Account, Capabilities, RequestId, Response, Welcome, sts::StsAction};
 use std::time::SystemTime;
 
-use papo_proto::{Ctcp, Isupport, Message as ProtoMessage, MessageRef, strip_formatting, time};
+use papo_proto::{
+    AccountName, ChannelName, Ctcp, Isupport, Message as ProtoMessage, MessageId, MessageRef, Nick,
+    Target, strip_formatting, time,
+};
 
 use crate::Client;
 
@@ -89,7 +92,7 @@ pub struct Message {
     /// The user or server that sent the message, when supplied.
     pub sender: Option<Source>,
     /// The channel or nickname addressed by the message.
-    pub target: String,
+    pub target: Target,
     /// `STATUSMSG` prefixes removed from [`Self::target`].
     pub status: Option<String>,
     /// Display text with IRC formatting removed.
@@ -99,19 +102,19 @@ pub struct Message {
     /// The semantic message kind.
     pub kind: MessageKind,
     /// The server-assigned message identifier, when supplied.
-    pub msgid: Option<String>,
+    pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Local wall-clock time when the message was received.
     pub received_at: SystemTime,
     /// The sender's authenticated account, when tagged.
-    pub account: Option<String>,
+    pub account: Option<AccountName>,
     /// The identifier referenced by a reply tag.
-    pub reply_to: Option<String>,
+    pub reply_to: Option<MessageId>,
     /// Channel context attached to a private message.
-    pub channel_context: Option<String>,
+    pub channel_context: Option<ChannelName>,
     /// Nickname of the client that submitted a relayed message.
-    pub relayed_by: Option<String>,
+    pub relayed_by: Option<Nick>,
     /// Whether the message carried the `bot` tag.
     pub is_bot: bool,
     /// IRC operator name, with nested `None` representing a valueless oper tag.
@@ -243,18 +246,19 @@ impl Message {
             .sum();
         let (status, target) = raw_target.split_at(status_len);
         let status = (!status.is_empty()).then(|| status.to_owned());
-        let target = target.to_owned();
+        let target = Target::from(target);
         let private = !isupport.is_channel(&target);
         let sender = message.source().map(Source::from_proto);
         let tags = Tags::from_message(&message);
-        let channel_context = tag_owned(&message, &["+channel-context", "+draft/channel-context"]);
-        let msgid = tag_owned(&message, &["msgid"]);
+        let channel_context = tag_owned(&message, &["+channel-context", "+draft/channel-context"])
+            .map(ChannelName::from);
+        let msgid = tag_owned(&message, &["msgid"]).map(MessageId::from);
         let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
             .and_then(|value| time::parse(&value));
-        let account = tag_owned(&message, &["account"]);
+        let account = tag_owned(&message, &["account"]).map(AccountName::from);
         let is_bot = tags.contains("bot");
-        let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]);
-        let relayed_by = tag_owned(&message, &["draft/relaymsg"]);
+        let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]).map(MessageId::from);
+        let relayed_by = tag_owned(&message, &["draft/relaymsg"]).map(Nick::from);
         let oper = message
             .tags()
             .find(|(key, _)| *key == "draft/oper")
@@ -374,9 +378,8 @@ impl Message {
     ///
     /// `None` means the message had no `msgid` tag.
     #[must_use]
-    pub fn id(&self) -> Option<TargetedMessageId> {
-        self.msgid()
-            .map(|msgid| TargetedMessageId::new(self.reply_target(), msgid))
+    pub fn id(&self) -> Option<&MessageId> {
+        self.msgid.as_ref()
     }
 
     /// Returns server time when valid, or the local receipt time.
@@ -1101,8 +1104,8 @@ mod tests {
             tagged.time(),
             UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
         );
-        assert_eq!(tagged.id().unwrap().target(), "#papo");
-        assert_eq!(tagged.id().unwrap().msgid(), "RfcBTzyxY120004");
+        assert_eq!(tagged.target(), "#papo");
+        assert_eq!(tagged.id().unwrap(), "RfcBTzyxY120004");
         assert_eq!(tagged.account(), Some("emily"));
         assert!(tagged.is_bot());
         assert_eq!(tagged.reply_to(), Some("RfcBTzyxY120003"));

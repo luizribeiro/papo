@@ -30,20 +30,34 @@ pub struct Client {
 }
 
 /// Server-assigned metadata for a sent chat message.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Sent {
-    /// Targeted identifier from a labelled echo.
-    pub id: Option<crate::TargetedMessageId>,
+    /// Target to which the message was sent.
+    pub target: crate::Target,
+    /// Server-assigned identifier from a labelled echo.
+    pub id: Option<crate::MessageId>,
     /// Server time from a labelled echo.
     pub time: Option<SystemTime>,
 }
 
 impl Sent {
+    pub(crate) fn without_echo(target: &str) -> Self {
+        Self {
+            target: target.into(),
+            id: None,
+            time: None,
+        }
+    }
+
     pub(crate) fn from_response(response: &Response, target: &str) -> Self {
-        response.sent().map_or_else(Self::default, |sent| Self {
-            id: Some(crate::TargetedMessageId::new(target, sent.msgid)),
-            time: sent.time.and_then(|value| time::parse(&value)),
-        })
+        response.sent().map_or_else(
+            || Self::without_echo(target),
+            |sent| Self {
+                target: target.into(),
+                id: Some(sent.msgid.into()),
+                time: sent.time.and_then(|value| time::parse(&value)),
+            },
+        )
     }
 }
 
@@ -236,7 +250,7 @@ impl Client {
             if let Some(id) = message.id()
                 && let Some(tag) = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
             {
-                tags.push((tag.to_owned(), id.msgid().to_owned()));
+                tags.push((tag.to_owned(), id.to_string()));
             }
             if message.is_private()
                 && let Some(context) = message.channel_context()
@@ -267,7 +281,7 @@ impl Client {
             if let Some(id) = message.id()
                 && let Some(tag) = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
             {
-                notice = notice.with_tag(tag, id.msgid());
+                notice = notice.with_tag(tag, id.as_ref());
             }
             let context = if message.is_private() {
                 message.channel_context()
@@ -397,7 +411,7 @@ impl Client {
                 message = message.with_tag(key, value);
             }
             self.send_message(message).await?;
-            return Ok(Sent::default());
+            return Ok(Sent::without_echo(target));
         }
         let (result, receiver) = oneshot::channel();
         self.commands
