@@ -53,6 +53,7 @@ fn read_models_expose_typed_identifiers() {
             let member_nick: &Nick = channel.member("DAN").unwrap().nick();
             let user = session.state().user("DAN").unwrap();
             let user_nick: &Nick = user.nick();
+            let shared_channel: &ChannelName = user.channels().next().unwrap();
             let Account::LoggedIn(account) = user.account() else {
                 panic!("extended join should report the account");
             };
@@ -62,6 +63,7 @@ fn read_models_expose_typed_identifiers() {
             assert_eq!(channel_name, "#papo");
             assert_eq!(member_nick, "dan");
             assert_eq!(user_nick, "dan");
+            assert_eq!(shared_channel, "#papo");
             assert_eq!(account, "dan");
         })
         .ignore_rest();
