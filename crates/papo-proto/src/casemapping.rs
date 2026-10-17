@@ -12,6 +12,7 @@ use precis_profiles::{UsernameCaseMapped, precis_core::profile::PrecisFastInvoca
 /// The default is [`Rfc1459`](Self::Rfc1459), as required when a server has not
 /// advertised `CASEMAPPING` in `RPL_ISUPPORT`.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Casemapping {
     /// Only ASCII letters are case-insensitive.
     Ascii,
