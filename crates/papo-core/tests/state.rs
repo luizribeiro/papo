@@ -640,6 +640,34 @@ fn no_implicit_names_requests_names_before_marking_the_channel_synced() {
 }
 
 #[test]
+fn no_implicit_names_ignores_an_empty_implicit_end_before_the_requested_names() {
+    Transcript::new(Config::default().wanted_caps(["no-implicit-names"]))
+        .connect_default()
+        .server("CAP * LS :no-implicit-names")
+        .client("CAP REQ :no-implicit-names")
+        .server("CAP * ACK :no-implicit-names")
+        .client("CAP END")
+        .server(":inspircd.test 005 papo WHOX :are supported")
+        .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .client("NAMES #papo")
+        .event(|event| matches!(event, Event::Joined { channel, .. } if channel == "#papo"))
+        .server(":inspircd.test 366 papo #papo :End of /NAMES list")
+        .inspect(|session| assert!(!session.state().channel("#papo").unwrap().is_synced()))
+        .no_event()
+        .server(":inspircd.test 353 papo = #papo :@papo +emily")
+        .server(":inspircd.test 366 papo #papo :End of /NAMES list")
+        .client("MODE #papo")
+        .client("WHO #papo %tcuhnfar,152")
+        .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert!(channel.is_synced());
+            assert!(channel.member("emily").unwrap().is_voiced());
+        })
+        .no_event();
+}
+
+#[test]
 fn another_capability_waits_for_end_of_names_before_syncing() {
     Transcript::new(Config::default().wanted_caps(["multi-prefix"]))
         .connect_default()

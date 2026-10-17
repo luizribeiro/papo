@@ -56,6 +56,7 @@ pub struct Channel {
     topic: Option<String>,
     topic_set_by: Option<String>,
     topic_set_at: Option<SystemTime>,
+    names_reply_seen: bool,
     synced: bool,
     prefix_order: Arc<[char]>,
 }
@@ -271,12 +272,13 @@ impl State {
             return Handled::Yes;
         }
         if let Some((_, channel, entries)) = parse_353(message) {
-            if !self
+            let Some(state) = self
                 .channels
-                .contains_key(&Folded::new(channel, self.casemapping))
-            {
+                .get_mut(&Folded::new(channel, self.casemapping))
+            else {
                 return Handled::No;
-            }
+            };
+            state.names_reply_seen = true;
             for raw in entries {
                 let entry = NamesEntry::parse(raw, isupport);
                 if !entry.nick.is_empty() {
@@ -292,7 +294,7 @@ impl State {
             }
             return Handled::Yes;
         }
-        if self.finish_names(message, isupport, outbox) {
+        if self.finish_names(message, isupport, no_implicit_names, outbox) {
             return Handled::Yes;
         }
         Handled::No
@@ -851,21 +853,22 @@ impl State {
         &mut self,
         message: &MessageRef<'_>,
         isupport: &Isupport,
+        no_implicit_names: bool,
         outbox: &mut Outbox,
     ) -> bool {
         if message.command() != Command::Numeric(Numeric::RPL_ENDOFNAMES) {
             return false;
         }
         let name = message.param(1);
-        let joined = name
-            .and_then(|name| self.channels.get_mut(&Folded::new(name, self.casemapping)))
-            .is_some_and(|channel| {
-                channel.synced = true;
-                true
-            });
-        if !joined {
+        let Some(channel) =
+            name.and_then(|name| self.channels.get_mut(&Folded::new(name, self.casemapping)))
+        else {
             return false;
+        };
+        if no_implicit_names && !channel.names_reply_seen {
+            return true;
         }
+        channel.synced = true;
         if let Some(channel) = name {
             outbox.transmit("MODE", [channel]);
             self.start_who(channel, isupport, outbox);
@@ -1474,6 +1477,7 @@ impl Channel {
             topic: None,
             topic_set_by: None,
             topic_set_at: None,
+            names_reply_seen: false,
             synced,
             prefix_order: isupport
                 .prefix()
