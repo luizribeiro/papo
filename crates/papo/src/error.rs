@@ -315,6 +315,14 @@ pub struct Disconnected {
     pub retry_in: Option<Duration>,
 }
 
+impl Disconnected {
+    /// Creates a disconnected-operation description.
+    #[must_use]
+    pub const fn new(cause: DisconnectCause, retry_in: Option<Duration>) -> Self {
+        Self { cause, retry_in }
+    }
+}
+
 impl fmt::Display for Disconnected {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.cause.fmt(formatter)
@@ -348,6 +356,9 @@ pub enum Error {
     /// The server disconnected before the requested operation completed.
     #[error("the IRC connection closed")]
     Disconnected,
+    /// Details about an established connection ending.
+    #[error("{0}")]
+    DisconnectedWith(Disconnected),
     /// An operation did not complete before its deadline.
     #[error("the IRC operation timed out")]
     Timeout,
@@ -475,20 +486,26 @@ mod tests {
     }
 
     #[test]
-    fn io_error_keeps_its_source() {
-        let error = Error::from(io::Error::new(
-            io::ErrorKind::ConnectionReset,
-            "connection reset by peer",
+    fn protocol_disconnect_keeps_its_diagnostic() {
+        let error = Error::DisconnectedWith(Disconnected::new(
+            DisconnectCause::Protocol {
+                message: "connection reset by peer".into(),
+            },
+            None,
         ));
         assert_eq!(
             error.to_string(),
-            "connection I/O failed: connection reset by peer"
+            "protocol failure: connection reset by peer"
         );
     }
 
     #[test]
     fn terminal_errors_have_distinct_messages() {
-        assert_eq!(Error::Disconnected.to_string(), "the IRC connection closed");
+        assert_eq!(
+            Error::DisconnectedWith(Disconnected::new(DisconnectCause::ConnectionLost, None))
+                .to_string(),
+            "the connection was lost"
+        );
         assert_eq!(Error::Timeout.to_string(), "the IRC operation timed out");
     }
 }
