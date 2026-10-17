@@ -2304,6 +2304,30 @@ async fn chat_text_returns_metadata_from_a_labelled_echo() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn chat_text_returns_a_labelled_numeric_refusal() {
+    let settings = config().wanted_caps(["labeled-response"]);
+    let (mut server, client, mut events, driver) = scripted(settings);
+    let task = tokio::spawn(driver);
+    complete_labelled_registration(&mut server, &mut events).await;
+
+    let sender = client.clone();
+    let sent = tokio::spawn(async move { sender.privmsg("#rust", "hello everyone").await });
+    client_line(&mut server, b"@label=0 PRIVMSG #rust :hello everyone\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0 :ergo.test 404 papo-driver #rust :Cannot send to channel\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(sent).await.unwrap(),
+        Err(Error::Server(error)) if error.kind() == crate::Refusal::CannotSendToChannel
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn reactions_obey_clienttagdeny() {
     assert_reaction_wire(
         "",

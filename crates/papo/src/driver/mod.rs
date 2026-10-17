@@ -183,7 +183,13 @@ impl PendingRequest {
     fn respond(self, response: Response) {
         match self {
             Self::Response(result) => _ = result.send(Ok(response)),
-            Self::Text(result) => _ = result.send(Ok(Sent::from_response(&response))),
+            Self::Text(result) => {
+                let response = response.error().map_or_else(
+                    || Ok(Sent::from_response(&response)),
+                    |error| Err(Error::server(error)),
+                );
+                _ = result.send(response);
+            }
         }
     }
 

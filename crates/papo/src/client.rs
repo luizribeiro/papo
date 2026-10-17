@@ -229,7 +229,11 @@ impl Client {
     ///
     /// Returns [`Error::InvalidInput`] for empty text or an unencodable message,
     /// [`Error::RequestLimit`] when 256 labelled requests are pending, [`Error::Timeout`] while
-    /// awaiting an echo, or [`Error::Disconnected`] when the driver stops.
+    /// awaiting a response, or [`Error::Disconnected`] when the driver stops. A refusal returns
+    /// [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
+    /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
+    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
+    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub async fn privmsg(&self, target: &str, text: &str) -> Result<Sent, Error> {
         self.send_text(TextKind::Privmsg, target, text, Vec::new())
             .await
@@ -244,7 +248,11 @@ impl Client {
     ///
     /// Returns [`Error::InvalidInput`] for empty text or an unencodable message,
     /// [`Error::RequestLimit`] when 256 labelled requests are pending, [`Error::Timeout`] while
-    /// awaiting an echo, or [`Error::Disconnected`] when the driver stops.
+    /// awaiting a response, or [`Error::Disconnected`] when the driver stops. A refusal returns
+    /// [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
+    /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
+    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
+    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub async fn notice(&self, target: &str, text: &str) -> Result<Sent, Error> {
         self.send_text(TextKind::Notice, target, text, Vec::new())
             .await
