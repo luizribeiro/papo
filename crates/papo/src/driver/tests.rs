@@ -560,17 +560,20 @@ fn reconnect_history_stops_at_the_literal_per_target_limit() {
     for count in [1_000, 1_001] {
         let mut catchup = super::Catchup {
             target: "#papo".into(),
-            messages: Vec::new(),
+            items: Vec::new(),
             seen: std::collections::HashSet::new(),
         };
         let next = super::extend_catchup(
             &mut catchup,
             (0..count).map(|index| {
-                Message::privmsg("#papo", format!("backlog message {index}"))
-                    .with_tag("msgid", format!("RfcBTzyxY12{index:04}"))
+                papo_core::HistoryItem::Message(papo_core::HistoryMessage {
+                    message: Message::privmsg("#papo", format!("backlog message {index}"))
+                        .with_tag("msgid", format!("RfcBTzyxY12{index:04}")),
+                    context: false,
+                })
             }),
         );
-        assert_eq!(catchup.messages.len(), 1_000);
+        assert_eq!(catchup.items.len(), 1_000);
         assert_eq!(next.as_deref(), Some("RfcBTzyxY120999"));
     }
 }

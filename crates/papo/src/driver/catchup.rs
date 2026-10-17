@@ -3,15 +3,13 @@ use std::{
     sync::Arc,
 };
 
-use papo_core::{HistoryQuery, RequestId, Response, Session};
-use papo_proto::Message;
-
 use super::{EventSink, PostRegistration, now};
 use crate::{Client, Event};
+use papo_core::{HistoryQuery, RequestId, Response, Session};
 
 pub(super) struct Catchup {
     pub(super) target: String,
-    pub(super) messages: Vec<Message>,
+    pub(super) items: Vec<papo_core::HistoryItem>,
     pub(super) seen: HashSet<String>,
 }
 
@@ -23,21 +21,15 @@ pub(super) fn advance_catchup(
     response: Response,
 ) -> Option<Event> {
     let page = response.history?;
-    let next = extend_catchup(
-        &mut catchup,
-        page.items
-            .into_iter()
-            .filter_map(papo_core::HistoryItem::into_message)
-            .map(|item| item.message),
-    );
+    let next = extend_catchup(&mut catchup, page.items);
     if !page.end
-        && catchup.messages.len() < 1_000
+        && catchup.items.len() < 1_000
         && let Some(next) = next
     {
         let query = HistoryQuery::After {
             target: catchup.target.clone(),
             after: papo_core::MsgRef::Msgid(next),
-            limit: (1_000 - catchup.messages.len()).min(100),
+            limit: (1_000 - catchup.items.len()).min(100),
         };
         if let Ok(id) = session.chathistory(now(), query) {
             catchups.insert(id, catchup);
@@ -50,10 +42,17 @@ pub(super) fn advance_catchup(
         state: Arc::clone(&events.state),
     };
     let messages = catchup
-        .messages
+        .items
         .into_iter()
-        .filter_map(|message| {
-            crate::Message::from_history(message, &client, crate::rt::now_wall()).ok()
+        .filter_map(|item| {
+            crate::ext::history::history_item(
+                item,
+                &client,
+                crate::rt::now_wall(),
+                crate::Origin::History,
+            )
+            .message()
+            .cloned()
         })
         .collect();
     Some(Event::History(Box::new(crate::HistoryPage {
@@ -65,11 +64,14 @@ pub(super) fn advance_catchup(
 
 pub(super) fn extend_catchup(
     catchup: &mut Catchup,
-    messages: impl IntoIterator<Item = Message>,
+    items: impl IntoIterator<Item = papo_core::HistoryItem>,
 ) -> Option<String> {
     let mut next = None;
-    for message in messages {
-        let msgid = message
+    for item in items {
+        let msgid = item
+            .clone()
+            .into_raw()
+            .message
             .as_ref()
             .tag("msgid")
             .map(std::borrow::Cow::into_owned);
@@ -78,9 +80,9 @@ pub(super) fn extend_catchup(
             .as_ref()
             .is_none_or(|msgid| catchup.seen.insert(msgid.clone()))
         {
-            catchup.messages.push(message);
+            catchup.items.push(item);
         }
-        if catchup.messages.len() == 1_000 {
+        if catchup.items.len() == 1_000 {
             break;
         }
     }
@@ -111,7 +113,7 @@ pub(super) fn begin_catchup(
                 id,
                 Catchup {
                     target: seen.target,
-                    messages: Vec::new(),
+                    items: Vec::new(),
                     seen: HashSet::from([seen.msgid]),
                 },
             );
