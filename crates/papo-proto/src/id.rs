@@ -92,6 +92,30 @@ identifier!(
     "An opaque, network-unique IRC message identifier."
 );
 
+impl From<Nick> for Target {
+    fn from(value: Nick) -> Self {
+        Self(value.into_string())
+    }
+}
+
+impl From<&Nick> for Target {
+    fn from(value: &Nick) -> Self {
+        Self(value.as_ref().to_owned())
+    }
+}
+
+impl From<ChannelName> for Target {
+    fn from(value: ChannelName) -> Self {
+        Self(value.into_string())
+    }
+}
+
+impl From<&ChannelName> for Target {
+    fn from(value: &ChannelName) -> Self {
+        Self(value.as_ref().to_owned())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{borrow::Borrow, collections::HashMap, fmt, hash::Hash, ops::Deref};
@@ -141,5 +165,11 @@ mod tests {
         assert_eq!(format!("{nick:?}"), "Nick(\"Alice[bot]\")");
         assert_eq!(values.get("Alice[bot]"), Some(&7));
         assert_eq!(Nick::from(&nick).into_string(), "Alice[bot]");
+    }
+
+    #[test]
+    fn targets_accept_typed_nicks_and_channels() {
+        assert_eq!(Target::from(Nick::from("alice")), "alice");
+        assert_eq!(Target::from(&ChannelName::from("#papo")), "#papo");
     }
 }
