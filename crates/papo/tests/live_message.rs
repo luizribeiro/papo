@@ -52,14 +52,8 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         .await;
         assert_eq!(response.reply_to(), Some(ping_msgid.as_str()));
 
-        client_b
-            .quit(Some("live reply test complete"))
-            .await
-            .unwrap();
-        client_a
-            .quit(Some("live reply test complete"))
-            .await
-            .unwrap();
+        client_b.quit("live reply test complete").await.unwrap();
+        client_a.quit("live reply test complete").await.unwrap();
     })
     .await;
 }
@@ -96,14 +90,8 @@ async fn same_account_sessions_distinguish_echoes() {
         assert_eq!(other.origin(), Origin::OtherSession);
         assert!(!other.is_live());
 
-        client_b
-            .quit(Some("multiclient test complete"))
-            .await
-            .unwrap();
-        client_a
-            .quit(Some("multiclient test complete"))
-            .await
-            .unwrap();
+        client_b.quit("multiclient test complete").await.unwrap();
+        client_a.quit("multiclient test complete").await.unwrap();
     })
     .await;
 }
@@ -130,8 +118,8 @@ async fn reactions_reach_another_client_with_reply_context() {
         assert_eq!(reaction.target, incoming.target);
         assert_eq!(&reaction.message, id);
 
-        client_b.quit(Some("reaction test complete")).await.unwrap();
-        client_a.quit(Some("reaction test complete")).await.unwrap();
+        client_b.quit("reaction test complete").await.unwrap();
+        client_a.quit("reaction test complete").await.unwrap();
     })
     .await;
 }
@@ -158,14 +146,8 @@ async fn multiline_delivers_a_thousand_byte_message_whole() {
         assert_eq!(incoming.raw_text().len(), 1000);
         sent.await.unwrap().unwrap();
 
-        client_b
-            .quit(Some("multiline test complete"))
-            .await
-            .unwrap();
-        client_a
-            .quit(Some("multiline test complete"))
-            .await
-            .unwrap();
+        client_b.quit("multiline test complete").await.unwrap();
+        client_a.quit("multiline test complete").await.unwrap();
     })
     .await;
 }

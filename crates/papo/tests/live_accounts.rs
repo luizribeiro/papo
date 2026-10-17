@@ -50,7 +50,7 @@ async fn registers_then_logs_in_with_sasl() {
                 .unwrap(),
             AccountRegistration::Registered { account: registered } if registered == account
         ));
-        registrar.quit(Some("account created")).await.unwrap();
+        registrar.quit("account created").await.unwrap();
 
         let (authenticated, mut authenticated_events) = Client::builder(address)
             .nick(&account)
@@ -67,10 +67,7 @@ async fn registers_then_logs_in_with_sasl() {
                 .map(|account| account.as_ref().to_owned()),
             Some(account.clone())
         );
-        authenticated
-            .quit(Some("SASL login verified"))
-            .await
-            .unwrap();
+        authenticated.quit("SASL login verified").await.unwrap();
     })
     .await;
 }
@@ -141,7 +138,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
             "papo sent a duplicate JOIN after the server restored the channel"
         );
         client
-            .quit(Some("persistent reconnect verified"))
+            .quit("persistent reconnect verified")
             .await
             .unwrap();
     })

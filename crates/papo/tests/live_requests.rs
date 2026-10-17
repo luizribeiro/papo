@@ -76,10 +76,7 @@ async fn typed_requests_round_trip_against_ergo() {
             client.whois(&missing).await,
             Err(Error::Server(error)) if error.code() == "401"
         ));
-        client
-            .quit(Some("live request test complete"))
-            .await
-            .unwrap();
+        client.quit("live request test complete").await.unwrap();
     })
     .await;
 }

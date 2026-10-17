@@ -85,7 +85,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         let newest = sent[2].time.expect("Ergo supplies server time");
         client.mark_read(&channel, newest).await.unwrap();
         assert_eq!(client.read_marker(&channel).await.unwrap(), Some(newest));
-        client.quit(Some("history test complete")).await.unwrap();
+        client.quit("history test complete").await.unwrap();
     })
     .await;
 }

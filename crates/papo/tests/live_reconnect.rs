@@ -89,8 +89,8 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
                 .iter()
                 .all(|message| message.origin() == Origin::History)
         );
-        poster.quit(Some("messages delivered")).await.unwrap();
-        client.quit(Some("reconnect test complete")).await.unwrap();
+        poster.quit("messages delivered").await.unwrap();
+        client.quit("reconnect test complete").await.unwrap();
     })
     .await;
 }

@@ -319,7 +319,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     );
     assert!(client.state().is_connected());
 
-    let quit = tokio::spawn(async move { client.quit(None).await });
+    let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut third_server, b"QUIT\r\n").await;
     within(third_server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
@@ -451,7 +451,7 @@ async fn explicit_reconnect_redials_without_backoff() {
         matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
     );
 
-    let quit = tokio::spawn(async move { client.quit(None).await });
+    let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut second_server, b"QUIT\r\n").await;
     within(second_server.shutdown()).await.unwrap();
     within(quit).await.unwrap().unwrap();
@@ -653,7 +653,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     )
     .await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
-    let quit = tokio::spawn(async move { client.quit(None).await });
+    let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
@@ -694,7 +694,7 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
         Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 2);
-    within(client.quit(Some("cancel reconnect"))).await.unwrap();
+    within(client.quit("cancel reconnect")).await.unwrap();
     assert!(within(driver).await.unwrap().is_ok());
     tokio::time::advance(Duration::from_secs(10)).await;
     assert_eq!(calls.load(Ordering::Relaxed), 2);
@@ -736,7 +736,7 @@ async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
     while client.state().is_connected() {
         tokio::task::yield_now().await;
     }
-    within(client.quit(None)).await.unwrap();
+    within(client.quit("")).await.unwrap();
     assert!(within(driver).await.unwrap().is_ok());
 }
 
@@ -779,7 +779,7 @@ async fn stalled_consumer_does_not_block_quit_after_connect_failure() {
         tokio::task::yield_now().await;
     }
 
-    within(client.quit(None)).await.unwrap();
+    within(client.quit("")).await.unwrap();
     assert!(within(driver).await.unwrap().is_ok());
 }
 
@@ -912,7 +912,7 @@ async fn stable_registration_resets_the_backoff() {
         attempts[3] - disconnected_at
     };
     assert_eq!(delay, Duration::from_millis(800));
-    let quit = tokio::spawn(async move { client.quit(None).await });
+    let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut next_server, b"QUIT\r\n").await;
     within(next_server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
@@ -956,7 +956,7 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
     );
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    let quit = tokio::spawn(async move { client.quit(None).await });
+    let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
@@ -1500,7 +1500,7 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
     .await;
     assert!(within(waiter).await.unwrap().is_ok());
 
-    let quit = tokio::spawn(async move { client.quit(None).await });
+    let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut second_server, b"QUIT\r\n").await;
     within(second_server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
@@ -2913,7 +2913,7 @@ async fn quit_resolves_after_server_eof() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    let quit = tokio::spawn(async move { client.quit(Some("leaving for maintenance")).await });
+    let quit = tokio::spawn(async move { client.quit("leaving for maintenance").await });
     let mut line = [0; 31];
     within(server.read_exact(&mut line)).await.unwrap();
     assert_eq!(&line, b"QUIT :leaving for maintenance\r\n");
@@ -2934,7 +2934,7 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
     let (client, mut events, driver) = Driver::with_stream(stream, Session::new(config()));
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    let quit = tokio::spawn(async move { client.quit(None).await });
+    let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
 
     read_error.store(true, Ordering::Relaxed);
@@ -2958,7 +2958,7 @@ async fn quit_times_out_after_ten_seconds() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    let quit = tokio::spawn(async move { client.quit(None).await });
+    let quit = tokio::spawn(async move { client.quit("").await });
     let mut line = [0; 6];
     within(server.read_exact(&mut line)).await.unwrap();
     assert_eq!(&line, b"QUIT\r\n");
@@ -3001,7 +3001,7 @@ async fn full_event_channel_still_serves_quit_and_its_timer() {
         tokio::task::yield_now().await;
     }
 
-    let quit = tokio::spawn(async move { client.quit(None).await });
+    let quit = tokio::spawn(async move { client.quit("").await });
     let mut line = [0; 6];
     within(server.read_exact(&mut line)).await.unwrap();
     assert_eq!(&line, b"QUIT\r\n");

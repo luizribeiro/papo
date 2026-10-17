@@ -581,7 +581,7 @@ pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>
 pub fn papo::Client::part(&self, impl core::convert::Into<papo_proto::id::ChannelName>, &str) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
-pub fn papo::Client::quit(&self, impl IntoQuitReason) -> papo::RequestFuture<()>
+pub fn papo::Client::quit(&self, &str) -> papo::RequestFuture<()>
 pub fn papo::Client::react(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::react_to(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub async fn papo::Client::reconnect(&self) -> core::result::Result<(), papo::Error>

@@ -912,7 +912,7 @@ mod tests {
         assert!(matches!(client.reconnect().await, Err(disconnected!())));
         let quitting = tokio::spawn({
             let client = client.clone();
-            async move { client.quit(None).await }
+            async move { client.quit("").await }
         });
         let mut quit = [0; 6];
         within(server.read_exact(&mut quit)).await.unwrap();

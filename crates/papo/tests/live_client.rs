@@ -60,10 +60,7 @@ async fn registers_messages_itself_and_quits() {
             }
         }
 
-        client
-            .quit(Some("live client test complete"))
-            .await
-            .unwrap();
+        client.quit("live client test complete").await.unwrap();
         loop {
             match events.next().await {
                 Some(Event::Disconnected(_)) => break,

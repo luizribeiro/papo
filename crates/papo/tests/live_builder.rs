@@ -36,7 +36,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
             message.command_is("335") && message.param(1) == Some(account.as_str())
         })
         .await;
-        client.quit(Some("builder test complete")).await.unwrap();
+        client.quit("builder test complete").await.unwrap();
     })
     .await;
 }
@@ -71,7 +71,7 @@ async fn connects_through_the_configured_websocket_url() {
             .unwrap();
         wait_registered(&mut events, &nick).await;
         client
-            .quit(Some("WebSocket builder test complete"))
+            .quit("WebSocket builder test complete")
             .await
             .unwrap();
     })

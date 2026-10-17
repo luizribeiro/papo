@@ -59,8 +59,8 @@ async fn subscriber_receives_another_clients_metadata() {
                 None => panic!("reader stopped before metadata arrived"),
             }
         }
-        reader.quit(Some("metadata received")).await.unwrap();
-        writer.quit(Some("metadata sent")).await.unwrap();
+        reader.quit("metadata received").await.unwrap();
+        writer.quit("metadata sent").await.unwrap();
     })
     .await;
 }
@@ -138,8 +138,8 @@ async fn member_sees_channel_rename_and_relay_attribution() {
                 None => panic!("member stopped before the relayed message arrived"),
             }
         }
-        member.quit(Some("relay received")).await.unwrap();
-        operator.quit(Some("relay sent")).await.unwrap();
+        member.quit("relay received").await.unwrap();
+        operator.quit("relay sent").await.unwrap();
     })
     .await;
 }
