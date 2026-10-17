@@ -56,6 +56,8 @@ impl ConnectError {
             crate::transport::ConnectError::TlsUnavailable => ConnectErrorKind::TlsConfig,
             #[cfg(all(feature = "websocket", sockets))]
             crate::transport::ConnectError::WebSocket(_) => ConnectErrorKind::WebSocket,
+            #[cfg(browser)]
+            crate::transport::ConnectError::BrowserWebSocket(_) => ConnectErrorKind::WebSocket,
         }
     }
 }
