@@ -122,17 +122,21 @@ async fn tls_can_trust_only_the_test_ca_body() {
 
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
-async fn tls_rejects_the_untrusted_test_ca() {
-    within(tls_rejects_the_untrusted_test_ca_body()).await;
+async fn tls_rejects_a_certificate_from_an_untrusted_ca() {
+    within(tls_rejects_a_certificate_from_an_untrusted_ca_body()).await;
 }
 
 #[cfg(tls)]
-async fn tls_rejects_the_untrusted_test_ca_body() {
+async fn tls_rejects_a_certificate_from_an_untrusted_ca_body() {
     let server = from_env();
+    let config = TlsConfig {
+        roots: TlsRoots::Ca(CLIENT_CERTIFICATE.to_vec()),
+        ..TlsConfig::default()
+    };
     let error = connect(
         "localhost",
         server.tls_addr().port(),
-        &Security::Tls(TlsConfig::default()),
+        &Security::Tls(config),
     )
     .await
     .unwrap_err();
@@ -271,10 +275,13 @@ fn tls_config(server: &ServerInfo) -> TlsConfig {
 
 #[cfg(tls)]
 fn assert_certificate_error(error: &ConnectError) {
-    assert!(matches!(
-        error,
-        ConnectError::Tls(rustls::Error::InvalidCertificate(_))
-    ));
+    assert!(
+        matches!(
+            error,
+            ConnectError::Tls(rustls::Error::InvalidCertificate(_))
+        ),
+        "{error:?}"
+    );
 }
 
 async fn assert_cap_exchange(mut stream: Stream) {
