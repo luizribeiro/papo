@@ -120,8 +120,8 @@ impl Builder {
     }
 
     /// Sets the identity asserted through a trusted `WEBIRC` gateway.
-    pub fn webirc(mut self, webirc: papo_core::WebIrc) -> Self {
-        self.config = self.config.webirc(webirc);
+    pub fn webirc(mut self, webirc: crate::WebIrc) -> Self {
+        self.config = self.config.webirc(webirc.into_core());
         self
     }
 

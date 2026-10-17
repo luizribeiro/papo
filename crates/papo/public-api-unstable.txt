@@ -28,7 +28,6 @@ pub use papo::Typing
 pub use papo::Unsupported
 pub use papo::UnsupportedReason
 pub use papo::User
-pub use papo::WebIrc
 pub mod papo::bot
 pub enum papo::bot::ReplyStatus
 pub papo::bot::ReplyStatus::Dropped
@@ -662,7 +661,7 @@ pub fn papo::Builder::tls_client_cert(self, impl core::convert::Into<alloc::vec:
 pub fn papo::Builder::tls_extra_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
 pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Builder::webirc(self, papo_core::WebIrc) -> Self
+pub fn papo::Builder::webirc(self, papo::WebIrc) -> Self
 pub fn papo::Builder::without_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -1019,6 +1018,12 @@ impl core::cmp::PartialEq for papo::Tags
 pub fn papo::Tags::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::Tags
 pub fn papo::Tags::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct papo::WebIrc
+impl papo::WebIrc
+pub fn papo::WebIrc::flag(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::WebIrc::hostname(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::WebIrc::new(impl core::convert::Into<papo_core::secret::Secret>, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::WebIrc::option(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub struct papo::WebPush
 impl papo::WebPush
 pub fn papo::WebPush::register(&self, impl core::convert::Into<alloc::string::String>, papo::PushKeys) -> papo::RequestFuture<()>

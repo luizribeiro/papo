@@ -27,6 +27,7 @@ mod rt;
 mod state;
 pub mod time;
 mod transport;
+mod webirc;
 
 #[cfg(feature = "bot")]
 pub mod bot;
@@ -64,7 +65,6 @@ pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport::Isupport;
 pub use mode::SetModes;
 pub use papo_core::Secret;
-pub use papo_core::WebIrc;
 pub use papo_core::{Account, Capabilities, Channel, Feature, Member, User};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -81,6 +81,7 @@ pub use papo_proto::{
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};
 pub use state::State;
+pub use webirc::WebIrc;
 
 /// Payloads carried by [`Event`].
 pub mod event {
