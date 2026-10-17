@@ -12,10 +12,10 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 #[cfg(not(target_family = "wasm"))]
+use papo::PersistenceSetting;
+#[cfg(not(target_family = "wasm"))]
 use papo::Reconnect;
 use papo::{AccountRegistration, Client, Endpoint, Event, NewAccount, Sasl};
-#[cfg(not(target_family = "wasm"))]
-use papo_core::PersistenceSetting;
 #[cfg(not(target_family = "wasm"))]
 use papo_test_server::register_account;
 use papo_test_server::{from_env, unique};

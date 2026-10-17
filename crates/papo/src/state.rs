@@ -144,8 +144,10 @@ impl State {
     #[must_use]
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    pub const fn persistence(&self) -> Option<papo_core::PersistenceStatus> {
-        self.core.persistence()
+    pub fn persistence(&self) -> Option<crate::PersistenceStatus> {
+        self.core
+            .persistence()
+            .and_then(crate::PersistenceStatus::from_core)
     }
 
     /// Returns cached metadata for `target`.

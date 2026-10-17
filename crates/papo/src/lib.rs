@@ -46,6 +46,9 @@ pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
     RegistrationError, ServerError,
 };
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use event_impl::PersistenceSetting;
 pub use event_impl::{Event, Message, MessageKind, ModeKind, Origin, RawLine, Source, Tags};
 pub use ext::accounts::{AccountRegistration, NewAccount};
 #[cfg(feature = "unstable")]
@@ -61,6 +64,9 @@ pub use ext::monitor::Monitor;
 pub use ext::persistence::Persistence;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use ext::persistence::PersistenceStatus;
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport::Isupport;
 pub use metadata::MetadataValue;
@@ -70,9 +76,6 @@ pub use papo_core::{Account, Capabilities, Channel, Feature, Member, User};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use papo_core::{PersistenceSetting, PersistenceStatus};
 pub use papo_core::{RateLimit, Sasl};
 pub use papo_core::{Unsupported, UnsupportedReason};
 pub use papo_proto::{

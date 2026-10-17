@@ -1,5 +1,30 @@
 use crate::{Client, Error, driver::CoreRequest};
 
+/// Server-reported account persistence state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct PersistenceStatus {
+    /// The account's configured preference.
+    pub setting: crate::event::PersistenceSetting,
+    /// Whether persistence is currently effective.
+    pub effective: bool,
+}
+
+impl PersistenceStatus {
+    pub(crate) fn from_core(status: papo_core::PersistenceStatus) -> Option<Self> {
+        let setting = match status.setting {
+            papo_core::PersistenceSetting::On => crate::event::PersistenceSetting::On,
+            papo_core::PersistenceSetting::Off => crate::event::PersistenceSetting::Off,
+            papo_core::PersistenceSetting::Default => crate::event::PersistenceSetting::Default,
+            _ => return None,
+        };
+        Some(Self {
+            setting,
+            effective: status.effective,
+        })
+    }
+}
+
 /// Handle for account persistence requests.
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub struct Persistence {
@@ -27,7 +52,7 @@ impl Persistence {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub fn get(&self) -> crate::RequestFuture<papo_core::PersistenceStatus> {
+    pub fn get(&self) -> crate::RequestFuture<PersistenceStatus> {
         let client = self.client.clone();
         crate::RequestFuture::new(async move {
             let response = client.core_request(CoreRequest::PersistenceGet).await?;
@@ -47,12 +72,12 @@ impl Persistence {
     /// or [`Error::Disconnected`].
     pub fn set(
         &self,
-        setting: papo_core::PersistenceSetting,
-    ) -> crate::RequestFuture<papo_core::PersistenceStatus> {
+        setting: crate::event::PersistenceSetting,
+    ) -> crate::RequestFuture<PersistenceStatus> {
         let client = self.client.clone();
         crate::RequestFuture::new(async move {
             let response = client
-                .core_request(CoreRequest::PersistenceSet(setting))
+                .core_request(CoreRequest::PersistenceSet(setting.into_core()))
                 .await?;
             crate::requests::empty(&response)?;
             client.state().persistence().ok_or_else(Error::disconnected)
@@ -106,7 +131,7 @@ mod tests {
             async move {
                 client
                     .persistence()
-                    .set(papo_core::PersistenceSetting::On)
+                    .set(crate::PersistenceSetting::On)
                     .await
             }
         });

@@ -52,6 +52,17 @@ pub enum PersistenceSetting {
     Default,
 }
 
+#[cfg(feature = "unstable")]
+impl PersistenceSetting {
+    pub(crate) const fn into_core(self) -> papo_core::PersistenceSetting {
+        match self {
+            Self::On => papo_core::PersistenceSetting::On,
+            Self::Off => papo_core::PersistenceSetting::Off,
+            Self::Default => papo_core::PersistenceSetting::Default,
+        }
+    }
+}
+
 /// The server reported the account's persistence state.
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
