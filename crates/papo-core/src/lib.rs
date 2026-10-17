@@ -614,6 +614,14 @@ pub enum ResponseMatcher {
     },
     /// A nickname change ending at our `NICK` echo.
     Nick(String),
+    /// An away-state change ending at `RPL_NOWAWAY` or `RPL_UNAWAY`.
+    Away(bool),
+    /// A realname change ending at our `SETNAME` echo.
+    SetName(String),
+    /// An operator login ending at `RPL_YOUREOPER`.
+    Oper,
+    /// A latency probe ending at the matching `PONG`.
+    Ping(String),
     /// A channel list ending at `323`.
     List,
 }
@@ -778,6 +786,35 @@ impl ResponseMatcher {
                 || (numeric.is_some_and(Numeric::is_error)
                     && Self::target_is(message, 1, nick, mapping))
                 || Self::standard_failure(message, "NICK"))
+            .then_some(true),
+            Self::Away(away) => (numeric.is_some_and(|numeric| {
+                numeric
+                    == if *away {
+                        Numeric::RPL_NOWAWAY
+                    } else {
+                        Numeric::RPL_UNAWAY
+                    }
+                    || Self::numeric_names_command(message, numeric, "AWAY")
+            }) || Self::standard_failure(message, "AWAY"))
+            .then_some(true),
+            Self::SetName(realname) => ((message.command() == Command::Setname
+                && own_source
+                && message.param(0) == Some(realname))
+                || numeric.is_some_and(|numeric| {
+                    Self::numeric_names_command(message, numeric, "SETNAME")
+                })
+                || Self::standard_failure(message, "SETNAME"))
+            .then_some(true),
+            Self::Oper => (numeric.is_some_and(|numeric| {
+                matches!(
+                    numeric,
+                    Numeric::RPL_YOUREOPER | Numeric::ERR_PASSWDMISMATCH | Numeric::ERR_NOOPERHOST
+                ) || Self::numeric_names_command(message, numeric, "OPER")
+            }) || Self::standard_failure(message, "OPER"))
+            .then_some(true),
+            Self::Ping(token) => ((message.command() == Command::Pong
+                && message.params().any(|param| param == token))
+                || Self::standard_failure(message, "PING"))
             .then_some(true),
             Self::List => {
                 if Self::standard_failure(message, "LIST") {

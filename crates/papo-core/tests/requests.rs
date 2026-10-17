@@ -288,6 +288,61 @@ fn matches_unlabelled_membership_and_nick_actions() {
 }
 
 #[test]
+fn matches_unlabelled_own_user_actions() {
+    let mut session = Session::new(Config::default().nick("papo"));
+    assert_unlabelled(
+        &mut session,
+        Message::new("AWAY", ["reviewing patches"]),
+        ResponseMatcher::Away(true),
+        &[":ergo.test 306 papo :You have been marked as being away"],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("AWAY", Vec::<String>::new()),
+        ResponseMatcher::Away(false),
+        &[":ergo.test 305 papo :You are no longer marked as being away"],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("SETNAME", ["Papo Test Client"]),
+        ResponseMatcher::SetName("Papo Test Client".into()),
+        &[":papo!papo@localhost SETNAME :Papo Test Client"],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("OPER", ["papo", "correct horse battery staple"]),
+        ResponseMatcher::Oper,
+        &[":ergo.test 381 papo :You are now an IRC operator"],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("PING", ["papo-lag-42"]),
+        ResponseMatcher::Ping("papo-lag-42".into()),
+        &[":ergo.test PONG ergo.test :papo-lag-42"],
+    );
+}
+
+#[test]
+fn own_user_matchers_require_their_exact_success() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let id = session
+        .request_with_matcher(
+            now,
+            Message::new("PING", ["papo-lag-42"]),
+            ResponseMatcher::Ping("papo-lag-42".into()),
+        )
+        .unwrap();
+    session.handle_line(now, b":ergo.test PONG ergo.test :papo-lag-41");
+    assert!(
+        !std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(_)))
+    );
+    session.handle_line(now, b":ergo.test PONG ergo.test :papo-lag-42");
+    assert_eq!(response_id(&mut session), id);
+}
+
+#[test]
 fn membership_matchers_ignore_unrelated_successes_and_capture_errors() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
@@ -604,6 +659,7 @@ fn list_replies_use_fifo_without_swallowing_unrelated_errors() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn standard_failures_require_fail_kind_and_matching_command() {
     let now = Instant::now();
     let cases = [
@@ -657,6 +713,26 @@ fn standard_failures_require_fail_kind_and_matching_command() {
             "NICK",
             Message::new("NICK", ["papo-away"]),
             ResponseMatcher::Nick("papo-away".into()),
+        ),
+        (
+            "AWAY",
+            Message::new("AWAY", ["reviewing patches"]),
+            ResponseMatcher::Away(true),
+        ),
+        (
+            "SETNAME",
+            Message::new("SETNAME", ["Papo Test Client"]),
+            ResponseMatcher::SetName("Papo Test Client".into()),
+        ),
+        (
+            "OPER",
+            Message::new("OPER", ["papo", "correct horse battery staple"]),
+            ResponseMatcher::Oper,
+        ),
+        (
+            "PING",
+            Message::new("PING", ["papo-lag-42"]),
+            ResponseMatcher::Ping("papo-lag-42".into()),
         ),
         (
             "LIST",
