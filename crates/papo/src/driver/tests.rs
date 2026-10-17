@@ -138,12 +138,18 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, true))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: true,
+            ..
+        }))
     ));
     tokio::time::advance(Duration::from_secs(2)).await;
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, false))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: false,
+            ..
+        }))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -184,7 +190,10 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
     ));
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, false))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: false,
+            ..
+        }))
     ));
     assert!(within(driver).await.unwrap().is_ok());
     assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -227,7 +236,10 @@ async fn registration_disconnect_does_not_enter_reconnect_backoff() {
     ));
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, false))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: false,
+            ..
+        }))
     ));
     assert!(within(driver).await.unwrap().is_err());
     assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -281,7 +293,10 @@ async fn eof_reconnects_and_emits_reconnected() {
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, true))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: true,
+            ..
+        }))
     ));
     assert!(!client.state().is_connected());
 
@@ -405,7 +420,10 @@ async fn explicit_reconnect_redials_without_backoff() {
     within(client.reconnect()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, true))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: true,
+            ..
+        }))
     ));
     registration_burst(&mut second_server).await;
     {
@@ -475,10 +493,7 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     within(first_server.shutdown()).await.unwrap();
-    assert!(matches!(
-        events.next().await,
-        Some(crate::__papo_disconnected!(_, _))
-    ));
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
     tokio::time::advance(Duration::from_secs(2)).await;
 
     registration_burst(&mut second_server).await;
@@ -604,7 +619,10 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, true))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: true,
+            ..
+        }))
     ));
 
     assert!(matches!(
@@ -663,12 +681,18 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, true))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: true,
+            ..
+        }))
     ));
     within(client.reconnect()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, true))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: true,
+            ..
+        }))
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 2);
     within(client.quit(Some("cancel reconnect"))).await.unwrap();
@@ -777,17 +801,11 @@ async fn failed_connect_events_obey_the_overflow_bound() {
         within(driver).await.unwrap(),
         Err(disconnected!())
     ));
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, _))
-    ));
-    assert!(matches!(
-        events.next().await,
-        Some(crate::__papo_disconnected!(_, _))
-    ));
-    assert!(matches!(
-        events.next().await,
-        Some(crate::__papo_disconnected!(reason, _)) if reason == "SlowConsumer"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, .. })) if reason == "SlowConsumer"
     ));
 }
 
@@ -820,7 +838,7 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
     for expected in [true, true, false] {
         assert!(matches!(
             events.next().await,
-            Some(crate::__papo_disconnected!(_, will_retry)) if will_retry == expected
+            Some(Event::Disconnected(crate::event::Disconnected { will_retry, .. })) if will_retry == expected
         ));
     }
     assert!(matches!(
@@ -868,14 +886,8 @@ async fn stable_registration_resets_the_backoff() {
         Box::new(|| 0),
     );
     let driver = tokio::spawn(driver);
-    assert!(matches!(
-        events.next().await,
-        Some(crate::__papo_disconnected!(_, _))
-    ));
-    assert!(matches!(
-        events.next().await,
-        Some(crate::__papo_disconnected!(_, _))
-    ));
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
 
     registration_burst(&mut stable_server).await;
     server_line(&mut stable_server, b":ergo.test CAP * LS :\r\n").await;
@@ -889,10 +901,7 @@ async fn stable_registration_resets_the_backoff() {
     tokio::time::advance(Duration::from_secs(60)).await;
     let disconnected_at = tokio::time::Instant::now();
     within(stable_server.shutdown()).await.unwrap();
-    assert!(matches!(
-        events.next().await,
-        Some(crate::__papo_disconnected!(_, _))
-    ));
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
 
     registration_burst(&mut next_server).await;
     let delay = {
@@ -989,7 +998,10 @@ async fn connector_failure_under_stored_sts_is_terminal() {
     assert!(matches!(within(driver).await, Err(Error::Connect(_))));
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, false))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: false,
+            ..
+        }))
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
@@ -1002,7 +1014,7 @@ async fn eof_emits_disconnected_and_returns_an_error() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(reason, false)) if reason == "server closed the connection"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "server closed the connection"
     ));
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
@@ -1015,7 +1027,7 @@ async fn shutdown_error_overrides_a_non_io_terminal_cause() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(reason, false)) if reason == "shutdown failed"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "shutdown failed"
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1033,7 +1045,7 @@ async fn shutdown_error_does_not_replace_an_io_terminal_cause() {
     registration_burst(&mut server).await;
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(reason, false)) if reason == "original read failure"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "original read failure"
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1052,7 +1064,7 @@ async fn overlong_line_becomes_a_terminal_disconnect() {
     within(server.write_all(&vec![b'x'; 8704])).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(reason, false)) if reason == "incoming IRC line exceeds 8703 bytes"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "incoming IRC line exceeds 8703 bytes"
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1172,7 +1184,10 @@ async fn required_sasl_failure_does_not_reconnect() {
 
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, false))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: false,
+            ..
+        }))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1413,7 +1428,7 @@ async fn plaintext_sts_forwards_upgrade_and_closes() {
     ));
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(reason, false)) if reason == "sts upgrade"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "sts upgrade"
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1464,7 +1479,10 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
     ));
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, true))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: true,
+            ..
+        }))
     ));
     registration_burst(&mut second_server).await;
     assert_eq!(&*requested.lock().unwrap(), &[(false, 6667), (true, 6699)]);
@@ -1518,7 +1536,10 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
     ));
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(_, false))
+        Some(Event::Disconnected(crate::event::Disconnected {
+            will_retry: false,
+            ..
+        }))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -2551,10 +2572,7 @@ async fn quit_resolves_after_server_eof() {
     within(server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
-    assert!(matches!(
-        events.next().await,
-        Some(crate::__papo_disconnected!(_, _))
-    ));
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2580,7 +2598,7 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(reason, false)) if reason == "original read failure"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "original read failure"
     ));
 }
 
@@ -2600,7 +2618,7 @@ async fn quit_times_out_after_ten_seconds() {
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(reason, false)) if reason == "QUIT was not acknowledged within 10 seconds"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "QUIT was not acknowledged within 10 seconds"
     ));
 }
 
@@ -2766,7 +2784,7 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
     );
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(reason, _)) if reason == "Closing Link: papo-driver (Server shutdown)"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, .. })) if reason == "Closing Link: papo-driver (Server shutdown)"
     ));
 }
 
@@ -2792,7 +2810,7 @@ async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(matches!(
         events.next().await,
-        Some(crate::__papo_disconnected!(reason, _)) if reason == "SlowConsumer"
+        Some(Event::Disconnected(crate::event::Disconnected { reason, .. })) if reason == "SlowConsumer"
     ));
 }
 
