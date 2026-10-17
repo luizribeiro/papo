@@ -1,8 +1,10 @@
 use std::collections::BTreeMap;
 
+use papo_proto::Message;
 use papo_proto::escape_tag_value;
+use web_time::Instant;
 
-use crate::Secret;
+use crate::{Feature, RequestError, RequestId, Secret, Session};
 
 /// Stable identifier assigned to a network by a bouncer.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -145,7 +147,6 @@ impl NetworkConfig {
         self
     }
 
-    #[allow(dead_code)]
     pub(crate) fn attributes(&self) -> String {
         let mut attributes = vec![attribute("host", &self.host)];
         if let Some(value) = &self.name {
@@ -171,9 +172,78 @@ impl NetworkConfig {
     }
 }
 
-#[allow(dead_code)]
 fn attribute(key: &str, value: &str) -> String {
     format!("{key}={}", escape_tag_value(value))
+}
+
+impl Session {
+    /// Requests the complete list of upstream bouncer networks.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error documented by [`Session::request`].
+    pub fn bouncer_networks(&mut self, now: Instant) -> Result<RequestId, RequestError> {
+        self.request_for_feature(
+            now,
+            Message::new("BOUNCER", ["LISTNETWORKS"]),
+            Feature::Bouncer,
+        )
+    }
+
+    /// Adds an upstream bouncer network.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error documented by [`Session::request`].
+    pub fn bouncer_add(
+        &mut self,
+        now: Instant,
+        config: &NetworkConfig,
+    ) -> Result<RequestId, RequestError> {
+        self.request_for_feature(
+            now,
+            Message::new("BOUNCER", ["ADDNETWORK", &config.attributes()]),
+            Feature::Bouncer,
+        )
+    }
+
+    /// Changes an upstream bouncer network.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error documented by [`Session::request`].
+    pub fn bouncer_change(
+        &mut self,
+        now: Instant,
+        id: &NetworkId,
+        config: &NetworkConfig,
+    ) -> Result<RequestId, RequestError> {
+        self.request_for_feature(
+            now,
+            Message::new(
+                "BOUNCER",
+                ["CHANGENETWORK", id.as_str(), &config.attributes()],
+            ),
+            Feature::Bouncer,
+        )
+    }
+
+    /// Removes an upstream bouncer network.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error documented by [`Session::request`].
+    pub fn bouncer_remove(
+        &mut self,
+        now: Instant,
+        id: &NetworkId,
+    ) -> Result<RequestId, RequestError> {
+        self.request_for_feature(
+            now,
+            Message::new("BOUNCER", ["DELNETWORK", id.as_str()]),
+            Feature::Bouncer,
+        )
+    }
 }
 
 #[cfg(test)]
