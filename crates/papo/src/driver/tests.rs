@@ -1,5 +1,11 @@
 use super::test_support::*;
 
+macro_rules! disconnected {
+    () => {
+        Error::Disconnected | Error::DisconnectedWith(_)
+    };
+}
+
 fn unavailable(message: &'static str) -> Error {
     Error::connect_unavailable(message)
 }
@@ -80,10 +86,7 @@ async fn message_accessors_use_captured_session_facts() {
     assert!((before..=after).contains(&malformed));
 
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -104,10 +107,7 @@ async fn registration_is_forwarded() {
         .unwrap();
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
     assert!(!client.is_connected());
 }
 
@@ -624,15 +624,15 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
 
     assert!(matches!(
         within(client.send(Message::new("WHOIS", ["emily"]))).await,
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     assert!(matches!(
         within(client.privmsg("#papo", "lost during reconnect")).await,
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     assert!(matches!(
         within(client.whois("emily")).await,
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 
     tokio::time::advance(Duration::from_secs(2)).await;
@@ -796,7 +796,7 @@ async fn failed_connect_events_obey_the_overflow_bound() {
 
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     assert!(matches!(
         events.next().await,
@@ -1031,10 +1031,7 @@ async fn eof_emits_disconnected_and_returns_an_error() {
             will_retry: false,
         }) if reason == "server closed the connection"
     ));
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1089,7 +1086,7 @@ async fn overlong_line_becomes_a_terminal_disconnect() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1108,7 +1105,7 @@ async fn malformed_line_preserves_exact_bytes() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1131,7 +1128,7 @@ async fn sasl_nak_forwards_authentication_failure() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1162,7 +1159,7 @@ async fn required_sasl_failure_rejects_registration_waiter() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1212,7 +1209,7 @@ async fn required_sasl_failure_does_not_reconnect() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     tokio::time::advance(Duration::from_secs(10)).await;
     assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -1260,7 +1257,7 @@ async fn successful_registration_preserves_earlier_events() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1319,7 +1316,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1358,7 +1355,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1432,7 +1429,7 @@ async fn cap_new_and_del_forward_capability_changes() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1456,7 +1453,7 @@ async fn plaintext_sts_forwards_upgrade_and_closes() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1567,7 +1564,7 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1603,7 +1600,7 @@ async fn secure_sts_forwards_persistence_policy() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1652,7 +1649,7 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     let disconnect_finished = SystemTime::now();
     let refreshed = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
@@ -1721,7 +1718,7 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1781,7 +1778,7 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -1798,10 +1795,7 @@ async fn client_send_reaches_the_wire() {
     within(server.read_exact(&mut whois)).await.unwrap();
     assert_eq!(&whois, b"WHOIS emily\r\n");
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -1898,11 +1892,11 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(aborted).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -2016,7 +2010,7 @@ async fn typed_requests_match_unlabelled_responses() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -2093,7 +2087,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -2130,7 +2124,7 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
     server_line(&mut server, b"@label=1 :papo-driver!papo@localhost JOIN #limited * :papo driver test\r\n:ergo.test KICK #limited papo-driver :Channel is full\r\n").await;
     assert!(matches!(
         within(kicked).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 
     let parted = tokio::spawn({
@@ -2141,13 +2135,13 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
     server_line(&mut server, b"@label=2 :papo-driver!papo@localhost JOIN #registered * :papo driver test\r\n:papo-driver!papo@localhost PART #registered :Registration required\r\n").await;
     assert!(matches!(
         within(parted).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -2231,10 +2225,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
         Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
     ));
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2265,10 +2256,7 @@ async fn chat_text_uses_multiline_when_negotiated() {
     );
     client_line(&mut server, batch.as_bytes()).await;
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2306,10 +2294,7 @@ async fn chat_text_returns_metadata_from_a_labelled_echo() {
     );
 
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2398,10 +2383,7 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     );
 
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2478,10 +2460,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     ));
 
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2532,10 +2511,7 @@ async fn labels_distinguish_our_echo_from_another_session() {
     assert!(!other.is_live());
 
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2578,10 +2554,7 @@ async fn client_send_rejects_an_invalid_message() {
             if message.contains("command")
     ));
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2788,7 +2761,7 @@ async fn no_pending_work_disables_read_ahead() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Ok(()) | Err(Error::Disconnected)
+        Ok(()) | Err(disconnected!())
     ));
 }
 
@@ -2805,13 +2778,10 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
     )
     .await;
 
-    assert!(matches!(
-        within(whois).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(whois).await.unwrap(), Err(disconnected!())));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     assert_eq!(next_message(&mut events).await.text(), "maintenance soon");
     assert_eq!(
@@ -2837,13 +2807,10 @@ async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
     )
     .await;
 
-    assert!(matches!(
-        within(whois).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(whois).await.unwrap(), Err(disconnected!())));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(matches!(events.next().await, Some(Event::Message(_))));
@@ -2866,10 +2833,7 @@ async fn session_deadline_sends_keepalive_ping() {
     within(server.read_exact(&mut ping)).await.unwrap();
     assert_eq!(&ping, b"PING :papo-0\r\n");
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -2913,7 +2877,7 @@ async fn client_reads_owned_state_snapshots() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     assert!(!client.snapshot().connected());
 }
@@ -2975,7 +2939,7 @@ async fn public_state_accessors_report_the_registered_session() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -3099,7 +3063,7 @@ async fn every_state_change_replaces_the_snapshot() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -3143,7 +3107,7 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -3201,7 +3165,7 @@ async fn disconnect_clears_monitor_presence_snapshot() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
     assert_eq!(client.state(|state| state.monitor_online().count()), 0);
 }
