@@ -6,7 +6,6 @@ use papo::{
     Client, Endpoint, Error as PapoError, Event, Events, Sasl,
     bot::{BotConfig, ReplyRateLimiter},
 };
-use papo_proto::Message;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -134,10 +133,7 @@ async fn handle(
             };
             command
                 .client()
-                .send(Message::new(
-                    "MODE",
-                    [channel, "+o", command.args()[0].as_str()],
-                ))
+                .mode(channel, "+o", [command.args()[0].as_str()])
                 .await?;
         }
         _ => {}

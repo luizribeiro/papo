@@ -6,7 +6,6 @@ mod support;
 use std::time::Duration;
 
 use papo::{Client, Endpoint, Event};
-use papo_proto::Message;
 use papo_test_server::{from_env, register_account, unique};
 use support::{Lurker, PASSWORD};
 use tokio::time::timeout;
@@ -55,25 +54,25 @@ async fn prints_channel_state_changes_in_wire_order() {
         wait_event(&mut owner_events, |event| joined(event, &user_nick)).await;
 
         owner
-            .send(Message::new("MODE", [&channel, "+o", &user_nick]))
+            .send_raw(&format!("MODE {channel} +o {user_nick}"))
             .await
             .unwrap();
         wait_event(&mut owner_events, |event| mode(event, 'o')).await;
-        user.send(Message::new("AWAY", ["testing away"]))
+        user.send_raw("AWAY :testing away")
             .await
             .unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::AwayChanged(changed) if changed.nick == user_nick)).await;
-        user.send(Message::new("NICK", [&renamed])).await.unwrap();
+        user.send_raw(&format!("NICK {renamed}")).await.unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::NickChanged(changed) if changed.new == renamed)).await;
-        user.send(Message::new("MODE", [&channel, "+v", &renamed]))
+        user.send_raw(&format!("MODE {channel} +v {renamed}"))
             .await
             .unwrap();
         wait_event(&mut owner_events, |event| mode(event, 'v')).await;
-        user.send(Message::new("TOPIC", [&channel, "lurker topic"]))
+        user.send_raw(&format!("TOPIC {channel} :lurker topic"))
             .await
             .unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::TopicChanged(changed) if changed.topic.as_deref() == Some("lurker topic"))).await;
-        user.send(Message::new("PART", [&channel, "lurker test complete"]))
+        user.send_raw(&format!("PART {channel} :lurker test complete"))
             .await
             .unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::Parted(parted) if parted.nick == renamed)).await;

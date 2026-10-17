@@ -8,7 +8,7 @@ use papo::{
     Client, Error, Event, Events, ListFilter, Message as ChatMessage, NewAccount,
     PersistenceSetting, PushKeys, TargetedMessageId,
 };
-use papo_proto::{Message, Typing};
+use papo_proto::Typing;
 
 fn assert_send<T: Send>(_: T) {}
 
@@ -39,9 +39,8 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
 fn request_futures_are_send() {
     let (client, _events, _driver) = Client::builder("irc.example.net").build();
 
-    assert_send(client.send(Message::privmsg("#papo", "hello from the trait test")));
-    assert_send(client.raw(Message::new("WHOIS", ["emily"])));
-    assert_send(client.raw_unlabeled(Message::new("PING", ["trait-check"])));
+    assert_send(client.send_raw("PRIVMSG #papo :hello from the trait test"));
+    assert_send(client.request_raw("WHOIS emily"));
     assert_send(client.privmsg("#papo", "hello from the trait test"));
     assert_send(client.notice("emily", "maintenance soon"));
     assert_send(client.typing("#papo", Typing::Active));

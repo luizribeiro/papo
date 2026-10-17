@@ -6,7 +6,6 @@ mod support;
 use support::within;
 
 use papo::{Client, Endpoint, Event, Sasl};
-use papo_proto::Message;
 use papo_test_server::{from_env, register_account, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -32,10 +31,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
         wait_registered(&mut events, &account).await;
         wait_joined(&mut events, &account, &channel).await;
 
-        client
-            .send(Message::new("WHOIS", [account.clone()]))
-            .await
-            .unwrap();
+        client.send_raw(&format!("WHOIS {account}")).await.unwrap();
         wait_for(&mut events, |message| {
             message.command_is("335") && message.param(1) == Some(account.as_str())
         })
