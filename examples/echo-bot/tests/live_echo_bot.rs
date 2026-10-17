@@ -100,8 +100,8 @@ async fn wait_synced(events: &mut papo::Events, channel: &str) {
             Some(Event::ChannelSynced(papo::event::ChannelSynced {
                 channel: joined, ..
             })) if joined == channel => return,
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("join failed: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("join failed: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while joining"),
@@ -114,7 +114,7 @@ async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
         match events.next().await {
             Some(Event::Message(message)) if message.text() == text => return *message,
             Some(Event::Disconnected(disconnected)) => {
-                panic!("message failed: {}", disconnected.reason)
+                panic!("message failed: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for {text}"),
@@ -130,8 +130,8 @@ async fn wait_typing(events: &mut papo::Events, target: &str, state: Typing) {
             {
                 return;
             }
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("typing failed: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("typing failed: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for typing state"),
@@ -148,8 +148,8 @@ async fn wait_reaction(events: &mut papo::Events) -> (Option<String>, String) {
                     reaction.message.into_string(),
                 );
             }
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("reaction failed: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("reaction failed: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for a reaction"),

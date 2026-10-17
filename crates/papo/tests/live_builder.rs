@@ -49,8 +49,8 @@ async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
                 nick: joined_nick,
                 ..
             })) if joined == channel && joined_nick == nick => return,
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("disconnected while waiting for JOIN: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected while waiting for JOIN: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for JOIN"),
@@ -85,8 +85,8 @@ async fn wait_registered(events: &mut papo::Events, nick: &str) {
                 assert_eq!(welcome.nick, nick);
                 return;
             }
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("disconnected while waiting for registration: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected while waiting for registration: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for registration"),
@@ -105,8 +105,8 @@ async fn wait_for(
             {
                 return;
             }
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("disconnected while waiting: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected while waiting: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for an IRC message"),

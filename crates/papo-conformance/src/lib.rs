@@ -311,8 +311,8 @@ async fn expect_event(
         loop {
             match events.next_event().await {
                 Some(event) if matcher(&event) => return Ok(event),
-                Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                    return Err(reason.into());
+                Some(Event::Disconnected(disconnected)) => {
+                    return Err(disconnected.to_string().into());
                 }
                 Some(_) => {}
                 None => return Err("driver stopped while waiting for an event".into()),
@@ -539,8 +539,8 @@ async fn wait_for_registration(client: &Client, events: &mut Events) -> Result<W
                         isupport: client.state().isupport().clone(),
                     });
                 }
-                Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                    return Err(reason);
+                Some(Event::Disconnected(disconnected)) => {
+                    return Err(disconnected.to_string());
                 }
                 Some(_) => {}
                 None => return Err("driver stopped during registration".into()),

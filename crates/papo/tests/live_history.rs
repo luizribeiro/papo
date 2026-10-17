@@ -105,8 +105,8 @@ async fn wait_synced(events: &mut papo::Events, channel: &str) {
             Some(Event::ChannelSynced(papo::event::ChannelSynced {
                 channel: synced, ..
             })) if synced == channel => return,
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("disconnected: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while joining"),

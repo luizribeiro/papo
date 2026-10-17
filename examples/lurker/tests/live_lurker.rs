@@ -103,8 +103,8 @@ async fn wait_event(events: &mut papo::Events, mut wanted: impl FnMut(&Event) ->
     loop {
         match events.next().await {
             Some(event) if wanted(&event) => return,
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("client disconnected: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("client disconnected: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped before the expected event"),

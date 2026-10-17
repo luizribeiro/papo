@@ -203,7 +203,7 @@ async fn wait_reaction(events: &mut papo::Events) -> papo::event::Reacted {
         match events.next().await {
             Some(Event::Reacted(reaction)) => return reaction,
             Some(Event::Disconnected(disconnected)) => {
-                panic!("disconnected: {}", disconnected.reason)
+                panic!("disconnected: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for a reaction"),
@@ -221,8 +221,8 @@ async fn wait_ready(events: &mut papo::Events, nick: &str, channel: &str) {
                 nick: joined_nick,
                 ..
             })) if registered && joined == channel && joined_nick == nick => return,
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("disconnected while joining: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected while joining: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while joining"),
@@ -238,10 +238,7 @@ async fn wait_message(
         match events.next().await {
             Some(Event::Message(message)) if accepted(&message) => return *message,
             Some(Event::Disconnected(disconnected)) => {
-                panic!(
-                    "disconnected while waiting for a message: {}",
-                    disconnected.reason
-                )
+                panic!("disconnected while waiting for a message: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for a message"),

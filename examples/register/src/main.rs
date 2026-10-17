@@ -41,8 +41,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 logged_in = Some(account);
             }
             Event::Registered(_) => registered = true,
-            Event::Disconnected(papo::event::Disconnected { reason, .. }) => {
-                return Err(reason.into());
+            Event::Disconnected(disconnected) => {
+                return Err(disconnected.to_string().into());
             }
             _ => {}
         }

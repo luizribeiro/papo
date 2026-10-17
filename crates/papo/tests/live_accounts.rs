@@ -112,10 +112,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         wait_for(&mut events, |event| {
             matches!(
                 event,
-                Event::Disconnected(papo::event::Disconnected {
-                    will_retry: true,
-                    ..
-                })
+                Event::Disconnected(disconnected) if disconnected.is_retrying()
             )
         })
         .await;
@@ -205,8 +202,8 @@ async fn wait_registered(events: &mut papo::Events, nick: &str) {
     loop {
         match events.next().await {
             Some(Event::Registered(welcome)) if welcome.nick == nick => return,
-            Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
-                panic!("disconnected: {reason}")
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped before registration"),

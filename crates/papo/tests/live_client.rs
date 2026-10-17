@@ -32,8 +32,8 @@ async fn registers_messages_itself_and_quits() {
                     assert_eq!(welcome.nick, nick.as_str());
                     break;
                 }
-                Event::Disconnected(papo::event::Disconnected { reason, .. }) => {
-                    panic!("disconnected while registering: {reason}")
+                Event::Disconnected(disconnected) => {
+                    panic!("disconnected while registering: {disconnected}")
                 }
                 _ => {}
             }
@@ -53,8 +53,8 @@ async fn registers_messages_itself_and_quits() {
                         break;
                     }
                 }
-                Event::Disconnected(papo::event::Disconnected { reason, .. }) => {
-                    panic!("disconnected before echo: {reason}")
+                Event::Disconnected(disconnected) => {
+                    panic!("disconnected before echo: {disconnected}")
                 }
                 _ => {}
             }

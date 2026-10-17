@@ -51,30 +51,21 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         wait_for(&mut events, |event| {
             matches!(
                 event,
-                Event::Disconnected(papo::event::Disconnected {
-                    will_retry: true,
-                    ..
-                })
+                Event::Disconnected(disconnected) if disconnected.is_retrying()
             )
         })
         .await;
         wait_for(&mut events, |event| {
             matches!(
                 event,
-                Event::Disconnected(papo::event::Disconnected {
-                    will_retry: true,
-                    ..
-                })
+                Event::Disconnected(disconnected) if disconnected.is_retrying()
             )
         })
         .await;
         wait_for(&mut events, |event| {
             matches!(
                 event,
-                Event::Disconnected(papo::event::Disconnected {
-                    will_retry: true,
-                    ..
-                })
+                Event::Disconnected(disconnected) if disconnected.is_retrying()
             )
         })
         .await;
@@ -138,7 +129,7 @@ async fn wait_history(events: &mut papo::Events, target: &str) -> Vec<papo::Mess
                 return history.messages().cloned().collect();
             }
             Some(Event::Disconnected(disconnected)) => {
-                panic!("disconnected: {}", disconnected.reason)
+                panic!("disconnected: {disconnected}")
             }
             Some(_) => {}
             None => panic!("driver stopped before history arrived"),
