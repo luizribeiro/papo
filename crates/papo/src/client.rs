@@ -25,6 +25,25 @@ use papo_core::Session;
 
 static NEXT_PING: AtomicU64 = AtomicU64::new(0);
 
+/// Converts compatibility quit reasons into the owned wire representation.
+#[doc(hidden)]
+pub trait IntoQuitReason {
+    /// Converts the reason, treating an empty string as absent.
+    fn into_quit_reason(self) -> Option<String>;
+}
+
+impl IntoQuitReason for &str {
+    fn into_quit_reason(self) -> Option<String> {
+        (!self.is_empty()).then(|| self.to_owned())
+    }
+}
+
+impl IntoQuitReason for Option<&str> {
+    fn into_quit_reason(self) -> Option<String> {
+        self.filter(|reason| !reason.is_empty()).map(str::to_owned)
+    }
+}
+
 /// A cheap, cloneable handle to a running IRC client.
 ///
 /// Typed requests use server labels when available and otherwise match protocol
@@ -997,16 +1016,18 @@ impl Client {
     ///
     /// Returns an error if the QUIT message is invalid, the driver has already
     /// stopped, or the peer does not close within ten seconds.
-    pub async fn quit(&self, reason: Option<&str>) -> Result<(), Error> {
-        let (result, receiver) = oneshot::channel();
-        self.commands
-            .send(Command::Quit {
-                reason: reason.map(str::to_owned),
-                result,
-            })
-            .await
-            .map_err(|_| Error::disconnected())?;
-        receiver.await.map_err(|_| Error::disconnected())?
+    pub fn quit(&self, reason: impl IntoQuitReason) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let reason = reason.into_quit_reason();
+        crate::RequestFuture::new(async move {
+            let (result, receiver) = oneshot::channel();
+            client
+                .commands
+                .send(Command::Quit { reason, result })
+                .await
+                .map_err(|_| Error::disconnected())?;
+            receiver.await.map_err(|_| Error::disconnected())?
+        })
     }
 }
 
