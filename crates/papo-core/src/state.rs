@@ -1389,8 +1389,9 @@ impl State {
 
     /// Returns a joined channel using the server's current casemapping.
     #[must_use]
-    pub fn channel(&self, name: &str) -> Option<&Channel> {
-        self.channels.get(&Folded::new(name, self.casemapping))
+    pub fn channel(&self, name: impl AsRef<str>) -> Option<&Channel> {
+        let name = self.casemapping.fold(name.as_ref());
+        self.channels.get(name.as_ref())
     }
 
     /// Iterates over joined channels in unspecified order.
@@ -1405,14 +1406,16 @@ impl State {
 
     /// Returns a shared user using the server's current casemapping.
     #[must_use]
-    pub fn user(&self, nick: &str) -> Option<&User> {
-        self.users.get(&Folded::new(nick, self.casemapping))
+    pub fn user(&self, nick: impl AsRef<str>) -> Option<&User> {
+        let nick = self.casemapping.fold(nick.as_ref());
+        self.users.get(nick.as_ref())
     }
 
     /// Returns cached metadata using the server's current casemapping.
     #[must_use]
-    pub fn metadata(&self, target: &str) -> Option<&HashMap<String, MetadataValue>> {
-        self.metadata.get(&Folded::new(target, self.casemapping))
+    pub fn metadata(&self, target: impl AsRef<str>) -> Option<&HashMap<String, MetadataValue>> {
+        let target = self.casemapping.fold(target.as_ref());
+        self.metadata.get(target.as_ref())
     }
 
     /// Returns the number of targets retained in the metadata cache.
@@ -1433,15 +1436,16 @@ impl State {
 
     /// Returns the newest read marker reported for a target.
     #[must_use]
-    pub fn read_marker(&self, target: &str) -> Option<&ReadMarker> {
-        self.read_markers
-            .get(&Folded::new(target, self.casemapping))
+    pub fn read_marker(&self, target: impl AsRef<str>) -> Option<&ReadMarker> {
+        let target = self.casemapping.fold(target.as_ref());
+        self.read_markers.get(target.as_ref())
     }
 
     /// Returns the newest live message remembered for a target.
     #[must_use]
-    pub fn last_seen(&self, target: &str) -> Option<&LastSeen> {
-        self.last_seen.get(&Folded::new(target, self.casemapping))
+    pub fn last_seen(&self, target: impl AsRef<str>) -> Option<&LastSeen> {
+        let target = self.casemapping.fold(target.as_ref());
+        self.last_seen.get(target.as_ref())
     }
 
     /// Iterates over users currently reported online through `MONITOR`.
@@ -1582,8 +1586,9 @@ impl Channel {
 
     /// Returns a member using the server's current casemapping.
     #[must_use]
-    pub fn member(&self, nick: &str) -> Option<&Member> {
-        self.members.get(&Folded::new(nick, self.casemapping))
+    pub fn member(&self, nick: impl AsRef<str>) -> Option<&Member> {
+        let nick = self.casemapping.fold(nick.as_ref());
+        self.members.get(nick.as_ref())
     }
 }
 

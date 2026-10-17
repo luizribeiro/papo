@@ -48,10 +48,12 @@ fn read_models_expose_typed_identifiers() {
         .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
         .inspect(|session| {
             let own_nick: &Nick = session.state().nick();
-            let channel = session.state().channel("#PAPO").unwrap();
+            let channel_query = ChannelName::from("#PAPO");
+            let user_query = Nick::from("DAN");
+            let channel = session.state().channel(&channel_query).unwrap();
             let channel_name: &ChannelName = channel.name();
-            let member_nick: &Nick = channel.member("DAN").unwrap().nick();
-            let user = session.state().user("DAN").unwrap();
+            let member_nick: &Nick = channel.member(&user_query).unwrap().nick();
+            let user = session.state().user(&user_query).unwrap();
             let user_nick: &Nick = user.nick();
             let shared_channel: &ChannelName = user.channels().next().unwrap();
             let Account::LoggedIn(account) = user.account() else {
