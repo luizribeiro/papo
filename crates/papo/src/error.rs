@@ -77,6 +77,67 @@ impl std::error::Error for ConnectError {
     }
 }
 
+/// Stable classification of a server refusal.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Refusal {
+    /// The message could not be sent to the channel (`404`).
+    CannotSendToChannel,
+    /// The session has joined too many channels (`405`).
+    TooManyChannels,
+    /// A command requiring text received none (`412`).
+    NoTextToSend,
+    /// An input line exceeded the server limit (`417`).
+    InputTooLong,
+    /// The server does not recognize the command (`421`).
+    UnknownCommand,
+    /// A nickname collided during a network split (`436`).
+    NickCollision,
+    /// A nickname or channel is temporarily unavailable (`437`).
+    NickUnavailable,
+    /// A channel mask is malformed (`476`).
+    BadChannelMask,
+    /// The channel accepts only secure connections (`489`).
+    SecureOnlyChannel,
+    /// The host is not authorized for operator access (`491`).
+    NoOperHost,
+    /// A user mode flag is unknown (`501`).
+    UnknownUserMode,
+    /// The session tried to change another user's modes (`502`).
+    UsersDontMatch,
+    /// A channel mode parameter is invalid (`696`).
+    InvalidModeParameter,
+    /// The server is temporarily too busy (`263`).
+    TryAgain,
+    /// A refusal without a more specific classification.
+    ///
+    /// A later minor release may refine a code currently classified as `Other`.
+    Other,
+}
+
+impl Refusal {
+    #[allow(dead_code)]
+    pub(crate) fn from_core(kind: papo_core::RefusalKind) -> Self {
+        match kind {
+            papo_core::RefusalKind::CannotSendToChannel => Self::CannotSendToChannel,
+            papo_core::RefusalKind::TooManyChannels => Self::TooManyChannels,
+            papo_core::RefusalKind::NoTextToSend => Self::NoTextToSend,
+            papo_core::RefusalKind::InputTooLong => Self::InputTooLong,
+            papo_core::RefusalKind::UnknownCommand => Self::UnknownCommand,
+            papo_core::RefusalKind::NickCollision => Self::NickCollision,
+            papo_core::RefusalKind::NickUnavailable => Self::NickUnavailable,
+            papo_core::RefusalKind::BadChannelMask => Self::BadChannelMask,
+            papo_core::RefusalKind::SecureOnlyChannel => Self::SecureOnlyChannel,
+            papo_core::RefusalKind::NoOperHost => Self::NoOperHost,
+            papo_core::RefusalKind::UnknownUserMode => Self::UnknownUserMode,
+            papo_core::RefusalKind::UsersDontMatch => Self::UsersDontMatch,
+            papo_core::RefusalKind::InvalidModeParam => Self::InvalidModeParameter,
+            papo_core::RefusalKind::TryAgain => Self::TryAgain,
+            _ => Self::Other,
+        }
+    }
+}
+
 /// An error produced by the asynchronous IRC client.
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -141,7 +202,32 @@ pub enum Error {
 mod tests {
     use std::io;
 
-    use super::{ConnectError, ConnectErrorKind, Error};
+    use super::{ConnectError, ConnectErrorKind, Error, Refusal};
+
+    #[test]
+    fn refusal_mapping_preserves_every_classified_numeric() {
+        use papo_core::RefusalKind as Core;
+        let cases = [
+            (Core::CannotSendToChannel, Refusal::CannotSendToChannel),
+            (Core::TooManyChannels, Refusal::TooManyChannels),
+            (Core::NoTextToSend, Refusal::NoTextToSend),
+            (Core::InputTooLong, Refusal::InputTooLong),
+            (Core::UnknownCommand, Refusal::UnknownCommand),
+            (Core::NickCollision, Refusal::NickCollision),
+            (Core::NickUnavailable, Refusal::NickUnavailable),
+            (Core::BadChannelMask, Refusal::BadChannelMask),
+            (Core::SecureOnlyChannel, Refusal::SecureOnlyChannel),
+            (Core::NoOperHost, Refusal::NoOperHost),
+            (Core::UnknownUserMode, Refusal::UnknownUserMode),
+            (Core::UsersDontMatch, Refusal::UsersDontMatch),
+            (Core::InvalidModeParam, Refusal::InvalidModeParameter),
+            (Core::TryAgain, Refusal::TryAgain),
+            (Core::Other, Refusal::Other),
+        ];
+        for (core, public) in cases {
+            assert_eq!(Refusal::from_core(core), public);
+        }
+    }
 
     #[test]
     fn connection_error_exposes_only_its_stable_kind() {

@@ -263,6 +263,22 @@ pub papo::Origin::History
 pub papo::Origin::Live
 pub papo::Origin::OtherSession
 pub papo::Origin::Replay
+#[non_exhaustive] pub enum papo::Refusal
+pub papo::Refusal::BadChannelMask
+pub papo::Refusal::CannotSendToChannel
+pub papo::Refusal::InputTooLong
+pub papo::Refusal::InvalidModeParameter
+pub papo::Refusal::NickCollision
+pub papo::Refusal::NickUnavailable
+pub papo::Refusal::NoOperHost
+pub papo::Refusal::NoTextToSend
+pub papo::Refusal::Other
+pub papo::Refusal::SecureOnlyChannel
+pub papo::Refusal::TooManyChannels
+pub papo::Refusal::TryAgain
+pub papo::Refusal::UnknownCommand
+pub papo::Refusal::UnknownUserMode
+pub papo::Refusal::UsersDontMatch
 pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
