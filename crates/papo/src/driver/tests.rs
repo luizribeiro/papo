@@ -2251,6 +2251,46 @@ async fn chat_text_uses_multiline_when_negotiated() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn message_builder_sends_reply_context_and_custom_tags() {
+    let config = config().wanted_caps(["echo-message", "labeled-response", "message-tags"]);
+    let (mut server, client, mut events, driver) = scripted(config);
+    let task = tokio::spawn(driver);
+    complete_caps_registration(
+        &mut server,
+        &mut events,
+        "echo-message labeled-response message-tags",
+        "echo-message labeled-response message-tags",
+    )
+    .await;
+
+    let sender = client.clone();
+    let sent = tokio::spawn(async move {
+        sender
+            .privmsg("papo-helper", "fixed in 69876ec")
+            .reply_to(&crate::MessageId::from("RfcBTzyxY120004"))
+            .channel_context(&crate::ChannelName::from("#papo"))
+            .tag("+example.org/trace", "98")
+            .await
+    });
+    client_line(
+        &mut server,
+        b"@+example.org/trace=98;+reply=RfcBTzyxY120004;+channel-context=#papo;label=0 PRIVMSG papo-helper :fixed in 69876ec\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=0;msgid=RfcBTzyxY120005 :papo-driver!papo@localhost PRIVMSG papo-helper :fixed in 69876ec\r\n",
+    )
+    .await;
+    assert_eq!(
+        within(sent).await.unwrap().unwrap().id.unwrap(),
+        "RfcBTzyxY120005"
+    );
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn chat_text_returns_metadata_from_a_labelled_echo() {
     let config = config().wanted_caps(["echo-message", "labeled-response"]);
     let (mut server, client, _events, driver) = scripted(config);

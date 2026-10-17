@@ -579,7 +579,7 @@ pub async fn papo::Client::mode<I, S>(&self, &str, &str, I) -> core::result::Res
 pub fn papo::Client::nick(&self) -> papo_proto::id::Nick
 pub async fn papo::Client::notice(&self, &str, &str) -> core::result::Result<papo::Sent, papo::Error>
 pub async fn papo::Client::part(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
-pub async fn papo::Client::privmsg(&self, &str, &str) -> core::result::Result<papo::Sent, papo::Error>
+pub fn papo::Client::privmsg(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub async fn papo::Client::quit(&self, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::react(&self, &papo_proto::id::Target, &papo_proto::id::MessageId, &str) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::reconnect(&self) -> core::result::Result<(), papo::Error>
@@ -776,6 +776,15 @@ pub struct papo::RequestFuture<T>
 impl<T> core::future::future::Future for papo::RequestFuture<T>
 pub type papo::RequestFuture<T>::Output = core::result::Result<T, papo::Error>
 pub fn papo::RequestFuture<T>::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
+pub struct papo::SendMessage
+impl papo::SendMessage
+pub fn papo::SendMessage::channel_context(self, &papo_proto::id::ChannelName) -> Self
+pub fn papo::SendMessage::reply_to(self, &papo_proto::id::MessageId) -> Self
+pub fn papo::SendMessage::tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::future::into_future::IntoFuture for papo::SendMessage
+pub type papo::SendMessage::IntoFuture = papo::RequestFuture<papo::Sent>
+pub type papo::SendMessage::Output = core::result::Result<papo::Sent, papo::Error>
+pub fn papo::SendMessage::into_future(self) -> Self::IntoFuture
 pub struct papo::Sent
 pub papo::Sent::id: core::option::Option<papo_proto::id::MessageId>
 pub papo::Sent::target: papo_proto::id::Target

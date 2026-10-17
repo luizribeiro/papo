@@ -1,4 +1,5 @@
 use std::{
+    future::IntoFuture,
     sync::{Arc, RwLock},
     time::SystemTime,
 };
@@ -38,6 +39,72 @@ pub struct Sent {
     pub id: Option<crate::MessageId>,
     /// Server time from a labelled echo.
     pub time: Option<SystemTime>,
+}
+
+/// Builds a chat message with optional IRCv3 client tags.
+pub struct SendMessage {
+    client: Client,
+    kind: TextKind,
+    target: crate::Target,
+    text: String,
+    reply_to: Option<crate::MessageId>,
+    channel_context: Option<crate::ChannelName>,
+    tags: Vec<(String, String)>,
+}
+
+impl SendMessage {
+    /// Marks this message as a reply to `message` when replies are available.
+    #[must_use]
+    pub fn reply_to(mut self, message: &crate::MessageId) -> Self {
+        self.reply_to = Some(message.clone());
+        self
+    }
+
+    /// Supplies channel context for a private message.
+    #[must_use]
+    pub fn channel_context(mut self, channel: &crate::ChannelName) -> Self {
+        self.channel_context = Some(channel.clone());
+        self
+    }
+
+    /// Adds a client-only message tag.
+    #[must_use]
+    pub fn tag(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.tags.push((key.into(), value.into()));
+        self
+    }
+}
+
+impl IntoFuture for SendMessage {
+    type Output = Result<Sent, Error>;
+    type IntoFuture = crate::RequestFuture<Sent>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        crate::RequestFuture::new(async move {
+            let mut tags = self.tags;
+            let state = self.client.state();
+            if state.has_cap("message-tags") {
+                let denied = state.isupport().clienttagdeny();
+                if let Some(message) = self.reply_to
+                    && let Some(tag) = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
+                {
+                    tags.push((tag.to_owned(), message.into_string()));
+                }
+                if let Some(channel) = self.channel_context
+                    && let Some(tag) = event_impl::allowed_alias(
+                        &denied,
+                        "+channel-context",
+                        "+draft/channel-context",
+                    )
+                {
+                    tags.push((tag.to_owned(), channel.into_string()));
+                }
+            }
+            self.client
+                .send_text(self.kind, self.target.as_ref(), &self.text, tags)
+                .await
+        })
+    }
 }
 
 impl Sent {
@@ -212,9 +279,20 @@ impl Client {
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
-    pub async fn privmsg(&self, target: &str, text: &str) -> Result<Sent, Error> {
-        self.send_text(TextKind::Privmsg, target, text, Vec::new())
-            .await
+    pub fn privmsg(
+        &self,
+        target: impl Into<crate::Target>,
+        text: impl Into<String>,
+    ) -> SendMessage {
+        SendMessage {
+            client: self.clone(),
+            kind: TextKind::Privmsg,
+            target: target.into(),
+            text: text.into(),
+            reply_to: None,
+            channel_context: None,
+            tags: Vec::new(),
+        }
     }
 
     /// Sends a notice to a user or channel.

@@ -1,6 +1,6 @@
 pub(crate) use std::{
     collections::VecDeque,
-    future::Future,
+    future::IntoFuture,
     io,
     pin::Pin,
     sync::{
@@ -31,12 +31,13 @@ macro_rules! disconnected {
 
 pub(crate) const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
-pub(crate) async fn within<F: Future>(future: F) -> F::Output {
+pub(crate) async fn within<F: IntoFuture>(future: F) -> F::Output {
     within_duration(future, TEST_DEADLINE).await
 }
 
-pub(crate) async fn within_duration<F: Future>(future: F, duration: Duration) -> F::Output {
+pub(crate) async fn within_duration<F: IntoFuture>(future: F, duration: Duration) -> F::Output {
     let deadline = std::time::Instant::now() + duration;
+    let future = future.into_future();
     tokio::pin!(future);
     loop {
         tokio::select! {

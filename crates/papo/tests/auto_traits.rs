@@ -45,7 +45,11 @@ fn request_futures_are_send() {
 
     assert_send(client.send_raw("PRIVMSG #papo :hello from the trait test"));
     assert_send(client.request_raw("WHOIS emily"));
-    assert_send(client.privmsg("#papo", "hello from the trait test"));
+    assert_send_static(
+        client
+            .privmsg("#papo", "hello from the trait test")
+            .into_future(),
+    );
     assert_send(client.notice("emily", "maintenance soon"));
     assert_send(client.typing("#papo", Typing::Active));
     assert_send(client.redact(
