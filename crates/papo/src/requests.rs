@@ -248,28 +248,6 @@ pub(crate) fn empty(response: &Response) -> Result<(), Error> {
         .map_or(Ok(()), |error| Err(Error::server(error)))
 }
 
-pub(crate) fn topic(response: &Response) -> Result<Option<String>, Error> {
-    if let Some(error) = response.error() {
-        return Err(Error::server(error));
-    }
-    Ok(response
-        .lines
-        .iter()
-        .find_map(|line| {
-            let message = line.as_ref();
-            if message.command() == Command::Numeric(Numeric::RPL_NOTOPIC) {
-                Some(None)
-            } else if message.command() == Command::Numeric(Numeric::RPL_TOPIC) {
-                Some(message.param(2).map(str::to_owned))
-            } else if message.command_is("TOPIC") {
-                Some(message.param(1).map(str::to_owned))
-            } else {
-                None
-            }
-        })
-        .flatten())
-}
-
 pub(crate) fn list(response: Response) -> Result<Vec<ListEntry>, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));

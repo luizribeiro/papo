@@ -1848,10 +1848,10 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
         let client = client.clone();
         async move { client.whois("missing-nick").await }
     });
-    client_line(&mut server, b"@label=8 WHOIS missing-nick\r\n").await;
+    client_line(&mut server, b"@label=7 WHOIS missing-nick\r\n").await;
     server_line(
         &mut server,
-        b"@label=8 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
+        b"@label=7 :ergo.test 401 papo-driver missing-nick :No such nick\r\n",
     )
     .await;
     assert!(matches!(
@@ -1862,7 +1862,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
         let client = client.clone();
         async move { client.request_raw("WHOIS alice").await }
     });
-    client_line(&mut server, b"@label=9 WHOIS alice\r\n").await;
+    client_line(&mut server, b"@label=8 WHOIS alice\r\n").await;
     tokio::time::advance(Duration::from_secs(1)).await;
     assert!(matches!(
         within(timed_out).await.unwrap(),
@@ -1870,7 +1870,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
     ));
 
     let aborted = tokio::spawn(async move { client.request_raw("WHOIS emily").await });
-    client_line(&mut server, b"@label=A WHOIS emily\r\n").await;
+    client_line(&mut server, b"@label=9 WHOIS emily\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(aborted).await.unwrap(),
@@ -2089,18 +2089,15 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let topic = tokio::spawn({
         let client = client.clone();
-        async move { client.topic("#papo", None).await }
+        async move { client.set_topic("#papo", "Ergonomic IRC").await }
     });
-    client_line(&mut server, b"TOPIC #papo\r\n").await;
+    client_line(&mut server, b"TOPIC #papo :Ergonomic IRC\r\n").await;
     server_line(
         &mut server,
-        b":ergo.test 332 papo-driver #papo :Ergonomic IRC\r\n",
+        b":papo-driver!papo@localhost TOPIC #papo :Ergonomic IRC\r\n",
     )
     .await;
-    assert_eq!(
-        within(topic).await.unwrap().unwrap().as_deref(),
-        Some("Ergonomic IRC")
-    );
+    within(topic).await.unwrap().unwrap();
 
     let part = tokio::spawn({
         let client = client.clone();

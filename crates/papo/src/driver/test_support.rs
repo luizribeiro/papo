@@ -318,7 +318,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
 
     let set = tokio::spawn({
         let client = client.clone();
-        async move { client.topic("#papo", Some("Requests in Rust")).await }
+        async move { client.set_topic("#papo", "Requests in Rust").await }
     });
     client_line(server, b"@label=4 TOPIC #papo :Requests in Rust\r\n").await;
     server_line(
@@ -326,23 +326,9 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
         b"@label=4 :papo-driver!papo@localhost TOPIC #papo :Requests in Rust\r\n",
     )
     .await;
+    within(set).await.unwrap().unwrap();
     assert_eq!(
-        within(set).await.unwrap().unwrap().as_deref(),
-        Some("Requests in Rust")
-    );
-
-    let query = tokio::spawn({
-        let client = client.clone();
-        async move { client.topic("#papo", None).await }
-    });
-    client_line(server, b"@label=5 TOPIC #papo\r\n").await;
-    server_line(
-        server,
-        b"@label=5 :ergo.test 332 papo-driver #papo :Requests in Rust\r\n",
-    )
-    .await;
-    assert_eq!(
-        within(query).await.unwrap().unwrap().as_deref(),
+        client.state().channel("#papo").unwrap().topic(),
         Some("Requests in Rust")
     );
 
@@ -350,10 +336,10 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
         let client = client.clone();
         async move { client.part("#papo", "tests complete").await }
     });
-    client_line(server, b"@label=6 PART #papo :tests complete\r\n").await;
+    client_line(server, b"@label=5 PART #papo :tests complete\r\n").await;
     server_line(
         server,
-        b"@label=6 :papo-driver!papo@localhost PART #papo :tests complete\r\n",
+        b"@label=5 :papo-driver!papo@localhost PART #papo :tests complete\r\n",
     )
     .await;
     within(part).await.unwrap().unwrap();
@@ -362,8 +348,8 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
         let client = client.clone();
         async move { client.list(crate::ListFilter::default()).await }
     });
-    client_line(server, b"@label=7 LIST\r\n").await;
-    server_line(server, b"@label=7 :ergo.test BATCH +list-42 labeled-response\r\n@batch=list-42 :ergo.test 321 papo-driver Channel :Users Name\r\n@batch=list-42 :ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n@batch=list-42 :ergo.test 322 papo-driver #rust 17 :The Rust Programming Language\r\n@batch=list-42 :ergo.test 323 papo-driver :End of /LIST\r\n:ergo.test BATCH -list-42\r\n").await;
+    client_line(server, b"@label=6 LIST\r\n").await;
+    server_line(server, b"@label=6 :ergo.test BATCH +list-42 labeled-response\r\n@batch=list-42 :ergo.test 321 papo-driver Channel :Users Name\r\n@batch=list-42 :ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n@batch=list-42 :ergo.test 322 papo-driver #rust 17 :The Rust Programming Language\r\n@batch=list-42 :ergo.test 323 papo-driver :End of /LIST\r\n:ergo.test BATCH -list-42\r\n").await;
     let list = within(list).await.unwrap().unwrap();
     assert_eq!((list.len(), list[0].name.as_ref()), (2, "#papo"));
     assert_eq!(

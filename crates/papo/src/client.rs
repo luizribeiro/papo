@@ -735,7 +735,7 @@ impl Client {
         })
     }
 
-    /// Sets a channel topic, or queries it when `text` is `None`.
+    /// Sets the topic for `channel`.
     ///
     /// # Errors
     ///
@@ -744,16 +744,37 @@ impl Client {
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
     /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
     /// [`Error::Disconnected`].
-    pub async fn topic(&self, channel: &str, text: Option<&str>) -> Result<Option<String>, Error> {
-        let mut params = vec![channel];
-        params.extend(text);
-        let response = self
-            .correlated(
-                Message::new("TOPIC", params),
-                Some(ResponseMatcher::Topic(channel.to_owned())),
-            )
-            .await?;
-        crate::requests::topic(&response)
+    pub fn set_topic(
+        &self,
+        channel: impl Into<crate::ChannelName>,
+        topic: impl Into<String>,
+    ) -> crate::RequestFuture<()> {
+        self.change_topic(channel.into(), topic.into())
+    }
+
+    /// Clears the topic for `channel`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Client::set_topic`].
+    pub fn clear_topic(&self, channel: impl Into<crate::ChannelName>) -> crate::RequestFuture<()> {
+        self.change_topic(channel.into(), String::new())
+    }
+
+    fn change_topic(&self, channel: crate::ChannelName, topic: String) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            channel
+                .check(client.state().isupport())
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let response = client
+                .correlated(
+                    Message::new("TOPIC", [channel.to_string(), topic]),
+                    Some(ResponseMatcher::Topic(channel.to_string())),
+                )
+                .await?;
+            crate::requests::empty(&response)
+        })
     }
 
     /// Lists visible channels matching `filter`.

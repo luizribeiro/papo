@@ -64,7 +64,8 @@ fn request_futures_are_send() {
     assert_send_static(client.kick("#papo", "spambot", "flooding"));
     assert_send_static(client.invite("#papo", "carol"));
     assert_send_static(client.mode("#papo").add('t').into_future());
-    assert_send(client.topic("#papo", Some("Ergonomic IRC")));
+    assert_send_static(client.set_topic("#papo", "Ergonomic IRC"));
+    assert_send_static(client.clear_topic("#papo"));
     assert_send(client.list(ListFilter::default()));
     assert_send(client.quit(Some("trait check complete")));
 

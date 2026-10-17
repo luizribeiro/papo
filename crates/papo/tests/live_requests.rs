@@ -52,16 +52,12 @@ async fn typed_requests_round_trip_against_ergo() {
         );
 
         client.mode(&channel).add('t').await.unwrap();
+        client
+            .set_topic(&channel, "Typed requests on Ergo")
+            .await
+            .unwrap();
         assert_eq!(
-            client
-                .topic(&channel, Some("Typed requests on Ergo"))
-                .await
-                .unwrap()
-                .as_deref(),
-            Some("Typed requests on Ergo")
-        );
-        assert_eq!(
-            client.topic(&channel, None).await.unwrap().as_deref(),
+            client.state().channel(&channel).unwrap().topic(),
             Some("Typed requests on Ergo")
         );
         assert!(
