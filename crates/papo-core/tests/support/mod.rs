@@ -25,7 +25,7 @@ pub fn unsupported_error(feature: Feature) -> RequestError {
 
 /// Builds the expected error for a feature unavailable for `reason`.
 pub fn unsupported_because(feature: Feature, reason: UnsupportedReason) -> RequestError {
-    RequestError::Unsupported(Unsupported { feature, reason })
+    RequestError::Unsupported(Unsupported::new(feature, reason))
 }
 
 /// Runs a blocking transcript operation with bounded socket reads and writes.

@@ -1423,10 +1423,7 @@ impl From<BuildError> for RequestError {
 
 impl RequestError {
     fn unsupported(feature: Feature) -> Self {
-        Self::Unsupported(Unsupported {
-            feature,
-            reason: UnsupportedReason::NotOffered,
-        })
+        Self::Unsupported(Unsupported::new(feature, UnsupportedReason::NotOffered))
     }
 }
 
@@ -2950,7 +2947,7 @@ impl Session {
             self.unlabelled_requests.retain(|pending| pending.id != id);
             self.outbox.event(Event::RequestUnsupported {
                 id,
-                unsupported: Unsupported { feature, reason },
+                unsupported: Unsupported::new(feature, reason),
             });
         }
     }

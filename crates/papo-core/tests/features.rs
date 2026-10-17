@@ -9,7 +9,7 @@ use papo_core::{
 use papo_proto::Message;
 use support::{Transcript, unsupported_because};
 
-const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response";
+const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response away-notify account-notify account-tag chghost";
 
 fn session(caps: &str) -> Session {
     session_with(
@@ -50,6 +50,9 @@ fn recognizes_every_capability_backed_feature() {
         Feature::ChannelRename,
         Feature::Relay,
         Feature::LabeledResponse,
+        Feature::AwayTracking,
+        Feature::AccountTracking,
+        Feature::HostTracking,
     ] {
         assert_eq!(session.supports(feature), Ok(()), "{feature:?}");
     }
@@ -65,6 +68,26 @@ fn combines_isupport_tokens_with_negotiated_caps() {
     for feature in [Feature::History, Feature::Monitor, Feature::BotMode] {
         assert_eq!(session.supports(feature), Ok(()), "{feature:?}");
     }
+}
+
+#[test]
+fn account_tracking_requires_both_ratified_capabilities() {
+    let only_notify = session_with(
+        Config::default().wanted_caps(["account-notify"]),
+        "account-notify",
+        "",
+    );
+    assert_eq!(
+        only_notify.supports(Feature::AccountTracking),
+        Err(UnsupportedReason::NotOffered)
+    );
+
+    let both = session_with(
+        Config::default().wanted_caps(["account-notify", "account-tag"]),
+        "account-notify account-tag",
+        "",
+    );
+    assert_eq!(both.supports(Feature::AccountTracking), Ok(()));
 }
 
 #[test]
@@ -99,6 +122,9 @@ fn distinguishes_client_disabled_and_server_absent_features() {
         Feature::ChannelRename,
         Feature::Relay,
         Feature::LabeledResponse,
+        Feature::AwayTracking,
+        Feature::AccountTracking,
+        Feature::HostTracking,
     ];
     let disabled = session_with(
         Config::default()
@@ -164,6 +190,16 @@ fn applies_client_tag_denials_per_feature() {
         ":irc.solanum.example 005 papo CLIENTTAGDENY=reply :are supported by this server",
     );
     assert_eq!(draft_reply.supports(Feature::Replies), Ok(()));
+
+    let no_reply_for_reactions = session_with(
+        Config::default().wanted_caps(["message-tags"]),
+        "message-tags",
+        ":irc.solanum.example 005 papo CLIENTTAGDENY=reply,draft/reply :are supported by this server",
+    );
+    assert_eq!(
+        no_reply_for_reactions.supports(Feature::Reactions),
+        Err(UnsupportedReason::TagDenied)
+    );
 }
 
 #[test]
@@ -184,11 +220,7 @@ fn unsupported_messages_name_the_feature_and_reason() {
         ),
     ] {
         assert_eq!(
-            Unsupported {
-                feature: Feature::Reactions,
-                reason,
-            }
-            .to_string(),
+            Unsupported::new(Feature::Reactions, reason).to_string(),
             format!("reactions unavailable: {expected}")
         );
     }

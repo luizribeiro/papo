@@ -6,44 +6,57 @@ use crate::{RequestError, Session};
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
 pub enum Feature {
-    /// Message replies.
+    /// `IRCv3` draft replies, requiring `message-tags` and an allowed `+reply` or
+    /// `+draft/reply` client tag.
     Replies,
-    /// Message reactions.
+    /// `IRCv3` draft message reactions, requiring `message-tags`, an allowed
+    /// `+draft/react` tag, and an allowed reply tag.
     Reactions,
-    /// Typing notifications.
+    /// `IRCv3` draft typing notifications, requiring `message-tags` and an allowed
+    /// `+typing` client tag.
     Typing,
-    /// Message redaction.
+    /// `IRCv3` draft message redaction, requiring `draft/message-redaction`.
     Redaction,
-    /// Multiline messages.
+    /// `IRCv3` draft multiline messages, requiring `draft/multiline`.
     Multiline,
-    /// Chat history queries.
+    /// Ratified `IRCv3` chat history, requiring `chathistory` or its
+    /// `draft/chathistory` predecessor.
     History,
-    /// Read markers.
+    /// `IRCv3` draft read markers, requiring `draft/read-marker` or `read-marker`.
     ReadMarkers,
-    /// Server-side metadata.
+    /// `IRCv3` draft metadata, requiring `draft/metadata-3` or `draft/metadata-2`.
     Metadata,
-    /// Server-side presence monitoring.
+    /// The ratified IRC `MONITOR` extension, advertised through the `MONITOR`
+    /// ISUPPORT token rather than a capability.
     Monitor,
-    /// Real-name changes.
+    /// Ratified `IRCv3` real-name changes, requiring `setname`.
     SetName,
-    /// Server-advertised bot user mode.
+    /// Ratified `IRCv3` bot mode, advertised through the `BOT` ISUPPORT token.
     BotMode,
-    /// Account registration.
+    /// `IRCv3` draft account registration, requiring `draft/account-registration`.
     AccountRegistration,
-    /// Account persistence.
+    /// `IRCv3` draft account persistence, requiring `draft/persistence`.
     Persistence,
-    /// Web Push notifications.
+    /// `IRCv3` draft Web Push, requiring `draft/webpush` or Soju's vendor
+    /// capability `soju.im/webpush`.
     WebPush,
-    /// Channel renaming.
+    /// `IRCv3` draft channel renaming, requiring `draft/channel-rename`.
     ChannelRename,
-    /// Relay messages.
+    /// `IRCv3` draft relay messages, requiring `draft/relaymsg`.
     Relay,
-    /// Labelled response correlation.
+    /// Ratified `IRCv3` labelled responses, requiring `labeled-response`.
     LabeledResponse,
+    /// Ratified `IRCv3` live away information, requiring `away-notify`.
+    AwayTracking,
+    /// Ratified `IRCv3` live account information, requiring both `account-notify`
+    /// and `account-tag`.
+    AccountTracking,
+    /// Ratified `IRCv3` live username and hostname information, requiring `chghost`.
+    HostTracking,
 }
 
 impl Feature {
-    pub(crate) const ALL: [Self; 17] = [
+    pub(crate) const ALL: [Self; 20] = [
         Self::Replies,
         Self::Reactions,
         Self::Typing,
@@ -61,6 +74,9 @@ impl Feature {
         Self::ChannelRename,
         Self::Relay,
         Self::LabeledResponse,
+        Self::AwayTracking,
+        Self::AccountTracking,
+        Self::HostTracking,
     ];
 
     /// Returns a stable human-readable feature name.
@@ -84,6 +100,9 @@ impl Feature {
             Self::ChannelRename => "channel rename",
             Self::Relay => "relaymsg",
             Self::LabeledResponse => "labeled-response",
+            Self::AwayTracking => "away tracking",
+            Self::AccountTracking => "account tracking",
+            Self::HostTracking => "host tracking",
         }
     }
 
@@ -102,6 +121,9 @@ impl Feature {
             Self::ChannelRename => &["draft/channel-rename"],
             Self::Relay => &["draft/relaymsg"],
             Self::LabeledResponse => &["labeled-response"],
+            Self::AwayTracking => &["away-notify"],
+            Self::AccountTracking => &["account-notify", "account-tag"],
+            Self::HostTracking => &["chghost"],
             Self::Monitor | Self::BotMode => &[],
         }
     }
@@ -132,11 +154,20 @@ pub enum UnsupportedReason {
 
 /// A requested optional IRC behavior that is unavailable.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Unsupported {
     /// The requested behavior.
     pub feature: Feature,
     /// Why the behavior is unavailable.
     pub reason: UnsupportedReason,
+}
+
+impl Unsupported {
+    /// Creates an unavailable-feature description.
+    #[must_use]
+    pub const fn new(feature: Feature, reason: UnsupportedReason) -> Self {
+        Self { feature, reason }
+    }
 }
 
 impl std::fmt::Display for Unsupported {
@@ -165,7 +196,7 @@ impl Session {
 
     pub(crate) fn require_feature(&self, feature: Feature) -> Result<(), RequestError> {
         self.supports(feature)
-            .map_err(|reason| RequestError::Unsupported(Unsupported { feature, reason }))
+            .map_err(|reason| RequestError::Unsupported(Unsupported::new(feature, reason)))
     }
 
     /// Reports whether this connection supports an optional IRC behavior.
@@ -189,10 +220,17 @@ impl Session {
             }
             _ => {}
         }
-        let enabled = feature
-            .caps()
-            .iter()
-            .any(|name| self.caps.enabled().contains_key(*name));
+        let enabled = if feature == Feature::AccountTracking {
+            feature
+                .caps()
+                .iter()
+                .all(|name| self.caps.enabled().contains_key(*name))
+        } else {
+            feature
+                .caps()
+                .iter()
+                .any(|name| self.caps.enabled().contains_key(*name))
+        };
         if !enabled {
             let disabled = feature.caps().iter().any(|required| {
                 self.config.cap_disabled(required)
@@ -207,6 +245,12 @@ impl Session {
             });
         }
         let denied = support.clienttagdeny();
+        if feature == Feature::Reactions
+            && (denied.denies("+draft/react")
+                || (denied.denies("+reply") && denied.denies("+draft/reply")))
+        {
+            return Err(UnsupportedReason::TagDenied);
+        }
         if !feature.tags().is_empty() && feature.tags().iter().all(|tag| denied.denies(tag)) {
             return Err(UnsupportedReason::TagDenied);
         }
