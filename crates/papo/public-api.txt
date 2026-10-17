@@ -594,7 +594,7 @@ pub fn papo::Client::set_nick(&self, impl core::convert::Into<papo_proto::id::Ni
 pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_topic(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
-pub async fn papo::Client::typing(&self, &str, papo_proto::client_tags::Typing) -> core::result::Result<(), papo::Error>
+pub fn papo::Client::typing(&self, impl core::convert::Into<papo_proto::id::Target>, papo_proto::client_tags::Typing) -> papo::RequestFuture<()>
 pub fn papo::Client::unreact(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub async fn papo::Client::who(&self, &str) -> core::result::Result<alloc::vec::Vec<papo::WhoEntry>, papo::Error>
 pub async fn papo::Client::whois(&self, &str) -> core::result::Result<papo::Whois, papo::Error>

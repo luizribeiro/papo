@@ -498,19 +498,31 @@ impl Client {
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
-    pub async fn typing(&self, target: &str, state: Typing) -> Result<(), Error> {
-        let snapshot = self.state();
-        Self::require_feature(&snapshot, Feature::Typing)?;
-        let (result, receiver) = oneshot::channel();
-        self.commands
-            .send(Command::Typing {
-                target: target.to_owned(),
-                state,
-                result,
-            })
-            .await
-            .map_err(|_| Error::disconnected())?;
-        receiver.await.map_err(|_| Error::disconnected())?
+    pub fn typing(
+        &self,
+        target: impl Into<crate::Target>,
+        state: Typing,
+    ) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let target = target.into();
+        crate::RequestFuture::new(async move {
+            let snapshot = client.state();
+            Self::require_feature(&snapshot, Feature::Typing)?;
+            target
+                .check(snapshot.isupport())
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let (result, receiver) = oneshot::channel();
+            client
+                .commands
+                .send(Command::Typing {
+                    target: target.into_string(),
+                    state,
+                    result,
+                })
+                .await
+                .map_err(|_| Error::disconnected())?;
+            receiver.await.map_err(|_| Error::disconnected())?
+        })
     }
 
     /// Redacts a message from a target's history.
