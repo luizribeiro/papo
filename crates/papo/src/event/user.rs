@@ -1,3 +1,5 @@
+use crate::{AccountName, ChannelName, Nick};
+
 use super::Joined;
 
 /// A user disconnected from the network.
@@ -5,11 +7,11 @@ use super::Joined;
 #[non_exhaustive]
 pub struct Quit {
     /// The disconnected user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The optional quit reason.
     pub reason: Option<String>,
     /// Shared channels captured before the user was removed.
-    pub channels: Vec<String>,
+    pub channels: Vec<ChannelName>,
 }
 
 /// A user changed nickname.
@@ -17,9 +19,9 @@ pub struct Quit {
 #[non_exhaustive]
 pub struct NickChanged {
     /// The previous nickname.
-    pub old: String,
+    pub old: Nick,
     /// The new nickname.
-    pub new: String,
+    pub new: Nick,
     /// Whether the renamed user is this client.
     pub is_self: bool,
 }
@@ -29,7 +31,7 @@ pub struct NickChanged {
 #[non_exhaustive]
 pub struct AwayChanged {
     /// The affected user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The away message, or `None` when the user returned.
     pub message: Option<String>,
 }
@@ -39,9 +41,9 @@ pub struct AwayChanged {
 #[non_exhaustive]
 pub struct AccountChanged {
     /// The affected user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The authenticated account, or `None` when logged out or unknown.
-    pub account: Option<String>,
+    pub account: Option<AccountName>,
 }
 
 /// A user's username or hostname changed.
@@ -49,7 +51,7 @@ pub struct AccountChanged {
 #[non_exhaustive]
 pub struct HostChanged {
     /// The affected user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The user's new username.
     pub user: String,
     /// The user's new hostname.
@@ -61,7 +63,7 @@ pub struct HostChanged {
 #[non_exhaustive]
 pub struct RealnameChanged {
     /// The affected user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The user's new real name.
     pub realname: String,
 }
@@ -71,7 +73,7 @@ pub struct RealnameChanged {
 #[non_exhaustive]
 pub struct MonitorOnline {
     /// The monitored nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The user's current username, when supplied by the server.
     pub user: Option<String>,
     /// The user's current hostname, when supplied by the server.
@@ -83,7 +85,7 @@ pub struct MonitorOnline {
 #[non_exhaustive]
 pub struct MonitorOffline {
     /// The monitored nickname.
-    pub nick: String,
+    pub nick: Nick,
 }
 
 /// A user departed during a netsplit.
@@ -91,7 +93,7 @@ pub struct MonitorOffline {
 #[non_exhaustive]
 pub struct Departed {
     /// The departed user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The optional quit reason.
     pub reason: Option<String>,
 }

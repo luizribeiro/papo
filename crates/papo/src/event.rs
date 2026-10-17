@@ -619,7 +619,7 @@ impl Event {
             Self::Parted(parted) => Some((parted.nick.as_ref(), &mut parted.is_self)),
             Self::Kicked(kicked) => Some((kicked.nick.as_ref(), &mut kicked.is_self)),
             Self::Invited(invited) => Some((invited.nick.as_ref(), &mut invited.is_self)),
-            Self::NickChanged(changed) => Some((changed.old.as_str(), &mut changed.is_self)),
+            Self::NickChanged(changed) => Some((changed.old.as_ref(), &mut changed.is_self)),
             _ => None,
         };
         if let Some((candidate, is_self)) = candidate {
@@ -790,7 +790,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                         papo_proto::Source::Server(_) => return None,
                     };
                     Some(Departed {
-                        nick,
+                        nick: nick.into(),
                         reason: message.param(0).map(str::to_owned),
                     })
                 })
@@ -874,13 +874,13 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             reason,
             channels,
         } => Event::Quit(Quit {
-            nick,
+            nick: nick.into(),
             reason,
-            channels,
+            channels: channels.into_iter().map(Into::into).collect(),
         }),
         papo_core::Event::NickChanged { old, new } => Event::NickChanged(NickChanged {
-            old,
-            new,
+            old: old.into(),
+            new: new.into(),
             is_self: false,
         }),
         papo_core::Event::ChannelRenamed { old, new, reason } => {
@@ -888,21 +888,27 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         }
         papo_core::Event::AccountChanged { nick, account } => {
             Event::AccountChanged(AccountChanged {
-                nick,
+                nick: nick.into(),
                 account: match account {
-                    Account::LoggedIn(account) => Some(account.into_string()),
+                    Account::LoggedIn(account) => Some(account.into_string().into()),
                     _ => None,
                 },
             })
         }
-        papo_core::Event::AwayChanged { nick, message } => {
-            Event::AwayChanged(AwayChanged { nick, message })
-        }
-        papo_core::Event::HostChanged { nick, user, host } => {
-            Event::HostChanged(HostChanged { nick, user, host })
-        }
+        papo_core::Event::AwayChanged { nick, message } => Event::AwayChanged(AwayChanged {
+            nick: nick.into(),
+            message,
+        }),
+        papo_core::Event::HostChanged { nick, user, host } => Event::HostChanged(HostChanged {
+            nick: nick.into(),
+            user,
+            host,
+        }),
         papo_core::Event::RealnameChanged { nick, realname } => {
-            Event::RealnameChanged(RealnameChanged { nick, realname })
+            Event::RealnameChanged(RealnameChanged {
+                nick: nick.into(),
+                realname,
+            })
         }
         papo_core::Event::ModeChanged {
             target,
@@ -939,9 +945,15 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             })
         }
         papo_core::Event::MonitorOnline { nick, user, host } => {
-            Event::MonitorOnline(MonitorOnline { nick, user, host })
+            Event::MonitorOnline(MonitorOnline {
+                nick: nick.into(),
+                user,
+                host,
+            })
         }
-        papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline { nick }),
+        papo_core::Event::MonitorOffline { nick } => {
+            Event::MonitorOffline(MonitorOffline { nick: nick.into() })
+        }
         papo_core::Event::MonitorListFull { limit, nicks } => {
             Event::Warning(Warning::MonitorListFull { limit, nicks })
         }
@@ -1810,8 +1822,8 @@ mod tests {
                 is_self: false,
             }),
             Event::NickChanged(super::NickChanged {
-                old: "Papo[Bot]".to_owned(),
-                new: "papo-away".to_owned(),
+                old: "Papo[Bot]".into(),
+                new: "papo-away".into(),
                 is_self: false,
             }),
             Event::Netjoin(super::Netjoin {

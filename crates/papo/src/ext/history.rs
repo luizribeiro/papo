@@ -154,7 +154,7 @@ fn parted(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<Histo
 
 fn quit(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
     Some(HistoryItem::Quit(Quit {
-        nick: source_nick(message)?,
+        nick: source_nick(message)?.into(),
         reason: message.param(0).map(str::to_owned),
         channels: Vec::new(),
     }))
@@ -175,8 +175,8 @@ fn nick_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option
     let old = source_nick(message)?;
     Some(HistoryItem::NickChanged(NickChanged {
         is_self: is_self(client, &old),
-        old,
-        new: message.param(0)?.to_owned(),
+        old: old.into(),
+        new: message.param(0)?.into(),
     }))
 }
 

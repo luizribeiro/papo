@@ -134,11 +134,11 @@ pub papo::event::Warning::StateLimitReached::limit: papo::event::StateLimit
 impl core::fmt::Display for papo::event::Warning
 pub fn papo::event::Warning::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct papo::event::AccountChanged
-pub papo::event::AccountChanged::account: core::option::Option<alloc::string::String>
-pub papo::event::AccountChanged::nick: alloc::string::String
+pub papo::event::AccountChanged::account: core::option::Option<papo_proto::id::AccountName>
+pub papo::event::AccountChanged::nick: papo_proto::id::Nick
 #[non_exhaustive] pub struct papo::event::AwayChanged
 pub papo::event::AwayChanged::message: core::option::Option<alloc::string::String>
-pub papo::event::AwayChanged::nick: alloc::string::String
+pub papo::event::AwayChanged::nick: papo_proto::id::Nick
 #[non_exhaustive] pub struct papo::event::CapsChanged
 pub papo::event::CapsChanged::added: papo_core::Capabilities
 pub papo::event::CapsChanged::removed: papo_core::Capabilities
@@ -149,14 +149,14 @@ pub papo::event::ChannelRenamed::reason: alloc::string::String
 #[non_exhaustive] pub struct papo::event::ChannelSynced
 pub papo::event::ChannelSynced::channel: papo_proto::id::ChannelName
 #[non_exhaustive] pub struct papo::event::Departed
-pub papo::event::Departed::nick: alloc::string::String
+pub papo::event::Departed::nick: papo_proto::id::Nick
 pub papo::event::Departed::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Disconnected
 pub papo::event::Disconnected::reason: alloc::string::String
 pub papo::event::Disconnected::will_retry: bool
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::host: alloc::string::String
-pub papo::event::HostChanged::nick: alloc::string::String
+pub papo::event::HostChanged::nick: papo_proto::id::Nick
 pub papo::event::HostChanged::user: alloc::string::String
 #[non_exhaustive] pub struct papo::event::Invited
 pub papo::event::Invited::by: papo::Source
@@ -187,10 +187,10 @@ pub papo::event::ModeChanged::by: papo::Source
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
 pub papo::event::ModeChanged::target: alloc::string::String
 #[non_exhaustive] pub struct papo::event::MonitorOffline
-pub papo::event::MonitorOffline::nick: alloc::string::String
+pub papo::event::MonitorOffline::nick: papo_proto::id::Nick
 #[non_exhaustive] pub struct papo::event::MonitorOnline
 pub papo::event::MonitorOnline::host: core::option::Option<alloc::string::String>
-pub papo::event::MonitorOnline::nick: alloc::string::String
+pub papo::event::MonitorOnline::nick: papo_proto::id::Nick
 pub papo::event::MonitorOnline::user: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Netjoin
 pub papo::event::Netjoin::joins: alloc::vec::Vec<papo::event::Joined>
@@ -200,8 +200,8 @@ pub papo::event::Netsplit::quits: alloc::vec::Vec<papo::event::Departed>
 pub papo::event::Netsplit::servers: [alloc::string::String; 2]
 #[non_exhaustive] pub struct papo::event::NickChanged
 pub papo::event::NickChanged::is_self: bool
-pub papo::event::NickChanged::new: alloc::string::String
-pub papo::event::NickChanged::old: alloc::string::String
+pub papo::event::NickChanged::new: papo_proto::id::Nick
+pub papo::event::NickChanged::old: papo_proto::id::Nick
 #[non_exhaustive] pub struct papo::event::Parted
 pub papo::event::Parted::channel: papo_proto::id::ChannelName
 pub papo::event::Parted::is_self: bool
@@ -211,8 +211,8 @@ pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
 pub papo::event::PersistenceChanged::effective: bool
 pub papo::event::PersistenceChanged::setting: papo::event::PersistenceSetting
 #[non_exhaustive] pub struct papo::event::Quit
-pub papo::event::Quit::channels: alloc::vec::Vec<alloc::string::String>
-pub papo::event::Quit::nick: alloc::string::String
+pub papo::event::Quit::channels: alloc::vec::Vec<papo_proto::id::ChannelName>
+pub papo::event::Quit::nick: papo_proto::id::Nick
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Reacted
 pub papo::event::Reacted::message: papo_proto::id::MessageId
@@ -224,7 +224,7 @@ pub papo::event::Reacted::target: papo_proto::id::Target
 pub papo::event::ReadMarker::target: papo_proto::id::Target
 pub papo::event::ReadMarker::time: core::option::Option<std::time::SystemTime>
 #[non_exhaustive] pub struct papo::event::RealnameChanged
-pub papo::event::RealnameChanged::nick: alloc::string::String
+pub papo::event::RealnameChanged::nick: papo_proto::id::Nick
 pub papo::event::RealnameChanged::realname: alloc::string::String
 #[non_exhaustive] pub struct papo::event::Redacted
 pub papo::event::Redacted::message: papo_proto::id::MessageId
