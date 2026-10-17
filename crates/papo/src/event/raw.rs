@@ -26,6 +26,22 @@ impl RawLine {
         &self.params
     }
 
+    /// Returns the parameter at `index` in wire order.
+    #[must_use]
+    pub fn param(&self, index: usize) -> Option<&str> {
+        self.params.get(index).map(String::as_str)
+    }
+
+    /// Returns the command as a three-digit numeric reply or error.
+    #[must_use]
+    pub fn numeric(&self) -> Option<u16> {
+        let papo_proto::Command::Numeric(numeric) = papo_proto::Command::parse(&self.command)
+        else {
+            return None;
+        };
+        Some(numeric.code())
+    }
+
     /// Returns the last value for a case-sensitive tag key.
     #[must_use]
     pub fn tag(&self, key: &str) -> Option<&str> {
@@ -128,6 +144,10 @@ mod tests {
 
         assert_eq!(line.command(), "NOTICE");
         assert_eq!(line.params(), ["#papo", "maintenance soon"]);
+        assert_eq!(line.param(0), Some("#papo"));
+        assert_eq!(line.param(1), Some("maintenance soon"));
+        assert_eq!(line.param(2), None);
+        assert_eq!(line.numeric(), None);
         assert_eq!(line.tag("account"), Some("alice"));
         assert_eq!(line.tag("example.org/note"), Some("one two;three"));
         assert!(matches!(
@@ -150,6 +170,8 @@ mod tests {
 
         assert_eq!(line.tag("bot"), Some(""));
         assert_eq!(line.params(), ["papo", ""]);
+        assert_eq!(line.param(1), Some(""));
+        assert_eq!(line.numeric(), Some(372));
         assert!(matches!(
             line.source(),
             Some(Source::Server { name }) if name == "ergo.test"

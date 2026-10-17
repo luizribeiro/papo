@@ -945,6 +945,8 @@ pub fn papo::PushKeys::new(impl core::convert::Into<alloc::string::String>, impl
 pub struct papo::RawLine
 impl papo::RawLine
 pub fn papo::RawLine::command(&self) -> &str
+pub fn papo::RawLine::numeric(&self) -> core::option::Option<u16>
+pub fn papo::RawLine::param(&self, usize) -> core::option::Option<&str>
 pub fn papo::RawLine::params(&self) -> &[alloc::string::String]
 pub fn papo::RawLine::source(&self) -> core::option::Option<papo::Source>
 pub fn papo::RawLine::tag(&self, &str) -> core::option::Option<&str>
