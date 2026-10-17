@@ -43,7 +43,7 @@ pub fn papo::bot::Command::channel(&self) -> core::option::Option<&str>
 pub const fn papo::bot::Command::client(&self) -> &papo::Client
 pub const fn papo::bot::Command::message(&self) -> &papo::MessageEvent
 pub fn papo::bot::Command::name(&self) -> &str
-pub fn papo::bot::Command::parse(&papo::Event, &papo::bot::BotConfig) -> core::option::Option<Self>
+pub fn papo::bot::Command::parse(&papo::Client, &papo::Event, &papo::bot::BotConfig) -> core::option::Option<Self>
 pub async fn papo::bot::Command::private_notice(&self, &str) -> core::result::Result<papo::bot::ReplyStatus, papo::Error>
 pub async fn papo::bot::Command::reply(&self, &str) -> core::result::Result<papo::bot::ReplyStatus, papo::Error>
 pub struct papo::bot::ReplyRateLimiter

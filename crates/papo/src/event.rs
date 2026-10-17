@@ -151,35 +151,6 @@ enum StoredKind {
 }
 
 impl MessageEvent {
-    #[cfg(feature = "bot")]
-    pub(crate) const fn client(&self) -> &Client {
-        &self.client
-    }
-
-    #[cfg(feature = "bot")]
-    pub(crate) fn client_nick(&self) -> String {
-        self.client.nick().into_string()
-    }
-
-    #[cfg(feature = "bot")]
-    pub(crate) fn casemapping(&self) -> papo_proto::Casemapping {
-        self.isupport.casemapping()
-    }
-
-    #[cfg(feature = "bot")]
-    pub(crate) fn resolved_account(&self) -> Option<String> {
-        if let Some(account) = &self.account {
-            return Some(account.clone());
-        }
-        let Source::User { nick, .. } = self.source()? else {
-            return None;
-        };
-        match self.client.state().user(nick)?.account() {
-            Account::LoggedIn(account) => Some(account.as_ref().to_owned()),
-            _ => None,
-        }
-    }
-
     pub(crate) fn new(
         raw: Message,
         isupport: &Isupport,

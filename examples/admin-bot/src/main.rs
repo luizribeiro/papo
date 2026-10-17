@@ -71,7 +71,7 @@ async fn run(
                 return Ok(());
             }
             event = events.next() => match event {
-                Some(event) => handle(&event, config, admins).await?,
+                Some(event) => handle(&client, &event, config, admins).await?,
                 None => return Ok(()),
             },
         }
@@ -80,19 +80,24 @@ async fn run(
 
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 async fn run(
-    _client: Client,
+    client: Client,
     mut events: Events,
     config: &BotConfig,
     admins: &[String],
 ) -> Result<(), PapoError> {
     while let Some(event) = events.next().await {
-        handle(&event, config, admins).await?;
+        handle(&client, &event, config, admins).await?;
     }
     Ok(())
 }
 
-async fn handle(event: &Event, config: &BotConfig, admins: &[String]) -> Result<(), PapoError> {
-    let Some(command) = Command::parse(event, config) else {
+async fn handle(
+    client: &Client,
+    event: &Event,
+    config: &BotConfig,
+    admins: &[String],
+) -> Result<(), PapoError> {
+    let Some(command) = Command::parse(client, event, config) else {
         return Ok(());
     };
     match command.name() {

@@ -64,7 +64,7 @@ async fn handle(client: &Client, event: &Event, config: &BotConfig) -> Result<()
         return Ok(());
     }
 
-    let Some(command) = Command::parse(event, config) else {
+    let Some(command) = Command::parse(client, event, config) else {
         return Ok(());
     };
     match command.name() {
