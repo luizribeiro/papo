@@ -634,6 +634,91 @@ mod tests {
     }
 
     #[test]
+    fn maps_each_replayed_membership_change() {
+        let client = crate::Client::disconnected_for_test();
+        let map = |item| history_item(item, &client, UNIX_EPOCH, crate::Origin::Replay);
+
+        let parted = map(papo_core::HistoryItem::Parted(core_item(
+            ":emily!~e@localhost PART #papo :Leaving for lunch",
+        )));
+        assert!(matches!(
+            parted,
+            HistoryItem::Parted(event)
+                if event.channel == "#papo" && event.nick == "emily"
+                    && event.reason.as_deref() == Some("Leaving for lunch") && !event.is_self
+        ));
+
+        let quit = map(papo_core::HistoryItem::Quit(core_item(
+            ":emily!~e@localhost QUIT :Connection reset by peer",
+        )));
+        assert!(matches!(
+            quit,
+            HistoryItem::Quit(event)
+                if event.nick == "emily"
+                    && event.reason.as_deref() == Some("Connection reset by peer")
+                    && event.channels.is_empty()
+        ));
+
+        let kicked = map(papo_core::HistoryItem::Kicked(core_item(
+            ":irc.example KICK #papo emily :Requested by alice",
+        )));
+        assert!(matches!(
+            kicked,
+            HistoryItem::Kicked(event)
+                if event.channel == "#papo" && event.nick == "emily"
+                    && event.reason.as_deref() == Some("Requested by alice")
+                    && matches!(event.by, crate::Source::Server { ref name } if name == "irc.example")
+                    && !event.is_self
+        ));
+
+        let renamed = map(papo_core::HistoryItem::NickChanged(core_item(
+            ":emily!~e@localhost NICK emily_",
+        )));
+        assert!(matches!(
+            renamed,
+            HistoryItem::NickChanged(event)
+                if event.old == "emily" && event.new == "emily_" && !event.is_self
+        ));
+    }
+
+    #[test]
+    fn maps_replayed_topic_modes_and_unreaction() {
+        let client = crate::Client::disconnected_for_test();
+        let map = |item| history_item(item, &client, UNIX_EPOCH, crate::Origin::Replay);
+
+        let topic = map(papo_core::HistoryItem::TopicChanged(core_item(
+            ":emily!~e@localhost TOPIC #papo :Rust 1.90 is out",
+        )));
+        assert!(matches!(
+            topic,
+            HistoryItem::TopicChanged(event)
+                if event.channel == "#papo"
+                    && event.topic.as_deref() == Some("Rust 1.90 is out")
+                    && event.by.nick() == Some("emily")
+        ));
+
+        let mode = map(papo_core::HistoryItem::ModeChanged(core_item(
+            ":emily!~e@localhost MODE #papo +im",
+        )));
+        assert!(matches!(
+            mode,
+            HistoryItem::ModeChanged(event)
+                if event.target == "#papo" && event.by.nick() == Some("emily")
+                    && event.changes.len() == 2
+                    && event.changes.iter().all(|change| change.set)
+                    && event.changes[0].mode == 'i' && event.changes[1].mode == 'm'
+        ));
+
+        let unreacted = map(papo_core::HistoryItem::Reacted(core_item(
+            "@+draft/unreact=👍;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo",
+        )));
+        assert!(matches!(
+            unreacted,
+            HistoryItem::Reacted(event) if event.reaction == "👍" && event.removed
+        ));
+    }
+
+    #[test]
     fn builds_after_around_and_between_queries_with_limits() {
         let client = crate::Client::disconnected_for_test();
         let after = client
