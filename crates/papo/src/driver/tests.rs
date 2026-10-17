@@ -2562,6 +2562,23 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
         within(sent).await.unwrap().unwrap().id.unwrap(),
         "RfcBTzyxY120005"
     );
+
+    let action_client = client.clone();
+    let action = tokio::spawn(async move { action_client.action("#papo", "waves").await });
+    client_line(
+        &mut server,
+        b"@label=1 PRIVMSG #papo :\x01ACTION waves\x01\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=1;msgid=RfcBTzyxY120006 :papo-driver!papo@localhost PRIVMSG #papo :\x01ACTION waves\x01\r\n",
+    )
+    .await;
+    assert_eq!(
+        within(action).await.unwrap().unwrap().id.unwrap(),
+        "RfcBTzyxY120006"
+    );
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }

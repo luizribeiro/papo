@@ -568,6 +568,7 @@ impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Client
 impl papo::Client
+pub fn papo::Client::action(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl core::convert::Into<papo_proto::id::ChannelName>) -> papo::RequestFuture<()>

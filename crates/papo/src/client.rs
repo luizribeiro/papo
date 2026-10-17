@@ -8,7 +8,7 @@ use std::{
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
-use papo_proto::{Message, MessageRef, Typing, time};
+use papo_proto::{Ctcp, Message, MessageRef, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
@@ -362,6 +362,15 @@ impl Client {
             channel_context: None,
             tags: Vec::new(),
         }
+    }
+
+    /// Sends a CTCP ACTION to a user or channel.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Client::privmsg`].
+    pub fn action(&self, target: impl Into<crate::Target>, text: impl Into<String>) -> SendMessage {
+        self.privmsg(target, Ctcp::action(&text.into()))
     }
 
     /// Sends a private message threaded as a reply to `message` when supported.
