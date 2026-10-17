@@ -20,6 +20,7 @@ use papo_test_server::register_account;
 use papo_test_server::{from_env, unique};
 #[cfg(not(target_family = "wasm"))]
 use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     sync::mpsc,
 };
@@ -76,7 +77,8 @@ async fn registers_then_logs_in_with_sasl() {
 async fn persistent_server_restores_channels_without_a_client_join() {
     within(async {
         let server = from_env();
-        let (proxy, disconnect) = disconnecting_proxy(server.plaintext_addr()).await;
+        let (proxy, disconnect, mut client_lines) =
+            disconnecting_proxy(server.plaintext_addr()).await;
         let address = Endpoint::plaintext(proxy.ip().to_string(), proxy.port());
         let account = unique("papo-persistent");
         let channel = format!("#{}", unique("papo-persistent"));
@@ -95,6 +97,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
             |event| matches!(event, Event::ChannelSynced { channel: joined } if joined == &channel),
         )
         .await;
+        while client_lines.try_recv().is_ok() {}
         let persistence = client
             .persistence()
             .set(PersistenceSetting::On)
@@ -114,7 +117,28 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         })
         .await;
         wait_for(&mut events, |event| matches!(event, Event::Reconnected(_))).await;
+        wait_for(&mut events, |event| {
+            matches!(
+                event,
+                Event::Joined { channel: joined, .. }
+                    | Event::ChannelSynced { channel: joined }
+                    if joined == &channel
+            )
+        })
+        .await;
         assert!(client.state(|state| state.channel(&channel).is_some()));
+        client
+            .raw(papo_proto::Message::new(
+                "PING",
+                ["persistent-rejoin-fence"],
+            ))
+            .await
+            .unwrap();
+        assert!(
+            std::iter::from_fn(|| client_lines.try_recv().ok())
+                .all(|line| line != format!("JOIN {channel}")),
+            "papo sent a duplicate JOIN after the server restored the channel"
+        );
         client
             .quit(Some("persistent reconnect verified"))
             .await
@@ -124,21 +148,53 @@ async fn persistent_server_restores_channels_without_a_client_join() {
 }
 
 #[cfg(not(target_family = "wasm"))]
-async fn disconnecting_proxy(target: SocketAddr) -> (SocketAddr, mpsc::Sender<()>) {
+async fn disconnecting_proxy(
+    target: SocketAddr,
+) -> (
+    SocketAddr,
+    mpsc::Sender<()>,
+    mpsc::UnboundedReceiver<String>,
+) {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let address = listener.local_addr().unwrap();
     let (disconnect, mut disconnects) = mpsc::channel(1);
+    let (client_lines, lines) = mpsc::unbounded_channel();
     tokio::spawn(async move {
         loop {
-            let (mut client, _) = listener.accept().await.unwrap();
-            let mut server = TcpStream::connect(target).await.unwrap();
+            let (client, _) = listener.accept().await.unwrap();
+            let server = TcpStream::connect(target).await.unwrap();
+            let (client_read, mut client_write) = client.into_split();
+            let (mut server_read, server_write) = server.into_split();
             tokio::select! {
-                _ = tokio::io::copy_bidirectional(&mut client, &mut server) => {}
+                _ = forward_client_lines(client_read, server_write, client_lines.clone()) => {}
+                _ = tokio::io::copy(&mut server_read, &mut client_write) => {}
                 _ = disconnects.recv() => {}
             }
         }
     });
-    (address, disconnect)
+    (address, disconnect, lines)
+}
+
+#[cfg(not(target_family = "wasm"))]
+async fn forward_client_lines(
+    mut reader: tokio::net::tcp::OwnedReadHalf,
+    mut writer: tokio::net::tcp::OwnedWriteHalf,
+    lines: mpsc::UnboundedSender<String>,
+) -> std::io::Result<()> {
+    let mut buffered = Vec::new();
+    let mut chunk = [0_u8; 1024];
+    loop {
+        let count = reader.read(&mut chunk).await?;
+        if count == 0 {
+            return Ok(());
+        }
+        writer.write_all(&chunk[..count]).await?;
+        buffered.extend_from_slice(&chunk[..count]);
+        while let Some(end) = buffered.iter().position(|byte| *byte == b'\n') {
+            let line = buffered.drain(..=end).collect::<Vec<_>>();
+            _ = lines.send(String::from_utf8_lossy(&line).trim().to_owned());
+        }
+    }
 }
 
 async fn wait_registered(events: &mut papo::Events, nick: &str) {
