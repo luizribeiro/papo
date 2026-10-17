@@ -8,19 +8,21 @@ use crate::{Client, Error, driver::CoreRequest};
 use crate::driver::test_support::*;
 
 /// Handle for metadata requests and cached metadata state.
-pub struct Metadata<'a> {
-    client: &'a Client,
+pub struct Metadata {
+    client: Client,
 }
 
 impl Client {
     /// Returns a handle for metadata requests and cached state.
     #[must_use]
-    pub const fn metadata(&self) -> Metadata<'_> {
-        Metadata { client: self }
+    pub fn metadata(&self) -> Metadata {
+        Metadata {
+            client: self.clone(),
+        }
     }
 }
 
-impl Metadata<'_> {
+impl Metadata {
     async fn request(&self, command: MetadataCommand) -> Result<(), Error> {
         let response = self
             .client
@@ -177,12 +179,6 @@ impl Metadata<'_> {
         .await
     }
 
-    /// Returns the cached metadata subscription list.
-    #[must_use]
-    pub fn subscriptions(&self) -> Vec<String> {
-        self.client.state().metadata_subscriptions().to_vec()
-    }
-
     /// Synchronizes cached metadata for a target.
     ///
     /// # Errors
@@ -318,7 +314,10 @@ mod tests {
         )
         .await;
         assert!(within(subscribe).await.unwrap().is_ok());
-        assert_eq!(client.metadata().subscriptions(), ["avatar", "pronouns"]);
+        assert_eq!(
+            client.state().metadata_subscriptions(),
+            ["avatar", "pronouns"]
+        );
         assert_eq!(
             client.state().metadata_subscriptions(),
             ["avatar", "pronouns"]
@@ -335,7 +334,7 @@ mod tests {
         )
         .await;
         assert!(within(unsubscribe).await.unwrap().is_ok());
-        assert_eq!(client.metadata().subscriptions(), ["avatar"]);
+        assert_eq!(client.state().metadata_subscriptions(), ["avatar"]);
 
         let sync = tokio::spawn({
             let client = client.clone();

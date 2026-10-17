@@ -604,7 +604,7 @@ pub fn papo::Client::history(&self, impl core::convert::Into<papo_proto::id::Tar
 pub fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::HistoryTarget>>
 pub fn papo::Client::mark_read(&self, impl core::convert::Into<papo_proto::id::Target>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 impl papo::Client
-pub const fn papo::Client::metadata(&self) -> papo::Metadata<'_>
+pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
 pub fn papo::Client::mode(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::SetModes
 impl papo::Client
@@ -745,17 +745,16 @@ pub fn papo::Message::text(&self) -> &str
 pub fn papo::Message::time(&self) -> std::time::SystemTime
 impl core::convert::From<&papo::Message> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::Message) -> Self
-pub struct papo::Metadata<'a>
-impl papo::Metadata<'_>
-pub async fn papo::Metadata<'_>::clear(&self) -> core::result::Result<(), papo::Error>
-pub async fn papo::Metadata<'_>::get<I, S>(&self, &str, I) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub async fn papo::Metadata<'_>::list(&self, &str) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error>
-pub async fn papo::Metadata<'_>::set(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
-pub async fn papo::Metadata<'_>::set_on(&self, &str, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
-pub async fn papo::Metadata<'_>::subscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub fn papo::Metadata<'_>::subscriptions(&self) -> alloc::vec::Vec<alloc::string::String>
-pub async fn papo::Metadata<'_>::sync(&self, &str) -> core::result::Result<(), papo::Error>
-pub async fn papo::Metadata<'_>::unsubscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub struct papo::Metadata
+impl papo::Metadata
+pub async fn papo::Metadata::clear(&self) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata::get<I, S>(&self, &str, I) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub async fn papo::Metadata::list(&self, &str) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error>
+pub async fn papo::Metadata::set(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata::set_on(&self, &str, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata::subscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub async fn papo::Metadata::sync(&self, &str) -> core::result::Result<(), papo::Error>
+pub async fn papo::Metadata::unsubscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub struct papo::NewAccount
 impl papo::NewAccount
 pub fn papo::NewAccount::account(self, impl core::convert::Into<papo_proto::id::AccountName>) -> Self
