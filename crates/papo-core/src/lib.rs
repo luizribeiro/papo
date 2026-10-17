@@ -5,6 +5,8 @@
 
 mod account_registration;
 mod batch;
+#[cfg(feature = "unstable")]
+mod bouncer;
 mod caps;
 mod channel_rename;
 mod features;
@@ -47,6 +49,9 @@ use papo_proto::{
 
 use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use bouncer::{BouncerNetwork, NetworkId, NetworkState};
 use caps::Caps;
 pub use channel_rename::ChannelRenameError;
 pub use features::{Feature, Unsupported, UnsupportedReason};
