@@ -7,7 +7,11 @@ pub struct WebPush<'a> {
     client: &'a Client,
 }
 
-/// URL-safe encoded Web Push encryption keys.
+/// Web Push encryption keys encoded with the URL-safe Base64 alphabet.
+///
+/// The `p256dh` value is the encoded P-256 public key and `auth` is the encoded authentication
+/// secret from the push subscription. Pass the encoded strings, not their decoded bytes or
+/// standard-Base64 forms using `+` and `/`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PushKeys {
     p256dh: String,
@@ -16,6 +20,9 @@ pub struct PushKeys {
 
 impl PushKeys {
     /// Creates the encryption keys for a Web Push subscription.
+    ///
+    /// `p256dh` and `auth` must use URL-safe Base64 encoding, as returned by a browser push
+    /// subscription after encoding its `p256dh` and `auth` key bytes.
     ///
     /// ```
     /// let keys = papo::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_");
