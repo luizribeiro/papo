@@ -2,6 +2,7 @@ pub mod papo
 pub use papo::Account
 pub use papo::Capabilities
 pub use papo::Channel
+pub use papo::Feature
 pub use papo::Member
 pub use papo::PersistenceSetting
 pub use papo::PersistenceStatus
@@ -11,6 +12,8 @@ pub use papo::Sasl
 pub use papo::Secret
 pub use papo::ServerError
 pub use papo::Typing
+pub use papo::Unsupported
+pub use papo::UnsupportedReason
 pub use papo::User
 pub use papo::WebIrc
 pub mod papo::bot
@@ -473,6 +476,7 @@ pub fn papo::State::casemap(&self, &str) -> alloc::string::String
 pub fn papo::State::channel(&self, &str) -> core::option::Option<&papo_core::state::Channel>
 pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::Channel>
 pub const fn papo::State::connected(&self) -> bool
+pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo_core::features::Feature> + '_
 pub fn papo::State::has_cap(&self, &str) -> bool
 pub fn papo::State::isupport(&self) -> &papo_proto::isupport::Isupport
 pub fn papo::State::metadata(&self, &str) -> core::option::Option<&std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
@@ -481,6 +485,7 @@ pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::
 pub fn papo::State::nick(&self) -> &str
 pub const fn papo::State::persistence(&self) -> core::option::Option<papo_core::PersistenceStatus>
 pub fn papo::State::read_marker(&self, &str) -> core::option::Option<std::time::SystemTime>
+pub fn papo::State::supports(&self, papo_core::features::Feature) -> bool
 pub fn papo::State::user(&self, &str) -> core::option::Option<&papo_core::state::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub struct papo::WebPush<'a>

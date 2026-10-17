@@ -3073,6 +3073,14 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert_eq!(client.casemap("#PAPO[dev]"), "#papo[dev]");
     assert_ne!(client.casemap("#PAPO[dev]"), client.casemap("#papo{dev}"));
     client.state(|state| assert!(state.has_cap("draft/no-implicit-names")));
+    client.state(|state| {
+        assert!(!state.supports(crate::Feature::History));
+        assert!(
+            !state
+                .features()
+                .any(|feature| feature == crate::Feature::History)
+        );
+    });
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(

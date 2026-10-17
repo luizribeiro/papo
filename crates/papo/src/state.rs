@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use papo_core::{Capabilities, Channel, Session, User};
+use papo_core::{Capabilities, Channel, Feature, Session, UnsupportedReason, User};
 use papo_proto::{Isupport, NAME_ALIASES, NameKind};
 
 /// An immutable snapshot of an IRC client's known state.
@@ -11,20 +11,44 @@ pub struct State {
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     account: Option<String>,
+    unsupported: BTreeMap<Feature, UnsupportedReason>,
     connected: bool,
     generation: u64,
 }
 
 impl State {
     pub(crate) fn from_session(session: &Session, connected: bool) -> Self {
+        let unsupported = FEATURES
+            .into_iter()
+            .filter_map(|feature| {
+                session
+                    .supports(feature)
+                    .err()
+                    .map(|reason| (feature, reason))
+            })
+            .collect();
         Self {
             core: session.state().clone(),
             caps: session.caps().clone(),
             isupport: Arc::new(session.isupport().clone()),
             account: session.account().map(str::to_owned),
+            unsupported,
             connected,
             generation: session.state_generation(),
         }
+    }
+
+    /// Reports whether the current connection supports `feature`.
+    #[must_use]
+    pub fn supports(&self, feature: Feature) -> bool {
+        !self.unsupported.contains_key(&feature)
+    }
+
+    /// Iterates over the optional behaviors supported by the current connection.
+    pub fn features(&self) -> impl Iterator<Item = Feature> + '_ {
+        FEATURES
+            .into_iter()
+            .filter(|feature| self.supports(*feature))
     }
 
     pub(crate) const fn matches(&self, session: &Session, connected: bool) -> bool {
@@ -137,3 +161,26 @@ impl State {
         self.isupport.casemapping().fold(name).into_owned()
     }
 }
+
+const FEATURES: [Feature; 20] = [
+    Feature::Replies,
+    Feature::Reactions,
+    Feature::Typing,
+    Feature::Redaction,
+    Feature::Multiline,
+    Feature::History,
+    Feature::ReadMarkers,
+    Feature::Metadata,
+    Feature::Monitor,
+    Feature::SetName,
+    Feature::BotMode,
+    Feature::AccountRegistration,
+    Feature::Persistence,
+    Feature::WebPush,
+    Feature::ChannelRename,
+    Feature::Relay,
+    Feature::LabeledResponse,
+    Feature::AwayTracking,
+    Feature::AccountTracking,
+    Feature::HostTracking,
+];
