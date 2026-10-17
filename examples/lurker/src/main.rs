@@ -26,7 +26,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("synced {channel}: {}", members(&client, &channel));
                 synced.insert(channel);
             }
-            Event::Joined { channel, nick } if synced.contains(&channel) => {
+            Event::Joined(papo::event::Joined { channel, nick, .. })
+                if synced.contains(&channel) =>
+            {
                 println!("join {channel} {nick}");
             }
             Event::Parted {

@@ -48,10 +48,11 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
 async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
     loop {
         match events.next().await {
-            Some(Event::Joined {
+            Some(Event::Joined(papo::event::Joined {
                 channel: joined,
                 nick: joined_nick,
-            }) if joined == channel && joined_nick == nick => return,
+                ..
+            })) if joined == channel && joined_nick == nick => return,
             Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
                 panic!("disconnected while waiting for JOIN: {reason}")
             }

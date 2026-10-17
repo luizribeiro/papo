@@ -282,7 +282,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     within(join).await.unwrap().unwrap();
     client_line(&mut first_server, b"MODE #papo\r\n").await;
     client_line(&mut first_server, b"WHO #papo\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Joined { .. })));
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
     assert!(matches!(
         events.next().await,
         Some(Event::ChannelSynced { .. })
@@ -342,18 +342,20 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
     super::update_rejoin_channels(
         &session,
         &mut defaults,
-        &Event::Joined {
+        &Event::Joined(crate::event::Joined {
             channel: "#papo".into(),
             nick: "papo-driver".into(),
-        },
+            is_self: true,
+        }),
     );
     super::update_rejoin_channels(
         &session,
         &mut defaults,
-        &Event::Joined {
+        &Event::Joined(crate::event::Joined {
             channel: "#visitors".into(),
             nick: "alice".into(),
-        },
+            is_self: false,
+        }),
     );
     assert_eq!(defaults.channels.len(), 2);
 
@@ -2039,7 +2041,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
     )
     .await;
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Joined { .. })));
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
 
     let mode = tokio::spawn({
         let client = client.clone();
@@ -2690,7 +2692,7 @@ async fn only_channel_sync_waiter_enables_read_ahead() {
         b":papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Joined { .. })));
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
     saturate_events(&mut server, &events).await;
 
     let (result, waiter) = tokio::sync::oneshot::channel();
@@ -2954,7 +2956,7 @@ async fn every_state_change_replaces_the_snapshot() {
     let mut previous = client.state();
 
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #Papo\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Joined { .. })));
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
     previous = changed_snapshot(&client, &previous, "JOIN");
     assert!(previous.channel("#papo").is_some());
 

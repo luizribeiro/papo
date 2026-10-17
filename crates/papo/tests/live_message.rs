@@ -215,10 +215,11 @@ async fn wait_ready(events: &mut papo::Events, nick: &str, channel: &str) {
     loop {
         match events.next().await {
             Some(Event::Registered(welcome)) => registered = welcome.nick == nick,
-            Some(Event::Joined {
+            Some(Event::Joined(papo::event::Joined {
                 channel: joined,
                 nick: joined_nick,
-            }) if registered && joined == channel && joined_nick == nick => return,
+                ..
+            })) if registered && joined == channel && joined_nick == nick => return,
             Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
                 panic!("disconnected while joining: {reason}")
             }

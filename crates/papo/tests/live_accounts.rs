@@ -127,7 +127,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         wait_for(&mut events, |event| {
             matches!(
                 event,
-                Event::Joined { channel: joined, .. }
+                Event::Joined(papo::event::Joined { channel: joined, .. })
                     | Event::ChannelSynced { channel: joined }
                     if joined == &channel
             )

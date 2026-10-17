@@ -118,7 +118,7 @@ fn synced(event: &Event, channel: &str) -> bool {
 }
 
 fn joined(event: &Event, nick: &str) -> bool {
-    matches!(event, Event::Joined { nick: joined, .. } if joined == nick)
+    matches!(event, Event::Joined(papo::event::Joined { nick: joined, .. }) if joined == nick)
 }
 
 fn mode(event: &Event, mode: char) -> bool {

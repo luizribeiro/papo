@@ -1011,6 +1011,7 @@ where
                     }
                     event => event,
                 };
+                event.mark_self(session.nick(), session.isupport().casemapping());
                 if let Event::ChannelSynced { channel } = &event {
                     resolve_sync_waiters(session, sync_waiters, channel);
                 }
@@ -1161,13 +1162,13 @@ where
 fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, event: &Event) {
     let casemapping = session.isupport().casemapping();
     match event {
-        Event::Joined { channel, nick } if casemapping.eq(nick, session.nick()) => {
+        Event::Joined(joined) if joined.is_self => {
             if !defaults
                 .channels
                 .iter()
-                .any(|entry| casemapping.eq(&entry.channel, channel))
+                .any(|entry| casemapping.eq(&entry.channel, &joined.channel))
             {
-                defaults.channels.push(Autojoin::new(channel, None));
+                defaults.channels.push(Autojoin::new(&joined.channel, None));
             }
         }
         Event::Parted { channel, nick, .. } | Event::Kicked { channel, nick, .. }

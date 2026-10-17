@@ -11,6 +11,8 @@ use papo_proto::{Ctcp, Isupport, Message, MessageRef, strip_formatting, time};
 
 use crate::{Client, Error};
 
+#[path = "event/channel.rs"]
+mod channel;
 #[path = "event/connection.rs"]
 mod connection;
 #[path = "event/conversation.rs"]
@@ -18,6 +20,10 @@ mod conversation;
 #[path = "event/source.rs"]
 mod source;
 
+pub use channel::{
+    ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChange, ModeChanged, Parted,
+    TopicChanged,
+};
 pub use connection::{CapsChanged, Disconnected, Registered};
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
@@ -662,12 +668,7 @@ pub enum Event {
     /// An STS persistence action for the client to store.
     StsPolicy(StsAction),
     /// A user joined a channel shared with the client.
-    Joined {
-        /// The joined channel.
-        channel: String,
-        /// The joining user's nickname.
-        nick: String,
-    },
+    Joined(Joined),
     /// Initial channel membership synchronization completed.
     ChannelSynced {
         /// The synchronized channel.
@@ -828,6 +829,14 @@ event_accessors! {
     (StandardReply, as_standard_reply, StandardReply),
 }
 
+impl Event {
+    pub(crate) fn mark_self(&mut self, nick: &str, casemapping: papo_proto::Casemapping) {
+        if let Self::Joined(joined) = self {
+            joined.is_self = casemapping.eq(&joined.nick, nick);
+        }
+    }
+}
+
 // This transient mapping keeps forwarding allocation-free for every event kind.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum CoreEvent {
@@ -986,7 +995,11 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         }
         papo_core::Event::StsUpgrade { port } => Event::StsUpgrade { port },
         papo_core::Event::StsPolicy(action) => Event::StsPolicy(action),
-        papo_core::Event::Joined { channel, nick } => Event::Joined { channel, nick },
+        papo_core::Event::Joined { channel, nick } => Event::Joined(Joined {
+            channel,
+            nick,
+            is_self: false,
+        }),
         papo_core::Event::ChannelSynced { channel } => Event::ChannelSynced { channel },
         papo_core::Event::Parted {
             channel,
@@ -1562,7 +1575,7 @@ mod tests {
                 channel: "#papo".into(),
                 nick: "emily".into()
             }),
-            Event::Joined { channel, nick } if channel == "#papo" && nick == "emily"
+            Event::Joined(joined) if joined.channel == "#papo" && joined.nick == "emily"
         ));
     }
 

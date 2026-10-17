@@ -103,9 +103,43 @@ pub papo::event::StandardReplyKind::Warn
 #[non_exhaustive] pub struct papo::event::CapsChanged
 pub papo::event::CapsChanged::added: papo_core::Capabilities
 pub papo::event::CapsChanged::removed: papo_core::Capabilities
+#[non_exhaustive] pub struct papo::event::ChannelRenamed
+pub papo::event::ChannelRenamed::new: alloc::string::String
+pub papo::event::ChannelRenamed::old: alloc::string::String
+pub papo::event::ChannelRenamed::reason: alloc::string::String
+#[non_exhaustive] pub struct papo::event::ChannelSynced
+pub papo::event::ChannelSynced::channel: alloc::string::String
 #[non_exhaustive] pub struct papo::event::Disconnected
 pub papo::event::Disconnected::reason: alloc::string::String
 pub papo::event::Disconnected::will_retry: bool
+#[non_exhaustive] pub struct papo::event::Invited
+pub papo::event::Invited::by: papo::Source
+pub papo::event::Invited::channel: alloc::string::String
+pub papo::event::Invited::is_self: bool
+pub papo::event::Invited::nick: alloc::string::String
+#[non_exhaustive] pub struct papo::event::Joined
+pub papo::event::Joined::channel: alloc::string::String
+pub papo::event::Joined::is_self: bool
+pub papo::event::Joined::nick: alloc::string::String
+#[non_exhaustive] pub struct papo::event::Kicked
+pub papo::event::Kicked::by: papo::Source
+pub papo::event::Kicked::channel: alloc::string::String
+pub papo::event::Kicked::is_self: bool
+pub papo::event::Kicked::nick: alloc::string::String
+pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
+#[non_exhaustive] pub struct papo::event::ModeChange
+pub papo::event::ModeChange::arg: core::option::Option<alloc::string::String>
+pub papo::event::ModeChange::mode: char
+pub papo::event::ModeChange::set: bool
+#[non_exhaustive] pub struct papo::event::ModeChanged
+pub papo::event::ModeChanged::by: papo::Source
+pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
+pub papo::event::ModeChanged::target: alloc::string::String
+#[non_exhaustive] pub struct papo::event::Parted
+pub papo::event::Parted::channel: alloc::string::String
+pub papo::event::Parted::is_self: bool
+pub papo::event::Parted::nick: alloc::string::String
+pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Reacted
 pub papo::event::Reacted::msgid: alloc::string::String
 pub papo::event::Reacted::reaction: alloc::string::String
@@ -135,6 +169,10 @@ pub papo::event::StandardReply::kind: papo::event::StandardReplyKind
 pub papo::event::TagMsg::source: core::option::Option<papo::Source>
 pub papo::event::TagMsg::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
 pub papo::event::TagMsg::target: alloc::string::String
+#[non_exhaustive] pub struct papo::event::TopicChanged
+pub papo::event::TopicChanged::by: papo::Source
+pub papo::event::TopicChanged::channel: alloc::string::String
+pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::TypingChanged
 pub papo::event::TypingChanged::source: core::option::Option<papo::Source>
 pub papo::event::TypingChanged::state: papo_proto::client_tags::Typing
@@ -219,9 +257,7 @@ pub papo::Event::HostChanged
 pub papo::Event::HostChanged::host: alloc::string::String
 pub papo::Event::HostChanged::nick: alloc::string::String
 pub papo::Event::HostChanged::user: alloc::string::String
-pub papo::Event::Joined
-pub papo::Event::Joined::channel: alloc::string::String
-pub papo::Event::Joined::nick: alloc::string::String
+pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked
 pub papo::Event::Kicked::by: alloc::string::String
 pub papo::Event::Kicked::channel: alloc::string::String
