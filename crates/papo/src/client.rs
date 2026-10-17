@@ -175,8 +175,10 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error if the message is invalid, the request limit is reached,
-    /// the response times out, or the driver disconnects.
+    /// Returns [`Error::Unsupported`] for [`Feature::LabeledResponse`] with reason
+    /// [`UnsupportedReason::NotOffered`] or [`UnsupportedReason::DisabledByClient`]. It also
+    /// returns [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`]. Server refusals remain in the returned [`Response`].
     pub async fn raw(&self, message: Message) -> Result<Response, Error> {
         self.require_feature(Feature::LabeledResponse)?;
         self.correlated(message, None).await
@@ -212,7 +214,8 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error if the message is invalid or the driver has stopped.
+    /// Returns [`Error::InvalidInput`] if the message cannot be encoded, or
+    /// [`Error::Disconnected`] if the driver has stopped.
     pub async fn raw_unlabeled(&self, message: Message) -> Result<(), Error> {
         self.send(message).await
     }
@@ -224,7 +227,9 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error if the message is invalid or the driver has stopped.
+    /// Returns [`Error::InvalidInput`] for empty text or an unencodable message,
+    /// [`Error::RequestLimit`] when 256 labelled requests are pending, [`Error::Timeout`] while
+    /// awaiting an echo, or [`Error::Disconnected`] when the driver stops.
     pub async fn privmsg(&self, target: &str, text: &str) -> Result<Sent, Error> {
         self.send_text(TextKind::Privmsg, target, text, Vec::new())
             .await
@@ -237,7 +242,9 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error if the text is empty or invalid, or the driver has stopped.
+    /// Returns [`Error::InvalidInput`] for empty text or an unencodable message,
+    /// [`Error::RequestLimit`] when 256 labelled requests are pending, [`Error::Timeout`] while
+    /// awaiting an echo, or [`Error::Disconnected`] when the driver stops.
     pub async fn notice(&self, target: &str, text: &str) -> Result<Sent, Error> {
         self.send_text(TextKind::Notice, target, text, Vec::new())
             .await
@@ -247,8 +254,11 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] when message tags, a message identifier, or an allowed
-    /// reaction or reply tag is unavailable. Other errors indicate that sending failed.
+    /// Returns [`Error::Unsupported`] for [`Feature::Reactions`] with reason
+    /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
+    /// [`UnsupportedReason::TagDenied`]. A missing message identifier returns
+    /// [`Error::InvalidInput`]; encoding or driver failure returns [`Error::InvalidInput`] or
+    /// [`Error::Disconnected`].
     pub async fn react(&self, message: &crate::MessageEvent, emoji: &str) -> Result<(), Error> {
         self.reaction(message, emoji, "+draft/react").await
     }
@@ -257,8 +267,11 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] when message tags, a message identifier, or an allowed
-    /// reaction or reply tag is unavailable. Other errors indicate that sending failed.
+    /// Returns [`Error::Unsupported`] for [`Feature::Reactions`] with reason
+    /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
+    /// [`UnsupportedReason::TagDenied`]. A missing message identifier returns
+    /// [`Error::InvalidInput`]; encoding or driver failure returns [`Error::InvalidInput`] or
+    /// [`Error::Disconnected`].
     pub async fn unreact(&self, message: &crate::MessageEvent, emoji: &str) -> Result<(), Error> {
         self.reaction(message, emoji, "+draft/unreact").await
     }
@@ -293,12 +306,14 @@ impl Client {
 
     /// Sends a typing state for `target`.
     ///
-    /// Repeated active states within three seconds are silently dropped. The call is also a
-    /// no-op when message tags are unavailable or the server blocks the typing tag.
+    /// Repeated active states within three seconds are silently dropped.
     ///
     /// # Errors
     ///
-    /// Returns an error if the driver stops or the resulting message is invalid.
+    /// Returns [`Error::Unsupported`] for [`Feature::Typing`] with reason
+    /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
+    /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
+    /// [`Error::InvalidInput`] or [`Error::Disconnected`].
     pub async fn typing(&self, target: &str, state: Typing) -> Result<(), Error> {
         self.require_feature(Feature::Typing)?;
         let (result, receiver) = oneshot::channel();
@@ -317,8 +332,11 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] when message redaction is unavailable, and
-    /// [`Error::Server`] when the server rejects the labelled request.
+    /// Returns [`Error::Unsupported`] for [`Feature::Redaction`] with reason
+    /// [`UnsupportedReason::NotOffered`] or [`UnsupportedReason::DisabledByClient`]. A refusal
+    /// returns [`Error::Server`], currently classified as [`crate::Refusal::Other`]. It can also
+    /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`].
     pub async fn redact(
         &self,
         target: &str,
@@ -370,7 +388,10 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when the server rejects the request or it cannot complete.
+    /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchNick`],
+    /// [`crate::Refusal::NoSuchServer`], [`crate::Refusal::TryAgain`], or
+    /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
+    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn whois(&self, nick: &str) -> Result<crate::Whois, Error> {
         let response = self
             .correlated(
@@ -385,7 +406,9 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when the server rejects the request or it cannot complete.
+    /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
+    /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
+    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn who(&self, mask: &str) -> Result<Vec<crate::WhoEntry>, Error> {
         let isupport = self.isupport();
         let extended = isupport.whox();
@@ -404,7 +427,14 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when the server rejects the join or it cannot complete.
+    /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
+    /// [`crate::Refusal::TooManyChannels`], [`crate::Refusal::NickUnavailable`],
+    /// [`crate::Refusal::ChannelIsFull`], [`crate::Refusal::InviteOnlyChannel`],
+    /// [`crate::Refusal::BannedFromChannel`], [`crate::Refusal::BadChannelKey`],
+    /// [`crate::Refusal::BadChannelMask`], [`crate::Refusal::SecureOnlyChannel`],
+    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
+    /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`].
     pub async fn join(&self, channel: &str) -> Result<crate::ChannelInfo, Error> {
         let response = self
             .correlated(
@@ -447,7 +477,10 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when the server rejects the part or it cannot complete.
+    /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
+    /// [`crate::Refusal::NotOnChannel`], [`crate::Refusal::TryAgain`], or
+    /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
+    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn part(&self, channel: &str, reason: Option<&str>) -> Result<(), Error> {
         let mut params = vec![channel];
         params.extend(reason);
@@ -464,7 +497,14 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when the server rejects the change or it cannot complete.
+    /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchNick`],
+    /// [`crate::Refusal::NoSuchChannel`], [`crate::Refusal::NotOnChannel`],
+    /// [`crate::Refusal::NoPrivileges`], [`crate::Refusal::ChannelOperatorPrivilegesNeeded`],
+    /// [`crate::Refusal::UnknownMode`], [`crate::Refusal::UnknownUserMode`],
+    /// [`crate::Refusal::UsersDontMatch`], [`crate::Refusal::InvalidModeParameter`],
+    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
+    /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`].
     pub async fn mode<I, S>(&self, target: &str, modes: &str, args: I) -> Result<(), Error>
     where
         I: IntoIterator<Item = S>,
@@ -485,7 +525,11 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when the server rejects the request or it cannot complete.
+    /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
+    /// [`crate::Refusal::NotOnChannel`], [`crate::Refusal::ChannelOperatorPrivilegesNeeded`],
+    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
+    /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`].
     pub async fn topic(&self, channel: &str, text: Option<&str>) -> Result<Option<String>, Error> {
         let mut params = vec![channel];
         params.extend(text);
@@ -504,7 +548,9 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns an error when the server rejects the request or it cannot complete.
+    /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
+    /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
+    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub async fn list(&self, filter: crate::ListFilter) -> Result<Vec<crate::ListEntry>, Error> {
         let message = match filter.parameter() {
             Some(parameter) => Message::new("LIST", [parameter]),
