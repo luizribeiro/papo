@@ -40,6 +40,29 @@ fn debug_output_redacts_server_and_sasl_passwords() {
 }
 
 #[test]
+fn oauth_bearer_sends_an_rfc_7628_response_and_redacts_its_token() {
+    let config = Config::default().sasl(Sasl::oauth_bearer("oauth-token-7391"));
+    for debug in [
+        format!("{config:?}"),
+        format!("{:?}", Session::new(config.clone())),
+    ] {
+        assert!(!debug.contains("oauth-token-7391"));
+        assert!(debug.contains("[REDACTED]"));
+    }
+
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :sasl=OAUTHBEARER")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE OAUTHBEARER")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIG9hdXRoLXRva2VuLTczOTEBAQ==")
+        .server(":ergo.test 903 alice :SASL authentication successful")
+        .client("CAP END");
+}
+
+#[test]
 fn external_accepts_an_authorization_identity() {
     assert_ne!(Sasl::external(), Sasl::external().authzid("alice"));
 }

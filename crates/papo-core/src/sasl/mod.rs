@@ -23,6 +23,7 @@ pub struct Sasl {
 #[derive(Clone, Eq, PartialEq)]
 pub(crate) enum Mechanism {
     Plain { username: String, password: Secret },
+    OAuthBearer { token: Secret },
     External { authzid: Option<String> },
     ScramSha256 { username: String, password: Secret },
 }
@@ -34,6 +35,10 @@ impl std::fmt::Debug for Mechanism {
                 .debug_struct("Plain")
                 .field("username", username)
                 .field("password", &RedactedSecret)
+                .finish(),
+            Self::OAuthBearer { .. } => formatter
+                .debug_struct("OAuthBearer")
+                .field("token", &RedactedSecret)
                 .finish(),
             Self::External { authzid } => formatter
                 .debug_struct("External")
@@ -56,6 +61,17 @@ impl Sasl {
             mechanisms: vec![Mechanism::Plain {
                 username: username.into(),
                 password: password.into(),
+            }],
+            required: true,
+        }
+    }
+
+    /// Uses the RFC 7628 SASL OAUTHBEARER mechanism.
+    #[must_use]
+    pub fn oauth_bearer(token: impl Into<Secret>) -> Self {
+        Self {
+            mechanisms: vec![Mechanism::OAuthBearer {
+                token: token.into(),
             }],
             required: true,
         }
@@ -349,6 +365,12 @@ impl SaslSession {
                     outbox,
                 );
             }
+            Mechanism::OAuthBearer { token } => {
+                transmit_response(
+                    format!("n,,\u{1}auth=Bearer {}\u{1}\u{1}", token.expose()).as_bytes(),
+                    outbox,
+                );
+            }
             Mechanism::External { authzid } => {
                 transmit_response(authzid.as_deref().unwrap_or("").as_bytes(), outbox);
             }
@@ -627,6 +649,7 @@ impl Mechanism {
     fn name(&self) -> &'static str {
         match self {
             Self::Plain { .. } => "PLAIN",
+            Self::OAuthBearer { .. } => "OAUTHBEARER",
             Self::External { .. } => "EXTERNAL",
             Self::ScramSha256 { .. } => "SCRAM-SHA-256",
         }
