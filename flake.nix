@@ -269,7 +269,10 @@
           browser-tests = cargoHook {
             name = "browser-tests-hook";
             runtimeInputs = browserTools;
-            text = "${nixTestRunner} --browser";
+            text = ''
+              CARGO_TARGET_DIR="$PWD/target" \
+                ${pkgs.lib.getExe pkgs.bash} "$PWD/nix/test-runner" --browser
+            '';
             stages = [ "pre-push" ];
           };
           wasip2-tests = cargoHook {
