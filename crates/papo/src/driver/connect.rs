@@ -535,6 +535,7 @@ fn handle_disconnected_command(command: Option<Command>) -> bool {
     match command {
         Some(
             Command::Request { result, .. }
+            | Command::Join { result, .. }
             | Command::CoreRequest { result, .. }
             | Command::History { result, .. }
             | Command::MarkRead { result, .. },

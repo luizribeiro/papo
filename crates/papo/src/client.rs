@@ -597,16 +597,16 @@ impl Client {
         channel: crate::ChannelName,
         key: Option<crate::Secret>,
     ) -> Result<(), Error> {
-        let params = match &key {
-            Some(key) => vec![channel.to_string(), key.expose().to_owned()],
-            None => vec![channel.to_string()],
-        };
-        let response = self
-            .correlated(
-                Message::new("JOIN", params),
-                Some(ResponseMatcher::Join(channel.to_string())),
-            )
-            .await?;
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::Join {
+                channel: channel.clone(),
+                key,
+                result,
+            })
+            .await
+            .map_err(|_| Error::disconnected())?;
+        let response = receiver.await.map_err(|_| Error::disconnected())??;
         if let Some(error) = response.error() {
             return Err(Error::server(error));
         }

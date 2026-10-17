@@ -141,6 +141,11 @@ pub(crate) enum Command {
         matcher: Option<ResponseMatcher>,
         result: oneshot::Sender<Result<Response, Error>>,
     },
+    Join {
+        channel: crate::ChannelName,
+        key: Option<crate::Secret>,
+        result: oneshot::Sender<Result<Response, Error>>,
+    },
     CoreRequest {
         request: CoreRequest,
         result: oneshot::Sender<Result<Response, Error>>,
@@ -648,6 +653,7 @@ where
     let mut commands_open = true;
     let mut quit = None;
     let mut requests = BTreeMap::new();
+    let mut join_keys = BTreeMap::new();
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
     let mut read_marker_waiters = Vec::new();
@@ -663,6 +669,7 @@ where
             events,
             &mut pending_events,
             &mut requests,
+            &mut join_keys,
             &mut sync_waiters,
             &mut read_marker_waiters,
             &mut catchups,
@@ -762,6 +769,23 @@ where
                         Err(error) => {
                             _ = result.send(Err(Error::request(error)));
                         }
+                    }
+                }
+                Some(Command::Join { channel, key, result }) => {
+                    let params = match &key {
+                        Some(key) => vec![channel.to_string(), key.expose().to_owned()],
+                        None => vec![channel.to_string()],
+                    };
+                    match session.request_with_matcher(
+                        now(),
+                        Message::new("JOIN", params),
+                        ResponseMatcher::Join(channel.to_string()),
+                    ) {
+                        Ok(id) => {
+                            requests.insert(id, PendingRequest::Response(result));
+                            join_keys.insert(id, (channel, key));
+                        }
+                        Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }
                 Some(Command::CoreRequest { request, result }) => {
@@ -960,6 +984,7 @@ async fn drain<S>(
     events: &EventSink,
     pending_events: &mut VecDeque<Event>,
     requests: &mut BTreeMap<RequestId, PendingRequest>,
+    join_keys: &mut BTreeMap<RequestId, (crate::ChannelName, Option<crate::Secret>)>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
     read_marker_waiters: &mut ReadMarkerWaiters,
     catchups: &mut BTreeMap<RequestId, Catchup>,
@@ -1107,6 +1132,13 @@ where
                 }
             }
             event::CoreEvent::Response(response) => {
+                if response.error().is_none()
+                    && let Some((channel, key)) = join_keys.remove(&response.id)
+                {
+                    remember_rejoin(session, defaults, Autojoin::new(channel.into_string(), key));
+                } else {
+                    join_keys.remove(&response.id);
+                }
                 if let Some(catchup) = catchups.remove(&response.id) {
                     if let Some(event) =
                         advance_catchup(session, events, catchups, catchup, response)
@@ -1122,14 +1154,17 @@ where
                 }
             }
             event::CoreEvent::RequestUntracked(id) => {
+                join_keys.remove(&id);
                 requests.remove(&id);
             }
             event::CoreEvent::RequestTimedOut(id) => {
+                join_keys.remove(&id);
                 if let Some(result) = requests.remove(&id) {
                     result.fail(Error::Timeout);
                 }
             }
             event::CoreEvent::RequestAborted(id) => {
+                join_keys.remove(&id);
                 if let Some(result) = requests.remove(&id) {
                     result.fail(Error::disconnected());
                 }
@@ -1142,6 +1177,7 @@ where
             }
             event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),
             event::CoreEvent::RequestUnsupported { id, unsupported } => {
+                join_keys.remove(&id);
                 catchups.remove(&id);
                 if let Some(result) = requests.remove(&id) {
                     result.fail(Error::Unsupported(unsupported));
@@ -1182,6 +1218,14 @@ fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, ev
         }
         _ => {}
     }
+}
+
+fn remember_rejoin(session: &Session, defaults: &mut PostRegistration, entry: Autojoin) {
+    let casemapping = session.isupport().casemapping();
+    defaults
+        .channels
+        .retain(|configured| !casemapping.eq(&configured.channel, &entry.channel));
+    defaults.channels.push(entry);
 }
 
 fn dedupe_autojoin(session: &Session, defaults: &mut PostRegistration) {

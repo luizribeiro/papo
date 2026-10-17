@@ -263,9 +263,9 @@ async fn eof_reconnects_and_emits_reconnected() {
     complete_registration(&mut first_server, &mut events).await;
     let join = tokio::spawn({
         let client = client.clone();
-        async move { client.join("#papo").await }
+        async move { client.join("#papo").key("persistent-channel-key").await }
     });
-    client_line(&mut first_server, b"JOIN #papo\r\n").await;
+    client_line(&mut first_server, b"JOIN #papo persistent-channel-key\r\n").await;
     server_line(&mut first_server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver emily\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
     within(join).await.unwrap().unwrap();
     client_line(&mut first_server, b"MODE #papo\r\n").await;
@@ -294,7 +294,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     assert!(
         matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
     );
-    client_line(&mut second_server, b"JOIN #papo\r\n").await;
+    client_line(&mut second_server, b"JOIN #papo persistent-channel-key\r\n").await;
     assert!(
         tokio::time::timeout(Duration::from_millis(1), second_server.read_u8())
             .await
