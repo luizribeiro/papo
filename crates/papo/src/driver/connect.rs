@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, ops::ControlFlow};
+use std::{collections::VecDeque, ops::ControlFlow, time::Duration};
 
 use papo_core::{
     Connection, Session,
@@ -174,14 +174,10 @@ fn enqueue_retry_event(
     events: &EventSink,
     mut end: ConnectionEnd,
 ) -> Result<VecDeque<Event>, Box<ConnectionEnd>> {
-    let reason = std::mem::take(&mut end.reason);
     if enqueue_event(
         events,
         &mut end.pending_events,
-        Event::Disconnected(crate::event::Disconnected {
-            reason,
-            will_retry: true,
-        }),
+        Event::Disconnected(super::disconnected_event(&end.error, Some(Duration::ZERO))),
     ) {
         return Ok(end.pending_events);
     }
@@ -320,17 +316,13 @@ async fn connect_or_wait(
         Ok(stream) => return ConnectionAttempt::Connected(stream),
         Err(error) => error,
     };
-    let reason = error.to_string();
     if fail_fast || sts_required || is_fatal_failure(&error, None) || !reconnect.permits(attempts) {
         return ConnectionAttempt::Failed(error);
     }
     if !enqueue_event(
         events,
         pending_events,
-        Event::Disconnected(crate::event::Disconnected {
-            reason,
-            will_retry: true,
-        }),
+        Event::Disconnected(super::disconnected_event(&error, Some(Duration::ZERO))),
     ) {
         return ConnectionAttempt::SlowConsumer;
     }
@@ -369,13 +361,9 @@ fn finish_connection_failure(
 ) -> Result<(), Error> {
     let reason = error.to_string();
     if registration.0.is_some() {
+        let disconnected = super::disconnected_event(&error, None);
         registration.failed(error);
-        events.finish(VecDeque::from([Event::Disconnected(
-            crate::event::Disconnected {
-                reason,
-                will_retry: false,
-            },
-        )]));
+        events.finish(VecDeque::from([Event::Disconnected(disconnected)]));
         return Ok(());
     }
     finish(

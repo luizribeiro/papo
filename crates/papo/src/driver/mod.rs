@@ -677,7 +677,11 @@ where
         .await
         {
             Ok(Some((kind, reason))) => {
-                let error = Error::disconnected_close(kind, reason.clone());
+                let error = if reason == SLOW_CONSUMER_REASON {
+                    Error::disconnected_slow_consumer()
+                } else {
+                    Error::disconnected_close(kind, reason.clone())
+                };
                 break (reason, error, Some(kind), false);
             }
             Ok(None) => {}
@@ -1283,12 +1287,14 @@ fn should_rejoin(session: &Session) -> bool {
     !session.server_rejoins_channels()
 }
 
-fn finish(events: EventSink, end: ConnectionEnd, will_retry: bool) -> Result<(), Error> {
+fn finish(events: EventSink, end: ConnectionEnd, _will_retry: bool) -> Result<(), Error> {
     let mut pending = end.pending_events;
-    pending.push_back(Event::Disconnected(event::Disconnected {
-        reason: end.reason,
-        will_retry,
-    }));
+    let disconnected = if end.quit.is_some() {
+        crate::Disconnected::new(crate::DisconnectCause::Requested, None)
+    } else {
+        disconnected_event(&end.error, None)
+    };
+    pending.push_back(Event::Disconnected(disconnected));
     events.finish(pending);
     if let Some(quit) = end.quit {
         for response in quit.results {
@@ -1302,6 +1308,14 @@ fn finish(events: EventSink, end: ConnectionEnd, will_retry: bool) -> Result<(),
     } else {
         Err(end.error)
     }
+}
+
+fn disconnected_event(error: &Error, retry_in: Option<Duration>) -> crate::Disconnected {
+    let cause = match error {
+        Error::Disconnected(disconnected) => disconnected.cause.clone(),
+        _ => crate::DisconnectCause::ConnectionLost,
+    };
+    crate::Disconnected::new(cause, retry_in)
 }
 
 fn now() -> Instant {

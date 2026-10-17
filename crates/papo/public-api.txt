@@ -156,12 +156,14 @@ pub papo::event::ChannelSynced::channel: papo_proto::id::ChannelName
 pub papo::event::Departed::nick: papo_proto::id::Nick
 pub papo::event::Departed::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Disconnected
-pub papo::event::Disconnected::reason: alloc::string::String
-pub papo::event::Disconnected::will_retry: bool
-impl papo::event::Disconnected
-pub const fn papo::event::Disconnected::is_retrying(&self) -> bool
-impl core::fmt::Display for papo::event::Disconnected
-pub fn papo::event::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub papo::event::Disconnected::cause: papo::DisconnectCause
+pub papo::event::Disconnected::retry_in: core::option::Option<core::time::Duration>
+impl papo::Disconnected
+pub const fn papo::Disconnected::is_retrying(&self) -> bool
+pub const fn papo::Disconnected::new(papo::DisconnectCause, core::option::Option<core::time::Duration>) -> Self
+impl core::error::Error for papo::Disconnected
+impl core::fmt::Display for papo::Disconnected
+pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::host: alloc::string::String
 pub papo::event::HostChanged::nick: papo_proto::id::Nick
@@ -317,7 +319,7 @@ pub papo::Event::AwayChanged(papo::event::AwayChanged)
 pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
 pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
-pub papo::Event::Disconnected(papo::event::Disconnected)
+pub papo::Event::Disconnected(papo::Disconnected)
 pub papo::Event::History(alloc::boxed::Box<papo::HistoryPage>)
 pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
@@ -358,7 +360,7 @@ pub const fn papo::Event::as_channel_renamed(&self) -> core::option::Option<&pap
 impl papo::Event
 pub const fn papo::Event::as_channel_synced(&self) -> core::option::Option<&papo::event::ChannelSynced>
 impl papo::Event
-pub const fn papo::Event::as_disconnected(&self) -> core::option::Option<&papo::event::Disconnected>
+pub const fn papo::Event::as_disconnected(&self) -> core::option::Option<&papo::Disconnected>
 impl papo::Event
 pub fn papo::Event::as_history(&self) -> core::option::Option<&papo::HistoryPage>
 impl papo::Event

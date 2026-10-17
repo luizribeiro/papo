@@ -781,7 +781,10 @@ async fn failed_connect_events_obey_the_overflow_bound() {
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, .. })) if reason == "SlowConsumer"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::SlowConsumer,
+            retry_in: None,
+        }))
     ));
 }
 
@@ -987,7 +990,10 @@ async fn eof_emits_disconnected_and_returns_an_error() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "server closed the connection"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::ConnectionLost,
+            retry_in: None,
+        }))
     ));
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
@@ -1000,7 +1006,10 @@ async fn shutdown_error_overrides_a_non_io_terminal_cause() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "shutdown failed"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Protocol { message },
+            retry_in: None,
+        })) if message == "shutdown failed"
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1018,7 +1027,10 @@ async fn shutdown_error_does_not_replace_an_io_terminal_cause() {
     registration_burst(&mut server).await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "original read failure"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Protocol { message },
+            retry_in: None,
+        })) if message == "original read failure"
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1037,7 +1049,10 @@ async fn overlong_line_becomes_a_terminal_disconnect() {
     within(server.write_all(&vec![b'x'; 8704])).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "incoming IRC line exceeds 8703 bytes"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Protocol { message },
+            retry_in: None,
+        })) if message == "incoming IRC line exceeds 8703 bytes"
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1391,7 +1406,10 @@ async fn plaintext_sts_forwards_upgrade_and_closes() {
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "sts upgrade"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Protocol { message },
+            retry_in: None,
+        })) if message == "sts upgrade"
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -2602,7 +2620,10 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "original read failure"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Requested,
+            retry_in: None,
+        }))
     ));
 }
 
@@ -2622,7 +2643,10 @@ async fn quit_times_out_after_ten_seconds() {
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "QUIT was not acknowledged within 10 seconds"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Requested,
+            retry_in: None,
+        }))
     ));
 }
 
@@ -2788,7 +2812,10 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
     );
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, .. })) if reason == "Closing Link: papo-driver (Server shutdown)"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Server { message },
+            retry_in: None,
+        })) if message == "Closing Link: papo-driver (Server shutdown)"
     ));
 }
 
@@ -2814,7 +2841,10 @@ async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(crate::event::Disconnected { reason, .. })) if reason == "SlowConsumer"
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::SlowConsumer,
+            retry_in: None,
+        }))
     ));
 }
 
