@@ -2906,7 +2906,7 @@ async fn public_state_accessors_report_the_registered_session() {
     assert!(!client.state().away());
 
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 :are supported\r\n:ergo.test 306 papo-driver :You have been marked as being away\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
-    while !matches!(events.next().await, Some(Event::MonitorOnline { .. })) {}
+    while !matches!(events.next().await, Some(Event::MonitorOnline(_))) {}
 
     let nick: crate::Nick = client.nick();
     assert_eq!(nick, "papo-driver");
@@ -3018,17 +3018,14 @@ async fn every_state_change_replaces_the_snapshot() {
         b":ergo.test 730 papo-reader :alice!~alice@cloak.example\r\n",
     )
     .await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::MonitorOnline { .. })
-    ));
+    assert!(matches!(events.next().await, Some(Event::MonitorOnline(_))));
     previous = changed_snapshot(&client, &previous, "MONITOR online");
     assert_eq!(previous.monitor_online().count(), 1);
 
     server_line(&mut server, b":ergo.test 731 papo-reader :alice\r\n").await;
     assert!(matches!(
         events.next().await,
-        Some(Event::MonitorOffline { .. })
+        Some(Event::MonitorOffline(_))
     ));
     previous = changed_snapshot(&client, &previous, "MONITOR offline");
     assert_eq!(previous.monitor_online().count(), 0);
@@ -3113,18 +3110,12 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example,bob!bob@users.example\r\n",
     )
     .await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::MonitorOnline { .. })
-    ));
-    assert!(matches!(
-        events.next().await,
-        Some(Event::MonitorOnline { .. })
-    ));
+    assert!(matches!(events.next().await, Some(Event::MonitorOnline(_))));
+    assert!(matches!(events.next().await, Some(Event::MonitorOnline(_))));
 
     server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
     assert!(
-        matches!(events.next().await, Some(Event::MonitorOffline { nick }) if client.state().casemapping().eq(&nick, "alice"))
+        matches!(events.next().await, Some(Event::MonitorOffline(offline)) if client.state().casemapping().eq(&offline.nick, "alice"))
     );
     let online: Vec<_> = client
         .state()
@@ -3148,10 +3139,7 @@ async fn disconnect_clears_monitor_presence_snapshot() {
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\n",
     )
     .await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::MonitorOnline { .. })
-    ));
+    assert!(matches!(events.next().await, Some(Event::MonitorOnline(_))));
     assert_eq!(client.state().monitor_online().count(), 1);
 
     within(server.shutdown()).await.unwrap();

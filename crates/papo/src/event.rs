@@ -707,19 +707,9 @@ pub enum Event {
         limit: StateLimit,
     },
     /// A monitored nickname came online or changed its userhost.
-    MonitorOnline {
-        /// The monitored nickname.
-        nick: String,
-        /// The user's current username, when supplied by the server.
-        user: Option<String>,
-        /// The user's current hostname, when supplied by the server.
-        host: Option<String>,
-    },
+    MonitorOnline(MonitorOnline),
     /// A monitored nickname went offline.
-    MonitorOffline {
-        /// The monitored nickname.
-        nick: String,
-    },
+    MonitorOffline(MonitorOffline),
     /// The server rejected nicknames because its monitor list was full.
     MonitorListFull {
         /// The server's advertised monitor-list limit.
@@ -1027,9 +1017,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         }
         papo_core::Event::StateLimitReached { limit } => Event::StateLimitReached { limit },
         papo_core::Event::MonitorOnline { nick, user, host } => {
-            Event::MonitorOnline { nick, user, host }
+            Event::MonitorOnline(MonitorOnline { nick, user, host })
         }
-        papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline { nick },
+        papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline { nick }),
         papo_core::Event::MonitorListFull { limit, nicks } => {
             Event::MonitorListFull { limit, nicks }
         }
@@ -1723,8 +1713,9 @@ mod tests {
                 user: Some("~alice".into()),
                 host: Some("cloak.example".into()),
             }),
-            Event::MonitorOnline { nick, user, host }
-                if nick == "alice" && user.as_deref() == Some("~alice") && host.as_deref() == Some("cloak.example")
+            Event::MonitorOnline(online)
+                if online.nick == "alice" && online.user.as_deref() == Some("~alice")
+                    && online.host.as_deref() == Some("cloak.example")
         ));
         assert!(matches!(
             forwarded(papo_core::Event::MonitorOnline {
@@ -1732,7 +1723,8 @@ mod tests {
                 user: None,
                 host: None,
             }),
-            Event::MonitorOnline { nick, user: None, host: None } if nick == "bob"
+            Event::MonitorOnline(online)
+                if online.nick == "bob" && online.user.is_none() && online.host.is_none()
         ));
     }
 
@@ -1742,7 +1734,7 @@ mod tests {
             forwarded(papo_core::Event::MonitorOffline {
                 nick: "alice".into(),
             }),
-            Event::MonitorOffline { nick } if nick == "alice"
+            Event::MonitorOffline(offline) if offline.nick == "alice"
         ));
     }
 

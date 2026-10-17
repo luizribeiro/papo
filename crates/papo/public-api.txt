@@ -302,12 +302,8 @@ pub papo::Event::ModeChanged(papo::event::ModeChanged)
 pub papo::Event::MonitorListFull
 pub papo::Event::MonitorListFull::limit: usize
 pub papo::Event::MonitorListFull::nicks: alloc::vec::Vec<alloc::string::String>
-pub papo::Event::MonitorOffline
-pub papo::Event::MonitorOffline::nick: alloc::string::String
-pub papo::Event::MonitorOnline
-pub papo::Event::MonitorOnline::host: core::option::Option<alloc::string::String>
-pub papo::Event::MonitorOnline::nick: alloc::string::String
-pub papo::Event::MonitorOnline::user: core::option::Option<alloc::string::String>
+pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
+pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
 pub papo::Event::MonitorUnsupported
 pub papo::Event::Netjoin
 pub papo::Event::Netjoin::joins: alloc::vec::Vec<papo_proto::message::Message>

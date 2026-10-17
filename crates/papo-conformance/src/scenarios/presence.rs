@@ -130,7 +130,7 @@ async fn monitor(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut observer.events,
-            |event| matches!(event, Event::MonitorOnline { nick, .. } if nick == &target_nick),
+            |event| matches!(event, Event::MonitorOnline(online) if online.nick == target_nick),
             EXPECT_TIMEOUT,
         )
         .await
