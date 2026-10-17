@@ -777,9 +777,13 @@ mod tests {
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
         let request = tokio::spawn(async move { client.history("#papo").latest(10).await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 10\r\n").await;
-        server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
+        server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
         let page = within(request).await.unwrap().unwrap();
         assert!(page.end);
+        assert_eq!(page.items.len(), 4);
+        assert!(matches!(page.items[1], HistoryItem::Reacted(_)));
+        assert!(matches!(page.items[2], HistoryItem::Joined(_)));
+        assert!(matches!(page.items[3], HistoryItem::Other(_)));
         let message = page.messages().next().unwrap();
         assert_eq!(message.text(), "earlier");
         assert_eq!(message.origin(), Origin::History);
@@ -787,6 +791,9 @@ mod tests {
         let Some(Event::History(history)) = events.next().await else {
             panic!("expected replay batch event")
         };
+        assert!(matches!(history.items[1], HistoryItem::Reacted(_)));
+        assert!(matches!(history.items[2], HistoryItem::Joined(_)));
+        assert!(matches!(history.items[3], HistoryItem::Other(_)));
         assert_eq!(history.messages().next().unwrap().origin(), Origin::Replay);
         abort_task(task).await;
     }
