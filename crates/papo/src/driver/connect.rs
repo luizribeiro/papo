@@ -33,7 +33,7 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
                 .map_err(|error| Error::Connect(error.into()));
             }
             #[cfg(not(feature = "websocket"))]
-            return Err(Error::Unsupported("websocket"));
+            return Err(Error::connect_unavailable("websocket"));
         }
         let security = match plan.address.protocol {
             Protocol::Irc => transport::Security::Plaintext,
@@ -47,12 +47,12 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
     #[cfg(browser)]
     {
         _ = plan;
-        Err(Error::Unsupported("browser transport"))
+        Err(Error::connect_unavailable("browser transport"))
     }
     #[cfg(all(not(browser), not(sockets)))]
     {
         _ = plan;
-        Err(Error::Unsupported("outbound sockets"))
+        Err(Error::connect_unavailable("outbound sockets"))
     }
 }
 
@@ -455,7 +455,7 @@ fn plan_with_stored_sts(base: &ConnectionPlan, store: &mut dyn StsStore) -> Conn
 #[cfg_attr(not(any(browser, tls)), allow(unused_variables))]
 pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {
     #[cfg(browser)]
-    if matches!(error, Error::Unsupported("browser transport")) {
+    if matches!(error, Error::Connect(error) if error.kind() == crate::ConnectErrorKind::Io) {
         return true;
     }
     if matches!(

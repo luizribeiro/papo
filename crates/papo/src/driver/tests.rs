@@ -1,4 +1,8 @@
 use super::test_support::*;
+
+fn unavailable(message: &'static str) -> Error {
+    Error::connect_unavailable(message)
+}
 #[test]
 fn shared_test_deadline_is_five_seconds() {
     assert_eq!(TEST_DEADLINE, Duration::from_secs(5));
@@ -114,7 +118,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
         let calls = Arc::clone(&calls);
         move |_| {
             calls.fetch_add(1, Ordering::Relaxed);
-            Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+            Box::pin(async { Err(unavailable("scripted connection failure")) })
         }
     });
     let (_client, mut events, driver) = Driver::with_connector_and_entropy(
@@ -149,7 +153,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Unsupported(_))
+        Err(Error::Connect(_))
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 2);
 }
@@ -161,7 +165,7 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
         let calls = Arc::clone(&calls);
         move |_| {
             calls.fetch_add(1, Ordering::Relaxed);
-            Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+            Box::pin(async { Err(unavailable("scripted connection failure")) })
         }
     });
     let (registration, waiting) = tokio::sync::oneshot::channel();
@@ -182,7 +186,7 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
 
     assert!(matches!(
         within(waiting).await.unwrap(),
-        Err(Error::Unsupported("scripted connection failure"))
+        Err(Error::Connect(_))
     ));
     assert!(matches!(
         events.next().await,
@@ -589,7 +593,7 @@ fn persistence_gates_rejoin_and_history_fetch() {
 async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let results = Arc::new(Mutex::new(VecDeque::from([
-        Err(Error::Unsupported("scripted connection failure")),
+        Err(unavailable("scripted connection failure")),
         Ok(Box::new(client_stream) as super::BoxConnection),
     ])));
     let connector: super::Connector = Arc::new(move |_| {
@@ -655,7 +659,7 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
         let calls = Arc::clone(&calls);
         move |_| {
             calls.fetch_add(1, Ordering::Relaxed);
-            Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+            Box::pin(async { Err(unavailable("scripted connection failure")) })
         }
     });
     let (client, mut events, driver) = Driver::with_connector(
@@ -741,7 +745,7 @@ fn failing_driver_with_one_event_slot() -> (super::Client, super::Events, Driver
         let calls = Arc::clone(&calls);
         move |_| {
             calls.fetch_add(1, Ordering::Relaxed);
-            Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+            Box::pin(async { Err(unavailable("scripted connection failure")) })
         }
     });
     let (client, events, driver) = Driver::with_connector_and_entropy(
@@ -815,7 +819,7 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
         let attempts = Arc::clone(&attempts);
         move |_| {
             attempts.lock().unwrap().push(tokio::time::Instant::now());
-            Box::pin(async { Err(Error::Unsupported("scripted connection failure")) })
+            Box::pin(async { Err(unavailable("scripted connection failure")) })
         }
     });
     let (_client, mut events, driver) = Driver::with_connector_and_entropy(
@@ -842,7 +846,7 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
     }
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Unsupported("scripted connection failure"))
+        Err(Error::Connect(_))
     ));
     let attempts = attempts.lock().unwrap();
     assert_eq!(attempts.len(), 3);
@@ -855,8 +859,8 @@ async fn stable_registration_resets_the_backoff() {
     let (stable_stream, mut stable_server) = tokio::io::duplex(4096);
     let (next_stream, mut next_server) = tokio::io::duplex(4096);
     let results = Arc::new(Mutex::new(VecDeque::from([
-        Err(Error::Unsupported("first scripted failure")),
-        Err(Error::Unsupported("second scripted failure")),
+        Err(unavailable("first scripted failure")),
+        Err(unavailable("second scripted failure")),
         Ok(Box::new(stable_stream) as super::BoxConnection),
         Ok(Box::new(next_stream) as super::BoxConnection),
     ])));
@@ -976,7 +980,7 @@ async fn connector_failure_under_stored_sts_is_terminal() {
         let calls = Arc::clone(&calls);
         move |_| {
             calls.fetch_add(1, Ordering::Relaxed);
-            Box::pin(async { Err(Error::Unsupported("scripted TLS failure")) })
+            Box::pin(async { Err(unavailable("scripted TLS failure")) })
         }
     });
     let mut store = papo_core::sts::MemoryStsStore::new();
@@ -1003,10 +1007,7 @@ async fn connector_failure_under_stored_sts_is_terminal() {
         connector,
     );
 
-    assert!(matches!(
-        within(driver).await,
-        Err(Error::Unsupported("scripted TLS failure"))
-    ));
+    assert!(matches!(within(driver).await, Err(Error::Connect(_))));
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected {

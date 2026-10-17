@@ -239,6 +239,10 @@ fn broken_peer() -> io::Error {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub(crate) enum ConnectError {
+    /// This build or target cannot open the requested transport.
+    #[allow(dead_code)]
+    #[error("{0} is unavailable")]
+    Unavailable(&'static str),
     /// Hostname resolution failed.
     #[error("failed to resolve {host}:{port}: {source}")]
     Resolve {

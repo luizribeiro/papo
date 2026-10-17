@@ -917,7 +917,7 @@ mod tests {
             .build();
         assert!(matches!(
             within(driver).await,
-            Err(Error::Unsupported("websocket"))
+            Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::WebSocket
         ));
     }
 }

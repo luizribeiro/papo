@@ -33,6 +33,8 @@ impl ConnectError {
     #[must_use]
     pub fn kind(&self) -> ConnectErrorKind {
         match self.0.as_ref() {
+            crate::transport::ConnectError::Unavailable("websocket") => ConnectErrorKind::WebSocket,
+            crate::transport::ConnectError::Unavailable(_) => ConnectErrorKind::Io,
             crate::transport::ConnectError::Resolve { .. } => ConnectErrorKind::Resolve,
             crate::transport::ConnectError::Tcp(error)
                 if error.kind() == io::ErrorKind::ConnectionRefused =>
@@ -361,6 +363,11 @@ pub enum Error {
 }
 
 impl Error {
+    #[allow(dead_code)]
+    pub(crate) fn connect_unavailable(transport: &'static str) -> Self {
+        Self::Connect(crate::transport::ConnectError::Unavailable(transport).into())
+    }
+
     pub(crate) fn build(error: papo_proto::BuildError) -> Self {
         Self::InvalidInput(InvalidInput::InvalidMessage(error.to_string()))
     }
