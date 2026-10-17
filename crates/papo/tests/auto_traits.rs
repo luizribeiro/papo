@@ -78,7 +78,7 @@ fn request_futures_are_send() {
     assert_send_static(client.quit("trait check complete"));
 
     assert_send_static(client.history("#papo").latest(10).into_future());
-    assert_send(client.history_targets(SystemTime::UNIX_EPOCH, SystemTime::now()));
+    assert_send_static(client.history_targets(SystemTime::UNIX_EPOCH, SystemTime::now()));
     assert_send(client.mark_read("#papo", SystemTime::UNIX_EPOCH));
     assert_send(client.read_marker("#papo"));
     assert_send(

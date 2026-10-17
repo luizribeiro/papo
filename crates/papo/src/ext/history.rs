@@ -236,6 +236,16 @@ pub struct HistoryPage {
     pub end: bool,
 }
 
+/// A target with the timestamp of its newest available history entry.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct HistoryTarget {
+    /// Target with available history.
+    pub target: crate::Target,
+    /// Timestamp of the newest available entry.
+    pub latest: SystemTime,
+}
+
 impl HistoryPage {
     /// Iterates over chat messages, excluding replayed activity items.
     pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
@@ -480,19 +490,32 @@ impl Client {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
     /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub async fn history_targets(
+    pub fn history_targets(
         &self,
         since: SystemTime,
         until: SystemTime,
-    ) -> Result<Vec<(String, SystemTime)>, Error> {
-        self.history_response(HistoryQuery::Targets {
-            from: since,
-            to: until,
-            limit: 1_000,
+    ) -> crate::RequestFuture<Vec<HistoryTarget>> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            client
+                .history_response(HistoryQuery::Targets {
+                    from: since,
+                    to: until,
+                    limit: 1_000,
+                })
+                .await?
+                .history_targets
+                .ok_or_else(Error::disconnected)
+                .map(|targets| {
+                    targets
+                        .into_iter()
+                        .map(|(target, latest)| HistoryTarget {
+                            target: target.into(),
+                            latest,
+                        })
+                        .collect()
+                })
         })
-        .await?
-        .history_targets
-        .ok_or_else(Error::disconnected)
     }
 
     /// Sets the server read marker for `target`.
@@ -931,9 +954,11 @@ mod tests {
         .await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply :ergo.test BATCH +targets draft/chathistory-targets\r\n@batch=targets :ergo.test CHATHISTORY TARGETS #papo 2026-10-15T12:00:00.000Z\r\n@batch=reply :ergo.test BATCH -targets\r\n:ergo.test BATCH -reply\r\n").await;
         let targets = within(request).await.unwrap().unwrap();
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].target, "#papo");
         assert_eq!(
-            targets,
-            [("#papo".into(), UNIX_EPOCH + Duration::from_hours(497_796))]
+            targets[0].latest,
+            UNIX_EPOCH + Duration::from_hours(497_796)
         );
         abort_task(task).await;
     }

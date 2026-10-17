@@ -600,7 +600,7 @@ pub fn papo::Client::who(&self, impl core::convert::Into<papo_proto::id::Mask>) 
 pub fn papo::Client::whois(&self, impl core::convert::Into<papo_proto::id::Nick>) -> papo::RequestFuture<papo::Whois>
 impl papo::Client
 pub fn papo::Client::history(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::History
-pub async fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> core::result::Result<alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>, papo::Error>
+pub fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::HistoryTarget>>
 pub async fn papo::Client::mark_read(&self, &str, std::time::SystemTime) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::read_marker(&self, &str) -> core::result::Result<core::option::Option<std::time::SystemTime>, papo::Error>
 impl papo::Client
@@ -687,6 +687,9 @@ impl core::future::into_future::IntoFuture for papo::HistoryRequest
 pub type papo::HistoryRequest::IntoFuture = papo::RequestFuture<papo::HistoryPage>
 pub type papo::HistoryRequest::Output = core::result::Result<papo::HistoryPage, papo::Error>
 pub fn papo::HistoryRequest::into_future(self) -> Self::IntoFuture
+#[non_exhaustive] pub struct papo::HistoryTarget
+pub papo::HistoryTarget::latest: std::time::SystemTime
+pub papo::HistoryTarget::target: papo_proto::id::Target
 pub struct papo::JoinChannel
 impl papo::JoinChannel
 pub fn papo::JoinChannel::key(self, impl core::convert::Into<papo_core::secret::Secret>) -> Self

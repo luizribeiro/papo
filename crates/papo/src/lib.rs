@@ -36,7 +36,9 @@ pub use error::{
 };
 pub use event_impl::{Event, Message, MessageKind, Origin, RawLine, Source, Tags};
 pub use ext::accounts::{AccountRegistration, NewAccount};
-pub use ext::history::{History, HistoryItem, HistoryPage, HistoryReference, HistoryRequest};
+pub use ext::history::{
+    History, HistoryItem, HistoryPage, HistoryReference, HistoryRequest, HistoryTarget,
+};
 pub use ext::metadata::Metadata;
 pub use ext::persistence::Persistence;
 pub use ext::webpush::{PushKeys, WebPush};
