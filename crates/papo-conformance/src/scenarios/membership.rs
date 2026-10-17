@@ -136,7 +136,7 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
         return Err("invite-notify observer is not a channel operator".into());
     }
     let target_nick = context.unique();
-    let target = context.client(&target_nick).await?;
+    let mut target = context.client(&target_nick).await?;
     inviter
         .client
         .send_raw(&format!("INVITE {target_nick} {channel}"))
@@ -150,6 +150,18 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
                     if invite_event.nick.as_ref() == target_nick
                         && invite_event.channel.as_ref() == channel
                         && !invite_event.is_self)
+            },
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+    context
+        .expect(
+            &mut target.events,
+            |event| {
+                matches!(event, Event::Invited(invite_event)
+                    if invite_event.nick.as_ref() == target_nick
+                        && invite_event.channel.as_ref() == channel
+                        && invite_event.is_self)
             },
             EXPECT_TIMEOUT,
         )
