@@ -8,6 +8,7 @@ use tokio::io::ReadBuf;
 
 pub(super) const MAX_MESSAGE_SIZE: usize = 8_701;
 const MAX_QUEUED_BYTES: usize = 64 * 1_024;
+const MAX_CLOSE_REASON_BYTES: usize = 123;
 
 #[derive(Default)]
 pub(super) struct ReadState {
@@ -43,6 +44,23 @@ impl ReadState {
         self.queued_bytes += message.len();
         self.messages.push_back(message);
         self.wake();
+    }
+
+    pub(super) fn close(&mut self, code: u16, reason: &str) {
+        if matches!(code, 1000 | 1001) {
+            self.eof = true;
+            self.wake();
+            return;
+        }
+        let mut end = reason.len().min(MAX_CLOSE_REASON_BYTES);
+        while !reason.is_char_boundary(end) {
+            end -= 1;
+        }
+        let suffix = if end == 0 { "" } else { ": " };
+        self.fail(io::Error::new(
+            io::ErrorKind::ConnectionAborted,
+            format!("WebSocket closed with code {code}{suffix}{}", &reason[..end]),
+        ));
     }
 
     pub(super) fn fail(&mut self, error: io::Error) {
@@ -120,7 +138,41 @@ mod tests {
         assert_eq!(&accepted[8_701..], b"\r\n");
 
         state.push(vec![b'x'; 8_702]);
-        assert_eq!(read(&mut state, 1).unwrap_err().kind(), io::ErrorKind::InvalidData);
+        assert_eq!(
+            read(&mut state, 1).unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
     }
 
+    #[wasm_bindgen_test]
+    fn bounds_an_unending_incoming_queue_at_65536_bytes() {
+        let mut state = ReadState::default();
+        for _ in 0..7 {
+            state.push(vec![b'x'; 8_701]);
+        }
+        state.push(vec![b'x'; 8_701]);
+        assert_eq!(
+            read(&mut state, 1).unwrap_err().kind(),
+            io::ErrorKind::OutOfMemory
+        );
+    }
+
+    #[wasm_bindgen_test]
+    fn maps_normal_close_codes_to_eof_and_bounds_error_reasons() {
+        for code in [1000, 1001] {
+            let mut state = ReadState::default();
+            state.close(code, "server restart");
+            assert!(read(&mut state, 1).unwrap().is_empty());
+        }
+        let mut state = ReadState::default();
+        state.close(4007, &"maintenance ".repeat(20));
+        let error = read(&mut state, 1).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::ConnectionAborted);
+        assert!(
+            error
+                .to_string()
+                .starts_with("WebSocket closed with code 4007: maintenance")
+        );
+        assert!(error.to_string().len() <= 164);
+    }
 }
