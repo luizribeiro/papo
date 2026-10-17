@@ -75,8 +75,10 @@ async fn handle(client: &Client, event: &Event, config: &BotConfig) -> Result<()
             let id = command.message().id().ok_or(papo::Error::InvalidInput(
                 papo::InvalidInput::MessageReference,
             ))?;
-            let routed = papo::TargetedMessageId::new(command.message().target(), id.as_ref());
-            command.client().react(&routed, "👍").await?;
+            command
+                .client()
+                .react(&command.message().target, id, "👍")
+                .await?;
         }
         _ => {}
     }

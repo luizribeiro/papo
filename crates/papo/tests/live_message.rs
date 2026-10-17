@@ -124,11 +124,11 @@ async fn reactions_reach_another_client_with_reply_context() {
         client_a.privmsg(&channel, "excellent news").await.unwrap();
         let incoming =
             wait_message(&mut events_b, |message| message.text() == "excellent news").await;
-        let id = papo::TargetedMessageId::new(incoming.target(), incoming.id().unwrap().as_ref());
-        client_b.react(&id, "🎉").await.unwrap();
+        let id = incoming.id().unwrap();
+        client_b.react(&incoming.target, id, "🎉").await.unwrap();
         let reaction = wait_reaction(&mut events_a).await;
         assert_eq!(reaction.target, incoming.target);
-        assert_eq!(reaction.message.as_ref(), id.msgid());
+        assert_eq!(&reaction.message, id);
 
         client_b.quit(Some("reaction test complete")).await.unwrap();
         client_a.quit(Some("reaction test complete")).await.unwrap();

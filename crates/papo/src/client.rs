@@ -306,8 +306,13 @@ impl Client {
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
-    pub async fn react(&self, id: &crate::TargetedMessageId, emoji: &str) -> Result<(), Error> {
-        self.reaction(id, emoji, "+draft/react").await
+    pub async fn react(
+        &self,
+        target: &crate::Target,
+        message: &crate::MessageId,
+        emoji: &str,
+    ) -> Result<(), Error> {
+        self.reaction(target, message, emoji, "+draft/react").await
     }
 
     /// Removes `emoji` as a reaction to `message`.
@@ -318,13 +323,20 @@ impl Client {
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
-    pub async fn unreact(&self, id: &crate::TargetedMessageId, emoji: &str) -> Result<(), Error> {
-        self.reaction(id, emoji, "+draft/unreact").await
+    pub async fn unreact(
+        &self,
+        target: &crate::Target,
+        message: &crate::MessageId,
+        emoji: &str,
+    ) -> Result<(), Error> {
+        self.reaction(target, message, emoji, "+draft/unreact")
+            .await
     }
 
     async fn reaction(
         &self,
-        id: &crate::TargetedMessageId,
+        target: &crate::Target,
+        message: &crate::MessageId,
         emoji: &str,
         reaction_tag: &'static str,
     ) -> Result<(), Error> {
@@ -340,8 +352,8 @@ impl Client {
             )));
         }
         self.send_message(
-            Message::tagmsg(id.target())
-                .with_tag(reply_tag, id.msgid())
+            Message::tagmsg(target.as_ref())
+                .with_tag(reply_tag, message.as_ref())
                 .with_tag(reaction_tag, emoji),
         )
         .await
@@ -383,11 +395,12 @@ impl Client {
     /// [`Error::Disconnected`].
     pub async fn redact(
         &self,
-        id: &crate::TargetedMessageId,
+        target: &crate::Target,
+        message: &crate::MessageId,
         reason: Option<&str>,
     ) -> Result<(), Error> {
         Self::require_feature(&self.state(), Feature::Redaction)?;
-        let mut params = vec![id.target(), id.msgid()];
+        let mut params = vec![target.as_ref(), message.as_ref()];
         params.extend(reason);
         let response = self
             .correlated(Message::new("REDACT", params), None)

@@ -19,8 +19,8 @@ pub(crate) use tokio::io::{
 
 pub(crate) use super::{ConnectionPlan, Driver};
 pub(crate) use crate::{
-    Error, Event, Message as ChatMessage, MessageKind, Origin, Reconnect, TargetedMessageId,
-    event::Warning, transport::TlsConfig,
+    Error, Event, Message as ChatMessage, MessageKind, Origin, Reconnect, event::Warning,
+    transport::TlsConfig,
 };
 
 macro_rules! disconnected {
@@ -524,11 +524,12 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
     )
     .await;
     let message = next_message(&mut events).await;
-    let id = TargetedMessageId::new(message.target(), message.id().unwrap().as_ref());
+    let id = message.id().unwrap();
+    let target = message.target.clone();
     let result = if remove {
-        within(client.unreact(&id, "👍")).await
+        within(client.unreact(&target, id, "👍")).await
     } else {
-        within(client.react(&id, "👍")).await
+        within(client.react(&target, id, "👍")).await
     };
     if let Some(expected) = expected {
         result.unwrap();
