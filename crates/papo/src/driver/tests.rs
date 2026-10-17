@@ -1918,6 +1918,57 @@ async fn request_raw_returns_state_changing_lines_without_an_event() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn membership_actions_confirm_success_and_refusal() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_labelled_registration(&mut server, &mut events).await;
+
+    let invite = tokio::spawn({
+        let client = client.clone();
+        async move { client.invite("#papo", "carol").await }
+    });
+    client_line(&mut server, b"@label=0 INVITE carol #papo\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0 :ergo.test 341 papo-driver carol #papo\r\n",
+    )
+    .await;
+    within(invite).await.unwrap().unwrap();
+
+    let kick = tokio::spawn({
+        let client = client.clone();
+        async move { client.kick("#papo", "spambot", "").await }
+    });
+    client_line(&mut server, b"@label=1 KICK #papo spambot\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=1 :ergo.test 482 papo-driver #papo :You're not a channel operator\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(kick).await.unwrap(),
+        Err(Error::Server(error)) if error.code() == "482"
+    ));
+
+    assert!(matches!(
+        client.invite("not-a-channel", "bad,nick").await,
+        Err(Error::InvalidInput(_))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn mode_helpers_await_every_command_and_return_refusals() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
