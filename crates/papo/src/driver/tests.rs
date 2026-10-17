@@ -1848,6 +1848,63 @@ async fn command_builder_quotes_real_commands_and_obeys_the_rate_limit() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn structured_commands_reject_parameter_injection() {
+    let client = crate::Client::disconnected_for_test();
+    for params in [
+        &["alice evil", "reason"][..],
+        &[":x", "reason"][..],
+        &["", "reason"][..],
+        &["alice\r\nWALLOPS :injected", "reason"][..],
+        &["alice", "reason\nQUIT"][..],
+        &["alice", "reason\0QUIT"][..],
+    ] {
+        assert!(matches!(
+            client.send_command("KILL", params).await,
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+        ));
+    }
+    assert!(matches!(
+        client
+            .request_command("MOTD\r\nQUIT", std::iter::empty::<&str>())
+            .await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn structured_request_returns_every_labelled_response_line() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_labelled_registration(&mut server, &mut events).await;
+
+    let request = tokio::spawn({
+        let client = client.clone();
+        async move {
+            client
+                .request_command("MOTD", std::iter::empty::<&str>())
+                .await
+        }
+    });
+    client_line(&mut server, b"@label=0 MOTD\r\n").await;
+    server_line(&mut server, b"@label=0 :ergo.test BATCH +motd labeled-response\r\n@batch=motd :ergo.test 375 papo-driver :- Ergo Message of the Day -\r\n@batch=motd :ergo.test 372 papo-driver :- Welcome to ErgoTest\r\n@batch=motd :ergo.test 376 papo-driver :End of /MOTD command.\r\n:ergo.test BATCH -motd\r\n").await;
+    let lines = within(request).await.unwrap().unwrap();
+    assert_eq!(
+        lines
+            .iter()
+            .map(crate::RawLine::command)
+            .collect::<Vec<_>>(),
+        ["375", "372", "376"]
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn raw_requests_resolve_fail_time_out_and_abort() {
     let (mut server, client, mut events, driver) = scripted(
