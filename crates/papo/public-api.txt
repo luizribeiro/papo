@@ -934,7 +934,7 @@ pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterat
 pub fn papo::State::has_cap(&self, &str) -> bool
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::is_me(&self, impl core::convert::AsRef<str>) -> bool
-pub fn papo::State::isupport(&self) -> &papo_proto::isupport::Isupport
+pub fn papo::State::isupport(&self) -> &papo::isupport::Isupport
 pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> &[alloc::string::String]
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::User>

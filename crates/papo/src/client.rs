@@ -483,7 +483,7 @@ impl Client {
             let state = client.state();
             Self::require_feature(&state, Feature::Reactions)?;
             target
-                .check(state.isupport())
+                .check(state.isupport().inner())
                 .and_then(|()| message.check())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let denied = state.isupport().clienttagdeny();
@@ -528,7 +528,7 @@ impl Client {
             let snapshot = client.state();
             Self::require_feature(&snapshot, Feature::Typing)?;
             target
-                .check(snapshot.isupport())
+                .check(snapshot.isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let (result, receiver) = oneshot::channel();
             client
@@ -567,7 +567,7 @@ impl Client {
             let state = client.state();
             Self::require_feature(&state, Feature::Redaction)?;
             target
-                .check(state.isupport())
+                .check(state.isupport().inner())
                 .and_then(|()| message.check())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let mut params = vec![target.to_string(), message.to_string()];
@@ -625,7 +625,7 @@ impl Client {
         let client = self.clone();
         let nick = nick.into();
         crate::RequestFuture::new(async move {
-            nick.check(client.state().isupport())
+            nick.check(client.state().isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
@@ -633,7 +633,7 @@ impl Client {
                     Some(ResponseMatcher::Whois(nick.to_string())),
                 )
                 .await?;
-            crate::requests::whois(response, &nick, client.state().isupport())
+            crate::requests::whois(response, &nick, client.state().isupport().inner())
         })
     }
 
@@ -660,7 +660,7 @@ impl Client {
             let response = client
                 .correlated(message, Some(ResponseMatcher::Who(mask.to_string())))
                 .await?;
-            crate::requests::who(response, state.isupport(), extended)
+            crate::requests::who(response, state.isupport().inner(), extended)
         })
     }
 
@@ -741,7 +741,7 @@ impl Client {
         let reason = reason.to_owned();
         crate::RequestFuture::new(async move {
             channel
-                .check(client.state().isupport())
+                .check(client.state().isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let mut params = vec![channel.to_string()];
             if !reason.is_empty() {
@@ -775,8 +775,8 @@ impl Client {
         crate::RequestFuture::new(async move {
             let state = client.state();
             channel
-                .check(state.isupport())
-                .and_then(|()| nick.check(state.isupport()))
+                .check(state.isupport().inner())
+                .and_then(|()| nick.check(state.isupport().inner()))
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let mut params = vec![channel.to_string(), nick.to_string()];
             if !reason.is_empty() {
@@ -811,8 +811,8 @@ impl Client {
         crate::RequestFuture::new(async move {
             let state = client.state();
             channel
-                .check(state.isupport())
-                .and_then(|()| nick.check(state.isupport()))
+                .check(state.isupport().inner())
+                .and_then(|()| nick.check(state.isupport().inner()))
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
@@ -836,7 +836,7 @@ impl Client {
         let client = self.clone();
         let nick = nick.into();
         crate::RequestFuture::new(async move {
-            nick.check(client.state().isupport())
+            nick.check(client.state().isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
@@ -985,7 +985,7 @@ impl Client {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             channel
-                .check(client.state().isupport())
+                .check(client.state().isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(

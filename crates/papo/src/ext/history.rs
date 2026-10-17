@@ -196,7 +196,7 @@ fn mode_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option
     let changes = ModeChanges::parse(
         message.param(1)?,
         message.params().skip(2),
-        state.isupport(),
+        state.isupport().inner(),
     )
     .map(|change| crate::event::ModeChange {
         set: change.set,
@@ -537,7 +537,7 @@ impl Client {
         let target = target.into();
         crate::RequestFuture::new(async move {
             target
-                .check(client.state().isupport())
+                .check(client.state().isupport().inner())
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             let (result, receiver) = oneshot::channel();
             client
@@ -572,7 +572,7 @@ impl Client {
         let target = target.into();
         crate::RequestFuture::new(async move {
             target
-                .check(client.state().isupport())
+                .check(client.state().isupport().inner())
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             let (result, receiver) = oneshot::channel();
             client

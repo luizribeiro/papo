@@ -79,7 +79,7 @@ impl Monitor {
             preflight(&client)?;
             let state = client.state();
             for nick in &nicks {
-                nick.check(state.isupport())
+                nick.check(state.isupport().inner())
                     .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             }
             let nicks = nicks.into_iter().map(crate::Nick::into_string).collect();

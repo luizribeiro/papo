@@ -22,8 +22,8 @@ impl Client {
         let reason = reason.to_owned();
         crate::RequestFuture::new(async move {
             let state = client.state();
-            old.check(state.isupport())
-                .and_then(|()| new.check(state.isupport()))
+            old.check(state.isupport().inner())
+                .and_then(|()| new.check(state.isupport().inner()))
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .core_request(CoreRequest::Rename {
@@ -62,8 +62,8 @@ impl Client {
         crate::RequestFuture::new(async move {
             let state = client.state();
             channel
-                .check(state.isupport())
-                .and_then(|()| nick.check(state.isupport()))
+                .check(state.isupport().inner())
+                .and_then(|()| nick.check(state.isupport().inner()))
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .core_request(CoreRequest::Relay {

@@ -196,7 +196,7 @@ impl Message {
             None,
             false,
             false,
-            snapshot.isupport(),
+            snapshot.isupport().inner(),
             received_at,
         )?;
         event.origin = origin;

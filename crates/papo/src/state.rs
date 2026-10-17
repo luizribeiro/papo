@@ -2,7 +2,9 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use papo_core::{Capabilities, Channel, Feature, Session, UnsupportedReason, User};
-use papo_proto::{AccountName, Casemapping, Isupport, NAME_ALIASES, NameKind, Nick};
+use papo_proto::{AccountName, Casemapping, NAME_ALIASES, NameKind, Nick};
+
+use crate::Isupport;
 
 /// An immutable snapshot of an IRC client's known state.
 ///
@@ -36,7 +38,7 @@ impl State {
         Self {
             core: session.state().clone(),
             caps: session.caps().clone(),
-            isupport: Arc::new(session.isupport().clone()),
+            isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             account: session.account().map(AccountName::from),
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
@@ -206,7 +208,7 @@ impl State {
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn filehost(&self) -> Option<&str> {
-        filehost(&self.isupport)
+        self.isupport.filehost()
     }
 
     /// Returns the server's nickname and channel casemapping.
@@ -244,32 +246,23 @@ const FEATURES: &[Feature] = &[
     Feature::HostTracking,
 ];
 
-#[cfg(feature = "unstable")]
-fn filehost(isupport: &Isupport) -> Option<&str> {
-    ["draft/FILEHOST", "soju.im/FILEHOST"]
-        .into_iter()
-        .find_map(|name| match isupport.get(name) {
-            papo_proto::Advertised::Value(url) if url.starts_with("https://") => Some(url),
-            _ => None,
-        })
-}
-
 #[cfg(all(test, feature = "unstable"))]
 mod tests {
-    use papo_proto::Isupport;
+    use crate::Isupport;
 
     #[test]
     fn accepts_both_filehost_names_and_requires_https() {
         for name in ["soju.im/FILEHOST", "draft/FILEHOST"] {
-            let mut isupport = Isupport::default();
-            isupport.apply_tokens([format!("{name}=https://files.example.net/upload")]);
+            let mut inner = papo_proto::Isupport::default();
+            inner.apply_tokens([format!("{name}=https://files.example.net/upload")]);
+            let isupport = Isupport::from_proto(inner.clone());
             assert_eq!(
-                super::filehost(&isupport),
+                isupport.filehost(),
                 Some("https://files.example.net/upload")
             );
 
-            isupport.apply_tokens([format!("{name}=http://files.example.net/upload")]);
-            assert_eq!(super::filehost(&isupport), None);
+            inner.apply_tokens([format!("{name}=http://files.example.net/upload")]);
+            assert_eq!(Isupport::from_proto(inner).filehost(), None);
         }
     }
 }

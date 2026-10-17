@@ -16,6 +16,14 @@ pub struct Isupport {
 }
 
 impl Isupport {
+    pub(crate) const fn from_proto(inner: papo_proto::Isupport) -> Self {
+        Self { inner }
+    }
+
+    pub(crate) const fn inner(&self) -> &papo_proto::Isupport {
+        &self.inner
+    }
+
     /// Returns whether a token is absent, bare, or has a value.
     #[must_use]
     pub fn get(&self, key: &str) -> Advertised<'_> {
@@ -236,6 +244,23 @@ impl Isupport {
     #[must_use]
     pub fn elist(&self) -> Option<&str> {
         self.inner.elist()
+    }
+
+    /// Returns the HTTPS endpoint advertised for file uploads.
+    ///
+    /// Uploads use an HTTP `POST` whose response supplies the uploaded URL in its `Location`
+    /// header. The caller authenticates that request with its own credentials; papo does not
+    /// expose authentication secrets. Non-HTTPS endpoints are ignored.
+    #[must_use]
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub fn filehost(&self) -> Option<&str> {
+        ["draft/FILEHOST", "soju.im/FILEHOST"]
+            .into_iter()
+            .find_map(|name| match self.get(name) {
+                Advertised::Value(url) if url.starts_with("https://") => Some(url),
+                _ => None,
+            })
     }
 }
 

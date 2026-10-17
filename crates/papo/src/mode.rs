@@ -110,7 +110,11 @@ impl IntoFuture for SetModes {
 
     fn into_future(self) -> Self::IntoFuture {
         RequestFuture::new(async move {
-            let messages = encode(self.client.state().isupport(), &self.target, &self.changes)?;
+            let messages = encode(
+                self.client.state().isupport().inner(),
+                &self.target,
+                &self.changes,
+            )?;
             for message in messages {
                 let response = self
                     .client

@@ -16,9 +16,8 @@ use std::{
 };
 
 use libtest_mimic::{Arguments, Completion, Conclusion, Failed, FormatSetting, Trial};
-use papo::{Client, Endpoint, Event, Events};
-use papo_core::{Capabilities, DEFAULT_WANTED_CAPS, Sasl, Welcome};
-use papo_proto::{Advertised, Isupport};
+use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
+use papo_core::{Capabilities, DEFAULT_WANTED_CAPS, Sasl};
 use papo_test_server::{ServerInfo, from_env};
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 
@@ -61,6 +60,12 @@ struct Connection {
     client: Client,
     events: Events,
     driver: JoinHandle<Result<(), papo::Error>>,
+}
+
+struct Welcome {
+    nick: String,
+    caps: Capabilities,
+    isupport: Isupport,
 }
 
 struct RegisteredClient {
@@ -450,7 +455,7 @@ async fn probe(
 }
 
 impl Requirements {
-    fn unsupported(&self, caps: &Capabilities, isupport: &Isupport) -> Option<String> {
+    fn unsupported(&self, caps: &Capabilities, isupport: &impl IsupportView) -> Option<String> {
         for requirement in self.caps {
             let value = caps.get(requirement.name).or_else(|| {
                 (requirement.name == "draft/metadata-2")
@@ -474,9 +479,26 @@ impl Requirements {
             }
         }
         self.isupport.iter().find_map(|token| {
-            matches!(isupport.get(token), Advertised::Absent)
+            matches!(isupport.advertised(token), Advertised::Absent)
                 .then(|| format!("server does not advertise {token}"))
         })
+    }
+}
+
+trait IsupportView {
+    fn advertised(&self, token: &str) -> Advertised<'_>;
+}
+
+impl IsupportView for Isupport {
+    fn advertised(&self, token: &str) -> Advertised<'_> {
+        self.get(token)
+    }
+}
+
+#[cfg(test)]
+impl IsupportView for papo_proto::Isupport {
+    fn advertised(&self, token: &str) -> Advertised<'_> {
+        self.get(token)
     }
 }
 
@@ -534,7 +556,6 @@ async fn wait_for_registration(client: &Client, events: &mut Events) -> Result<W
                 Some(Event::Registered(registered)) => {
                     return Ok(Welcome {
                         nick: registered.nick.into_string(),
-                        text: registered.text,
                         caps: registered.caps,
                         isupport: client.state().isupport().clone(),
                     });

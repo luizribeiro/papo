@@ -302,6 +302,7 @@ pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo_proto::isupport::C
 pub fn papo::isupport::Isupport::elist(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::excepts(&self) -> core::option::Option<char>
 pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo_proto::isupport::Extban<'_>>
+pub fn papo::isupport::Isupport::filehost(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::get(&self, &str) -> papo_proto::isupport::Advertised<'_>
 pub fn papo::isupport::Isupport::icon(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
@@ -810,6 +811,7 @@ pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo_proto::isupport::C
 pub fn papo::isupport::Isupport::elist(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::excepts(&self) -> core::option::Option<char>
 pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo_proto::isupport::Extban<'_>>
+pub fn papo::isupport::Isupport::filehost(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::get(&self, &str) -> papo_proto::isupport::Advertised<'_>
 pub fn papo::isupport::Isupport::icon(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
@@ -996,7 +998,7 @@ pub fn papo::State::filehost(&self) -> core::option::Option<&str>
 pub fn papo::State::has_cap(&self, &str) -> bool
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::is_me(&self, impl core::convert::AsRef<str>) -> bool
-pub fn papo::State::isupport(&self) -> &papo_proto::isupport::Isupport
+pub fn papo::State::isupport(&self) -> &papo::isupport::Isupport
 pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> &[alloc::string::String]
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::User>
