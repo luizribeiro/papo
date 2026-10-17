@@ -1,9 +1,5 @@
-/// Entropy sourced from the operating system.
-///
-/// This can be passed to [`papo_core::Session::with_entropy`] for
-/// authentication mechanisms that require random nonces.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct OsEntropy;
+pub(crate) struct OsEntropy;
 
 impl OsEntropy {
     pub(crate) fn next_u64() -> u64 {

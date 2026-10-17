@@ -3,6 +3,13 @@
 //! TLS uses ring when both `tls-ring` and `tls-aws-lc` are enabled.
 //! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
 //! Applications can opt in while libraries should leave the feature disabled.
+//!
+//! # Frozen re-exports
+//!
+//! Identifier, state-model, authentication, capability, casemapping, typing, rate-limit, and STS
+//! types re-exported by this crate are part of `papo`'s public compatibility contract. The
+//! internal `papo-core` and `papo-proto` dependencies are pinned exactly so their implementations
+//! cannot change independently of this facade.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -41,7 +48,6 @@ pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
 pub use client::{Client, JoinChannel, SendMessage, Sent};
 pub use driver::{Driver, Events};
-pub use entropy::OsEntropy;
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
     RegistrationError, ServerError,
@@ -71,13 +77,18 @@ pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport::Isupport;
 pub use metadata::MetadataValue;
 pub use mode::SetModes;
+#[doc(inline)]
 pub use papo_core::Secret;
+#[doc(inline)]
 pub use papo_core::{Account, Capabilities, Channel, Feature, Member, User};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
+#[doc(inline)]
 pub use papo_core::{RateLimit, Sasl};
+#[doc(inline)]
 pub use papo_core::{Unsupported, UnsupportedReason};
+#[doc(inline)]
 pub use papo_proto::{
     AccountName, Casemapping, ChannelName, Folded, InvalidIdentifier, Mask, MessageId, MetadataKey,
     Nick, Target, Typing,

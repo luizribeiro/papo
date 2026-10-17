@@ -519,7 +519,7 @@ impl Driver {
             reconnect,
             sts_store,
             connector,
-            Box::new(crate::OsEntropy::next_u64),
+            Box::new(crate::entropy::OsEntropy::next_u64),
         )
     }
 

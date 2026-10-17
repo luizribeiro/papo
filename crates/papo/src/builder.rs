@@ -455,7 +455,8 @@ impl Builder {
             apply_address(&mut self.config, address);
         }
         let input_error = self.address.err().or(self.invalid_input);
-        let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
+        let session =
+            papo_core::Session::with_entropy(self.config, Box::new(crate::entropy::OsEntropy));
         if let Some(error) = input_error {
             drop(stream);
             return crate::Driver::failed(
@@ -495,7 +496,8 @@ impl Builder {
                 tls: self.tls,
             })
         });
-        let session = papo_core::Session::with_entropy(self.config, Box::new(crate::OsEntropy));
+        let session =
+            papo_core::Session::with_entropy(self.config, Box::new(crate::entropy::OsEntropy));
         let defaults = PostRegistration {
             bot: self.bot,
             channels: self.autojoin,

@@ -91,7 +91,7 @@ pub papo::event::BatchAbandonReason::Timeout
 pub papo::event::Source::Server::name: alloc::string::String
 #[non_exhaustive] pub papo::event::Source::User
 pub papo::event::Source::User::host: core::option::Option<alloc::string::String>
-pub papo::event::Source::User::nick: papo_proto::id::Nick
+pub papo::event::Source::User::nick: papo::Nick
 pub papo::event::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
@@ -120,29 +120,29 @@ pub papo::event::Warning::BatchAbandoned::reason: papo::event::BatchAbandonReaso
 pub papo::event::Warning::Malformed::line: alloc::vec::Vec<u8>
 #[non_exhaustive] pub papo::event::Warning::MonitorListFull
 pub papo::event::Warning::MonitorListFull::limit: usize
-pub papo::event::Warning::MonitorListFull::nicks: alloc::vec::Vec<papo_proto::id::Nick>
+pub papo::event::Warning::MonitorListFull::nicks: alloc::vec::Vec<papo::Nick>
 pub papo::event::Warning::MonitorUnsupported
 #[non_exhaustive] pub papo::event::Warning::StateLimitReached
 pub papo::event::Warning::StateLimitReached::limit: papo::event::StateLimit
 impl core::fmt::Display for papo::event::Warning
 pub fn papo::event::Warning::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct papo::event::AccountChanged
-pub papo::event::AccountChanged::account: core::option::Option<papo_proto::id::AccountName>
-pub papo::event::AccountChanged::nick: papo_proto::id::Nick
+pub papo::event::AccountChanged::account: core::option::Option<papo::AccountName>
+pub papo::event::AccountChanged::nick: papo::Nick
 #[non_exhaustive] pub struct papo::event::AwayChanged
 pub papo::event::AwayChanged::message: core::option::Option<alloc::string::String>
-pub papo::event::AwayChanged::nick: papo_proto::id::Nick
+pub papo::event::AwayChanged::nick: papo::Nick
 #[non_exhaustive] pub struct papo::event::CapsChanged
-pub papo::event::CapsChanged::added: papo_core::Capabilities
-pub papo::event::CapsChanged::removed: papo_core::Capabilities
+pub papo::event::CapsChanged::added: papo::Capabilities
+pub papo::event::CapsChanged::removed: papo::Capabilities
 #[non_exhaustive] pub struct papo::event::ChannelRenamed
-pub papo::event::ChannelRenamed::new: papo_proto::id::ChannelName
-pub papo::event::ChannelRenamed::old: papo_proto::id::ChannelName
+pub papo::event::ChannelRenamed::new: papo::ChannelName
+pub papo::event::ChannelRenamed::old: papo::ChannelName
 pub papo::event::ChannelRenamed::reason: alloc::string::String
 #[non_exhaustive] pub struct papo::event::ChannelSynced
-pub papo::event::ChannelSynced::channel: papo_proto::id::ChannelName
+pub papo::event::ChannelSynced::channel: papo::ChannelName
 #[non_exhaustive] pub struct papo::event::Departed
-pub papo::event::Departed::nick: papo_proto::id::Nick
+pub papo::event::Departed::nick: papo::Nick
 pub papo::event::Departed::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Disconnected
 pub papo::event::Disconnected::cause: papo::DisconnectCause
@@ -154,30 +154,30 @@ impl core::error::Error for papo::Disconnected
 impl core::fmt::Display for papo::Disconnected
 pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct papo::event::FeaturesChanged
-pub papo::event::FeaturesChanged::added: alloc::vec::Vec<papo_core::features::Feature>
-pub papo::event::FeaturesChanged::removed: alloc::vec::Vec<papo_core::features::Feature>
+pub papo::event::FeaturesChanged::added: alloc::vec::Vec<papo::Feature>
+pub papo::event::FeaturesChanged::removed: alloc::vec::Vec<papo::Feature>
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::host: alloc::string::String
-pub papo::event::HostChanged::nick: papo_proto::id::Nick
+pub papo::event::HostChanged::nick: papo::Nick
 pub papo::event::HostChanged::user: alloc::string::String
 #[non_exhaustive] pub struct papo::event::Invited
 pub papo::event::Invited::by: papo::Source
-pub papo::event::Invited::channel: papo_proto::id::ChannelName
+pub papo::event::Invited::channel: papo::ChannelName
 pub papo::event::Invited::is_self: bool
-pub papo::event::Invited::nick: papo_proto::id::Nick
+pub papo::event::Invited::nick: papo::Nick
 #[non_exhaustive] pub struct papo::event::Joined
-pub papo::event::Joined::channel: papo_proto::id::ChannelName
+pub papo::event::Joined::channel: papo::ChannelName
 pub papo::event::Joined::is_self: bool
-pub papo::event::Joined::nick: papo_proto::id::Nick
+pub papo::event::Joined::nick: papo::Nick
 #[non_exhaustive] pub struct papo::event::Kicked
 pub papo::event::Kicked::by: papo::Source
-pub papo::event::Kicked::channel: papo_proto::id::ChannelName
+pub papo::event::Kicked::channel: papo::ChannelName
 pub papo::event::Kicked::is_self: bool
-pub papo::event::Kicked::nick: papo_proto::id::Nick
+pub papo::event::Kicked::nick: papo::Nick
 pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::MetadataChanged
-pub papo::event::MetadataChanged::key: papo_proto::id::MetadataKey
-pub papo::event::MetadataChanged::target: papo_proto::id::Target
+pub papo::event::MetadataChanged::key: papo::MetadataKey
+pub papo::event::MetadataChanged::target: papo::Target
 pub papo::event::MetadataChanged::value: core::option::Option<alloc::string::String>
 pub papo::event::MetadataChanged::visibility: papo::event::Visibility
 #[non_exhaustive] pub struct papo::event::ModeChange
@@ -188,12 +188,12 @@ pub papo::event::ModeChange::set: bool
 #[non_exhaustive] pub struct papo::event::ModeChanged
 pub papo::event::ModeChanged::by: papo::Source
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
-pub papo::event::ModeChanged::target: papo_proto::id::Target
+pub papo::event::ModeChanged::target: papo::Target
 #[non_exhaustive] pub struct papo::event::MonitorOffline
-pub papo::event::MonitorOffline::nick: papo_proto::id::Nick
+pub papo::event::MonitorOffline::nick: papo::Nick
 #[non_exhaustive] pub struct papo::event::MonitorOnline
 pub papo::event::MonitorOnline::host: core::option::Option<alloc::string::String>
-pub papo::event::MonitorOnline::nick: papo_proto::id::Nick
+pub papo::event::MonitorOnline::nick: papo::Nick
 pub papo::event::MonitorOnline::user: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Netjoin
 pub papo::event::Netjoin::joins: alloc::vec::Vec<papo::event::Joined>
@@ -203,37 +203,37 @@ pub papo::event::Netsplit::quits: alloc::vec::Vec<papo::event::Departed>
 pub papo::event::Netsplit::servers: [alloc::string::String; 2]
 #[non_exhaustive] pub struct papo::event::NickChanged
 pub papo::event::NickChanged::is_self: bool
-pub papo::event::NickChanged::new: papo_proto::id::Nick
-pub papo::event::NickChanged::old: papo_proto::id::Nick
+pub papo::event::NickChanged::new: papo::Nick
+pub papo::event::NickChanged::old: papo::Nick
 #[non_exhaustive] pub struct papo::event::Parted
-pub papo::event::Parted::channel: papo_proto::id::ChannelName
+pub papo::event::Parted::channel: papo::ChannelName
 pub papo::event::Parted::is_self: bool
-pub papo::event::Parted::nick: papo_proto::id::Nick
+pub papo::event::Parted::nick: papo::Nick
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Quit
-pub papo::event::Quit::channels: alloc::vec::Vec<papo_proto::id::ChannelName>
-pub papo::event::Quit::nick: papo_proto::id::Nick
+pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
+pub papo::event::Quit::nick: papo::Nick
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::Reacted
-pub papo::event::Reacted::message: papo_proto::id::MessageId
+pub papo::event::Reacted::message: papo::MessageId
 pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::source: core::option::Option<papo::Source>
-pub papo::event::Reacted::target: papo_proto::id::Target
+pub papo::event::Reacted::target: papo::Target
 #[non_exhaustive] pub struct papo::event::ReadMarker
-pub papo::event::ReadMarker::target: papo_proto::id::Target
+pub papo::event::ReadMarker::target: papo::Target
 pub papo::event::ReadMarker::time: core::option::Option<std::time::SystemTime>
 #[non_exhaustive] pub struct papo::event::RealnameChanged
-pub papo::event::RealnameChanged::nick: papo_proto::id::Nick
+pub papo::event::RealnameChanged::nick: papo::Nick
 pub papo::event::RealnameChanged::realname: alloc::string::String
 #[non_exhaustive] pub struct papo::event::Redacted
-pub papo::event::Redacted::message: papo_proto::id::MessageId
+pub papo::event::Redacted::message: papo::MessageId
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::source: core::option::Option<papo::Source>
-pub papo::event::Redacted::target: papo_proto::id::Target
+pub papo::event::Redacted::target: papo::Target
 #[non_exhaustive] pub struct papo::event::Registered
-pub papo::event::Registered::caps: papo_core::Capabilities
-pub papo::event::Registered::nick: papo_proto::id::Nick
+pub papo::event::Registered::caps: papo::Capabilities
+pub papo::event::Registered::nick: papo::Nick
 pub papo::event::Registered::reconnected: bool
 pub papo::event::Registered::text: alloc::string::String
 #[non_exhaustive] pub struct papo::event::StandardReply
@@ -245,15 +245,15 @@ pub papo::event::StandardReply::kind: papo::event::StandardReplyKind
 #[non_exhaustive] pub struct papo::event::TagMsg
 pub papo::event::TagMsg::source: core::option::Option<papo::Source>
 pub papo::event::TagMsg::tags: papo::Tags
-pub papo::event::TagMsg::target: papo_proto::id::Target
+pub papo::event::TagMsg::target: papo::Target
 #[non_exhaustive] pub struct papo::event::TopicChanged
 pub papo::event::TopicChanged::by: papo::Source
-pub papo::event::TopicChanged::channel: papo_proto::id::ChannelName
+pub papo::event::TopicChanged::channel: papo::ChannelName
 pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::TypingChanged
 pub papo::event::TypingChanged::source: core::option::Option<papo::Source>
-pub papo::event::TypingChanged::state: papo_proto::client_tags::Typing
-pub papo::event::TypingChanged::target: papo_proto::id::Target
+pub papo::event::TypingChanged::state: papo::Typing
+pub papo::event::TypingChanged::target: papo::Target
 pub mod papo::format
 pub use papo::format::strip
 pub mod papo::isupport
@@ -270,35 +270,35 @@ pub fn papo::isupport::Isupport::account_required(&self) -> bool
 pub fn papo::isupport::Isupport::accountextban(&self) -> alloc::vec::Vec<&str>
 pub fn papo::isupport::Isupport::awaylen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::bot_mode(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::casemapping(&self) -> papo_proto::casemapping::Casemapping
-pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo_proto::isupport::ChanModes<'_>>
+pub fn papo::isupport::Isupport::casemapping(&self) -> papo::Casemapping
+pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo::isupport::ChanModes<'_>>
 pub fn papo::isupport::Isupport::channellen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::chantypes(&self) -> &str
-pub fn papo::isupport::Isupport::chathistory(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
-pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo_proto::isupport::ClientTagDeny<'_>
+pub fn papo::isupport::Isupport::chathistory(&self) -> core::option::Option<papo::isupport::LimitValue>
+pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo::isupport::ClientTagDeny<'_>
 pub fn papo::isupport::Isupport::elist(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::excepts(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo_proto::isupport::Extban<'_>>
-pub fn papo::isupport::Isupport::get(&self, &str) -> papo_proto::isupport::Advertised<'_>
+pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo::isupport::Extban<'_>>
+pub fn papo::isupport::Isupport::get(&self, &str) -> papo::isupport::Advertised<'_>
 pub fn papo::isupport::Isupport::icon(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
 pub fn papo::isupport::Isupport::invex(&self) -> core::option::Option<char>
 pub fn papo::isupport::Isupport::is_channel(&self, &str) -> bool
 pub fn papo::isupport::Isupport::kicklen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo::isupport::LimitValue>
 pub fn papo::isupport::Isupport::modes(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::monitor(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::monitor(&self) -> core::option::Option<papo::isupport::LimitValue>
 pub fn papo::isupport::Isupport::msgreftypes(&self) -> alloc::vec::Vec<&str>
 pub fn papo::isupport::Isupport::namelen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::network(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::nicklen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo_proto::isupport::Prefix>
+pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo::isupport::Prefix>
 pub fn papo::isupport::Isupport::safelist(&self) -> bool
 pub fn papo::isupport::Isupport::saferate(&self) -> bool
 pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
 pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::utf8only(&self) -> bool
 pub fn papo::isupport::Isupport::vapid(&self) -> core::option::Option<&str>
@@ -315,16 +315,16 @@ pub const papo::metadata::keys::STATUS: &str
 pub struct papo::metadata::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
-pub fn papo::Metadata::clear_on(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo_proto::id::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
-pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::remove_on(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set(&self, impl core::convert::Into<papo_proto::id::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set_on(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
-pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
+pub fn papo::Metadata::clear_on(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
+pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::remove_on(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set_on(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 #[non_exhaustive] pub struct papo::metadata::MetadataValue
 pub papo::metadata::MetadataValue::value: alloc::string::String
 pub papo::metadata::MetadataValue::visibility: alloc::string::String
@@ -337,9 +337,9 @@ impl papo::sts::FileStsStore
 pub fn papo::sts::FileStsStore::default_path() -> core::option::Option<std::path::PathBuf>
 pub fn papo::sts::FileStsStore::last_error(&self) -> core::option::Option<&core::io::error::Error>
 pub fn papo::sts::FileStsStore::open(impl core::convert::Into<std::path::PathBuf>) -> Self
-impl papo_core::sts::StsStore for papo::sts::FileStsStore
-pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo_core::sts::StsPolicy>
-pub fn papo::sts::FileStsStore::put(&mut self, papo_core::sts::StsPolicy)
+impl papo::sts::StsStore for papo::sts::FileStsStore
+pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo::sts::StsPolicy>
+pub fn papo::sts::FileStsStore::put(&mut self, papo::sts::StsPolicy)
 pub fn papo::sts::FileStsStore::remove(&mut self, &str)
 pub mod papo::time
 pub use papo::time::format
@@ -381,7 +381,7 @@ pub papo::Error::Registration(papo::RegistrationError)
 pub papo::Error::RequestLimit
 pub papo::Error::Server(papo::ServerError)
 pub papo::Error::Timeout
-pub papo::Error::Unsupported(papo_core::features::Unsupported)
+pub papo::Error::Unsupported(papo::Unsupported)
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
 pub papo::Event::AccountRegistration(papo::AccountRegistration)
@@ -587,7 +587,7 @@ pub papo::RegistrationError::Timeout
 pub papo::Source::Server::name: alloc::string::String
 #[non_exhaustive] pub papo::Source::User
 pub papo::Source::User::host: core::option::Option<alloc::string::String>
-pub papo::Source::User::nick: papo_proto::id::Nick
+pub papo::Source::User::nick: papo::Nick
 pub papo::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
@@ -597,7 +597,7 @@ pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub fn papo::Builder::autojoin_with_key(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::secret::Secret>) -> Self
+pub fn papo::Builder::autojoin_with_key(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::bot(self) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
@@ -609,20 +609,20 @@ pub fn papo::Builder::event_capacity(self, usize) -> Self
 pub const fn papo::Builder::history_on_reconnect(self, bool) -> Self
 pub fn papo::Builder::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::nick(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Builder::password(self, impl core::convert::Into<papo_core::secret::Secret>) -> Self
+pub fn papo::Builder::password(self, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo::Builder::ping_interval(self, core::time::Duration) -> Self
 pub fn papo::Builder::ping_timeout(self, core::time::Duration) -> Self
-pub fn papo::Builder::rate_limit(self, papo_core::ratelimit::RateLimit) -> Self
+pub fn papo::Builder::rate_limit(self, papo::RateLimit) -> Self
 pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
 pub fn papo::Builder::register_account(self, papo::NewAccount) -> Self
 pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
-pub fn papo::Builder::sasl(self, papo_core::sasl::Sasl) -> Self
+pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
 pub fn papo::Builder::stream(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static) -> Self
-pub fn papo::Builder::sts_store(self, impl papo_core::sts::StsStore + core::marker::Send + 'static) -> Self
+pub fn papo::Builder::sts_store(self, impl papo::sts::StsStore + core::marker::Send + 'static) -> Self
 pub fn papo::Builder::tls_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
-pub fn papo::Builder::tls_client_cert(self, impl core::convert::Into<alloc::vec::Vec<u8>>, impl core::convert::Into<papo_core::secret::Secret>) -> Self
+pub fn papo::Builder::tls_client_cert(self, impl core::convert::Into<alloc::vec::Vec<u8>>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo::Builder::tls_extra_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
 pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
@@ -632,53 +632,53 @@ impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Client
 impl papo::Client
-pub fn papo::Client::action(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
+pub fn papo::Client::action(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
-pub fn papo::Client::clear_topic(&self, impl core::convert::Into<papo_proto::id::ChannelName>) -> papo::RequestFuture<()>
-pub fn papo::Client::invite(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::Nick>) -> papo::RequestFuture<()>
-pub fn papo::Client::join(&self, impl core::convert::Into<papo_proto::id::ChannelName>) -> papo::JoinChannel
-pub fn papo::Client::kick(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::Nick>, &str) -> papo::RequestFuture<()>
+pub fn papo::Client::clear_topic(&self, impl core::convert::Into<papo::ChannelName>) -> papo::RequestFuture<()>
+pub fn papo::Client::invite(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::Nick>) -> papo::RequestFuture<()>
+pub fn papo::Client::join(&self, impl core::convert::Into<papo::ChannelName>) -> papo::JoinChannel
+pub fn papo::Client::kick(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::Nick>, &str) -> papo::RequestFuture<()>
 pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc::vec::Vec<papo::ListEntry>>
-pub fn papo::Client::nick(&self) -> papo_proto::id::Nick
-pub fn papo::Client::notice(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
-pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::secret::Secret>) -> papo::RequestFuture<()>
-pub fn papo::Client::part(&self, impl core::convert::Into<papo_proto::id::ChannelName>, &str) -> papo::RequestFuture<()>
+pub fn papo::Client::nick(&self) -> papo::Nick
+pub fn papo::Client::notice(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
+pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<()>
+pub fn papo::Client::part(&self, impl core::convert::Into<papo::ChannelName>, &str) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
-pub fn papo::Client::privmsg(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
+pub fn papo::Client::privmsg(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::quit(&self, &str) -> papo::RequestFuture<()>
-pub fn papo::Client::react(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::react(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::react_to(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
-pub fn papo::Client::redact(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MessageId>, &str) -> papo::RequestFuture<()>
+pub fn papo::Client::redact(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MessageId>, &str) -> papo::RequestFuture<()>
 pub fn papo::Client::reply(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::request_raw(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<alloc::vec::Vec<papo::RawLine>>
 pub fn papo::Client::send_raw(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::set_nick(&self, impl core::convert::Into<papo_proto::id::Nick>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_nick(&self, impl core::convert::Into<papo::Nick>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::set_topic(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_topic(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
-pub fn papo::Client::typing(&self, impl core::convert::Into<papo_proto::id::Target>, papo_proto::client_tags::Typing) -> papo::RequestFuture<()>
-pub fn papo::Client::unreact(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::who(&self, impl core::convert::Into<papo_proto::id::Mask>) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
-pub fn papo::Client::whois(&self, impl core::convert::Into<papo_proto::id::Nick>) -> papo::RequestFuture<papo::Whois>
+pub fn papo::Client::typing(&self, impl core::convert::Into<papo::Target>, papo::Typing) -> papo::RequestFuture<()>
+pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::who(&self, impl core::convert::Into<papo::Mask>) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
+pub fn papo::Client::whois(&self, impl core::convert::Into<papo::Nick>) -> papo::RequestFuture<papo::Whois>
 impl papo::Client
-pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
-pub fn papo::Client::history(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::History
+pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
+pub fn papo::Client::history(&self, impl core::convert::Into<papo::Target>) -> papo::History
 pub fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::HistoryTarget>>
-pub fn papo::Client::mark_read(&self, impl core::convert::Into<papo_proto::id::Target>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
+pub fn papo::Client::mark_read(&self, impl core::convert::Into<papo::Target>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 impl papo::Client
 pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
-pub fn papo::Client::mode(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::SetModes
+pub fn papo::Client::mode(&self, impl core::convert::Into<papo::Target>) -> papo::SetModes
 impl papo::Client
 pub fn papo::Client::monitor(&self) -> papo::Monitor
 impl papo::Client
 pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountRegistration>
-pub fn papo::Client::verify_account(&self, impl core::convert::Into<papo_proto::id::AccountName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
+pub fn papo::Client::verify_account(&self, impl core::convert::Into<papo::AccountName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
 impl papo::Client
-pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::ChannelName>, &str) -> papo::RequestFuture<()>
+pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::ChannelName>, &str) -> papo::RequestFuture<()>
 impl core::fmt::Debug for papo::Client
 pub fn papo::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::ConnectError(_)
@@ -732,7 +732,7 @@ pub fn papo::History::latest(self, usize) -> papo::HistoryRequest
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::end: bool
 pub papo::HistoryPage::items: alloc::vec::Vec<papo::HistoryItem>
-pub papo::HistoryPage::target: papo_proto::id::Target
+pub papo::HistoryPage::target: papo::Target
 impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
 pub struct papo::HistoryReference(_)
@@ -755,81 +755,81 @@ pub type papo::HistoryRequest::Output = core::result::Result<papo::HistoryPage, 
 pub fn papo::HistoryRequest::into_future(self) -> Self::IntoFuture
 #[non_exhaustive] pub struct papo::HistoryTarget
 pub papo::HistoryTarget::latest: std::time::SystemTime
-pub papo::HistoryTarget::target: papo_proto::id::Target
+pub papo::HistoryTarget::target: papo::Target
 pub struct papo::Isupport
 impl papo::isupport::Isupport
 pub fn papo::isupport::Isupport::account_required(&self) -> bool
 pub fn papo::isupport::Isupport::accountextban(&self) -> alloc::vec::Vec<&str>
 pub fn papo::isupport::Isupport::awaylen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::bot_mode(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::casemapping(&self) -> papo_proto::casemapping::Casemapping
-pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo_proto::isupport::ChanModes<'_>>
+pub fn papo::isupport::Isupport::casemapping(&self) -> papo::Casemapping
+pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo::isupport::ChanModes<'_>>
 pub fn papo::isupport::Isupport::channellen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::chantypes(&self) -> &str
-pub fn papo::isupport::Isupport::chathistory(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
-pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo_proto::isupport::ClientTagDeny<'_>
+pub fn papo::isupport::Isupport::chathistory(&self) -> core::option::Option<papo::isupport::LimitValue>
+pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo::isupport::ClientTagDeny<'_>
 pub fn papo::isupport::Isupport::elist(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::excepts(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo_proto::isupport::Extban<'_>>
-pub fn papo::isupport::Isupport::get(&self, &str) -> papo_proto::isupport::Advertised<'_>
+pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo::isupport::Extban<'_>>
+pub fn papo::isupport::Isupport::get(&self, &str) -> papo::isupport::Advertised<'_>
 pub fn papo::isupport::Isupport::icon(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
 pub fn papo::isupport::Isupport::invex(&self) -> core::option::Option<char>
 pub fn papo::isupport::Isupport::is_channel(&self, &str) -> bool
 pub fn papo::isupport::Isupport::kicklen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo::isupport::LimitValue>
 pub fn papo::isupport::Isupport::modes(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::monitor(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::monitor(&self) -> core::option::Option<papo::isupport::LimitValue>
 pub fn papo::isupport::Isupport::msgreftypes(&self) -> alloc::vec::Vec<&str>
 pub fn papo::isupport::Isupport::namelen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::network(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::nicklen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo_proto::isupport::Prefix>
+pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo::isupport::Prefix>
 pub fn papo::isupport::Isupport::safelist(&self) -> bool
 pub fn papo::isupport::Isupport::saferate(&self) -> bool
 pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
 pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::utf8only(&self) -> bool
 pub fn papo::isupport::Isupport::vapid(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::whox(&self) -> bool
 pub struct papo::JoinChannel
 impl papo::JoinChannel
-pub fn papo::JoinChannel::key(self, impl core::convert::Into<papo_core::secret::Secret>) -> Self
+pub fn papo::JoinChannel::key(self, impl core::convert::Into<papo::Secret>) -> Self
 impl core::future::into_future::IntoFuture for papo::JoinChannel
 pub type papo::JoinChannel::IntoFuture = papo::RequestFuture<()>
 pub type papo::JoinChannel::Output = core::result::Result<(), papo::Error>
 pub fn papo::JoinChannel::into_future(self) -> Self::IntoFuture
 #[non_exhaustive] pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
-pub papo::ListEntry::name: papo_proto::id::ChannelName
+pub papo::ListEntry::name: papo::ChannelName
 pub papo::ListEntry::topic: alloc::string::String
 pub struct papo::ListFilter
 impl papo::ListFilter
-pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::Mask>
+pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Mask>
 #[non_exhaustive] pub struct papo::Message
-pub papo::Message::account: core::option::Option<papo_proto::id::AccountName>
-pub papo::Message::channel_context: core::option::Option<papo_proto::id::ChannelName>
+pub papo::Message::account: core::option::Option<papo::AccountName>
+pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
 pub papo::Message::is_bot: bool
 pub papo::Message::kind: papo::MessageKind
-pub papo::Message::msgid: core::option::Option<papo_proto::id::MessageId>
+pub papo::Message::msgid: core::option::Option<papo::MessageId>
 pub papo::Message::oper: core::option::Option<core::option::Option<alloc::string::String>>
 pub papo::Message::origin: papo::Origin
 pub papo::Message::raw_text: alloc::string::String
 pub papo::Message::received_at: std::time::SystemTime
-pub papo::Message::reply_to: core::option::Option<papo_proto::id::MessageId>
+pub papo::Message::reply_to: core::option::Option<papo::MessageId>
 pub papo::Message::sender: core::option::Option<papo::Source>
 pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Message::status: core::option::Option<alloc::string::String>
 pub papo::Message::tags: papo::Tags
-pub papo::Message::target: papo_proto::id::Target
+pub papo::Message::target: papo::Target
 pub papo::Message::text: alloc::string::String
 impl papo::Message
 pub fn papo::Message::account(&self) -> core::option::Option<&str>
 pub fn papo::Message::ctcp(&self) -> core::option::Option<papo::Ctcp<'_>>
-pub fn papo::Message::id(&self) -> core::option::Option<&papo_proto::id::MessageId>
+pub fn papo::Message::id(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Message::is_bot(&self) -> bool
 pub fn papo::Message::is_live(&self) -> bool
 pub fn papo::Message::is_own(&self) -> bool
@@ -851,32 +851,29 @@ pub fn papo::HistoryReference::from(&papo::Message) -> Self
 pub struct papo::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
-pub fn papo::Metadata::clear_on(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo_proto::id::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
-pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::remove_on(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set(&self, impl core::convert::Into<papo_proto::id::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set_on(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<papo_proto::id::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
-pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
+pub fn papo::Metadata::clear_on(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
+pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::remove_on(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set_on(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 #[non_exhaustive] pub struct papo::MetadataValue
 pub papo::MetadataValue::value: alloc::string::String
 pub papo::MetadataValue::visibility: alloc::string::String
 pub struct papo::Monitor
 impl papo::Monitor
-pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::Nick>
+pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Nick>
 pub fn papo::Monitor::clear(&self) -> papo::RequestFuture<()>
-pub fn papo::Monitor::remove<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::Nick>
+pub fn papo::Monitor::remove<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Nick>
 pub struct papo::NewAccount
 impl papo::NewAccount
-pub fn papo::NewAccount::account(self, impl core::convert::Into<papo_proto::id::AccountName>) -> Self
+pub fn papo::NewAccount::account(self, impl core::convert::Into<papo::AccountName>) -> Self
 pub fn papo::NewAccount::email(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::NewAccount::new(impl core::convert::Into<papo_core::secret::Secret>) -> Self
-pub struct papo::OsEntropy
-impl papo_core::sasl::Entropy for papo::OsEntropy
-pub fn papo::OsEntropy::fill(&mut self, &mut [u8])
+pub fn papo::NewAccount::new(impl core::convert::Into<papo::Secret>) -> Self
 pub struct papo::RawLine
 impl papo::RawLine
 pub fn papo::RawLine::command(&self) -> &str
@@ -900,16 +897,16 @@ pub type papo::RequestFuture<T>::Output = core::result::Result<T, papo::Error>
 pub fn papo::RequestFuture<T>::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
 pub struct papo::SendMessage
 impl papo::SendMessage
-pub fn papo::SendMessage::channel_context(self, &papo_proto::id::ChannelName) -> Self
-pub fn papo::SendMessage::reply_to(self, &papo_proto::id::MessageId) -> Self
+pub fn papo::SendMessage::channel_context(self, &papo::ChannelName) -> Self
+pub fn papo::SendMessage::reply_to(self, &papo::MessageId) -> Self
 pub fn papo::SendMessage::tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::future::into_future::IntoFuture for papo::SendMessage
 pub type papo::SendMessage::IntoFuture = papo::RequestFuture<papo::Sent>
 pub type papo::SendMessage::Output = core::result::Result<papo::Sent, papo::Error>
 pub fn papo::SendMessage::into_future(self) -> Self::IntoFuture
 #[non_exhaustive] pub struct papo::Sent
-pub papo::Sent::id: core::option::Option<papo_proto::id::MessageId>
-pub papo::Sent::target: papo_proto::id::Target
+pub papo::Sent::id: core::option::Option<papo::MessageId>
+pub papo::Sent::target: papo::Target
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>
 pub struct papo::ServerError
 impl papo::ServerError
@@ -925,38 +922,38 @@ pub struct papo::SetModes
 impl papo::SetModes
 pub fn papo::SetModes::add(self, char) -> Self
 pub fn papo::SetModes::add_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::SetModes::ban(self, impl core::convert::Into<papo_proto::id::Mask>) -> Self
-pub fn papo::SetModes::deop(self, impl core::convert::Into<papo_proto::id::Nick>) -> Self
-pub fn papo::SetModes::devoice(self, impl core::convert::Into<papo_proto::id::Nick>) -> Self
-pub fn papo::SetModes::op(self, impl core::convert::Into<papo_proto::id::Nick>) -> Self
+pub fn papo::SetModes::ban(self, impl core::convert::Into<papo::Mask>) -> Self
+pub fn papo::SetModes::deop(self, impl core::convert::Into<papo::Nick>) -> Self
+pub fn papo::SetModes::devoice(self, impl core::convert::Into<papo::Nick>) -> Self
+pub fn papo::SetModes::op(self, impl core::convert::Into<papo::Nick>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::SetModes::unban(self, impl core::convert::Into<papo_proto::id::Mask>) -> Self
-pub fn papo::SetModes::voice(self, impl core::convert::Into<papo_proto::id::Nick>) -> Self
+pub fn papo::SetModes::unban(self, impl core::convert::Into<papo::Mask>) -> Self
+pub fn papo::SetModes::voice(self, impl core::convert::Into<papo::Nick>) -> Self
 impl core::future::into_future::IntoFuture for papo::SetModes
 pub type papo::SetModes::IntoFuture = papo::RequestFuture<()>
 pub type papo::SetModes::Output = core::result::Result<(), papo::Error>
 pub fn papo::SetModes::into_future(self) -> Self::IntoFuture
 pub struct papo::State
 impl papo::State
-pub fn papo::State::account(&self) -> core::option::Option<&papo_proto::id::AccountName>
+pub fn papo::State::account(&self) -> core::option::Option<&papo::AccountName>
 pub const fn papo::State::away(&self) -> bool
-pub const fn papo::State::caps(&self) -> &papo_core::Capabilities
-pub fn papo::State::casemapping(&self) -> papo_proto::casemapping::Casemapping
-pub fn papo::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::state::Channel>
-pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::Channel>
-pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo_core::features::Feature> + '_
+pub const fn papo::State::caps(&self) -> &papo::Capabilities
+pub fn papo::State::casemapping(&self) -> papo::Casemapping
+pub fn papo::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::Channel>
+pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Channel>
+pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Feature> + '_
 pub fn papo::State::has_cap(&self, &str) -> bool
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::is_me(&self, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::isupport(&self) -> &papo::isupport::Isupport
 pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> &[alloc::string::String]
-pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::User>
-pub fn papo::State::nick(&self) -> &papo_proto::id::Nick
+pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
+pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::time::SystemTime>
-pub fn papo::State::supports(&self, papo_core::features::Feature) -> bool
-pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::state::User>
+pub fn papo::State::supports(&self, papo::Feature) -> bool
+pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub struct papo::Tags(_)
 impl papo::Tags
@@ -973,33 +970,33 @@ pub struct papo::WebIrc
 impl papo::WebIrc
 pub fn papo::WebIrc::flag(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::WebIrc::hostname(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::WebIrc::new(impl core::convert::Into<papo_core::secret::Secret>, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::WebIrc::new(impl core::convert::Into<papo::Secret>, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::WebIrc::option(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 #[non_exhaustive] pub struct papo::WhoEntry
-pub papo::WhoEntry::account: core::option::Option<papo_proto::id::AccountName>
+pub papo::WhoEntry::account: core::option::Option<papo::AccountName>
 pub papo::WhoEntry::away: bool
-pub papo::WhoEntry::channel: core::option::Option<papo_proto::id::ChannelName>
+pub papo::WhoEntry::channel: core::option::Option<papo::ChannelName>
 pub papo::WhoEntry::host: alloc::string::String
 pub papo::WhoEntry::is_bot: bool
 pub papo::WhoEntry::is_oper: bool
-pub papo::WhoEntry::nick: papo_proto::id::Nick
+pub papo::WhoEntry::nick: papo::Nick
 pub papo::WhoEntry::prefixes: alloc::vec::Vec<char>
 pub papo::WhoEntry::realname: alloc::string::String
 pub papo::WhoEntry::user: alloc::string::String
 #[non_exhaustive] pub struct papo::Whois
-pub papo::Whois::account: core::option::Option<papo_proto::id::AccountName>
+pub papo::Whois::account: core::option::Option<papo::AccountName>
 pub papo::Whois::away: core::option::Option<alloc::string::String>
 pub papo::Whois::channels: alloc::vec::Vec<papo::WhoisChannel>
 pub papo::Whois::host: core::option::Option<alloc::string::String>
 pub papo::Whois::idle: core::option::Option<core::time::Duration>
 pub papo::Whois::is_bot: bool
-pub papo::Whois::nick: papo_proto::id::Nick
+pub papo::Whois::nick: papo::Nick
 pub papo::Whois::realname: core::option::Option<alloc::string::String>
 pub papo::Whois::secure: bool
 pub papo::Whois::server: core::option::Option<alloc::string::String>
 pub papo::Whois::user: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::WhoisChannel
-pub papo::WhoisChannel::name: papo_proto::id::ChannelName
+pub papo::WhoisChannel::name: papo::ChannelName
 pub papo::WhoisChannel::prefixes: alloc::vec::Vec<char>
 pub const papo::VERSION: &str
 pub trait papo::IntoEndpoint: papo::address::private::Sealed

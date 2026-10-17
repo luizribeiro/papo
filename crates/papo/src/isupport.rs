@@ -1,5 +1,6 @@
 //! Read-only views of server features advertised through `RPL_ISUPPORT`.
 
+#[doc(inline)]
 pub use papo_proto::{Advertised, ChanModes, ClientTagDeny, Extban, Limit, LimitValue, Prefix};
 
 use std::borrow::Cow;
