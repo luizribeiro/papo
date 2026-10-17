@@ -748,12 +748,12 @@ pub fn papo::HistoryReference::from(&papo::Message) -> Self
 pub struct papo::Metadata
 impl papo::Metadata
 pub async fn papo::Metadata::clear(&self) -> core::result::Result<(), papo::Error>
-pub async fn papo::Metadata::get<I, S>(&self, &str, I) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub async fn papo::Metadata::list(&self, &str) -> core::result::Result<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>, papo::Error>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo_proto::id::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_proto::id::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo_core::metadata::MetadataValue>>
 pub async fn papo::Metadata::set(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub async fn papo::Metadata::set_on(&self, &str, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub async fn papo::Metadata::subscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub async fn papo::Metadata::sync(&self, &str) -> core::result::Result<(), papo::Error>
+pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<()>
 pub async fn papo::Metadata::unsubscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub struct papo::NewAccount
 impl papo::NewAccount

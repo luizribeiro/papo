@@ -43,26 +43,45 @@ impl Metadata {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub async fn get<I, S>(
+    pub fn get<I, S>(
         &self,
-        target: &str,
+        target: impl Into<crate::Target>,
         keys: I,
-    ) -> Result<HashMap<String, MetadataValue>, Error>
+    ) -> crate::RequestFuture<HashMap<String, MetadataValue>>
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: Into<crate::MetadataKey>,
     {
-        self.request(MetadataCommand::Get {
-            target: target.into(),
-            keys: keys.into_iter().map(Into::into).collect(),
+        let metadata = Self {
+            client: self.client.clone(),
+        };
+        let target = target.into();
+        let keys = keys.into_iter().map(Into::into).collect::<Vec<_>>();
+        crate::RequestFuture::new(async move {
+            let state = metadata.client.state();
+            target
+                .check(state.isupport())
+                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            for key in &keys {
+                key.check()
+                    .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            }
+            metadata
+                .request(MetadataCommand::Get {
+                    target: target.to_string(),
+                    keys: keys
+                        .into_iter()
+                        .map(crate::MetadataKey::into_string)
+                        .collect(),
+                })
+                .await?;
+            Ok(metadata
+                .client
+                .state()
+                .metadata(&target)
+                .cloned()
+                .unwrap_or_default())
         })
-        .await?;
-        Ok(self
-            .client
-            .state()
-            .metadata(target)
-            .cloned()
-            .unwrap_or_default())
     }
 
     /// Lists visible keys and returns the target's resulting cache.
@@ -74,17 +93,30 @@ impl Metadata {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub async fn list(&self, target: &str) -> Result<HashMap<String, MetadataValue>, Error> {
-        self.request(MetadataCommand::List {
-            target: target.into(),
+    pub fn list(
+        &self,
+        target: impl Into<crate::Target>,
+    ) -> crate::RequestFuture<HashMap<String, MetadataValue>> {
+        let metadata = Self {
+            client: self.client.clone(),
+        };
+        let target = target.into();
+        crate::RequestFuture::new(async move {
+            target
+                .check(metadata.client.state().isupport())
+                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            metadata
+                .request(MetadataCommand::List {
+                    target: target.to_string(),
+                })
+                .await?;
+            Ok(metadata
+                .client
+                .state()
+                .metadata(&target)
+                .cloned()
+                .unwrap_or_default())
         })
-        .await?;
-        Ok(self
-            .client
-            .state()
-            .metadata(target)
-            .cloned()
-            .unwrap_or_default())
     }
 
     /// Sets or removes one metadata key for the current nickname.
@@ -188,11 +220,21 @@ impl Metadata {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub async fn sync(&self, target: &str) -> Result<(), Error> {
-        self.request(MetadataCommand::Sync {
-            target: target.into(),
+    pub fn sync(&self, target: impl Into<crate::Target>) -> crate::RequestFuture<()> {
+        let metadata = Self {
+            client: self.client.clone(),
+        };
+        let target = target.into();
+        crate::RequestFuture::new(async move {
+            target
+                .check(metadata.client.state().isupport())
+                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            metadata
+                .request(MetadataCommand::Sync {
+                    target: target.into_string(),
+                })
+                .await
         })
-        .await
     }
 }
 

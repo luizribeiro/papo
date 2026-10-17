@@ -100,8 +100,8 @@ fn request_futures_are_send() {
             .webpush()
             .unregister("https://push.example.net/message/ErgoTest/alice"),
     );
-    assert_send(client.metadata().get("alice", ["avatar"]));
-    assert_send(client.metadata().list("alice"));
+    assert_send_static(client.metadata().get("alice", ["avatar"]));
+    assert_send_static(client.metadata().list("alice"));
     assert_send(client.metadata().set("status", Some("testing")));
     assert_send(
         client
@@ -111,7 +111,7 @@ fn request_futures_are_send() {
     assert_send(client.metadata().clear());
     assert_send(client.metadata().subscribe(["avatar", "pronouns"]));
     assert_send(client.metadata().unsubscribe(["pronouns"]));
-    assert_send(client.metadata().sync("alice"));
+    assert_send_static(client.metadata().sync("alice"));
     assert_send_static(client.rename_channel("#rust", "#rust-lang", "Project renamed"));
     assert_send_static(client.relay("#bridged", "matrix|alice", "Hello from Matrix"));
 
