@@ -105,6 +105,7 @@ impl BotConfig {
 
 /// Whether a bot response was sent or dropped by its rate limiter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[must_use = "the reply may have been dropped by the rate limiter"]
 pub enum ReplyStatus {
     /// The response was accepted by the client driver.
     Sent,
@@ -184,11 +185,20 @@ impl Command {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
+        let casemapping = self.client.state().casemapping();
         self.account().is_some_and(|account| {
             accounts
                 .into_iter()
-                .any(|allowed| account.eq_ignore_ascii_case(allowed.as_ref()))
+                .any(|allowed| casemapping.eq(account, allowed.as_ref()))
         })
+    }
+
+    /// Returns the nickname that sent this command.
+    ///
+    /// Returns `None` for a server-sourced message.
+    #[must_use]
+    pub fn sender_nick(&self) -> Option<&str> {
+        self.message.sender_nick()
     }
 
     /// Returns the client that received this command.
@@ -376,6 +386,29 @@ mod tests {
         let unknown = parse(&message("!op alice"), &BotConfig::new("!")).unwrap();
         assert_eq!(unknown.account(), None);
         assert!(!unknown.account_in(["emily"]));
+    }
+
+    #[test]
+    fn authorizes_accounts_with_server_casemapping() {
+        let tagged = ChatMessage::new(
+            Message::privmsg("#papo", "!op alice")
+                .with_source("emily!~emily@localhost")
+                .with_tag("account", "admin{"),
+            &Isupport::default(),
+            "papo",
+            &Capabilities::new(),
+            UNIX_EPOCH,
+        )
+        .unwrap();
+        let command = parse(&tagged, &BotConfig::new("!")).unwrap();
+        assert!(command.account_in(["admin["]));
+        assert!(!command.account_in(["admin]"]));
+    }
+
+    #[test]
+    fn exposes_the_command_sender_nickname() {
+        let command = parse(&message("!ping"), &BotConfig::new("!")).unwrap();
+        assert_eq!(command.sender_nick(), Some("emily"));
     }
 
     #[test]

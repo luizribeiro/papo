@@ -66,10 +66,10 @@ async fn handle(client: &Client, event: &Event, config: &BotConfig) -> Result<()
     };
     match command.name() {
         "echo" if command.args().is_empty() => {
-            command.private_notice("expected text after !echo").await?;
+            let _ = command.private_notice("expected text after !echo").await?;
         }
         "echo" => {
-            command.reply(&command.args().join(" ")).await?;
+            let _ = command.reply(&command.args().join(" ")).await?;
         }
         "react" => {
             let id = command.message().id().ok_or(papo::Error::InvalidInput(

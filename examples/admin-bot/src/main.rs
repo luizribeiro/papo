@@ -105,29 +105,29 @@ async fn handle(
     };
     match command.name() {
         "ping" => {
-            command.reply("pong").await?;
+            let _ = command.reply("pong").await?;
         }
         "echo" if !command.args().is_empty() => {
-            command.reply(&command.args().join(" ")).await?;
+            let _ = command.reply(&command.args().join(" ")).await?;
         }
         "echo" => {
-            command
+            let _ = command
                 .private_notice("expected at least one command argument")
                 .await?;
         }
         "op" if command.args().len() != 1 => {
-            command
+            let _ = command
                 .private_notice("expected exactly one command argument")
                 .await?;
         }
         "op" if !command.account_in(admins) => {
-            command
+            let _ = command
                 .private_notice("permission denied: authenticated account required")
                 .await?;
         }
         "op" => {
             let Some(channel) = command.channel() else {
-                command
+                let _ = command
                     .private_notice("op requires a channel command")
                     .await?;
                 return Ok(());
