@@ -3,7 +3,7 @@ use std::{fmt, time::SystemTime};
 
 use papo_proto::{Ctcp, Isupport, Message, MessageRef, strip_formatting, time};
 
-use crate::{Client, Error};
+use crate::Client;
 
 #[path = "event/channel.rs"]
 mod channel;
@@ -490,49 +490,6 @@ impl MessageEvent {
     #[must_use]
     pub fn ctcp(&self) -> Option<Ctcp<'_>> {
         Ctcp::parse(&self.raw_text)
-    }
-
-    /// Sends a private message to [`Self::reply_target`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
-    /// [`Error::Disconnected`] with the same conditions as [`crate::Client::privmsg`]. A refusal
-    /// returns [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
-    /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
-    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
-    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
-    pub async fn reply(&self, text: &str) -> Result<crate::Sent, Error> {
-        let mut reply = Message::privmsg(self.reply_target(), text);
-        if self.caps.contains_key("message-tags") {
-            let denied = self.isupport.clienttagdeny();
-            if let Some(msgid) = self.msgid()
-                && let Some(tag) = allowed_alias(&denied, "+reply", "+draft/reply")
-            {
-                reply = reply.with_tag(tag, msgid);
-            }
-            if self.is_private()
-                && let Some(context) = self.channel_context.clone()
-                && let Some(tag) =
-                    allowed_alias(&denied, "+channel-context", "+draft/channel-context")
-            {
-                reply = reply.with_tag(tag, context);
-            }
-        }
-        let tags = reply
-            .as_ref()
-            .tags()
-            .filter(|(key, _)| key.starts_with('+'))
-            .map(|(key, value)| (key.to_owned(), value.unwrap_or_default().into_owned()))
-            .collect();
-        self.client
-            .send_text(
-                papo_core::TextKind::Privmsg,
-                self.reply_target(),
-                text,
-                tags,
-            )
-            .await
     }
 
     /// Borrows the underlying IRC message.

@@ -659,7 +659,6 @@ pub fn papo::MessageEvent::oper(&self) -> core::option::Option<core::option::Opt
 pub fn papo::MessageEvent::origin(&self) -> papo::Origin
 pub fn papo::MessageEvent::raw_text(&self) -> &str
 pub fn papo::MessageEvent::relayed_by(&self) -> core::option::Option<&str>
-pub async fn papo::MessageEvent::reply(&self, &str) -> core::result::Result<papo::Sent, papo::Error>
 pub fn papo::MessageEvent::reply_target(&self) -> &str
 pub fn papo::MessageEvent::reply_to(&self) -> core::option::Option<&str>
 pub fn papo::MessageEvent::source(&self) -> core::option::Option<papo::Source>

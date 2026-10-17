@@ -44,7 +44,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         assert!(incoming.is_live());
         assert!(!incoming.is_private());
         let ping_msgid = incoming.msgid().expect("Ergo supplies msgid").to_owned();
-        incoming.reply("pong").await.unwrap();
+        client_b.reply(&incoming, "pong").await.unwrap();
 
         let response = wait_message(&mut events_a, |message| {
             message.text() == "pong" && source_nick(message).as_deref() == Some(nick_b.as_str())
