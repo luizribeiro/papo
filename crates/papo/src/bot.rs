@@ -7,7 +7,7 @@ use std::{
 };
 use web_time::Instant;
 
-use crate::{Client, Error, Message as ChatMessage, MessageKind, Source};
+use crate::{Client, Message as ChatMessage, MessageKind, Source};
 
 const MAX_RATE_TARGETS: usize = 1024;
 
@@ -217,48 +217,56 @@ impl Command {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
-    /// [`Error::Disconnected`] with the same conditions as [`crate::Client::privmsg`]. A refusal
-    /// returns [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
+    /// Returns [`crate::Error::InvalidInput`], [`crate::Error::RequestLimit`], [`crate::Error::Timeout`], or
+    /// [`crate::Error::Disconnected`] with the same conditions as [`crate::Client::privmsg`]. A refusal
+    /// returns [`crate::Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
-    pub async fn reply(&self, text: &str) -> Result<ReplyStatus, Error> {
-        let target = self
-            .client()
-            .state()
-            .casemapping()
-            .fold(self.message.reply_target())
-            .into_owned();
-        if !self.replies.check(&target) {
-            return Ok(ReplyStatus::Dropped);
-        }
-        self.client().reply(&self.message, text).await?;
-        Ok(ReplyStatus::Sent)
+    pub fn reply(&self, text: impl Into<String>) -> crate::RequestFuture<ReplyStatus> {
+        let client = self.client.clone();
+        let message = self.message.clone();
+        let replies = self.replies.clone();
+        let text = text.into();
+        crate::RequestFuture::new(async move {
+            let target = client
+                .state()
+                .casemapping()
+                .fold(message.reply_target())
+                .into_owned();
+            if !replies.check(&target) {
+                return Ok(ReplyStatus::Dropped);
+            }
+            client.reply(&message, text).await?;
+            Ok(ReplyStatus::Sent)
+        })
     }
 
     /// Sends a private threaded notice, retaining channel context when available.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
-    /// [`Error::Disconnected`] with the same conditions as [`crate::Client::notice`]. A refusal
-    /// returns [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
+    /// Returns [`crate::Error::InvalidInput`], [`crate::Error::RequestLimit`], [`crate::Error::Timeout`], or
+    /// [`crate::Error::Disconnected`] with the same conditions as [`crate::Client::notice`]. A refusal
+    /// returns [`crate::Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
-    pub async fn private_notice(&self, text: &str) -> Result<ReplyStatus, Error> {
-        let Some(target) = self.message.sender_nick() else {
-            return Ok(ReplyStatus::Dropped);
-        };
-        if !self
-            .replies
-            .check(self.client().state().casemapping().fold(target).as_ref())
-        {
-            return Ok(ReplyStatus::Dropped);
-        }
-        self.client().private_notice(&self.message, text).await?;
-        Ok(ReplyStatus::Sent)
+    pub fn private_notice(&self, text: impl Into<String>) -> crate::RequestFuture<ReplyStatus> {
+        let client = self.client.clone();
+        let message = self.message.clone();
+        let replies = self.replies.clone();
+        let text = text.into();
+        crate::RequestFuture::new(async move {
+            let Some(target) = message.sender_nick() else {
+                return Ok(ReplyStatus::Dropped);
+            };
+            if !replies.check(client.state().casemapping().fold(target).as_ref()) {
+                return Ok(ReplyStatus::Dropped);
+            }
+            client.private_notice(&message, &text).await?;
+            Ok(ReplyStatus::Sent)
+        })
     }
 }
 

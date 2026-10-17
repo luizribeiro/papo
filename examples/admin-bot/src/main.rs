@@ -107,7 +107,7 @@ async fn handle(
             let _ = command.reply("pong").await?;
         }
         "echo" if !command.args().is_empty() => {
-            let _ = command.reply(&command.args().join(" ")).await?;
+            let _ = command.reply(command.args().join(" ")).await?;
         }
         "echo" => {
             let _ = command

@@ -69,7 +69,7 @@ async fn handle(client: &Client, event: &Event, config: &BotConfig) -> Result<()
             let _ = command.private_notice("expected text after !echo").await?;
         }
         "echo" => {
-            let _ = command.reply(&command.args().join(" ")).await?;
+            let _ = command.reply(command.args().join(" ")).await?;
         }
         "react" => {
             command.client().react_to(command.message(), "👍").await?;
