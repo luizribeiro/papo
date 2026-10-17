@@ -41,6 +41,9 @@ pub use error::{
 };
 pub use event_impl::{Event, Message, MessageKind, Origin, RawLine, Source, Tags};
 pub use ext::accounts::{AccountRegistration, NewAccount};
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use ext::bouncer::Bouncer;
 pub use ext::history::{
     History, HistoryItem, HistoryPage, HistoryReference, HistoryRequest, HistoryTarget,
 };

@@ -563,6 +563,9 @@ impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
 impl core::fmt::Display for papo::Source
 pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct papo::Bouncer<'a>
+impl papo::Bouncer<'_>
+pub async fn papo::Bouncer<'_>::networks(&self) -> core::result::Result<alloc::vec::Vec<papo_core::bouncer::BouncerNetwork>, papo::Error>
 pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
@@ -601,6 +604,8 @@ pub fn papo::Builder::without_caps<I, S>(self, I) -> Self where I: core::iter::t
 impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Client
+impl papo::Client
+pub const fn papo::Client::bouncer(&self) -> papo::Bouncer<'_>
 impl papo::Client
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
 pub fn papo::Client::join(&self, impl core::convert::Into<papo_proto::id::ChannelName>) -> papo::JoinChannel

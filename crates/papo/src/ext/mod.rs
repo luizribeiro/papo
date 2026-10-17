@@ -1,4 +1,6 @@
 pub(crate) mod accounts;
+#[cfg(feature = "unstable")]
+pub(crate) mod bouncer;
 pub(crate) mod extras;
 pub(crate) mod history;
 pub(crate) mod metadata;

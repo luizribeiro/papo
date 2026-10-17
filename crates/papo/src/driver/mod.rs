@@ -82,6 +82,8 @@ pub(crate) enum CoreRequest {
     PersistenceGet,
     #[cfg(feature = "unstable")]
     PersistenceSet(papo_core::PersistenceSetting),
+    #[cfg(feature = "unstable")]
+    BouncerNetworks,
     Metadata(papo_core::MetadataCommand),
     Rename {
         old: String,
@@ -120,6 +122,8 @@ impl CoreRequest {
             Self::PersistenceGet => session.persistence_get(now())?,
             #[cfg(feature = "unstable")]
             Self::PersistenceSet(setting) => session.persistence_set(now(), setting)?,
+            #[cfg(feature = "unstable")]
+            Self::BouncerNetworks => return session.bouncer_networks(now()),
             Self::Metadata(command) => return session.metadata(now(), command),
             Self::Rename { old, new, reason } => return session.rename(now(), &old, &new, &reason),
             #[cfg(feature = "unstable")]
