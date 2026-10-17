@@ -237,9 +237,11 @@ async fn registration_disconnect_does_not_enter_reconnect_backoff() {
 async fn eof_reconnects_and_emits_reconnected() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
+    let (third_stream, mut third_server) = tokio::io::duplex(4096);
     let streams = Arc::new(Mutex::new(VecDeque::from([
         Box::new(first_stream) as super::BoxConnection,
         Box::new(second_stream) as super::BoxConnection,
+        Box::new(third_stream) as super::BoxConnection,
     ])));
     let connector: super::Connector = Arc::new(move |_| {
         let stream = streams.lock().unwrap().pop_front().unwrap();
@@ -295,16 +297,31 @@ async fn eof_reconnects_and_emits_reconnected() {
         matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
     );
     client_line(&mut second_server, b"JOIN #papo persistent-channel-key\r\n").await;
+    server_line(
+        &mut second_server,
+        b":ergo.test 475 papo-driver #papo :Cannot join channel (+k)\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Raw(_))));
+    within(second_server.shutdown()).await.unwrap();
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+
+    tokio::time::advance(Duration::from_secs(3)).await;
+    registration_burst(&mut third_server).await;
+    server_line(&mut third_server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut third_server, b"CAP END\r\n").await;
+    server_line(&mut third_server, b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+    assert!(matches!(events.next().await, Some(Event::Registered(_))));
     assert!(
-        tokio::time::timeout(Duration::from_millis(1), second_server.read_u8())
+        tokio::time::timeout(Duration::from_millis(1), third_server.read_u8())
             .await
             .is_err()
     );
     assert!(client.state().is_connected());
 
     let quit = tokio::spawn(async move { client.quit(None).await });
-    client_line(&mut second_server, b"QUIT\r\n").await;
-    within(second_server.shutdown()).await.unwrap();
+    client_line(&mut third_server, b"QUIT\r\n").await;
+    within(third_server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
 }

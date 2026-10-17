@@ -28,7 +28,7 @@ use papo_core::{
     Connection, HistoryQuery, RequestError, RequestId, Response, ResponseMatcher, Session,
     TextKind, sts::StsStore,
 };
-use papo_proto::{Message, Typing};
+use papo_proto::{Command as ProtoCommand, Message, Numeric, Typing};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     sync::{mpsc, oneshot},
@@ -1060,6 +1060,7 @@ where
                 }
             }
             event::CoreEvent::Message(message) => {
+                drop_bad_rejoin_key(session, defaults, &message.as_ref());
                 let event =
                     crate::Message::from_core(message, session.isupport(), crate::rt::now_wall())
                         .map_or_else(
@@ -1113,6 +1114,7 @@ where
                 }
             }
             event::CoreEvent::Raw(message) => {
+                drop_bad_rejoin_key(session, defaults, &message.as_ref());
                 let event = crate::Message::new(
                     message,
                     session.isupport(),
@@ -1132,6 +1134,9 @@ where
                 }
             }
             event::CoreEvent::Response(response) => {
+                for line in &response.lines {
+                    drop_bad_rejoin_key(session, defaults, &line.as_ref());
+                }
                 if response.error().is_none()
                     && let Some((channel, key)) = join_keys.remove(&response.id)
                 {
@@ -1226,6 +1231,23 @@ fn remember_rejoin(session: &Session, defaults: &mut PostRegistration, entry: Au
         .channels
         .retain(|configured| !casemapping.eq(&configured.channel, &entry.channel));
     defaults.channels.push(entry);
+}
+
+fn drop_bad_rejoin_key(
+    session: &Session,
+    defaults: &mut PostRegistration,
+    message: &papo_proto::MessageRef<'_>,
+) {
+    if message.command() != ProtoCommand::Numeric(Numeric::ERR_BADCHANNELKEY) {
+        return;
+    }
+    let Some(channel) = message.param(1) else {
+        return;
+    };
+    let casemapping = session.isupport().casemapping();
+    defaults
+        .channels
+        .retain(|entry| !casemapping.eq(&entry.channel, channel));
 }
 
 fn dedupe_autojoin(session: &Session, defaults: &mut PostRegistration) {
