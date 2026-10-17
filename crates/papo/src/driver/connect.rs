@@ -178,10 +178,10 @@ fn enqueue_retry_event(
     if enqueue_event(
         events,
         &mut end.pending_events,
-        Event::Disconnected {
+        Event::Disconnected(crate::event::Disconnected {
             reason,
             will_retry: true,
-        },
+        }),
     ) {
         return Ok(end.pending_events);
     }
@@ -327,10 +327,10 @@ async fn connect_or_wait(
     if !enqueue_event(
         events,
         pending_events,
-        Event::Disconnected {
+        Event::Disconnected(crate::event::Disconnected {
             reason,
             will_retry: true,
-        },
+        }),
     ) {
         return ConnectionAttempt::SlowConsumer;
     }
@@ -370,10 +370,12 @@ fn finish_connection_failure(
     let reason = error.to_string();
     if registration.0.is_some() {
         registration.failed(error);
-        events.finish(VecDeque::from([Event::Disconnected {
-            reason,
-            will_retry: false,
-        }]));
+        events.finish(VecDeque::from([Event::Disconnected(
+            crate::event::Disconnected {
+                reason,
+                will_retry: false,
+            },
+        )]));
         return Ok(());
     }
     finish(

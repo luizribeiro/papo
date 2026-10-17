@@ -848,12 +848,7 @@ pub enum Event {
     /// The server does not advertise MONITOR support.
     MonitorUnsupported,
     /// The connection ended.
-    Disconnected {
-        /// A human-readable explanation suitable for diagnostics.
-        reason: String,
-        /// Whether the client will try to connect again.
-        will_retry: bool,
-    },
+    Disconnected(Disconnected),
 }
 
 // This transient mapping keeps forwarding allocation-free for every event kind.

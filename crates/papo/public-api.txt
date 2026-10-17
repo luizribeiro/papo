@@ -184,9 +184,7 @@ pub papo::Event::ChannelRenamed::old: alloc::string::String
 pub papo::Event::ChannelRenamed::reason: alloc::string::String
 pub papo::Event::ChannelSynced
 pub papo::Event::ChannelSynced::channel: alloc::string::String
-pub papo::Event::Disconnected
-pub papo::Event::Disconnected::reason: alloc::string::String
-pub papo::Event::Disconnected::will_retry: bool
+pub papo::Event::Disconnected(papo::event::Disconnected)
 pub papo::Event::History
 pub papo::Event::History::end: bool
 pub papo::Event::History::messages: alloc::vec::Vec<papo::MessageEvent>

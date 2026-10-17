@@ -1286,10 +1286,10 @@ fn should_rejoin(session: &Session) -> bool {
 
 fn finish(events: EventSink, end: ConnectionEnd, will_retry: bool) -> Result<(), Error> {
     let mut pending = end.pending_events;
-    pending.push_back(Event::Disconnected {
+    pending.push_back(Event::Disconnected(event::Disconnected {
         reason: end.reason,
         will_retry,
-    });
+    }));
     events.finish(pending);
     if let Some(quit) = end.quit {
         for response in quit.results {
