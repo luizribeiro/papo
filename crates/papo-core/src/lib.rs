@@ -598,6 +598,22 @@ pub enum ResponseMatcher {
     Mode(String),
     /// A topic request ending at its echo or topic numeric.
     Topic(String),
+    /// A channel removal ending at its `KICK` echo.
+    Kick {
+        /// Channel being changed.
+        channel: String,
+        /// Nickname being removed.
+        nick: String,
+    },
+    /// A channel invitation ending at `RPL_INVITING`.
+    Invite {
+        /// Channel named by the invitation.
+        channel: String,
+        /// Nickname being invited.
+        nick: String,
+    },
+    /// A nickname change ending at our `NICK` echo.
+    Nick(String),
     /// A channel list ending at `323`.
     List,
 }
@@ -740,6 +756,29 @@ impl ResponseMatcher {
                     || Self::standard_failure(message, "TOPIC"))
                 .then_some(true)
             }
+            Self::Kick { channel, nick } => {
+                let named = |index, expected| Self::target_is(message, index, expected, mapping);
+                ((message.command() == Command::Kick && named(0, channel) && named(1, nick))
+                    || numeric.is_some_and(Numeric::is_error)
+                        && (named(1, channel) || named(1, nick))
+                    || Self::standard_failure(message, "KICK"))
+                .then_some(true)
+            }
+            Self::Invite { channel, nick } => {
+                let named = |index, expected| Self::target_is(message, index, expected, mapping);
+                (numeric.is_some_and(|numeric| {
+                    (numeric == Numeric::RPL_INVITING && named(1, nick) && named(2, channel))
+                        || numeric.is_error() && (named(1, channel) || named(1, nick))
+                }) || Self::standard_failure(message, "INVITE"))
+                .then_some(true)
+            }
+            Self::Nick(nick) => ((message.command() == Command::Nick
+                && own_source
+                && Self::target_is(message, 0, nick, mapping))
+                || (numeric.is_some_and(Numeric::is_error)
+                    && Self::target_is(message, 1, nick, mapping))
+                || Self::standard_failure(message, "NICK"))
+            .then_some(true),
             Self::List => {
                 if Self::standard_failure(message, "LIST") {
                     return Some(true);

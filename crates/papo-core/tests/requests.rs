@@ -259,6 +259,58 @@ fn matches_other_unlabelled_request_boundaries() {
 }
 
 #[test]
+fn matches_unlabelled_membership_and_nick_actions() {
+    let mut session = Session::new(Config::default().nick("papo"));
+    assert_unlabelled(
+        &mut session,
+        Message::new("KICK", ["#papo", "spambot", "flooding"]),
+        ResponseMatcher::Kick {
+            channel: "#papo".into(),
+            nick: "spambot".into(),
+        },
+        &[":alice!~a@localhost KICK #papo spambot :flooding"],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("INVITE", ["carol", "#papo"]),
+        ResponseMatcher::Invite {
+            channel: "#papo".into(),
+            nick: "carol".into(),
+        },
+        &[":ergo.test 341 papo carol #papo"],
+    );
+    assert_unlabelled(
+        &mut session,
+        Message::new("NICK", ["papo-away"]),
+        ResponseMatcher::Nick("papo-away".into()),
+        &[":papo!papo@localhost NICK :papo-away"],
+    );
+}
+
+#[test]
+fn membership_matchers_ignore_unrelated_successes_and_capture_errors() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let id = session
+        .request_with_matcher(
+            now,
+            Message::new("INVITE", ["carol", "#papo"]),
+            ResponseMatcher::Invite {
+                channel: "#papo".into(),
+                nick: "carol".into(),
+            },
+        )
+        .unwrap();
+    session.handle_line(now, b":ergo.test 341 papo dan #rust");
+    assert!(
+        !std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(_)))
+    );
+    session.handle_line(now, b":ergo.test 401 papo carol :No such nick/channel");
+    assert_eq!(response_id(&mut session), id);
+}
+
+#[test]
 fn concurrent_unlabelled_whois_uses_targets_then_fifo_order() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
@@ -584,6 +636,27 @@ fn standard_failures_require_fail_kind_and_matching_command() {
             "TOPIC",
             Message::new("TOPIC", ["#papo"]),
             ResponseMatcher::Topic("#papo".into()),
+        ),
+        (
+            "KICK",
+            Message::new("KICK", ["#papo", "spambot"]),
+            ResponseMatcher::Kick {
+                channel: "#papo".into(),
+                nick: "spambot".into(),
+            },
+        ),
+        (
+            "INVITE",
+            Message::new("INVITE", ["carol", "#papo"]),
+            ResponseMatcher::Invite {
+                channel: "#papo".into(),
+                nick: "carol".into(),
+            },
+        ),
+        (
+            "NICK",
+            Message::new("NICK", ["papo-away"]),
+            ResponseMatcher::Nick("papo-away".into()),
         ),
         (
             "LIST",
