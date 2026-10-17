@@ -41,10 +41,10 @@ impl Session {
         new: &str,
         reason: &str,
     ) -> Result<RequestId, RequestError> {
-        self.request_for_feature(
-            now,
-            Message::new("RENAME", [old, new, reason]),
-            Feature::ChannelRename,
-        )
+        let mut params = vec![old, new];
+        if !reason.is_empty() {
+            params.push(reason);
+        }
+        self.request_for_feature(now, Message::new("RENAME", params), Feature::ChannelRename)
     }
 }

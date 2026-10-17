@@ -46,6 +46,17 @@ fn sends_rename_and_types_failures() {
 }
 
 #[test]
+fn omits_an_empty_rename_reason() {
+    registered()
+        .update(|session| {
+            session
+                .rename(std::time::Instant::now(), "#rust", "#rust-lang", "")
+                .unwrap();
+        })
+        .client("@label=0 RENAME #rust #rust-lang");
+}
+
+#[test]
 fn types_an_unsolicited_rename_failure() {
     registered()
         .server(":ergo.test FAIL RENAME CANNOT_RENAME :Persistent channels cannot be renamed")

@@ -1,51 +1,83 @@
-use crate::{Client, Error, driver::CoreRequest};
+use crate::{Client, driver::CoreRequest};
 
 impl Client {
     /// Requests a channel rename.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] for [`crate::Feature::ChannelRename`] with reason
+    /// Returns [`crate::Error::Unsupported`] for [`crate::Feature::ChannelRename`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
-    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
-    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub async fn rename(&self, old: &str, new: &str, reason: &str) -> Result<(), Error> {
-        let response = self
-            .core_request(CoreRequest::Rename {
-                old: old.into(),
-                new: new.into(),
-                reason: reason.into(),
-            })
-            .await?;
-        crate::requests::empty(&response)
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`crate::Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`crate::Error::InvalidInput`],
+    /// [`crate::Error::RequestLimit`], [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
+    pub fn rename_channel(
+        &self,
+        old: impl Into<crate::ChannelName>,
+        new: impl Into<crate::ChannelName>,
+        reason: &str,
+    ) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let old = old.into();
+        let new = new.into();
+        let reason = reason.to_owned();
+        crate::RequestFuture::new(async move {
+            let state = client.state();
+            old.check(state.isupport())
+                .and_then(|()| new.check(state.isupport()))
+                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let response = client
+                .core_request(CoreRequest::Rename {
+                    old: old.into_string(),
+                    new: new.into_string(),
+                    reason,
+                })
+                .await?;
+            crate::requests::empty(&response)
+        })
     }
 
     /// Sends a message attributed to a relayed nickname.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] for [`crate::Feature::Relay`] with reason
+    /// Returns [`crate::Error::Unsupported`] for [`crate::Feature::Relay`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. An invalid relayed nickname returns
-    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::Error::InvalidInput`]; a refusal returns [`crate::Error::Server`] with
     /// [`crate::Refusal::CannotSendToChannel`], [`crate::Refusal::BannedFromChannel`], or
-    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
-    /// or [`Error::Disconnected`].
-    pub async fn relay(&self, channel: &str, nick: &str, text: &str) -> Result<(), Error> {
-        let response = self
-            .core_request(CoreRequest::Relay {
-                channel: channel.into(),
-                nick: nick.into(),
-                text: text.into(),
-            })
-            .await?;
-        crate::requests::empty(&response)
+    /// [`crate::Refusal::Other`]. It can also return [`crate::Error::RequestLimit`], [`crate::Error::Timeout`],
+    /// or [`crate::Error::Disconnected`].
+    pub fn relay(
+        &self,
+        channel: impl Into<crate::ChannelName>,
+        nick: impl Into<crate::Nick>,
+        text: impl Into<String>,
+    ) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let channel = channel.into();
+        let nick = nick.into();
+        let text = text.into();
+        crate::RequestFuture::new(async move {
+            let state = client.state();
+            channel
+                .check(state.isupport())
+                .and_then(|()| nick.check(state.isupport()))
+                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let response = client
+                .core_request(CoreRequest::Relay {
+                    channel: channel.into_string(),
+                    nick: nick.into_string(),
+                    text,
+                })
+                .await?;
+            crate::requests::empty(&response)
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::Error;
     use crate::driver::test_support::*;
 
     #[tokio::test(flavor = "current_thread")]
@@ -66,7 +98,7 @@ mod tests {
             let client = client.clone();
             async move {
                 client
-                    .rename("#rust", "#rust-lang", "Project renamed")
+                    .rename_channel("#rust", "#rust-lang", "Project renamed")
                     .await
             }
         });
@@ -80,7 +112,11 @@ mod tests {
 
         let rename = tokio::spawn({
             let client = client.clone();
-            async move { client.rename("#rust", "#rust-lang", "collision").await }
+            async move {
+                client
+                    .rename_channel("#rust", "#rust-lang", "collision")
+                    .await
+            }
         });
         client_line(
             &mut server,
@@ -101,13 +137,13 @@ mod tests {
             let client = client.clone();
             async move {
                 client
-                    .relay("#bridged", "matrix|alice", "Hello from Matrix")
+                    .relay("#bridged", "mx|alice", "Hello from Matrix")
                     .await
             }
         });
         client_line(
             &mut server,
-            b"@label=2 RELAYMSG #bridged matrix|alice :Hello from Matrix\r\n",
+            b"@label=2 RELAYMSG #bridged mx|alice :Hello from Matrix\r\n",
         )
         .await;
         server_line(&mut server, b"@label=2 :ergo.test ACK\r\n").await;
@@ -115,12 +151,12 @@ mod tests {
 
         let relay = tokio::spawn(async move {
             client
-                .relay("#bridged", "matrix|alice", "Blocked by channel policy")
+                .relay("#bridged", "mx|alice", "Blocked by channel policy")
                 .await
         });
         client_line(
             &mut server,
-            b"@label=3 RELAYMSG #bridged matrix|alice :Blocked by channel policy\r\n",
+            b"@label=3 RELAYMSG #bridged mx|alice :Blocked by channel policy\r\n",
         )
         .await;
         server_line(

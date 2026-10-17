@@ -112,8 +112,8 @@ fn request_futures_are_send() {
     assert_send(client.metadata().subscribe(["avatar", "pronouns"]));
     assert_send(client.metadata().unsubscribe(["pronouns"]));
     assert_send(client.metadata().sync("alice"));
-    assert_send(client.rename("#rust", "#rust-lang", "Project renamed"));
-    assert_send(client.relay("#bridged", "matrix|alice", "Hello from Matrix"));
+    assert_send_static(client.rename_channel("#rust", "#rust-lang", "Project renamed"));
+    assert_send_static(client.relay("#bridged", "matrix|alice", "Hello from Matrix"));
 
     _ = assert_message_request_futures;
 }
