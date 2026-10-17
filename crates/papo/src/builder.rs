@@ -846,7 +846,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             error.to_string(),
-            "invalid server address: event queue capacity 0 must be positive"
+            "invalid input: event queue capacity 0 must be positive"
         );
     }
 

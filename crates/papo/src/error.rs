@@ -391,8 +391,8 @@ impl std::error::Error for Disconnected {}
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum Error {
-    /// The configured server address is invalid.
-    #[error("invalid server address: {0}")]
+    /// An input value is invalid.
+    #[error("invalid input: {0}")]
     InvalidInput(#[from] InvalidInput),
     /// Opening the connection failed.
     #[error("connection failed: {0}")]
@@ -497,6 +497,7 @@ mod tests {
         ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
         RegistrationError, ServerError,
     };
+    use crate::InvalidInput;
 
     #[test]
     fn terminal_payloads_preserve_bounded_diagnostics() {
@@ -619,5 +620,10 @@ mod tests {
             "the connection was lost"
         );
         assert_eq!(Error::Timeout.to_string(), "the IRC operation timed out");
+        assert_eq!(
+            Error::InvalidInput(InvalidInput::InvalidMessage("invalid IRC line".into()))
+                .to_string(),
+            "invalid input: invalid IRC message: invalid IRC line"
+        );
     }
 }
