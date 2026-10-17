@@ -268,24 +268,43 @@ pub use papo::isupport::LimitValue
 pub use papo::isupport::Prefix
 pub struct papo::isupport::Isupport
 impl papo::isupport::Isupport
+pub fn papo::isupport::Isupport::account_required(&self) -> bool
+pub fn papo::isupport::Isupport::accountextban(&self) -> alloc::vec::Vec<&str>
 pub fn papo::isupport::Isupport::awaylen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::bot_mode(&self) -> core::option::Option<char>
 pub fn papo::isupport::Isupport::casemapping(&self) -> papo_proto::casemapping::Casemapping
 pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
 pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo_proto::isupport::ChanModes<'_>>
 pub fn papo::isupport::Isupport::channellen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::chantypes(&self) -> &str
+pub fn papo::isupport::Isupport::chathistory(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo_proto::isupport::ClientTagDeny<'_>
+pub fn papo::isupport::Isupport::elist(&self) -> core::option::Option<&str>
+pub fn papo::isupport::Isupport::excepts(&self) -> core::option::Option<char>
+pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo_proto::isupport::Extban<'_>>
 pub fn papo::isupport::Isupport::get(&self, &str) -> papo_proto::isupport::Advertised<'_>
+pub fn papo::isupport::Isupport::icon(&self) -> core::option::Option<&str>
+pub fn papo::isupport::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
+pub fn papo::isupport::Isupport::invex(&self) -> core::option::Option<char>
 pub fn papo::isupport::Isupport::is_channel(&self, &str) -> bool
 pub fn papo::isupport::Isupport::kicklen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
 pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
 pub fn papo::isupport::Isupport::modes(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::monitor(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::msgreftypes(&self) -> alloc::vec::Vec<&str>
 pub fn papo::isupport::Isupport::namelen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::network(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::nicklen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo_proto::isupport::Prefix>
+pub fn papo::isupport::Isupport::safelist(&self) -> bool
+pub fn papo::isupport::Isupport::saferate(&self) -> bool
 pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
 pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::utf8only(&self) -> bool
+pub fn papo::isupport::Isupport::vapid(&self) -> core::option::Option<&str>
+pub fn papo::isupport::Isupport::whox(&self) -> bool
 pub mod papo::metadata
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
@@ -727,24 +746,43 @@ pub papo::HistoryTarget::latest: std::time::SystemTime
 pub papo::HistoryTarget::target: papo_proto::id::Target
 pub struct papo::Isupport
 impl papo::isupport::Isupport
+pub fn papo::isupport::Isupport::account_required(&self) -> bool
+pub fn papo::isupport::Isupport::accountextban(&self) -> alloc::vec::Vec<&str>
 pub fn papo::isupport::Isupport::awaylen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::bot_mode(&self) -> core::option::Option<char>
 pub fn papo::isupport::Isupport::casemapping(&self) -> papo_proto::casemapping::Casemapping
 pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
 pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo_proto::isupport::ChanModes<'_>>
 pub fn papo::isupport::Isupport::channellen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::chantypes(&self) -> &str
+pub fn papo::isupport::Isupport::chathistory(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo_proto::isupport::ClientTagDeny<'_>
+pub fn papo::isupport::Isupport::elist(&self) -> core::option::Option<&str>
+pub fn papo::isupport::Isupport::excepts(&self) -> core::option::Option<char>
+pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo_proto::isupport::Extban<'_>>
 pub fn papo::isupport::Isupport::get(&self, &str) -> papo_proto::isupport::Advertised<'_>
+pub fn papo::isupport::Isupport::icon(&self) -> core::option::Option<&str>
+pub fn papo::isupport::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
+pub fn papo::isupport::Isupport::invex(&self) -> core::option::Option<char>
 pub fn papo::isupport::Isupport::is_channel(&self, &str) -> bool
 pub fn papo::isupport::Isupport::kicklen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
 pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
 pub fn papo::isupport::Isupport::modes(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::monitor(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::msgreftypes(&self) -> alloc::vec::Vec<&str>
 pub fn papo::isupport::Isupport::namelen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::network(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::nicklen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo_proto::isupport::Prefix>
+pub fn papo::isupport::Isupport::safelist(&self) -> bool
+pub fn papo::isupport::Isupport::saferate(&self) -> bool
 pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
 pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::utf8only(&self) -> bool
+pub fn papo::isupport::Isupport::vapid(&self) -> core::option::Option<&str>
+pub fn papo::isupport::Isupport::whox(&self) -> bool
 pub struct papo::JoinChannel
 impl papo::JoinChannel
 pub fn papo::JoinChannel::key(self, impl core::convert::Into<papo_core::secret::Secret>) -> Self

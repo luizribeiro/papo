@@ -2,6 +2,8 @@
 
 pub use papo_proto::{Advertised, ChanModes, ClientTagDeny, Extban, Limit, LimitValue, Prefix};
 
+use std::borrow::Cow;
+
 use crate::Casemapping;
 
 /// Accumulated server features advertised through `RPL_ISUPPORT` (`005`).
@@ -121,6 +123,120 @@ impl Isupport {
     pub fn namelen(&self) -> Option<usize> {
         self.inner.namelen()
     }
+
+    /// Returns the advertised network name.
+    #[must_use]
+    pub fn network(&self) -> Option<&str> {
+        self.inner.network()
+    }
+
+    /// Returns the network's advertised icon URL or URL template.
+    #[must_use]
+    pub fn icon(&self) -> Option<&str> {
+        self.inner.icon()
+    }
+
+    /// Returns the network icon URL with every `{size}` placeholder filled.
+    #[must_use]
+    pub fn icon_url(&self, size: u32) -> Option<Cow<'_, str>> {
+        self.inner.icon_url(size)
+    }
+
+    /// Returns the server's Web Push VAPID public key.
+    #[must_use]
+    pub fn vapid(&self) -> Option<&str> {
+        self.inner.vapid()
+    }
+
+    /// Reports whether the server accepts only UTF-8 messages.
+    #[must_use]
+    pub fn utf8only(&self) -> bool {
+        self.inner.utf8only()
+    }
+
+    /// Reports whether extended `WHO` syntax is available.
+    #[must_use]
+    pub fn whox(&self) -> bool {
+        self.inner.whox()
+    }
+
+    /// Reports whether authentication is required.
+    #[must_use]
+    pub fn account_required(&self) -> bool {
+        self.inner.account_required()
+    }
+
+    /// Reports whether safe `LIST` behavior is available.
+    #[must_use]
+    pub fn safelist(&self) -> bool {
+        self.inner.safelist()
+    }
+
+    /// Reports whether the server permits clients to send without local pacing.
+    #[must_use]
+    pub fn saferate(&self) -> bool {
+        self.inner.saferate()
+    }
+
+    /// Returns the user mode used to identify bots.
+    #[must_use]
+    pub fn bot_mode(&self) -> Option<char> {
+        self.inner.bot_mode()
+    }
+
+    /// Returns the monitor-list limit.
+    #[must_use]
+    pub fn monitor(&self) -> Option<LimitValue> {
+        self.inner.monitor()
+    }
+
+    /// Returns the history request limit.
+    #[must_use]
+    pub fn chathistory(&self) -> Option<LimitValue> {
+        self.inner.chathistory()
+    }
+
+    /// Returns supported message-reference types in preference order.
+    #[must_use]
+    pub fn msgreftypes(&self) -> Vec<&str> {
+        self.inner.msgreftypes()
+    }
+
+    /// Returns the server's client-only tag filtering policy.
+    #[must_use]
+    pub fn clienttagdeny(&self) -> ClientTagDeny<'_> {
+        self.inner.clienttagdeny()
+    }
+
+    /// Returns the ban-exception mode, using `e` for a bare token.
+    #[must_use]
+    pub fn excepts(&self) -> Option<char> {
+        self.inner.excepts()
+    }
+
+    /// Returns the invite-exception mode, using `I` for a bare token.
+    #[must_use]
+    pub fn invex(&self) -> Option<char> {
+        self.inner.invex()
+    }
+
+    /// Returns the extended-ban prefix and supported types.
+    #[must_use]
+    pub fn extban(&self) -> Option<Extban<'_>> {
+        self.inner.extban()
+    }
+
+    /// Returns extended-ban names that refer to accounts.
+    #[must_use]
+    pub fn accountextban(&self) -> Vec<&str> {
+        self.inner.accountextban()
+    }
+
+    /// Returns the case-insensitive `LIST` search extension letters.
+    #[must_use]
+    pub fn elist(&self) -> Option<&str> {
+        self.inner.elist()
+    }
 }
 
 #[cfg(test)]
@@ -131,5 +247,7 @@ mod tests {
         assert_eq!(support.get("network"), super::Advertised::Absent);
         assert_eq!(support.chantypes(), "#&");
         assert_eq!(support.nicklen(), None);
+        assert_eq!(support.msgreftypes(), ["msgid", "timestamp"]);
+        assert!(!support.whox());
     }
 }
