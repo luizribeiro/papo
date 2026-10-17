@@ -116,18 +116,21 @@ pub papo::event::StateLimit::Channels
 pub papo::event::StateLimit::Members
 pub papo::event::StateLimit::MetadataKeys
 pub papo::event::StateLimit::MetadataTargets
+#[non_exhaustive] pub enum papo::event::Visibility
+pub papo::event::Visibility::Public
+pub papo::event::Visibility::Restricted(alloc::string::String)
 #[non_exhaustive] pub enum papo::event::Warning
 #[non_exhaustive] pub papo::event::Warning::AuthenticationFailed
 pub papo::event::Warning::AuthenticationFailed::reason: alloc::string::String
 #[non_exhaustive] pub papo::event::Warning::BatchAbandoned
 pub papo::event::Warning::BatchAbandoned::batch_type: alloc::string::String
+pub papo::event::Warning::BatchAbandoned::id: alloc::string::String
 pub papo::event::Warning::BatchAbandoned::reason: papo::event::BatchAbandonReason
-pub papo::event::Warning::BatchAbandoned::reference: alloc::string::String
 #[non_exhaustive] pub papo::event::Warning::Malformed
 pub papo::event::Warning::Malformed::line: alloc::vec::Vec<u8>
 #[non_exhaustive] pub papo::event::Warning::MonitorListFull
 pub papo::event::Warning::MonitorListFull::limit: usize
-pub papo::event::Warning::MonitorListFull::nicks: alloc::vec::Vec<alloc::string::String>
+pub papo::event::Warning::MonitorListFull::nicks: alloc::vec::Vec<papo_proto::id::Nick>
 pub papo::event::Warning::MonitorUnsupported
 #[non_exhaustive] pub papo::event::Warning::StateLimitReached
 pub papo::event::Warning::StateLimitReached::limit: papo::event::StateLimit
@@ -174,10 +177,10 @@ pub papo::event::Kicked::is_self: bool
 pub papo::event::Kicked::nick: papo_proto::id::Nick
 pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub struct papo::event::MetadataChanged
-pub papo::event::MetadataChanged::key: alloc::string::String
-pub papo::event::MetadataChanged::target: alloc::string::String
+pub papo::event::MetadataChanged::key: papo_proto::id::MetadataKey
+pub papo::event::MetadataChanged::target: papo_proto::id::Target
 pub papo::event::MetadataChanged::value: core::option::Option<alloc::string::String>
-pub papo::event::MetadataChanged::visibility: alloc::string::String
+pub papo::event::MetadataChanged::visibility: papo::event::Visibility
 #[non_exhaustive] pub struct papo::event::ModeChange
 pub papo::event::ModeChange::arg: core::option::Option<alloc::string::String>
 pub papo::event::ModeChange::mode: char
@@ -631,7 +634,7 @@ pub fn papo::History<'a>::latest(self, usize) -> papo::HistoryRequest<'a>
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::end: bool
 pub papo::HistoryPage::items: alloc::vec::Vec<papo::HistoryItem>
-pub papo::HistoryPage::target: alloc::string::String
+pub papo::HistoryPage::target: papo_proto::id::Target
 impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
 pub struct papo::HistoryReference(_)

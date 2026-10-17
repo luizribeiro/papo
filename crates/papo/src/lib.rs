@@ -58,7 +58,7 @@ pub mod event {
         MetadataChanged, ModeChange, ModeChanged, MonitorOffline, MonitorOnline, Netjoin, Netsplit,
         NickChanged, Parted, PersistenceChanged, PersistenceSetting, Quit, Reacted, ReadMarker,
         RealnameChanged, Redacted, Registered, Source, StandardReply, StandardReplyKind,
-        StateLimit, TagMsg, TopicChanged, TypingChanged, Warning,
+        StateLimit, TagMsg, TopicChanged, TypingChanged, Visibility, Warning,
     };
 }
 

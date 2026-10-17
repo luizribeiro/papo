@@ -54,7 +54,7 @@ pub(super) fn advance_catchup(
         })
         .collect();
     Some(Event::History(Box::new(crate::HistoryPage {
-        target: catchup.target,
+        target: catchup.target.into(),
         items,
         end: page.end,
     })))

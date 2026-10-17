@@ -1,17 +1,29 @@
 use std::fmt;
 
+use crate::{MetadataKey, Nick, Target};
+
+/// Visibility of a metadata value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Visibility {
+    /// The value is public.
+    Public,
+    /// The server restricts the value according to the named policy.
+    Restricted(String),
+}
+
 /// A target's cached metadata changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct MetadataChanged {
     /// Nickname or channel reported by the server.
-    pub target: String,
+    pub target: Target,
     /// Metadata key.
-    pub key: String,
+    pub key: MetadataKey,
     /// New server-returned value, or `None` when cleared.
     pub value: Option<String>,
     /// Visibility policy reported by the server.
-    pub visibility: String,
+    pub visibility: Visibility,
 }
 
 /// An account's configured persistence preference.
@@ -72,7 +84,7 @@ pub enum Warning {
     #[non_exhaustive]
     BatchAbandoned {
         /// The opaque batch reference.
-        reference: String,
+        id: String,
         /// The batch type from its opening line.
         batch_type: String,
         /// The bound that was reached.
@@ -102,7 +114,7 @@ pub enum Warning {
         /// The server's advertised monitor-list limit.
         limit: usize,
         /// Nicknames the server did not add.
-        nicks: Vec<String>,
+        nicks: Vec<Nick>,
     },
     /// The server does not advertise `MONITOR` support.
     MonitorUnsupported,
@@ -146,7 +158,7 @@ mod tests {
     fn warnings_have_human_readable_diagnostics() {
         let warnings = [
             Warning::BatchAbandoned {
-                reference: "history42".to_owned(),
+                id: "history42".to_owned(),
                 batch_type: "chathistory".to_owned(),
                 reason: BatchAbandonReason::Timeout,
             },
@@ -161,7 +173,7 @@ mod tests {
             },
             Warning::MonitorListFull {
                 limit: 100,
-                nicks: vec!["alice".to_owned()],
+                nicks: vec!["alice".into()],
             },
             Warning::MonitorUnsupported,
         ];

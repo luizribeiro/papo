@@ -36,7 +36,7 @@ pub use conversation::{
 pub use raw::RawLine;
 pub use server::{
     BatchAbandonReason, MetadataChanged, PersistenceChanged, PersistenceSetting, StateLimit,
-    Warning,
+    Visibility, Warning,
 };
 pub use source::Source;
 pub use tags::Tags;
@@ -767,10 +767,14 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             value,
             visibility,
         } => Event::MetadataChanged(MetadataChanged {
-            target,
-            key,
+            target: target.into(),
+            key: key.into(),
             value,
-            visibility,
+            visibility: if visibility == "*" {
+                Visibility::Public
+            } else {
+                Visibility::Restricted(visibility)
+            },
         }),
         papo_core::Event::History { target, items, end } => {
             return CoreEvent::History { target, items, end };
@@ -819,7 +823,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             batch_type,
             reason,
         } => Event::Warning(Warning::BatchAbandoned {
-            reference,
+            id: reference,
             batch_type,
             reason: match reason {
                 papo_core::BatchAbandonReason::OpenBatchLimit => BatchAbandonReason::OpenBatchLimit,
@@ -955,7 +959,10 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             Event::MonitorOffline(MonitorOffline { nick: nick.into() })
         }
         papo_core::Event::MonitorListFull { limit, nicks } => {
-            Event::Warning(Warning::MonitorListFull { limit, nicks })
+            Event::Warning(Warning::MonitorListFull {
+                limit,
+                nicks: nicks.into_iter().map(Into::into).collect(),
+            })
         }
         papo_core::Event::MonitorUnsupported => Event::Warning(Warning::MonitorUnsupported),
         _ => return CoreEvent::Unknown,
@@ -967,8 +974,8 @@ mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
-        CoreEvent, Event, Message as ChatMessage, MessageKind, Origin, PersistenceSetting, Source,
-        StandardReplyKind, Warning, from_core,
+        CoreEvent, Event, Message as ChatMessage, MessageKind, MetadataChanged, Origin,
+        PersistenceSetting, Source, StandardReplyKind, Visibility, Warning, from_core,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Session,
@@ -1425,7 +1432,19 @@ mod tests {
             Event::MetadataChanged(changed)
                 if changed.target == "#papo" && changed.key == "pronouns"
                     && changed.value.as_deref() == Some("they/them")
-                    && changed.visibility == "members"
+                    && matches!(changed.visibility, Visibility::Restricted(ref policy) if policy == "members")
+        ));
+        assert!(matches!(
+            forwarded(papo_core::Event::MetadataChanged {
+                target: "alice".into(),
+                key: "avatar".into(),
+                value: None,
+                visibility: "*".into(),
+            }),
+            Event::MetadataChanged(MetadataChanged {
+                visibility: Visibility::Public,
+                ..
+            })
         ));
         assert!(matches!(
             from_core(papo_core::Event::MetadataSyncLater {
@@ -1853,7 +1872,7 @@ mod tests {
     #[test]
     fn maps_batch_abandoned() {
         let Event::Warning(Warning::BatchAbandoned {
-            reference,
+            id,
             batch_type,
             reason,
         }) = forwarded(papo_core::Event::BatchAbandoned {
@@ -1864,7 +1883,7 @@ mod tests {
         else {
             panic!("abandonment was not forwarded")
         };
-        assert_eq!(reference, "history42");
+        assert_eq!(id, "history42");
         assert_eq!(batch_type, "chathistory");
         assert_eq!(reason, super::BatchAbandonReason::Timeout);
     }
