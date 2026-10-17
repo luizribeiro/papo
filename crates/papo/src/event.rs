@@ -260,15 +260,7 @@ impl Message {
             .tags()
             .find(|(key, _)| *key == "draft/oper")
             .map(|(_, value)| value.map(std::borrow::Cow::into_owned));
-        let replay = batch_type.is_some_and(|kind| {
-            matches!(
-                kind,
-                "chathistory"
-                    | "draft/chathistory"
-                    | "draft/chathistory-targets"
-                    | "draft/event-playback"
-            )
-        });
+        let replay = batch_type.is_some_and(|kind| !matches!(kind, "netsplit" | "netjoin"));
         let origin = if echo {
             Origin::Echo
         } else if other_session {
@@ -1508,13 +1500,15 @@ mod tests {
             "draft/chathistory",
             "draft/chathistory-targets",
             "draft/event-playback",
+            "znc.in/playback",
+            "vendor/sync",
         ] {
             let replay = batched_message(kind, "PRIVMSG #papo :earlier");
             assert_eq!(replay.origin(), Origin::Replay);
             assert!(!replay.is_live());
         }
 
-        for kind in ["netsplit", "vendor/sync"] {
+        for kind in ["netsplit", "netjoin"] {
             let live = batched_message(kind, "NOTICE papo :live batch");
             assert_eq!(live.origin(), Origin::Live);
             assert!(live.is_live());
