@@ -440,6 +440,8 @@ impl Builder {
     /// returned event stream. When account registration requires email
     /// verification, this returns after [`crate::AccountRegistration::VerificationRequired`]
     /// because the server holds IRC registration open until verification.
+    /// The first connection attempt fails fast; the configured reconnect policy applies only
+    /// after the first successful IRC registration.
     ///
     /// # Errors
     ///

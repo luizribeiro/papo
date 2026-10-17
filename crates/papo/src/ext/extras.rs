@@ -14,12 +14,12 @@ impl Client {
         &self,
         old: impl Into<crate::ChannelName>,
         new: impl Into<crate::ChannelName>,
-        reason: &str,
+        reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         let old = old.into();
         let new = new.into();
-        let reason = reason.to_owned();
+        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let state = client.state();
             old.check(state.isupport().inner())

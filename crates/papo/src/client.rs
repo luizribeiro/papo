@@ -366,7 +366,7 @@ impl Client {
         receiver.await.map_err(|_| Error::disconnected())?
     }
 
-    /// Sends a private message to a user or channel.
+    /// Sends a private message to a channel or directly to a user.
     ///
     /// A labelled echo supplies its message identifier and optional server time. Both fields are
     /// `None` unless `echo-message` and `labeled-response` are enabled.
@@ -632,12 +632,12 @@ impl Client {
         &self,
         target: impl Into<crate::Target>,
         message: impl Into<crate::MessageId>,
-        reason: &str,
+        reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         let target = target.into();
         let message = message.into();
-        let reason = reason.to_owned();
+        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let state = client.state();
             Self::require_feature(&state, Feature::Redaction)?;
@@ -809,11 +809,11 @@ impl Client {
     pub fn part(
         &self,
         channel: impl Into<crate::ChannelName>,
-        reason: &str,
+        reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         let channel = channel.into();
-        let reason = reason.to_owned();
+        let reason = reason.into();
         crate::RequestFuture::new(async move {
             channel
                 .check(client.state().isupport().inner())
@@ -841,12 +841,12 @@ impl Client {
         &self,
         channel: impl Into<crate::ChannelName>,
         nick: impl Into<crate::Nick>,
-        reason: &str,
+        reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         let channel = channel.into();
         let nick = nick.into();
-        let reason = reason.to_owned();
+        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let state = client.state();
             channel
@@ -1032,6 +1032,8 @@ impl Client {
 
     /// Sets the topic for `channel`.
     ///
+    /// An empty `topic` clears the topic, the same as [`Client::clear_topic`].
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
@@ -1106,9 +1108,10 @@ impl Client {
     ///
     /// Returns an error if the QUIT message is invalid, the driver has already
     /// stopped, or the peer does not close within ten seconds.
-    pub fn quit(&self, reason: &str) -> crate::RequestFuture<()> {
+    pub fn quit(&self, reason: impl Into<String>) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let reason = (!reason.is_empty()).then(|| reason.to_owned());
+        let reason = reason.into();
+        let reason = (!reason.is_empty()).then_some(reason);
         crate::RequestFuture::new(async move {
             let (result, receiver) = oneshot::channel();
             client

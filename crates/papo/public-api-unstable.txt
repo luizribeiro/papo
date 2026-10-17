@@ -775,19 +775,19 @@ pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl core::convert::Into<papo::ChannelName>) -> papo::RequestFuture<()>
 pub fn papo::Client::invite(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::Nick>) -> papo::RequestFuture<()>
 pub fn papo::Client::join(&self, impl core::convert::Into<papo::ChannelName>) -> papo::JoinChannel
-pub fn papo::Client::kick(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::Nick>, &str) -> papo::RequestFuture<()>
+pub fn papo::Client::kick(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::Nick>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc::vec::Vec<papo::ListEntry>>
 pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<()>
-pub fn papo::Client::part(&self, impl core::convert::Into<papo::ChannelName>, &str) -> papo::RequestFuture<()>
+pub fn papo::Client::part(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
-pub fn papo::Client::quit(&self, &str) -> papo::RequestFuture<()>
+pub fn papo::Client::quit(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::react(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::react_to(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
-pub fn papo::Client::redact(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MessageId>, &str) -> papo::RequestFuture<()>
+pub fn papo::Client::redact(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::reply(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::request_command<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<alloc::vec::Vec<papo::RawLine>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Client::request_raw(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<alloc::vec::Vec<papo::RawLine>>
@@ -822,7 +822,7 @@ pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestF
 pub fn papo::Client::verify_account(&self, impl core::convert::Into<papo::AccountName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
 impl papo::Client
 pub fn papo::Client::relay(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::Nick>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::ChannelName>, &str) -> papo::RequestFuture<()>
+pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 impl papo::Client
 pub fn papo::Client::webpush(&self) -> papo::WebPush
 impl core::fmt::Debug for papo::Client
