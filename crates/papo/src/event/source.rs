@@ -20,6 +20,15 @@ pub enum Source {
     },
 }
 
+impl std::fmt::Display for Source {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::User { nick, .. } => formatter.write_str(nick),
+            Self::Server { name } => formatter.write_str(name),
+        }
+    }
+}
+
 impl Source {
     /// Returns the nickname for a user source.
     #[must_use]
@@ -46,5 +55,17 @@ impl Source {
     pub(crate) fn from_prefix(prefix: String) -> Self {
         let message = papo_proto::Message::new("NOTICE", ["*"]).with_source(prefix);
         Self::from_proto(message.as_ref().source().expect("owned source is present"))
+    }
+
+    pub(crate) fn from_name(name: String) -> Self {
+        if name.contains('.') {
+            Self::Server { name }
+        } else {
+            Self::User {
+                nick: name,
+                user: None,
+                host: None,
+            }
+        }
     }
 }

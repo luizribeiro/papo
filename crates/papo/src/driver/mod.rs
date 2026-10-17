@@ -1171,12 +1171,15 @@ fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, ev
                 defaults.channels.push(Autojoin::new(&joined.channel, None));
             }
         }
-        Event::Parted { channel, nick, .. } | Event::Kicked { channel, nick, .. }
-            if casemapping.eq(nick, session.nick()) =>
-        {
+        Event::Parted(parted) if parted.is_self => {
             defaults
                 .channels
-                .retain(|entry| !casemapping.eq(&entry.channel, channel));
+                .retain(|entry| !casemapping.eq(&entry.channel, &parted.channel));
+        }
+        Event::Kicked(kicked) if kicked.is_self => {
+            defaults
+                .channels
+                .retain(|entry| !casemapping.eq(&entry.channel, &kicked.channel));
         }
         _ => {}
     }

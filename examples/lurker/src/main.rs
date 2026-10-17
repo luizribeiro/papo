@@ -31,13 +31,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             {
                 println!("join {channel} {nick}");
             }
-            Event::Parted {
-                channel,
-                nick,
-                reason,
-            } => {
-                let reason = reason.as_deref().unwrap_or("-");
-                println!("part {channel} {nick}: {reason}");
+            Event::Parted(event) => {
+                let reason = event.reason.as_deref().unwrap_or("-");
+                println!("part {} {}: {reason}", event.channel, event.nick);
             }
             Event::Quit {
                 nick,

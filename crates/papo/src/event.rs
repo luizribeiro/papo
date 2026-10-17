@@ -672,25 +672,11 @@ pub enum Event {
     /// Initial channel membership synchronization completed.
     ChannelSynced(ChannelSynced),
     /// A user left a shared channel with `PART`.
-    Parted {
-        /// The departed channel.
-        channel: String,
-        /// The departing user's nickname.
-        nick: String,
-        /// The optional part reason.
-        reason: Option<String>,
-    },
+    Parted(Parted),
     /// A user was removed from a shared channel with `KICK`.
-    Kicked {
-        /// The affected channel.
-        channel: String,
-        /// The removed user's nickname.
-        nick: String,
-        /// The user or server that issued the kick.
-        by: String,
-        /// The optional kick reason.
-        reason: Option<String>,
-    },
+    Kicked(Kicked),
+    /// A user was invited to a channel.
+    Invited(Invited),
     /// A user sharing channels with the client disconnected.
     Quit {
         /// The disconnected user's nickname.
@@ -828,8 +814,15 @@ event_accessors! {
 
 impl Event {
     pub(crate) fn mark_self(&mut self, nick: &str, casemapping: papo_proto::Casemapping) {
-        if let Self::Joined(joined) = self {
-            joined.is_self = casemapping.eq(&joined.nick, nick);
+        let candidate = match self {
+            Self::Joined(joined) => Some((&joined.nick, &mut joined.is_self)),
+            Self::Parted(parted) => Some((&parted.nick, &mut parted.is_self)),
+            Self::Kicked(kicked) => Some((&kicked.nick, &mut kicked.is_self)),
+            Self::Invited(invited) => Some((&invited.nick, &mut invited.is_self)),
+            _ => None,
+        };
+        if let Some((candidate, is_self)) = candidate {
+            *is_self = casemapping.eq(candidate, nick);
         }
     }
 }
@@ -1004,22 +997,24 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             channel,
             nick,
             reason,
-        } => Event::Parted {
+        } => Event::Parted(Parted {
             channel,
             nick,
             reason,
-        },
+            is_self: false,
+        }),
         papo_core::Event::Kicked {
             channel,
             nick,
             by,
             reason,
-        } => Event::Kicked {
+        } => Event::Kicked(Kicked {
             channel,
             nick,
-            by,
+            by: Source::from_name(by),
             reason,
-        },
+            is_self: false,
+        }),
         papo_core::Event::Quit {
             nick,
             reason,
@@ -1596,8 +1591,9 @@ mod tests {
                 nick: "emily".into(),
                 reason: Some("Leaving for lunch".into()),
             }),
-            Event::Parted { channel, nick, reason }
-                if channel == "#papo" && nick == "emily" && reason.as_deref() == Some("Leaving for lunch")
+            Event::Parted(parted)
+                if parted.channel == "#papo" && parted.nick == "emily"
+                    && parted.reason.as_deref() == Some("Leaving for lunch")
         ));
     }
 
@@ -1610,9 +1606,10 @@ mod tests {
                 by: "alice".into(),
                 reason: Some("Flooding".into()),
             }),
-            Event::Kicked { channel, nick, by, reason }
-                if channel == "#papo" && nick == "emily" && by == "alice"
-                    && reason.as_deref() == Some("Flooding")
+            Event::Kicked(kicked)
+                if kicked.channel == "#papo" && kicked.nick == "emily"
+                    && kicked.by == Source::User { nick: "alice".into(), user: None, host: None }
+                    && kicked.reason.as_deref() == Some("Flooding")
         ));
     }
 

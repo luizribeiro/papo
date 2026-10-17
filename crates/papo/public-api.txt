@@ -96,6 +96,8 @@ pub papo::event::Source::User::nick: alloc::string::String
 pub papo::event::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
+impl core::fmt::Display for papo::Source
+pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub enum papo::event::StandardReplyKind
 pub papo::event::StandardReplyKind::Fail
 pub papo::event::StandardReplyKind::Note
@@ -256,12 +258,9 @@ pub papo::Event::HostChanged
 pub papo::Event::HostChanged::host: alloc::string::String
 pub papo::Event::HostChanged::nick: alloc::string::String
 pub papo::Event::HostChanged::user: alloc::string::String
+pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
-pub papo::Event::Kicked
-pub papo::Event::Kicked::by: alloc::string::String
-pub papo::Event::Kicked::channel: alloc::string::String
-pub papo::Event::Kicked::nick: alloc::string::String
-pub papo::Event::Kicked::reason: core::option::Option<alloc::string::String>
+pub papo::Event::Kicked(papo::event::Kicked)
 pub papo::Event::Malformed
 pub papo::Event::Malformed::line: alloc::vec::Vec<u8>
 pub papo::Event::Message(papo::MessageEvent)
@@ -296,10 +295,7 @@ pub papo::Event::Netsplit::servers: [alloc::string::String; 2]
 pub papo::Event::NickChanged
 pub papo::Event::NickChanged::new: alloc::string::String
 pub papo::Event::NickChanged::old: alloc::string::String
-pub papo::Event::Parted
-pub papo::Event::Parted::channel: alloc::string::String
-pub papo::Event::Parted::nick: alloc::string::String
-pub papo::Event::Parted::reason: core::option::Option<alloc::string::String>
+pub papo::Event::Parted(papo::event::Parted)
 pub papo::Event::PersistenceStatus
 pub papo::Event::PersistenceStatus::effective: bool
 pub papo::Event::PersistenceStatus::setting: papo_core::PersistenceSetting
@@ -433,6 +429,8 @@ pub papo::Source::User::nick: alloc::string::String
 pub papo::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
+impl core::fmt::Display for papo::Source
+pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>

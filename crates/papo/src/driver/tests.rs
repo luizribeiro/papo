@@ -359,21 +359,27 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
     super::update_rejoin_channels(
         &session,
         &mut defaults,
-        &Event::Parted {
+        &Event::Parted(crate::event::Parted {
             channel: "#Papo".into(),
             nick: "papo-driver".into(),
             reason: None,
-        },
+            is_self: true,
+        }),
     );
     super::update_rejoin_channels(
         &session,
         &mut defaults,
-        &Event::Kicked {
+        &Event::Kicked(crate::event::Kicked {
             channel: "#staff".into(),
             nick: "papo-driver".into(),
-            by: "chanserv".into(),
+            by: crate::Source::User {
+                nick: "chanserv".into(),
+                user: None,
+                host: None,
+            },
             reason: Some("access removed".into()),
-        },
+            is_self: true,
+        }),
     );
     assert!(defaults.channels.is_empty());
 }
@@ -2862,7 +2868,7 @@ async fn client_reads_owned_state_snapshots() {
         b":papo-driver!papo@localhost PART #Papo :leaving\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Parted { .. })));
+    assert!(matches!(events.next().await, Some(Event::Parted(_))));
     assert!(!Arc::ptr_eq(&unchanged, &client.state()));
     assert!(client.state().channel("#papo").is_none());
 
@@ -3056,7 +3062,7 @@ async fn every_state_change_replaces_the_snapshot() {
         b":papo-reader!papo@localhost PART #Papo :Leaving\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Parted { .. })));
+    assert!(matches!(events.next().await, Some(Event::Parted(_))));
     let current = changed_snapshot(&client, &previous, "PART");
     assert!(current.channel("#papo").is_none());
 
