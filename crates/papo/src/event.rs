@@ -48,15 +48,17 @@ pub use user::{
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum MessageKind<'a> {
+pub enum MessageKind {
     /// A regular `PRIVMSG`.
     Privmsg,
     /// A regular `NOTICE`.
     Notice,
     /// A CTCP `ACTION`.
     Action,
-    /// Another CTCP command.
-    Ctcp(&'a str),
+    /// Another CTCP command sent with `PRIVMSG`.
+    Ctcp,
+    /// A CTCP response sent with `NOTICE`.
+    CtcpReply,
 }
 
 /// How an incoming message relates to the current session.
@@ -96,7 +98,8 @@ pub struct MessageEvent {
     kind: StoredKind,
     isupport: Isupport,
     msgid: Option<String>,
-    time: SystemTime,
+    server_time: Option<SystemTime>,
+    received_at: SystemTime,
     account: Option<String>,
     bot: bool,
     reply_to: Option<String>,
@@ -123,7 +126,8 @@ impl PartialEq for MessageEvent {
             && self.kind == other.kind
             && self.isupport == other.isupport
             && self.msgid == other.msgid
-            && self.time == other.time
+            && self.server_time == other.server_time
+            && self.received_at == other.received_at
             && self.account == other.account
             && self.bot == other.bot
             && self.reply_to == other.reply_to
@@ -142,7 +146,8 @@ enum StoredKind {
     Privmsg,
     Notice,
     Action,
-    Ctcp(String),
+    Ctcp,
+    CtcpReply,
 }
 
 impl MessageEvent {
@@ -282,10 +287,13 @@ impl MessageEvent {
             return Err(raw);
         };
         let (kind, displayed) = match Ctcp::parse(raw_text) {
-            Some(ctcp) if ctcp.command.eq_ignore_ascii_case("ACTION") => {
+            Some(ctcp)
+                if plain == StoredKind::Privmsg && ctcp.command.eq_ignore_ascii_case("ACTION") =>
+            {
                 (StoredKind::Action, ctcp.params.unwrap_or(""))
             }
-            Some(ctcp) => (StoredKind::Ctcp(ctcp.command.to_owned()), raw_text),
+            Some(_) if plain == StoredKind::Privmsg => (StoredKind::Ctcp, raw_text),
+            Some(_) => (StoredKind::CtcpReply, raw_text),
             None => (plain, raw_text),
         };
         let text = strip_formatting(displayed).into_owned();
@@ -307,9 +315,8 @@ impl MessageEvent {
         let tags = Tags::from_message(&message);
         let channel_context = tag_owned(&message, &["+channel-context", "+draft/channel-context"]);
         let msgid = tag_owned(&message, &["msgid"]);
-        let time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
-            .and_then(|value| time::parse(&value))
-            .unwrap_or(received_at);
+        let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
+            .and_then(|value| time::parse(&value));
         let account = tag_owned(&message, &["account"]);
         let bot = tags.contains("bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]);
@@ -350,7 +357,8 @@ impl MessageEvent {
             kind,
             isupport: isupport.clone(),
             msgid,
-            time,
+            server_time,
+            received_at,
             account,
             bot,
             reply_to,
@@ -400,12 +408,13 @@ impl MessageEvent {
 
     /// Returns the semantic kind of this message.
     #[must_use]
-    pub fn kind(&self) -> MessageKind<'_> {
+    pub const fn kind(&self) -> MessageKind {
         match &self.kind {
             StoredKind::Privmsg => MessageKind::Privmsg,
             StoredKind::Notice => MessageKind::Notice,
             StoredKind::Action => MessageKind::Action,
-            StoredKind::Ctcp(command) => MessageKind::Ctcp(command),
+            StoredKind::Ctcp => MessageKind::Ctcp,
+            StoredKind::CtcpReply => MessageKind::CtcpReply,
         }
     }
 
@@ -469,7 +478,7 @@ impl MessageEvent {
     /// Returns server time when valid, or the local receipt time.
     #[must_use]
     pub fn time(&self) -> SystemTime {
-        self.time
+        self.server_time.unwrap_or(self.received_at)
     }
 
     /// Returns the sender's authenticated account, when tagged.
@@ -521,6 +530,20 @@ impl MessageEvent {
     #[must_use]
     pub fn is_live(&self) -> bool {
         self.origin == Origin::Live
+    }
+
+    /// Reports whether this is an echo of a message sent by this client.
+    #[must_use]
+    pub fn is_own(&self) -> bool {
+        self.origin == Origin::Echo
+    }
+
+    /// Parses the raw text as CTCP when it contains a CTCP command.
+    ///
+    /// `None` means the message text is not valid CTCP.
+    #[must_use]
+    pub fn ctcp(&self) -> Option<Ctcp<'_>> {
+        Ctcp::parse(&self.raw_text)
     }
 
     /// Sends a private message to [`Self::reply_target`].
@@ -1141,9 +1164,14 @@ mod tests {
             chat("PRIVMSG", "\x01ACTION waves\x01").kind(),
             MessageKind::Action
         );
+        assert_eq!(chat("PRIVMSG", "\x01VERSION\x01").kind(), MessageKind::Ctcp);
         assert_eq!(
-            chat("PRIVMSG", "\x01VERSION\x01").kind(),
-            MessageKind::Ctcp("VERSION")
+            chat("PRIVMSG", "\x01VERSION\x01").ctcp().unwrap().command,
+            "VERSION"
+        );
+        assert_eq!(
+            chat("NOTICE", "\x01VERSION papo-0.1\x01").kind(),
+            MessageKind::CtcpReply
         );
         assert!(
             MessageEvent::new(

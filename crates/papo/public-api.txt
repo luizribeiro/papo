@@ -425,9 +425,10 @@ pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
 pub papo::InvalidInput::WebPushEndpoint
 pub papo::InvalidInput::WebPushKey
-#[non_exhaustive] pub enum papo::MessageKind<'a>
+#[non_exhaustive] pub enum papo::MessageKind
 pub papo::MessageKind::Action
-pub papo::MessageKind::Ctcp(&'a str)
+pub papo::MessageKind::Ctcp
+pub papo::MessageKind::CtcpReply
 pub papo::MessageKind::Notice
 pub papo::MessageKind::Privmsg
 #[non_exhaustive] pub enum papo::Origin
@@ -645,11 +646,13 @@ impl papo::MessageEvent
 pub fn papo::MessageEvent::account(&self) -> core::option::Option<&str>
 pub fn papo::MessageEvent::as_ref(&self) -> papo_proto::message::MessageRef<'_>
 pub fn papo::MessageEvent::batch_type(&self) -> core::option::Option<&str>
+pub fn papo::MessageEvent::ctcp(&self) -> core::option::Option<papo_proto::ctcp::Ctcp<'_>>
 pub fn papo::MessageEvent::id(&self) -> core::option::Option<papo::TargetedMessageId>
 pub fn papo::MessageEvent::is_bot(&self) -> bool
 pub fn papo::MessageEvent::is_live(&self) -> bool
+pub fn papo::MessageEvent::is_own(&self) -> bool
 pub fn papo::MessageEvent::is_private(&self) -> bool
-pub fn papo::MessageEvent::kind(&self) -> papo::MessageKind<'_>
+pub const fn papo::MessageEvent::kind(&self) -> papo::MessageKind
 pub fn papo::MessageEvent::msgid(&self) -> core::option::Option<&str>
 pub fn papo::MessageEvent::oper(&self) -> core::option::Option<core::option::Option<&str>>
 pub fn papo::MessageEvent::origin(&self) -> papo::Origin

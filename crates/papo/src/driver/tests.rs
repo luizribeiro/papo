@@ -64,10 +64,7 @@ async fn message_accessors_use_captured_session_facts() {
     let action = next_message(&mut events).await;
     assert_eq!(action.kind(), MessageKind::Action);
     assert_eq!(action.text(), "waves");
-    assert_eq!(
-        next_message(&mut events).await.kind(),
-        MessageKind::Ctcp("VERSION")
-    );
+    assert_eq!(next_message(&mut events).await.kind(), MessageKind::Ctcp);
 
     server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
     assert_eq!(next_message(&mut events).await.origin(), Origin::Echo);
