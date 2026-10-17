@@ -343,6 +343,31 @@ fn own_user_matchers_require_their_exact_success() {
 }
 
 #[test]
+fn setname_matches_after_a_nickname_change() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let nick = session
+        .request_with_matcher(
+            now,
+            Message::new("NICK", ["paporev"]),
+            ResponseMatcher::Nick("paporev".into()),
+        )
+        .unwrap();
+    session.handle_line(now, b":papo!papo@localhost NICK :paporev");
+    assert_eq!(response_id(&mut session), nick);
+
+    let realname = session
+        .request_with_matcher(
+            now,
+            Message::new("SETNAME", ["Papo Review Client"]),
+            ResponseMatcher::SetName("Papo Review Client".into()),
+        )
+        .unwrap();
+    session.handle_line(now, b":paporev!papo@localhost SETNAME :Papo Review Client");
+    assert_eq!(response_id(&mut session), realname);
+}
+
+#[test]
 fn membership_matchers_ignore_unrelated_successes_and_capture_errors() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
