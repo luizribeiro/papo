@@ -352,10 +352,17 @@ pub papo::metadata::MetadataValue::value: alloc::string::String
 pub papo::metadata::MetadataValue::visibility: alloc::string::String
 pub mod papo::numeric
 pub const papo::numeric::ERR_NOMOTD: u16
+pub const papo::numeric::RPL_AWAY: u16
 pub const papo::numeric::RPL_CREATED: u16
 pub const papo::numeric::RPL_ENDOFMOTD: u16
+pub const papo::numeric::RPL_ENDOFNAMES: u16
+pub const papo::numeric::RPL_ENDOFWHOIS: u16
+pub const papo::numeric::RPL_ENDOFWHOWAS: u16
 pub const papo::numeric::RPL_GLOBALUSERS: u16
 pub const papo::numeric::RPL_ISUPPORT: u16
+pub const papo::numeric::RPL_LIST: u16
+pub const papo::numeric::RPL_LISTEND: u16
+pub const papo::numeric::RPL_LISTSTART: u16
 pub const papo::numeric::RPL_LOCALUSERS: u16
 pub const papo::numeric::RPL_LUSERCHANNELS: u16
 pub const papo::numeric::RPL_LUSERCLIENT: u16
@@ -365,7 +372,26 @@ pub const papo::numeric::RPL_LUSERUNKNOWN: u16
 pub const papo::numeric::RPL_MOTD: u16
 pub const papo::numeric::RPL_MOTDSTART: u16
 pub const papo::numeric::RPL_MYINFO: u16
+pub const papo::numeric::RPL_NAMREPLY: u16
+pub const papo::numeric::RPL_NOTOPIC: u16
+pub const papo::numeric::RPL_TOPIC: u16
+pub const papo::numeric::RPL_TOPICWHOTIME: u16
 pub const papo::numeric::RPL_WELCOME: u16
+pub const papo::numeric::RPL_WHOISACCOUNT: u16
+pub const papo::numeric::RPL_WHOISACTUALLY: u16
+pub const papo::numeric::RPL_WHOISBOT: u16
+pub const papo::numeric::RPL_WHOISCERTFP: u16
+pub const papo::numeric::RPL_WHOISCHANNELS: u16
+pub const papo::numeric::RPL_WHOISHOST: u16
+pub const papo::numeric::RPL_WHOISIDLE: u16
+pub const papo::numeric::RPL_WHOISMODES: u16
+pub const papo::numeric::RPL_WHOISOPERATOR: u16
+pub const papo::numeric::RPL_WHOISREGNICK: u16
+pub const papo::numeric::RPL_WHOISSECURE: u16
+pub const papo::numeric::RPL_WHOISSERVER: u16
+pub const papo::numeric::RPL_WHOISSPECIAL: u16
+pub const papo::numeric::RPL_WHOISUSER: u16
+pub const papo::numeric::RPL_WHOWASUSER: u16
 pub const papo::numeric::RPL_YOURHOST: u16
 pub mod papo::sts
 pub use papo::sts::MemoryStsStore
