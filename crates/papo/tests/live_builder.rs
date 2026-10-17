@@ -105,7 +105,11 @@ async fn wait_for(
     loop {
         match events.next().await {
             Some(Event::Message(message)) if accepted(&message.as_ref()) => return,
-            Some(Event::Raw(message)) if accepted(&message.as_ref()) => return,
+            Some(Event::Raw(message))
+                if accepted(&papo_proto::MessageRef::parse(&message.to_string()).unwrap()) =>
+            {
+                return;
+            }
             Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
                 panic!("disconnected while waiting: {reason}")
             }

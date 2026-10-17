@@ -7,7 +7,6 @@ use super::Source;
 /// An owned IRC line not represented by a typed event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RawLine {
-    raw: Message,
     command: String,
     params: Vec<String>,
     tags: Vec<(String, Option<String>)>,
@@ -15,13 +14,6 @@ pub struct RawLine {
 }
 
 impl RawLine {
-    /// Returns the parsed protocol message backing this line.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn as_ref(&self) -> papo_proto::MessageRef<'_> {
-        self.raw.as_ref()
-    }
-
     /// Returns the command with its original spelling.
     #[must_use]
     pub fn command(&self) -> &str {
@@ -55,7 +47,6 @@ impl RawLine {
     pub(crate) fn from_proto(message: &Message) -> Self {
         let message = message.as_ref();
         Self {
-            raw: message.to_owned(),
             command: message.raw_command().to_owned(),
             params: message.params().map(str::to_owned).collect(),
             tags: message

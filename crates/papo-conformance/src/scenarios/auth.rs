@@ -2,7 +2,7 @@ use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
-use papo_proto::{Message, MessageRef};
+use papo_proto::Message;
 use papo_test_server::register_account;
 
 use super::support::{EXPECT_TIMEOUT, PASSWORD};
@@ -41,8 +41,8 @@ async fn authenticate(context: Scenario, scram: bool) -> ScenarioResult {
             &mut connection.events,
             |event| match event {
                 Event::Raw(message) => {
-                    let message = message.as_ref();
-                    message.command_is("900") || message.command_is("330")
+                    message.command().eq_ignore_ascii_case("900")
+                        || message.command().eq_ignore_ascii_case("330")
                 }
                 _ => false,
             },
@@ -52,12 +52,13 @@ async fn authenticate(context: Scenario, scram: bool) -> ScenarioResult {
     let Event::Raw(message) = event else {
         return Err("account matcher returned a non-message event".into());
     };
-    validate_account_reply(&message.as_ref(), &account)?;
+    validate_account_reply(message.command(), message.params(), &account)?;
     connection.close().await
 }
 
-fn validate_account_reply(message: &MessageRef<'_>, account: &str) -> Result<(), Failed> {
-    if (message.command_is("900") || message.command_is("330")) && message.param(2) == Some(account)
+fn validate_account_reply(command: &str, params: &[String], account: &str) -> Result<(), Failed> {
+    if (command.eq_ignore_ascii_case("900") || command.eq_ignore_ascii_case("330"))
+        && params.get(2).is_some_and(|actual| actual == account)
     {
         Ok(())
     } else {
@@ -87,10 +88,15 @@ async fn draft_account_registration(context: Scenario) -> ScenarioResult {
                     logged_in: true,
                 } => registered == &account,
                 Event::Raw(message) => {
-                    let message = message.as_ref();
-                    message.command_is("REGISTER")
-                        && message.param(0) == Some("SUCCESS")
-                        && message.param(1) == Some(account.as_str())
+                    message.command().eq_ignore_ascii_case("REGISTER")
+                        && message
+                            .params()
+                            .first()
+                            .is_some_and(|value| value == "SUCCESS")
+                        && message
+                            .params()
+                            .get(1)
+                            .is_some_and(|value| value == &account)
                 }
                 _ => false,
             },
@@ -102,17 +108,17 @@ async fn draft_account_registration(context: Scenario) -> ScenarioResult {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::MessageRef;
-
     use super::validate_account_reply;
 
     #[test]
     fn wrong_account_in_logged_in_reply_fails() {
-        let message = MessageRef::parse(
-            ":ergo.test 900 papo papo!~u@host mallory :You are now logged in as mallory",
-        )
-        .unwrap();
-        let error = validate_account_reply(&message, "alice").unwrap_err();
+        let params = [
+            "papo".to_owned(),
+            "papo!~u@host".to_owned(),
+            "mallory".to_owned(),
+            "You are now logged in as mallory".to_owned(),
+        ];
+        let error = validate_account_reply("900", &params, "alice").unwrap_err();
         assert_eq!(
             error.message(),
             Some("server account reply did not contain the authenticated account")
