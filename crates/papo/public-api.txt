@@ -642,7 +642,24 @@ pub papo::ListEntry::topic: alloc::string::String
 pub struct papo::ListFilter
 impl papo::ListFilter
 pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub struct papo::Message
+#[non_exhaustive] pub struct papo::Message
+pub papo::Message::account: core::option::Option<alloc::string::String>
+pub papo::Message::channel_context: core::option::Option<alloc::string::String>
+pub papo::Message::is_bot: bool
+pub papo::Message::kind: papo::MessageKind
+pub papo::Message::msgid: core::option::Option<alloc::string::String>
+pub papo::Message::oper: core::option::Option<core::option::Option<alloc::string::String>>
+pub papo::Message::origin: papo::Origin
+pub papo::Message::raw_text: alloc::string::String
+pub papo::Message::received_at: std::time::SystemTime
+pub papo::Message::relayed_by: core::option::Option<alloc::string::String>
+pub papo::Message::reply_to: core::option::Option<alloc::string::String>
+pub papo::Message::sender: core::option::Option<papo::Source>
+pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
+pub papo::Message::status: core::option::Option<alloc::string::String>
+pub papo::Message::tags: papo::Tags
+pub papo::Message::target: alloc::string::String
+pub papo::Message::text: alloc::string::String
 impl papo::Message
 pub fn papo::Message::account(&self) -> core::option::Option<&str>
 pub fn papo::Message::ctcp(&self) -> core::option::Option<papo_proto::ctcp::Ctcp<'_>>

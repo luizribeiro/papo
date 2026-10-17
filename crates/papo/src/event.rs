@@ -82,38 +82,46 @@ pub enum Origin {
     History,
 }
 
-/// An incoming `PRIVMSG` or `NOTICE` with connection context.
+/// An owned incoming `PRIVMSG` or `NOTICE`.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Message {
-    sender: Option<Source>,
-    target: String,
-    status: Option<String>,
-    raw_text: String,
-    text: String,
-    tags: Tags,
-    channel_context: Option<String>,
-    private: bool,
-    kind: StoredKind,
-    msgid: Option<String>,
-    server_time: Option<SystemTime>,
-    received_at: SystemTime,
-    account: Option<String>,
-    bot: bool,
-    reply_to: Option<String>,
-    relayed_by: Option<String>,
-    // All three states distinguish absent, bare, and named protocol tags.
+    /// The user or server that sent the message, when supplied.
+    pub sender: Option<Source>,
+    /// The channel or nickname addressed by the message.
+    pub target: String,
+    /// `STATUSMSG` prefixes removed from [`Self::target`].
+    pub status: Option<String>,
+    /// Display text with IRC formatting removed.
+    pub text: String,
+    /// The text parameter exactly as received.
+    pub raw_text: String,
+    /// The semantic message kind.
+    pub kind: MessageKind,
+    /// The server-assigned message identifier, when supplied.
+    pub msgid: Option<String>,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Local wall-clock time when the message was received.
+    pub received_at: SystemTime,
+    /// The sender's authenticated account, when tagged.
+    pub account: Option<String>,
+    /// The identifier referenced by a reply tag.
+    pub reply_to: Option<String>,
+    /// Channel context attached to a private message.
+    pub channel_context: Option<String>,
+    /// Nickname of the client that submitted a relayed message.
+    pub relayed_by: Option<String>,
+    /// Whether the message carried the `bot` tag.
+    pub is_bot: bool,
+    /// IRC operator name, with nested `None` representing a valueless oper tag.
     #[allow(clippy::option_option)]
-    oper: Option<Option<String>>,
-    origin: Origin,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum StoredKind {
-    Privmsg,
-    Notice,
-    Action,
-    Ctcp,
-    CtcpReply,
+    pub oper: Option<Option<String>>,
+    /// How the message relates to the current session.
+    pub origin: Origin,
+    /// All message tags in wire order.
+    pub tags: Tags,
+    private: bool,
 }
 
 /// Compatibility name for [`Message`].
@@ -209,20 +217,20 @@ impl Message {
             return Err(raw);
         };
         let plain = if message.command_is("PRIVMSG") {
-            StoredKind::Privmsg
+            MessageKind::Privmsg
         } else if message.command_is("NOTICE") {
-            StoredKind::Notice
+            MessageKind::Notice
         } else {
             return Err(raw);
         };
         let (kind, displayed) = match Ctcp::parse(raw_text) {
             Some(ctcp)
-                if plain == StoredKind::Privmsg && ctcp.command.eq_ignore_ascii_case("ACTION") =>
+                if plain == MessageKind::Privmsg && ctcp.command.eq_ignore_ascii_case("ACTION") =>
             {
-                (StoredKind::Action, ctcp.params.unwrap_or(""))
+                (MessageKind::Action, ctcp.params.unwrap_or(""))
             }
-            Some(_) if plain == StoredKind::Privmsg => (StoredKind::Ctcp, raw_text),
-            Some(_) => (StoredKind::CtcpReply, raw_text),
+            Some(_) if plain == MessageKind::Privmsg => (MessageKind::Ctcp, raw_text),
+            Some(_) => (MessageKind::CtcpReply, raw_text),
             None => (plain, raw_text),
         };
         let text = strip_formatting(displayed).into_owned();
@@ -247,7 +255,7 @@ impl Message {
         let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
             .and_then(|value| time::parse(&value));
         let account = tag_owned(&message, &["account"]);
-        let bot = tags.contains("bot");
+        let is_bot = tags.contains("bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]);
         let relayed_by = tag_owned(&message, &["draft/relaymsg"]);
         let oper = message
@@ -276,21 +284,21 @@ impl Message {
             sender,
             target,
             status,
-            raw_text,
             text,
-            tags,
-            channel_context,
-            private,
+            raw_text,
             kind,
             msgid,
             server_time,
             received_at,
             account,
-            bot,
             reply_to,
+            channel_context,
             relayed_by,
+            is_bot,
             oper,
             origin,
+            tags,
+            private,
         })
     }
 
@@ -308,13 +316,7 @@ impl Message {
     /// Returns the semantic kind of this message.
     #[must_use]
     pub const fn kind(&self) -> MessageKind {
-        match &self.kind {
-            StoredKind::Privmsg => MessageKind::Privmsg,
-            StoredKind::Notice => MessageKind::Notice,
-            StoredKind::Action => MessageKind::Action,
-            StoredKind::Ctcp => MessageKind::Ctcp,
-            StoredKind::CtcpReply => MessageKind::CtcpReply,
-        }
+        self.kind
     }
 
     /// Returns the display text with IRC formatting removed.
@@ -395,7 +397,7 @@ impl Message {
     /// Reports whether the message carried the `bot` tag.
     #[must_use]
     pub fn is_bot(&self) -> bool {
-        self.bot
+        self.is_bot
     }
 
     /// Returns the message identifier referenced by a reply tag.
