@@ -53,26 +53,17 @@ async fn prints_channel_state_changes_in_wire_order() {
         wait_event(&mut user_events, |event| synced(event, &channel)).await;
         wait_event(&mut owner_events, |event| joined(event, &user_nick)).await;
 
-        owner
-            .send_raw(format!("MODE {channel} +o {user_nick}"))
-            .await
-            .unwrap();
+        owner.mode(&channel).op(&user_nick).await.unwrap();
         wait_event(&mut owner_events, |event| mode(event, 'o')).await;
-        user.send_raw("AWAY :testing away")
-            .await
-            .unwrap();
+        user.set_away("testing away").await.unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::AwayChanged(changed) if changed.nick == user_nick.as_str())).await;
-        user.send_raw(format!("NICK {renamed}")).await.unwrap();
+        user.set_nick(&renamed).await.unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::NickChanged(changed) if changed.new == renamed.as_str())).await;
-        user.send_raw(format!("MODE {channel} +v {renamed}"))
-            .await
-            .unwrap();
+        user.mode(&channel).voice(&renamed).await.unwrap();
         wait_event(&mut owner_events, |event| mode(event, 'v')).await;
-        user.send_raw(format!("TOPIC {channel} :lurker topic"))
-            .await
-            .unwrap();
+        user.set_topic(&channel, "lurker topic").await.unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::TopicChanged(changed) if changed.topic.as_deref() == Some("lurker topic"))).await;
-        user.send_raw(format!("PART {channel} :lurker test complete"))
+        user.part(&channel, "lurker test complete")
             .await
             .unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::Parted(parted) if parted.nick == renamed.as_str())).await;
