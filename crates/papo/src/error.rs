@@ -138,6 +138,26 @@ pub enum Refusal {
     ChannelOperatorPrivilegesNeeded,
     /// A user mode flag is unknown (`501`).
     UnknownUserMode,
+    /// A bouncer network identifier does not exist.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    InvalidNetwork,
+    /// A bouncer network attribute value is invalid.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    InvalidAttribute,
+    /// A bouncer network attribute cannot be changed.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    ReadOnlyAttribute,
+    /// A bouncer does not recognize a network attribute.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    UnknownAttribute,
+    /// A required bouncer network attribute is missing.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    MissingAttribute,
     /// The session tried to change another user's modes (`502`).
     UsersDontMatch,
     /// A channel mode parameter is invalid (`696`).
@@ -244,7 +264,8 @@ impl ServerError {
                 context,
                 description,
             } => Self {
-                kind: Refusal::from_core(fallback),
+                kind: bouncer_refusal(&command, &code)
+                    .unwrap_or_else(|| Refusal::from_core(fallback)),
                 command,
                 code,
                 description,
@@ -266,6 +287,22 @@ impl ServerError {
             },
         }
     }
+}
+
+fn bouncer_refusal(command: &str, code: &str) -> Option<Refusal> {
+    #[cfg(feature = "unstable")]
+    if command.eq_ignore_ascii_case("BOUNCER") {
+        return match code.to_ascii_uppercase().as_str() {
+            "INVALID_NETID" => Some(Refusal::InvalidNetwork),
+            "INVALID_ATTRIBUTE" => Some(Refusal::InvalidAttribute),
+            "READ_ONLY_ATTRIBUTE" => Some(Refusal::ReadOnlyAttribute),
+            "UNKNOWN_ATTRIBUTE" => Some(Refusal::UnknownAttribute),
+            "NEED_ATTRIBUTE" => Some(Refusal::MissingAttribute),
+            _ => None,
+        };
+    }
+    let _ = (command, code);
+    None
 }
 
 impl fmt::Display for ServerError {
@@ -543,6 +580,26 @@ mod tests {
         assert_eq!(error.description(), "Cannot send");
         assert_eq!(error.params()[1], "#rust");
         assert_eq!(error.to_string(), "server refusal 404: Cannot send");
+    }
+
+    #[cfg(feature = "unstable")]
+    #[test]
+    fn classifies_bouncer_network_failures() {
+        for (code, expected) in [
+            ("INVALID_NETID", Refusal::InvalidNetwork),
+            ("INVALID_ATTRIBUTE", Refusal::InvalidAttribute),
+            ("READ_ONLY_ATTRIBUTE", Refusal::ReadOnlyAttribute),
+            ("UNKNOWN_ATTRIBUTE", Refusal::UnknownAttribute),
+            ("NEED_ATTRIBUTE", Refusal::MissingAttribute),
+        ] {
+            let error = ServerError::from_core(papo_core::ServerError::Standard {
+                command: "BOUNCER".into(),
+                code: code.into(),
+                context: vec!["CHANGENETWORK".into(), "42".into()],
+                description: "Network request rejected".into(),
+            });
+            assert_eq!(error.kind(), expected);
+        }
     }
 
     #[test]
