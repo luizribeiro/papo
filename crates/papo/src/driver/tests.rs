@@ -1428,10 +1428,6 @@ async fn plaintext_sts_forwards_upgrade_and_closes() {
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
         events.next().await,
-        Some(Event::StsUpgrade { port: 6697 })
-    ));
-    assert!(matches!(
-        events.next().await,
         Some(Event::Disconnected(crate::event::Disconnected { reason, will_retry: false, .. })) if reason == "sts upgrade"
     ));
     assert!(matches!(
@@ -1477,10 +1473,6 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
     let driver = tokio::spawn(driver);
     registration_burst(&mut first_server).await;
     server_line(&mut first_server, b":ergo.test CAP * LS :sts=port=6699\r\n").await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::StsUpgrade { port: 6699 })
-    ));
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::event::Disconnected {
@@ -1536,10 +1528,6 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
         events.next().await,
-        Some(Event::StsUpgrade { .. })
-    ));
-    assert!(matches!(
-        events.next().await,
         Some(Event::Disconnected(crate::event::Disconnected {
             will_retry: false,
             ..
@@ -1568,7 +1556,7 @@ async fn secure_sts_forwards_persistence_policy() {
         .connection_security(ConnectionSecurity::Secure)
         .host("IRC.Example.NET.")
         .wanted_caps(["sts"]);
-    let (mut server, _client, mut events, driver) = scripted(settings);
+    let (mut server, _client, _events, driver) = scripted(settings);
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
     server_line(
@@ -1576,9 +1564,6 @@ async fn secure_sts_forwards_persistence_policy() {
         b":ergo.test CAP * LS :sts=duration=3600,preload\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::StsPolicy(
-        StsAction::Persist { host, duration }
-    )) if host == "irc.example.net" && duration == Duration::from_secs(3600)));
     client_line(&mut server, b"CAP END\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -1599,7 +1584,7 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
     });
     let store = SharedStsStore::default();
     let mut inspection = store.clone();
-    let (_client, mut events, driver) = Driver::with_connector(
+    let (_client, _events, driver) = Driver::with_connector(
         Ok(ConnectionPlan {
             address: "ircs://irc.example.net:7443".parse().unwrap(),
             tls: TlsConfig::default(),
@@ -1620,7 +1605,12 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sts=duration=3600\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::StsPolicy(_))));
+    within(async {
+        while papo_core::sts::StsStore::get(&inspection, "irc.example.net").is_none() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
     let mut policy = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
     assert_eq!(policy.port, 7443);
     assert_eq!(policy.duration, Duration::from_secs(3600));
@@ -1671,7 +1661,7 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
         ),
     );
     let inspection = store.clone();
-    let (_client, mut events, driver) = Driver::with_connector(
+    let (_client, _events, driver) = Driver::with_connector(
         Ok(ConnectionPlan {
             address: "ircs://irc.example.net:6697".parse().unwrap(),
             tls: TlsConfig::default(),
@@ -1692,10 +1682,12 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sts=duration=0\r\n").await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::StsPolicy(StsAction::Remove { .. }))
-    ));
+    within(async {
+        while papo_core::sts::StsStore::get(&inspection, "irc.example.net").is_some() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
     assert!(papo_core::sts::StsStore::get(&inspection, "irc.example.net").is_none());
     client_line(&mut server, b"CAP END\r\n").await;
     within(server.shutdown()).await.unwrap();
@@ -1756,7 +1748,6 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
     .unwrap();
     assert_eq!(events.receiver.len(), 1);
     assert!(matches!(events.next().await, Some(Event::Message(_))));
-    assert!(matches!(events.next().await, Some(Event::StsPolicy(_))));
     client_line(&mut server, b"CAP END\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(

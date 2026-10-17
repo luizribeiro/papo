@@ -988,15 +988,6 @@ where
                 if let Event::ReadMarker(marker) = &event {
                     resolve_read_marker_waiters(session, read_marker_waiters, marker);
                 }
-                match &event {
-                    Event::StsUpgrade { port } => sts.upgrade = Some(*port),
-                    Event::StsPolicy(action) => {
-                        if let Some(store) = sts_store {
-                            apply_sts_action(store.as_mut(), sts_port, action);
-                        }
-                    }
-                    _ => {}
-                }
                 update_rejoin_channels(session, defaults, &event);
                 if matches!(
                     event,
@@ -1115,6 +1106,12 @@ where
             event::CoreEvent::RequestAborted(id) => {
                 if let Some(result) = requests.remove(&id) {
                     result.fail(Error::disconnected());
+                }
+            }
+            event::CoreEvent::StsUpgrade(port) => sts.upgrade = Some(port),
+            event::CoreEvent::StsPolicy(action) => {
+                if let Some(store) = sts_store {
+                    apply_sts_action(store.as_mut(), sts_port, &action);
                 }
             }
             event::CoreEvent::History {

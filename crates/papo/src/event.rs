@@ -1,8 +1,5 @@
 use papo_core::{Account, Capabilities, RequestId, Response, Welcome, sts::StsAction};
-use std::{
-    fmt,
-    time::{Duration, SystemTime},
-};
+use std::{fmt, time::SystemTime};
 
 use papo_proto::{Ctcp, Isupport, Message, MessageRef, strip_formatting, time};
 
@@ -571,13 +568,6 @@ pub enum Event {
     PersistenceChanged(PersistenceChanged),
     /// A target's cached metadata changed.
     MetadataChanged(MetadataChanged),
-    /// The server deferred metadata synchronization for a target.
-    MetadataSyncLater {
-        /// Nickname or channel whose synchronization was deferred.
-        target: String,
-        /// Suggested delay before retrying, when supplied.
-        retry_after: Option<Duration>,
-    },
     /// A completed history or playback batch.
     History {
         /// The history target named by the batch.
@@ -587,8 +577,6 @@ pub enum Event {
         /// Whether the server reported that no further page exists.
         end: bool,
     },
-    /// Targets that received messages during a requested time range.
-    HistoryTargets(Vec<(String, SystemTime)>),
     /// A target's read marker advanced or was first reported.
     ReadMarker(ReadMarker),
     /// Users departed because connectivity between two servers was lost.
@@ -605,13 +593,6 @@ pub enum Event {
     Warning(Warning),
     /// The capabilities enabled on an established connection changed.
     CapsChanged(CapsChanged),
-    /// A plaintext connection must be replaced with TLS on `port`.
-    StsUpgrade {
-        /// The advertised TLS port.
-        port: u16,
-    },
-    /// An STS persistence action for the client to store.
-    StsPolicy(StsAction),
     /// A user joined a channel shared with the client.
     Joined(Joined),
     /// Initial channel membership synchronization completed.
@@ -712,6 +693,8 @@ pub(crate) enum CoreEvent {
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
     RequestAborted(RequestId),
+    StsUpgrade(u16),
+    StsPolicy(StsAction),
     History {
         target: String,
         messages: Vec<papo_core::HistoryMessage>,
@@ -834,13 +817,6 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             value,
             visibility,
         }),
-        papo_core::Event::MetadataSyncLater {
-            target,
-            retry_after,
-        } => Event::MetadataSyncLater {
-            target,
-            retry_after,
-        },
         papo_core::Event::History { target, items, end } => {
             return CoreEvent::History {
                 target,
@@ -851,7 +827,6 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                 end,
             };
         }
-        papo_core::Event::HistoryTargets(targets) => Event::HistoryTargets(targets),
         papo_core::Event::ReadMarker(marker) => Event::ReadMarker(ReadMarker {
             target: marker.target,
             time: marker.time,
@@ -914,8 +889,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::CapsChanged { added, removed } => {
             Event::CapsChanged(CapsChanged { added, removed })
         }
-        papo_core::Event::StsUpgrade { port } => Event::StsUpgrade { port },
-        papo_core::Event::StsPolicy(action) => Event::StsPolicy(action),
+        papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
+        papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined { channel, nick } => Event::Joined(Joined {
             channel,
             nick,
@@ -1483,14 +1458,6 @@ mod tests {
                     && changed.value.as_deref() == Some("they/them")
                     && changed.visibility == "members"
         ));
-        assert!(matches!(
-            forwarded(papo_core::Event::MetadataSyncLater {
-                target: "alice".into(),
-                retry_after: Some(Duration::from_secs(90)),
-            }),
-            Event::MetadataSyncLater { target, retry_after: Some(delay) }
-                if target == "alice" && delay == Duration::from_secs(90)
-        ));
     }
 
     #[test]
@@ -1790,15 +1757,6 @@ mod tests {
         assert_eq!(messages[0].message, message);
         assert!(!messages[0].context);
         assert!(end);
-    }
-
-    #[test]
-    fn maps_history_targets() {
-        let targets = vec![("#papo".into(), UNIX_EPOCH + Duration::from_secs(42))];
-        assert!(matches!(
-            forwarded(papo_core::Event::HistoryTargets(targets.clone())),
-            Event::HistoryTargets(mapped) if mapped == targets
-        ));
     }
 
     #[test]

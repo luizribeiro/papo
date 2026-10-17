@@ -321,16 +321,12 @@ pub papo::Event::History
 pub papo::Event::History::end: bool
 pub papo::Event::History::messages: alloc::vec::Vec<papo::MessageEvent>
 pub papo::Event::History::target: alloc::string::String
-pub papo::Event::HistoryTargets(alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>)
 pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
 pub papo::Event::Message(papo::MessageEvent)
 pub papo::Event::MetadataChanged(papo::event::MetadataChanged)
-pub papo::Event::MetadataSyncLater
-pub papo::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
-pub papo::Event::MetadataSyncLater::target: alloc::string::String
 pub papo::Event::ModeChanged(papo::event::ModeChanged)
 pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
 pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
@@ -347,9 +343,6 @@ pub papo::Event::RealnameChanged(papo::event::RealnameChanged)
 pub papo::Event::Redacted(papo::event::Redacted)
 pub papo::Event::Registered(papo::event::Registered)
 pub papo::Event::StandardReply(papo::event::StandardReply)
-pub papo::Event::StsPolicy(papo_core::sts::StsAction)
-pub papo::Event::StsUpgrade
-pub papo::Event::StsUpgrade::port: u16
 pub papo::Event::TagMsg(papo::event::TagMsg)
 pub papo::Event::TopicChanged(papo::event::TopicChanged)
 pub papo::Event::TypingChanged(papo::event::TypingChanged)
