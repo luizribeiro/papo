@@ -368,6 +368,32 @@ pub enum Error {
 }
 
 impl Error {
+    pub(crate) const fn disconnected() -> Self {
+        Self::DisconnectedWith(Disconnected::new(DisconnectCause::ConnectionLost, None))
+    }
+
+    pub(crate) fn disconnected_protocol(message: impl Into<String>) -> Self {
+        Self::DisconnectedWith(Disconnected::new(
+            DisconnectCause::Protocol {
+                message: message.into(),
+            },
+            None,
+        ))
+    }
+
+    pub(crate) fn disconnected_close(kind: papo_core::CloseKind, message: String) -> Self {
+        let cause = match kind {
+            papo_core::CloseKind::ServerError => DisconnectCause::Server { message },
+            papo_core::CloseKind::PingTimeout => DisconnectCause::PingTimeout,
+            _ => DisconnectCause::Protocol { message },
+        };
+        Self::DisconnectedWith(Disconnected::new(cause, None))
+    }
+
+    pub(crate) const fn disconnected_requested() -> Self {
+        Self::DisconnectedWith(Disconnected::new(DisconnectCause::Requested, None))
+    }
+
     #[allow(dead_code)]
     pub(crate) fn connect_unavailable(transport: &'static str) -> Self {
         Self::Connect(crate::transport::ConnectError::Unavailable(transport).into())

@@ -1047,10 +1047,13 @@ async fn shutdown_error_overrides_a_non_io_terminal_cause() {
             will_retry: false,
         }) if reason == "shutdown failed"
     ));
-    assert!(
-        matches!(within(driver).await.unwrap(), Err(Error::Io(error))
-        if error.to_string() == "shutdown failed")
-    );
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::DisconnectedWith(crate::Disconnected {
+            cause: crate::DisconnectCause::Protocol { message },
+            ..
+        })) if message == "shutdown failed"
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1065,10 +1068,13 @@ async fn shutdown_error_does_not_replace_an_io_terminal_cause() {
             will_retry: false,
         }) if reason == "original read failure"
     ));
-    assert!(
-        matches!(within(driver).await.unwrap(), Err(Error::Io(error))
-        if error.to_string() == "original read failure")
-    );
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::DisconnectedWith(crate::Disconnected {
+            cause: crate::DisconnectCause::Protocol { message },
+            ..
+        })) if message == "original read failure"
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]

@@ -656,9 +656,20 @@ where
         )
         .await
         {
-            Ok(Some((kind, reason))) => break (reason, Error::Disconnected, Some(kind), false),
+            Ok(Some((kind, reason))) => {
+                let error = Error::disconnected_close(kind, reason.clone());
+                break (reason, error, Some(kind), false);
+            }
             Ok(None) => {}
-            Err(error) => break (error.to_string(), Error::Io(error), None, false),
+            Err(error) => {
+                let reason = error.to_string();
+                break (
+                    reason.clone(),
+                    Error::disconnected_protocol(reason),
+                    None,
+                    false,
+                );
+            }
         }
         let read_ahead = !requests.is_empty()
             || !sync_waiters.is_empty()
@@ -677,13 +688,21 @@ where
                 Ok(0) => {
                     break (
                         "server closed the connection".to_owned(),
-                        Error::Disconnected,
+                        Error::disconnected(),
                         None,
                         false,
                     );
                 }
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
-                Err(error) => break (error.to_string(), Error::Io(error), None, false),
+                Err(error) => {
+                    let reason = error.to_string();
+                    break (
+                        reason.clone(),
+                        Error::disconnected_protocol(reason),
+                        None,
+                        false,
+                    );
+                }
             },
             permit = events.regular.clone().reserve_owned(), if !pending_events.is_empty() => match permit {
                 Ok(permit) => {
@@ -803,12 +822,12 @@ where
                         reconnect_now = true;
                         break (
                             "reconnect requested".to_owned(),
-                            Error::Disconnected,
+                            Error::disconnected_requested(),
                             None,
                             false,
                         );
                     }
-                    _ = result.send(Err(Error::Disconnected));
+                    _ = result.send(Err(Error::disconnected()));
                 }
                 Some(Command::Quit { reason, result }) => {
                     request_quit(session, &mut quit, reason, Some(result));
@@ -834,22 +853,28 @@ where
     };
     session.handle_disconnected(now());
     for (_, result) in requests {
-        result.fail(Error::Disconnected);
+        result.fail(Error::disconnected());
     }
     for (_, result) in sync_waiters {
-        _ = result.send(Err(Error::Disconnected));
+        _ = result.send(Err(Error::disconnected()));
     }
     for (_, result) in read_marker_waiters {
-        _ = result.send(Err(Error::Disconnected));
+        _ = result.send(Err(Error::disconnected()));
     }
     connected.store(false, Ordering::Relaxed);
     publish_state(events, session, false);
     let close_error = stream.flush().await.err().or(stream.shutdown().await.err());
     if let Some(close_error) = close_error
-        && !matches!(error, Error::Io(_))
+        && !matches!(
+            error,
+            Error::DisconnectedWith(crate::Disconnected {
+                cause: crate::DisconnectCause::Protocol { .. },
+                ..
+            })
+        )
     {
         reason = close_error.to_string();
-        error = Error::Io(close_error);
+        error = Error::disconnected_protocol(close_error.to_string());
     }
     ConnectionEnd {
         reason,
@@ -962,7 +987,7 @@ where
                     }
                     Event::RequestAborted { id } => {
                         if let Some(result) = requests.remove(&id) {
-                            result.fail(Error::Disconnected);
+                            result.fail(Error::disconnected());
                             continue;
                         }
                         Event::RequestAborted { id }
