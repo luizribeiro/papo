@@ -3279,10 +3279,9 @@ impl Session {
             self.ctcp_sources.pop_front();
         }
         self.ctcp_sources.push_back((nick.to_owned(), now));
-        self.outbox.transmit(
-            "NOTICE",
-            [nick, Ctcp::build(query.command, Some(response)).as_str()],
-        );
+        if let Some(response) = Ctcp::build(query.command, Some(response)) {
+            self.outbox.transmit("NOTICE", [nick, response.as_str()]);
+        }
         true
     }
 

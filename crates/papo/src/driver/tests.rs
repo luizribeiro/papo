@@ -2760,6 +2760,21 @@ async fn chat_text_returns_metadata_from_a_labelled_echo() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn actions_reject_every_ctcp_delimiter_without_panicking() {
+    let (_server, client, _events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+
+    for text in ["", "waves\rnow", "waves\nnow", "waves\0now", "waves\x01now"] {
+        assert!(matches!(
+            within(client.action("#papo", text)).await,
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+        ));
+    }
+
+    task.abort();
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn chat_text_returns_a_labelled_numeric_refusal() {
     let settings = config().wanted_caps(["labeled-response"]);
     let (mut server, client, mut events, driver) = scripted(settings);

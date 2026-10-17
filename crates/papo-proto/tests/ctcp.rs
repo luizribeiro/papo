@@ -45,8 +45,8 @@ fn rejects_invalid_commands_and_parameters() {
 
 #[test]
 fn builds_action_and_parameterless_queries_with_a_final_delimiter() {
-    let action = Ctcp::action("writes the best specifications!");
-    let version = Ctcp::build("VERSION", None);
+    let action = Ctcp::action("writes the best specifications!").unwrap();
+    let version = Ctcp::build("VERSION", None).unwrap();
 
     assert_eq!(action, "\x01ACTION writes the best specifications!\x01");
     assert_eq!(version, "\x01VERSION\x01");
@@ -58,13 +58,11 @@ fn builds_action_and_parameterless_queries_with_a_final_delimiter() {
 }
 
 #[test]
-#[should_panic(expected = "invalid CTCP command")]
 fn builder_rejects_an_empty_command() {
-    let _ = Ctcp::build("", None);
+    assert_eq!(Ctcp::build("", None), None);
 }
 
 #[test]
-#[should_panic(expected = "invalid CTCP parameters")]
 fn builder_rejects_delimiters_in_parameters() {
-    let _ = Ctcp::build("PING", Some("1473523796\x01918320"));
+    assert_eq!(Ctcp::build("PING", Some("1473523796\x01918320")), None);
 }

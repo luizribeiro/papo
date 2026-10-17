@@ -56,6 +56,7 @@ pub struct SendMessage {
     reply_to: Option<crate::MessageId>,
     channel_context: Option<crate::ChannelName>,
     tags: Vec<(String, String)>,
+    invalid_input: Option<InvalidInput>,
 }
 
 /// Builds a channel join request.
@@ -118,6 +119,9 @@ impl IntoFuture for SendMessage {
 
     fn into_future(self) -> Self::IntoFuture {
         crate::RequestFuture::new(async move {
+            if let Some(error) = self.invalid_input {
+                return Err(error.into());
+            }
             let mut tags = self.tags;
             let state = self.client.state();
             if state.has_cap("message-tags") {
@@ -393,6 +397,7 @@ impl Client {
             reply_to: None,
             channel_context: None,
             tags: Vec::new(),
+            invalid_input: None,
         }
     }
 
@@ -419,6 +424,7 @@ impl Client {
             reply_to: None,
             channel_context: None,
             tags: Vec::new(),
+            invalid_input: None,
         }
     }
 
@@ -428,7 +434,16 @@ impl Client {
     ///
     /// Returns the same errors as [`Client::privmsg`].
     pub fn action(&self, target: impl Into<crate::Target>, text: impl Into<String>) -> SendMessage {
-        self.privmsg(target, Ctcp::action(&text.into()))
+        let text = text.into();
+        if let Some(action) = Ctcp::action(&text) {
+            self.privmsg(target, action)
+        } else {
+            let mut request = self.privmsg(target, text);
+            request.invalid_input = Some(InvalidInput::InvalidMessage(
+                "invalid CTCP ACTION text".to_owned(),
+            ));
+            request
+        }
     }
 
     /// Sends a private message threaded as a reply to `message` when supported.

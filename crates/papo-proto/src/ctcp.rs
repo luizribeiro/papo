@@ -27,14 +27,11 @@ impl<'a> Ctcp<'a> {
 
     /// Builds a complete CTCP message body with a closing delimiter.
     ///
-    /// # Panics
-    ///
-    /// Panics when `command` or `params` contains a byte forbidden by CTCP,
-    /// or when either supplied field is empty.
     #[must_use]
-    pub fn build(command: &str, params: Option<&str>) -> String {
-        assert!(valid_command(command), "invalid CTCP command");
-        assert!(params.is_none_or(valid_params), "invalid CTCP parameters");
+    pub fn build(command: &str, params: Option<&str>) -> Option<String> {
+        if !valid_command(command) || params.is_some_and(|params| !valid_params(params)) {
+            return None;
+        }
         let mut message =
             String::with_capacity(command.len() + params.map_or(0, |params| params.len() + 1) + 2);
         message.push('\x01');
@@ -44,16 +41,13 @@ impl<'a> Ctcp<'a> {
             message.push_str(params);
         }
         message.push('\x01');
-        message
+        Some(message)
     }
 
     /// Builds a CTCP `ACTION` message body.
     ///
-    /// # Panics
-    ///
-    /// Panics when `text` is empty or contains a byte forbidden by CTCP.
     #[must_use]
-    pub fn action(text: &str) -> String {
+    pub fn action(text: &str) -> Option<String> {
         Self::build("ACTION", Some(text))
     }
 }
