@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use papo_proto::Message;
 use papo_proto::escape_tag_value;
+use papo_proto::{Message, MessageRef};
 use web_time::Instant;
 
 use crate::{Feature, RequestError, RequestId, Secret, Session};
@@ -67,6 +67,97 @@ pub struct BouncerNetwork {
     pub error: Option<String>,
     /// Attributes unknown to this version of papo.
     pub other: BTreeMap<String, String>,
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub(crate) struct NetworkUpdate {
+    pub(crate) id: NetworkId,
+    pub(crate) removed: bool,
+    pub(crate) attributes: BTreeMap<String, Option<String>>,
+}
+
+#[allow(dead_code)]
+impl NetworkUpdate {
+    pub(crate) fn parse(message: &MessageRef<'_>) -> Option<Self> {
+        if !message.command_is("BOUNCER") || !message.param(0)?.eq_ignore_ascii_case("NETWORK") {
+            return None;
+        }
+        let id = NetworkId::new(message.param(1)?);
+        let raw = message.param(2)?;
+        if raw == "*" {
+            return Some(Self {
+                id,
+                removed: true,
+                attributes: BTreeMap::new(),
+            });
+        }
+        let tagged = format!("@{raw} ATTRS");
+        let parsed = MessageRef::parse(&tagged).ok()?;
+        Some(Self {
+            id,
+            removed: false,
+            attributes: parsed
+                .tags()
+                .map(|(key, value)| (key.to_owned(), value.map(Into::into)))
+                .collect(),
+        })
+    }
+}
+
+#[allow(dead_code)]
+impl BouncerNetwork {
+    pub(crate) fn empty(id: NetworkId) -> Self {
+        Self {
+            id,
+            name: None,
+            state: None,
+            host: None,
+            port: None,
+            tls: None,
+            nickname: None,
+            username: None,
+            realname: None,
+            error: None,
+            other: BTreeMap::new(),
+        }
+    }
+
+    pub(crate) fn apply(&mut self, attributes: BTreeMap<String, Option<String>>) {
+        for (key, value) in attributes {
+            match key.as_str() {
+                "name" => self.name = value,
+                "state" => self.state = value.as_deref().and_then(parse_state),
+                "host" => self.host = value,
+                "port" => self.port = value.and_then(|value| value.parse().ok()),
+                "tls" => {
+                    self.tls = value.as_deref().and_then(|value| match value {
+                        "0" => Some(false),
+                        "1" => Some(true),
+                        _ => None,
+                    });
+                }
+                "nickname" => self.nickname = value,
+                "username" => self.username = value,
+                "realname" => self.realname = value,
+                "error" => self.error = value,
+                _ => match value {
+                    Some(value) => _ = self.other.insert(key, value),
+                    None => _ = self.other.remove(&key),
+                },
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn parse_state(value: &str) -> Option<NetworkState> {
+    match value {
+        "connected" => Some(NetworkState::Connected),
+        "connecting" => Some(NetworkState::Connecting),
+        "disconnected" => Some(NetworkState::Disconnected),
+        _ => None,
+    }
 }
 
 /// Attributes used to add or change an upstream bouncer network.
@@ -248,7 +339,9 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
-    use super::NetworkConfig;
+    use papo_proto::MessageRef;
+
+    use super::{BouncerNetwork, NetworkConfig, NetworkState, NetworkUpdate};
 
     #[test]
     fn network_config_escapes_attributes_and_redacts_password() {
@@ -263,5 +356,31 @@ mod tests {
             r"host=irc.example.org;name=Example\sNetwork;port=6697;tls=1;realname=Alice\:\sExample;pass=unique-bouncer-password-9241"
         );
         assert!(!format!("{config:?}").contains("unique-bouncer-password-9241"));
+    }
+
+    #[test]
+    fn network_updates_preserve_unknown_attributes_and_removals() {
+        let message = MessageRef::parse(
+            r"BOUNCER NETWORK 42 name=My\sNetwork;state=connected;port=6697;tls=1;vendor.example/color=blue",
+        )
+        .unwrap();
+        let update = NetworkUpdate::parse(&message).unwrap();
+        let mut network = BouncerNetwork::empty(update.id);
+        network.apply(update.attributes);
+        assert_eq!(network.name.as_deref(), Some("My Network"));
+        assert_eq!(network.state, Some(NetworkState::Connected));
+        assert_eq!((network.port, network.tls), (Some(6697), Some(true)));
+        assert_eq!(network.other["vendor.example/color"], "blue");
+
+        let removal = MessageRef::parse("BOUNCER NETWORK 42 name;vendor.example/color").unwrap();
+        network.apply(NetworkUpdate::parse(&removal).unwrap().attributes);
+        assert_eq!(network.name, None);
+        assert!(network.other.is_empty());
+    }
+
+    #[test]
+    fn network_deletion_uses_the_star_marker() {
+        let message = MessageRef::parse("BOUNCER NETWORK 42 *").unwrap();
+        assert!(NetworkUpdate::parse(&message).unwrap().removed);
     }
 }
