@@ -35,6 +35,9 @@ pub enum InvalidInput {
     /// A bot reply limiter never replenishes its budget.
     #[error("reply window must be positive")]
     ReplyWindow,
+    /// A byte secret was supplied to a text-only protocol field.
+    #[error("byte secret cannot be used as text")]
+    BinarySecret,
     /// An outbound IRC message cannot be represented on the wire.
     #[error("invalid IRC message: {0}")]
     InvalidMessage(String),

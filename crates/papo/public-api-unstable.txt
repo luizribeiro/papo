@@ -616,6 +616,7 @@ pub papo::HistoryItem::TopicChanged(papo::event::TopicChanged)
 impl papo::HistoryItem
 pub const fn papo::HistoryItem::message(&self) -> core::option::Option<&papo::Message>
 #[non_exhaustive] pub enum papo::InvalidInput
+pub papo::InvalidInput::BinarySecret
 pub papo::InvalidInput::CustomAccountName
 pub papo::InvalidInput::EmailRequired
 pub papo::InvalidInput::Empty(alloc::string::String)

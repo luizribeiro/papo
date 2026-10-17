@@ -518,6 +518,7 @@ impl Error {
                 Self::InvalidInput(InvalidInput::InvalidMessage(error.to_string()))
             }
             Request::EmptyText => Self::InvalidInput(InvalidInput::EmptyText),
+            Request::InvalidSecret => Self::InvalidInput(InvalidInput::BinarySecret),
             Request::Unsupported(unsupported) => Self::Unsupported(unsupported),
             Request::InvalidMessageReference => Self::InvalidInput(InvalidInput::MessageReference),
             Request::EmailRequired => Self::InvalidInput(InvalidInput::EmailRequired),

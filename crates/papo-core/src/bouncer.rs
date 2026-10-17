@@ -234,7 +234,7 @@ impl NetworkConfig {
         self
     }
 
-    pub(crate) fn attributes(&self) -> String {
+    pub(crate) fn attributes(&self) -> Result<String, RequestError> {
         let mut attributes = vec![attribute("host", &self.host)];
         if let Some(value) = &self.name {
             attributes.push(attribute("name", value));
@@ -245,17 +245,22 @@ impl NetworkConfig {
         if let Some(value) = self.tls {
             attributes.push(format!("tls={}", u8::from(value)));
         }
+        let password = self
+            .password
+            .as_ref()
+            .map(|secret| secret.expose_text().ok_or(RequestError::InvalidSecret))
+            .transpose()?;
         for (key, value) in [
             ("nickname", self.nickname.as_deref()),
             ("username", self.username.as_deref()),
             ("realname", self.realname.as_deref()),
-            ("pass", self.password.as_ref().map(Secret::expose)),
+            ("pass", password),
         ] {
             if let Some(value) = value {
                 attributes.push(attribute(key, value));
             }
         }
-        attributes.join(";")
+        Ok(attributes.join(";"))
     }
 }
 
@@ -281,7 +286,8 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns an error documented by [`Session::request`].
+    /// Returns [`RequestError::InvalidSecret`] when the configured password contains bytes
+    /// rather than text. Other failures are documented by [`Session::request`].
     pub fn bouncer_add(
         &mut self,
         now: Instant,
@@ -289,7 +295,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Message::new("BOUNCER", ["ADDNETWORK", &config.attributes()]),
+            Message::new("BOUNCER", ["ADDNETWORK", &config.attributes()?]),
             Feature::Bouncer,
         )
     }
@@ -298,7 +304,8 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns an error documented by [`Session::request`].
+    /// Returns [`RequestError::InvalidSecret`] when the configured password contains bytes
+    /// rather than text. Other failures are documented by [`Session::request`].
     pub fn bouncer_change(
         &mut self,
         now: Instant,
@@ -309,7 +316,7 @@ impl Session {
             now,
             Message::new(
                 "BOUNCER",
-                ["CHANGENETWORK", id.as_str(), &config.attributes()],
+                ["CHANGENETWORK", id.as_str(), &config.attributes()?],
             ),
             Feature::Bouncer,
         )
@@ -348,10 +355,17 @@ mod tests {
             .realname("Alice; Example")
             .password("unique-bouncer-password-9241");
         assert_eq!(
-            config.attributes(),
+            config.attributes().unwrap(),
             r"host=irc.example.org;name=Example\sNetwork;port=6697;tls=1;realname=Alice\:\sExample;pass=unique-bouncer-password-9241"
         );
         assert!(!format!("{config:?}").contains("unique-bouncer-password-9241"));
+    }
+
+    #[test]
+    fn network_config_rejects_a_byte_password() {
+        let config =
+            NetworkConfig::new("irc.example.org").password(crate::Secret::from_bytes([0xff]));
+        assert_eq!(config.attributes(), Err(crate::RequestError::InvalidSecret));
     }
 
     #[test]

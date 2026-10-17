@@ -21,6 +21,15 @@ impl Secret {
         Self(SecretValue::Bytes(value.into()))
     }
 
+    /// Borrows the sensitive value when it contains text.
+    #[must_use]
+    pub fn expose_text(&self) -> Option<&str> {
+        match &self.0 {
+            SecretValue::Text(value) => Some(value),
+            SecretValue::Bytes(_) => None,
+        }
+    }
+
     /// Borrows the sensitive value for use by a protocol or transport implementation.
     ///
     /// # Panics
@@ -69,6 +78,7 @@ mod tests {
     #[test]
     fn byte_secrets_preserve_non_utf8_and_redact_debug() {
         let secret = Secret::from_bytes([0, 159, 146, 150]);
+        assert_eq!(secret.expose_text(), None);
         assert_eq!(secret.expose_bytes(), [0, 159, 146, 150]);
         assert_eq!(format!("{secret:?}"), "[REDACTED]");
     }

@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{AccountRegistrationError, Config, Event, Feature};
+use papo_core::{AccountRegistrationError, Config, Event, Feature, RequestError, Secret};
 use support::{Transcript, unsupported_error};
 
 fn registered() -> Transcript {
@@ -93,6 +93,23 @@ fn registers_an_account_with_a_labelled_response() {
         })
         .event(|event| matches!(event, Event::Response(_)))
         .inspect(|session| assert_eq!(session.account(), Some("alice")));
+}
+
+#[test]
+fn rejects_a_byte_account_password() {
+    registered()
+        .update(|session| {
+            assert_eq!(
+                session.register(
+                    std::time::Instant::now(),
+                    Some("alice"),
+                    Some("alice@example.org"),
+                    Secret::from_bytes([0xff]),
+                ),
+                Err(RequestError::InvalidSecret)
+            );
+        })
+        .no_client();
 }
 
 #[test]

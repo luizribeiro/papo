@@ -1441,6 +1441,8 @@ pub enum RequestError {
     PendingLimit,
     /// The text contains no nonempty lines to send.
     EmptyText,
+    /// A byte secret was supplied to a text-only protocol field.
+    InvalidSecret,
     /// An optional protocol feature is unavailable.
     Unsupported(Unsupported),
     /// The server cannot accept the supplied history reference.
@@ -1506,6 +1508,7 @@ impl std::fmt::Display for RequestError {
             Self::Build(error) => error.fmt(formatter),
             Self::PendingLimit => formatter.write_str("too many labelled requests are pending"),
             Self::EmptyText => formatter.write_str("text has no nonempty lines"),
+            Self::InvalidSecret => formatter.write_str("byte secret cannot be used as text"),
             Self::Unsupported(unsupported) => unsupported.fmt(formatter),
             Self::InvalidMessageReference => formatter.write_str("unsupported message reference"),
             Self::EmailRequired => formatter.write_str("account registration requires an email"),
@@ -1535,6 +1538,7 @@ impl std::error::Error for RequestError {
             Self::Build(error) => Some(error),
             Self::PendingLimit
             | Self::EmptyText
+            | Self::InvalidSecret
             | Self::Unsupported(_)
             | Self::InvalidMessageReference
             | Self::EmailRequired
@@ -2842,7 +2846,8 @@ impl Session {
     /// # Errors
     ///
     /// Returns [`RequestError::Unsupported`] before connection registration or when the
-    /// capability was not negotiated. Other failures are the same as [`Session::request`].
+    /// capability was not negotiated, or [`RequestError::InvalidSecret`] when `password`
+    /// contains bytes rather than text. Other failures are the same as [`Session::request`].
     pub fn register(
         &mut self,
         now: Instant,
@@ -2906,7 +2911,7 @@ impl Session {
                 [
                     account.unwrap_or("*"),
                     email.unwrap_or("*"),
-                    password.expose(),
+                    password.expose_text().ok_or(RequestError::InvalidSecret)?,
                 ],
             ),
             Feature::AccountRegistration,
