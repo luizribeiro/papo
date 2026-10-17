@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Error, Event, ListFilter, ServerError};
+use papo::{Client, Endpoint, Error, Event, ListFilter};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -72,7 +72,7 @@ async fn typed_requests_round_trip_against_ergo() {
         let missing = unique("papo-missing");
         assert!(matches!(
             client.whois(&missing).await,
-            Err(Error::Server(ServerError::Numeric { numeric, .. })) if numeric.code() == 401
+            Err(Error::Server(error)) if error.code() == "401"
         ));
         client
             .quit(Some("live request test complete"))

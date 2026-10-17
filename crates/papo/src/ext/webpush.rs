@@ -69,9 +69,6 @@ impl Client {
 }
 
 fn webpush_result(response: &Response) -> Result<(), Error> {
-    if let Some(error) = response.webpush_error() {
-        return Err(Error::WebPush(error));
-    }
     crate::requests::empty(response)
 }
 
@@ -129,7 +126,7 @@ mod tests {
         .await;
         assert!(matches!(
             within(unregister).await.unwrap(),
-            Err(Error::WebPush(papo_core::WebPushError::MaxRegistrations))
+            Err(Error::Server(error)) if error.code() == "MAX_REGISTRATIONS"
         ));
         abort_task(driver).await;
     }

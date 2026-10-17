@@ -210,7 +210,7 @@ impl Client {
             .map_err(|_| Error::Disconnected)?;
         let response = receiver.await.map_err(|_| Error::Disconnected)??;
         if let Some(error) = response.error() {
-            return Err(Error::Server(error));
+            return Err(Error::server(error));
         }
         Ok(response)
     }

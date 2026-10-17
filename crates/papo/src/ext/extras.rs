@@ -13,9 +13,6 @@ impl Client {
                 reason: reason.into(),
             })
             .await?;
-        if let Some(error) = response.channel_rename_error() {
-            return Err(Error::ChannelRename(error));
-        }
         crate::requests::empty(&response)
     }
 
@@ -31,9 +28,6 @@ impl Client {
                 text: text.into(),
             })
             .await?;
-        if let Some(error) = response.relay_error() {
-            return Err(Error::Relay(error));
-        }
         crate::requests::empty(&response)
     }
 }
@@ -88,9 +82,7 @@ mod tests {
         .await;
         assert!(matches!(
             within(rename).await.unwrap(),
-            Err(Error::ChannelRename(
-                papo_core::ChannelRenameError::ChannelNameInUse
-            ))
+            Err(Error::Server(error)) if error.code() == "CHANNEL_NAME_IN_USE"
         ));
 
         let relay = tokio::spawn({
@@ -126,7 +118,7 @@ mod tests {
         .await;
         assert!(matches!(
             within(relay).await.unwrap(),
-            Err(Error::Relay(papo_core::RelayError::Banned))
+            Err(Error::Server(error)) if error.code() == "BANNED"
         ));
         abort_task(driver).await;
     }

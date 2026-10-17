@@ -406,7 +406,7 @@ impl Client {
             )
             .await?;
         if let Some(error) = response.error() {
-            return Err(Error::Server(error));
+            return Err(Error::server(error));
         }
         if self.state(|state| state.channel(channel).is_none()) {
             return Err(Error::Disconnected);

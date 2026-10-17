@@ -104,7 +104,7 @@ pub struct ListEntry {
 
 pub(crate) fn whois(response: Response, requested_nick: &str) -> Result<Whois, Error> {
     if let Some(error) = response.error() {
-        return Err(Error::Server(error));
+        return Err(Error::server(error));
     }
     let mut result = Whois {
         nick: requested_nick.to_owned(),
@@ -164,7 +164,7 @@ pub(crate) fn who(
     extended: bool,
 ) -> Result<Vec<WhoEntry>, Error> {
     if let Some(error) = response.error() {
-        return Err(Error::Server(error));
+        return Err(Error::server(error));
     }
     Ok(response
         .lines
@@ -220,12 +220,12 @@ fn plain_who(message: &papo_proto::MessageRef<'_>, isupport: &Isupport) -> Optio
 pub(crate) fn empty(response: &Response) -> Result<(), Error> {
     response
         .error()
-        .map_or(Ok(()), |error| Err(Error::Server(error)))
+        .map_or(Ok(()), |error| Err(Error::server(error)))
 }
 
 pub(crate) fn topic(response: &Response) -> Result<Option<String>, Error> {
     if let Some(error) = response.error() {
-        return Err(Error::Server(error));
+        return Err(Error::server(error));
     }
     Ok(response
         .lines
@@ -247,7 +247,7 @@ pub(crate) fn topic(response: &Response) -> Result<Option<String>, Error> {
 
 pub(crate) fn list(response: Response) -> Result<Vec<ListEntry>, Error> {
     if let Some(error) = response.error() {
-        return Err(Error::Server(error));
+        return Err(Error::server(error));
     }
     Ok(list_entries(response.lines))
 }
@@ -274,8 +274,8 @@ fn list_entries(lines: impl IntoIterator<Item = Message>) -> Vec<ListEntry> {
 mod tests {
     use std::time::Instant;
 
-    use papo_core::{Config, Event, ResponseMatcher, ServerError, Session};
-    use papo_proto::{Isupport, Message, Numeric};
+    use papo_core::{Config, Event, ResponseMatcher, Session};
+    use papo_proto::{Isupport, Message};
 
     use super::{ListFilter, empty, list_entries, plain_who};
     use crate::Error;
@@ -356,8 +356,7 @@ mod tests {
 
         assert!(matches!(
             empty(&response),
-            Err(Error::Server(ServerError::Numeric { numeric, .. }))
-                if numeric == Numeric::ERR_CHANOPRIVSNEEDED
+            Err(Error::Server(error)) if error.code() == "482"
         ));
     }
 

@@ -26,12 +26,9 @@ impl Metadata<'_> {
             .client
             .core_request(CoreRequest::Metadata(command))
             .await?;
-        if let Some(error) = response.metadata_error() {
-            return Err(Error::Metadata(error));
-        }
         response
             .error()
-            .map_or(Ok(()), |error| Err(Error::Server(error)))
+            .map_or(Ok(()), |error| Err(Error::server(error)))
     }
 
     /// Gets selected keys and returns the target's resulting cache.
@@ -305,7 +302,7 @@ mod tests {
         .await;
         assert!(matches!(
             within(clear).await.unwrap(),
-            Err(Error::Metadata(papo_core::MetadataError::ValueInvalid))
+            Err(Error::Server(error)) if error.code() == "VALUE_INVALID"
         ));
         abort_task(driver).await;
     }

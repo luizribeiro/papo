@@ -10,7 +10,6 @@ pub use papo::RateLimit
 pub use papo::Response
 pub use papo::Sasl
 pub use papo::Secret
-pub use papo::ServerError
 pub use papo::Typing
 pub use papo::Unsupported
 pub use papo::UnsupportedReason
@@ -105,24 +104,19 @@ pub papo::ConnectErrorKind::Tls
 pub papo::ConnectErrorKind::TlsConfig
 pub papo::ConnectErrorKind::WebSocket
 #[non_exhaustive] pub enum papo::Error
-pub papo::Error::AccountRegistration(papo_core::AccountRegistrationError)
 pub papo::Error::Build(papo_proto::message::BuildError)
-pub papo::Error::ChannelRename(papo_core::channel_rename::ChannelRenameError)
 pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected
 pub papo::Error::EmptyText
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::Io(core::io::error::Error)
-pub papo::Error::Metadata(papo_core::metadata::MetadataError)
 pub papo::Error::Registration(alloc::string::String)
-pub papo::Error::Relay(papo_core::relaymsg::RelayError)
 pub papo::Error::RequestLimit
-pub papo::Error::Server(papo_core::ServerError)
+pub papo::Error::Server(papo::ServerError)
 pub papo::Error::StsUpgradeLoop
 pub papo::Error::StsUpgradeLoop::host: alloc::string::String
 pub papo::Error::Timeout
 pub papo::Error::Unsupported(&'static str)
-pub papo::Error::WebPush(papo_core::webpush::WebPushError)
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged
 pub papo::Event::AccountChanged::account: papo_core::state::Account
@@ -488,6 +482,16 @@ pub fn papo::Reconnect::default() -> Self
 pub struct papo::Sent
 pub papo::Sent::msgid: core::option::Option<alloc::string::String>
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>
+pub struct papo::ServerError
+impl papo::ServerError
+pub fn papo::ServerError::code(&self) -> &str
+pub fn papo::ServerError::command(&self) -> &str
+pub fn papo::ServerError::description(&self) -> &str
+pub const fn papo::ServerError::kind(&self) -> papo::Refusal
+pub fn papo::ServerError::params(&self) -> &[alloc::string::String]
+impl core::error::Error for papo::ServerError
+impl core::fmt::Display for papo::ServerError
+pub fn papo::ServerError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::State
 impl papo::State
 pub fn papo::State::account(&self) -> core::option::Option<&str>

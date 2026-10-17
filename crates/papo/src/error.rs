@@ -116,7 +116,6 @@ pub enum Refusal {
 }
 
 impl Refusal {
-    #[allow(dead_code)]
     pub(crate) fn from_core(kind: papo_core::RefusalKind) -> Self {
         match kind {
             papo_core::RefusalKind::CannotSendToChannel => Self::CannotSendToChannel,
@@ -140,7 +139,6 @@ impl Refusal {
 
 /// A server refusal with its wire-level diagnostic context.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[allow(dead_code)]
 pub struct ServerError {
     kind: Refusal,
     command: String,
@@ -149,7 +147,6 @@ pub struct ServerError {
     params: Vec<String>,
 }
 
-#[allow(dead_code)]
 impl ServerError {
     /// Returns the stable refusal category.
     #[must_use]
@@ -275,23 +272,14 @@ pub enum Error {
     #[error("the IRC operation timed out")]
     Timeout,
     /// The IRC server rejected a request.
-    #[error("the IRC server rejected the request: {0:?}")]
-    Server(papo_core::ServerError),
-    /// The IRC server rejected account registration or verification.
-    #[error("account registration failed: {0:?}")]
-    AccountRegistration(papo_core::AccountRegistrationError),
-    /// The IRC server rejected a metadata operation.
-    #[error("metadata operation failed: {0:?}")]
-    Metadata(papo_core::MetadataError),
-    /// The IRC server rejected a channel rename.
-    #[error("channel rename failed: {0:?}")]
-    ChannelRename(papo_core::ChannelRenameError),
-    /// The IRC server rejected a relayed message.
-    #[error("relay message failed: {0:?}")]
-    Relay(papo_core::RelayError),
-    /// The IRC server rejected a Web Push operation.
-    #[error("Web Push operation failed: {0:?}")]
-    WebPush(papo_core::WebPushError),
+    #[error("the IRC server rejected the request: {0}")]
+    Server(ServerError),
+}
+
+impl Error {
+    pub(crate) fn server(error: papo_core::ServerError) -> Self {
+        Self::Server(ServerError::from_core(error))
+    }
 }
 
 #[cfg(test)]

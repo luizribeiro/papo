@@ -1875,7 +1875,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
     .await;
     assert!(matches!(
         within(request).await.unwrap(),
-        Err(Error::Server(papo_core::ServerError::Numeric { numeric, .. })) if numeric.code() == 401
+        Err(Error::Server(error)) if error.code() == "401"
     ));
 
     let timed_out = tokio::spawn({
@@ -2406,8 +2406,8 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     .await;
     assert!(matches!(
         within(rejected).await.unwrap(),
-        Err(Error::Server(papo_core::ServerError::Standard { command, code, .. }))
-            if command == "REDACT" && code == "FORBIDDEN"
+        Err(Error::Server(error))
+            if error.command() == "REDACT" && error.code() == "FORBIDDEN"
     ));
 
     server_line(

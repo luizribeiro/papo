@@ -97,8 +97,8 @@ impl Client {
 }
 
 fn account_registration_result(response: &Response) -> Result<AccountRegistration, Error> {
-    if let Some(error) = response.account_registration_error() {
-        return Err(Error::AccountRegistration(error));
+    if let Some(error) = response.error() {
+        return Err(Error::server(error));
     }
     let message = response.lines.first().ok_or(Error::Disconnected)?.as_ref();
     let account = message.param(1).ok_or(Error::Disconnected)?.to_owned();
@@ -108,9 +108,7 @@ fn account_registration_result(response: &Response) -> Result<AccountRegistratio
             account,
             message: message.param(2).unwrap_or_default().to_owned(),
         }),
-        _ => response
-            .error()
-            .map_or(Err(Error::Disconnected), |error| Err(Error::Server(error))),
+        _ => Err(Error::Disconnected),
     }
 }
 
@@ -192,9 +190,7 @@ mod tests {
         .await;
         assert!(matches!(
             within(verify).await.unwrap(),
-            Err(Error::AccountRegistration(
-                papo_core::AccountRegistrationError::InvalidCode
-            ))
+            Err(Error::Server(error)) if error.code() == "INVALID_CODE"
         ));
 
         abort_task(driver).await;
