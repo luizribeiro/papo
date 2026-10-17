@@ -852,6 +852,7 @@ pub fn papo::State::casemapping(&self) -> papo_proto::casemapping::Casemapping
 pub fn papo::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::state::Channel>
 pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::state::Channel>
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo_core::features::Feature> + '_
+pub fn papo::State::filehost(&self) -> core::option::Option<&str>
 pub fn papo::State::has_cap(&self, &str) -> bool
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::is_me(&self, impl core::convert::AsRef<str>) -> bool

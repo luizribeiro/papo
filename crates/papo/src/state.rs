@@ -175,6 +175,18 @@ impl State {
         &self.isupport
     }
 
+    /// Returns the HTTPS endpoint advertised for file uploads.
+    ///
+    /// Uploads use an HTTP `POST` whose response supplies the uploaded URL in its `Location`
+    /// header. The caller authenticates that request with its own credentials; papo does not
+    /// expose authentication secrets. Non-HTTPS endpoints are ignored.
+    #[must_use]
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub fn filehost(&self) -> Option<&str> {
+        filehost(&self.isupport)
+    }
+
     /// Returns the server's nickname and channel casemapping.
     #[must_use]
     pub fn casemapping(&self) -> Casemapping {
@@ -207,3 +219,33 @@ const FEATURES: &[Feature] = &[
     Feature::AccountTracking,
     Feature::HostTracking,
 ];
+
+#[cfg(feature = "unstable")]
+fn filehost(isupport: &Isupport) -> Option<&str> {
+    ["draft/FILEHOST", "soju.im/FILEHOST"]
+        .into_iter()
+        .find_map(|name| match isupport.get(name) {
+            papo_proto::Advertised::Value(url) if url.starts_with("https://") => Some(url),
+            _ => None,
+        })
+}
+
+#[cfg(all(test, feature = "unstable"))]
+mod tests {
+    use papo_proto::Isupport;
+
+    #[test]
+    fn accepts_both_filehost_names_and_requires_https() {
+        for name in ["soju.im/FILEHOST", "draft/FILEHOST"] {
+            let mut isupport = Isupport::default();
+            isupport.apply_tokens([format!("{name}=https://files.example.net/upload")]);
+            assert_eq!(
+                super::filehost(&isupport),
+                Some("https://files.example.net/upload")
+            );
+
+            isupport.apply_tokens([format!("{name}=http://files.example.net/upload")]);
+            assert_eq!(super::filehost(&isupport), None);
+        }
+    }
+}
