@@ -3,7 +3,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, NetworkConfig, NetworkId};
+use papo_core::{Config, Event, NetworkConfig, NetworkId, StateLimit};
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -100,4 +100,25 @@ fn merges_bounded_notification_batches_and_deletes_networks() {
             if id.as_str() == "42"))
         .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 0))
         .no_event();
+}
+
+#[test]
+fn bounds_the_server_driven_network_cache() {
+    let mut transcript = registered();
+    for index in 0..10_001 {
+        transcript = transcript.server(&format!(
+            "BOUNCER NETWORK {index} host=irc{index}.example.org;state=disconnected"
+        ));
+    }
+    transcript
+        .event_until(|event| {
+            matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::BouncerNetworks
+                }
+            )
+        })
+        .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 10_000))
+        .ignore_rest();
 }
