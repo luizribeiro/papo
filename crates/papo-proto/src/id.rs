@@ -1,5 +1,7 @@
 use std::{borrow::Borrow, fmt, ops::Deref};
 
+use crate::Isupport;
+
 /// Why an IRC identifier cannot be sent to the server.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -139,6 +141,62 @@ identifier!(
     "An opaque, network-unique IRC message identifier."
 );
 
+impl Nick {
+    /// Validates this nickname against protocol characters and server limits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the nickname has an invalid character or prefix,
+    /// or exceeds `NICKLEN` (nine characters when it is not advertised).
+    pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
+        check_parameter(self)?;
+        let first = self.chars().next().ok_or(InvalidIdentifier::Empty)?;
+        if matches!(first, '$' | ':')
+            || isupport.chantypes().contains(first)
+            || isupport
+                .prefix()
+                .iter()
+                .any(|prefix| prefix.symbol == first)
+        {
+            return Err(InvalidIdentifier::InvalidPrefix(first));
+        }
+        if let Some(character) = self.chars().find(|character| ",*?!@".contains(*character)) {
+            return Err(InvalidIdentifier::InvalidCharacter(character));
+        }
+        check_length(self, isupport.nicklen().unwrap_or(9))
+    }
+}
+
+impl ChannelName {
+    /// Validates this channel name against `CHANTYPES` and `CHANNELLEN`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the name has no advertised channel prefix,
+    /// contains a forbidden character, or exceeds the server's length limit.
+    pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
+        let first = self.chars().next().ok_or(InvalidIdentifier::Empty)?;
+        if !isupport.chantypes().contains(first) {
+            return Err(InvalidIdentifier::InvalidPrefix(first));
+        }
+        if let Some(character) = self
+            .chars()
+            .find(|character| matches!(character, '\0' | '\r' | '\n' | ' ' | '\u{7}' | ','))
+        {
+            return Err(InvalidIdentifier::InvalidCharacter(character));
+        }
+        check_length(self, isupport.channellen().unwrap_or(50))
+    }
+}
+
+fn check_length(value: &str, maximum: usize) -> Result<(), InvalidIdentifier> {
+    let length = value.chars().count();
+    if length > maximum {
+        return Err(InvalidIdentifier::TooLong { length, maximum });
+    }
+    Ok(())
+}
+
 impl AccountName {
     /// Validates this account name for use as an IRC parameter.
     ///
@@ -242,6 +300,8 @@ impl From<&ChannelName> for Target {
 mod tests {
     use std::{borrow::Borrow, collections::HashMap, fmt, hash::Hash, ops::Deref};
 
+    use crate::{Isupport, MessageRef};
+
     use super::{
         AccountName, ChannelName, InvalidIdentifier, Mask, MessageId, MetadataKey, Nick, Target,
     };
@@ -320,6 +380,77 @@ mod tests {
         assert_eq!(
             MessageId::from("8VX4 P6dUQ44L").check(),
             Err(InvalidIdentifier::InvalidCharacter(' '))
+        );
+    }
+
+    fn libera_isupport() -> Isupport {
+        let line = MessageRef::parse(
+            ":irc.libera.chat 005 papo CASEMAPPING=rfc1459 CHANTYPES=# PREFIX=(ov)@+ NICKLEN=16 CHANNELLEN=50 STATUSMSG=@+ :are supported",
+        )
+        .unwrap();
+        let mut support = Isupport::default();
+        support.apply(&line);
+        support
+    }
+
+    #[test]
+    fn validates_names_at_literal_isupport_boundaries() {
+        let support = libera_isupport();
+        assert_eq!(Nick::from("abcdefghijklmnop").check(&support), Ok(()));
+        assert_eq!(Nick::from("éééééééééééééééé").check(&support), Ok(()));
+        assert_eq!(
+            Nick::from("abcdefghijklmnopq").check(&support),
+            Err(InvalidIdentifier::TooLong {
+                length: 17,
+                maximum: 16
+            })
+        );
+        assert_eq!(
+            ChannelName::from(format!("#{}", "p".repeat(49))).check(&support),
+            Ok(())
+        );
+        assert_eq!(
+            ChannelName::from(format!("#{}", "p".repeat(50))).check(&support),
+            Err(InvalidIdentifier::TooLong {
+                length: 51,
+                maximum: 50
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_name_delimiters_and_unadvertised_prefixes() {
+        let support = libera_isupport();
+        for (nick, character) in [
+            ("alice,bob", ','),
+            ("alice*", '*'),
+            ("alice?", '?'),
+            ("alice!u", '!'),
+            ("alice@h", '@'),
+        ] {
+            assert_eq!(
+                Nick::from(nick).check(&support),
+                Err(InvalidIdentifier::InvalidCharacter(character))
+            );
+        }
+        for (nick, prefix) in [
+            ("#alice", '#'),
+            ("+alice", '+'),
+            ("$alice", '$'),
+            (":alice", ':'),
+        ] {
+            assert_eq!(
+                Nick::from(nick).check(&support),
+                Err(InvalidIdentifier::InvalidPrefix(prefix))
+            );
+        }
+        assert_eq!(
+            ChannelName::from("papo").check(&support),
+            Err(InvalidIdentifier::InvalidPrefix('p'))
+        );
+        assert_eq!(
+            ChannelName::from("#papo,dev").check(&support),
+            Err(InvalidIdentifier::InvalidCharacter(','))
         );
     }
 }
