@@ -442,7 +442,7 @@ impl Client {
         let state = self.state();
         let joined = state.channel(channel).ok_or_else(Error::disconnected)?;
         Ok(crate::ChannelInfo {
-            name: joined.name().to_owned(),
+            name: joined.name().as_ref().to_owned(),
             topic: joined.topic().map(str::to_owned),
             members_count: joined.members().count(),
         })

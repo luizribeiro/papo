@@ -5,7 +5,7 @@ mod support;
 use std::time::{Duration, UNIX_EPOCH};
 
 use papo_core::{Account, Config, Event, OwnedModeChange, RateLimit, StateLimit};
-use papo_proto::{Message, ModeKind};
+use papo_proto::{AccountName, ChannelName, Message, ModeKind, Nick};
 use support::Transcript;
 
 #[test]
@@ -37,6 +37,32 @@ fn tracks_our_join_and_another_member_with_rfc1459_keys() {
             let channel = session.state().channel("#PAPO{DEV}").unwrap();
             assert_eq!(channel.member("EMILY").unwrap().nick(), "emily");
             assert_eq!(channel.member("dan").unwrap().nick(), "dan");
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn read_models_expose_typed_identifiers() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily")
+        .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
+        .inspect(|session| {
+            let own_nick: &Nick = session.state().nick();
+            let channel = session.state().channel("#PAPO").unwrap();
+            let channel_name: &ChannelName = channel.name();
+            let member_nick: &Nick = channel.member("DAN").unwrap().nick();
+            let user = session.state().user("DAN").unwrap();
+            let user_nick: &Nick = user.nick();
+            let Account::LoggedIn(account) = user.account() else {
+                panic!("extended join should report the account");
+            };
+            let account: &AccountName = account;
+
+            assert_eq!(own_nick, "emily");
+            assert_eq!(channel_name, "#papo");
+            assert_eq!(member_nick, "dan");
+            assert_eq!(user_nick, "dan");
+            assert_eq!(account, "dan");
         })
         .ignore_rest();
 }

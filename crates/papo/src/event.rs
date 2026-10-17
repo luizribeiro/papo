@@ -103,7 +103,7 @@ impl MessageEvent {
             return None;
         };
         match self.client.state().user(nick)?.account() {
-            Account::LoggedIn(account) => Some(account.clone()),
+            Account::LoggedIn(account) => Some(account.as_ref().to_owned()),
             _ => None,
         }
     }

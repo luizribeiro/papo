@@ -5,9 +5,9 @@ use std::{
 };
 
 use papo_proto::{
-    Account as AccountNotify, Away, Casemapping, Chghost, Command, Folded, Isupport, Join,
-    MessageRef, ModeChanges, ModeKind, NamesEntry, Numeric, Setname, Source, WhoxFlags,
-    WhoxPresence, WhoxReply, parse_353, time,
+    Account as AccountNotify, AccountName, Away, Casemapping, ChannelName, Chghost, Command,
+    Folded, Isupport, Join, MessageRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Setname,
+    Source, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
 use crate::{
@@ -24,7 +24,7 @@ type CaseKey = Folded<String>;
 /// The known channel and user state for a session.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct State {
-    nick: String,
+    nick: Nick,
     user: String,
     host: Option<String>,
     realname: String,
@@ -50,7 +50,7 @@ pub struct State {
 /// State known about a joined channel.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Channel {
-    name: String,
+    name: ChannelName,
     casemapping: Casemapping,
     members: HashMap<CaseKey, Member>,
     modes: HashMap<char, Option<String>>,
@@ -65,7 +65,7 @@ pub struct Channel {
 /// State known about a channel member.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Member {
-    nick: String,
+    nick: Nick,
     prefixes: Vec<char>,
     prefix_order: Arc<[char]>,
 }
@@ -73,7 +73,7 @@ pub struct Member {
 /// State known about a user sharing a channel or followed through MONITOR.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct User {
-    nick: String,
+    nick: Nick,
     username: Option<String>,
     host: Option<String>,
     account: Account,
@@ -93,7 +93,7 @@ pub enum Account {
     /// The user is known to be logged out.
     LoggedOut,
     /// The user is logged in to the named account.
-    LoggedIn(String),
+    LoggedIn(AccountName),
 }
 
 #[derive(Clone, Copy)]
@@ -114,7 +114,7 @@ pub(crate) struct MetadataContext {
 impl State {
     pub(crate) fn new(config: &Config) -> Self {
         Self {
-            nick: config.nick.clone(),
+            nick: Nick::from(&config.nick),
             user: config.username.clone(),
             host: None,
             realname: config.realname.clone(),
@@ -252,7 +252,7 @@ impl State {
             };
             self.rename_user(nick, new_nick);
             if mapping.eq(nick, &self.nick) {
-                new_nick.clone_into(&mut self.nick);
+                self.nick = new_nick.into();
             }
             outbox.event(Event::NickChanged {
                 old: nick.to_owned(),
@@ -323,7 +323,7 @@ impl State {
             return false;
         }
         let realname_changed = self.realname != change.realname;
-        nick.clone_into(&mut self.nick);
+        self.nick = nick.into();
         user.clone_into(&mut self.user);
         self.host = Some(host.to_owned());
         change.realname.clone_into(&mut self.realname);
@@ -728,9 +728,9 @@ impl State {
                 channel.members = channel
                     .members
                     .into_values()
-                    .map(|member| (CaseKey::new(&member.nick, mapping), member))
+                    .map(|member| (CaseKey::new(member.nick.as_ref(), mapping), member))
                     .collect();
-                (CaseKey::new(&channel.name, mapping), channel)
+                (CaseKey::new(channel.name.as_ref(), mapping), channel)
             })
             .collect();
         self.users = std::mem::take(&mut self.users)
@@ -741,7 +741,7 @@ impl State {
                     .into_iter()
                     .map(|channel| CaseKey::new(channel.original(), mapping))
                     .collect();
-                (CaseKey::new(&user.nick, mapping), user)
+                (CaseKey::new(user.nick.as_ref(), mapping), user)
             })
             .collect();
         self.who_sweeps = std::mem::take(&mut self.who_sweeps)
@@ -771,7 +771,7 @@ impl State {
         let channels = if ours {
             self.channels
                 .values()
-                .map(|channel| channel.name.clone())
+                .map(|channel| channel.name.as_ref().to_owned())
                 .collect()
         } else {
             self.users
@@ -816,7 +816,7 @@ impl State {
         });
         let ours = self.casemapping.eq(nick, &self.nick);
         if ours {
-            nick.clone_into(&mut self.nick);
+            self.nick = nick.into();
             if let Some(user) = user {
                 user.clone_into(&mut self.user);
             }
@@ -904,7 +904,7 @@ impl State {
             channel.members.insert(
                 nick_key,
                 Member {
-                    nick: nick.to_owned(),
+                    nick: nick.into(),
                     prefixes,
                     prefix_order: Arc::clone(&channel.prefix_order),
                 },
@@ -939,7 +939,7 @@ impl State {
             for (key, value) in message.tags() {
                 match (key, value) {
                     ("account", Some(account)) => {
-                        let account = Account::LoggedIn(account.into_owned());
+                        let account = Account::LoggedIn(account.as_ref().into());
                         if user.account != account {
                             user.account = account.clone();
                             outbox.event(Event::AccountChanged {
@@ -962,7 +962,7 @@ impl State {
         outbox: &mut Outbox,
     ) {
         if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
-            own_nick.clone_into(&mut self.nick);
+            self.nick = own_nick.into();
         }
         self.apply_user_tags(message, outbox);
     }
@@ -1034,14 +1034,14 @@ impl State {
             Command::Numeric(Numeric::RPL_UNAWAY) if self.away => {
                 self.away = false;
                 outbox.event(Event::AwayChanged {
-                    nick: self.nick.clone(),
+                    nick: self.nick.as_ref().to_owned(),
                     message: None,
                 });
             }
             Command::Numeric(Numeric::RPL_NOWAWAY) if !self.away => {
                 self.away = true;
                 outbox.event(Event::AwayChanged {
-                    nick: self.nick.clone(),
+                    nick: self.nick.as_ref().to_owned(),
                     message: Some(String::new()),
                 });
             }
@@ -1080,7 +1080,7 @@ impl State {
         }
         self.host = Some(host.to_owned());
         outbox.event(Event::HostChanged {
-            nick: self.nick.clone(),
+            nick: self.nick.as_ref().to_owned(),
             user: self.user.clone(),
             host: host.to_owned(),
         });
@@ -1291,7 +1291,7 @@ impl State {
         let old_key = CaseKey::new(old, self.casemapping);
         let new_key = CaseKey::new(new, self.casemapping);
         if let Some(mut channel) = self.channels.remove(&old_key) {
-            new.clone_into(&mut channel.name);
+            channel.name = new.into();
             self.channels.insert(new_key.clone(), channel);
         }
         for user in self.users.values_mut() {
@@ -1345,12 +1345,12 @@ impl State {
         let Some(mut user) = self.users.remove(&old_key) else {
             return;
         };
-        new_nick.clone_into(&mut user.nick);
+        user.nick = new_nick.into();
         for channel_key in &user.channels {
             if let Some(channel) = self.channels.get_mut(channel_key)
                 && let Some(mut member) = channel.members.remove(&old_key)
             {
-                new_nick.clone_into(&mut member.nick);
+                member.nick = new_nick.into();
                 channel.members.insert(new_key.clone(), member);
             }
         }
@@ -1359,7 +1359,7 @@ impl State {
 
     /// Returns the session's current nickname.
     #[must_use]
-    pub fn nick(&self) -> &str {
+    pub fn nick(&self) -> &Nick {
         &self.nick
     }
 
@@ -1462,7 +1462,7 @@ fn source_name<'a>(message: &'a MessageRef<'_>) -> Option<&'a str> {
 impl Channel {
     fn new(name: &str, casemapping: Casemapping, isupport: &Isupport, synced: bool) -> Self {
         Self {
-            name: name.to_owned(),
+            name: name.into(),
             casemapping,
             members: HashMap::new(),
             modes: HashMap::new(),
@@ -1526,7 +1526,7 @@ impl Channel {
 
     /// Returns the channel name as received from the server.
     #[must_use]
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &ChannelName {
         &self.name
     }
 
@@ -1590,7 +1590,7 @@ impl Channel {
 impl Member {
     /// Returns the member's current nickname.
     #[must_use]
-    pub fn nick(&self) -> &str {
+    pub fn nick(&self) -> &Nick {
         &self.nick
     }
 
@@ -1644,7 +1644,7 @@ impl Member {
 impl User {
     fn new(nick: &str, user: Option<&str>, host: Option<&str>) -> Self {
         Self {
-            nick: nick.to_owned(),
+            nick: nick.into(),
             username: user.map(str::to_owned),
             host: host.map(str::to_owned),
             account: Account::Unknown,
@@ -1667,7 +1667,7 @@ impl User {
 
     /// Returns the user's current nickname.
     #[must_use]
-    pub fn nick(&self) -> &str {
+    pub fn nick(&self) -> &Nick {
         &self.nick
     }
 
@@ -1715,9 +1715,7 @@ impl User {
 
 impl Account {
     fn from_notify(account: Option<&str>) -> Self {
-        account.map_or(Self::LoggedOut, |account| {
-            Self::LoggedIn(account.to_owned())
-        })
+        account.map_or(Self::LoggedOut, |account| Self::LoggedIn(account.into()))
     }
 }
 
