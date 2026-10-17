@@ -130,7 +130,7 @@ impl Client {
     /// Returns [`Error::InvalidInput`] when the line is malformed or contains
     /// CR, LF, or NUL, or [`Error::Disconnected`] if the driver has stopped.
     pub async fn send_raw(&self, line: &str) -> Result<(), Error> {
-        self.send(parse_raw(line)?).await
+        self.send_message(parse_raw(line)?).await
     }
 
     /// Sends one IRC protocol line and waits for its labelled response.
@@ -149,35 +149,13 @@ impl Client {
         Ok(response.lines.iter().map(RawLine::from_proto).collect())
     }
 
-    /// Validates and queues an IRC message for transmission.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidInput`] if the message is invalid, or
-    /// [`Error::Disconnected`] if the driver has stopped.
-    pub async fn send(&self, message: Message) -> Result<(), Error> {
+    async fn send_message(&self, message: Message) -> Result<(), Error> {
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::Send { message, result })
             .await
             .map_err(|_| Error::disconnected())?;
         receiver.await.map_err(|_| Error::disconnected())?
-    }
-
-    /// Sends an IRC message and waits for its labelled response.
-    ///
-    /// A server failure remains part of the successful [`Response`]. Use
-    /// [`Response::error`] to inspect it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::Unsupported`] for [`Feature::LabeledResponse`] with reason
-    /// [`UnsupportedReason::NotOffered`] or [`UnsupportedReason::DisabledByClient`]. It also
-    /// returns [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
-    /// [`Error::Disconnected`]. Server refusals remain in the returned [`Response`].
-    pub async fn raw(&self, message: Message) -> Result<Response, Error> {
-        Self::require_feature(&self.state(), Feature::LabeledResponse)?;
-        self.correlated(message, None).await
     }
 
     async fn correlated(
@@ -204,16 +182,6 @@ impl Client {
             .await
             .map_err(|_| Error::disconnected())?;
         receiver.await.map_err(|_| Error::disconnected())?
-    }
-
-    /// Sends an IRC message without waiting for a correlated response.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidInput`] if the message cannot be encoded, or
-    /// [`Error::Disconnected`] if the driver has stopped.
-    pub async fn raw_unlabeled(&self, message: Message) -> Result<(), Error> {
-        self.send(message).await
     }
 
     /// Sends a private message to a user or channel.
@@ -313,7 +281,7 @@ impl Client {
                 notice = notice.with_tag(tag, context);
             }
         }
-        self.send(notice).await
+        self.send_message(notice).await
     }
 
     /// Adds `emoji` as a reaction to `message`.
@@ -357,7 +325,7 @@ impl Client {
                 UnsupportedReason::TagDenied,
             )));
         }
-        self.send(
+        self.send_message(
             Message::tagmsg(id.target())
                 .with_tag(reply_tag, id.msgid())
                 .with_tag(reaction_tag, emoji),
@@ -428,7 +396,7 @@ impl Client {
             for (key, value) in tags {
                 message = message.with_tag(key, value);
             }
-            self.send(message).await?;
+            self.send_message(message).await?;
             return Ok(Sent::default());
         }
         let (result, receiver) = oneshot::channel();

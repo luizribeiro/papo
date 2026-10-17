@@ -16,7 +16,6 @@ pub use papo::Nick
 pub use papo::PersistenceSetting
 pub use papo::PersistenceStatus
 pub use papo::RateLimit
-pub use papo::Response
 pub use papo::Sasl
 pub use papo::Secret
 pub use papo::Target
@@ -558,14 +557,11 @@ pub async fn papo::Client::notice(&self, &str, &str) -> core::result::Result<pap
 pub async fn papo::Client::part(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::privmsg(&self, &str, &str) -> core::result::Result<papo::Sent, papo::Error>
 pub async fn papo::Client::quit(&self, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
-pub async fn papo::Client::raw(&self, papo_proto::message::Message) -> core::result::Result<papo_core::Response, papo::Error>
-pub async fn papo::Client::raw_unlabeled(&self, papo_proto::message::Message) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::react(&self, &papo::TargetedMessageId, &str) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::reconnect(&self) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::redact(&self, &papo::TargetedMessageId, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::reply(&self, &papo::Message, &str) -> core::result::Result<papo::Sent, papo::Error>
 pub async fn papo::Client::request_raw(&self, &str) -> core::result::Result<alloc::vec::Vec<papo::RawLine>, papo::Error>
-pub async fn papo::Client::send(&self, papo_proto::message::Message) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::send_raw(&self, &str) -> core::result::Result<(), papo::Error>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub async fn papo::Client::topic(&self, &str, core::option::Option<&str>) -> core::result::Result<core::option::Option<alloc::string::String>, papo::Error>

@@ -629,7 +629,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     ));
 
     assert!(matches!(
-        within(client.send(Message::new("WHOIS", ["emily"]))).await,
+        within(client.send_raw("WHOIS emily")).await,
         Err(disconnected!())
     ));
     assert!(matches!(
@@ -2037,11 +2037,7 @@ async fn capability_loss_fails_a_pending_request_immediately() {
     .await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 
-    let request = tokio::spawn(async move {
-        client
-            .raw(Message::new("VERSION", Vec::<String>::new()))
-            .await
-    });
+    let request = tokio::spawn(async move { client.request_raw("VERSION").await });
     client_line(&mut server, b"@label=0 VERSION\r\n").await;
     server_line(&mut server, b":ergo.test CAP * DEL :labeled-response\r\n").await;
     assert!(matches!(
@@ -2584,15 +2580,6 @@ async fn client_send_raw_rejects_malformed_or_delimited_input() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    let error = client
-        .send(papo_proto::Message::new("WHO IS", ["emily"]))
-        .await
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        Error::InvalidInput(crate::InvalidInput::InvalidMessage(message))
-            if message.contains("command")
-    ));
     for line in [
         "",
         "   ",

@@ -135,10 +135,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         .await;
         assert!(client.state().channel(&channel).is_some());
         client
-            .raw(papo_proto::Message::new(
-                "PING",
-                ["persistent-rejoin-fence"],
-            ))
+            .request_raw("PING persistent-rejoin-fence")
             .await
             .unwrap();
         assert!(
