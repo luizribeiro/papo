@@ -1817,7 +1817,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
 
     server_line(
         &mut server,
-        b":ergo.test 005 papo-driver WHOX PREFIX=(ov)@+ :are supported\r\n",
+        b":ergo.test 005 papo-driver WHOX PREFIX=(ov)@+ CHANMODES=beI,k,l,imnst :are supported\r\n",
     )
     .await;
     let who = tokio::spawn({
@@ -1924,6 +1924,11 @@ async fn typed_requests_match_unlabelled_responses() {
         scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
     let driver = tokio::spawn(driver);
     complete_registration(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver PREFIX=(ov)@+ CHANMODES=beI,k,l,imnst MODES=3 :are supported\r\n",
+    )
+    .await;
 
     let whois = tokio::spawn({
         let client = client.clone();
@@ -1965,7 +1970,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let mode = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo", "+t", [] as [&str; 0]).await }
+        async move { client.mode("#papo").add('t').await }
     });
     client_line(&mut server, b"MODE #papo +t\r\nPING :papo-mode-4\r\n").await;
     server_line(&mut server, b":ergo.test PONG ergo.test :papo-mode-4\r\n").await;
@@ -2080,7 +2085,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
 
     let mode = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo", "+t", [] as [&str; 0]).await }
+        async move { client.mode("#papo").add('t').await }
     });
     client_line(&mut server, b"MODE #papo +t\r\nPING :papo-mode-0\r\n").await;
     server_line(

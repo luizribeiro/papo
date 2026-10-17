@@ -1,6 +1,82 @@
+use std::future::IntoFuture;
+
+use papo_core::ResponseMatcher;
 use papo_proto::{Isupport, Message, ModeKind, Target};
 
-use crate::{Error, InvalidInput};
+use crate::{Client, Error, InvalidInput, RequestFuture};
+
+/// Builds one or more validated mode-change commands.
+pub struct SetModes {
+    client: Client,
+    target: Target,
+    changes: Vec<Change>,
+}
+
+impl SetModes {
+    /// Adds a mode that takes no argument.
+    #[must_use]
+    #[allow(clippy::should_implement_trait)]
+    pub fn add(self, mode: char) -> Self {
+        self.change(true, mode, None)
+    }
+
+    /// Removes a mode that takes no argument.
+    #[must_use]
+    pub fn remove(self, mode: char) -> Self {
+        self.change(false, mode, None)
+    }
+
+    /// Adds a mode with its required argument.
+    #[must_use]
+    pub fn add_with(self, mode: char, argument: impl Into<String>) -> Self {
+        self.change(true, mode, Some(argument.into()))
+    }
+
+    /// Removes a mode with its required argument.
+    #[must_use]
+    pub fn remove_with(self, mode: char, argument: impl Into<String>) -> Self {
+        self.change(false, mode, Some(argument.into()))
+    }
+
+    fn change(mut self, set: bool, mode: char, arg: Option<String>) -> Self {
+        self.changes.push(Change { set, mode, arg });
+        self
+    }
+}
+
+impl IntoFuture for SetModes {
+    type Output = Result<(), Error>;
+    type IntoFuture = RequestFuture<()>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        RequestFuture::new(async move {
+            let messages = encode(self.client.state().isupport(), &self.target, &self.changes)?;
+            for message in messages {
+                let response = self
+                    .client
+                    .correlated(
+                        message,
+                        Some(ResponseMatcher::Mode(self.target.to_string())),
+                    )
+                    .await?;
+                crate::requests::empty(&response)?;
+            }
+            Ok(())
+        })
+    }
+}
+
+impl Client {
+    /// Starts a validated mode-change request for `target`.
+    #[must_use]
+    pub fn mode(&self, target: impl Into<Target>) -> SetModes {
+        SetModes {
+            client: self.clone(),
+            target: target.into(),
+            changes: Vec::new(),
+        }
+    }
+}
 
 pub(crate) struct Change {
     pub(crate) set: bool,

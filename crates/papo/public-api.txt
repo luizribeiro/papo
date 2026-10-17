@@ -571,7 +571,6 @@ impl papo::Client
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
 pub fn papo::Client::join(&self, impl core::convert::Into<papo_proto::id::ChannelName>) -> papo::JoinChannel
 pub async fn papo::Client::list(&self, papo::ListFilter) -> core::result::Result<alloc::vec::Vec<papo::ListEntry>, papo::Error>
-pub async fn papo::Client::mode<I, S>(&self, &str, &str, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Client::nick(&self) -> papo_proto::id::Nick
 pub fn papo::Client::notice(&self, impl core::convert::Into<papo_proto::id::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub async fn papo::Client::part(&self, &str, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
@@ -596,6 +595,8 @@ pub async fn papo::Client::mark_read(&self, &str, std::time::SystemTime) -> core
 pub async fn papo::Client::read_marker(&self, &str) -> core::result::Result<core::option::Option<std::time::SystemTime>, papo::Error>
 impl papo::Client
 pub const fn papo::Client::metadata(&self) -> papo::Metadata<'_>
+impl papo::Client
+pub fn papo::Client::mode(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::SetModes
 impl papo::Client
 pub const fn papo::Client::persistence(&self) -> papo::Persistence<'_>
 impl papo::Client
@@ -802,6 +803,16 @@ pub fn papo::ServerError::params(&self) -> &[alloc::string::String]
 impl core::error::Error for papo::ServerError
 impl core::fmt::Display for papo::ServerError
 pub fn papo::ServerError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct papo::SetModes
+impl papo::SetModes
+pub fn papo::SetModes::add(self, char) -> Self
+pub fn papo::SetModes::add_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::SetModes::remove(self, char) -> Self
+pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::future::into_future::IntoFuture for papo::SetModes
+pub type papo::SetModes::IntoFuture = papo::RequestFuture<()>
+pub type papo::SetModes::Output = core::result::Result<(), papo::Error>
+pub fn papo::SetModes::into_future(self) -> Self::IntoFuture
 pub struct papo::State
 impl papo::State
 pub fn papo::State::account(&self) -> core::option::Option<&papo_proto::id::AccountName>

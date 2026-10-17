@@ -267,7 +267,7 @@ impl Client {
         receiver.await.map_err(|_| Error::disconnected())?
     }
 
-    async fn correlated(
+    pub(crate) async fn correlated(
         &self,
         message: Message,
         matcher: Option<ResponseMatcher>,
@@ -646,34 +646,6 @@ impl Client {
             .correlated(
                 Message::new("PART", params),
                 Some(ResponseMatcher::Part(channel.to_owned())),
-            )
-            .await?;
-        crate::requests::empty(&response)
-    }
-
-    /// Applies a mode string and its arguments to a channel or user.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchNick`],
-    /// [`crate::Refusal::NoSuchChannel`], [`crate::Refusal::NotOnChannel`],
-    /// [`crate::Refusal::NoPrivileges`], [`crate::Refusal::ChannelOperatorPrivilegesNeeded`],
-    /// [`crate::Refusal::UnknownMode`], [`crate::Refusal::UnknownUserMode`],
-    /// [`crate::Refusal::UsersDontMatch`], [`crate::Refusal::InvalidModeParameter`],
-    /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
-    /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
-    /// [`Error::Disconnected`].
-    pub async fn mode<I, S>(&self, target: &str, modes: &str, args: I) -> Result<(), Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        let mut params = vec![target.to_owned(), modes.to_owned()];
-        params.extend(args.into_iter().map(|arg| arg.as_ref().to_owned()));
-        let response = self
-            .correlated(
-                Message::new("MODE", params),
-                Some(ResponseMatcher::Mode(target.to_owned())),
             )
             .await?;
         crate::requests::empty(&response)

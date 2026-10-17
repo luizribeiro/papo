@@ -13,7 +13,6 @@ mod error;
 mod event_impl;
 mod ext;
 mod io_compat;
-#[allow(dead_code)]
 mod mode;
 mod reconnect;
 mod requests;
@@ -41,6 +40,7 @@ pub use ext::history::{History, HistoryItem, HistoryPage, HistoryReference, Hist
 pub use ext::metadata::Metadata;
 pub use ext::persistence::Persistence;
 pub use ext::webpush::{PushKeys, WebPush};
+pub use mode::SetModes;
 pub use papo_core::WebIrc;
 pub use papo_core::{Account, Capabilities, Channel, Feature, Member, User};
 pub use papo_core::{PersistenceSetting, PersistenceStatus, Secret};
