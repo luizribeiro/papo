@@ -19,6 +19,7 @@ const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_METADATA_TARGETS: usize = 10_000;
+pub(crate) const MAX_METADATA_KEYS_PER_TARGET: usize = 10_000;
 /// The known channel and user state for a session.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct State {

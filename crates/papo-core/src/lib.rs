@@ -2966,7 +2966,7 @@ impl Session {
                 self.isupport.value(),
                 self.no_implicit_names(),
                 MetadataContext {
-                    max_keys: self.metadata_max_keys(),
+                    max_keys: state::MAX_METADATA_KEYS_PER_TARGET,
                     subscription_batch: context.batch_type() == Some("metadata-subs"),
                 },
                 &mut self.outbox,
@@ -3511,7 +3511,7 @@ impl Session {
             self.isupport.value(),
             self.no_implicit_names(),
             MetadataContext {
-                max_keys: self.metadata_max_keys(),
+                max_keys: state::MAX_METADATA_KEYS_PER_TARGET,
                 subscription_batch: false,
             },
             &mut self.outbox,
@@ -3532,13 +3532,6 @@ impl Session {
             .enabled()
             .keys()
             .any(|name| papo_proto::canonical(name) == "no-implicit-names")
-    }
-
-    fn metadata_max_keys(&self) -> usize {
-        self.metadata_limits()
-            .and_then(|limits| limits.max_keys)
-            .unwrap_or(10_000)
-            .min(10_000)
     }
 
     fn maybe_subscribe_metadata(&mut self, now: Instant) {

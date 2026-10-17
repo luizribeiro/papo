@@ -235,32 +235,46 @@ fn rejects_invalid_keys_values_and_subscription_counts_locally() {
 }
 
 #[test]
-fn caches_pushed_updates_up_to_the_advertised_key_limit() {
-    registered("max-subs=100,max-keys=2")
-        .server(":bob!b@example.test METADATA #Papo avatar * :https://example.test/bob.png")
+fn advertised_max_keys_does_not_limit_received_metadata() {
+    registered("before-connect,max-subs=100,max-keys=0,max-value-bytes=1")
+        .server(":soju.example METADATA #Papo soju.im/pinned * :1")
         .event(|event| {
             matches!(event, Event::MetadataChanged { target, key, .. }
-            if target == "#Papo" && key == "avatar")
+            if target == "#Papo" && key == "soju.im/pinned")
         })
-        .server(":bob!b@example.test METADATA #papo pronouns members :they/them")
+        .server(":soju.example METADATA #papo soju.im/muted * :1")
         .event(|event| {
-            matches!(event, Event::MetadataChanged { visibility, .. }
-            if visibility == "members")
-        })
-        .server(":bob!b@example.test METADATA #papo status * :working")
-        .event(|event| {
-            matches!(
-                event,
-                Event::StateLimitReached {
-                    limit: StateLimit::MetadataKeys,
-                }
-            )
+            matches!(event, Event::MetadataChanged { target, key, .. }
+            if target == "#papo" && key == "soju.im/muted")
         })
         .inspect(|session| {
             let metadata = session.state().metadata("#PAPO").unwrap();
             assert_eq!(metadata.len(), 2);
-            assert!(!metadata.contains_key("status"));
+            assert_eq!(metadata["soju.im/pinned"].value, "1");
+            assert_eq!(metadata["soju.im/muted"].value, "1");
         });
+}
+
+#[test]
+fn bounds_received_metadata_with_its_own_storage_limit() {
+    registered("max-subs=100,max-keys=20000").update(|session| {
+        for index in 0..10_001 {
+            session.handle_line(
+                std::time::Instant::now(),
+                format!(":soju.example METADATA #papo vendor/key{index} * :enabled").as_bytes(),
+            );
+        }
+
+        assert_eq!(session.state().metadata("#papo").unwrap().len(), 10_000);
+        assert!(
+            std::iter::from_fn(|| session.poll_event()).any(|event| matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::MetadataKeys
+                }
+            ))
+        );
+    });
 }
 
 #[test]
