@@ -554,7 +554,10 @@ fn handle_disconnected_command(command: Option<Command>) -> bool {
         Some(
             Command::Send { result, .. }
             | Command::Typing { result, .. }
-            | Command::WaitChannelSync { result, .. },
+            | Command::WaitChannelSync { result, .. }
+            | Command::MonitorAdd { result, .. }
+            | Command::MonitorRemove { result, .. }
+            | Command::MonitorClear { result },
         ) => {
             _ = result.send(Err(Error::disconnected()));
             true

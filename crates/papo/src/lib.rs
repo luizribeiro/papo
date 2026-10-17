@@ -40,6 +40,7 @@ pub use ext::history::{
     History, HistoryItem, HistoryPage, HistoryReference, HistoryRequest, HistoryTarget,
 };
 pub use ext::metadata::Metadata;
+pub use ext::monitor::Monitor;
 pub use ext::persistence::Persistence;
 pub use ext::webpush::{PushKeys, WebPush};
 pub use mode::SetModes;

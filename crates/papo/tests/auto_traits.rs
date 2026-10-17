@@ -113,6 +113,9 @@ fn request_futures_are_send() {
     assert_send_static(client.metadata().subscribe(["avatar", "pronouns"]));
     assert_send_static(client.metadata().unsubscribe(["pronouns"]));
     assert_send_static(client.metadata().sync("alice"));
+    assert_send_static(client.monitor().add(["alice", "bob"]));
+    assert_send_static(client.monitor().remove(["bob"]));
+    assert_send_static(client.monitor().clear());
     assert_send_static(client.rename_channel("#rust", "#rust-lang", "Project renamed"));
     assert_send_static(client.relay("#bridged", "matrix|alice", "Hello from Matrix"));
 

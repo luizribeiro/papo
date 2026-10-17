@@ -163,6 +163,17 @@ pub(crate) enum Command {
         target: String,
         result: ReadMarkerSender,
     },
+    MonitorAdd {
+        nicks: Vec<String>,
+        result: oneshot::Sender<Result<(), Error>>,
+    },
+    MonitorRemove {
+        nicks: Vec<String>,
+        result: oneshot::Sender<Result<(), Error>>,
+    },
+    MonitorClear {
+        result: oneshot::Sender<Result<(), Error>>,
+    },
     SendText {
         kind: TextKind,
         target: String,
@@ -815,6 +826,18 @@ where
                         },
                         Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
+                }
+                Some(Command::MonitorAdd { nicks, result }) => {
+                    session.monitor_add(nicks);
+                    _ = result.send(Ok(()));
+                }
+                Some(Command::MonitorRemove { nicks, result }) => {
+                    session.monitor_remove(nicks);
+                    _ = result.send(Ok(()));
+                }
+                Some(Command::MonitorClear { result }) => {
+                    session.monitor_clear();
+                    _ = result.send(Ok(()));
                 }
                 Some(Command::SendText { kind, target, text, tags, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
