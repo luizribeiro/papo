@@ -51,7 +51,7 @@ use account_registration::{AccountRegistration, PendingRegistration, Registratio
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use bouncer::{BouncerNetwork, NetworkId, NetworkState};
+pub use bouncer::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 use caps::Caps;
 pub use channel_rename::ChannelRenameError;
 pub use features::{Feature, Unsupported, UnsupportedReason};
