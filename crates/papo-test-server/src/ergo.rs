@@ -1,4 +1,4 @@
-use std::{env, io, net::TcpListener, process::Command};
+use std::{env, io, process::Command};
 
 use serde_json::json;
 
@@ -14,14 +14,7 @@ pub(crate) struct Configuration {
 
 impl Configuration {
     pub(crate) fn new(directory: &TemporaryDirectory) -> io::Result<Self> {
-        let plaintext = TcpListener::bind(("127.0.0.1", 0))?;
-        let tls = TcpListener::bind(("127.0.0.1", 0))?;
-        let websocket = TcpListener::bind(("127.0.0.1", 0))?;
-        let secure_websocket = TcpListener::bind(("127.0.0.1", 0))?;
-        let plaintext = plaintext.local_addr()?;
-        let tls = tls.local_addr()?;
-        let websocket = websocket.local_addr()?;
-        let secure_websocket = secure_websocket.local_addr()?;
+        let [plaintext, tls, websocket, secure_websocket] = crate::ports::allocate_loopback()?;
         Ok(Self::from_addresses(
             directory,
             [plaintext, tls, websocket, secure_websocket],

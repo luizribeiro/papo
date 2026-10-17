@@ -15,6 +15,8 @@ mod inspircd;
 #[cfg(not(target_family = "wasm"))]
 mod inspircd_config;
 #[cfg(not(target_family = "wasm"))]
+mod ports;
+#[cfg(not(target_family = "wasm"))]
 mod server;
 #[cfg(not(target_family = "wasm"))]
 mod solanum;

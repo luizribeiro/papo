@@ -1,6 +1,5 @@
 use std::{
     env, fs, io,
-    net::TcpListener,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     thread,
@@ -19,13 +18,14 @@ pub(crate) struct Configuration {
 
 impl Configuration {
     fn with_paths(directory: &TemporaryDirectory, unreal: &str, modules: &str) -> io::Result<Self> {
-        let address = || TcpListener::bind(("127.0.0.1", 0))?.local_addr();
+        let [plaintext, tls, websocket, secure_websocket, services] =
+            crate::ports::allocate_loopback()?;
         let config = Self {
-            plaintext: address()?,
-            tls: address()?,
-            websocket: address()?,
-            secure_websocket: address()?,
-            services: address()?,
+            plaintext,
+            tls,
+            websocket,
+            secure_websocket,
+            services,
         };
         config.write(directory.path(), unreal, modules)?;
         Ok(config)

@@ -1,4 +1,4 @@
-use std::{env, fs, io, net::TcpListener};
+use std::{env, fs, io};
 
 use crate::{atheme, directory::TemporaryDirectory};
 
@@ -22,11 +22,11 @@ impl Configuration {
         modules: &str,
         atheme_modules: &str,
     ) -> io::Result<Self> {
-        let address = || TcpListener::bind(("127.0.0.1", 0))?.local_addr();
+        let [plaintext, tls, services] = crate::ports::allocate_loopback()?;
         let config = Self {
-            plaintext: address()?,
-            tls: address()?,
-            services: address()?,
+            plaintext,
+            tls,
+            services,
         };
         config.write(directory, modules, atheme_modules)?;
         Ok(config)
