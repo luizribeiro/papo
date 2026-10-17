@@ -29,6 +29,32 @@ fn welcome_adopts_the_server_assigned_nick_in_state() {
 }
 
 #[test]
+fn silent_labelled_response_updates_state_without_a_state_event() {
+    Transcript::new(Config::default().wanted_caps(["labeled-response"]))
+        .connect_default()
+        .server("CAP * LS :labeled-response")
+        .client("CAP REQ :labeled-response")
+        .server("CAP * ACK :labeled-response")
+        .client("CAP END")
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .update(|session| {
+            session
+                .request_silent(
+                    std::time::Instant::now(),
+                    Message::new("NICK", ["papo-renamed"]),
+                )
+                .unwrap();
+        })
+        .client("@label=0 NICK papo-renamed")
+        .server("@label=0 :papo!papo@localhost NICK :papo-renamed")
+        .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
+        .inspect(|session| assert_eq!(session.state().nick(), "papo-renamed"))
+        .no_event();
+}
+
+#[test]
 fn tracks_our_join_and_another_member_with_rfc1459_keys() {
     Transcript::new(Config::default().nick("emily").username("em"))
         .server(":emily!em@127.0.0.1 JOIN #Papo[dev]")

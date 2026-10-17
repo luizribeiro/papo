@@ -738,7 +738,7 @@ where
                     let requested = match matcher {
                         Some(matcher) => session.request_with_matcher(now(), message, matcher),
                         None if session.caps().contains_key("labeled-response") => {
-                            session.request(now(), message)
+                            session.request_silent(now(), message)
                         }
                         None => {
                             let reason = session

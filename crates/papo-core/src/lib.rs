@@ -1836,7 +1836,7 @@ pub struct Session {
     monitor: Monitor,
     metadata_subscriptions_sent: bool,
     rate_limit: RateLimiter,
-    requests: BTreeMap<String, (RequestId, Instant, bool, Option<Feature>)>,
+    requests: BTreeMap<String, (RequestId, Instant, bool, Option<Feature>, bool)>,
     unlabelled_requests: VecDeque<UnlabelledRequest>,
     next_request_id: u64,
     registration: Registration,
@@ -2126,7 +2126,7 @@ impl Session {
         let expired: Vec<_> = self
             .requests
             .iter()
-            .filter(|(_, (_, started, _, _))| {
+            .filter(|(_, (_, started, _, _, _))| {
                 started
                     .checked_add(self.config.request_timeout)
                     .is_some_and(|deadline| now >= deadline)
@@ -2134,7 +2134,7 @@ impl Session {
             .map(|(label, _)| label.clone())
             .collect();
         for label in expired {
-            if let Some((id, _, _, _)) = self.requests.remove(&label) {
+            if let Some((id, _, _, _, _)) = self.requests.remove(&label) {
                 self.unlabelled_requests.retain(|request| request.id != id);
                 self.outbox.event(Event::RequestTimedOut { id });
             }
@@ -2177,7 +2177,7 @@ impl Session {
         self.framer.close();
         self.outbox.reset_connection();
         self.batches.reset();
-        for (_, (id, _, _, _)) in std::mem::take(&mut self.requests) {
+        for (_, (id, _, _, _, _)) in std::mem::take(&mut self.requests) {
             self.unlabelled_requests.retain(|request| request.id != id);
             self.outbox.event(Event::RequestAborted { id });
         }
@@ -2319,7 +2319,7 @@ impl Session {
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
             let sent = self.caps.enabled().contains_key("echo-message");
-            self.requests.insert(label, (id, now, sent, None));
+            self.requests.insert(label, (id, now, sent, None, true));
         }
         if batch_count == 0 {
             for line in lines {
@@ -2343,6 +2343,31 @@ impl Session {
     /// [`RequestError::PendingLimit`] when 256 labelled requests are already pending, or
     /// [`RequestError::Build`] when the tagged message cannot be represented on the wire.
     pub fn request(&mut self, now: Instant, message: Message) -> Result<RequestId, RequestError> {
+        self.request_with_event_policy(now, message, true)
+    }
+
+    /// Queues a request whose response updates state without emitting its lines as events.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::Unsupported`] when `labeled-response` or a feature explicitly
+    /// requested by the message is unavailable,
+    /// [`RequestError::PendingLimit`] when 256 labelled requests are already pending, or
+    /// [`RequestError::Build`] when the tagged message cannot be represented on the wire.
+    pub fn request_silent(
+        &mut self,
+        now: Instant,
+        message: Message,
+    ) -> Result<RequestId, RequestError> {
+        self.request_with_event_policy(now, message, false)
+    }
+
+    fn request_with_event_policy(
+        &mut self,
+        now: Instant,
+        message: Message,
+        emit_events: bool,
+    ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::LabeledResponse)?;
         let feature = requested_message_feature(&message.as_ref());
         if let Some(feature) = feature {
@@ -2352,6 +2377,7 @@ impl Session {
             now,
             message,
             Some(feature.unwrap_or(Feature::LabeledResponse)),
+            emit_events,
         )
     }
 
@@ -2362,7 +2388,7 @@ impl Session {
         feature: Feature,
     ) -> Result<RequestId, RequestError> {
         self.require_feature(feature)?;
-        self.queue_request(now, message, Some(feature))
+        self.queue_request(now, message, Some(feature), true)
     }
 
     fn queue_request(
@@ -2370,6 +2396,7 @@ impl Session {
         now: Instant,
         mut message: Message,
         feature: Option<Feature>,
+        emit_events: bool,
     ) -> Result<RequestId, RequestError> {
         self.rate_limit.advance(now);
         let id = RequestId(self.next_request_id);
@@ -2389,7 +2416,8 @@ impl Session {
         let line = message.to_line()?;
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
-            self.requests.insert(label, (id, now, sent, feature));
+            self.requests
+                .insert(label, (id, now, sent, feature, emit_events));
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
@@ -2416,7 +2444,7 @@ impl Session {
             if track_sync && self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
                 return Err(RequestError::PendingLimit);
             }
-            let id = self.queue_request(now, message, None)?;
+            let id = self.queue_request(now, message, None, true)?;
             if track_sync {
                 self.unlabelled_requests.push_back(UnlabelledRequest {
                     id,
@@ -2541,7 +2569,9 @@ impl Session {
             self.batches.next_deadline(),
             self.requests
                 .values()
-                .filter_map(|(_, started, _, _)| started.checked_add(self.config.request_timeout))
+                .filter_map(|(_, started, _, _, _)| {
+                    started.checked_add(self.config.request_timeout)
+                })
                 .min(),
             self.unlabelled_requests
                 .iter()
@@ -2794,6 +2824,7 @@ impl Session {
         )
     }
 
+    #[allow(clippy::too_many_lines)]
     fn dispatch_message(
         &mut self,
         now: Instant,
@@ -2801,6 +2832,8 @@ impl Session {
         context: &DispatchContext,
         emit_unhandled: bool,
     ) {
+        let queued_events = self.outbox.events.len();
+        let emit_response_events = self.response_emits_events(message);
         let before = self.snapshot_values();
         let was_registered = self.registration.is_registered();
         let before_features = was_registered.then(|| self.supported_features());
@@ -2866,12 +2899,13 @@ impl Session {
             && message.tag("label").is_some_and(|label| {
                 self.requests
                     .get(label.as_ref())
-                    .is_some_and(|(_, _, sent, _)| *sent)
+                    .is_some_and(|(_, _, sent, _, _)| *sent)
             })
             && self.is_own_source(message);
-        let labelled_response = self.resolve_message(message);
+        let labelled_response =
+            self.resolve_labelled_message(message, queued_events, emit_response_events);
         let response = self.resolve_unlabelled(message) || labelled_response;
-        if response && labelled_echo {
+        if response && labelled_echo && emit_response_events {
             self.enqueue_labelled_echo(message);
         }
         let tag_message = !response && emit_unhandled && self.report_tag_message(message);
@@ -2936,11 +2970,11 @@ impl Session {
         let labels: Vec<_> = self
             .requests
             .iter()
-            .filter(|(_, (_, _, _, required))| *required == Some(feature))
+            .filter(|(_, (_, _, _, required, _))| *required == Some(feature))
             .map(|(label, _)| label.clone())
             .collect();
         for label in labels {
-            let (id, _, _, _) = self
+            let (id, _, _, _, _) = self
                 .requests
                 .remove(&label)
                 .expect("the pending label was just selected");
@@ -3079,7 +3113,7 @@ impl Session {
         let Some(label) = message.tag("label") else {
             return false;
         };
-        let Some((id, _, sent, _)) = self.requests.remove(label.as_ref()) else {
+        let Some((id, _, sent, _, _)) = self.requests.remove(label.as_ref()) else {
             return false;
         };
         let lines = if message.command_is("ACK") {
@@ -3103,6 +3137,32 @@ impl Session {
             }));
         }
         true
+    }
+
+    fn resolve_labelled_message(
+        &mut self,
+        message: &MessageRef<'_>,
+        queued_events: usize,
+        emit_events: bool,
+    ) -> bool {
+        let resolved = self.resolve_message(message);
+        if resolved && !emit_events {
+            let response = self
+                .outbox
+                .events
+                .pop_back()
+                .expect("a resolved request queued its response");
+            self.outbox.events.truncate(queued_events);
+            self.outbox.event(response);
+        }
+        resolved
+    }
+
+    fn response_emits_events(&self, message: &MessageRef<'_>) -> bool {
+        message
+            .tag("label")
+            .and_then(|label| self.requests.get(label.as_ref()))
+            .is_none_or(|(_, _, _, _, emit_events)| *emit_events)
     }
 
     fn resolve_unlabelled(&mut self, message: &MessageRef<'_>) -> bool {
@@ -3245,22 +3305,29 @@ impl Session {
         history_targets: Option<Vec<(String, std::time::SystemTime)>>,
     ) {
         let request = self.requests.remove(label);
-        let deferred = request.as_ref().is_some_and(|(id, _, _, _)| {
+        let deferred = request.as_ref().is_some_and(|(id, _, _, _, _)| {
             self.unlabelled_requests
                 .iter()
                 .any(|pending| pending.id == *id)
         });
+        let emit_events = request
+            .as_ref()
+            .is_none_or(|(_, _, _, _, emit_events)| *emit_events);
+        let queued_events = self.outbox.events.len();
         let context = DispatchContext::from_batch_type(batch_type);
         if history.is_none() || request.is_none() {
             for message in &messages {
                 self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
             }
         }
-        if let Some((id, _, sent, _)) = request
+        if !emit_events {
+            self.outbox.events.truncate(queued_events);
+        }
+        if let Some((id, _, sent, _, _)) = request
             && !deferred
         {
             let whois_channels = parse_whois_channels(&messages, self.isupport.value());
-            let echoed = sent.then(|| {
+            let echoed = (sent && emit_events).then(|| {
                 messages
                     .iter()
                     .filter(|message| {
