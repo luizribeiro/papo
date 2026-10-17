@@ -631,7 +631,7 @@ impl Client {
         Ok(())
     }
 
-    /// Leaves a channel, optionally supplying a reason.
+    /// Leaves a channel, omitting an empty `reason` from the wire.
     ///
     /// # Errors
     ///
@@ -639,16 +639,100 @@ impl Client {
     /// [`crate::Refusal::NotOnChannel`], [`crate::Refusal::TryAgain`], or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub async fn part(&self, channel: &str, reason: Option<&str>) -> Result<(), Error> {
-        let mut params = vec![channel];
-        params.extend(reason);
-        let response = self
-            .correlated(
-                Message::new("PART", params),
-                Some(ResponseMatcher::Part(channel.to_owned())),
-            )
-            .await?;
-        crate::requests::empty(&response)
+    pub fn part(
+        &self,
+        channel: impl Into<crate::ChannelName>,
+        reason: &str,
+    ) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let channel = channel.into();
+        let reason = reason.to_owned();
+        crate::RequestFuture::new(async move {
+            channel
+                .check(client.state().isupport())
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let mut params = vec![channel.to_string()];
+            if !reason.is_empty() {
+                params.push(reason);
+            }
+            let response = client
+                .correlated(
+                    Message::new("PART", params),
+                    Some(ResponseMatcher::Part(channel.to_string())),
+                )
+                .await?;
+            crate::requests::empty(&response)
+        })
+    }
+
+    /// Removes `nick` from `channel`, omitting an empty `reason` from the wire.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
+    pub fn kick(
+        &self,
+        channel: impl Into<crate::ChannelName>,
+        nick: impl Into<crate::Nick>,
+        reason: &str,
+    ) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let channel = channel.into();
+        let nick = nick.into();
+        let reason = reason.to_owned();
+        crate::RequestFuture::new(async move {
+            let state = client.state();
+            channel
+                .check(state.isupport())
+                .and_then(|()| nick.check(state.isupport()))
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let mut params = vec![channel.to_string(), nick.to_string()];
+            if !reason.is_empty() {
+                params.push(reason);
+            }
+            let response = client
+                .correlated(
+                    Message::new("KICK", params),
+                    Some(ResponseMatcher::Kick {
+                        channel: channel.to_string(),
+                        nick: nick.to_string(),
+                    }),
+                )
+                .await?;
+            crate::requests::empty(&response)
+        })
+    }
+
+    /// Invites `nick` to `channel`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
+    pub fn invite(
+        &self,
+        channel: impl Into<crate::ChannelName>,
+        nick: impl Into<crate::Nick>,
+    ) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        let channel = channel.into();
+        let nick = nick.into();
+        crate::RequestFuture::new(async move {
+            let state = client.state();
+            channel
+                .check(state.isupport())
+                .and_then(|()| nick.check(state.isupport()))
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let response = client
+                .correlated(
+                    Message::new("INVITE", [nick.to_string(), channel.to_string()]),
+                    Some(ResponseMatcher::Invite {
+                        channel: channel.to_string(),
+                        nick: nick.to_string(),
+                    }),
+                )
+                .await?;
+            crate::requests::empty(&response)
+        })
     }
 
     /// Sets a channel topic, or queries it when `text` is `None`.

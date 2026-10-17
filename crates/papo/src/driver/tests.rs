@@ -2053,7 +2053,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let part = tokio::spawn({
         let client = client.clone();
-        async move { client.part("#papo", None).await }
+        async move { client.part("#papo", "").await }
     });
     client_line(&mut server, b"PART #papo\r\n").await;
     server_line(

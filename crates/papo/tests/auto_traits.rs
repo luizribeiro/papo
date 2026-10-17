@@ -60,7 +60,9 @@ fn request_futures_are_send() {
     assert_send(client.whois("emily"));
     assert_send(client.who("#papo"));
     assert_send_static(client.join("#papo").into_future());
-    assert_send(client.part("#papo", Some("tests complete")));
+    assert_send_static(client.part("#papo", "tests complete"));
+    assert_send_static(client.kick("#papo", "spambot", "flooding"));
+    assert_send_static(client.invite("#papo", "carol"));
     assert_send_static(client.mode("#papo").add('t').into_future());
     assert_send(client.topic("#papo", Some("Ergonomic IRC")));
     assert_send(client.list(ListFilter::default()));

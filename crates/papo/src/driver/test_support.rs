@@ -348,7 +348,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
 
     let part = tokio::spawn({
         let client = client.clone();
-        async move { client.part("#papo", Some("tests complete")).await }
+        async move { client.part("#papo", "tests complete").await }
     });
     client_line(server, b"@label=6 PART #papo :tests complete\r\n").await;
     server_line(
