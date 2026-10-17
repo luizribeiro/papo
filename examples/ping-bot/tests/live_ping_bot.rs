@@ -49,7 +49,7 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
         assert_eq!(response.reply_to(), Some(message_id.as_str()));
 
         bot.shutdown().await;
-        user.quit(Some("ping bot test complete")).await.unwrap();
+        user.quit("ping bot test complete").await.unwrap();
     })
     .await
     .expect("live ping bot test did not finish within 20 seconds");
@@ -132,11 +132,7 @@ impl Bot {
         }
         #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
         {
-            self.session
-                .0
-                .quit(Some("ping bot test complete"))
-                .await
-                .unwrap();
+            self.session.0.quit("ping bot test complete").await.unwrap();
             (&mut self.session.1).await.unwrap();
         }
     }

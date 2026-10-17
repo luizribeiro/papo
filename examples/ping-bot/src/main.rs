@@ -49,7 +49,7 @@ async fn run(client: Client, mut events: papo::Events) -> Result<(), papo::Error
                         None,
                     ))
                 })?;
-                client.quit(Some("shutting down")).await?;
+                client.quit("shutting down").await?;
                 return Ok(());
             }
             event = events.next() => match event {

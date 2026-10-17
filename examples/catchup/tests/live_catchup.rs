@@ -74,8 +74,8 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             .unwrap();
         wait_synced(&mut reader_events, &channel).await;
         assert!(reader.read_marker(&channel).await.unwrap() >= newest);
-        reader.quit(Some("marker checked")).await.unwrap();
-        poster.quit(Some("catchup test complete")).await.unwrap();
+        reader.quit("marker checked").await.unwrap();
+        poster.quit("catchup test complete").await.unwrap();
     })
     .await
     .expect("live catchup test did not finish within 20 seconds");

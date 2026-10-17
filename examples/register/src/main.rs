@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         if registered && let Some(account) = &logged_in {
             println!("logged in as {account}");
-            client.quit(Some("account registration complete")).await?;
+            client.quit("account registration complete").await?;
             return Ok(());
         }
     }

@@ -66,7 +66,7 @@ async fn run(
                         None,
                     ))
                 })?;
-                client.quit(Some("shutting down")).await?;
+                client.quit("shutting down").await?;
                 return Ok(());
             }
             event = events.next() => match event {

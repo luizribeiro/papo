@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             client.mark_read(&channel, newest).await?;
         }
     }
-    client.quit(Some("history caught up")).await?;
+    client.quit("history caught up").await?;
     Ok(())
 }
 

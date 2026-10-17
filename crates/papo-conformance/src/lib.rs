@@ -326,7 +326,7 @@ async fn expect_event(
 impl RegisteredClient {
     async fn close(self) -> ScenarioResult {
         self.client
-            .quit(Some("conformance scenario complete"))
+            .quit("conformance scenario complete")
             .await
             .map_err(Failed::from)?;
         self.driver
@@ -438,7 +438,7 @@ async fn probe(
     let welcome = wait_for_registration(&connection.client, &mut connection.events).await?;
     connection
         .client
-        .quit(Some("conformance probe complete"))
+        .quit("conformance probe complete")
         .await
         .map_err(|error| error.to_string())?;
     connection

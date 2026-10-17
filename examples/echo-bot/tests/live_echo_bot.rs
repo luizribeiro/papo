@@ -58,7 +58,7 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
         assert_eq!(reply_to, command_id);
         assert_eq!(emoji.as_deref(), Some("👍"));
 
-        user.quit(Some("echo bot test complete")).await.unwrap();
+        user.quit("echo bot test complete").await.unwrap();
     })
     .await
     .expect("live echo bot test did not finish within 20 seconds");

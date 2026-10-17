@@ -92,8 +92,8 @@ async fn prints_channel_state_changes_in_wire_order() {
                 format!("part {channel} {renamed}: lurker test complete"),
             ]
         );
-        user.quit(Some("lurker test complete")).await.unwrap();
-        owner.quit(Some("lurker test complete")).await.unwrap();
+        user.quit("lurker test complete").await.unwrap();
+        owner.quit("lurker test complete").await.unwrap();
     })
     .await
     .expect("live lurker test did not finish within 20 seconds");

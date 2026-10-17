@@ -96,8 +96,8 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
         wait_message(&mut user_events, "pong").await;
 
         bot.shutdown().await;
-        user.quit(Some("admin bot test complete")).await.unwrap();
-        admin.quit(Some("admin bot test complete")).await.unwrap();
+        user.quit("admin bot test complete").await.unwrap();
+        admin.quit("admin bot test complete").await.unwrap();
     })
     .await
     .expect("live admin bot test did not finish within 25 seconds");
