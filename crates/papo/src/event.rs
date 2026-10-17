@@ -121,7 +121,6 @@ impl MessageEvent {
         raw: Message,
         isupport: &Isupport,
         nick: &str,
-        _client: Client,
         caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
@@ -145,8 +144,6 @@ impl MessageEvent {
     pub(crate) fn from_core(
         received: papo_core::ReceivedMessage,
         isupport: &Isupport,
-        _client: Client,
-        _caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, Message> {
         let (raw, batch_type, echo, other_session) = received.into_context_parts();
@@ -976,15 +973,7 @@ mod tests {
         nick: &str,
         received_at: std::time::SystemTime,
     ) -> MessageEvent {
-        MessageEvent::new(
-            message,
-            isupport,
-            nick,
-            crate::Client::disconnected_for_test(),
-            &Capabilities::new(),
-            received_at,
-        )
-        .unwrap()
+        MessageEvent::new(message, isupport, nick, &Capabilities::new(), received_at).unwrap()
     }
 
     fn chat(command: &str, text: &str) -> MessageEvent {
@@ -1018,7 +1007,6 @@ mod tests {
                 Message::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]),
                 &Isupport::default(),
                 "papo",
-                crate::Client::disconnected_for_test(),
                 &Capabilities::new(),
                 UNIX_EPOCH,
             )
@@ -1190,14 +1178,7 @@ mod tests {
         let CoreEvent::Message(message) = from_core(event) else {
             panic!("message was not mapped")
         };
-        MessageEvent::from_core(
-            message,
-            &Isupport::default(),
-            crate::Client::disconnected_for_test(),
-            &Capabilities::new(),
-            UNIX_EPOCH,
-        )
-        .unwrap()
+        MessageEvent::from_core(message, &Isupport::default(), UNIX_EPOCH).unwrap()
     }
 
     fn batched_message(kind: &str, command: &str) -> super::MessageEvent {

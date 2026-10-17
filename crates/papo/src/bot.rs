@@ -324,7 +324,6 @@ mod tests {
                 Message::new(command, ["#papo", text]).with_source(source),
                 &Isupport::default(),
                 nick,
-                crate::Client::disconnected_for_test(),
                 &Capabilities::new(),
                 UNIX_EPOCH,
             )
@@ -346,7 +345,6 @@ mod tests {
                 Message::privmsg(target, text).with_source("emily!~emily@localhost"),
                 isupport,
                 "papo{bot}",
-                crate::Client::disconnected_for_test(),
                 &Capabilities::new(),
                 UNIX_EPOCH,
             )
@@ -370,7 +368,6 @@ mod tests {
                 .with_tag("account", "Emily"),
             &Isupport::default(),
             "papo",
-            crate::Client::disconnected_for_test(),
             &Capabilities::new(),
             UNIX_EPOCH,
         )
@@ -398,7 +395,6 @@ mod tests {
             Message::privmsg("#papo", "!op alice").with_source("emily!~emily@localhost"),
             &Isupport::default(),
             "papo",
-            client.clone(),
             &Capabilities::new(),
             UNIX_EPOCH,
         )

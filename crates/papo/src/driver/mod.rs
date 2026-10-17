@@ -1031,25 +1031,15 @@ where
                 }
             }
             event::CoreEvent::Message(message) => {
-                let event = if let Some(commands) = events.commands.upgrade() {
-                    crate::MessageEvent::from_core(
-                        message,
-                        session.isupport(),
-                        Client {
-                            commands,
-                            state: Arc::clone(&events.state),
-                        },
-                        session.caps(),
-                        crate::rt::now_wall(),
-                    )
-                    .map_or_else(
-                        |message| Event::Raw(crate::RawLine::from_proto(&message)),
-                        |message| Event::Message(Box::new(message)),
-                    )
-                } else {
-                    let message = message.into_message();
-                    Event::Raw(crate::RawLine::from_proto(&message))
-                };
+                let event = crate::MessageEvent::from_core(
+                    message,
+                    session.isupport(),
+                    crate::rt::now_wall(),
+                )
+                .map_or_else(
+                    |message| Event::Raw(crate::RawLine::from_proto(&message)),
+                    |message| Event::Message(Box::new(message)),
+                );
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,
@@ -1101,24 +1091,17 @@ where
                 }
             }
             event::CoreEvent::Raw(message) => {
-                let event = match events.commands.upgrade() {
-                    Some(commands) => crate::MessageEvent::new(
-                        message,
-                        session.isupport(),
-                        session.nick(),
-                        Client {
-                            commands,
-                            state: Arc::clone(&events.state),
-                        },
-                        session.caps(),
-                        crate::rt::now_wall(),
-                    )
-                    .map_or_else(
-                        |message| Event::Raw(crate::RawLine::from_proto(&message)),
-                        |message| Event::Message(Box::new(message)),
-                    ),
-                    None => Event::Raw(crate::RawLine::from_proto(&message)),
-                };
+                let event = crate::MessageEvent::new(
+                    message,
+                    session.isupport(),
+                    session.nick(),
+                    session.caps(),
+                    crate::rt::now_wall(),
+                )
+                .map_or_else(
+                    |message| Event::Raw(crate::RawLine::from_proto(&message)),
+                    |message| Event::Message(Box::new(message)),
+                );
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,
