@@ -72,7 +72,7 @@ async fn prints_channel_state_changes_in_wire_order() {
         user.send(Message::new("TOPIC", [&channel, "lurker topic"]))
             .await
             .unwrap();
-        wait_event(&mut owner_events, |event| matches!(event, Event::TopicChanged { topic, .. } if topic.as_deref() == Some("lurker topic"))).await;
+        wait_event(&mut owner_events, |event| matches!(event, Event::TopicChanged(changed) if changed.topic.as_deref() == Some("lurker topic"))).await;
         user.send(Message::new("PART", [&channel, "lurker test complete"]))
             .await
             .unwrap();

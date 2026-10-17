@@ -319,10 +319,7 @@ pub papo::Event::StsPolicy(papo_core::sts::StsAction)
 pub papo::Event::StsUpgrade
 pub papo::Event::StsUpgrade::port: u16
 pub papo::Event::TagMsg(papo::event::TagMsg)
-pub papo::Event::TopicChanged
-pub papo::Event::TopicChanged::by: alloc::string::String
-pub papo::Event::TopicChanged::channel: alloc::string::String
-pub papo::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
+pub papo::Event::TopicChanged(papo::event::TopicChanged)
 pub papo::Event::TypingChanged(papo::event::TypingChanged)
 pub papo::Event::VerificationRequired
 pub papo::Event::VerificationRequired::account: alloc::string::String

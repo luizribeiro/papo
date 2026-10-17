@@ -2970,10 +2970,7 @@ async fn every_state_change_replaces_the_snapshot() {
         b":emily!em@staff.example TOPIC #Papo :Release planning\r\n",
     )
     .await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::TopicChanged { .. })
-    ));
+    assert!(matches!(events.next().await, Some(Event::TopicChanged(_))));
     previous = changed_snapshot(&client, &previous, "TOPIC");
     assert_eq!(
         previous.channel("#papo").unwrap().topic(),

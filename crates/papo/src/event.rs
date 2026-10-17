@@ -728,14 +728,7 @@ pub enum Event {
     /// A user or channel mode changed.
     ModeChanged(ModeChanged),
     /// A channel topic changed live.
-    TopicChanged {
-        /// The affected channel.
-        channel: String,
-        /// The new topic, or `None` when it was cleared.
-        topic: Option<String>,
-        /// The user or server that changed the topic.
-        by: String,
-    },
+    TopicChanged(TopicChanged),
     /// Server input exceeded a configured state-retention bound.
     StateLimitReached {
         /// The state collection that rejected another entry.
@@ -1041,7 +1034,11 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                 .collect(),
         }),
         papo_core::Event::TopicChanged { channel, topic, by } => {
-            Event::TopicChanged { channel, topic, by }
+            Event::TopicChanged(TopicChanged {
+                channel,
+                topic,
+                by: Source::from_name(by),
+            })
         }
         papo_core::Event::StateLimitReached { limit } => Event::StateLimitReached { limit },
         papo_core::Event::MonitorOnline { nick, user, host } => {
@@ -1714,10 +1711,10 @@ mod tests {
                 topic: Some("Rust 1.90 is out".into()),
                 by: "alice".into(),
             }),
-            Event::TopicChanged { channel, topic, by }
-                if channel == "#papo"
-                    && topic.as_deref() == Some("Rust 1.90 is out")
-                    && by == "alice"
+            Event::TopicChanged(changed)
+                if changed.channel == "#papo"
+                    && changed.topic.as_deref() == Some("Rust 1.90 is out")
+                    && changed.by == Source::User { nick: "alice".into(), user: None, host: None }
         ));
     }
 

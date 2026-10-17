@@ -58,9 +58,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .join(" ");
                 println!("mode {} by {}: {changes}", event.target, event.by);
             }
-            Event::TopicChanged { channel, topic, by } => {
-                let topic = topic.as_deref().unwrap_or("-");
-                println!("topic {channel} by {by}: {topic}");
+            Event::TopicChanged(event) => {
+                let topic = event.topic.as_deref().unwrap_or("-");
+                println!("topic {} by {}: {topic}", event.channel, event.by);
             }
             Event::AccountChanged { nick, account } => {
                 println!("account {nick}: {}", self::account(&account));
