@@ -81,14 +81,14 @@ fn request_futures_are_send() {
     assert_send_static(client.history_targets(SystemTime::UNIX_EPOCH, SystemTime::now()));
     assert_send_static(client.mark_read("#papo", SystemTime::UNIX_EPOCH));
     assert_send_static(client.fetch_read_marker("#papo"));
-    assert_send(
+    assert_send_static(
         client.register_account(
             NewAccount::new("correct horse battery staple")
                 .account("alice")
                 .email("alice@example.org"),
         ),
     );
-    assert_send(client.verify("alice", "392814"));
+    assert_send_static(client.verify_account("alice", "392814"));
     assert_send(client.persistence().get());
     assert_send(client.persistence().set(PersistenceSetting::On));
     assert_send(client.webpush().register(

@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("{message}");
                 let mut code = String::new();
                 io::stdin().read_line(&mut code)?;
-                client.verify(&account, code.trim()).await?;
+                client.verify_account(&account, code.trim()).await?;
             }
             Event::AccountRegistration(AccountRegistration::Registered { account }) => {
                 logged_in = Some(account);

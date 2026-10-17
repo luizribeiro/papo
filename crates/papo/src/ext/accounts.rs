@@ -30,8 +30,8 @@ impl NewAccount {
 
     /// Sets the requested account name.
     #[must_use]
-    pub fn account(mut self, account: impl Into<String>) -> Self {
-        self.account = Some(account.into());
+    pub fn account(mut self, account: impl Into<crate::AccountName>) -> Self {
+        self.account = Some(account.into().into_string());
         self
     }
 
@@ -72,18 +72,21 @@ impl Client {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub async fn register_account(
+    pub fn register_account(
         &self,
         account: NewAccount,
-    ) -> Result<AccountRegistration, Error> {
-        let response = self
-            .core_request(CoreRequest::Register {
-                account: account.account,
-                email: account.email,
-                password: account.password,
-            })
-            .await?;
-        account_registration_result(&response)
+    ) -> crate::RequestFuture<AccountRegistration> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            let response = client
+                .core_request(CoreRequest::Register {
+                    account: account.account,
+                    email: account.email,
+                    password: account.password,
+                })
+                .await?;
+            account_registration_result(&response)
+        })
     }
 
     /// Submits an account verification code.
@@ -95,14 +98,26 @@ impl Client {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
     /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub async fn verify(&self, account: &str, code: &str) -> Result<AccountRegistration, Error> {
-        let response = self
-            .core_request(CoreRequest::Verify {
-                account: account.to_owned(),
-                code: code.to_owned(),
-            })
-            .await?;
-        account_registration_result(&response)
+    pub fn verify_account(
+        &self,
+        account: impl Into<crate::AccountName>,
+        code: impl Into<String>,
+    ) -> crate::RequestFuture<AccountRegistration> {
+        let client = self.clone();
+        let account = account.into();
+        let code = code.into();
+        crate::RequestFuture::new(async move {
+            account
+                .check()
+                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let response = client
+                .core_request(CoreRequest::Verify {
+                    account: account.into_string(),
+                    code,
+                })
+                .await?;
+            account_registration_result(&response)
+        })
     }
 }
 
@@ -183,7 +198,7 @@ mod tests {
 
         let verify = tokio::spawn({
             let client = client.clone();
-            async move { client.verify("alice", "392814").await }
+            async move { client.verify_account("alice", "392814").await }
         });
         client_line(&mut server, b"@label=1 VERIFY alice 392814\r\n").await;
         server_line(
@@ -195,7 +210,8 @@ mod tests {
             matches!(within(verify).await.unwrap().unwrap(), super::AccountRegistration::Registered { account } if account == "alice")
         );
 
-        let verify = tokio::spawn(async move { client.verify("alice", "expired-code").await });
+        let verify =
+            tokio::spawn(async move { client.verify_account("alice", "expired-code").await });
         client_line(&mut server, b"@label=2 VERIFY alice expired-code\r\n").await;
         server_line(
             &mut server,

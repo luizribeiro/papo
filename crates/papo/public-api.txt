@@ -610,8 +610,8 @@ pub fn papo::Client::mode(&self, impl core::convert::Into<papo_proto::id::Target
 impl papo::Client
 pub const fn papo::Client::persistence(&self) -> papo::Persistence<'_>
 impl papo::Client
-pub async fn papo::Client::register_account(&self, papo::NewAccount) -> core::result::Result<papo::AccountRegistration, papo::Error>
-pub async fn papo::Client::verify(&self, &str, &str) -> core::result::Result<papo::AccountRegistration, papo::Error>
+pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountRegistration>
+pub fn papo::Client::verify_account(&self, impl core::convert::Into<papo_proto::id::AccountName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
 impl papo::Client
 pub async fn papo::Client::relay(&self, &str, &str, &str) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::rename(&self, &str, &str, &str) -> core::result::Result<(), papo::Error>
@@ -758,7 +758,7 @@ pub async fn papo::Metadata<'_>::sync(&self, &str) -> core::result::Result<(), p
 pub async fn papo::Metadata<'_>::unsubscribe<I, S>(&self, I) -> core::result::Result<(), papo::Error> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub struct papo::NewAccount
 impl papo::NewAccount
-pub fn papo::NewAccount::account(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::NewAccount::account(self, impl core::convert::Into<papo_proto::id::AccountName>) -> Self
 pub fn papo::NewAccount::email(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::NewAccount::new(impl core::convert::Into<papo_core::secret::Secret>) -> Self
 pub struct papo::OsEntropy
