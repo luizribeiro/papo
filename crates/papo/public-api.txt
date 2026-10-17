@@ -1035,6 +1035,7 @@ pub struct papo::State
 impl papo::State
 pub fn papo::State::account(&self) -> core::option::Option<&papo::AccountName>
 pub const fn papo::State::away(&self) -> bool
+pub fn papo::State::away_message(&self) -> core::option::Option<&str>
 pub const fn papo::State::caps(&self) -> &papo::Capabilities
 pub fn papo::State::casemapping(&self) -> papo::Casemapping
 pub fn papo::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::Channel>

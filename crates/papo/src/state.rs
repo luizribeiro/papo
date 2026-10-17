@@ -110,6 +110,15 @@ impl State {
         self.core.away()
     }
 
+    /// Returns the client's confirmed away message.
+    ///
+    /// `None` means the client is not away or the server confirmed away state without a message
+    /// sent through [`crate::Client::set_away`].
+    #[must_use]
+    pub fn away_message(&self) -> Option<&str> {
+        self.core.away_message()
+    }
+
     /// Iterates over the client's user modes in unspecified order.
     pub fn user_modes(&self) -> impl Iterator<Item = char> + '_ {
         self.core.user_modes()

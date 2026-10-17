@@ -2,9 +2,9 @@
 
 mod support;
 
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
-use papo_core::{Account, Config, Event, OwnedModeChange, RateLimit, StateLimit};
+use papo_core::{Account, Config, Event, OwnedModeChange, RateLimit, ResponseMatcher, StateLimit};
 use papo_proto::{AccountName, ChannelName, Message, ModeKind, Nick};
 use support::Transcript;
 
@@ -248,12 +248,15 @@ fn whois_away_reply_records_the_message() {
 }
 
 #[test]
-fn away_numerics_track_our_own_state() {
+fn uncorrelated_away_numerics_do_not_invent_a_message() {
     Transcript::new(Config::default().nick("emily"))
         .inspect(|session| assert!(!session.state().away()))
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "emily" && message.as_deref() == Some("")))
-        .inspect(|session| assert!(session.state().away()))
+        .no_event()
+        .inspect(|session| {
+            assert!(session.state().away());
+            assert_eq!(session.state().away_message(), None);
+        })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
         .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "emily" && message.is_none()))
         .inspect(|session| assert!(!session.state().away()))
@@ -261,18 +264,34 @@ fn away_numerics_track_our_own_state() {
 }
 
 #[test]
+fn own_away_confirmation_carries_the_requested_message() {
+    Transcript::new(Config::default().nick("emily"))
+        .update(|session| {
+            session
+                .request_with_matcher(
+                    Instant::now(),
+                    Message::new("AWAY", ["Reviewing the release notes"]),
+                    ResponseMatcher::Away(true),
+                )
+                .unwrap();
+        })
+        .client("AWAY :Reviewing the release notes")
+        .server(":ergo.test 306 emily :You have been marked as being away")
+        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "emily" && message.as_deref() == Some("Reviewing the release notes")))
+        .inspect(|session| {
+            assert_eq!(
+                session.state().away_message(),
+                Some("Reviewing the release notes")
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn away_numerics_do_not_repeat_our_own_state_changes() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .event(|event| {
-            matches!(
-                event,
-                Event::AwayChanged {
-                    message: Some(_),
-                    ..
-                }
-            )
-        })
+        .no_event()
         .server(":ergo.test 306 emily :You have been marked as being away")
         .no_event()
         .inspect(|session| assert!(session.state().away()))

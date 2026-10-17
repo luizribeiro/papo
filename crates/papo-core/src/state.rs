@@ -36,6 +36,7 @@ pub struct State {
     host: Option<String>,
     realname: String,
     away: bool,
+    away_message: Option<String>,
     user_modes: HashSet<char>,
     casemapping: Casemapping,
     channels: HashMap<Folded<ChannelName>, Channel>,
@@ -130,6 +131,7 @@ impl State {
             host: None,
             realname: config.realname.clone(),
             away: false,
+            away_message: None,
             user_modes: HashSet::new(),
             casemapping: Casemapping::default(),
             channels: HashMap::new(),
@@ -179,7 +181,7 @@ impl State {
             .retain(|_, user| user.monitored || !user.channels.is_empty());
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
     pub(crate) fn handle_message(
         &mut self,
         message: &MessageRef<'_>,
@@ -187,6 +189,7 @@ impl State {
         isupport: &Isupport,
         no_implicit_names: bool,
         metadata: MetadataContext,
+        own_away_message: Option<&str>,
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = self.prepare_message(message, own_nick, isupport, outbox);
@@ -213,7 +216,8 @@ impl State {
         if let Some(join) = Join::parse(message) {
             return self.handle_join(message, join, isupport, no_implicit_names, outbox);
         }
-        if let Some(handled) = self.handle_user_update(message, isupport, outbox) {
+        if let Some(handled) = self.handle_user_update(message, isupport, own_away_message, outbox)
+        {
             return handled;
         }
         if message.command() == Command::Part {
@@ -1055,7 +1059,12 @@ impl State {
         Some(Handled::Yes)
     }
 
-    fn handle_away(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> Option<Handled> {
+    fn handle_away(
+        &mut self,
+        message: &MessageRef<'_>,
+        own_away_message: Option<&str>,
+        outbox: &mut Outbox,
+    ) -> Option<Handled> {
         if let Some(away) = Away::parse(message) {
             let Source::User { nick, .. } = message.source()? else {
                 return Some(Handled::No);
@@ -1090,6 +1099,7 @@ impl State {
             }
             Command::Numeric(Numeric::RPL_UNAWAY) if self.away => {
                 self.away = false;
+                self.away_message = None;
                 outbox.event(Event::AwayChanged {
                     nick: self.nick.as_ref().to_owned(),
                     message: None,
@@ -1097,10 +1107,13 @@ impl State {
             }
             Command::Numeric(Numeric::RPL_NOWAWAY) if !self.away => {
                 self.away = true;
-                outbox.event(Event::AwayChanged {
-                    nick: self.nick.as_ref().to_owned(),
-                    message: Some(String::new()),
-                });
+                if let Some(message) = own_away_message {
+                    self.away_message = Some(message.to_owned());
+                    outbox.event(Event::AwayChanged {
+                        nick: self.nick.as_ref().to_owned(),
+                        message: self.away_message.clone(),
+                    });
+                }
             }
             Command::Numeric(Numeric::RPL_UNAWAY | Numeric::RPL_NOWAWAY) => {}
             _ => return None,
@@ -1112,11 +1125,12 @@ impl State {
         &mut self,
         message: &MessageRef<'_>,
         isupport: &Isupport,
+        own_away_message: Option<&str>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
         self.handle_visible_host(message, outbox)
             .or_else(|| self.handle_account(message, outbox))
-            .or_else(|| self.handle_away(message, outbox))
+            .or_else(|| self.handle_away(message, own_away_message, outbox))
             .or_else(|| self.handle_identity_change(message, outbox))
             .or_else(|| self.handle_who(message, isupport, outbox))
     }
@@ -1444,6 +1458,15 @@ impl State {
     #[must_use]
     pub const fn away(&self) -> bool {
         self.away
+    }
+
+    /// Returns this session's confirmed away message.
+    ///
+    /// `None` means the session is not away or the server confirmed away state without echoing a
+    /// message that papo sent through the typed away action.
+    #[must_use]
+    pub fn away_message(&self) -> Option<&str> {
+        self.away_message.as_deref()
     }
 
     /// Returns a joined channel using the server's current casemapping.

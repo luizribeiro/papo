@@ -1101,6 +1101,7 @@ pub struct papo::State
 impl papo::State
 pub fn papo::State::account(&self) -> core::option::Option<&papo::AccountName>
 pub const fn papo::State::away(&self) -> bool
+pub fn papo::State::away_message(&self) -> core::option::Option<&str>
 pub const fn papo::State::bouncer_network(&self) -> core::option::Option<&papo::NetworkId>
 pub fn papo::State::bouncer_networks(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::BouncerNetwork>
 pub const fn papo::State::caps(&self) -> &papo::Capabilities

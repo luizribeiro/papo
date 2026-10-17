@@ -1981,6 +1981,7 @@ pub enum StateLimit {
 pub struct Session {
     account_registration: AccountRegistration,
     away_on_connect_sent: bool,
+    away_messages: BTreeMap<RequestId, String>,
     batches: Batches,
     config: Config,
     connection: Connection,
@@ -2008,6 +2009,7 @@ impl std::fmt::Debug for Session {
             .debug_struct("Session")
             .field("account_registration", &self.account_registration)
             .field("away_on_connect_sent", &self.away_on_connect_sent)
+            .field("away_messages", &self.away_messages)
             .field("batches", &self.batches)
             .field("config", &self.config)
             .field("connection", &self.connection)
@@ -2153,6 +2155,7 @@ impl Session {
         Self {
             account_registration: AccountRegistration::default(),
             away_on_connect_sent: false,
+            away_messages: BTreeMap::new(),
             batches,
             config,
             connection,
@@ -2193,6 +2196,7 @@ impl Session {
         self.ctcp_sources.clear();
         self.requests.clear();
         self.unlabelled_requests.clear();
+        self.away_messages.clear();
         self.rate_limit.reset(now);
         self.account_registration.handle_disconnected();
         if let Some(pending) = self.config.registration_on_connect.clone() {
@@ -2292,6 +2296,7 @@ impl Session {
         for label in expired {
             if let Some((id, _, _, _, _)) = self.requests.remove(&label) {
                 self.unlabelled_requests.retain(|request| request.id != id);
+                self.away_messages.remove(&id);
                 self.outbox.event(Event::RequestTimedOut { id });
             }
         }
@@ -2302,6 +2307,7 @@ impl Session {
                 .checked_add(self.config.request_timeout)
                 .is_some_and(|deadline| now >= deadline)
             {
+                self.away_messages.remove(&request.id);
                 self.outbox.event(Event::RequestTimedOut { id: request.id });
             } else {
                 self.unlabelled_requests.push_back(request);
@@ -2349,6 +2355,7 @@ impl Session {
         for request in self.unlabelled_requests.drain(..) {
             self.outbox.event(Event::RequestAborted { id: request.id });
         }
+        self.away_messages.clear();
         self.registration.handle_disconnected();
         self.account_registration.handle_disconnected();
         self.sasl.handle_disconnected();
@@ -2604,12 +2611,18 @@ impl Session {
         message: Message,
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
+        let away_message = matches!(matcher, ResponseMatcher::Away(true))
+            .then(|| message.as_ref().param(0).map(str::to_owned))
+            .flatten();
         if self.caps.enabled().contains_key("labeled-response") {
             let track_sync = matches!(matcher, ResponseMatcher::Join(_));
             if track_sync && self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
                 return Err(RequestError::PendingLimit);
             }
             let id = self.queue_request(now, message, None, true)?;
+            if let Some(message) = away_message {
+                self.away_messages.insert(id, message);
+            }
             if track_sync {
                 self.unlabelled_requests.push_back(UnlabelledRequest {
                     id,
@@ -2637,6 +2650,9 @@ impl Session {
             fence: fence.clone(),
             lines: Vec::new(),
         });
+        if let Some(message) = away_message {
+            self.away_messages.insert(id, message);
+        }
         self.outbox.transmit_raw(line.into());
         if let Some(fence) = fence {
             self.outbox
@@ -3042,6 +3058,7 @@ impl Session {
         self.send_pending_registration(now);
         self.sync_monitored_state();
         let whoami = self.handle_whoami(message);
+        let own_away_message = self.confirmed_away_message(message).map(str::to_owned);
         let state_handled = whoami
             || self.state.handle_message(
                 message,
@@ -3052,6 +3069,7 @@ impl Session {
                     max_keys: state::MAX_METADATA_KEYS_PER_TARGET,
                     subscription_batch: context.batch_type() == Some("metadata-subs"),
                 },
+                own_away_message.as_deref(),
                 &mut self.outbox,
             ) == Handled::Yes;
         self.handle_ctcp(now, message);
@@ -3322,6 +3340,7 @@ impl Session {
         let Some((id, _, sent, _, _)) = self.requests.remove(label.as_ref()) else {
             return false;
         };
+        self.away_messages.remove(&id);
         let lines = if message.command_is("ACK") {
             Vec::new()
         } else {
@@ -3371,6 +3390,20 @@ impl Session {
             .is_none_or(|(_, _, _, _, emit_events)| *emit_events)
     }
 
+    fn confirmed_away_message<'a>(&'a self, message: &MessageRef<'_>) -> Option<&'a str> {
+        if message.command() != Command::Numeric(Numeric::RPL_NOWAWAY) {
+            return None;
+        }
+        let id = if let Some(label) = message.tag("label") {
+            self.requests.get(label.as_ref()).map(|(id, ..)| *id)
+        } else {
+            self.unlabelled_requests.iter().find_map(|request| {
+                matches!(&request.matcher, ResponseMatcher::Away(true)).then_some(request.id)
+            })
+        }?;
+        self.away_messages.get(&id).map(String::as_str)
+    }
+
     fn resolve_unlabelled(&mut self, message: &MessageRef<'_>) -> bool {
         let mapping = self.isupport.value().casemapping();
         let Some((index, complete)) =
@@ -3399,6 +3432,7 @@ impl Session {
         request.lines.push(message.to_owned());
         if complete {
             let request = self.unlabelled_requests.remove(index).unwrap();
+            self.away_messages.remove(&request.id);
             let whois_channels = parse_whois_channels(&request.lines, self.isupport.value());
             self.outbox.event(Event::Response(Response {
                 id: request.id,
@@ -3518,6 +3552,9 @@ impl Session {
         history_targets: Option<Vec<(String, std::time::SystemTime)>>,
     ) {
         let request = self.requests.remove(label);
+        if let Some((id, _, _, _, _)) = &request {
+            self.away_messages.remove(id);
+        }
         let deferred = request.as_ref().is_some_and(|(id, _, _, _, _)| {
             self.unlabelled_requests
                 .iter()
@@ -3614,6 +3651,7 @@ impl Session {
                 max_keys: state::MAX_METADATA_KEYS_PER_TARGET,
                 subscription_batch: false,
             },
+            None,
             &mut self.outbox,
         );
         let generated = self.outbox.events.split_off(event_count);
