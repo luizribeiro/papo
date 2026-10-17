@@ -14,6 +14,9 @@ mod channel;
 mod connection;
 #[path = "event/conversation.rs"]
 mod conversation;
+#[path = "event/raw.rs"]
+#[allow(dead_code)]
+mod raw;
 #[path = "event/server.rs"]
 mod server;
 #[path = "event/source.rs"]
