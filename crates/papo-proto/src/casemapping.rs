@@ -1,5 +1,6 @@
 use std::{
-    borrow::Cow,
+    borrow::{Borrow, Cow},
+    cmp::Ordering,
     hash::{Hash, Hasher},
 };
 
@@ -69,6 +70,15 @@ impl Casemapping {
         self.fold(left) == self.fold(right)
     }
 
+    /// Creates a casemapped key while retaining the typed original value.
+    #[must_use]
+    pub fn key<T>(self, value: &T) -> Folded<T>
+    where
+        T: AsRef<str> + Clone,
+    {
+        Folded::new(value.clone(), self)
+    }
+
     const fn fold_char(self, character: char) -> char {
         match character {
             'A'..='Z' => character.to_ascii_lowercase(),
@@ -81,25 +91,31 @@ impl Casemapping {
     }
 }
 
-/// An IRC name retaining its displayed spelling while comparing by its folded form.
+/// A typed IRC value retaining its spelling while comparing by its folded form.
 #[derive(Clone, Debug)]
-pub struct CaseKey {
-    original: String,
+pub struct Folded<T> {
+    original: T,
     folded: String,
 }
 
-impl CaseKey {
+impl<T: AsRef<str>> Folded<T> {
     /// Creates a key using the server's casemapping.
     #[must_use]
-    pub fn new(name: impl Into<String>, casemapping: Casemapping) -> Self {
-        let original = name.into();
-        let folded = casemapping.fold(&original).into_owned();
+    pub fn new(value: impl Into<T>, casemapping: Casemapping) -> Self {
+        let original = value.into();
+        let folded = casemapping.fold(original.as_ref()).into_owned();
         Self { original, folded }
     }
 
     /// Returns the spelling received from the server or user.
     #[must_use]
     pub fn original(&self) -> &str {
+        self.original.as_ref()
+    }
+
+    /// Returns the typed value received from the server or user.
+    #[must_use]
+    pub const fn value(&self) -> &T {
         &self.original
     }
 
@@ -110,19 +126,40 @@ impl CaseKey {
     }
 }
 
-impl PartialEq for CaseKey {
+impl<T> PartialEq for Folded<T> {
     fn eq(&self, other: &Self) -> bool {
         self.folded == other.folded
     }
 }
 
-impl Eq for CaseKey {}
+impl<T> Eq for Folded<T> {}
 
-impl Hash for CaseKey {
+impl<T> Hash for Folded<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.folded.hash(state);
     }
 }
+
+impl<T> PartialOrd for Folded<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for Folded<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.folded.cmp(&other.folded)
+    }
+}
+
+impl<T> Borrow<str> for Folded<T> {
+    fn borrow(&self) -> &str {
+        &self.folded
+    }
+}
+
+/// A string-valued casemapped key retained for source compatibility.
+pub type CaseKey = Folded<String>;
 
 #[cfg(test)]
 mod tests {
@@ -131,6 +168,8 @@ mod tests {
         collections::{HashMap, hash_map::DefaultHasher},
         hash::{Hash, Hasher},
     };
+
+    use crate::Nick;
 
     use super::{CaseKey, Casemapping};
 
@@ -187,6 +226,34 @@ mod tests {
         let mut other_hash = DefaultHasher::new();
         other.hash(&mut other_hash);
         assert_ne!(lookup_hash.finish(), other_hash.finish());
+    }
+
+    #[test]
+    fn folded_keys_follow_each_irc_casemapping() {
+        let rfc = Casemapping::Rfc1459.key(&Nick::from("[]\\~"));
+        let rfc_equivalent = Casemapping::Rfc1459.key(&Nick::from("{}|^"));
+        assert_eq!(rfc, rfc_equivalent);
+
+        let strict = Casemapping::Rfc1459Strict.key(&Nick::from("[]\\~"));
+        let strict_different = Casemapping::Rfc1459Strict.key(&Nick::from("{}|^"));
+        assert_ne!(strict, strict_different);
+        assert_eq!(strict.folded(), "{}|~");
+
+        let ascii = Casemapping::Ascii.key(&Nick::from("ALICE[]\\~"));
+        let ascii_case_only = Casemapping::Ascii.key(&Nick::from("alice[]\\~"));
+        let ascii_punctuation = Casemapping::Ascii.key(&Nick::from("alice{}|^"));
+        assert_eq!(ascii, ascii_case_only);
+        assert_ne!(ascii, ascii_punctuation);
+        assert_eq!(ascii.value().as_ref(), "ALICE[]\\~");
+    }
+
+    #[test]
+    fn folded_keys_borrow_the_canonical_spelling() {
+        let mut users = HashMap::new();
+        users.insert(Casemapping::Rfc1459.key(&Nick::from("Alice[bot]")), 7);
+
+        assert_eq!(users.get("alice{bot}"), Some(&7));
+        assert_eq!(users.get("Alice[bot]"), None);
     }
 
     #[cfg(feature = "precis")]
