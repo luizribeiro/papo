@@ -1,5 +1,52 @@
 use std::{borrow::Borrow, fmt, ops::Deref};
 
+/// Why an IRC identifier cannot be sent to the server.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum InvalidIdentifier {
+    /// The identifier is empty.
+    Empty,
+    /// The identifier contains a character forbidden in its protocol context.
+    InvalidCharacter(char),
+    /// The identifier starts with a character forbidden in its protocol context.
+    InvalidPrefix(char),
+    /// The identifier exceeds a server or protocol length limit.
+    TooLong {
+        /// The identifier's character count.
+        length: usize,
+        /// The maximum accepted character count.
+        maximum: usize,
+    },
+}
+
+impl fmt::Display for InvalidIdentifier {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Empty => formatter.write_str("identifier is empty"),
+            Self::InvalidCharacter(character) => {
+                write!(
+                    formatter,
+                    "identifier contains forbidden character {character:?}"
+                )
+            }
+            Self::InvalidPrefix(character) => {
+                write!(
+                    formatter,
+                    "identifier starts with forbidden character {character:?}"
+                )
+            }
+            Self::TooLong { length, maximum } => {
+                write!(
+                    formatter,
+                    "identifier has {length} characters; maximum is {maximum}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for InvalidIdentifier {}
+
 macro_rules! identifier {
     ($name:ident, $description:literal) => {
         #[doc = $description]
@@ -91,6 +138,81 @@ identifier!(
     MessageId,
     "An opaque, network-unique IRC message identifier."
 );
+
+impl AccountName {
+    /// Validates this account name for use as an IRC parameter.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an empty name, the logout marker, or wire delimiters.
+    pub fn check(&self) -> Result<(), InvalidIdentifier> {
+        check_parameter(self)?;
+        if self.as_ref() == "*" {
+            return Err(InvalidIdentifier::InvalidCharacter('*'));
+        }
+        Ok(())
+    }
+}
+
+impl Mask {
+    /// Validates this mask for use as an IRC parameter.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an empty mask or wire delimiters.
+    pub fn check(&self) -> Result<(), InvalidIdentifier> {
+        check_parameter(self)
+    }
+}
+
+impl MetadataKey {
+    /// Validates the metadata key character set.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error unless the key is nonempty and contains only lowercase
+    /// ASCII letters, digits, `_`, `.`, `/`, or `-`.
+    pub fn check(&self) -> Result<(), InvalidIdentifier> {
+        if self.is_empty() {
+            return Err(InvalidIdentifier::Empty);
+        }
+        self.chars()
+            .find(|character| {
+                !character.is_ascii_lowercase()
+                    && !character.is_ascii_digit()
+                    && !matches!(character, '_' | '.' | '/' | '-')
+            })
+            .map_or(Ok(()), |character| {
+                Err(InvalidIdentifier::InvalidCharacter(character))
+            })
+    }
+}
+
+impl MessageId {
+    /// Validates this message identifier for use as an IRC parameter.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an empty identifier or wire delimiters.
+    pub fn check(&self) -> Result<(), InvalidIdentifier> {
+        check_parameter(self)
+    }
+}
+
+fn check_parameter(value: &str) -> Result<(), InvalidIdentifier> {
+    if value.is_empty() {
+        return Err(InvalidIdentifier::Empty);
+    }
+    if value.starts_with(':') {
+        return Err(InvalidIdentifier::InvalidPrefix(':'));
+    }
+    value
+        .chars()
+        .find(|character| matches!(character, '\0' | '\r' | '\n' | ' '))
+        .map_or(Ok(()), |character| {
+            Err(InvalidIdentifier::InvalidCharacter(character))
+        })
+}
 
 impl From<Nick> for Target {
     fn from(value: Nick) -> Self {
