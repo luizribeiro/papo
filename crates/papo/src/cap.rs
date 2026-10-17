@@ -63,6 +63,8 @@ pub const RELAYMSG: &str = "draft/relaymsg";
 /// Message redaction.
 pub const MESSAGE_REDACTION: &str = "draft/message-redaction";
 /// Web Push subscriptions.
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub const WEBPUSH: &str = "draft/webpush";
 /// Away state during registration.
 pub const PRE_AWAY: &str = "draft/pre-away";

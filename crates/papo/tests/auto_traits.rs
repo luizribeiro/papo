@@ -6,9 +6,11 @@ use std::{future::IntoFuture, time::SystemTime};
 use futures_core::Stream;
 #[cfg(feature = "unstable")]
 use papo::PersistenceSetting;
+#[cfg(feature = "unstable")]
+use papo::PushKeys;
 use papo::{
     Client, Error, Event, Events, ListFilter, Message as ChatMessage, MessageId, NewAccount,
-    PushKeys, RequestFuture, Target,
+    RequestFuture, Target,
 };
 use papo_proto::Typing;
 
@@ -95,15 +97,18 @@ fn request_futures_are_send() {
         assert_send_static(client.persistence().get());
         assert_send_static(client.persistence().set(PersistenceSetting::On));
     }
-    assert_send_static(client.webpush().register(
-        "https://push.example.net/message/ErgoTest/alice",
-        PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
-    ));
-    assert_send_static(
-        client
-            .webpush()
-            .unregister("https://push.example.net/message/ErgoTest/alice"),
-    );
+    #[cfg(feature = "unstable")]
+    {
+        assert_send_static(client.webpush().register(
+            "https://push.example.net/message/ErgoTest/alice",
+            PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
+        ));
+        assert_send_static(
+            client
+                .webpush()
+                .unregister("https://push.example.net/message/ErgoTest/alice"),
+        );
+    }
     assert_send_static(client.metadata().get("alice", ["avatar"]));
     assert_send_static(client.metadata().list("alice"));
     assert_send_static(client.metadata().set("status", "testing"));

@@ -85,7 +85,6 @@ pub const papo::cap::SETNAME: &str
 pub const papo::cap::STANDARD_REPLIES: &str
 pub const papo::cap::STS: &str
 pub const papo::cap::USERHOST_IN_NAMES: &str
-pub const papo::cap::WEBPUSH: &str
 pub const papo::cap::WHOAMI: &str
 pub mod papo::event
 #[non_exhaustive] pub enum papo::event::BatchAbandonReason
@@ -481,8 +480,6 @@ pub papo::InvalidInput::RelayNickname
 pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
 pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
-pub papo::InvalidInput::WebPushEndpoint
-pub papo::InvalidInput::WebPushKey
 #[non_exhaustive] pub enum papo::MessageKind
 pub papo::MessageKind::Action
 pub papo::MessageKind::Ctcp
@@ -637,8 +634,6 @@ pub fn papo::Client::verify_account(&self, impl core::convert::Into<papo_proto::
 impl papo::Client
 pub fn papo::Client::relay(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::Nick>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo_proto::id::ChannelName>, impl core::convert::Into<papo_proto::id::ChannelName>, &str) -> papo::RequestFuture<()>
-impl papo::Client
-pub fn papo::Client::webpush(&self) -> papo::WebPush
 impl core::fmt::Debug for papo::Client
 pub fn papo::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::ConnectError(_)
@@ -793,9 +788,6 @@ pub fn papo::NewAccount::new(impl core::convert::Into<papo_core::secret::Secret>
 pub struct papo::OsEntropy
 impl papo_core::sasl::Entropy for papo::OsEntropy
 pub fn papo::OsEntropy::fill(&mut self, &mut [u8])
-pub struct papo::PushKeys
-impl papo::PushKeys
-pub fn papo::PushKeys::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::secret::Secret>) -> Self
 pub struct papo::RawLine
 impl papo::RawLine
 pub fn papo::RawLine::command(&self) -> &str
@@ -889,10 +881,6 @@ impl core::cmp::PartialEq for papo::Tags
 pub fn papo::Tags::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::Tags
 pub fn papo::Tags::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub struct papo::WebPush
-impl papo::WebPush
-pub fn papo::WebPush::register(&self, impl core::convert::Into<alloc::string::String>, papo::PushKeys) -> papo::RequestFuture<()>
-pub fn papo::WebPush::unregister(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub struct papo::WhoEntry
 pub papo::WhoEntry::account: core::option::Option<papo_proto::id::AccountName>
 pub papo::WhoEntry::away: bool

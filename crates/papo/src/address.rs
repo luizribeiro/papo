@@ -67,9 +67,13 @@ pub enum InvalidInput {
     #[error("relayed nickname has no allowed separator")]
     RelayNickname,
     /// A Web Push endpoint is not a nonempty HTTPS URL.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[error("invalid Web Push endpoint")]
     WebPushEndpoint,
     /// A Web Push key is not valid URL-safe base64.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[error("invalid Web Push key")]
     WebPushKey,
 }

@@ -24,9 +24,12 @@ mod sasl;
 mod secret;
 mod state;
 pub mod sts;
+#[cfg(feature = "unstable")]
 mod webpush;
 
 pub use secret::Secret;
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use webpush::WebPushError;
 
 use std::{
@@ -108,6 +111,7 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "draft/channel-rename",
     "draft/relaymsg",
     "draft/message-redaction",
+    #[cfg(feature = "unstable")]
     "draft/webpush",
     "draft/pre-away",
     "draft/no-implicit-names",
@@ -932,6 +936,8 @@ impl Response {
     }
 
     /// Returns a typed Web Push failure from this response.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[must_use]
     pub fn webpush_error(&self) -> Option<WebPushError> {
         self.error()?.webpush_error()
@@ -1137,6 +1143,8 @@ impl ServerError {
     }
 
     /// Returns the typed Web Push code when this is a matching standard failure.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[must_use]
     pub fn webpush_error(&self) -> Option<WebPushError> {
         match self {
@@ -1242,6 +1250,8 @@ impl StandardReply {
     }
 
     /// Returns the typed Web Push code when this is a matching failure.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[must_use]
     pub fn webpush_error(&self) -> Option<WebPushError> {
         (self.kind == StandardReplyKind::Fail)
@@ -1429,8 +1439,10 @@ pub enum RequestError {
     /// A relayed nickname contains none of the server-advertised separator characters.
     InvalidRelayNickname,
     /// A web push endpoint is not a nonempty HTTPS URL.
+    #[cfg(feature = "unstable")]
     InvalidWebPushEndpoint,
     /// A web push key is not valid URL-safe base64.
+    #[cfg(feature = "unstable")]
     InvalidWebPushKey,
 }
 
@@ -1478,7 +1490,9 @@ impl std::fmt::Display for RequestError {
             Self::InvalidRelayNickname => {
                 formatter.write_str("relayed nickname does not contain an allowed separator")
             }
+            #[cfg(feature = "unstable")]
             Self::InvalidWebPushEndpoint => formatter.write_str("invalid web push endpoint"),
+            #[cfg(feature = "unstable")]
             Self::InvalidWebPushKey => formatter.write_str("invalid web push key"),
         }
     }
@@ -1497,9 +1511,9 @@ impl std::error::Error for RequestError {
             | Self::InvalidMetadataKey
             | Self::MetadataValueTooLong { .. }
             | Self::TooManyMetadataSubscriptions { .. }
-            | Self::InvalidRelayNickname
-            | Self::InvalidWebPushEndpoint
-            | Self::InvalidWebPushKey => None,
+            | Self::InvalidRelayNickname => None,
+            #[cfg(feature = "unstable")]
+            Self::InvalidWebPushEndpoint | Self::InvalidWebPushKey => None,
         }
     }
 }

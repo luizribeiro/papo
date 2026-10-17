@@ -49,6 +49,8 @@ pub use ext::monitor::Monitor;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::persistence::Persistence;
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::webpush::{PushKeys, WebPush};
 pub use mode::SetModes;
 pub use papo_core::Secret;

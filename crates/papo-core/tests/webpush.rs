@@ -1,4 +1,5 @@
 //! Transcript tests for `draft/webpush` and `soju.im/webpush`.
+#![cfg(feature = "unstable")]
 
 mod support;
 

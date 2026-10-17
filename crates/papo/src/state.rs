@@ -197,6 +197,7 @@ const FEATURES: &[Feature] = &[
     Feature::AccountRegistration,
     #[cfg(feature = "unstable")]
     Feature::Persistence,
+    #[cfg(feature = "unstable")]
     Feature::WebPush,
     Feature::ChannelRename,
     Feature::Relay,

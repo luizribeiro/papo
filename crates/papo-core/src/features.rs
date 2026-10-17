@@ -41,6 +41,8 @@ pub enum Feature {
     Persistence,
     /// `IRCv3` draft Web Push, requiring `draft/webpush` or Soju's vendor
     /// capability `soju.im/webpush`.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     WebPush,
     /// `IRCv3` draft channel renaming, requiring `draft/channel-rename`.
     ChannelRename,
@@ -73,6 +75,7 @@ impl Feature {
         Self::AccountRegistration,
         #[cfg(feature = "unstable")]
         Self::Persistence,
+        #[cfg(feature = "unstable")]
         Self::WebPush,
         Self::ChannelRename,
         Self::Relay,
@@ -100,6 +103,7 @@ impl Feature {
             Self::AccountRegistration => "account-registration",
             #[cfg(feature = "unstable")]
             Self::Persistence => "persistence",
+            #[cfg(feature = "unstable")]
             Self::WebPush => "webpush",
             Self::ChannelRename => "channel rename",
             Self::Relay => "relaymsg",
@@ -122,6 +126,7 @@ impl Feature {
             Self::AccountRegistration => &["draft/account-registration"],
             #[cfg(feature = "unstable")]
             Self::Persistence => &["draft/persistence"],
+            #[cfg(feature = "unstable")]
             Self::WebPush => &["draft/webpush", "soju.im/webpush"],
             Self::ChannelRename => &["draft/channel-rename"],
             Self::Relay => &["draft/relaymsg"],

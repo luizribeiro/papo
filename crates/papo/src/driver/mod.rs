@@ -93,11 +93,13 @@ pub(crate) enum CoreRequest {
         nick: String,
         text: String,
     },
+    #[cfg(feature = "unstable")]
     WebPushRegister {
         endpoint: String,
         p256dh: String,
         auth: papo_core::Secret,
     },
+    #[cfg(feature = "unstable")]
     WebPushUnregister(String),
 }
 
@@ -124,11 +126,13 @@ impl CoreRequest {
                 nick,
                 text,
             } => return session.relay(now(), &channel, &nick, &text),
+            #[cfg(feature = "unstable")]
             Self::WebPushRegister {
                 endpoint,
                 p256dh,
                 auth,
             } => return session.webpush_register(now(), &endpoint, &p256dh, auth.expose()),
+            #[cfg(feature = "unstable")]
             Self::WebPushUnregister(endpoint) => {
                 return session.webpush_unregister(now(), &endpoint);
             }

@@ -107,6 +107,7 @@ fn defaults_cover_every_implemented_negotiable_capability() {
             "draft/channel-rename",
             "draft/relaymsg",
             "draft/message-redaction",
+            #[cfg(feature = "unstable")]
             "draft/webpush",
             "draft/pre-away",
             "draft/no-implicit-names",
