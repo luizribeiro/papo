@@ -32,7 +32,7 @@ pub use error::{
     RegistrationError, ServerError,
 };
 pub use event_impl::{
-    Event, Message, MessageEvent, MessageKind, Origin, RawLine, Source, Tags, TargetedMessageId,
+    Event, Message, MessageKind, Origin, RawLine, Source, Tags, TargetedMessageId,
 };
 pub use ext::accounts::{AccountRegistration, NewAccount};
 pub use ext::history::{History, HistoryPage, HistoryReference, HistoryRequest};

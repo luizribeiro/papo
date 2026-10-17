@@ -3,7 +3,7 @@ use std::{future::Future, pin::Pin, time::SystemTime};
 use papo_core::{HistoryQuery, MsgRef, Response};
 use tokio::sync::oneshot;
 
-use crate::{Client, Error, MessageEvent, driver::Command};
+use crate::{Client, Error, Message as ChatMessage, driver::Command};
 
 /// A page of requested chat history.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -12,7 +12,7 @@ pub struct HistoryPage {
     /// Target whose history was requested.
     pub target: String,
     /// Messages in server delivery order.
-    pub messages: Vec<MessageEvent>,
+    pub messages: Vec<ChatMessage>,
     /// Whether the server reported that no further page exists.
     pub end: bool,
 }
@@ -144,8 +144,8 @@ impl From<SystemTime> for HistoryReference {
     }
 }
 
-impl From<&MessageEvent> for HistoryReference {
-    fn from(value: &MessageEvent) -> Self {
+impl From<&ChatMessage> for HistoryReference {
+    fn from(value: &ChatMessage) -> Self {
         Self(value.msgid().map(|msgid| MsgRef::Msgid(msgid.to_owned())))
     }
 }
@@ -223,7 +223,7 @@ impl Client {
             .into_iter()
             .filter_map(papo_core::HistoryItem::into_message)
             .filter_map(|item| {
-                crate::MessageEvent::from_history(item.message, self, crate::rt::now_wall()).ok()
+                crate::Message::from_history(item.message, self, crate::rt::now_wall()).ok()
             })
             .collect();
         Ok(crate::HistoryPage {
@@ -334,7 +334,7 @@ mod tests {
         assert!(
             matches!(HistoryReference::from(UNIX_EPOCH).0, Some(MsgRef::Timestamp(time)) if time == UNIX_EPOCH)
         );
-        let event = crate::MessageEvent::from_history(
+        let event = crate::Message::from_history(
             Message::privmsg("#papo", "earlier").with_tag("msgid", "RfcBTzyxY120004"),
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,

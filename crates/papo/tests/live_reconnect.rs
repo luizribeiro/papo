@@ -131,7 +131,7 @@ async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
     poster
 }
 
-async fn wait_history(events: &mut papo::Events, target: &str) -> Vec<papo::MessageEvent> {
+async fn wait_history(events: &mut papo::Events, target: &str) -> Vec<papo::Message> {
     loop {
         match events.next().await {
             Some(Event::History(history)) if history.target == target => return history.messages,

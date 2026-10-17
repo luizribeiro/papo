@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, MessageEvent, Origin, cap};
+use papo::{Client, Endpoint, Event, Message as ChatMessage, Origin, cap};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -90,7 +90,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
     .await;
 }
 
-fn chats<'a>(messages: &'a [MessageEvent], texts: &[&str]) -> Vec<&'a MessageEvent> {
+fn chats<'a>(messages: &'a [ChatMessage], texts: &[&str]) -> Vec<&'a ChatMessage> {
     messages
         .iter()
         .filter(|message| texts.contains(&message.text()))

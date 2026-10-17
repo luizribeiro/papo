@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, MessageEvent, Origin, Sasl, Source};
+use papo::{Client, Endpoint, Event, Message as ChatMessage, Origin, Sasl, Source};
 use papo_test_server::{from_env, register_account, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -231,8 +231,8 @@ async fn wait_ready(events: &mut papo::Events, nick: &str, channel: &str) {
 
 async fn wait_message(
     events: &mut papo::Events,
-    accepted: impl Fn(&MessageEvent) -> bool,
-) -> MessageEvent {
+    accepted: impl Fn(&ChatMessage) -> bool,
+) -> ChatMessage {
     loop {
         match events.next().await {
             Some(Event::Message(message)) if accepted(&message) => return *message,
@@ -248,7 +248,7 @@ async fn wait_message(
     }
 }
 
-fn source_nick(message: &MessageEvent) -> Option<String> {
+fn source_nick(message: &ChatMessage) -> Option<String> {
     match message.source() {
         Some(Source::User { nick, .. }) => Some(nick),
         _ => None,

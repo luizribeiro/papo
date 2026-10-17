@@ -124,9 +124,6 @@ pub struct Message {
     private: bool,
 }
 
-/// Compatibility name for [`Message`].
-pub type MessageEvent = Message;
-
 impl Message {
     pub(crate) fn new(
         raw: ProtoMessage,
@@ -963,7 +960,7 @@ mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
-        CoreEvent, Event, MessageEvent, MessageKind, Origin, PersistenceSetting, Source,
+        CoreEvent, Event, Message as ChatMessage, MessageKind, Origin, PersistenceSetting, Source,
         StandardReplyKind, Warning, from_core,
     };
     use papo_core::{
@@ -977,11 +974,11 @@ mod tests {
         isupport: &Isupport,
         nick: &str,
         received_at: std::time::SystemTime,
-    ) -> MessageEvent {
-        MessageEvent::new(message, isupport, nick, &Capabilities::new(), received_at).unwrap()
+    ) -> ChatMessage {
+        ChatMessage::new(message, isupport, nick, &Capabilities::new(), received_at).unwrap()
     }
 
-    fn chat(command: &str, text: &str) -> MessageEvent {
+    fn chat(command: &str, text: &str) -> ChatMessage {
         event(
             Message::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
             &Isupport::default(),
@@ -1008,7 +1005,7 @@ mod tests {
             MessageKind::CtcpReply
         );
         assert!(
-            MessageEvent::new(
+            ChatMessage::new(
                 Message::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]),
                 &Isupport::default(),
                 "papo",
@@ -1179,14 +1176,14 @@ mod tests {
         event
     }
 
-    fn mapped_message(event: papo_core::Event) -> MessageEvent {
+    fn mapped_message(event: papo_core::Event) -> ChatMessage {
         let CoreEvent::Message(message) = from_core(event) else {
             panic!("message was not mapped")
         };
-        MessageEvent::from_core(message, &Isupport::default(), UNIX_EPOCH).unwrap()
+        ChatMessage::from_core(message, &Isupport::default(), UNIX_EPOCH).unwrap()
     }
 
-    fn batched_message(kind: &str, command: &str) -> super::MessageEvent {
+    fn batched_message(kind: &str, command: &str) -> super::Message {
         let now = Instant::now();
         let mut session = Session::new(Config::default().max_batch_lines(0));
         session.handle_line(now, format!("BATCH +b {kind} #papo").as_bytes());

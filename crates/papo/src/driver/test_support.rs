@@ -19,8 +19,8 @@ pub(crate) use tokio::io::{
 
 pub(crate) use super::{ConnectionPlan, Driver};
 pub(crate) use crate::{
-    Error, Event, MessageEvent, MessageKind, Origin, Reconnect, TargetedMessageId, event::Warning,
-    transport::TlsConfig,
+    Error, Event, Message as ChatMessage, MessageKind, Origin, Reconnect, TargetedMessageId,
+    event::Warning, transport::TlsConfig,
 };
 
 macro_rules! disconnected {
@@ -393,7 +393,7 @@ pub(crate) async fn complete_extended_monitor_registration(
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 }
 
-pub(crate) async fn next_message(events: &mut super::Events) -> MessageEvent {
+pub(crate) async fn next_message(events: &mut super::Events) -> ChatMessage {
     let Some(Event::Message(message)) = events.next().await else {
         panic!("expected message event")
     };

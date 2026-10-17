@@ -7,7 +7,7 @@ use std::{
 };
 use web_time::Instant;
 
-use crate::{Client, Error, Event, MessageEvent, MessageKind, Source};
+use crate::{Client, Error, Event, Message as ChatMessage, MessageKind, Source};
 
 const MAX_RATE_TARGETS: usize = 1024;
 
@@ -110,7 +110,7 @@ pub enum ReplyStatus {
 #[derive(Clone, Debug)]
 pub struct Command {
     client: Client,
-    message: MessageEvent,
+    message: ChatMessage,
     name: String,
     args: Vec<String>,
     account: Option<String>,
@@ -166,7 +166,7 @@ impl Command {
 
     /// Returns the message that contained this command.
     #[must_use]
-    pub const fn message(&self) -> &MessageEvent {
+    pub const fn message(&self) -> &ChatMessage {
         &self.message
     }
 
@@ -253,7 +253,7 @@ impl Command {
 
 fn addressed_body<'a>(
     client: &Client,
-    message: &'a MessageEvent,
+    message: &'a ChatMessage,
     config: &BotConfig,
 ) -> Option<&'a str> {
     if let Some(body) = message.text().strip_prefix(&config.prefix) {
@@ -316,11 +316,11 @@ mod tests {
     use papo_core::Capabilities;
     use papo_proto::{Isupport, Message};
 
-    use super::{BotConfig, Command, Event, MessageEvent, ReplyRateLimiter};
+    use super::{BotConfig, ChatMessage, Command, Event, ReplyRateLimiter};
 
     fn event_as(command: &str, text: &str, nick: &str, source: &str) -> Event {
         Event::Message(Box::new(
-            MessageEvent::new(
+            ChatMessage::new(
                 Message::new(command, ["#papo", text]).with_source(source),
                 &Isupport::default(),
                 nick,
@@ -341,7 +341,7 @@ mod tests {
 
     fn event_to(target: &str, text: &str, isupport: &Isupport) -> Event {
         Event::Message(Box::new(
-            MessageEvent::new(
+            ChatMessage::new(
                 Message::privmsg(target, text).with_source("emily!~emily@localhost"),
                 isupport,
                 "papo{bot}",
@@ -362,7 +362,7 @@ mod tests {
 
     #[test]
     fn authorizes_only_known_accounts() {
-        let tagged = MessageEvent::new(
+        let tagged = ChatMessage::new(
             Message::privmsg("#papo", "!op alice")
                 .with_source("emily!~emily@localhost")
                 .with_tag("account", "Emily"),
@@ -391,7 +391,7 @@ mod tests {
               :emily!~emily@localhost ACCOUNT emily\r\n",
         );
         let client = crate::Client::from_session_for_test(&session);
-        let message = MessageEvent::new(
+        let message = ChatMessage::new(
             Message::privmsg("#papo", "!op alice").with_source("emily!~emily@localhost"),
             &Isupport::default(),
             "papo",

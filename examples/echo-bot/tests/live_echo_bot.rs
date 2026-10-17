@@ -3,7 +3,7 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use papo::{Client, Endpoint, Event, MessageEvent, Typing};
+use papo::{Client, Endpoint, Event, Message, Typing};
 use papo_test_server::{ServerInfo, from_env, register_account, unique};
 use tokio::time::{sleep, timeout};
 
@@ -109,7 +109,7 @@ async fn wait_synced(events: &mut papo::Events, channel: &str) {
     }
 }
 
-async fn wait_message(events: &mut papo::Events, text: &str) -> MessageEvent {
+async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
     loop {
         match events.next().await {
             Some(Event::Message(message)) if message.text() == text => return *message,

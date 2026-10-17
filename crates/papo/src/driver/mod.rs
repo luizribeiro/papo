@@ -1031,15 +1031,12 @@ where
                 }
             }
             event::CoreEvent::Message(message) => {
-                let event = crate::MessageEvent::from_core(
-                    message,
-                    session.isupport(),
-                    crate::rt::now_wall(),
-                )
-                .map_or_else(
-                    |message| Event::Raw(crate::RawLine::from_proto(&message)),
-                    |message| Event::Message(Box::new(message)),
-                );
+                let event =
+                    crate::Message::from_core(message, session.isupport(), crate::rt::now_wall())
+                        .map_or_else(
+                            |message| Event::Raw(crate::RawLine::from_proto(&message)),
+                            |message| Event::Message(Box::new(message)),
+                        );
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,
@@ -1070,12 +1067,8 @@ where
                 let messages = messages
                     .into_iter()
                     .filter_map(|item| {
-                        crate::MessageEvent::from_replay(
-                            item.message,
-                            &client,
-                            crate::rt::now_wall(),
-                        )
-                        .ok()
+                        crate::Message::from_replay(item.message, &client, crate::rt::now_wall())
+                            .ok()
                     })
                     .collect();
                 let event = Event::History(Box::new(crate::HistoryPage {
@@ -1091,7 +1084,7 @@ where
                 }
             }
             event::CoreEvent::Raw(message) => {
-                let event = crate::MessageEvent::new(
+                let event = crate::Message::new(
                     message,
                     session.isupport(),
                     session.nick(),

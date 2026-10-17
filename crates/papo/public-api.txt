@@ -41,7 +41,7 @@ pub fn papo::bot::Command::account_in<I, S>(&self, I) -> bool where I: core::ite
 pub fn papo::bot::Command::args(&self) -> &[alloc::string::String]
 pub fn papo::bot::Command::channel(&self) -> core::option::Option<&str>
 pub const fn papo::bot::Command::client(&self) -> &papo::Client
-pub const fn papo::bot::Command::message(&self) -> &papo::MessageEvent
+pub const fn papo::bot::Command::message(&self) -> &papo::Message
 pub fn papo::bot::Command::name(&self) -> &str
 pub fn papo::bot::Command::parse(&papo::Client, &papo::Event, &papo::bot::BotConfig) -> core::option::Option<Self>
 pub async fn papo::bot::Command::private_notice(&self, &str) -> core::result::Result<papo::bot::ReplyStatus, papo::Error>
@@ -548,7 +548,7 @@ pub async fn papo::Client::raw_unlabeled(&self, papo_proto::message::Message) ->
 pub async fn papo::Client::react(&self, &papo::TargetedMessageId, &str) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::reconnect(&self) -> core::result::Result<(), papo::Error>
 pub async fn papo::Client::redact(&self, &papo::TargetedMessageId, core::option::Option<&str>) -> core::result::Result<(), papo::Error>
-pub async fn papo::Client::reply(&self, &papo::MessageEvent, &str) -> core::result::Result<papo::Sent, papo::Error>
+pub async fn papo::Client::reply(&self, &papo::Message, &str) -> core::result::Result<papo::Sent, papo::Error>
 pub async fn papo::Client::send(&self, papo_proto::message::Message) -> core::result::Result<(), papo::Error>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub async fn papo::Client::topic(&self, &str, core::option::Option<&str>) -> core::result::Result<core::option::Option<alloc::string::String>, papo::Error>
@@ -615,13 +615,13 @@ pub fn papo::History<'a>::between(self, impl core::convert::Into<papo::HistoryRe
 pub fn papo::History<'a>::latest(self, usize) -> papo::HistoryRequest<'a>
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::end: bool
-pub papo::HistoryPage::messages: alloc::vec::Vec<papo::MessageEvent>
+pub papo::HistoryPage::messages: alloc::vec::Vec<papo::Message>
 pub papo::HistoryPage::target: alloc::string::String
 pub struct papo::HistoryReference(_)
 impl core::convert::From<&alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&alloc::string::String) -> Self
 impl core::convert::From<&papo::Message> for papo::HistoryReference
-pub fn papo::HistoryReference::from(&papo::MessageEvent) -> Self
+pub fn papo::HistoryReference::from(&papo::Message) -> Self
 impl core::convert::From<&str> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&str) -> Self
 impl core::convert::From<alloc::string::String> for papo::HistoryReference
@@ -682,7 +682,7 @@ pub fn papo::Message::target(&self) -> &str
 pub fn papo::Message::text(&self) -> &str
 pub fn papo::Message::time(&self) -> std::time::SystemTime
 impl core::convert::From<&papo::Message> for papo::HistoryReference
-pub fn papo::HistoryReference::from(&papo::MessageEvent) -> Self
+pub fn papo::HistoryReference::from(&papo::Message) -> Self
 pub struct papo::Metadata<'a>
 impl papo::Metadata<'_>
 pub async fn papo::Metadata<'_>::clear(&self) -> core::result::Result<(), papo::Error>
@@ -809,4 +809,3 @@ pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String
 impl papo::IntoEndpoint for papo::Endpoint
-pub type papo::MessageEvent = papo::Message

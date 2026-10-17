@@ -5,8 +5,8 @@ use std::{future::IntoFuture, time::SystemTime};
 
 use futures_core::Stream;
 use papo::{
-    Client, Error, Event, Events, ListFilter, MessageEvent, NewAccount, PersistenceSetting,
-    PushKeys, TargetedMessageId,
+    Client, Error, Event, Events, ListFilter, Message as ChatMessage, NewAccount,
+    PersistenceSetting, PushKeys, TargetedMessageId,
 };
 use papo_proto::{Message, Typing};
 
@@ -18,7 +18,7 @@ fn assert_clone<T: Clone>() {}
 
 fn assert_event_stream<T: Stream<Item = Event>>() {}
 
-fn assert_message_request_futures(client: &Client, message: &MessageEvent) {
+fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
     let id = TargetedMessageId::new("#papo", "RfcBTzyxY120004");
     assert_send(client.react(&id, "👍"));
     assert_send(client.unreact(&id, "👍"));

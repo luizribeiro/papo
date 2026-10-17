@@ -541,7 +541,7 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
         history
             .messages
             .iter()
-            .map(MessageEvent::text)
+            .map(ChatMessage::text)
             .collect::<Vec<_>>(),
         ["missed one", "missed two"]
     );

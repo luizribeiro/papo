@@ -2,7 +2,7 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use papo::{Client, Endpoint, Event, Events, MessageEvent, Sasl};
+use papo::{Client, Endpoint, Event, Events, Message, Sasl};
 use papo_test_server::ServerInfo;
 use tokio::time::{sleep, timeout};
 
@@ -95,7 +95,7 @@ pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
     }
 }
 
-pub(super) async fn wait_message(events: &mut Events, text: &str) -> MessageEvent {
+pub(super) async fn wait_message(events: &mut Events, text: &str) -> Message {
     loop {
         match events.next().await {
             Some(Event::Message(message)) if message.text() == text => return *message,

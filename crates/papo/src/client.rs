@@ -230,7 +230,7 @@ impl Client {
     /// # Errors
     ///
     /// Returns an error if the text is empty or invalid, or the driver has stopped.
-    pub async fn reply(&self, message: &crate::MessageEvent, text: &str) -> Result<Sent, Error> {
+    pub async fn reply(&self, message: &crate::Message, text: &str) -> Result<Sent, Error> {
         let mut tags = Vec::new();
         let state = self.state();
         if state.has_cap("message-tags") {
@@ -256,7 +256,7 @@ impl Client {
     #[cfg(feature = "bot")]
     pub(crate) async fn private_notice(
         &self,
-        message: &crate::MessageEvent,
+        message: &crate::Message,
         text: &str,
     ) -> Result<(), Error> {
         let Some(target) = message.sender_nick() else {
