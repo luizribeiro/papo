@@ -7,7 +7,7 @@ use std::{
 };
 use web_time::Instant;
 
-use crate::{Client, Error, Event, Message as ChatMessage, MessageKind, Source};
+use crate::{Client, Error, Message as ChatMessage, MessageKind, Source};
 
 const MAX_RATE_TARGETS: usize = 1024;
 
@@ -95,6 +95,12 @@ impl BotConfig {
         self.replies = limiter;
         self
     }
+
+    /// Parses a live private message as a bot command.
+    #[must_use]
+    pub fn command(&self, client: &Client, message: &ChatMessage) -> Option<Command> {
+        Command::parse(client, message, self)
+    }
 }
 
 /// Whether a bot response was sent or dropped by its rate limiter.
@@ -118,12 +124,7 @@ pub struct Command {
 }
 
 impl Command {
-    /// Parses a live `PRIVMSG` beginning with the configured prefix or bot mention.
-    #[must_use]
-    pub fn parse(client: &Client, event: &Event, config: &BotConfig) -> Option<Self> {
-        let Event::Message(message) = event else {
-            return None;
-        };
+    fn parse(client: &Client, message: &ChatMessage, config: &BotConfig) -> Option<Self> {
         if !message.is_live() || message.kind() != MessageKind::Privmsg {
             return None;
         }
@@ -144,7 +145,7 @@ impl Command {
         });
         Some(Self {
             client: client.clone(),
-            message: *message.clone(),
+            message: message.clone(),
             name,
             args: words,
             account,
@@ -316,45 +317,41 @@ mod tests {
     use papo_core::Capabilities;
     use papo_proto::{Isupport, Message};
 
-    use super::{BotConfig, ChatMessage, Command, Event, ReplyRateLimiter};
+    use super::{BotConfig, ChatMessage, Command, ReplyRateLimiter};
 
-    fn event_as(command: &str, text: &str, nick: &str, source: &str) -> Event {
-        Event::Message(Box::new(
-            ChatMessage::new(
-                Message::new(command, ["#papo", text]).with_source(source),
-                &Isupport::default(),
-                nick,
-                &Capabilities::new(),
-                UNIX_EPOCH,
-            )
-            .unwrap(),
-        ))
+    fn message_as(command: &str, text: &str, nick: &str, source: &str) -> ChatMessage {
+        ChatMessage::new(
+            Message::new(command, ["#papo", text]).with_source(source),
+            &Isupport::default(),
+            nick,
+            &Capabilities::new(),
+            UNIX_EPOCH,
+        )
+        .unwrap()
     }
 
-    fn event(text: &str) -> Event {
-        event_as("PRIVMSG", text, "papo", "emily!~emily@localhost")
+    fn message(text: &str) -> ChatMessage {
+        message_as("PRIVMSG", text, "papo", "emily!~emily@localhost")
     }
 
-    fn parse(event: &Event, config: &BotConfig) -> Option<Command> {
-        Command::parse(&crate::Client::disconnected_for_test(), event, config)
+    fn parse(message: &ChatMessage, config: &BotConfig) -> Option<Command> {
+        config.command(&crate::Client::disconnected_for_test(), message)
     }
 
-    fn event_to(target: &str, text: &str, isupport: &Isupport) -> Event {
-        Event::Message(Box::new(
-            ChatMessage::new(
-                Message::privmsg(target, text).with_source("emily!~emily@localhost"),
-                isupport,
-                "papo{bot}",
-                &Capabilities::new(),
-                UNIX_EPOCH,
-            )
-            .unwrap(),
-        ))
+    fn message_to(target: &str, text: &str, isupport: &Isupport) -> ChatMessage {
+        ChatMessage::new(
+            Message::privmsg(target, text).with_source("emily!~emily@localhost"),
+            isupport,
+            "papo{bot}",
+            &Capabilities::new(),
+            UNIX_EPOCH,
+        )
+        .unwrap()
     }
 
     #[test]
     fn parses_prefixed_live_privmsg() {
-        let command = parse(&event("!EcHo hello world"), &BotConfig::new("!")).unwrap();
+        let command = parse(&message("!EcHo hello world"), &BotConfig::new("!")).unwrap();
         assert_eq!(command.name(), "echo");
         assert_eq!(command.args(), ["hello", "world"]);
         assert_eq!(command.message().text(), "!EcHo hello world");
@@ -372,11 +369,11 @@ mod tests {
             UNIX_EPOCH,
         )
         .unwrap();
-        let command = parse(&Event::Message(Box::new(tagged)), &BotConfig::new("!")).unwrap();
+        let command = parse(&tagged, &BotConfig::new("!")).unwrap();
         assert_eq!(command.account(), Some("Emily"));
         assert!(command.account_in(["emily", "alice"]));
         assert!(!command.account_in(["carol"]));
-        let unknown = parse(&event("!op alice"), &BotConfig::new("!")).unwrap();
+        let unknown = parse(&message("!op alice"), &BotConfig::new("!")).unwrap();
         assert_eq!(unknown.account(), None);
         assert!(!unknown.account_in(["emily"]));
     }
@@ -399,24 +396,19 @@ mod tests {
             UNIX_EPOCH,
         )
         .unwrap();
-        let command = Command::parse(
-            &client,
-            &Event::Message(Box::new(message)),
-            &BotConfig::new("!"),
-        )
-        .unwrap();
+        let command = BotConfig::new("!").command(&client, &message).unwrap();
         assert_eq!(command.account(), Some("emily"));
     }
 
     #[test]
     fn parses_mentions_quotes_escapes_and_empty_arguments() {
-        let event = event_as(
+        let message = message_as(
             "PRIVMSG",
             "PAPO: EcHo 'Ergo Chat' one\\ two \"\"",
             "papo",
             "emily!~emily@localhost",
         );
-        let command = parse(&event, &BotConfig::new("!")).unwrap();
+        let command = parse(&message, &BotConfig::new("!")).unwrap();
         assert_eq!(command.name(), "echo");
         assert_eq!(command.args(), ["Ergo Chat", "one two", ""]);
     }
@@ -433,32 +425,32 @@ mod tests {
         );
         let ascii_client = crate::Client::from_session_for_test(&ascii_session);
         assert!(
-            Command::parse(
-                &ascii_client,
-                &event_to("#papo", "papo[bot]: ping", &ascii),
-                &BotConfig::new("!"),
-            )
-            .is_none()
+            BotConfig::new("!")
+                .command(
+                    &ascii_client,
+                    &message_to("#papo", "papo[bot]: ping", &ascii),
+                )
+                .is_none()
         );
         let rfc_session = papo_core::Session::new(papo_core::Config::default().nick("papo{bot}"));
         let rfc_client = crate::Client::from_session_for_test(&rfc_session);
         assert!(
-            Command::parse(
-                &rfc_client,
-                &event_to("#papo", "papo[bot]: ping", &Isupport::default()),
-                &BotConfig::new("!"),
-            )
-            .is_some()
+            BotConfig::new("!")
+                .command(
+                    &rfc_client,
+                    &message_to("#papo", "papo[bot]: ping", &Isupport::default()),
+                )
+                .is_some()
         );
     }
 
     #[test]
     fn reports_a_channel_only_for_channel_commands() {
-        let channel = parse(&event("!ping"), &BotConfig::new("!")).unwrap();
+        let channel = parse(&message("!ping"), &BotConfig::new("!")).unwrap();
         assert_eq!(channel.channel(), Some("#papo"));
 
         let private = parse(
-            &event_to("papo", "!ping", &Isupport::default()),
+            &message_to("papo", "!ping", &Isupport::default()),
             &BotConfig::new("!"),
         )
         .unwrap();
@@ -469,10 +461,10 @@ mod tests {
     #[test]
     fn rejects_unaddressed_non_live_non_privmsg_and_incomplete_quotes() {
         let config = BotConfig::new("!").mention(false);
-        assert!(parse(&event("papo: ping"), &config).is_none());
-        assert!(parse(&event("!echo 'unfinished"), &config).is_none());
-        assert!(parse(&event_as("NOTICE", "!ping", "papo", "emily!u@h"), &config).is_none());
-        assert!(parse(&event_as("PRIVMSG", "!ping", "papo", "papo!u@h"), &config).is_none());
+        assert!(parse(&message("papo: ping"), &config).is_none());
+        assert!(parse(&message("!echo 'unfinished"), &config).is_none());
+        assert!(parse(&message_as("NOTICE", "!ping", "papo", "emily!u@h"), &config).is_none());
+        assert!(parse(&message_as("PRIVMSG", "!ping", "papo", "papo!u@h"), &config).is_none());
     }
 
     #[test]
@@ -520,9 +512,9 @@ mod tests {
     #[tokio::test]
     async fn parsed_commands_share_the_configured_reply_budget() {
         let config = BotConfig::new("!");
-        let first = parse(&event("!ping"), &config).unwrap();
-        let second = parse(&event("!ping"), &config).unwrap();
-        let third = parse(&event("!ping"), &config).unwrap();
+        let first = parse(&message("!ping"), &config).unwrap();
+        let second = parse(&message("!ping"), &config).unwrap();
+        let third = parse(&message("!ping"), &config).unwrap();
         assert!(
             crate::driver::test_support::within(first.reply("pong"))
                 .await
@@ -543,7 +535,7 @@ mod tests {
 
     #[tokio::test]
     async fn private_notices_consume_the_reply_budget_before_sending() {
-        let command = parse(&event("!ping"), &BotConfig::new("!")).unwrap();
+        let command = parse(&message("!ping"), &BotConfig::new("!")).unwrap();
         assert!(
             crate::driver::test_support::within(command.private_notice("pong"))
                 .await

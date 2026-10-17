@@ -2,10 +2,7 @@
 
 use std::{env, error::Error, io};
 
-use papo::{
-    Client, Endpoint, Event, MessageKind, Sasl, Typing,
-    bot::{BotConfig, Command},
-};
+use papo::{Client, Endpoint, Event, MessageKind, Sasl, Typing, bot::BotConfig};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -64,7 +61,7 @@ async fn handle(client: &Client, event: &Event, config: &BotConfig) -> Result<()
         return Ok(());
     }
 
-    let Some(command) = Command::parse(client, event, config) else {
+    let Some(command) = config.command(client, message) else {
         return Ok(());
     };
     match command.name() {

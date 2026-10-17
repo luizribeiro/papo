@@ -31,6 +31,7 @@ pub papo::bot::ReplyStatus::Dropped
 pub papo::bot::ReplyStatus::Sent
 pub struct papo::bot::BotConfig
 impl papo::bot::BotConfig
+pub fn papo::bot::BotConfig::command(&self, &papo::Client, &papo::Message) -> core::option::Option<papo::bot::Command>
 pub const fn papo::bot::BotConfig::mention(self, bool) -> Self
 pub fn papo::bot::BotConfig::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::bot::BotConfig::reply_limiter(self, papo::bot::ReplyRateLimiter) -> Self
@@ -43,7 +44,6 @@ pub fn papo::bot::Command::channel(&self) -> core::option::Option<&str>
 pub const fn papo::bot::Command::client(&self) -> &papo::Client
 pub const fn papo::bot::Command::message(&self) -> &papo::Message
 pub fn papo::bot::Command::name(&self) -> &str
-pub fn papo::bot::Command::parse(&papo::Client, &papo::Event, &papo::bot::BotConfig) -> core::option::Option<Self>
 pub async fn papo::bot::Command::private_notice(&self, &str) -> core::result::Result<papo::bot::ReplyStatus, papo::Error>
 pub async fn papo::bot::Command::reply(&self, &str) -> core::result::Result<papo::bot::ReplyStatus, papo::Error>
 pub struct papo::bot::ReplyRateLimiter

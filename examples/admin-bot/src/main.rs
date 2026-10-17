@@ -4,7 +4,7 @@ use std::{env, error::Error, io, time::Duration};
 
 use papo::{
     Client, Endpoint, Error as PapoError, Event, Events, Sasl,
-    bot::{BotConfig, Command, ReplyRateLimiter},
+    bot::{BotConfig, ReplyRateLimiter},
 };
 use papo_proto::Message;
 
@@ -97,7 +97,10 @@ async fn handle(
     config: &BotConfig,
     admins: &[String],
 ) -> Result<(), PapoError> {
-    let Some(command) = Command::parse(client, event, config) else {
+    let Some(command) = event
+        .as_message()
+        .and_then(|message| config.command(client, message))
+    else {
         return Ok(());
     };
     match command.name() {
