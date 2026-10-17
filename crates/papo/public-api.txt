@@ -629,8 +629,10 @@ pub fn papo::History<'a>::between(self, impl core::convert::Into<papo::HistoryRe
 pub fn papo::History<'a>::latest(self, usize) -> papo::HistoryRequest<'a>
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::end: bool
-pub papo::HistoryPage::messages: alloc::vec::Vec<papo::Message>
+pub papo::HistoryPage::items: alloc::vec::Vec<papo::HistoryItem>
 pub papo::HistoryPage::target: alloc::string::String
+impl papo::HistoryPage
+pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
 pub struct papo::HistoryReference(_)
 impl core::convert::From<&alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&alloc::string::String) -> Self

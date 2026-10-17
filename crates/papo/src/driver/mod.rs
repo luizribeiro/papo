@@ -1044,11 +1044,7 @@ where
                     )));
                 }
             }
-            event::CoreEvent::History {
-                target,
-                messages,
-                end,
-            } => {
+            event::CoreEvent::History { target, items, end } => {
                 if catchups.values().any(|catchup| {
                     session
                         .isupport()
@@ -1064,18 +1060,18 @@ where
                     commands,
                     state: Arc::clone(&events.state),
                 };
-                let messages = messages
+                let items = items
                     .into_iter()
-                    .filter_map(|item| {
-                        crate::Message::from_replay(item.message, &client, crate::rt::now_wall())
-                            .ok()
+                    .map(|item| {
+                        crate::ext::history::history_item(
+                            item,
+                            &client,
+                            crate::rt::now_wall(),
+                            crate::Origin::Replay,
+                        )
                     })
                     .collect();
-                let event = Event::History(Box::new(crate::HistoryPage {
-                    target,
-                    messages,
-                    end,
-                }));
+                let event = Event::History(Box::new(crate::HistoryPage { target, items, end }));
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,

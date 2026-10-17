@@ -648,7 +648,7 @@ pub(crate) enum CoreEvent {
     StsPolicy(StsAction),
     History {
         target: String,
-        messages: Vec<papo_core::HistoryMessage>,
+        items: Vec<papo_core::HistoryItem>,
         end: bool,
     },
     Close {
@@ -771,14 +771,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             visibility,
         }),
         papo_core::Event::History { target, items, end } => {
-            return CoreEvent::History {
-                target,
-                messages: items
-                    .into_iter()
-                    .filter_map(papo_core::HistoryItem::into_message)
-                    .collect(),
-                end,
-            };
+            return CoreEvent::History { target, items, end };
         }
         papo_core::Event::ReadMarker(marker) => Event::ReadMarker(ReadMarker {
             target: marker.target,
@@ -1701,11 +1694,7 @@ mod tests {
     #[test]
     fn maps_history() {
         let message = Message::privmsg("#papo", "earlier");
-        let CoreEvent::History {
-            target,
-            messages,
-            end,
-        } = from_core(papo_core::Event::History {
+        let CoreEvent::History { target, items, end } = from_core(papo_core::Event::History {
             target: "#papo".into(),
             items: vec![
                 papo_core::HistoryItem::Message(papo_core::HistoryMessage {
@@ -1718,14 +1707,17 @@ mod tests {
                 }),
             ],
             end: true,
-        })
-        else {
+        }) else {
             panic!("history was not classified")
         };
         assert_eq!(target, "#papo");
-        assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].message, message);
-        assert!(!messages[0].context);
+        assert_eq!(items.len(), 2);
+        assert!(matches!(
+            &items[0],
+            papo_core::HistoryItem::Message(item)
+                if item.message == message && !item.context
+        ));
+        assert!(matches!(items[1], papo_core::HistoryItem::Other(_)));
         assert!(end);
     }
 

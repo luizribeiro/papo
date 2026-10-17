@@ -41,23 +41,21 @@ pub(super) fn advance_catchup(
         commands,
         state: Arc::clone(&events.state),
     };
-    let messages = catchup
+    let items = catchup
         .items
         .into_iter()
-        .filter_map(|item| {
+        .map(|item| {
             crate::ext::history::history_item(
                 item,
                 &client,
                 crate::rt::now_wall(),
-                crate::Origin::History,
+                crate::Origin::Replay,
             )
-            .message()
-            .cloned()
         })
         .collect();
     Some(Event::History(Box::new(crate::HistoryPage {
         target: catchup.target,
-        messages,
+        items,
         end: page.end,
     })))
 }

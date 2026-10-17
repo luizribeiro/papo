@@ -224,10 +224,17 @@ fn is_self(client: &Client, nick: &str) -> bool {
 pub struct HistoryPage {
     /// Target whose history was requested.
     pub target: String,
-    /// Messages in server delivery order.
-    pub messages: Vec<ChatMessage>,
+    /// Replayed entries in server delivery order.
+    pub items: Vec<HistoryItem>,
     /// Whether the server reported that no further page exists.
     pub end: bool,
+}
+
+impl HistoryPage {
+    /// Iterates over chat messages, excluding replayed activity items.
+    pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
+        self.items.iter().filter_map(HistoryItem::message)
+    }
 }
 
 /// Builds a history request for one channel or nickname.
@@ -431,18 +438,14 @@ impl Client {
         };
         let response = self.history_response(query).await?;
         let page = response.history.ok_or_else(Error::disconnected)?;
-        let messages = page
+        let items = page
             .items
             .into_iter()
-            .filter_map(|item| {
-                history_item(item, self, crate::rt::now_wall(), Origin::History)
-                    .message()
-                    .cloned()
-            })
+            .map(|item| history_item(item, self, crate::rt::now_wall(), Origin::History))
             .collect();
         Ok(crate::HistoryPage {
             target,
-            messages,
+            items,
             end: page.end,
         })
     }
@@ -777,13 +780,14 @@ mod tests {
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
         let page = within(request).await.unwrap().unwrap();
         assert!(page.end);
-        assert_eq!(page.messages[0].text(), "earlier");
-        assert_eq!(page.messages[0].origin(), Origin::History);
-        assert!(!page.messages[0].is_live());
+        let message = page.messages().next().unwrap();
+        assert_eq!(message.text(), "earlier");
+        assert_eq!(message.origin(), Origin::History);
+        assert!(!message.is_live());
         let Some(Event::History(history)) = events.next().await else {
             panic!("expected replay batch event")
         };
-        assert_eq!(history.messages[0].origin(), Origin::Replay);
+        assert_eq!(history.messages().next().unwrap().origin(), Origin::Replay);
         abort_task(task).await;
     }
 
@@ -835,7 +839,7 @@ mod tests {
         history_response(&mut server, 1).await;
         within(request).await.unwrap().unwrap();
 
-        let message = before.messages[0].clone();
+        let message = before.messages().next().unwrap().clone();
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.history("#papo").around(&message).limit(52).await }

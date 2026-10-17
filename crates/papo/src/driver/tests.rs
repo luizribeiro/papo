@@ -539,17 +539,15 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     assert_eq!(history.target, "#papo");
     assert_eq!(
         history
-            .messages
-            .iter()
+            .messages()
             .map(ChatMessage::text)
             .collect::<Vec<_>>(),
         ["missed one", "missed two"]
     );
     assert!(
         history
-            .messages
-            .iter()
-            .all(|message| message.origin() == Origin::History && !message.is_live())
+            .messages()
+            .all(|message| message.origin() == Origin::Replay && !message.is_live())
     );
     assert!(history.end);
     abort_task(driver).await;

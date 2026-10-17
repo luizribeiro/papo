@@ -46,7 +46,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         }
 
         let latest = client.history(&channel).latest(10).await.unwrap();
-        let messages = chats(&latest.messages, &texts);
+        let messages = chats(latest.messages(), &texts);
         assert_eq!(
             messages
                 .iter()
@@ -75,7 +75,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             .await
             .unwrap();
         assert_eq!(
-            chats(&before.messages, &texts)
+            chats(before.messages(), &texts)
                 .iter()
                 .map(|message| message.text())
                 .collect::<Vec<_>>(),
@@ -90,9 +90,11 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
     .await;
 }
 
-fn chats<'a>(messages: &'a [ChatMessage], texts: &[&str]) -> Vec<&'a ChatMessage> {
+fn chats<'a>(
+    messages: impl Iterator<Item = &'a ChatMessage>,
+    texts: &[&str],
+) -> Vec<&'a ChatMessage> {
     messages
-        .iter()
         .filter(|message| texts.contains(&message.text()))
         .collect()
 }

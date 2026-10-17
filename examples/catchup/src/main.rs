@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let mut newest = None;
         loop {
             let page = client.history(&channel).after(after).limit(100).await?;
-            for message in &page.messages {
+            for message in page.messages() {
                 if matches!(
                     message.kind(),
                     MessageKind::Privmsg | MessageKind::Notice | MessageKind::Action
@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 after = message.time();
                 newest = Some(after);
             }
-            if page.end || page.messages.is_empty() {
+            if page.end || page.messages().next().is_none() {
                 break;
             }
         }
