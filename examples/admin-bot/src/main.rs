@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(str::to_owned)
         .collect();
     let config =
-        BotConfig::new("!").reply_limiter(ReplyRateLimiter::new(2, Duration::from_secs(5)));
+        BotConfig::new("!").reply_limiter(ReplyRateLimiter::new(2, Duration::from_secs(5))?);
     run(client, events, &config, &admins).await?;
     Ok(())
 }

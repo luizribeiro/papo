@@ -47,7 +47,7 @@ pub fn papo::bot::Command::sender_nick(&self) -> core::option::Option<&str>
 pub struct papo::bot::ReplyRateLimiter
 impl papo::bot::ReplyRateLimiter
 pub fn papo::bot::ReplyRateLimiter::check(&self, &str) -> bool
-pub fn papo::bot::ReplyRateLimiter::new(usize, core::time::Duration) -> Self
+pub fn papo::bot::ReplyRateLimiter::new(usize, core::time::Duration) -> core::result::Result<Self, papo::InvalidInput>
 pub mod papo::cap
 pub const papo::cap::ACCOUNT_NOTIFY: &str
 pub const papo::cap::ACCOUNT_REGISTRATION: &str
@@ -608,6 +608,8 @@ pub papo::InvalidInput::MetadataValue::maximum: usize
 pub papo::InvalidInput::Reaction
 pub papo::InvalidInput::Reaction::actual: usize
 pub papo::InvalidInput::Reaction::maximum: usize
+pub papo::InvalidInput::ReplyLimit(usize)
+pub papo::InvalidInput::ReplyWindow
 pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
 pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)

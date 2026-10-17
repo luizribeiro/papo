@@ -29,6 +29,12 @@ pub enum InvalidInput {
     /// The event queue capacity is zero.
     #[error("event queue capacity {0} must be positive")]
     EventCapacity(usize),
+    /// A bot reply limiter permits no replies.
+    #[error("reply limit {0} must be positive")]
+    ReplyLimit(usize),
+    /// A bot reply limiter never replenishes its budget.
+    #[error("reply window must be positive")]
+    ReplyWindow,
     /// An outbound IRC message cannot be represented on the wire.
     #[error("invalid IRC message: {0}")]
     InvalidMessage(String),

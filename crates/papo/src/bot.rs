@@ -22,13 +22,20 @@ pub struct ReplyRateLimiter {
 impl ReplyRateLimiter {
     /// Creates a limiter allowing `max` replies per target during `window`.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics when `max` is zero or `window` is empty.
-    #[must_use]
-    pub fn new(max: usize, window: Duration) -> Self {
-        assert!(max > 0, "reply limit must be positive");
-        assert!(!window.is_zero(), "reply window must be positive");
+    /// Returns [`crate::InvalidInput`] when `max` or `window` is zero.
+    pub fn new(max: usize, window: Duration) -> Result<Self, crate::InvalidInput> {
+        if max == 0 {
+            return Err(crate::InvalidInput::ReplyLimit(max));
+        }
+        if window.is_zero() {
+            return Err(crate::InvalidInput::ReplyWindow);
+        }
+        Ok(Self::configured(max, window))
+    }
+
+    fn configured(max: usize, window: Duration) -> Self {
         Self {
             max,
             window,
@@ -78,7 +85,7 @@ impl BotConfig {
         Self {
             prefix: prefix.into(),
             mention: true,
-            replies: ReplyRateLimiter::new(2, Duration::from_secs(5)),
+            replies: ReplyRateLimiter::configured(2, Duration::from_secs(5)),
         }
     }
 
@@ -511,7 +518,7 @@ mod tests {
 
     #[test]
     fn limits_each_target_at_the_literal_window_boundary() {
-        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5));
+        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
         let start = Instant::now();
         assert!(limiter.check_at("#papo", start));
         assert!(limiter.check_at("#papo", start + Duration::from_secs(1)));
@@ -522,27 +529,31 @@ mod tests {
 
     #[test]
     fn concurrent_timestamp_order_cannot_panic() {
-        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5));
+        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
         let start = Instant::now();
         assert!(limiter.check_at("#papo", start + Duration::from_secs(1)));
         assert!(limiter.check_at("#papo", start));
     }
 
     #[test]
-    #[should_panic(expected = "reply limit must be positive")]
     fn rejects_an_empty_reply_budget() {
-        let _ = ReplyRateLimiter::new(0, Duration::from_secs(5));
+        assert!(matches!(
+            ReplyRateLimiter::new(0, Duration::from_secs(5)),
+            Err(crate::InvalidInput::ReplyLimit(0))
+        ));
     }
 
     #[test]
-    #[should_panic(expected = "reply window must be positive")]
     fn rejects_an_empty_reply_window() {
-        let _ = ReplyRateLimiter::new(2, Duration::ZERO);
+        assert!(matches!(
+            ReplyRateLimiter::new(2, Duration::ZERO),
+            Err(crate::InvalidInput::ReplyWindow)
+        ));
     }
 
     #[test]
     fn bounds_targets_under_unending_server_input() {
-        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5));
+        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
         let now = Instant::now();
         for index in 0..2048 {
             let allowed = limiter.check_at(&format!("#papo-{index}"), now);
