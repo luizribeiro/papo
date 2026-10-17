@@ -22,7 +22,8 @@ pub struct State {
 impl State {
     pub(crate) fn from_session(session: &Session, connected: bool) -> Self {
         let unsupported = FEATURES
-            .into_iter()
+            .iter()
+            .copied()
             .filter_map(|feature| {
                 session
                     .supports(feature)
@@ -50,7 +51,8 @@ impl State {
     /// Iterates over the optional behaviors supported by the current connection.
     pub fn features(&self) -> impl Iterator<Item = Feature> + '_ {
         FEATURES
-            .into_iter()
+            .iter()
+            .copied()
             .filter(|feature| self.supports(*feature))
     }
 
@@ -116,6 +118,8 @@ impl State {
 
     /// Returns the most recently reported account persistence status.
     #[must_use]
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const fn persistence(&self) -> Option<papo_core::PersistenceStatus> {
         self.core.persistence()
     }
@@ -178,7 +182,7 @@ impl State {
     }
 }
 
-const FEATURES: [Feature; 20] = [
+const FEATURES: &[Feature] = &[
     Feature::Replies,
     Feature::Reactions,
     Feature::Typing,
@@ -191,6 +195,7 @@ const FEATURES: [Feature; 20] = [
     Feature::SetName,
     Feature::BotMode,
     Feature::AccountRegistration,
+    #[cfg(feature = "unstable")]
     Feature::Persistence,
     Feature::WebPush,
     Feature::ChannelRename,

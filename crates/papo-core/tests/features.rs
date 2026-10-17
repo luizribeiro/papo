@@ -1,4 +1,5 @@
 //! Transcript tests for optional feature predicates.
+#![cfg(feature = "unstable")]
 
 mod support;
 

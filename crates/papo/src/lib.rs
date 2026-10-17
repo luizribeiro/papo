@@ -46,12 +46,17 @@ pub use ext::history::{
 };
 pub use ext::metadata::Metadata;
 pub use ext::monitor::Monitor;
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::persistence::Persistence;
 pub use ext::webpush::{PushKeys, WebPush};
 pub use mode::SetModes;
+pub use papo_core::Secret;
 pub use papo_core::WebIrc;
 pub use papo_core::{Account, Capabilities, Channel, Feature, Member, User};
-pub use papo_core::{PersistenceSetting, PersistenceStatus, Secret};
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use papo_core::{PersistenceSetting, PersistenceStatus};
 pub use papo_core::{RateLimit, Sasl};
 pub use papo_core::{Unsupported, UnsupportedReason};
 pub use papo_proto::{
@@ -68,10 +73,13 @@ pub mod event {
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, ChannelRenamed,
         ChannelSynced, Departed, Disconnected, FeaturesChanged, HostChanged, Invited, Joined,
         Kicked, MetadataChanged, ModeChange, ModeChanged, MonitorOffline, MonitorOnline, Netjoin,
-        Netsplit, NickChanged, Parted, PersistenceChanged, PersistenceSetting, Quit, Reacted,
-        ReadMarker, RealnameChanged, Redacted, Registered, Source, StandardReply,
-        StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, Visibility, Warning,
+        Netsplit, NickChanged, Parted, Quit, Reacted, ReadMarker, RealnameChanged, Redacted,
+        Registered, Source, StandardReply, StandardReplyKind, StateLimit, TagMsg, TopicChanged,
+        TypingChanged, Visibility, Warning,
     };
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub use crate::event_impl::{PersistenceChanged, PersistenceSetting};
 }
 
 /// Strict Transport Security policy stores.

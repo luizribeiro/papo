@@ -1,4 +1,5 @@
 //! Transcript tests for `draft/persistence`.
+#![cfg(feature = "unstable")]
 
 mod support;
 

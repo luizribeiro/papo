@@ -36,6 +36,8 @@ pub enum Feature {
     /// `IRCv3` draft account registration, requiring `draft/account-registration`.
     AccountRegistration,
     /// `IRCv3` draft account persistence, requiring `draft/persistence`.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     Persistence,
     /// `IRCv3` draft Web Push, requiring `draft/webpush` or Soju's vendor
     /// capability `soju.im/webpush`.
@@ -56,7 +58,7 @@ pub enum Feature {
 }
 
 impl Feature {
-    pub(crate) const ALL: [Self; 20] = [
+    pub(crate) const ALL: &'static [Self] = &[
         Self::Replies,
         Self::Reactions,
         Self::Typing,
@@ -69,6 +71,7 @@ impl Feature {
         Self::SetName,
         Self::BotMode,
         Self::AccountRegistration,
+        #[cfg(feature = "unstable")]
         Self::Persistence,
         Self::WebPush,
         Self::ChannelRename,
@@ -95,6 +98,7 @@ impl Feature {
             Self::SetName => "real-name changes",
             Self::BotMode => "bot mode",
             Self::AccountRegistration => "account-registration",
+            #[cfg(feature = "unstable")]
             Self::Persistence => "persistence",
             Self::WebPush => "webpush",
             Self::ChannelRename => "channel rename",
@@ -116,6 +120,7 @@ impl Feature {
             Self::Metadata => &["draft/metadata-3", "draft/metadata-2"],
             Self::SetName => &["setname"],
             Self::AccountRegistration => &["draft/account-registration"],
+            #[cfg(feature = "unstable")]
             Self::Persistence => &["draft/persistence"],
             Self::WebPush => &["draft/webpush", "soju.im/webpush"],
             Self::ChannelRename => &["draft/channel-rename"],
@@ -189,7 +194,8 @@ impl std::fmt::Display for Unsupported {
 impl Session {
     pub(crate) fn supported_features(&self) -> std::collections::BTreeSet<Feature> {
         Feature::ALL
-            .into_iter()
+            .iter()
+            .copied()
             .filter(|&feature| self.supports(feature).is_ok())
             .collect()
     }

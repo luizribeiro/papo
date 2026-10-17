@@ -581,6 +581,7 @@ fn reconnect_history_stops_at_the_literal_per_target_limit() {
     }
 }
 
+#[cfg(feature = "unstable")]
 #[test]
 fn persistence_gates_rejoin_and_history_fetch() {
     for (effective, expected) in [(false, true), (true, false)] {

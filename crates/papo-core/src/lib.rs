@@ -15,6 +15,7 @@ mod keepalive;
 mod metadata;
 mod monitor;
 mod outgoing;
+#[cfg(feature = "unstable")]
 mod persistence;
 mod ratelimit;
 mod registration;
@@ -102,6 +103,7 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "draft/account-registration",
     "draft/chathistory",
     "draft/read-marker",
+    #[cfg(feature = "unstable")]
     "draft/persistence",
     "draft/channel-rename",
     "draft/relaymsg",
@@ -1160,6 +1162,8 @@ pub struct StandardReply {
 }
 
 /// An account's configured persistence preference.
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum PersistenceSetting {
@@ -1171,6 +1175,7 @@ pub enum PersistenceSetting {
     Default,
 }
 
+#[cfg(feature = "unstable")]
 impl PersistenceSetting {
     /// Returns the wire token for this setting.
     #[must_use]
@@ -1193,6 +1198,8 @@ impl PersistenceSetting {
 }
 
 /// Server-reported account persistence state.
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PersistenceStatus {
     /// The account's configured preference.
@@ -1575,6 +1582,7 @@ pub enum Event {
         message: String,
     },
     /// The server reported the account's persistence state.
+    #[cfg(feature = "unstable")]
     PersistenceStatus {
         /// The configured persistence preference.
         setting: PersistenceSetting,
@@ -2710,6 +2718,8 @@ impl Session {
 
     /// Reports whether the server will restore joined channels for this account.
     #[must_use]
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn server_rejoins_channels(&self) -> bool {
         self.state
             .persistence()

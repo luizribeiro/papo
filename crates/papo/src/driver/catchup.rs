@@ -120,5 +120,10 @@ pub(super) fn begin_catchup(
 }
 
 pub(super) fn should_fetch_history(session: &Session) -> bool {
-    !session.server_rejoins_channels()
+    #[cfg(not(feature = "unstable"))]
+    let _ = session;
+    #[cfg(feature = "unstable")]
+    return !session.server_rejoins_channels();
+    #[cfg(not(feature = "unstable"))]
+    true
 }

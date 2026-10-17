@@ -53,6 +53,8 @@ pub const CHATHISTORY: &str = "draft/chathistory";
 /// Channel read markers.
 pub const READ_MARKER: &str = "draft/read-marker";
 /// Account persistence preferences.
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub const PERSISTENCE: &str = "draft/persistence";
 /// Channel renaming.
 pub const CHANNEL_RENAME: &str = "draft/channel-rename";

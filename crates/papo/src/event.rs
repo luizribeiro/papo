@@ -34,10 +34,10 @@ pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
 pub use raw::RawLine;
-pub use server::{
-    BatchAbandonReason, MetadataChanged, PersistenceChanged, PersistenceSetting, StateLimit,
-    Visibility, Warning,
-};
+pub use server::{BatchAbandonReason, MetadataChanged, StateLimit, Visibility, Warning};
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use server::{PersistenceChanged, PersistenceSetting};
 pub use source::Source;
 pub use tags::Tags;
 pub use user::{
@@ -478,6 +478,7 @@ pub enum Event {
     /// Account creation completed and the connection is authenticated.
     AccountRegistration(crate::AccountRegistration),
     /// The server reported the account's persistence state.
+    #[cfg(feature = "unstable")]
     PersistenceChanged(PersistenceChanged),
     /// A target's cached metadata changed.
     MetadataChanged(MetadataChanged),
@@ -601,10 +602,23 @@ event_accessors! {
     (Netsplit, as_netsplit, Netsplit),
     (Netjoin, as_netjoin, Netjoin),
     (MetadataChanged, as_metadata_changed, MetadataChanged),
-    (PersistenceChanged, as_persistence_changed, PersistenceChanged),
     (AccountRegistration, as_account_registration, crate::AccountRegistration),
     (Warning, as_warning, Warning),
     (Raw, as_raw, RawLine),
+}
+
+#[cfg(feature = "unstable")]
+impl Event {
+    /// Returns the payload when this is [`Event::PersistenceChanged`].
+    #[must_use]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub const fn as_persistence_changed(&self) -> Option<&PersistenceChanged> {
+        if let Self::PersistenceChanged(payload) = self {
+            Some(payload)
+        } else {
+            None
+        }
+    }
 }
 
 impl Event {
@@ -745,6 +759,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                 message,
             })
         }
+        #[cfg(feature = "unstable")]
         papo_core::Event::PersistenceStatus { setting, effective } => {
             Event::PersistenceChanged(PersistenceChanged {
                 setting: match setting {
@@ -982,9 +997,11 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
+    #[cfg(feature = "unstable")]
+    use super::PersistenceSetting;
     use super::{
-        CoreEvent, Event, Message as ChatMessage, MessageKind, MetadataChanged, Origin,
-        PersistenceSetting, Source, StandardReplyKind, Visibility, Warning, from_core,
+        CoreEvent, Event, Message as ChatMessage, MessageKind, MetadataChanged, Origin, Source,
+        StandardReplyKind, Visibility, Warning, from_core,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
@@ -1346,6 +1363,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "unstable")]
     #[test]
     fn maps_request_untracked() {
         let now = Instant::now();
@@ -1446,6 +1464,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "unstable")]
     #[test]
     fn maps_persistence_status() {
         assert!(matches!(

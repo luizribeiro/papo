@@ -11,9 +11,11 @@ use papo_proto::{
 };
 
 use crate::{
-    Config, Event, Handled, LastSeen, MetadataValue, Outbox, OwnedModeChange, PersistenceSetting,
-    PersistenceStatus, ReadMarker, StateLimit, monitor::Monitor,
+    Config, Event, Handled, LastSeen, MetadataValue, Outbox, OwnedModeChange, ReadMarker,
+    StateLimit, monitor::Monitor,
 };
+#[cfg(feature = "unstable")]
+use crate::{PersistenceSetting, PersistenceStatus};
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
@@ -40,6 +42,7 @@ pub struct State {
     max_members_per_channel: usize,
     channel_limit_warned: bool,
     member_limit_warned: bool,
+    #[cfg(feature = "unstable")]
     persistence: Option<PersistenceStatus>,
     metadata: HashMap<Folded<Target>, HashMap<String, MetadataValue>>,
     metadata_subscriptions: Vec<String>,
@@ -131,6 +134,7 @@ impl State {
             max_members_per_channel: config.max_members_per_channel,
             channel_limit_warned: false,
             member_limit_warned: false,
+            #[cfg(feature = "unstable")]
             persistence: None,
             metadata: HashMap::new(),
             metadata_subscriptions: Vec::new(),
@@ -184,6 +188,7 @@ impl State {
         ) {
             return Handled::Yes;
         }
+        #[cfg(feature = "unstable")]
         if self.handle_persistence(message, outbox) {
             return Handled::Yes;
         }
@@ -337,6 +342,7 @@ impl State {
         true
     }
 
+    #[cfg(feature = "unstable")]
     fn handle_persistence(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
         if !message.command_is("PERSISTENCE") || message.param(0) != Some("STATUS") {
             return false;
@@ -361,6 +367,8 @@ impl State {
 
     /// Returns the server-reported account persistence status.
     #[must_use]
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const fn persistence(&self) -> Option<PersistenceStatus> {
         self.persistence
     }

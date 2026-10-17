@@ -1,9 +1,11 @@
 mod catchup;
 mod connect;
 
-use catchup::{Catchup, advance_catchup, begin_catchup};
 #[cfg(test)]
-use catchup::{extend_catchup, should_fetch_history};
+use catchup::extend_catchup;
+#[cfg(all(test, feature = "unstable"))]
+use catchup::should_fetch_history;
+use catchup::{Catchup, advance_catchup, begin_catchup};
 
 use connect::{apply_sts_action, open_connection, run_plan};
 #[cfg(test)]
@@ -76,7 +78,9 @@ pub(crate) enum CoreRequest {
         account: String,
         code: String,
     },
+    #[cfg(feature = "unstable")]
     PersistenceGet,
+    #[cfg(feature = "unstable")]
     PersistenceSet(papo_core::PersistenceSetting),
     Metadata(papo_core::MetadataCommand),
     Rename {
@@ -109,7 +113,9 @@ impl CoreRequest {
                 session.register(now(), account.as_deref(), email.as_deref(), password)?;
             }
             Self::Verify { account, code } => session.verify(now(), &account, &code)?,
+            #[cfg(feature = "unstable")]
             Self::PersistenceGet => session.persistence_get(now())?,
+            #[cfg(feature = "unstable")]
             Self::PersistenceSet(setting) => session.persistence_set(now(), setting)?,
             Self::Metadata(command) => return session.metadata(now(), command),
             Self::Rename { old, new, reason } => return session.rename(now(), &old, &new, &reason),
@@ -1385,7 +1391,12 @@ fn after_registration(
 }
 
 fn should_rejoin(session: &Session) -> bool {
-    !session.server_rejoins_channels()
+    #[cfg(not(feature = "unstable"))]
+    let _ = session;
+    #[cfg(feature = "unstable")]
+    return !session.server_rejoins_channels();
+    #[cfg(not(feature = "unstable"))]
+    true
 }
 
 fn finish(events: EventSink, end: ConnectionEnd, _will_retry: bool) -> Result<(), Error> {

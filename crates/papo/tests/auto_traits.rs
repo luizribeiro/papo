@@ -4,9 +4,11 @@
 use std::{future::IntoFuture, time::SystemTime};
 
 use futures_core::Stream;
+#[cfg(feature = "unstable")]
+use papo::PersistenceSetting;
 use papo::{
     Client, Error, Event, Events, ListFilter, Message as ChatMessage, MessageId, NewAccount,
-    PersistenceSetting, PushKeys, RequestFuture, Target,
+    PushKeys, RequestFuture, Target,
 };
 use papo_proto::Typing;
 
@@ -88,8 +90,11 @@ fn request_futures_are_send() {
         ),
     );
     assert_send_static(client.verify_account("alice", "392814"));
-    assert_send_static(client.persistence().get());
-    assert_send_static(client.persistence().set(PersistenceSetting::On));
+    #[cfg(feature = "unstable")]
+    {
+        assert_send_static(client.persistence().get());
+        assert_send_static(client.persistence().set(PersistenceSetting::On));
+    }
     assert_send_static(client.webpush().register(
         "https://push.example.net/message/ErgoTest/alice",
         PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),

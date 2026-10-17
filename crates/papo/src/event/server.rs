@@ -27,6 +27,8 @@ pub struct MetadataChanged {
 }
 
 /// An account's configured persistence preference.
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum PersistenceSetting {
@@ -39,6 +41,8 @@ pub enum PersistenceSetting {
 }
 
 /// The server reported the account's persistence state.
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct PersistenceChanged {

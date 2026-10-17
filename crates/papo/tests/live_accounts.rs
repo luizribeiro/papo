@@ -1,5 +1,6 @@
 //! Account APIs against the runner-managed Ergo server.
 #![cfg(sockets)]
+#![cfg(feature = "unstable")]
 
 mod support;
 

@@ -632,8 +632,6 @@ pub fn papo::Client::mode(&self, impl core::convert::Into<papo_proto::id::Target
 impl papo::Client
 pub fn papo::Client::monitor(&self) -> papo::Monitor
 impl papo::Client
-pub fn papo::Client::persistence(&self) -> papo::Persistence
-impl papo::Client
 pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountRegistration>
 pub fn papo::Client::verify_account(&self, impl core::convert::Into<papo_proto::id::AccountName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
 impl papo::Client
@@ -795,10 +793,6 @@ pub fn papo::NewAccount::new(impl core::convert::Into<papo_core::secret::Secret>
 pub struct papo::OsEntropy
 impl papo_core::sasl::Entropy for papo::OsEntropy
 pub fn papo::OsEntropy::fill(&mut self, &mut [u8])
-pub struct papo::Persistence
-impl papo::Persistence
-pub fn papo::Persistence::get(&self) -> papo::RequestFuture<papo_core::PersistenceStatus>
-pub fn papo::Persistence::set(&self, papo_core::PersistenceSetting) -> papo::RequestFuture<papo_core::PersistenceStatus>
 pub struct papo::PushKeys
 impl papo::PushKeys
 pub fn papo::PushKeys::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::secret::Secret>) -> Self

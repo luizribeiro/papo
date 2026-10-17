@@ -1,6 +1,7 @@
 use crate::{Client, Error, driver::CoreRequest};
 
 /// Handle for account persistence requests.
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub struct Persistence {
     client: Client,
 }
@@ -8,6 +9,7 @@ pub struct Persistence {
 impl Client {
     /// Returns a handle for account persistence requests and cached state.
     #[must_use]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn persistence(&self) -> Persistence {
         Persistence {
             client: self.clone(),
