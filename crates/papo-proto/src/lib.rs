@@ -18,7 +18,7 @@ pub mod time;
 mod views;
 mod whox;
 
-pub use casemapping::{CaseKey, Casemapping, Folded};
+pub use casemapping::{Casemapping, Folded};
 pub use client_tags::{Reaction, Typing};
 pub use command::Command;
 pub use ctcp::Ctcp;

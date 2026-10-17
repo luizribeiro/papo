@@ -158,9 +158,6 @@ impl<T> Borrow<str> for Folded<T> {
     }
 }
 
-/// A string-valued casemapped key retained for source compatibility.
-pub type CaseKey = Folded<String>;
-
 #[cfg(test)]
 mod tests {
     use std::{
@@ -171,7 +168,7 @@ mod tests {
 
     use crate::Nick;
 
-    use super::{CaseKey, Casemapping};
+    use super::{Casemapping, Folded};
 
     #[test]
     fn folds_every_character_defined_by_each_mapping() {
@@ -213,13 +210,13 @@ mod tests {
     #[test]
     fn case_keys_hash_by_folded_name_and_retain_spelling() {
         let mut users = HashMap::new();
-        users.insert(CaseKey::new("Alice[bot]", Casemapping::Rfc1459), 1);
-        let lookup = CaseKey::new("alice{bot}", Casemapping::Rfc1459);
+        users.insert(Folded::<String>::new("Alice[bot]", Casemapping::Rfc1459), 1);
+        let lookup = Folded::<String>::new("alice{bot}", Casemapping::Rfc1459);
         assert_eq!(users.get(&lookup), Some(&1));
         assert_eq!(users.keys().next().unwrap().original(), "Alice[bot]");
         assert_eq!(users.keys().next().unwrap().folded(), "alice{bot}");
 
-        let other = CaseKey::new("Bob", Casemapping::Rfc1459);
+        let other = Folded::<String>::new("Bob", Casemapping::Rfc1459);
         assert_ne!(lookup, other);
         let mut lookup_hash = DefaultHasher::new();
         lookup.hash(&mut lookup_hash);

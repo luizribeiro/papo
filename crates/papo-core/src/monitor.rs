@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 
-use papo_proto::{CaseKey, Isupport, LimitValue, MAX_MESSAGE_LEN, MessageRef};
+use papo_proto::{Folded, Isupport, LimitValue, MAX_MESSAGE_LEN, MessageRef};
 
 use crate::{Event, Handled, Outbox};
 
 const MAX_DESIRED: usize = 10_000;
 const MONITOR_PAYLOAD_LEN: usize = MAX_MESSAGE_LEN - "MONITOR + \r\n".len();
+type CaseKey = Folded<String>;
 
 #[derive(Debug, Default)]
 pub(super) struct Monitor {

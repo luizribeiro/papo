@@ -5,7 +5,7 @@ use std::{
 };
 
 use papo_proto::{
-    Account as AccountNotify, Away, CaseKey, Casemapping, Chghost, Command, Isupport, Join,
+    Account as AccountNotify, Away, Casemapping, Chghost, Command, Folded, Isupport, Join,
     MessageRef, ModeChanges, ModeKind, NamesEntry, Numeric, Setname, Source, WhoxFlags,
     WhoxPresence, WhoxReply, parse_353, time,
 };
@@ -19,6 +19,7 @@ const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_METADATA_TARGETS: usize = 10_000;
+type CaseKey = Folded<String>;
 
 /// The known channel and user state for a session.
 #[derive(Clone, Debug, Eq, PartialEq)]
