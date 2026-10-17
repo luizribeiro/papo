@@ -1074,6 +1074,12 @@ where
                 }
             }
             event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),
+            event::CoreEvent::RequestUnsupported { id, unsupported } => {
+                catchups.remove(&id);
+                if let Some(result) = requests.remove(&id) {
+                    result.fail(Error::Unsupported(unsupported));
+                }
+            }
             event::CoreEvent::Unknown => {}
         }
     }

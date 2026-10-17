@@ -867,6 +867,10 @@ pub(crate) enum CoreEvent {
         kind: papo_core::CloseKind,
         reason: String,
     },
+    RequestUnsupported {
+        id: RequestId,
+        unsupported: papo_core::Unsupported,
+    },
     Unknown,
 }
 
@@ -901,6 +905,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::RequestUntracked { id } => Event::RequestUntracked { id },
         papo_core::Event::RequestTimedOut { id } => Event::RequestTimedOut { id },
         papo_core::Event::RequestAborted { id } => Event::RequestAborted { id },
+        papo_core::Event::RequestUnsupported { id, unsupported } => {
+            return CoreEvent::RequestUnsupported { id, unsupported };
+        }
         papo_core::Event::StandardReply(reply) => Event::StandardReply(reply),
         papo_core::Event::AccountRegistered { account, logged_in } => {
             Event::AccountRegistered { account, logged_in }

@@ -2018,6 +2018,41 @@ async fn typed_requests_match_unlabelled_responses() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn capability_loss_fails_a_pending_request_immediately() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let task = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :labeled-response\r\n").await;
+    client_line(&mut server, b"CAP REQ :labeled-response\r\n").await;
+    server_line(&mut server, b":ergo.test CAP * ACK :labeled-response\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+
+    let request = tokio::spawn(async move {
+        client
+            .raw(Message::new("VERSION", Vec::<String>::new()))
+            .await
+    });
+    client_line(&mut server, b"@label=0 VERSION\r\n").await;
+    server_line(&mut server, b":ergo.test CAP * DEL :labeled-response\r\n").await;
+    assert!(matches!(
+        within(request).await.unwrap(),
+        Err(Error::Unsupported(crate::Unsupported {
+            feature: crate::Feature::LabeledResponse,
+            reason: crate::UnsupportedReason::NotOffered,
+            ..
+        }))
+    ));
+    abort_task(task).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn action_confirmation_is_enqueued_after_state_changes() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
