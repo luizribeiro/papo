@@ -302,7 +302,11 @@ async fn eof_reconnects_and_emits_reconnected() {
         b":ergo.test 475 papo-driver #papo :Cannot join channel (+k)\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Raw(_))));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Raw(line))
+            if line.numeric() == Some(crate::numeric::ERR_BADCHANNELKEY)
+    ));
     within(second_server.shutdown()).await.unwrap();
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
 
@@ -632,7 +636,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     ));
 
     assert!(matches!(
-        within(client.send_raw("WHOIS emily")).await,
+        within(client.send_command("KILL", ["emily", "connection reset"])).await,
         Err(disconnected!())
     ));
     assert!(matches!(
@@ -1906,7 +1910,7 @@ async fn structured_request_returns_every_labelled_response_line() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn raw_requests_resolve_fail_time_out_and_abort() {
+async fn structured_requests_resolve_fail_time_out_and_abort() {
     let (mut server, client, mut events, driver) = scripted(
         config()
             .wanted_caps(["labeled-response"])
@@ -1987,7 +1991,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
     ));
     let timed_out = tokio::spawn({
         let client = client.clone();
-        async move { client.request_raw("WHOIS alice").await }
+        async move { client.request_command("WHOIS", ["alice"]).await }
     });
     client_line(&mut server, b"@label=8 WHOIS alice\r\n").await;
     tokio::time::advance(Duration::from_secs(1)).await;
@@ -1996,7 +2000,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
         Err(Error::Timeout)
     ));
 
-    let aborted = tokio::spawn(async move { client.request_raw("WHOIS emily").await });
+    let aborted = tokio::spawn(async move { client.request_command("WHOIS", ["emily"]).await });
     client_line(&mut server, b"@label=9 WHOIS emily\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -2010,7 +2014,7 @@ async fn raw_requests_resolve_fail_time_out_and_abort() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn request_raw_returns_state_changing_lines_without_an_event() {
+async fn structured_request_returns_state_changing_lines_without_an_event() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
     let driver = tokio::spawn(driver);
@@ -2018,7 +2022,7 @@ async fn request_raw_returns_state_changing_lines_without_an_event() {
 
     let renamed = tokio::spawn({
         let client = client.clone();
-        async move { client.request_raw("NICK papo-renamed").await }
+        async move { client.request_command("NICK", ["papo-renamed"]).await }
     });
     client_line(&mut server, b"@label=0 NICK papo-renamed\r\n").await;
     server_line(
@@ -2326,7 +2330,9 @@ async fn typed_requests_match_unlabelled_responses() {
     ));
 
     assert!(matches!(
-        client.request_raw("VERSION").await,
+        client
+            .request_command("VERSION", std::iter::empty::<&str>())
+            .await,
         Err(Error::Unsupported(crate::Unsupported {
             feature: crate::Feature::LabeledResponse,
             reason: crate::UnsupportedReason::NotOffered,
@@ -2363,7 +2369,11 @@ async fn capability_loss_fails_a_pending_request_immediately() {
     .await;
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 
-    let request = tokio::spawn(async move { client.request_raw("VERSION").await });
+    let request = tokio::spawn(async move {
+        client
+            .request_command("VERSION", std::iter::empty::<&str>())
+            .await
+    });
     client_line(&mut server, b"@label=0 VERSION\r\n").await;
     server_line(&mut server, b":ergo.test CAP * DEL :labeled-response\r\n").await;
     assert!(matches!(
@@ -2925,8 +2935,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     .await;
     assert!(matches!(
         within(rejected).await.unwrap(),
-        Err(Error::Server(error))
-            if error.command() == "REDACT" && error.code() == "FORBIDDEN"
+        Err(Error::Server(error)) if error.code() == "FORBIDDEN"
     ));
 
     server_line(

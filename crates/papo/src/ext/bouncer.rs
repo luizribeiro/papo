@@ -23,7 +23,7 @@ impl Bouncer {
     /// # Errors
     ///
     /// Returns [`crate::Error::Unsupported`] for [`crate::Feature::Bouncer`] or an error documented by
-    /// [`Client::request_raw`].
+    /// [`Client::request_command`].
     pub fn networks(&self) -> crate::RequestFuture<Vec<BouncerNetwork>> {
         let client = self.client.clone();
         crate::RequestFuture::new(async move {
@@ -37,7 +37,7 @@ impl Bouncer {
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Bouncer`], [`Error::Server`] when
-    /// refused, or an error documented by [`Client::request_raw`].
+    /// refused, or an error documented by [`Client::request_command`].
     pub fn add(&self, config: NetworkConfig) -> crate::RequestFuture<NetworkId> {
         let client = self.client.clone();
         crate::RequestFuture::new(async move {
@@ -65,7 +65,7 @@ impl Bouncer {
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Bouncer`], [`Error::Server`] when
-    /// refused, or an error documented by [`Client::request_raw`].
+    /// refused, or an error documented by [`Client::request_command`].
     pub fn change(&self, id: &NetworkId, config: NetworkConfig) -> crate::RequestFuture<()> {
         let client = self.client.clone();
         let id = id.clone();
@@ -82,7 +82,7 @@ impl Bouncer {
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Bouncer`], [`Error::Server`] when
-    /// refused, or an error documented by [`Client::request_raw`].
+    /// refused, or an error documented by [`Client::request_command`].
     pub fn remove(&self, id: &NetworkId) -> crate::RequestFuture<()> {
         let client = self.client.clone();
         let id = id.clone();

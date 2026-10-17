@@ -44,8 +44,8 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
 fn request_futures_are_send() {
     let (client, _events, _driver) = Client::builder("irc.example.net").build();
 
-    assert_send_static(client.send_raw("PRIVMSG #papo :hello from the trait test"));
-    assert_send_static(client.request_raw("WHOIS emily"));
+    assert_send_static(client.send_command("KILL", ["alice", "connection reset"]));
+    assert_send_static(client.request_command("MOTD", std::iter::empty::<&str>()));
     assert_send_static(client.reconnect());
     assert_send_static(
         client

@@ -31,11 +31,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
         wait_registered(&mut events, &account).await;
         wait_joined(&mut events, &account, &channel).await;
 
-        client.send_raw(format!("WHOIS {account}")).await.unwrap();
-        wait_for(&mut events, |message| {
-            message.command_is("335") && message.param(1) == Some(account.as_str())
-        })
-        .await;
+        assert!(client.whois(&account).await.unwrap().is_bot);
         client.quit("builder test complete").await.unwrap();
     })
     .await;
@@ -90,26 +86,6 @@ async fn wait_registered(events: &mut papo::Events, nick: &str) {
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for registration"),
-        }
-    }
-}
-
-async fn wait_for(
-    events: &mut papo::Events,
-    accepted: impl Fn(&papo_proto::MessageRef<'_>) -> bool,
-) {
-    loop {
-        match events.next().await {
-            Some(Event::Raw(message))
-                if accepted(&papo_proto::MessageRef::parse(&message.to_string()).unwrap()) =>
-            {
-                return;
-            }
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("disconnected while waiting: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped while waiting for an IRC message"),
         }
     }
 }

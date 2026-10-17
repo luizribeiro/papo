@@ -129,10 +129,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         })
         .await;
         assert!(client.state().channel(&channel).is_some());
-        client
-            .request_raw("PING persistent-rejoin-fence")
-            .await
-            .unwrap();
+        client.ping().await.unwrap();
         assert!(
             std::iter::from_fn(|| client_lines.try_recv().ok())
                 .all(|line| line != format!("JOIN {channel}")),

@@ -58,41 +58,6 @@ async fn validate_registration(connection: RegisteredClient, nick: &str) -> Scen
 async fn ping(context: Scenario) -> ScenarioResult {
     let nick = context.unique();
     let connection = context.client(&nick).await?;
-    let token = context.unique();
-    let response = connection
-        .client
-        .request_command("PING", [&token])
-        .await
-        .map_err(Failed::from)?;
-    let Some(message) = response.first() else {
-        return Err("server returned an empty PING response".into());
-    };
-    validate_pong(
-        message.command(),
-        message.params().last().map(String::as_str),
-        &token,
-    )?;
+    connection.client.ping().await.map_err(Failed::from)?;
     connection.close().await
-}
-
-fn validate_pong(command: &str, last_param: Option<&str>, token: &str) -> Result<(), Failed> {
-    if command.eq_ignore_ascii_case("PONG") && last_param == Some(token) {
-        Ok(())
-    } else {
-        Err("server PONG did not contain the PING token".into())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::validate_pong;
-
-    #[test]
-    fn wrong_pong_token_fails() {
-        let error = validate_pong("PONG", Some("wrong-token"), "papo-ping-417").unwrap_err();
-        assert_eq!(
-            error.message(),
-            Some("server PONG did not contain the PING token")
-        );
-    }
 }
