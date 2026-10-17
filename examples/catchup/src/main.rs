@@ -80,7 +80,7 @@ async fn wait_for_channels(
     while !pending.is_empty() {
         match events.next().await {
             Some(Event::ChannelSynced(papo::event::ChannelSynced { channel, .. })) => {
-                _ = pending.remove(&channel);
+                _ = pending.remove(channel.as_ref());
             }
             Some(Event::Disconnected(_)) | None => {
                 return Err(papo::Error::Disconnected(papo::Disconnected::new(

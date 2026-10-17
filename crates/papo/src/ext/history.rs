@@ -136,18 +136,18 @@ fn redaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
 fn joined(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
     Some(HistoryItem::Joined(Joined {
-        channel: message.param(0)?.to_owned(),
+        channel: message.param(0)?.into(),
         is_self: is_self(client, &nick),
-        nick,
+        nick: nick.into(),
     }))
 }
 
 fn parted(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
     Some(HistoryItem::Parted(Parted {
-        channel: message.param(0)?.to_owned(),
+        channel: message.param(0)?.into(),
         is_self: is_self(client, &nick),
-        nick,
+        nick: nick.into(),
         reason: message.param(1).map(str::to_owned),
     }))
 }
@@ -163,9 +163,9 @@ fn quit(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
 fn kicked(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
     let nick = message.param(1)?.to_owned();
     Some(HistoryItem::Kicked(Kicked {
-        channel: message.param(0)?.to_owned(),
+        channel: message.param(0)?.into(),
         is_self: is_self(client, &nick),
-        nick,
+        nick: nick.into(),
         by: Source::from_proto(message.source()?),
         reason: message.param(2).map(str::to_owned),
     }))
@@ -182,7 +182,7 @@ fn nick_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option
 
 fn topic_changed(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
     Some(HistoryItem::TopicChanged(TopicChanged {
-        channel: message.param(0)?.to_owned(),
+        channel: message.param(0)?.into(),
         topic: message
             .param(1)
             .filter(|topic| !topic.is_empty())

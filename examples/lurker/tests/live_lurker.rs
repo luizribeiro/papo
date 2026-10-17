@@ -75,7 +75,7 @@ async fn prints_channel_state_changes_in_wire_order() {
         user.send_raw(&format!("PART {channel} :lurker test complete"))
             .await
             .unwrap();
-        wait_event(&mut owner_events, |event| matches!(event, Event::Parted(parted) if parted.nick == renamed)).await;
+        wait_event(&mut owner_events, |event| matches!(event, Event::Parted(parted) if parted.nick == renamed.as_str())).await;
         lurker.wait_for(&format!("part {channel} {renamed}:")).await;
 
         let output = lurker.finish();

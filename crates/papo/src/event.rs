@@ -615,11 +615,11 @@ event_accessors! {
 impl Event {
     pub(crate) fn mark_self(&mut self, nick: &str, casemapping: papo_proto::Casemapping) {
         let candidate = match self {
-            Self::Joined(joined) => Some((&joined.nick, &mut joined.is_self)),
-            Self::Parted(parted) => Some((&parted.nick, &mut parted.is_self)),
-            Self::Kicked(kicked) => Some((&kicked.nick, &mut kicked.is_self)),
-            Self::Invited(invited) => Some((&invited.nick, &mut invited.is_self)),
-            Self::NickChanged(changed) => Some((&changed.old, &mut changed.is_self)),
+            Self::Joined(joined) => Some((joined.nick.as_ref(), &mut joined.is_self)),
+            Self::Parted(parted) => Some((parted.nick.as_ref(), &mut parted.is_self)),
+            Self::Kicked(kicked) => Some((kicked.nick.as_ref(), &mut kicked.is_self)),
+            Self::Invited(invited) => Some((invited.nick.as_ref(), &mut invited.is_self)),
+            Self::NickChanged(changed) => Some((changed.old.as_str(), &mut changed.is_self)),
             _ => None,
         };
         if let Some((candidate, is_self)) = candidate {
@@ -807,8 +807,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                         papo_proto::Source::Server(_) => return None,
                     };
                     Some(Joined {
-                        channel: message.param(0)?.to_owned(),
-                        nick,
+                        channel: message.param(0)?.into(),
+                        nick: nick.into(),
                         is_self: false,
                     })
                 })
@@ -840,20 +840,20 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined { channel, nick } => Event::Joined(Joined {
-            channel,
-            nick,
+            channel: channel.into(),
+            nick: nick.into(),
             is_self: false,
         }),
-        papo_core::Event::ChannelSynced { channel } => {
-            Event::ChannelSynced(ChannelSynced { channel })
-        }
+        papo_core::Event::ChannelSynced { channel } => Event::ChannelSynced(ChannelSynced {
+            channel: channel.into(),
+        }),
         papo_core::Event::Parted {
             channel,
             nick,
             reason,
         } => Event::Parted(Parted {
-            channel,
-            nick,
+            channel: channel.into(),
+            nick: nick.into(),
             reason,
             is_self: false,
         }),
@@ -863,8 +863,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             by,
             reason,
         } => Event::Kicked(Kicked {
-            channel,
-            nick,
+            channel: channel.into(),
+            nick: nick.into(),
             by: Source::from_name(by),
             reason,
             is_self: false,
@@ -922,7 +922,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         }),
         papo_core::Event::TopicChanged { channel, topic, by } => {
             Event::TopicChanged(TopicChanged {
-                channel,
+                channel: channel.into(),
                 topic,
                 by: Source::from_name(by),
             })
@@ -1786,26 +1786,26 @@ mod tests {
         };
         let mut events = [
             Event::Joined(super::Joined {
-                channel: "#papo".to_owned(),
-                nick: "Papo[Bot]".to_owned(),
+                channel: "#papo".into(),
+                nick: "Papo[Bot]".into(),
                 is_self: false,
             }),
             Event::Parted(super::Parted {
-                channel: "#papo".to_owned(),
-                nick: "Papo[Bot]".to_owned(),
+                channel: "#papo".into(),
+                nick: "Papo[Bot]".into(),
                 reason: None,
                 is_self: false,
             }),
             Event::Kicked(super::Kicked {
-                channel: "#papo".to_owned(),
-                nick: "Papo[Bot]".to_owned(),
+                channel: "#papo".into(),
+                nick: "Papo[Bot]".into(),
                 by: by.clone(),
                 reason: None,
                 is_self: false,
             }),
             Event::Invited(super::Invited {
-                channel: "#papo".to_owned(),
-                nick: "Papo[Bot]".to_owned(),
+                channel: "#papo".into(),
+                nick: "Papo[Bot]".into(),
                 by,
                 is_self: false,
             }),
@@ -1817,8 +1817,8 @@ mod tests {
             Event::Netjoin(super::Netjoin {
                 servers: ["irc.example".to_owned(), "irc.remote".to_owned()],
                 joins: vec![super::Joined {
-                    channel: "#papo".to_owned(),
-                    nick: "Papo[Bot]".to_owned(),
+                    channel: "#papo".into(),
+                    nick: "Papo[Bot]".into(),
                     is_self: false,
                 }],
             }),

@@ -20,7 +20,7 @@ pub(super) async fn joined_pair(
         .expect(
             &mut first.events,
             |event| {
-                matches!(event, Event::Joined(papo::event::Joined { channel: joined, nick, .. }) if joined == &channel && nick == &second_nick)
+                matches!(event, Event::Joined(papo::event::Joined { channel: joined, nick, .. }) if joined == channel.as_str() && nick == second_nick.as_str())
             },
             EXPECT_TIMEOUT,
         )

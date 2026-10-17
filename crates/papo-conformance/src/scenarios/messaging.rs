@@ -26,7 +26,7 @@ async fn echo_message(context: Scenario) -> ScenarioResult {
                 matches!(
                     event,
                     Event::Joined(papo::event::Joined { channel: joined,
-                        nick: joined_nick, .. }) if joined == &channel && joined_nick == &registered_nick
+                        nick: joined_nick, .. }) if joined == channel.as_str() && joined_nick == registered_nick.as_str()
                 )
             },
             EXPECT_TIMEOUT,

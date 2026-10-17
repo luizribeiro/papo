@@ -1157,7 +1157,9 @@ fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, ev
                 .iter()
                 .any(|entry| casemapping.eq(&entry.channel, &joined.channel))
             {
-                defaults.channels.push(Autojoin::new(&joined.channel, None));
+                defaults
+                    .channels
+                    .push(Autojoin::new(joined.channel.as_ref(), None));
             }
         }
         Event::Parted(parted) if parted.is_self => {

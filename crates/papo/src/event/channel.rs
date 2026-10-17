@@ -1,3 +1,5 @@
+use crate::{ChannelName, Nick};
+
 use super::Source;
 
 /// A user joined a channel shared with the client.
@@ -5,9 +7,9 @@ use super::Source;
 #[non_exhaustive]
 pub struct Joined {
     /// The joined channel.
-    pub channel: String,
+    pub channel: ChannelName,
     /// The joining user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// Whether the joining user is this client.
     pub is_self: bool,
 }
@@ -17,7 +19,7 @@ pub struct Joined {
 #[non_exhaustive]
 pub struct ChannelSynced {
     /// The synchronized channel.
-    pub channel: String,
+    pub channel: ChannelName,
 }
 
 /// A user left a shared channel with `PART`.
@@ -25,9 +27,9 @@ pub struct ChannelSynced {
 #[non_exhaustive]
 pub struct Parted {
     /// The departed channel.
-    pub channel: String,
+    pub channel: ChannelName,
     /// The departing user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The optional part reason.
     pub reason: Option<String>,
     /// Whether the departing user is this client.
@@ -39,9 +41,9 @@ pub struct Parted {
 #[non_exhaustive]
 pub struct Kicked {
     /// The affected channel.
-    pub channel: String,
+    pub channel: ChannelName,
     /// The removed user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The user or server that issued the kick.
     pub by: Source,
     /// The optional kick reason.
@@ -55,9 +57,9 @@ pub struct Kicked {
 #[non_exhaustive]
 pub struct Invited {
     /// The invited channel.
-    pub channel: String,
+    pub channel: ChannelName,
     /// The invited user's nickname.
-    pub nick: String,
+    pub nick: Nick,
     /// The user or server that sent the invitation.
     pub by: Source,
     /// Whether the invited user is this client.
@@ -69,7 +71,7 @@ pub struct Invited {
 #[non_exhaustive]
 pub struct TopicChanged {
     /// The affected channel.
-    pub channel: String,
+    pub channel: ChannelName,
     /// The new topic, or `None` when it was cleared.
     pub topic: Option<String>,
     /// The user or server that changed the topic.
