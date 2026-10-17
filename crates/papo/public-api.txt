@@ -807,8 +807,10 @@ pub struct papo::SetModes
 impl papo::SetModes
 pub fn papo::SetModes::add(self, char) -> Self
 pub fn papo::SetModes::add_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::SetModes::ban(self, impl core::convert::Into<papo_proto::id::Mask>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::SetModes::unban(self, impl core::convert::Into<papo_proto::id::Mask>) -> Self
 impl core::future::into_future::IntoFuture for papo::SetModes
 pub type papo::SetModes::IntoFuture = papo::RequestFuture<()>
 pub type papo::SetModes::Output = core::result::Result<(), papo::Error>
