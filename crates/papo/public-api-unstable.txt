@@ -278,6 +278,34 @@ pub papo::event::TypingChanged::state: papo_proto::client_tags::Typing
 pub papo::event::TypingChanged::target: papo_proto::id::Target
 pub mod papo::format
 pub use papo::format::strip
+pub mod papo::isupport
+pub use papo::isupport::Advertised
+pub use papo::isupport::ChanModes
+pub use papo::isupport::ClientTagDeny
+pub use papo::isupport::Extban
+pub use papo::isupport::Limit
+pub use papo::isupport::LimitValue
+pub use papo::isupport::Prefix
+pub struct papo::isupport::Isupport
+impl papo::isupport::Isupport
+pub fn papo::isupport::Isupport::awaylen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::casemapping(&self) -> papo_proto::casemapping::Casemapping
+pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo_proto::isupport::ChanModes<'_>>
+pub fn papo::isupport::Isupport::channellen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::chantypes(&self) -> &str
+pub fn papo::isupport::Isupport::get(&self, &str) -> papo_proto::isupport::Advertised<'_>
+pub fn papo::isupport::Isupport::is_channel(&self, &str) -> bool
+pub fn papo::isupport::Isupport::kicklen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::modes(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::namelen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::nicklen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo_proto::isupport::Prefix>
+pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
+pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub mod papo::metadata
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
@@ -747,6 +775,26 @@ pub fn papo::HistoryRequest::into_future(self) -> Self::IntoFuture
 #[non_exhaustive] pub struct papo::HistoryTarget
 pub papo::HistoryTarget::latest: std::time::SystemTime
 pub papo::HistoryTarget::target: papo_proto::id::Target
+pub struct papo::Isupport
+impl papo::isupport::Isupport
+pub fn papo::isupport::Isupport::awaylen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::casemapping(&self) -> papo_proto::casemapping::Casemapping
+pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo_proto::isupport::ChanModes<'_>>
+pub fn papo::isupport::Isupport::channellen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::chantypes(&self) -> &str
+pub fn papo::isupport::Isupport::get(&self, &str) -> papo_proto::isupport::Advertised<'_>
+pub fn papo::isupport::Isupport::is_channel(&self, &str) -> bool
+pub fn papo::isupport::Isupport::kicklen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo_proto::isupport::LimitValue>
+pub fn papo::isupport::Isupport::modes(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::namelen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::nicklen(&self) -> core::option::Option<usize>
+pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo_proto::isupport::Prefix>
+pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
+pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo_proto::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub struct papo::JoinChannel
 impl papo::JoinChannel
 pub fn papo::JoinChannel::key(self, impl core::convert::Into<papo_core::secret::Secret>) -> Self

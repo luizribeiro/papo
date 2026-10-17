@@ -18,6 +18,7 @@ mod event_impl;
 mod ext;
 pub mod format;
 mod io_compat;
+pub mod isupport;
 pub mod metadata;
 mod mode;
 mod reconnect;
@@ -60,6 +61,7 @@ pub use ext::persistence::Persistence;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::webpush::{PushKeys, WebPush};
+pub use isupport::Isupport;
 pub use mode::SetModes;
 pub use papo_core::Secret;
 pub use papo_core::WebIrc;
