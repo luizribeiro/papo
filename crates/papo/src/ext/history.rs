@@ -528,18 +528,31 @@ impl Client {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub async fn mark_read(&self, target: &str, time: SystemTime) -> Result<(), Error> {
-        let (result, receiver) = oneshot::channel();
-        self.commands
-            .send(Command::MarkRead {
-                target: target.to_owned(),
-                time,
-                result,
-            })
-            .await
-            .map_err(|_| Error::disconnected())?;
-        let response = receiver.await.map_err(|_| Error::disconnected())??;
-        crate::requests::empty(&response)
+    pub fn mark_read(
+        &self,
+        target: impl Into<crate::Target>,
+        time: SystemTime,
+    ) -> crate::RequestFuture<Option<SystemTime>> {
+        let client = self.clone();
+        let target = target.into();
+        crate::RequestFuture::new(async move {
+            target
+                .check(client.state().isupport())
+                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let (result, receiver) = oneshot::channel();
+            client
+                .commands
+                .send(Command::MarkRead {
+                    target: target.to_string(),
+                    time,
+                    result,
+                })
+                .await
+                .map_err(|_| Error::disconnected())?;
+            let response = receiver.await.map_err(|_| Error::disconnected())??;
+            crate::requests::empty(&response)?;
+            Ok(client.state().read_marker(&target))
+        })
     }
 
     /// Queries the server read marker for `target`.
@@ -551,16 +564,27 @@ impl Client {
     /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
     /// [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
     /// [`Error::Disconnected`]; server refusals are classified as [`crate::Refusal::Other`].
-    pub async fn read_marker(&self, target: &str) -> Result<Option<SystemTime>, Error> {
-        let (result, receiver) = oneshot::channel();
-        self.commands
-            .send(Command::ReadMarker {
-                target: target.to_owned(),
-                result,
-            })
-            .await
-            .map_err(|_| Error::disconnected())?;
-        receiver.await.map_err(|_| Error::disconnected())?
+    pub fn fetch_read_marker(
+        &self,
+        target: impl Into<crate::Target>,
+    ) -> crate::RequestFuture<Option<SystemTime>> {
+        let client = self.clone();
+        let target = target.into();
+        crate::RequestFuture::new(async move {
+            target
+                .check(client.state().isupport())
+                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let (result, receiver) = oneshot::channel();
+            client
+                .commands
+                .send(Command::ReadMarker {
+                    target: target.to_string(),
+                    result,
+                })
+                .await
+                .map_err(|_| Error::disconnected())?;
+            receiver.await.map_err(|_| Error::disconnected())?
+        })
     }
 }
 
@@ -987,7 +1011,10 @@ mod tests {
             b"@label=0 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
         )
         .await;
-        within(request).await.unwrap().unwrap();
+        assert_eq!(
+            within(request).await.unwrap().unwrap(),
+            Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
+        );
         assert!(
             matches!(events.next().await, Some(Event::ReadMarker(marker)) if marker.target == "#papo")
         );
@@ -1002,7 +1029,7 @@ mod tests {
         complete_read_marker_registration(&mut server, &mut events).await;
         let request = tokio::spawn({
             let client = client.clone();
-            async move { client.read_marker("#papo").await }
+            async move { client.fetch_read_marker("#papo").await }
         });
         client_line(&mut server, b"MARKREAD #papo\r\n").await;
         server_line(
@@ -1015,7 +1042,7 @@ mod tests {
         assert_eq!(client.state().read_marker("#PAPO"), Some(expected));
 
         assert_eq!(
-            within(client.read_marker("#papo")).await.unwrap(),
+            within(client.fetch_read_marker("#papo")).await.unwrap(),
             Some(expected)
         );
         client_line(&mut server, b"MARKREAD #papo\r\n").await;

@@ -3075,7 +3075,7 @@ async fn only_read_marker_waiter_enables_read_ahead() {
     complete_read_marker_registration(&mut server, &mut events).await;
     saturate_events(&mut server, &events).await;
 
-    let marker = tokio::spawn(async move { client.read_marker("#papo").await });
+    let marker = tokio::spawn(async move { client.fetch_read_marker("#papo").await });
     client_line(&mut server, b"MARKREAD #papo\r\n").await;
     server_line(
         &mut server,

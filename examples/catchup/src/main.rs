@@ -34,7 +34,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     wait_for_channels(&mut events, &channels).await?;
 
     for channel in channels {
-        let mut after = client.read_marker(&channel).await?.unwrap_or(UNIX_EPOCH);
+        let mut after = client
+            .fetch_read_marker(&channel)
+            .await?
+            .unwrap_or(UNIX_EPOCH);
         let mut newest = None;
         loop {
             let page = client.history(&channel).after(after).limit(100).await?;

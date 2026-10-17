@@ -599,10 +599,10 @@ pub fn papo::Client::unreact(&self, impl core::convert::Into<papo_proto::id::Tar
 pub fn papo::Client::who(&self, impl core::convert::Into<papo_proto::id::Mask>) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
 pub fn papo::Client::whois(&self, impl core::convert::Into<papo_proto::id::Nick>) -> papo::RequestFuture<papo::Whois>
 impl papo::Client
+pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::history(&self, impl core::convert::Into<papo_proto::id::Target>) -> papo::History
 pub fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::HistoryTarget>>
-pub async fn papo::Client::mark_read(&self, &str, std::time::SystemTime) -> core::result::Result<(), papo::Error>
-pub async fn papo::Client::read_marker(&self, &str) -> core::result::Result<core::option::Option<std::time::SystemTime>, papo::Error>
+pub fn papo::Client::mark_read(&self, impl core::convert::Into<papo_proto::id::Target>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 impl papo::Client
 pub const fn papo::Client::metadata(&self) -> papo::Metadata<'_>
 impl papo::Client
