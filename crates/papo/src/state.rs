@@ -16,6 +16,7 @@ pub struct State {
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     account: Option<AccountName>,
+    metadata_subscriptions: Vec<crate::MetadataKey>,
     #[cfg(feature = "unstable")]
     bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
@@ -40,6 +41,12 @@ impl State {
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             account: session.account().map(AccountName::from),
+            metadata_subscriptions: session
+                .state()
+                .metadata_subscriptions()
+                .iter()
+                .map(crate::MetadataKey::from)
+                .collect(),
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
                 papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::new(id)),
@@ -155,19 +162,24 @@ impl State {
     pub fn metadata(
         &self,
         target: impl AsRef<str>,
-    ) -> Option<HashMap<String, crate::MetadataValue>> {
+    ) -> Option<HashMap<crate::MetadataKey, crate::MetadataValue>> {
         self.core.metadata(target).map(|values| {
             values
                 .iter()
-                .map(|(key, value)| (key.clone(), crate::MetadataValue::from_core(value)))
+                .map(|(key, value)| {
+                    (
+                        crate::MetadataKey::from(key),
+                        crate::MetadataValue::from_core(value),
+                    )
+                })
                 .collect()
         })
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.
     #[must_use]
-    pub fn metadata_subscriptions(&self) -> &[String] {
-        self.core.metadata_subscriptions()
+    pub fn metadata_subscriptions(&self) -> &[crate::MetadataKey] {
+        &self.metadata_subscriptions
     }
 
     /// Returns a known user using the server's casemapping.

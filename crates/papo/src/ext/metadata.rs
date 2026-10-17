@@ -54,7 +54,7 @@ impl Metadata {
         &self,
         target: impl Into<crate::Target>,
         keys: I,
-    ) -> crate::RequestFuture<HashMap<String, MetadataValue>>
+    ) -> crate::RequestFuture<HashMap<crate::MetadataKey, MetadataValue>>
     where
         I: IntoIterator<Item = S>,
         S: Into<crate::MetadataKey>,
@@ -102,7 +102,7 @@ impl Metadata {
     pub fn list(
         &self,
         target: impl Into<crate::Target>,
-    ) -> crate::RequestFuture<HashMap<String, MetadataValue>> {
+    ) -> crate::RequestFuture<HashMap<crate::MetadataKey, MetadataValue>> {
         let metadata = Self {
             client: self.client.clone(),
         };

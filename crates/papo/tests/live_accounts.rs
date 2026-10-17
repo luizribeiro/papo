@@ -49,7 +49,7 @@ async fn registers_then_logs_in_with_sasl() {
                 .register_account(NewAccount::new(PASSWORD).account(&account))
                 .await
                 .unwrap(),
-            AccountRegistration::Registered { account: registered } if registered == account
+            AccountRegistration::Registered { account: registered } if registered.as_ref() == account
         ));
         registrar.quit("account created").await.unwrap();
 

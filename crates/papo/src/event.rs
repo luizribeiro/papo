@@ -806,11 +806,13 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             description: reply.description,
         }),
         papo_core::Event::AccountRegistered { account, .. } => {
-            Event::AccountRegistration(crate::AccountRegistration::Registered { account })
+            Event::AccountRegistration(crate::AccountRegistration::Registered {
+                account: account.into(),
+            })
         }
         papo_core::Event::VerificationRequired { account, message } => {
             Event::AccountRegistration(crate::AccountRegistration::VerificationRequired {
-                account,
+                account: account.into(),
                 message,
             })
         }

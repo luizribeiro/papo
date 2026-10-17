@@ -50,12 +50,12 @@ pub enum AccountRegistration {
     /// The account was created and authenticated.
     Registered {
         /// Registered account name.
-        account: String,
+        account: crate::AccountName,
     },
     /// The server requires an out-of-band verification code.
     VerificationRequired {
         /// Account awaiting verification.
-        account: String,
+        account: crate::AccountName,
         /// Human-readable verification instructions.
         message: String,
     },
@@ -130,7 +130,7 @@ fn account_registration_result(response: &Response) -> Result<AccountRegistratio
         .first()
         .ok_or_else(Error::disconnected)?
         .as_ref();
-    let account = message.param(1).ok_or_else(Error::disconnected)?.to_owned();
+    let account = message.param(1).ok_or_else(Error::disconnected)?.into();
     match message.param(0) {
         Some("SUCCESS") => Ok(AccountRegistration::Registered { account }),
         Some("VERIFICATION_REQUIRED") => Ok(AccountRegistration::VerificationRequired {

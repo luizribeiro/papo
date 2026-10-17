@@ -54,7 +54,7 @@ async fn draft_account_registration(context: Scenario) -> ScenarioResult {
         .register_account(NewAccount::new(PASSWORD).account(&account))
         .await
         .map_err(Failed::from)?;
-    if !matches!(registered, AccountRegistration::Registered { account: registered } if registered == account)
+    if !matches!(registered, AccountRegistration::Registered { account: registered } if registered.as_ref() == account)
     {
         return Err("REGISTER did not return the new account".into());
     }

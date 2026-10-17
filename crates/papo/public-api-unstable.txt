@@ -338,8 +338,8 @@ pub struct papo::metadata::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
 pub fn papo::Metadata::clear_on(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>>
 pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::remove_on(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -441,9 +441,9 @@ pub mod papo::time
 pub use papo::time::format
 #[non_exhaustive] pub enum papo::AccountRegistration
 pub papo::AccountRegistration::Registered
-pub papo::AccountRegistration::Registered::account: alloc::string::String
+pub papo::AccountRegistration::Registered::account: papo::AccountName
 pub papo::AccountRegistration::VerificationRequired
-pub papo::AccountRegistration::VerificationRequired::account: alloc::string::String
+pub papo::AccountRegistration::VerificationRequired::account: papo::AccountName
 pub papo::AccountRegistration::VerificationRequired::message: alloc::string::String
 #[non_exhaustive] pub enum papo::ConnectErrorKind
 pub papo::ConnectErrorKind::Certificate
@@ -714,7 +714,7 @@ pub fn papo::Bouncer::networks(&self) -> papo::RequestFuture<alloc::vec::Vec<pap
 pub fn papo::Bouncer::remove(&self, &papo::NetworkId) -> papo::RequestFuture<()>
 pub struct papo::Builder
 impl papo::Builder
-pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Nick>
 pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::autojoin_with_key(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::string::String>) -> Self
@@ -727,8 +727,8 @@ pub fn papo::Builder::ctcp_version(self, core::option::Option<&str>) -> Self
 pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::event_capacity(self, usize) -> Self
 pub const fn papo::Builder::history_on_reconnect(self, bool) -> Self
-pub fn papo::Builder::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub fn papo::Builder::nick(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Builder::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Builder::nick(self, impl core::convert::Into<papo::Nick>) -> Self
 pub fn papo::Builder::password(self, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo::Builder::ping_interval(self, core::time::Duration) -> Self
 pub fn papo::Builder::ping_timeout(self, core::time::Duration) -> Self
@@ -986,8 +986,8 @@ pub struct papo::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
 pub fn papo::Metadata::clear_on(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::Into<papo::Target>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>>
 pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::remove_on(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -1096,8 +1096,8 @@ pub fn papo::State::has_cap(&self, &str) -> bool
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::is_me(&self, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::isupport(&self) -> &papo::isupport::Isupport
-pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::collections::hash::map::HashMap<alloc::string::String, papo::metadata::MetadataValue>>
-pub fn papo::State::metadata_subscriptions(&self) -> &[alloc::string::String]
+pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>>
+pub fn papo::State::metadata_subscriptions(&self) -> &[papo::MetadataKey]
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
 pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::persistence(&self) -> core::option::Option<papo::PersistenceStatus>

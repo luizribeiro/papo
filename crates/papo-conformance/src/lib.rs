@@ -647,10 +647,10 @@ mod tests {
         let mut events = ScriptedEvents {
             events: [
                 Event::AccountRegistration(papo::AccountRegistration::Registered {
-                    account: "first".to_owned(),
+                    account: "first".into(),
                 }),
                 Event::AccountRegistration(papo::AccountRegistration::Registered {
-                    account: "second".to_owned(),
+                    account: "second".into(),
                 }),
             ]
             .into(),

@@ -77,8 +77,8 @@ impl Builder {
     }
 
     /// Sets the primary nickname.
-    pub fn nick(mut self, nick: impl Into<String>) -> Self {
-        let nick = nick.into();
+    pub fn nick(mut self, nick: impl Into<crate::Nick>) -> Self {
+        let nick = nick.into().into_string();
         self.config.nick.clone_from(&nick);
         if !self.username_set {
             self.config.username.clone_from(&nick);
@@ -93,9 +93,13 @@ impl Builder {
     pub fn alt_nicks<I, S>(mut self, nicks: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: Into<crate::Nick>,
     {
-        self.config.alt_nicks = nicks.into_iter().map(Into::into).collect();
+        self.config.alt_nicks = nicks
+            .into_iter()
+            .map(Into::into)
+            .map(crate::Nick::into_string)
+            .collect();
         self
     }
 
@@ -215,9 +219,13 @@ impl Builder {
     pub fn metadata_subscriptions<I, S>(mut self, keys: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: Into<crate::MetadataKey>,
     {
-        self.config = self.config.metadata_subscriptions(keys);
+        self.config = self.config.metadata_subscriptions(
+            keys.into_iter()
+                .map(Into::into)
+                .map(crate::MetadataKey::into_string),
+        );
         self
     }
 
