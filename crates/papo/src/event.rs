@@ -694,14 +694,7 @@ pub enum Event {
         new: String,
     },
     /// A joined channel was renamed.
-    ChannelRenamed {
-        /// The previous channel name.
-        old: String,
-        /// The new channel name.
-        new: String,
-        /// The server-supplied reason, which may be empty.
-        reason: String,
-    },
+    ChannelRenamed(ChannelRenamed),
     /// A user's account state changed.
     AccountChanged {
         /// The affected user's nickname.
@@ -1026,7 +1019,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         },
         papo_core::Event::NickChanged { old, new } => Event::NickChanged { old, new },
         papo_core::Event::ChannelRenamed { old, new, reason } => {
-            Event::ChannelRenamed { old, new, reason }
+            Event::ChannelRenamed(ChannelRenamed { old, new, reason })
         }
         papo_core::Event::AccountChanged { nick, account } => {
             Event::AccountChanged { nick, account }
@@ -1481,8 +1474,10 @@ mod tests {
                 new: "#rust-lang".into(),
                 reason: "Project renamed".into(),
             }),
-            Event::ChannelRenamed { old, new, reason }
-                if old == "#rust" && new == "#rust-lang" && reason == "Project renamed"
+            Event::ChannelRenamed(renamed)
+                if renamed.old == "#rust"
+                    && renamed.new == "#rust-lang"
+                    && renamed.reason == "Project renamed"
         ));
     }
 

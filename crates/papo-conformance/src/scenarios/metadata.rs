@@ -52,7 +52,7 @@ async fn draft_channel_rename(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut connection.events,
-            |event| matches!(event, Event::ChannelRenamed { old: renamed, new: replacement, .. } if renamed == &old && replacement == &new),
+            |event| matches!(event, Event::ChannelRenamed(renamed) if renamed.old == old && renamed.new == new),
             EXPECT_TIMEOUT,
         )
         .await?;

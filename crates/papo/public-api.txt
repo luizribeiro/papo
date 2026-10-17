@@ -243,10 +243,7 @@ pub papo::Event::BatchAbandoned::batch_type: alloc::string::String
 pub papo::Event::BatchAbandoned::reason: papo_core::BatchAbandonReason
 pub papo::Event::BatchAbandoned::reference: alloc::string::String
 pub papo::Event::CapsChanged(papo::event::CapsChanged)
-pub papo::Event::ChannelRenamed
-pub papo::Event::ChannelRenamed::new: alloc::string::String
-pub papo::Event::ChannelRenamed::old: alloc::string::String
-pub papo::Event::ChannelRenamed::reason: alloc::string::String
+pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
 pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
 pub papo::Event::Disconnected(papo::event::Disconnected)
 pub papo::Event::History

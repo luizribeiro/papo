@@ -109,9 +109,9 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             .unwrap();
         loop {
             match member_events.next().await {
-                Some(Event::ChannelRenamed { old, new, reason }) if old == old_channel => {
+                Some(Event::ChannelRenamed(renamed)) if renamed.old == old_channel => {
                     assert_eq!(
-                        (new, reason),
+                        (renamed.new, renamed.reason),
                         (new_channel.clone(), "Project renamed".into())
                     );
                     break;
