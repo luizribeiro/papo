@@ -688,6 +688,10 @@ impl core::error::Error for papo::ConnectError
 pub fn papo::ConnectError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for papo::ConnectError
 pub fn papo::ConnectError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct papo::Ctcp<'a>
+impl<'a> papo::Ctcp<'a>
+pub const fn papo::Ctcp<'a>::command(&self) -> &'a str
+pub const fn papo::Ctcp<'a>::params(&self) -> core::option::Option<&'a str>
 #[non_exhaustive] pub struct papo::Disconnected
 pub papo::Disconnected::cause: papo::DisconnectCause
 pub papo::Disconnected::retry_in: core::option::Option<core::time::Duration>
@@ -824,7 +828,7 @@ pub papo::Message::target: papo_proto::id::Target
 pub papo::Message::text: alloc::string::String
 impl papo::Message
 pub fn papo::Message::account(&self) -> core::option::Option<&str>
-pub fn papo::Message::ctcp(&self) -> core::option::Option<papo_proto::ctcp::Ctcp<'_>>
+pub fn papo::Message::ctcp(&self) -> core::option::Option<papo::Ctcp<'_>>
 pub fn papo::Message::id(&self) -> core::option::Option<&papo_proto::id::MessageId>
 pub fn papo::Message::is_bot(&self) -> bool
 pub fn papo::Message::is_live(&self) -> bool

@@ -4,8 +4,8 @@ use std::time::SystemTime;
 #[cfg(feature = "unstable")]
 use papo_proto::Nick;
 use papo_proto::{
-    AccountName, ChannelName, Ctcp, Isupport, Message as ProtoMessage, MessageId, MessageRef,
-    Target, strip_formatting, time,
+    AccountName, ChannelName, Ctcp as ProtoCtcp, Isupport, Message as ProtoMessage, MessageId,
+    MessageRef, Target, strip_formatting, time,
 };
 
 use crate::Client;
@@ -46,6 +46,34 @@ pub use user::{
     AccountChanged, AwayChanged, Departed, HostChanged, MonitorOffline, MonitorOnline, Netjoin,
     Netsplit, NickChanged, Quit, RealnameChanged,
 };
+
+/// A parsed Client-to-Client Protocol message body.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Ctcp<'a> {
+    command: &'a str,
+    params: Option<&'a str>,
+}
+
+impl<'a> Ctcp<'a> {
+    fn from_proto(value: ProtoCtcp<'a>) -> Self {
+        Self {
+            command: value.command,
+            params: value.params,
+        }
+    }
+
+    /// Returns the command with its original spelling.
+    #[must_use]
+    pub const fn command(&self) -> &'a str {
+        self.command
+    }
+
+    /// Returns the command parameters, when present.
+    #[must_use]
+    pub const fn params(&self) -> Option<&'a str> {
+        self.params
+    }
+}
 
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -223,7 +251,7 @@ impl Message {
         } else {
             return Err(raw);
         };
-        let (kind, displayed) = match Ctcp::parse(raw_text) {
+        let (kind, displayed) = match ProtoCtcp::parse(raw_text) {
             Some(ctcp)
                 if plain == MessageKind::Privmsg && ctcp.command.eq_ignore_ascii_case("ACTION") =>
             {
@@ -440,7 +468,7 @@ impl Message {
     /// `None` means the message text is not valid CTCP.
     #[must_use]
     pub fn ctcp(&self) -> Option<Ctcp<'_>> {
-        Ctcp::parse(&self.raw_text)
+        ProtoCtcp::parse(&self.raw_text).map(Ctcp::from_proto)
     }
 }
 
@@ -1064,7 +1092,7 @@ mod tests {
         );
         assert_eq!(chat("PRIVMSG", "\x01VERSION\x01").kind(), MessageKind::Ctcp);
         assert_eq!(
-            chat("PRIVMSG", "\x01VERSION\x01").ctcp().unwrap().command,
+            chat("PRIVMSG", "\x01VERSION\x01").ctcp().unwrap().command(),
             "VERSION"
         );
         assert_eq!(
