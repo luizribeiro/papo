@@ -251,7 +251,7 @@ async fn wait_message(
 
 fn source_nick(message: &ChatMessage) -> Option<String> {
     match message.source() {
-        Some(Source::User { nick, .. }) => Some(nick),
+        Some(Source::User { nick, .. }) => Some(nick.into_string()),
         _ => None,
     }
 }

@@ -1,11 +1,11 @@
-use crate::Capabilities;
+use crate::{Capabilities, Nick};
 
 /// A connection completed IRC registration.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Registered {
     /// The nickname assigned by the server.
-    pub nick: String,
+    pub nick: Nick,
     /// The human-readable welcome text from the server.
     pub text: String,
     /// The capabilities enabled on the connection.

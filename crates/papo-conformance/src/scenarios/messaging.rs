@@ -45,7 +45,7 @@ async fn echo_message(context: Scenario) -> ScenarioResult {
                     matches!(message.kind(), MessageKind::Privmsg)
                         && message.target() == channel
                         && message.raw_text() == text
-                        && matches!(message.source(), Some(Source::User { nick, .. }) if nick == registered_nick)
+                        && matches!(message.source(), Some(Source::User { nick, .. }) if nick == registered_nick.as_str())
                 })
             },
             EXPECT_TIMEOUT,

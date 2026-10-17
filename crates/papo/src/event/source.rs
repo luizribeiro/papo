@@ -1,3 +1,5 @@
+use crate::Nick;
+
 /// The source of an IRC event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -6,7 +8,7 @@ pub enum Source {
     #[non_exhaustive]
     User {
         /// The user's nickname.
-        nick: String,
+        nick: Nick,
         /// The username, when supplied by the server.
         user: Option<String>,
         /// The hostname, when supplied by the server.
@@ -45,7 +47,7 @@ impl Source {
                 name: name.to_owned(),
             },
             papo_proto::Source::User { nick, user, host } => Self::User {
-                nick: nick.to_owned(),
+                nick: nick.into(),
                 user: user.map(str::to_owned),
                 host: host.map(str::to_owned),
             },
@@ -62,7 +64,7 @@ impl Source {
             Self::Server { name }
         } else {
             Self::User {
-                nick: name,
+                nick: name.into(),
                 user: None,
                 host: None,
             }

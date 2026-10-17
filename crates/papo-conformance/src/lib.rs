@@ -533,7 +533,7 @@ async fn wait_for_registration(client: &Client, events: &mut Events) -> Result<W
             match events.next().await {
                 Some(Event::Registered(registered)) => {
                     return Ok(Welcome {
-                        nick: registered.nick,
+                        nick: registered.nick.into_string(),
                         text: registered.text,
                         caps: registered.caps,
                         isupport: client.state().isupport().clone(),

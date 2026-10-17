@@ -101,7 +101,7 @@ pub papo::event::PersistenceSetting::On
 pub papo::event::Source::Server::name: alloc::string::String
 #[non_exhaustive] pub papo::event::Source::User
 pub papo::event::Source::User::host: core::option::Option<alloc::string::String>
-pub papo::event::Source::User::nick: alloc::string::String
+pub papo::event::Source::User::nick: papo_proto::id::Nick
 pub papo::event::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
@@ -233,7 +233,7 @@ pub papo::event::Redacted::source: core::option::Option<papo::Source>
 pub papo::event::Redacted::target: papo_proto::id::Target
 #[non_exhaustive] pub struct papo::event::Registered
 pub papo::event::Registered::caps: papo_core::Capabilities
-pub papo::event::Registered::nick: alloc::string::String
+pub papo::event::Registered::nick: papo_proto::id::Nick
 pub papo::event::Registered::reconnected: bool
 pub papo::event::Registered::text: alloc::string::String
 #[non_exhaustive] pub struct papo::event::StandardReply
@@ -501,7 +501,7 @@ pub papo::RegistrationError::Timeout
 pub papo::Source::Server::name: alloc::string::String
 #[non_exhaustive] pub papo::Source::User
 pub papo::Source::User::host: core::option::Option<alloc::string::String>
-pub papo::Source::User::nick: alloc::string::String
+pub papo::Source::User::nick: papo_proto::id::Nick
 pub papo::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>

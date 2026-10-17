@@ -302,7 +302,7 @@ impl Message {
 
     pub(crate) fn sender_nick(&self) -> Option<&str> {
         match self.sender.as_ref()? {
-            Source::User { nick, .. } => Some(nick),
+            Source::User { nick, .. } => Some(nick.as_ref()),
             Source::Server { .. } => None,
         }
     }

@@ -1018,7 +1018,7 @@ where
                     *registered = true;
                 }
                 let event = Event::Registered(event::Registered {
-                    nick: welcome.nick,
+                    nick: welcome.nick.into(),
                     text: welcome.text,
                     caps: welcome.caps,
                     reconnected,
