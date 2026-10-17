@@ -89,7 +89,7 @@ async fn message_tags(context: Scenario) -> ScenarioResult {
         .expect(
             &mut receiver.events,
             |event| {
-                matches!(event, Event::TypingChanged(typing) if typing.target == channel && typing.state == Typing::Active)
+                matches!(event, Event::TypingChanged(typing) if typing.target == channel.as_str() && typing.state == Typing::Active)
             },
             EXPECT_TIMEOUT,
         )
@@ -185,7 +185,7 @@ async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut receiver.events,
-            |event| matches!(event, Event::Redacted(redacted) if redacted.id.target() == channel && redacted.id.msgid() == id.as_ref()),
+            |event| matches!(event, Event::Redacted(redacted) if redacted.target == channel.as_str() && redacted.message == id),
             EXPECT_TIMEOUT,
         )
         .await?;

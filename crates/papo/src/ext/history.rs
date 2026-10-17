@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Message as ChatMessage, Origin, RawLine, Source, TargetedMessageId,
+    Client, Error, Message as ChatMessage, Origin, RawLine, Source,
     driver::Command,
     event::{
         Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,
@@ -114,7 +114,8 @@ fn reaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
         .or_else(|| reaction.unreact.map(|value| (value, true)))?;
     Some(HistoryItem::Reacted(Reacted {
         source: message.source().map(Source::from_proto),
-        id: TargetedMessageId::new(target, reply_to),
+        target: target.into(),
+        message: reply_to.into(),
         reaction,
         removed,
     }))
@@ -123,8 +124,12 @@ fn reaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
 fn redaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
     Some(HistoryItem::Redacted(Redacted {
         source: message.source().map(Source::from_proto),
-        id: TargetedMessageId::new(message.param(0)?, message.param(1)?),
-        reason: message.param(2).map(str::to_owned),
+        target: message.param(0)?.into(),
+        message: message.param(1)?.into(),
+        reason: message
+            .param(2)
+            .filter(|reason| !reason.is_empty())
+            .map(str::to_owned),
     }))
 }
 
@@ -584,15 +589,15 @@ mod tests {
             reacted,
             HistoryItem::Reacted(event)
                 if event.source.as_ref().and_then(crate::Source::nick) == Some("emily")
-                    && event.id.target() == "#papo"
-                    && event.id.msgid() == "RfcBTzyxY120004"
+                    && event.target == "#papo"
+                    && event.message == "RfcBTzyxY120004"
                     && event.reaction == "👍"
                     && !event.removed
         ));
 
         let removal = history_item(
             papo_core::HistoryItem::Redacted(core_item(
-                ":irc.example REDACT #papo RfcBTzyxY120004 :requested by author",
+                ":irc.example REDACT #papo RfcBTzyxY120004 :",
             )),
             &client,
             UNIX_EPOCH,
@@ -601,9 +606,9 @@ mod tests {
         assert!(matches!(
             removal,
             HistoryItem::Redacted(event)
-                if event.id.target() == "#papo"
-                    && event.id.msgid() == "RfcBTzyxY120004"
-                    && event.reason.as_deref() == Some("requested by author")
+                if event.target == "#papo"
+                    && event.message == "RfcBTzyxY120004"
+                    && event.reason.is_none()
         ));
     }
 

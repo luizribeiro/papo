@@ -145,7 +145,7 @@ async fn wait_reaction(events: &mut papo::Events) -> (Option<String>, String) {
             Some(Event::Reacted(reaction)) => {
                 return (
                     (!reaction.removed).then_some(reaction.reaction),
-                    reaction.id.msgid().to_owned(),
+                    reaction.message.into_string(),
                 );
             }
             Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {

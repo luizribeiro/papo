@@ -28,7 +28,7 @@ async fn draft_read_marker(context: Scenario) -> ScenarioResult {
     context
         .expect(
             &mut connection.events,
-            |event| matches!(event, Event::ReadMarker(marker) if marker.target == channel && marker.time.is_some()),
+            |event| matches!(event, Event::ReadMarker(marker) if marker.target == channel.as_str() && marker.time.is_some()),
             EXPECT_TIMEOUT,
         )
         .await?;

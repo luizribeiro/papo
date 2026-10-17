@@ -1,8 +1,8 @@
 use std::time::SystemTime;
 
-use crate::Typing;
+use crate::{MessageId, Target, Typing};
 
-use super::{Source, Tags, TargetedMessageId};
+use super::{Source, Tags};
 
 /// A reaction was added to or removed from a message.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,8 +10,10 @@ use super::{Source, Tags, TargetedMessageId};
 pub struct Reacted {
     /// The user or server that changed the reaction.
     pub source: Option<Source>,
+    /// The conversation containing the message.
+    pub target: Target,
     /// The message being reacted to.
-    pub id: TargetedMessageId,
+    pub message: MessageId,
     /// The reaction text.
     pub reaction: String,
     /// Whether the reaction was removed.
@@ -24,8 +26,10 @@ pub struct Reacted {
 pub struct Redacted {
     /// The user or server that removed the message.
     pub source: Option<Source>,
+    /// The conversation containing the message.
+    pub target: Target,
     /// The message removed from history.
-    pub id: TargetedMessageId,
+    pub message: MessageId,
     /// The optional human-readable reason.
     pub reason: Option<String>,
 }
@@ -37,7 +41,7 @@ pub struct TypingChanged {
     /// The user or server that sent the notification.
     pub source: Option<Source>,
     /// The channel or nickname where typing is occurring.
-    pub target: String,
+    pub target: Target,
     /// The new typing state.
     pub state: Typing,
 }
@@ -49,7 +53,7 @@ pub struct TagMsg {
     /// The message source, when supplied by the server.
     pub source: Option<Source>,
     /// The message target.
-    pub target: String,
+    pub target: Target,
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,
 }
@@ -59,7 +63,7 @@ pub struct TagMsg {
 #[non_exhaustive]
 pub struct ReadMarker {
     /// The channel or nickname to which the marker applies.
-    pub target: String,
+    pub target: Target,
     /// The marker time, or `None` when the server reports `*`.
     pub time: Option<SystemTime>,
 }

@@ -680,7 +680,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::TagMessage(message) => {
             let tag = TagMsg {
                 source: message.source.map(Source::from_prefix),
-                target: message.target,
+                target: message.target.into(),
                 tags: Tags::from_pairs(message.tags),
             };
             let reply_to = tag
@@ -699,7 +699,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
                     source: tag.source,
-                    id: TargetedMessageId::new(tag.target, msgid),
+                    target: tag.target,
+                    message: msgid.into(),
                     reaction: reaction.to_owned(),
                     removed,
                 })
@@ -720,8 +721,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         }
         papo_core::Event::Redacted(redacted) => Event::Redacted(Redacted {
             source: redacted.source.map(Source::from_prefix),
-            id: TargetedMessageId::new(redacted.target, redacted.msgid),
-            reason: redacted.reason,
+            target: redacted.target.into(),
+            message: redacted.msgid.into(),
+            reason: redacted.reason.filter(|reason| !reason.is_empty()),
         }),
         papo_core::Event::Response(response) => return CoreEvent::Response(response),
         papo_core::Event::RequestUntracked { id } => return CoreEvent::RequestUntracked(id),
@@ -777,7 +779,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             return CoreEvent::History { target, items, end };
         }
         papo_core::Event::ReadMarker(marker) => Event::ReadMarker(ReadMarker {
-            target: marker.target,
+            target: marker.target.into(),
             time: marker.time,
         }),
         papo_core::Event::Netsplit { servers, quits } => Event::Netsplit(Netsplit {
@@ -1238,9 +1240,9 @@ mod tests {
             panic!("expected reaction")
         };
         assert!(matches!(reaction.source, Some(Source::User { ref nick, .. }) if nick == "alice"));
-        assert_eq!(reaction.id.target(), "#papo");
+        assert_eq!(reaction.target, "#papo");
         assert_eq!(reaction.reaction, "👍");
-        assert_eq!(reaction.id.msgid(), "RKi9Cw");
+        assert_eq!(reaction.message, "RKi9Cw");
         assert!(!reaction.removed);
     }
 
@@ -1278,15 +1280,15 @@ mod tests {
             source: Some("alice!~a@cloak".into()),
             target: "#papo".into(),
             msgid: "RKi9Cw".into(),
-            reason: None,
+            reason: Some(String::new()),
         };
         assert!(matches!(
             forwarded(papo_core::Event::Redacted(redacted.clone())),
             Event::Redacted(mapped)
                 if matches!(mapped.source, Some(Source::User { ref nick, .. }) if nick == "alice")
-                    && mapped.id.target() == redacted.target
-                    && mapped.id.msgid() == redacted.msgid
-                    && mapped.reason == redacted.reason
+                    && mapped.target.as_ref() == redacted.target
+                    && mapped.message.as_ref() == redacted.msgid
+                    && mapped.reason.is_none()
         ));
     }
 
@@ -1742,7 +1744,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::ReadMarker(marker.clone())),
             Event::ReadMarker(mapped)
-                if mapped.target == marker.target && mapped.time == marker.time
+                if mapped.target.as_ref() == marker.target && mapped.time == marker.time
         ));
     }
 
