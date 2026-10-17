@@ -41,7 +41,7 @@ async fn subscriber_receives_another_clients_metadata() {
 
         writer
             .metadata()
-            .set("status", Some("available for review"))
+            .set("status", "available for review")
             .await
             .unwrap();
         loop {

@@ -33,6 +33,13 @@ impl Metadata {
             .map_or(Ok(()), |error| Err(Error::server(error)))
     }
 
+    fn action(&self, command: MetadataCommand) -> crate::RequestFuture<()> {
+        let metadata = Self {
+            client: self.client.clone(),
+        };
+        crate::RequestFuture::new(async move { metadata.request(command).await })
+    }
+
     /// Gets selected keys and returns the target's resulting cache.
     ///
     /// # Errors
@@ -119,7 +126,7 @@ impl Metadata {
         })
     }
 
-    /// Sets or removes one metadata key for the current nickname.
+    /// Sets one metadata key for the current nickname.
     ///
     /// # Errors
     ///
@@ -129,12 +136,22 @@ impl Metadata {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub async fn set(&self, key: &str, value: Option<&str>) -> Result<(), Error> {
+    pub fn set(
+        &self,
+        key: impl Into<crate::MetadataKey>,
+        value: impl Into<String>,
+    ) -> crate::RequestFuture<()> {
         let target = self.client.nick();
-        self.set_on(&target, key, value).await
+        self.set_on(target, key, value)
     }
 
-    /// Sets or removes one metadata key on `target`.
+    /// Removes one metadata key for the current nickname.
+    pub fn remove(&self, key: impl Into<crate::MetadataKey>) -> crate::RequestFuture<()> {
+        let target = self.client.nick();
+        self.remove_on(target, key)
+    }
+
+    /// Sets one metadata key on `target`.
     ///
     /// # Errors
     ///
@@ -144,13 +161,30 @@ impl Metadata {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub async fn set_on(&self, target: &str, key: &str, value: Option<&str>) -> Result<(), Error> {
-        self.request(MetadataCommand::Set {
-            target: target.into(),
-            key: key.into(),
-            value: value.map(str::to_owned),
+    pub fn set_on(
+        &self,
+        target: impl Into<crate::Target>,
+        key: impl Into<crate::MetadataKey>,
+        value: impl Into<String>,
+    ) -> crate::RequestFuture<()> {
+        self.action(MetadataCommand::Set {
+            target: target.into().into_string(),
+            key: key.into().into_string(),
+            value: Some(value.into()),
         })
-        .await
+    }
+
+    /// Removes one metadata key from `target`.
+    pub fn remove_on(
+        &self,
+        target: impl Into<crate::Target>,
+        key: impl Into<crate::MetadataKey>,
+    ) -> crate::RequestFuture<()> {
+        self.action(MetadataCommand::Set {
+            target: target.into().into_string(),
+            key: key.into().into_string(),
+            value: None,
+        })
     }
 
     /// Clears all metadata for the current nickname.
@@ -162,11 +196,15 @@ impl Metadata {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub async fn clear(&self) -> Result<(), Error> {
-        self.request(MetadataCommand::Clear {
-            target: self.client.nick().into_string(),
+    pub fn clear(&self) -> crate::RequestFuture<()> {
+        self.clear_on(self.client.nick())
+    }
+
+    /// Clears all metadata on `target`.
+    pub fn clear_on(&self, target: impl Into<crate::Target>) -> crate::RequestFuture<()> {
+        self.action(MetadataCommand::Clear {
+            target: target.into().into_string(),
         })
-        .await
     }
 
     /// Subscribes to metadata keys.
@@ -179,15 +217,18 @@ impl Metadata {
     /// return [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub async fn subscribe<I, S>(&self, keys: I) -> Result<(), Error>
+    pub fn subscribe<I, S>(&self, keys: I) -> crate::RequestFuture<()>
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: Into<crate::MetadataKey>,
     {
-        self.request(MetadataCommand::Sub {
-            keys: keys.into_iter().map(Into::into).collect(),
+        self.action(MetadataCommand::Sub {
+            keys: keys
+                .into_iter()
+                .map(Into::into)
+                .map(crate::MetadataKey::into_string)
+                .collect(),
         })
-        .await
     }
 
     /// Unsubscribes from metadata keys.
@@ -200,15 +241,18 @@ impl Metadata {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub async fn unsubscribe<I, S>(&self, keys: I) -> Result<(), Error>
+    pub fn unsubscribe<I, S>(&self, keys: I) -> crate::RequestFuture<()>
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: Into<crate::MetadataKey>,
     {
-        self.request(MetadataCommand::Unsub {
-            keys: keys.into_iter().map(Into::into).collect(),
+        self.action(MetadataCommand::Unsub {
+            keys: keys
+                .into_iter()
+                .map(Into::into)
+                .map(crate::MetadataKey::into_string)
+                .collect(),
         })
-        .await
     }
 
     /// Synchronizes cached metadata for a target.
@@ -290,7 +334,7 @@ mod tests {
 
         let set = tokio::spawn({
             let client = client.clone();
-            async move { client.metadata().set("status", Some("testing")).await }
+            async move { client.metadata().set("status", "testing").await }
         });
         client_line(
             &mut server,
@@ -307,7 +351,7 @@ mod tests {
         let set_on = tokio::spawn(async move {
             client
                 .metadata()
-                .set_on("bob", "timezone", Some("America/New_York"))
+                .set_on("bob", "timezone", "America/New_York")
                 .await
         });
         client_line(

@@ -10,8 +10,6 @@ use papo::{
 };
 use papo_proto::Typing;
 
-fn assert_send<T: Send>(_: T) {}
-
 fn assert_send_sync<T: Send + Sync>() {}
 
 fn assert_send_static<T: Send + 'static>(_: T) {}
@@ -102,15 +100,18 @@ fn request_futures_are_send() {
     );
     assert_send_static(client.metadata().get("alice", ["avatar"]));
     assert_send_static(client.metadata().list("alice"));
-    assert_send(client.metadata().set("status", Some("testing")));
-    assert_send(
+    assert_send_static(client.metadata().set("status", "testing"));
+    assert_send_static(
         client
             .metadata()
-            .set_on("alice", "timezone", Some("America/New_York")),
+            .set_on("alice", "timezone", "America/New_York"),
     );
-    assert_send(client.metadata().clear());
-    assert_send(client.metadata().subscribe(["avatar", "pronouns"]));
-    assert_send(client.metadata().unsubscribe(["pronouns"]));
+    assert_send_static(client.metadata().remove("status"));
+    assert_send_static(client.metadata().remove_on("alice", "timezone"));
+    assert_send_static(client.metadata().clear());
+    assert_send_static(client.metadata().clear_on("alice"));
+    assert_send_static(client.metadata().subscribe(["avatar", "pronouns"]));
+    assert_send_static(client.metadata().unsubscribe(["pronouns"]));
     assert_send_static(client.metadata().sync("alice"));
     assert_send_static(client.rename_channel("#rust", "#rust-lang", "Project renamed"));
     assert_send_static(client.relay("#bridged", "matrix|alice", "Hello from Matrix"));
