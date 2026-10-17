@@ -714,7 +714,7 @@ pub const fn papo::Reconnect::never() -> Self
 impl core::default::Default for papo::Reconnect
 pub fn papo::Reconnect::default() -> Self
 pub struct papo::Sent
-pub papo::Sent::msgid: core::option::Option<alloc::string::String>
+pub papo::Sent::id: core::option::Option<papo::TargetedMessageId>
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>
 pub struct papo::ServerError
 impl papo::ServerError

@@ -32,16 +32,16 @@ pub struct Client {
 /// Server-assigned metadata for a sent chat message.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Sent {
-    /// Network-unique identifier from a labelled echo.
-    pub msgid: Option<String>,
+    /// Targeted identifier from a labelled echo.
+    pub id: Option<crate::TargetedMessageId>,
     /// Server time from a labelled echo.
     pub time: Option<SystemTime>,
 }
 
 impl Sent {
-    pub(crate) fn from_response(response: &Response) -> Self {
+    pub(crate) fn from_response(response: &Response, target: &str) -> Self {
         response.sent().map_or_else(Self::default, |sent| Self {
-            msgid: Some(sent.msgid),
+            id: Some(crate::TargetedMessageId::new(target, sent.msgid)),
             time: sent.time.and_then(|value| time::parse(&value)),
         })
     }

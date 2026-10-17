@@ -60,14 +60,14 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
                 .map(|message| message.msgid())
                 .collect::<Vec<_>>(),
             sent.iter()
-                .map(|message| message.msgid.as_deref())
+                .map(|message| message.id.as_ref().map(papo::TargetedMessageId::msgid))
                 .collect::<Vec<_>>()
         );
         assert!(messages.iter().all(|message| {
             message.origin() == Origin::History && !message.is_live() && message.msgid().is_some()
         }));
 
-        let third = sent[2].msgid.as_ref().expect("Ergo supplies a msgid");
+        let third = sent[2].id.as_ref().expect("Ergo supplies a msgid").msgid();
         let before = client
             .history(&channel)
             .before(third)

@@ -185,16 +185,19 @@ pub(crate) enum Command {
 
 enum PendingRequest {
     Response(oneshot::Sender<Result<Response, Error>>),
-    Text(oneshot::Sender<Result<Sent, Error>>),
+    Text {
+        target: String,
+        result: oneshot::Sender<Result<Sent, Error>>,
+    },
 }
 
 impl PendingRequest {
     fn respond(self, response: Response) {
         match self {
             Self::Response(result) => _ = result.send(Ok(response)),
-            Self::Text(result) => {
+            Self::Text { target, result } => {
                 let response = response.error().map_or_else(
-                    || Ok(Sent::from_response(&response)),
+                    || Ok(Sent::from_response(&response, &target)),
                     |error| Err(Error::server(error)),
                 );
                 _ = result.send(response);
@@ -205,7 +208,7 @@ impl PendingRequest {
     fn fail(self, error: Error) {
         match self {
             Self::Response(result) => _ = result.send(Err(error)),
-            Self::Text(result) => _ = result.send(Err(error)),
+            Self::Text { result, .. } => _ = result.send(Err(error)),
         }
     }
 }
@@ -789,7 +792,7 @@ where
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
                     match session.send_text(now(), kind, &target, &text, &tags) {
                         Ok(Some(id)) => {
-                            requests.insert(id, PendingRequest::Text(result));
+                            requests.insert(id, PendingRequest::Text { target, result });
                         }
                         Ok(None) => _ = result.send(Ok(Sent::default())),
                         Err(error) => {
