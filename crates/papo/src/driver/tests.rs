@@ -135,7 +135,10 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+        Some(Event::Disconnected(crate::Disconnected {
+            retry_in: Some(retry_in),
+            ..
+        })) if retry_in == Duration::from_millis(800)
     ));
     tokio::time::advance(Duration::from_secs(2)).await;
     assert!(matches!(
@@ -407,7 +410,10 @@ async fn explicit_reconnect_redials_without_backoff() {
     within(client.reconnect()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+        Some(Event::Disconnected(crate::Disconnected {
+            retry_in: Some(Duration::ZERO),
+            ..
+        }))
     ));
     registration_burst(&mut second_server).await;
     {
@@ -1456,7 +1462,10 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
     server_line(&mut first_server, b":ergo.test CAP * LS :sts=port=6699\r\n").await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+        Some(Event::Disconnected(crate::Disconnected {
+            retry_in: Some(Duration::ZERO),
+            ..
+        }))
     ));
     registration_burst(&mut second_server).await;
     assert_eq!(&*requested.lock().unwrap(), &[(false, 6667), (true, 6699)]);

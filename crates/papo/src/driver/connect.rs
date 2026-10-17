@@ -147,7 +147,12 @@ pub(super) async fn run_plan(
             sts_required = true;
         }
         let reconnect_now = end.reconnect_now;
-        pending_events = match enqueue_retry_event(&events, end) {
+        let retry_in = if upgrade_port.is_some() || reconnect_now {
+            Duration::ZERO
+        } else {
+            retry_delay(reconnect, attempts, entropy.as_mut())
+        };
+        pending_events = match enqueue_retry_event(&events, end, retry_in) {
             Ok(pending) => pending,
             Err(end) => return finish(events, *end, false),
         };
@@ -155,12 +160,10 @@ pub(super) async fn run_plan(
             continue;
         }
         if !wait_before_retry(
-            reconnect,
-            attempts,
             &mut commands,
             &events.regular,
             &mut pending_events,
-            entropy.as_mut(),
+            retry_in,
         )
         .await
         {
@@ -173,11 +176,12 @@ pub(super) async fn run_plan(
 fn enqueue_retry_event(
     events: &EventSink,
     mut end: ConnectionEnd,
+    retry_in: Duration,
 ) -> Result<VecDeque<Event>, Box<ConnectionEnd>> {
     if enqueue_event(
         events,
         &mut end.pending_events,
-        Event::Disconnected(super::disconnected_event(&end.error, Some(Duration::ZERO))),
+        Event::Disconnected(super::disconnected_event(&end.error, Some(retry_in))),
     ) {
         return Ok(end.pending_events);
     }
@@ -319,23 +323,15 @@ async fn connect_or_wait(
     if fail_fast || sts_required || is_fatal_failure(&error, None) || !reconnect.permits(attempts) {
         return ConnectionAttempt::Failed(error);
     }
+    let retry_in = retry_delay(reconnect, attempts, entropy);
     if !enqueue_event(
         events,
         pending_events,
-        Event::Disconnected(super::disconnected_event(&error, Some(Duration::ZERO))),
+        Event::Disconnected(super::disconnected_event(&error, Some(retry_in))),
     ) {
         return ConnectionAttempt::SlowConsumer;
     }
-    if wait_before_retry(
-        reconnect,
-        attempts,
-        commands,
-        &events.regular,
-        pending_events,
-        entropy,
-    )
-    .await
-    {
+    if wait_before_retry(commands, &events.regular, pending_events, retry_in).await {
         ConnectionAttempt::Retry
     } else {
         ConnectionAttempt::Stop
@@ -494,17 +490,13 @@ async fn connect_while_disconnected(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn wait_before_retry(
-    reconnect: Reconnect,
-    attempts: usize,
     commands: &mut mpsc::Receiver<Command>,
     events: &mpsc::Sender<Event>,
     pending_events: &mut VecDeque<Event>,
-    entropy: &mut (dyn FnMut() -> u64 + Send),
+    retry_in: Duration,
 ) -> bool {
-    let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
-    let sleep = crate::rt::sleep_until(now() + reconnect.delay(retry, entropy()));
+    let sleep = crate::rt::sleep_until(now() + retry_in);
     tokio::pin!(sleep);
     loop {
         tokio::select! {
@@ -528,6 +520,15 @@ async fn wait_before_retry(
             }
         }
     }
+}
+
+fn retry_delay(
+    reconnect: Reconnect,
+    attempts: usize,
+    entropy: &mut (dyn FnMut() -> u64 + Send),
+) -> Duration {
+    let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
+    reconnect.delay(retry, entropy())
 }
 
 fn handle_disconnected_command(command: Option<Command>) -> bool {
