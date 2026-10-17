@@ -189,6 +189,27 @@ impl ChannelName {
     }
 }
 
+impl Target {
+    /// Validates this nickname, channel, status target, or server mask.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the target is invalid under the server's ISUPPORT state.
+    pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
+        let target = isupport
+            .statusmsg()
+            .and_then(|prefixes| self.strip_prefix(|character| prefixes.contains(character)))
+            .unwrap_or(self);
+        if isupport.is_channel(target) {
+            return ChannelName::from(target).check(isupport);
+        }
+        if self.as_ref() == "*" || self.starts_with('$') {
+            return check_parameter(self);
+        }
+        Nick::from(self.as_ref()).check(isupport)
+    }
+}
+
 fn check_length(value: &str, maximum: usize) -> Result<(), InvalidIdentifier> {
     let length = value.chars().count();
     if length > maximum {
@@ -450,6 +471,22 @@ mod tests {
         );
         assert_eq!(
             ChannelName::from("#papo,dev").check(&support),
+            Err(InvalidIdentifier::InvalidCharacter(','))
+        );
+    }
+
+    #[test]
+    fn validates_each_supported_target_shape() {
+        let support = libera_isupport();
+        for target in ["Alice", "#papo", "@#papo", "$*.example", "*"] {
+            assert_eq!(Target::from(target).check(&support), Ok(()));
+        }
+        assert_eq!(
+            Target::from("@Alice").check(&support),
+            Err(InvalidIdentifier::InvalidPrefix('@'))
+        );
+        assert_eq!(
+            Target::from("#papo,dev").check(&support),
             Err(InvalidIdentifier::InvalidCharacter(','))
         );
     }
