@@ -13,6 +13,8 @@ mod error;
 mod event_impl;
 mod ext;
 mod io_compat;
+#[allow(dead_code)]
+mod mode;
 mod reconnect;
 mod requests;
 mod rt;
