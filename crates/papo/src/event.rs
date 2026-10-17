@@ -28,8 +28,8 @@ mod tags;
 mod user;
 
 pub use channel::{
-    ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChange, ModeChanged, Parted,
-    TopicChanged,
+    ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChange, ModeChanged, ModeKind,
+    Parted, TopicChanged,
 };
 pub use connection::{CapsChanged, Disconnected, FeaturesChanged, Registered};
 pub use conversation::{
@@ -974,7 +974,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                 .map(|change| ModeChange {
                     set: change.set,
                     mode: change.mode,
-                    kind: change.kind,
+                    kind: ModeKind::from_proto(change.kind),
                     arg: change.arg,
                 })
                 .collect(),
@@ -1027,14 +1027,14 @@ mod tests {
     #[cfg(feature = "unstable")]
     use super::PersistenceSetting;
     use super::{
-        CoreEvent, Event, Message as ChatMessage, MessageKind, MetadataChanged, Origin, Source,
-        StandardReplyKind, Visibility, Warning, from_core,
+        CoreEvent, Event, Message as ChatMessage, MessageKind, MetadataChanged, ModeKind, Origin,
+        Source, StandardReplyKind, Visibility, Warning, from_core,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
-    use papo_proto::{Isupport, Message, MessageRef, ModeKind, Typing};
+    use papo_proto::{Isupport, Message, MessageRef, ModeKind as ProtoModeKind, Typing};
 
     fn event(
         message: Message,
@@ -1721,7 +1721,7 @@ mod tests {
             set: true,
             mode: 'o',
             arg: Some("emily".into()),
-            kind: ModeKind::Prefix(0),
+            kind: ProtoModeKind::Prefix(0),
         }];
         assert!(matches!(
             forwarded(papo_core::Event::ModeChanged {

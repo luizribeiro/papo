@@ -46,7 +46,7 @@ pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
     RegistrationError, ServerError,
 };
-pub use event_impl::{Event, Message, MessageKind, Origin, RawLine, Source, Tags};
+pub use event_impl::{Event, Message, MessageKind, ModeKind, Origin, RawLine, Source, Tags};
 pub use ext::accounts::{AccountRegistration, NewAccount};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -76,7 +76,7 @@ pub use papo_core::{RateLimit, Sasl};
 pub use papo_core::{Unsupported, UnsupportedReason};
 pub use papo_proto::{
     AccountName, Casemapping, ChannelName, Folded, InvalidIdentifier, Mask, MessageId, MetadataKey,
-    ModeKind, Nick, Target, Typing,
+    Nick, Target, Typing,
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};

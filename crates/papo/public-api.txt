@@ -12,7 +12,6 @@ pub use papo::Mask
 pub use papo::Member
 pub use papo::MessageId
 pub use papo::MetadataKey
-pub use papo::ModeKind
 pub use papo::Nick
 pub use papo::RateLimit
 pub use papo::Sasl
@@ -183,7 +182,7 @@ pub papo::event::MetadataChanged::value: core::option::Option<alloc::string::Str
 pub papo::event::MetadataChanged::visibility: papo::event::Visibility
 #[non_exhaustive] pub struct papo::event::ModeChange
 pub papo::event::ModeChange::arg: core::option::Option<alloc::string::String>
-pub papo::event::ModeChange::kind: papo_proto::modes::ModeKind
+pub papo::event::ModeChange::kind: papo::ModeKind
 pub papo::event::ModeChange::mode: char
 pub papo::event::ModeChange::set: bool
 #[non_exhaustive] pub struct papo::event::ModeChanged
@@ -523,6 +522,13 @@ pub papo::MessageKind::Ctcp
 pub papo::MessageKind::CtcpReply
 pub papo::MessageKind::Notice
 pub papo::MessageKind::Privmsg
+#[non_exhaustive] pub enum papo::ModeKind
+pub papo::ModeKind::AlwaysArg
+pub papo::ModeKind::ArgWhenSet
+pub papo::ModeKind::List
+pub papo::ModeKind::NoArg
+pub papo::ModeKind::Prefix(usize)
+pub papo::ModeKind::Unknown
 #[non_exhaustive] pub enum papo::Origin
 pub papo::Origin::Echo
 pub papo::Origin::History
