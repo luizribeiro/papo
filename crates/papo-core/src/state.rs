@@ -1,3 +1,5 @@
+#[cfg(feature = "unstable")]
+use std::collections::BTreeMap;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
@@ -10,18 +12,22 @@ use papo_proto::{
     Source, Target, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
+#[cfg(feature = "unstable")]
+use crate::{
+    BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, bouncer::NetworkUpdate,
+};
 use crate::{
     Config, Event, Handled, LastSeen, MetadataValue, Outbox, OwnedModeChange, ReadMarker,
     StateLimit, monitor::Monitor,
 };
-#[cfg(feature = "unstable")]
-use crate::{PersistenceSetting, PersistenceStatus};
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_METADATA_TARGETS: usize = 10_000;
 pub(crate) const MAX_METADATA_KEYS_PER_TARGET: usize = 10_000;
+#[cfg(feature = "unstable")]
+const MAX_BOUNCER_NETWORKS: usize = 10_000;
 /// The known channel and user state for a session.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct State {
@@ -44,9 +50,11 @@ pub struct State {
     member_limit_warned: bool,
     #[cfg(feature = "unstable")]
     persistence: Option<PersistenceStatus>,
+    #[cfg(feature = "unstable")]
+    bouncer_networks: BTreeMap<NetworkId, BouncerNetwork>,
     metadata: HashMap<Folded<Target>, HashMap<String, MetadataValue>>,
     metadata_subscriptions: Vec<String>,
-    metadata_limits_warned: HashSet<StateLimit>,
+    limits_warned: HashSet<StateLimit>,
 }
 
 /// State known about a joined channel.
@@ -136,9 +144,11 @@ impl State {
             member_limit_warned: false,
             #[cfg(feature = "unstable")]
             persistence: None,
+            #[cfg(feature = "unstable")]
+            bouncer_networks: BTreeMap::new(),
             metadata: HashMap::new(),
             metadata_subscriptions: Vec::new(),
-            metadata_limits_warned: HashSet::new(),
+            limits_warned: HashSet::new(),
         }
     }
 
@@ -190,6 +200,10 @@ impl State {
         }
         #[cfg(feature = "unstable")]
         if self.handle_persistence(message, outbox) {
+            return Handled::Yes;
+        }
+        #[cfg(feature = "unstable")]
+        if self.handle_bouncer(message, outbox) {
             return Handled::Yes;
         }
         self.remember_last_seen(message, own_nick);
@@ -371,6 +385,37 @@ impl State {
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const fn persistence(&self) -> Option<PersistenceStatus> {
         self.persistence
+    }
+
+    #[cfg(feature = "unstable")]
+    fn handle_bouncer(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
+        let Some(update) = NetworkUpdate::parse(message) else {
+            return false;
+        };
+        if update.removed {
+            self.bouncer_networks.remove(&update.id);
+            outbox.event(Event::BouncerNetwork {
+                id: update.id,
+                network: None,
+            });
+            return true;
+        }
+        if !self.bouncer_networks.contains_key(&update.id)
+            && self.bouncer_networks.len() >= MAX_BOUNCER_NETWORKS
+        {
+            self.warn_limit(StateLimit::BouncerNetworks, outbox);
+            return true;
+        }
+        let network = self
+            .bouncer_networks
+            .entry(update.id.clone())
+            .or_insert_with(|| BouncerNetwork::empty(update.id.clone()));
+        network.apply(update.attributes);
+        outbox.event(Event::BouncerNetwork {
+            id: update.id,
+            network: Some(network.clone()),
+        });
+        true
     }
 
     fn handle_metadata(
@@ -933,8 +978,10 @@ impl State {
             StateLimit::Channels => !std::mem::replace(&mut self.channel_limit_warned, true),
             StateLimit::Members => !std::mem::replace(&mut self.member_limit_warned, true),
             StateLimit::MetadataTargets | StateLimit::MetadataKeys => {
-                self.metadata_limits_warned.insert(limit)
+                self.limits_warned.insert(limit)
             }
+            #[cfg(feature = "unstable")]
+            StateLimit::BouncerNetworks => self.limits_warned.insert(limit),
         };
         if first {
             outbox.event(Event::StateLimitReached { limit });
@@ -1409,6 +1456,13 @@ impl State {
     /// Iterates over joined channels in unspecified order.
     pub fn channels(&self) -> impl Iterator<Item = &Channel> {
         self.channels.values()
+    }
+
+    /// Iterates over upstream networks reported by the bouncer.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub fn bouncer_networks(&self) -> impl Iterator<Item = &BouncerNetwork> {
+        self.bouncer_networks.values()
     }
 
     /// Iterates over the session's current user mode letters in unspecified order.

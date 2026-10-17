@@ -91,6 +91,8 @@ pub(crate) enum BatchEvent {
         kind: String,
         messages: Vec<Message>,
     },
+    #[cfg(feature = "unstable")]
+    Bouncer(Vec<Message>),
     Isupport(Vec<Message>),
 }
 
@@ -426,6 +428,7 @@ fn is_history(kind: &str) -> bool {
 fn is_aggregate(kind: &str) -> bool {
     is_history(kind)
         || cfg!(feature = "unstable") && kind == "soju.im/search"
+        || cfg!(feature = "unstable") && kind == "soju.im/bouncer-networks"
         || matches!(
             kind,
             "netsplit"
@@ -447,6 +450,10 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
     #[cfg(feature = "unstable")]
     if batch.kind == "soju.im/search" {
         return Vec::new();
+    }
+    #[cfg(feature = "unstable")]
+    if batch.kind == "soju.im/bouncer-networks" {
+        return vec![BatchEvent::Bouncer(std::mem::take(&mut batch.messages))];
     }
     if batch.kind == "draft/isupport" {
         return vec![BatchEvent::Isupport(std::mem::take(&mut batch.messages))];
@@ -580,6 +587,8 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
             messages: batch, ..
         }
         | BatchEvent::Isupport(batch) => messages.extend(batch),
+        #[cfg(feature = "unstable")]
+        BatchEvent::Bouncer(batch) => messages.extend(batch),
         BatchEvent::History { items: batch, .. } => {
             messages.extend(
                 batch

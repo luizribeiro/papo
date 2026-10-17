@@ -1625,6 +1625,14 @@ pub enum Event {
         /// Whether persistence is currently effective.
         effective: bool,
     },
+    /// An upstream bouncer network was added, updated, or removed.
+    #[cfg(feature = "unstable")]
+    BouncerNetwork {
+        /// Bouncer-assigned network identifier.
+        id: NetworkId,
+        /// Complete cached network state, or `None` when removed.
+        network: Option<BouncerNetwork>,
+    },
     /// A target's cached metadata changed.
     MetadataChanged {
         /// Nickname or channel reported by the server.
@@ -1954,6 +1962,9 @@ pub enum StateLimit {
     MetadataTargets,
     /// Metadata keys retained for one target.
     MetadataKeys,
+    /// Upstream bouncer networks.
+    #[cfg(feature = "unstable")]
+    BouncerNetworks,
 }
 
 /// Sans-I/O state for one IRC client session.
@@ -3451,6 +3462,13 @@ impl Session {
                     self.dispatch_message(now, &message.as_ref(), &context, true);
                 }
             }
+            #[cfg(feature = "unstable")]
+            BatchEvent::Bouncer(messages) => {
+                let context = DispatchContext::from_batch_type("soju.im/bouncer-networks".into());
+                for message in messages {
+                    self.dispatch_message(now, &message.as_ref(), &context, true);
+                }
+            }
             BatchEvent::Isupport(messages) => {
                 let before = self.snapshot_values();
                 self.isupport.handle_batch(&messages);
@@ -3481,8 +3499,9 @@ impl Session {
             .as_ref()
             .is_none_or(|(_, _, _, _, emit_events)| *emit_events);
         let queued_events = self.outbox.events.len();
+        let bouncer_batch = batch_type == "soju.im/bouncer-networks";
         let context = DispatchContext::from_batch_type(batch_type);
-        if history.is_none() || request.is_none() {
+        if (history.is_none() || request.is_none()) && !bouncer_batch {
             for message in &messages {
                 self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
             }

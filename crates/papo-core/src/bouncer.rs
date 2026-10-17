@@ -70,14 +70,12 @@ pub struct BouncerNetwork {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) struct NetworkUpdate {
     pub(crate) id: NetworkId,
     pub(crate) removed: bool,
     pub(crate) attributes: BTreeMap<String, Option<String>>,
 }
 
-#[allow(dead_code)]
 impl NetworkUpdate {
     pub(crate) fn parse(message: &MessageRef<'_>) -> Option<Self> {
         if !message.command_is("BOUNCER") || !message.param(0)?.eq_ignore_ascii_case("NETWORK") {
@@ -105,7 +103,6 @@ impl NetworkUpdate {
     }
 }
 
-#[allow(dead_code)]
 impl BouncerNetwork {
     pub(crate) fn empty(id: NetworkId) -> Self {
         Self {
@@ -150,7 +147,6 @@ impl BouncerNetwork {
     }
 }
 
-#[allow(dead_code)]
 fn parse_state(value: &str) -> Option<NetworkState> {
     match value {
         "connected" => Some(NetworkState::Connected),

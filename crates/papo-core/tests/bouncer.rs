@@ -36,6 +36,8 @@ fn sends_each_bouncer_network_operation() {
         .server("@label=0 BATCH +networks soju.im/bouncer-networks")
         .server(r"@batch=networks BOUNCER NETWORK 42 name=Libera\sChat;state=connected")
         .server("BATCH -networks")
+        .event(|event| matches!(event, Event::BouncerNetwork { network: Some(network), .. }
+            if network.name.as_deref() == Some("Libera Chat")))
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
         .update(|session| {
             session
@@ -61,5 +63,27 @@ fn sends_each_bouncer_network_operation() {
         .client("@label=3 BOUNCER DELNETWORK 43")
         .server("@label=3 BOUNCER DELNETWORK 43")
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
+        .no_event();
+}
+
+#[test]
+fn merges_bounded_notification_batches_and_deletes_networks() {
+    registered()
+        .server("BATCH +notify soju.im/bouncer-networks")
+        .server(r"@batch=notify BOUNCER NETWORK 42 name=My\sNetwork;host=irc.example.org;state=connecting")
+        .server("BATCH -notify")
+        .event(|event| matches!(event, Event::BouncerNetwork { network: Some(network), .. }
+            if network.host.as_deref() == Some("irc.example.org")))
+        .server("BOUNCER NETWORK 42 state=connected;host")
+        .event(|event| matches!(event, Event::BouncerNetwork { network: Some(network), .. }
+            if network.host.is_none()))
+        .inspect(|session| {
+            let network = session.state().bouncer_networks().next().unwrap();
+            assert_eq!(network.name.as_deref(), Some("My Network"));
+        })
+        .server("BOUNCER NETWORK 42 *")
+        .event(|event| matches!(event, Event::BouncerNetwork { id, network: None }
+            if id.as_str() == "42"))
+        .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 0))
         .no_event();
 }
