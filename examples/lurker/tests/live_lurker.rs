@@ -64,7 +64,7 @@ async fn prints_channel_state_changes_in_wire_order() {
             .unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::AwayChanged { nick, .. } if nick == &user_nick)).await;
         user.send(Message::new("NICK", [&renamed])).await.unwrap();
-        wait_event(&mut owner_events, |event| matches!(event, Event::NickChanged { new, .. } if new == &renamed)).await;
+        wait_event(&mut owner_events, |event| matches!(event, Event::NickChanged(changed) if changed.new == renamed)).await;
         user.send(Message::new("MODE", [&channel, "+v", &renamed]))
             .await
             .unwrap();

@@ -19,6 +19,8 @@ mod connection;
 mod conversation;
 #[path = "event/source.rs"]
 mod source;
+#[path = "event/user.rs"]
+mod user;
 
 pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChange, ModeChanged, Parted,
@@ -29,6 +31,10 @@ pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
 pub use source::Source;
+pub use user::{
+    AccountChanged, AwayChanged, Departed, HostChanged, MonitorOffline, MonitorOnline, Netjoin,
+    Netsplit, NickChanged, Quit, RealnameChanged,
+};
 
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -678,21 +684,9 @@ pub enum Event {
     /// A user was invited to a channel.
     Invited(Invited),
     /// A user sharing channels with the client disconnected.
-    Quit {
-        /// The disconnected user's nickname.
-        nick: String,
-        /// The optional quit reason.
-        reason: Option<String>,
-        /// Shared channels captured before the user was removed.
-        channels: Vec<String>,
-    },
+    Quit(Quit),
     /// A user changed nickname.
-    NickChanged {
-        /// The previous nickname.
-        old: String,
-        /// The new nickname.
-        new: String,
-    },
+    NickChanged(NickChanged),
     /// A joined channel was renamed.
     ChannelRenamed(ChannelRenamed),
     /// A user's account state changed.
@@ -798,6 +792,7 @@ impl Event {
             Self::Parted(parted) => Some((&parted.nick, &mut parted.is_self)),
             Self::Kicked(kicked) => Some((&kicked.nick, &mut kicked.is_self)),
             Self::Invited(invited) => Some((&invited.nick, &mut invited.is_self)),
+            Self::NickChanged(changed) => Some((&changed.old, &mut changed.is_self)),
             _ => None,
         };
         if let Some((candidate, is_self)) = candidate {
@@ -998,12 +993,16 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             nick,
             reason,
             channels,
-        } => Event::Quit {
+        } => Event::Quit(Quit {
             nick,
             reason,
             channels,
-        },
-        papo_core::Event::NickChanged { old, new } => Event::NickChanged { old, new },
+        }),
+        papo_core::Event::NickChanged { old, new } => Event::NickChanged(NickChanged {
+            old,
+            new,
+            is_self: false,
+        }),
         papo_core::Event::ChannelRenamed { old, new, reason } => {
             Event::ChannelRenamed(ChannelRenamed { old, new, reason })
         }
@@ -1613,9 +1612,9 @@ mod tests {
                 reason: Some("Client exited".into()),
                 channels: vec!["#papo".into(), "#rust".into()],
             }),
-            Event::Quit { nick, reason, channels }
-                if nick == "emily" && reason.as_deref() == Some("Client exited")
-                    && channels == ["#papo", "#rust"]
+            Event::Quit(quit)
+                if quit.nick == "emily" && quit.reason.as_deref() == Some("Client exited")
+                    && quit.channels == ["#papo", "#rust"]
         ));
     }
 
@@ -1626,7 +1625,7 @@ mod tests {
                 old: "emily".into(),
                 new: "em".into(),
             }),
-            Event::NickChanged { old, new } if old == "emily" && new == "em"
+            Event::NickChanged(changed) if changed.old == "emily" && changed.new == "em"
         ));
     }
 

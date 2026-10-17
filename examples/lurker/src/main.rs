@@ -35,17 +35,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let reason = event.reason.as_deref().unwrap_or("-");
                 println!("part {} {}: {reason}", event.channel, event.nick);
             }
-            Event::Quit {
-                nick,
-                reason,
-                mut channels,
-            } => {
-                channels.sort();
-                let channels = channels.join(",");
-                let reason = reason.as_deref().unwrap_or("-");
-                println!("quit {nick} [{channels}]: {reason}");
+            Event::Quit(mut event) => {
+                event.channels.sort();
+                let channels = event.channels.join(",");
+                let reason = event.reason.as_deref().unwrap_or("-");
+                println!("quit {} [{channels}]: {reason}", event.nick);
             }
-            Event::NickChanged { old, new } => println!("nick {old} -> {new}"),
+            Event::NickChanged(event) => println!("nick {} -> {}", event.old, event.new),
             Event::ModeChanged(event) => {
                 let changes = event
                     .changes

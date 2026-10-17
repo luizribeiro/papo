@@ -3012,10 +3012,7 @@ async fn every_state_change_replaces_the_snapshot() {
         b":papo-driver!papo@localhost NICK papo-reader\r\n",
     )
     .await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::NickChanged { .. })
-    ));
+    assert!(matches!(events.next().await, Some(Event::NickChanged(_))));
     previous = changed_snapshot(&client, &previous, "NICK");
     assert_eq!(previous.nick(), "papo-reader");
 
