@@ -183,7 +183,7 @@ impl AsyncRead for WebSocket {
 
 #[cfg(test)]
 mod tests {
-    use tokio::io::AsyncWriteExt;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use super::WebSocket;
@@ -192,6 +192,8 @@ mod tests {
     fn applies_the_literal_backpressure_threshold() {
         assert!(super::below(65_535, 65_536));
         assert!(!super::below(65_536, 65_536));
+        assert!(super::below(0, 1));
+        assert!(!super::below(1, 1));
     }
 
     #[wasm_bindgen_test]
@@ -205,6 +207,18 @@ mod tests {
         assert!(socket.onmessage().is_none());
         assert!(socket.onerror().is_none());
         assert!(socket.onclose().is_none());
+    }
+
+    #[wasm_bindgen_test]
+    async fn remote_close_releases_every_callback() {
+        let stream = WebSocket::connect(env!("PAPO_BROWSER_WS")).await.unwrap();
+        let socket = stream.socket.clone();
+        socket.close_with_code(1000).unwrap();
+        crate::rt::sleep_until(crate::rt::now_mono() + std::time::Duration::from_millis(100)).await;
+        assert!(socket.onmessage().is_none());
+        assert!(socket.onerror().is_none());
+        assert!(socket.onclose().is_none());
+        drop(stream);
     }
 
     #[wasm_bindgen_test]
@@ -222,5 +236,55 @@ mod tests {
         assert!(socket.onmessage().is_none());
         assert!(socket.onerror().is_none());
         assert!(socket.onclose().is_none());
+    }
+
+    #[wasm_bindgen_test]
+    async fn registers_with_ergo_using_binary_messages() {
+        let stream = WebSocket::connect(env!("PAPO_BROWSER_WS")).await.unwrap();
+        register(stream, "papo-binary").await;
+    }
+
+    #[wasm_bindgen_test]
+    async fn registers_with_ergo_using_text_messages() {
+        let stream = WebSocket::connect_with(env!("PAPO_BROWSER_WS"), &[super::handshake::TEXT])
+            .await
+            .unwrap();
+        register(stream, "papo-text").await;
+    }
+
+    async fn register(mut stream: WebSocket, nick: &str) {
+        stream
+            .write_all(
+                format!("CAP LS 302\r\nNICK {nick}\r\nUSER papo 0 * :papo browser\r\n").as_bytes(),
+            )
+            .await
+            .unwrap();
+        stream.flush().await.unwrap();
+
+        let mut received = Vec::new();
+        let mut buffer = [0; 512];
+        let mut cap_ended = false;
+        loop {
+            let count = stream.read(&mut buffer).await.unwrap();
+            assert_ne!(count, 0, "Ergo closed before numeric 001");
+            received.extend_from_slice(&buffer[..count]);
+            assert!(
+                received.len() <= 65_536,
+                "registration reply never completed"
+            );
+            let transcript = String::from_utf8_lossy(&received);
+            if !cap_ended
+                && transcript
+                    .split("\r\n")
+                    .any(|line| line.contains(" CAP ") && line.contains(" LS "))
+            {
+                stream.write_all(b"CAP END\r\n").await.unwrap();
+                stream.flush().await.unwrap();
+                cap_ended = true;
+            }
+            if transcript.contains(&format!(" 001 {nick} ")) {
+                break;
+            }
+        }
     }
 }
