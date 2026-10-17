@@ -114,7 +114,7 @@ async fn wait_event(events: &mut papo::Events, mut wanted: impl FnMut(&Event) ->
 }
 
 fn synced(event: &Event, channel: &str) -> bool {
-    matches!(event, Event::ChannelSynced { channel: synced } if synced == channel)
+    matches!(event, Event::ChannelSynced(papo::event::ChannelSynced { channel: synced, .. }) if synced == channel)
 }
 
 fn joined(event: &Event, nick: &str) -> bool {

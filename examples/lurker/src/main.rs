@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut synced = BTreeSet::new();
     while let Some(event) = events.next().await {
         match event {
-            Event::ChannelSynced { channel } => {
+            Event::ChannelSynced(papo::event::ChannelSynced { channel, .. }) => {
                 println!("synced {channel}: {}", members(&client, &channel));
                 synced.insert(channel);
             }

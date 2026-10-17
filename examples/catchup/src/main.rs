@@ -79,7 +79,9 @@ async fn wait_for_channels(
     let mut pending = channels.iter().cloned().collect::<BTreeSet<_>>();
     while !pending.is_empty() {
         match events.next().await {
-            Some(Event::ChannelSynced { channel }) => _ = pending.remove(&channel),
+            Some(Event::ChannelSynced(papo::event::ChannelSynced { channel, .. })) => {
+                _ = pending.remove(&channel);
+            }
             Some(Event::Disconnected(_)) | None => {
                 return Err(papo::Error::Disconnected(papo::Disconnected::new(
                     papo::DisconnectCause::ConnectionLost,

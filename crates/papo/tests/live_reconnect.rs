@@ -117,7 +117,7 @@ async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
     .unwrap();
     wait_for(
         &mut events,
-        |event| matches!(event, Event::ChannelSynced { channel: synced } if synced == channel),
+        |event| matches!(event, Event::ChannelSynced(papo::event::ChannelSynced { channel: synced, .. }) if synced == channel),
     )
     .await;
     poster

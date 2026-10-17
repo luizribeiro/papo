@@ -245,8 +245,7 @@ pub papo::Event::ChannelRenamed
 pub papo::Event::ChannelRenamed::new: alloc::string::String
 pub papo::Event::ChannelRenamed::old: alloc::string::String
 pub papo::Event::ChannelRenamed::reason: alloc::string::String
-pub papo::Event::ChannelSynced
-pub papo::Event::ChannelSynced::channel: alloc::string::String
+pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
 pub papo::Event::Disconnected(papo::event::Disconnected)
 pub papo::Event::History
 pub papo::Event::History::end: bool

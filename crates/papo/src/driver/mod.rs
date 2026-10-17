@@ -1012,8 +1012,8 @@ where
                     event => event,
                 };
                 event.mark_self(session.nick(), session.isupport().casemapping());
-                if let Event::ChannelSynced { channel } = &event {
-                    resolve_sync_waiters(session, sync_waiters, channel);
+                if let Event::ChannelSynced(synced) = &event {
+                    resolve_sync_waiters(session, sync_waiters, &synced.channel);
                 }
                 if let Event::ReadMarker(marker) = &event {
                     resolve_read_marker_waiters(session, read_marker_waiters, marker);

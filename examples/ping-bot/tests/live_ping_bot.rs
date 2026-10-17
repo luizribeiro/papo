@@ -153,7 +153,9 @@ impl Drop for Bot {
 async fn wait_synced(events: &mut papo::Events, channel: &str) {
     loop {
         match events.next().await {
-            Some(Event::ChannelSynced { channel: synced }) if synced == channel => return,
+            Some(Event::ChannelSynced(papo::event::ChannelSynced {
+                channel: synced, ..
+            })) if synced == channel => return,
             Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
                 panic!("join failed: {reason}")
             }

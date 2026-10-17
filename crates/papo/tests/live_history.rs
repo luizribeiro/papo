@@ -100,7 +100,9 @@ fn chats<'a>(messages: &'a [MessageEvent], texts: &[&str]) -> Vec<&'a MessageEve
 async fn wait_synced(events: &mut papo::Events, channel: &str) {
     loop {
         match events.next().await {
-            Some(Event::ChannelSynced { channel: synced }) if synced == channel => return,
+            Some(Event::ChannelSynced(papo::event::ChannelSynced {
+                channel: synced, ..
+            })) if synced == channel => return,
             Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
                 panic!("disconnected: {reason}")
             }

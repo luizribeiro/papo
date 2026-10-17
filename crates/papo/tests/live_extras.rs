@@ -150,7 +150,9 @@ async fn member_sees_channel_rename_and_relay_attribution() {
 async fn wait_synced(events: &mut papo::Events, channel: &str) {
     loop {
         match events.next().await {
-            Some(Event::ChannelSynced { channel: synced }) if synced == channel => return,
+            Some(Event::ChannelSynced(papo::event::ChannelSynced {
+                channel: synced, ..
+            })) if synced == channel => return,
             Some(Event::Disconnected(papo::event::Disconnected { reason, .. })) => {
                 panic!("disconnected: {reason}")
             }

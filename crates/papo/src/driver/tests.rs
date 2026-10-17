@@ -283,10 +283,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     client_line(&mut first_server, b"MODE #papo\r\n").await;
     client_line(&mut first_server, b"WHO #papo\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Joined(_))));
-    assert!(matches!(
-        events.next().await,
-        Some(Event::ChannelSynced { .. })
-    ));
+    assert!(matches!(events.next().await, Some(Event::ChannelSynced(_))));
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     assert!(client.state().is_connected());
@@ -2845,7 +2842,7 @@ async fn client_reads_owned_state_snapshots() {
         b":papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver +emily\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n",
     )
     .await;
-    while !matches!(events.next().await, Some(Event::ChannelSynced { .. })) {}
+    while !matches!(events.next().await, Some(Event::ChannelSynced(_))) {}
     let state = client.state();
     let channel = state.channel("#papo").unwrap();
     assert!(channel.is_synced());

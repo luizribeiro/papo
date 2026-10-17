@@ -42,7 +42,7 @@ pub(super) async fn join(
     context
         .expect(
             &mut connection.events,
-            |event| matches!(event, Event::ChannelSynced { channel: joined } if joined == channel),
+            |event| matches!(event, Event::ChannelSynced(papo::event::ChannelSynced { channel: joined, .. }) if joined == channel),
             EXPECT_TIMEOUT,
         )
         .await?;

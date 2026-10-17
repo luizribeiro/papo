@@ -670,10 +670,7 @@ pub enum Event {
     /// A user joined a channel shared with the client.
     Joined(Joined),
     /// Initial channel membership synchronization completed.
-    ChannelSynced {
-        /// The synchronized channel.
-        channel: String,
-    },
+    ChannelSynced(ChannelSynced),
     /// A user left a shared channel with `PART`.
     Parted {
         /// The departed channel.
@@ -1000,7 +997,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             nick,
             is_self: false,
         }),
-        papo_core::Event::ChannelSynced { channel } => Event::ChannelSynced { channel },
+        papo_core::Event::ChannelSynced { channel } => {
+            Event::ChannelSynced(ChannelSynced { channel })
+        }
         papo_core::Event::Parted {
             channel,
             nick,
@@ -1585,7 +1584,7 @@ mod tests {
             forwarded(papo_core::Event::ChannelSynced {
                 channel: "#papo".into()
             }),
-            Event::ChannelSynced { channel } if channel == "#papo"
+            Event::ChannelSynced(synced) if synced.channel == "#papo"
         ));
     }
 
