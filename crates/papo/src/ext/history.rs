@@ -1,10 +1,11 @@
 use std::{future::Future, pin::Pin, time::SystemTime};
 
 use papo_core::{HistoryQuery, MsgRef, Response};
+use papo_proto::Reaction;
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Message as ChatMessage, RawLine,
+    Client, Error, Message as ChatMessage, Origin, RawLine, Source, TargetedMessageId,
     driver::Command,
     event::{
         Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,
@@ -51,6 +52,63 @@ impl HistoryItem {
             _ => None,
         }
     }
+}
+
+pub(crate) fn history_item(
+    item: papo_core::HistoryItem,
+    client: &Client,
+    received_at: SystemTime,
+    origin: Origin,
+) -> HistoryItem {
+    match item {
+        papo_core::HistoryItem::Message(item) => {
+            let message = match origin {
+                Origin::History => ChatMessage::from_history(item.message, client, received_at),
+                _ => ChatMessage::from_replay(item.message, client, received_at),
+            };
+            message.map_or_else(
+                |raw| HistoryItem::Other(RawLine::from_proto(&raw)),
+                HistoryItem::Message,
+            )
+        }
+        papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.message, reaction),
+        papo_core::HistoryItem::Redacted(item) => typed_or_raw(&item.message, redaction),
+        item => {
+            let raw = item.into_raw().message;
+            HistoryItem::Other(RawLine::from_proto(&raw))
+        }
+    }
+}
+
+fn typed_or_raw(
+    raw: &papo_proto::Message,
+    convert: fn(&papo_proto::MessageRef<'_>) -> Option<HistoryItem>,
+) -> HistoryItem {
+    convert(&raw.as_ref()).unwrap_or_else(|| HistoryItem::Other(RawLine::from_proto(raw)))
+}
+
+fn reaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
+    let reaction = Reaction::parse(message)?;
+    let target = message.param(0)?.to_owned();
+    let reply_to = reaction.reply_to.clone();
+    let (reaction, removed) = reaction
+        .react
+        .map(|value| (value, false))
+        .or_else(|| reaction.unreact.map(|value| (value, true)))?;
+    Some(HistoryItem::Reacted(Reacted {
+        source: message.source().map(Source::from_proto),
+        id: TargetedMessageId::new(target, reply_to),
+        reaction,
+        removed,
+    }))
+}
+
+fn redaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
+    Some(HistoryItem::Redacted(Redacted {
+        source: message.source().map(Source::from_proto),
+        id: TargetedMessageId::new(message.param(0)?, message.param(1)?),
+        reason: message.param(2).map(str::to_owned),
+    }))
 }
 
 /// A page of requested chat history.
@@ -269,9 +327,10 @@ impl Client {
         let messages = page
             .items
             .into_iter()
-            .filter_map(papo_core::HistoryItem::into_message)
             .filter_map(|item| {
-                crate::Message::from_history(item.message, self, crate::rt::now_wall()).ok()
+                history_item(item, self, crate::rt::now_wall(), Origin::History)
+                    .message()
+                    .cloned()
             })
             .collect();
         Ok(crate::HistoryPage {
@@ -369,10 +428,17 @@ mod tests {
     use crate::driver::test_support::*;
     use std::time::{Duration, UNIX_EPOCH};
 
-    use papo_core::{HistoryQuery, MsgRef};
-    use papo_proto::Message;
+    use papo_core::{HistoryMessage, HistoryQuery, MsgRef};
+    use papo_proto::{Message, MessageRef};
 
-    use super::HistoryReference;
+    use super::{HistoryItem, HistoryReference, history_item};
+
+    fn core_item(message: &str) -> HistoryMessage {
+        HistoryMessage {
+            message: MessageRef::parse(message).unwrap().to_owned(),
+            context: false,
+        }
+    }
 
     #[test]
     fn converts_ids_timestamps_and_message_events() {
@@ -391,6 +457,55 @@ mod tests {
         assert!(
             matches!(HistoryReference::from(&event).0, Some(MsgRef::Msgid(id)) if id == "RfcBTzyxY120004")
         );
+    }
+
+    #[test]
+    fn maps_reactions_and_redactions_from_history() {
+        let client = crate::Client::disconnected_for_test();
+        let reacted = history_item(
+            papo_core::HistoryItem::Reacted(core_item(
+                "@+draft/react=👍;+draft/reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo",
+            )),
+            &client,
+            UNIX_EPOCH,
+            crate::Origin::History,
+        );
+        assert!(matches!(
+            reacted,
+            HistoryItem::Reacted(event)
+                if event.source.as_ref().and_then(crate::Source::nick) == Some("emily")
+                    && event.id.target() == "#papo"
+                    && event.id.msgid() == "RfcBTzyxY120004"
+                    && event.reaction == "👍"
+                    && !event.removed
+        ));
+
+        let removal = history_item(
+            papo_core::HistoryItem::Redacted(core_item(
+                ":irc.example REDACT #papo RfcBTzyxY120004 :requested by author",
+            )),
+            &client,
+            UNIX_EPOCH,
+            crate::Origin::History,
+        );
+        assert!(matches!(
+            removal,
+            HistoryItem::Redacted(event)
+                if event.id.target() == "#papo"
+                    && event.id.msgid() == "RfcBTzyxY120004"
+                    && event.reason.as_deref() == Some("requested by author")
+        ));
+    }
+
+    #[test]
+    fn malformed_typed_history_item_remains_raw() {
+        let item = history_item(
+            papo_core::HistoryItem::Redacted(core_item(":irc.example REDACT #papo")),
+            &crate::Client::disconnected_for_test(),
+            UNIX_EPOCH,
+            crate::Origin::History,
+        );
+        assert!(matches!(item, HistoryItem::Other(line) if line.command() == "REDACT"));
     }
 
     #[test]
