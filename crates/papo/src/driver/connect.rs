@@ -30,7 +30,7 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
                     plan.address.is_secure().then_some(&plan.tls),
                 )
                 .await
-                .map_err(Error::Connect);
+                .map_err(|error| Error::Connect(error.into()));
             }
             #[cfg(not(feature = "websocket"))]
             return Err(Error::Unsupported("websocket"));
@@ -42,7 +42,7 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
         };
         transport::connect(&plan.address.host, plan.address.port, &security)
             .await
-            .map_err(Error::Connect)
+            .map_err(|error| Error::Connect(error.into()))
     }
     #[cfg(browser)]
     {
@@ -471,9 +471,7 @@ pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::Clos
     #[cfg(tls)]
     if matches!(
         error,
-        Error::Connect(transport::ConnectError::Tls(
-            rustls::Error::InvalidCertificate(_)
-        ))
+        Error::Connect(error) if error.kind() == crate::ConnectErrorKind::Certificate
     ) {
         return true;
     }

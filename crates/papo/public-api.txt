@@ -96,17 +96,14 @@ pub papo::AccountRegistration::Registered::account: alloc::string::String
 pub papo::AccountRegistration::VerificationRequired
 pub papo::AccountRegistration::VerificationRequired::account: alloc::string::String
 pub papo::AccountRegistration::VerificationRequired::message: alloc::string::String
-#[non_exhaustive] pub enum papo::ConnectError
-pub papo::ConnectError::InvalidServerName(alloc::string::String)
-pub papo::ConnectError::InvalidTlsConfiguration(alloc::string::String)
-pub papo::ConnectError::Resolve
-pub papo::ConnectError::Resolve::host: alloc::string::String
-pub papo::ConnectError::Resolve::port: u16
-pub papo::ConnectError::Resolve::source: core::io::error::Error
-pub papo::ConnectError::Tcp(core::io::error::Error)
-pub papo::ConnectError::Tls(rustls::error::Error)
-pub papo::ConnectError::TlsUnavailable
-pub papo::ConnectError::WebSocket(tungstenite::error::Error)
+#[non_exhaustive] pub enum papo::ConnectErrorKind
+pub papo::ConnectErrorKind::Certificate
+pub papo::ConnectErrorKind::Io
+pub papo::ConnectErrorKind::Refused
+pub papo::ConnectErrorKind::Resolve
+pub papo::ConnectErrorKind::Tls
+pub papo::ConnectErrorKind::TlsConfig
+pub papo::ConnectErrorKind::WebSocket
 #[non_exhaustive] pub enum papo::Error
 pub papo::Error::AccountRegistration(papo_core::AccountRegistrationError)
 pub papo::Error::Build(papo_proto::message::BuildError)
@@ -353,6 +350,13 @@ impl papo::Client
 pub const fn papo::Client::webpush(&self) -> papo::WebPush<'_>
 impl core::fmt::Debug for papo::Client
 pub fn papo::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct papo::ConnectError(_)
+impl papo::ConnectError
+pub fn papo::ConnectError::kind(&self) -> papo::ConnectErrorKind
+impl core::error::Error for papo::ConnectError
+pub fn papo::ConnectError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for papo::ConnectError
+pub fn papo::ConnectError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct papo::Driver
 impl core::future::future::Future for papo::Driver
 pub type papo::Driver::Output = core::result::Result<(), papo::Error>

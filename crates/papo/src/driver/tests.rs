@@ -1218,9 +1218,12 @@ async fn required_sasl_failure_does_not_reconnect() {
 #[cfg(tls)]
 #[test]
 fn certificate_verification_failure_is_fatal() {
-    let error = Error::Connect(crate::transport::ConnectError::Tls(
-        rustls::Error::InvalidCertificate(rustls::CertificateError::UnknownIssuer),
-    ));
+    let error = Error::Connect(
+        crate::transport::ConnectError::Tls(rustls::Error::InvalidCertificate(
+            rustls::CertificateError::UnknownIssuer,
+        ))
+        .into(),
+    );
     assert!(super::is_fatal_failure(&error, None));
 }
 

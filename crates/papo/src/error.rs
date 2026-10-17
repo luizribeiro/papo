@@ -1,9 +1,81 @@
-use std::io;
+use std::{fmt, io, sync::Arc};
 
 use papo_proto::BuildError;
 use thiserror::Error;
 
-use crate::{ConnectError, InvalidInput};
+use crate::InvalidInput;
+
+/// Broad classification of a connection-opening failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ConnectErrorKind {
+    /// The server name could not be resolved.
+    Resolve,
+    /// The remote endpoint refused the connection.
+    Refused,
+    /// TLS negotiation failed.
+    Tls,
+    /// The server certificate was rejected.
+    Certificate,
+    /// TLS settings or credentials were invalid or unavailable.
+    TlsConfig,
+    /// WebSocket parsing or negotiation failed.
+    WebSocket,
+    /// Another connection I/O operation failed.
+    Io,
+}
+
+/// An opaque, cloneable error from opening a network connection.
+#[derive(Clone, Debug)]
+pub struct ConnectError(Arc<crate::transport::ConnectError>);
+
+impl ConnectError {
+    /// Returns the stable category of this failure.
+    #[must_use]
+    pub fn kind(&self) -> ConnectErrorKind {
+        match self.0.as_ref() {
+            crate::transport::ConnectError::Resolve { .. } => ConnectErrorKind::Resolve,
+            crate::transport::ConnectError::Tcp(error)
+                if error.kind() == io::ErrorKind::ConnectionRefused =>
+            {
+                ConnectErrorKind::Refused
+            }
+            crate::transport::ConnectError::Tcp(_) => ConnectErrorKind::Io,
+            #[cfg(tls)]
+            crate::transport::ConnectError::Tls(rustls::Error::InvalidCertificate(_)) => {
+                ConnectErrorKind::Certificate
+            }
+            #[cfg(tls)]
+            crate::transport::ConnectError::Tls(_) => ConnectErrorKind::Tls,
+            #[cfg(tls)]
+            crate::transport::ConnectError::InvalidServerName(_)
+            | crate::transport::ConnectError::InvalidTlsConfiguration(_) => {
+                ConnectErrorKind::TlsConfig
+            }
+            crate::transport::ConnectError::TlsUnavailable => ConnectErrorKind::TlsConfig,
+            #[cfg(all(feature = "websocket", sockets))]
+            crate::transport::ConnectError::WebSocket(_) => ConnectErrorKind::WebSocket,
+        }
+    }
+}
+
+impl From<crate::transport::ConnectError> for ConnectError {
+    fn from(error: crate::transport::ConnectError) -> Self {
+        Self(Arc::new(error))
+    }
+}
+
+impl fmt::Display for ConnectError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+impl std::error::Error for ConnectError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.0.source()
+    }
+}
 
 /// An error produced by the asynchronous IRC client.
 #[derive(Debug, Error)]
@@ -69,7 +141,19 @@ pub enum Error {
 mod tests {
     use std::io;
 
-    use super::Error;
+    use super::{ConnectError, ConnectErrorKind, Error};
+
+    #[test]
+    fn connection_error_exposes_only_its_stable_kind() {
+        let error = ConnectError::from(crate::transport::ConnectError::Tcp(io::Error::new(
+            io::ErrorKind::ConnectionRefused,
+            "recorded refusal",
+        )));
+        assert_eq!(error.kind(), ConnectErrorKind::Refused);
+        assert_eq!(error.to_string(), "TCP connection failed: recorded refusal");
+        assert!(std::error::Error::source(&error).is_some());
+        assert_eq!(error.clone().kind(), ConnectErrorKind::Refused);
+    }
 
     #[test]
     fn io_error_keeps_its_source() {

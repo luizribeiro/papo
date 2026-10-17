@@ -238,7 +238,7 @@ fn broken_peer() -> io::Error {
 /// An error while opening a network connection.
 #[derive(Debug, Error)]
 #[non_exhaustive]
-pub enum ConnectError {
+pub(crate) enum ConnectError {
     /// Hostname resolution failed.
     #[error("failed to resolve {host}:{port}: {source}")]
     Resolve {
@@ -266,6 +266,7 @@ pub enum ConnectError {
     #[error("invalid TLS configuration: {0}")]
     InvalidTlsConfiguration(String),
     /// TLS support was not selected at compile time.
+    #[cfg_attr(tls, allow(dead_code))]
     #[error("TLS support is disabled; enable tls-ring or tls-aws-lc")]
     TlsUnavailable,
     /// WebSocket URL parsing or negotiation failed.
@@ -283,7 +284,10 @@ pub enum ConnectError {
 ///
 /// Returns an error for an invalid URL or failed TCP, TLS, or WebSocket handshake.
 #[cfg(all(feature = "websocket", sockets))]
-pub async fn connect_websocket(url: &str, tls: Option<&TlsConfig>) -> Result<Stream, ConnectError> {
+pub(crate) async fn connect_websocket(
+    url: &str,
+    tls: Option<&TlsConfig>,
+) -> Result<Stream, ConnectError> {
     websocket::connect(url, tls).await.map(|stream| Stream {
         inner: StreamInner::WebSocket(Box::new(stream)),
     })
@@ -298,7 +302,11 @@ pub async fn connect_websocket(url: &str, tls: Option<&TlsConfig>) -> Result<Str
 /// Returns the resolver error, the last TCP error, or an error explaining that
 /// the selected security mode is unavailable.
 #[cfg(sockets)]
-pub async fn connect(host: &str, port: u16, security: &Security) -> Result<Stream, ConnectError> {
+pub(crate) async fn connect(
+    host: &str,
+    port: u16,
+    security: &Security,
+) -> Result<Stream, ConnectError> {
     #[cfg(not(tls))]
     if matches!(security, Security::Tls(_)) {
         return Err(ConnectError::TlsUnavailable);
