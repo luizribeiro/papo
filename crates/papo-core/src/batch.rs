@@ -328,6 +328,8 @@ impl Batches {
     }
 
     fn abandon(&mut self, reference: &str, reason: BatchAbandonReason) -> Vec<BatchEvent> {
+        #[cfg(feature = "unstable")]
+        let suppress_messages = self.open[reference].kind == "soju.im/search";
         let references: Vec<_> = self
             .open
             .keys()
@@ -346,6 +348,10 @@ impl Batches {
         let mut messages = Vec::new();
         for candidate in references {
             let batch = self.open.remove(&candidate).expect("selected open batch");
+            #[cfg(feature = "unstable")]
+            if suppress_messages {
+                continue;
+            }
             messages.extend(batch.messages);
             for event in batch.completed {
                 collect_messages(event, &mut messages);
@@ -419,6 +425,7 @@ fn is_history(kind: &str) -> bool {
 
 fn is_aggregate(kind: &str) -> bool {
     is_history(kind)
+        || cfg!(feature = "unstable") && kind == "soju.im/search"
         || matches!(
             kind,
             "netsplit"
@@ -437,6 +444,10 @@ impl OpenBatch {
 }
 
 fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
+    #[cfg(feature = "unstable")]
+    if batch.kind == "soju.im/search" {
+        return Vec::new();
+    }
     if batch.kind == "draft/isupport" {
         return vec![BatchEvent::Isupport(std::mem::take(&mut batch.messages))];
     }

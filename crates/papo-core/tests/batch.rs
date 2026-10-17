@@ -3,12 +3,70 @@
 use std::time::{Duration, Instant};
 
 use papo_core::{BatchAbandonReason, Config, Event, HistoryItem, RateLimit, Session};
+#[cfg(feature = "unstable")]
+use papo_proto::Message;
 
 fn message(session: &mut Session) -> papo_core::ReceivedMessage {
     let Some(Event::Message(message)) = session.poll_event() else {
         panic!("expected a message event")
     };
     message
+}
+
+#[cfg(feature = "unstable")]
+fn search_session(now: Instant, max_lines: usize) -> Session {
+    let mut session = Session::new(Config::default().max_batch_lines(max_lines));
+    session.handle_line(now, b"CAP * LS :batch labeled-response soju.im/search");
+    session.handle_line(now, b"CAP * ACK :batch labeled-response soju.im/search");
+    while session.poll_transmit().is_some() {}
+    session
+}
+
+#[cfg(feature = "unstable")]
+#[test]
+fn routes_soju_search_only_to_its_opening_request() {
+    let now = Instant::now();
+    let mut session = search_session(now, 10);
+    let id = session
+        .request_silent(now, Message::new("SEARCH", ["in=#papo", "text=release"]))
+        .unwrap();
+    assert_eq!(
+        String::from_utf8(session.poll_transmit().unwrap()).unwrap(),
+        "@label=0 SEARCH in=#papo text=release\r\n"
+    );
+    session.handle_line(
+        now,
+        b"@label=0 :soju.example BATCH +search-42 soju.im/search",
+    );
+    session.handle_line(
+        now,
+        b"@batch=search-42 :alice!~a@client.example PRIVMSG #papo :release is ready",
+    );
+    session.handle_line(now, b":soju.example BATCH -search-42");
+
+    assert!(
+        matches!(session.poll_event(), Some(Event::Response(response))
+        if response.id == id && response.lines.len() == 1)
+    );
+    assert_eq!(session.poll_event(), None);
+}
+
+#[cfg(feature = "unstable")]
+#[test]
+fn discards_unrequested_and_overflowing_soju_search_results() {
+    let now = Instant::now();
+    let mut session = search_session(now, 1);
+    session.handle_line(now, b":soju.example BATCH +search-42 soju.im/search");
+    session.handle_line(now, b"@batch=search-42 :alice PRIVMSG #papo :first result");
+    session.handle_line(
+        now,
+        b"@batch=search-42 :bob NOTICE #papo :overflowing result",
+    );
+    assert!(
+        matches!(session.poll_event(), Some(Event::BatchAbandoned { reason, .. })
+        if reason == BatchAbandonReason::LineLimit)
+    );
+    assert_eq!(session.poll_event(), None);
 }
 
 #[test]
