@@ -522,6 +522,12 @@ mod tests {
         transport::TlsRoots,
     };
 
+    macro_rules! disconnected {
+        () => {
+            Error::Disconnected | Error::DisconnectedWith(_)
+        };
+    }
+
     struct ObservedStream {
         inner: crate::io_compat::TokioIo<tokio::io::DuplexStream>,
         lifecycle: Arc<AtomicUsize>,
@@ -878,7 +884,7 @@ mod tests {
             events.next().await,
             Some(crate::Event::Registered(_))
         ));
-        assert!(matches!(client.reconnect().await, Err(Error::Disconnected)));
+        assert!(matches!(client.reconnect().await, Err(disconnected!())));
         let quitting = tokio::spawn({
             let client = client.clone();
             async move { client.quit(None).await }

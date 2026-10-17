@@ -25,6 +25,12 @@ pub(crate) use crate::{
     Error, Event, MessageEvent, MessageKind, Origin, Reconnect, transport::TlsConfig,
 };
 
+macro_rules! disconnected {
+    () => {
+        Error::Disconnected | Error::DisconnectedWith(_)
+    };
+}
+
 pub(crate) const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
 pub(crate) async fn within<F: Future>(future: F) -> F::Output {
@@ -431,7 +437,7 @@ pub(crate) async fn assert_registration_output(
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected)
+        Err(disconnected!())
     ));
 }
 
@@ -492,10 +498,7 @@ pub(crate) async fn assert_reply_wire(
     }
     client_line(&mut server, expected).await;
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected: Option<&[u8]>) {
@@ -545,8 +548,5 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
         );
     }
     within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(task).await.unwrap(),
-        Err(Error::Disconnected)
-    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
