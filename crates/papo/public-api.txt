@@ -312,7 +312,7 @@ pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
-pub papo::Event::Message(alloc::boxed::Box<papo::MessageEvent>)
+pub papo::Event::Message(alloc::boxed::Box<papo::Message>)
 pub papo::Event::MetadataChanged(papo::event::MetadataChanged)
 pub papo::Event::ModeChanged(papo::event::ModeChanged)
 pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
@@ -359,7 +359,7 @@ pub const fn papo::Event::as_joined(&self) -> core::option::Option<&papo::event:
 impl papo::Event
 pub const fn papo::Event::as_kicked(&self) -> core::option::Option<&papo::event::Kicked>
 impl papo::Event
-pub fn papo::Event::as_message(&self) -> core::option::Option<&papo::MessageEvent>
+pub fn papo::Event::as_message(&self) -> core::option::Option<&papo::Message>
 impl papo::Event
 pub const fn papo::Event::as_metadata_changed(&self) -> core::option::Option<&papo::event::MetadataChanged>
 impl papo::Event
@@ -620,7 +620,7 @@ pub papo::HistoryPage::target: alloc::string::String
 pub struct papo::HistoryReference(_)
 impl core::convert::From<&alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&alloc::string::String) -> Self
-impl core::convert::From<&papo::MessageEvent> for papo::HistoryReference
+impl core::convert::From<&papo::Message> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::MessageEvent) -> Self
 impl core::convert::From<&str> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&str) -> Self
@@ -642,29 +642,29 @@ pub papo::ListEntry::topic: alloc::string::String
 pub struct papo::ListFilter
 impl papo::ListFilter
 pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub struct papo::MessageEvent
-impl papo::MessageEvent
-pub fn papo::MessageEvent::account(&self) -> core::option::Option<&str>
-pub fn papo::MessageEvent::ctcp(&self) -> core::option::Option<papo_proto::ctcp::Ctcp<'_>>
-pub fn papo::MessageEvent::id(&self) -> core::option::Option<papo::TargetedMessageId>
-pub fn papo::MessageEvent::is_bot(&self) -> bool
-pub fn papo::MessageEvent::is_live(&self) -> bool
-pub fn papo::MessageEvent::is_own(&self) -> bool
-pub fn papo::MessageEvent::is_private(&self) -> bool
-pub const fn papo::MessageEvent::kind(&self) -> papo::MessageKind
-pub fn papo::MessageEvent::msgid(&self) -> core::option::Option<&str>
-pub fn papo::MessageEvent::oper(&self) -> core::option::Option<core::option::Option<&str>>
-pub fn papo::MessageEvent::origin(&self) -> papo::Origin
-pub fn papo::MessageEvent::raw_text(&self) -> &str
-pub fn papo::MessageEvent::relayed_by(&self) -> core::option::Option<&str>
-pub fn papo::MessageEvent::reply_target(&self) -> &str
-pub fn papo::MessageEvent::reply_to(&self) -> core::option::Option<&str>
-pub fn papo::MessageEvent::source(&self) -> core::option::Option<papo::Source>
-pub const fn papo::MessageEvent::tags(&self) -> &papo::Tags
-pub fn papo::MessageEvent::target(&self) -> &str
-pub fn papo::MessageEvent::text(&self) -> &str
-pub fn papo::MessageEvent::time(&self) -> std::time::SystemTime
-impl core::convert::From<&papo::MessageEvent> for papo::HistoryReference
+pub struct papo::Message
+impl papo::Message
+pub fn papo::Message::account(&self) -> core::option::Option<&str>
+pub fn papo::Message::ctcp(&self) -> core::option::Option<papo_proto::ctcp::Ctcp<'_>>
+pub fn papo::Message::id(&self) -> core::option::Option<papo::TargetedMessageId>
+pub fn papo::Message::is_bot(&self) -> bool
+pub fn papo::Message::is_live(&self) -> bool
+pub fn papo::Message::is_own(&self) -> bool
+pub fn papo::Message::is_private(&self) -> bool
+pub const fn papo::Message::kind(&self) -> papo::MessageKind
+pub fn papo::Message::msgid(&self) -> core::option::Option<&str>
+pub fn papo::Message::oper(&self) -> core::option::Option<core::option::Option<&str>>
+pub fn papo::Message::origin(&self) -> papo::Origin
+pub fn papo::Message::raw_text(&self) -> &str
+pub fn papo::Message::relayed_by(&self) -> core::option::Option<&str>
+pub fn papo::Message::reply_target(&self) -> &str
+pub fn papo::Message::reply_to(&self) -> core::option::Option<&str>
+pub fn papo::Message::source(&self) -> core::option::Option<papo::Source>
+pub const fn papo::Message::tags(&self) -> &papo::Tags
+pub fn papo::Message::target(&self) -> &str
+pub fn papo::Message::text(&self) -> &str
+pub fn papo::Message::time(&self) -> std::time::SystemTime
+impl core::convert::From<&papo::Message> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::MessageEvent) -> Self
 pub struct papo::Metadata<'a>
 impl papo::Metadata<'_>
@@ -792,3 +792,4 @@ pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String
 impl papo::IntoEndpoint for papo::Endpoint
+pub type papo::MessageEvent = papo::Message

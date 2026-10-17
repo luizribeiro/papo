@@ -1,7 +1,7 @@
 use papo_core::{Account, Capabilities, RequestId, Response, Welcome, sts::StsAction};
 use std::time::SystemTime;
 
-use papo_proto::{Ctcp, Isupport, Message, MessageRef, strip_formatting, time};
+use papo_proto::{Ctcp, Isupport, Message as ProtoMessage, MessageRef, strip_formatting, time};
 
 use crate::Client;
 
@@ -84,7 +84,7 @@ pub enum Origin {
 
 /// An incoming `PRIVMSG` or `NOTICE` with connection context.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MessageEvent {
+pub struct Message {
     sender: Option<Source>,
     target: String,
     status: Option<String>,
@@ -116,14 +116,17 @@ enum StoredKind {
     CtcpReply,
 }
 
-impl MessageEvent {
+/// Compatibility name for [`Message`].
+pub type MessageEvent = Message;
+
+impl Message {
     pub(crate) fn new(
-        raw: Message,
+        raw: ProtoMessage,
         isupport: &Isupport,
         nick: &str,
         caps: &Capabilities,
         received_at: SystemTime,
-    ) -> Result<Self, Message> {
+    ) -> Result<Self, ProtoMessage> {
         let echo = raw.as_ref().source().is_some_and(|source| {
             let papo_proto::Source::User { nick: source, .. } = source else {
                 return false;
@@ -145,7 +148,7 @@ impl MessageEvent {
         received: papo_core::ReceivedMessage,
         isupport: &Isupport,
         received_at: SystemTime,
-    ) -> Result<Self, Message> {
+    ) -> Result<Self, ProtoMessage> {
         let (raw, batch_type, echo, other_session) = received.into_context_parts();
         Self::new_with_context(
             raw,
@@ -158,27 +161,27 @@ impl MessageEvent {
     }
 
     pub(crate) fn from_history(
-        message: Message,
+        message: ProtoMessage,
         client: &Client,
         received_at: SystemTime,
-    ) -> Result<Self, Message> {
+    ) -> Result<Self, ProtoMessage> {
         Self::from_historical(message, client, received_at, Origin::History)
     }
 
     pub(crate) fn from_replay(
-        message: Message,
+        message: ProtoMessage,
         client: &Client,
         received_at: SystemTime,
-    ) -> Result<Self, Message> {
+    ) -> Result<Self, ProtoMessage> {
         Self::from_historical(message, client, received_at, Origin::Replay)
     }
 
     fn from_historical(
-        message: Message,
+        message: ProtoMessage,
         client: &Client,
         received_at: SystemTime,
         origin: Origin,
-    ) -> Result<Self, Message> {
+    ) -> Result<Self, ProtoMessage> {
         let snapshot = client.state();
         let mut event = Self::new_with_context(
             message,
@@ -194,13 +197,13 @@ impl MessageEvent {
 
     #[allow(clippy::too_many_arguments)]
     fn new_with_context(
-        raw: Message,
+        raw: ProtoMessage,
         batch_type: Option<&str>,
         echo: bool,
         other_session: bool,
         isupport: &Isupport,
         received_at: SystemTime,
-    ) -> Result<Self, Message> {
+    ) -> Result<Self, ProtoMessage> {
         let message = raw.as_ref();
         let Some((raw_target, raw_text)) = message.param(0).zip(message.param(1)) else {
             return Err(raw);
@@ -465,7 +468,7 @@ pub enum Event {
     /// Connection registration completed.
     Registered(Registered),
     /// An incoming `PRIVMSG` or `NOTICE`.
-    Message(Box<MessageEvent>),
+    Message(Box<Message>),
     /// A parsed message without a typed event variant.
     ///
     /// A minor release may start typing a command, which then arrives as its typed variant.
@@ -574,7 +577,7 @@ macro_rules! event_accessors {
 }
 
 event_accessors! {
-    (boxed Message, as_message, MessageEvent),
+    (boxed Message, as_message, Message),
     (boxed History, as_history, crate::HistoryPage),
     (Registered, as_registered, Registered),
     (Disconnected, as_disconnected, Disconnected),
@@ -637,7 +640,7 @@ pub(crate) enum CoreEvent {
     Forward(Event),
     Registered(Welcome),
     Message(papo_core::ReceivedMessage),
-    Raw(Message),
+    Raw(ProtoMessage),
     Response(Response),
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
