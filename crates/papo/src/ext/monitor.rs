@@ -106,3 +106,58 @@ fn preflight(client: &Client) -> Result<(), Error> {
     }
     Client::require_feature(&state, Feature::Monitor)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::driver::test_support::*;
+    use crate::{Error, Feature};
+    use tokio::io::AsyncReadExt;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn monitor_mutations_reach_the_wire() {
+        let (mut server, client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        registration_burst(&mut server).await;
+        server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(&mut server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver MONITOR=100 NICKLEN=32 :are supported\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+
+        let add = tokio::spawn({
+            let client = client.clone();
+            async move { client.monitor().add(["alice", "bob"]).await }
+        });
+        client_line(&mut server, b"MONITOR + alice,bob\r\n").await;
+        assert!(within(add).await.unwrap().is_ok());
+
+        let remove = tokio::spawn({
+            let client = client.clone();
+            async move { client.monitor().remove(["bob"]).await }
+        });
+        client_line(&mut server, b"MONITOR - bob\r\n").await;
+        assert!(within(remove).await.unwrap().is_ok());
+
+        let clear = tokio::spawn(async move { client.monitor().clear().await });
+        client_line(&mut server, b"MONITOR C\r\n").await;
+        assert!(within(clear).await.unwrap().is_ok());
+        abort_task(driver).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn monitor_rejects_missing_support_before_sending() {
+        let (mut server, client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        complete_registration(&mut server, &mut events).await;
+
+        assert!(matches!(
+            client.monitor().add(["alice"]).await,
+            Err(Error::Unsupported(error)) if error.feature == Feature::Monitor
+        ));
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+        abort_task(driver).await;
+    }
+}
