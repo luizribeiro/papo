@@ -1,7 +1,6 @@
 use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
-use papo_proto::Message;
 
 use super::support::{EXPECT_TIMEOUT, close_pair, join, joined_pair};
 use crate::{Scenario, ScenarioResult};
@@ -75,7 +74,7 @@ async fn multi_prefix(context: Scenario) -> ScenarioResult {
     join(&context, &mut first, &channel).await?;
     first
         .client
-        .send(Message::new("MODE", [&channel, "+v", &first_nick]))
+        .send_raw(&format!("MODE {channel} +v {first_nick}"))
         .await
         .map_err(Failed::from)?;
     let casemapping = first.client.state().casemapping();
@@ -114,7 +113,7 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
     }
     inviter
         .client
-        .send(Message::new("MODE", [&channel, "+o", &observer_nick]))
+        .send_raw(&format!("MODE {channel} +o {observer_nick}"))
         .await
         .map_err(Failed::from)?;
     let casemapping = observer.client.state().casemapping();
@@ -140,7 +139,7 @@ async fn invite_notify(context: Scenario) -> ScenarioResult {
     let target = context.client(&target_nick).await?;
     inviter
         .client
-        .send(Message::new("INVITE", [&target_nick, &channel]))
+        .send_raw(&format!("INVITE {target_nick} {channel}"))
         .await
         .map_err(Failed::from)?;
     context

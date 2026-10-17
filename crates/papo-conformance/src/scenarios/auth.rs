@@ -2,7 +2,6 @@ use libtest_mimic::Failed;
 use papo::{AccountRegistration, Event};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
-use papo_proto::Message;
 use papo_test_server::register_account;
 
 use super::support::{EXPECT_TIMEOUT, PASSWORD};
@@ -33,7 +32,7 @@ async fn authenticate(context: Scenario, scram: bool) -> ScenarioResult {
     let registered_nick = connection.welcome.nick.clone();
     connection
         .client
-        .send(Message::new("WHOIS", [registered_nick]))
+        .send_raw(&format!("WHOIS {registered_nick}"))
         .await
         .map_err(Failed::from)?;
     let event = context
@@ -76,7 +75,7 @@ async fn draft_account_registration(context: Scenario) -> ScenarioResult {
         .await?;
     connection
         .client
-        .send(Message::new("REGISTER", [&account, "*", PASSWORD]))
+        .send_raw(&format!("REGISTER {account} * {PASSWORD}"))
         .await
         .map_err(Failed::from)?;
     context

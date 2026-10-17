@@ -1,7 +1,6 @@
 use libtest_mimic::Failed;
 use papo::{Event, event::StandardReplyKind};
 use papo_conformance_macros::scenario;
-use papo_proto::Message;
 
 use super::support::{EXPECT_TIMEOUT, history_page};
 use crate::{Scenario, ScenarioResult};
@@ -40,7 +39,7 @@ async fn standard_replies(context: Scenario) -> ScenarioResult {
     let mut connection = context.client(&nick).await?;
     connection
         .client
-        .send(Message::new("SETNAME", [""]))
+        .send_raw("SETNAME :")
         .await
         .map_err(Failed::from)?;
     context

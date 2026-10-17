@@ -2,7 +2,6 @@ use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
-use papo_proto::Message;
 use papo_test_server::register_account;
 
 use super::support::{EXPECT_TIMEOUT, PASSWORD, close_pair, join, joined_pair};
@@ -45,7 +44,7 @@ async fn away_notify(context: Scenario) -> ScenarioResult {
     let away = "reviewing the IRCv3 specification";
     sender
         .client
-        .send(Message::new("AWAY", [away]))
+        .send_raw(&format!("AWAY :{away}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -65,7 +64,7 @@ async fn setname(context: Scenario) -> ScenarioResult {
     let realname = "Papo Conformance Client";
     sender
         .client
-        .send(Message::new("SETNAME", [realname]))
+        .send_raw(&format!("SETNAME :{realname}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -91,14 +90,14 @@ async fn chghost(context: Scenario) -> ScenarioResult {
     let (mut observer, operator, _channel) = joined_pair(&context).await?;
     operator
         .client
-        .send(Message::new("OPER", [oper_name, password]))
+        .send_raw(&format!("OPER {oper_name} :{password}"))
         .await
         .map_err(Failed::from)?;
     operator
         .client
-        .send(Message::new(
-            "CHGHOST",
-            [&observer.welcome.nick, "conformance.example"],
+        .send_raw(&format!(
+            "CHGHOST {} conformance.example",
+            observer.welcome.nick
         ))
         .await
         .map_err(Failed::from)?;
@@ -124,7 +123,7 @@ async fn monitor(context: Scenario) -> ScenarioResult {
     let target = context.client(&target_nick).await?;
     observer
         .client
-        .send(Message::new("MONITOR", ["+", &target_nick]))
+        .send_raw(&format!("MONITOR + {target_nick}"))
         .await
         .map_err(Failed::from)?;
     context
@@ -146,7 +145,7 @@ async fn bot_mode(context: Scenario) -> ScenarioResult {
     let registered = connection.welcome.nick.clone();
     connection
         .client
-        .send(Message::new("MODE", [&registered, "+B"]))
+        .send_raw(&format!("MODE {registered} +B"))
         .await
         .map_err(Failed::from)?;
     context

@@ -1,7 +1,6 @@
 use libtest_mimic::Failed;
 use papo::Event;
 use papo_conformance_macros::scenario;
-use papo_proto::Message;
 
 use super::support::{EXPECT_TIMEOUT, history_page, join};
 use crate::{Scenario, ScenarioResult};
@@ -21,9 +20,8 @@ async fn draft_read_marker(context: Scenario) -> ScenarioResult {
     join(&context, &mut connection, &channel).await?;
     connection
         .client
-        .send(Message::new(
-            "MARKREAD",
-            [&channel, "timestamp=2025-10-15T11:55:42.123Z"],
+        .send_raw(&format!(
+            "MARKREAD {channel} timestamp=2025-10-15T11:55:42.123Z"
         ))
         .await
         .map_err(Failed::from)?;
