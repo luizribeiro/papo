@@ -3,7 +3,55 @@ use std::{future::Future, pin::Pin, time::SystemTime};
 use papo_core::{HistoryQuery, MsgRef, Response};
 use tokio::sync::oneshot;
 
-use crate::{Client, Error, Message as ChatMessage, driver::Command};
+use crate::{
+    Client, Error, Message as ChatMessage, RawLine,
+    driver::Command,
+    event::{
+        Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,
+    },
+};
+
+/// One typed entry in a history page.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+#[allow(clippy::large_enum_variant)]
+pub enum HistoryItem {
+    /// A replayed `PRIVMSG` or `NOTICE`.
+    Message(ChatMessage),
+    /// A replayed reaction or unreaction.
+    Reacted(Reacted),
+    /// A replayed message redaction.
+    Redacted(Redacted),
+    /// A replayed channel join.
+    Joined(Joined),
+    /// A replayed channel part.
+    Parted(Parted),
+    /// A replayed user quit.
+    Quit(Quit),
+    /// A replayed channel kick.
+    Kicked(Kicked),
+    /// A replayed nickname change.
+    NickChanged(NickChanged),
+    /// A replayed topic change.
+    TopicChanged(TopicChanged),
+    /// A replayed mode change.
+    ModeChanged(ModeChanged),
+    /// A replayed line without a more specific typed representation.
+    ///
+    /// A later minor release may refine a command currently classified here.
+    Other(RawLine),
+}
+
+impl HistoryItem {
+    /// Returns the message when this item is [`HistoryItem::Message`].
+    #[must_use]
+    pub const fn message(&self) -> Option<&ChatMessage> {
+        match self {
+            Self::Message(message) => Some(message),
+            _ => None,
+        }
+    }
+}
 
 /// A page of requested chat history.
 #[derive(Clone, Debug, Eq, PartialEq)]

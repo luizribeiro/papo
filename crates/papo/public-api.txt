@@ -402,6 +402,20 @@ impl papo::Event
 pub const fn papo::Event::as_typing_changed(&self) -> core::option::Option<&papo::event::TypingChanged>
 impl papo::Event
 pub const fn papo::Event::as_warning(&self) -> core::option::Option<&papo::event::Warning>
+#[non_exhaustive] pub enum papo::HistoryItem
+pub papo::HistoryItem::Joined(papo::event::Joined)
+pub papo::HistoryItem::Kicked(papo::event::Kicked)
+pub papo::HistoryItem::Message(papo::Message)
+pub papo::HistoryItem::ModeChanged(papo::event::ModeChanged)
+pub papo::HistoryItem::NickChanged(papo::event::NickChanged)
+pub papo::HistoryItem::Other(papo::RawLine)
+pub papo::HistoryItem::Parted(papo::event::Parted)
+pub papo::HistoryItem::Quit(papo::event::Quit)
+pub papo::HistoryItem::Reacted(papo::event::Reacted)
+pub papo::HistoryItem::Redacted(papo::event::Redacted)
+pub papo::HistoryItem::TopicChanged(papo::event::TopicChanged)
+impl papo::HistoryItem
+pub const fn papo::HistoryItem::message(&self) -> core::option::Option<&papo::Message>
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::CustomAccountName
 pub papo::InvalidInput::EmailRequired
