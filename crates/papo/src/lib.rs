@@ -1,6 +1,10 @@
 //! Tokio-based IRC client orchestration, transports, and ergonomic handles.
 //!
 //! TLS uses ring when both `tls-ring` and `tls-aws-lc` are enabled.
+//! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
+//! Applications can opt in while libraries should leave the feature disabled.
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod action;
 mod address;

@@ -24,6 +24,11 @@ tls-ring = [
   "dep:tokio-rustls",
   "rustls/ring",
 ]
+unstable = ["papo-core/unstable"]
+
+[package.metadata.docs.rs]
+features = ["unstable"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 futures-core = "0.3.34"

@@ -211,7 +211,10 @@
           };
           clippy = cargoHook {
             name = "clippy-hook";
-            text = "cargo clippy --workspace --all-targets --locked -- -W clippy::pedantic -D warnings";
+            text = ''
+              cargo clippy --workspace --all-targets --locked -- -W clippy::pedantic -D warnings
+              cargo clippy --workspace --all-targets --all-features --locked -- -W clippy::pedantic -D warnings
+            '';
           };
           wasi-checks = cargoHook {
             name = "wasi-checks-hook";
@@ -249,18 +252,26 @@
             name = "public-api-hook";
             runtimeInputs = [ pkgs.cargo-public-api ];
             text = ''
-              actual=$(mktemp)
-              trap 'rm -f "$actual"' EXIT
-              CARGO_INCREMENTAL=0 \
-                RUSTC=${nightlyToolchain}/bin/rustc \
-                RUSTDOC=${nightlyToolchain}/bin/rustdoc \
-                ${nightlyToolchain}/bin/cargo rustdoc \
-                  -p papo --all-features --lib --target-dir target/public-api \
-                  -- -Z unstable-options --output-format json
-              cargo public-api \
-                --rustdoc-json target/public-api/doc/papo.json \
-                --color=never -sss > "$actual"
-              diff -u crates/papo/public-api.txt "$actual"
+              check_api() {
+                features=$1
+                expected=$2
+                target=$3
+                actual=$(mktemp)
+                CARGO_INCREMENTAL=0 \
+                  RUSTC=${nightlyToolchain}/bin/rustc \
+                  RUSTDOC=${nightlyToolchain}/bin/rustdoc \
+                  ${nightlyToolchain}/bin/cargo rustdoc \
+                    -p papo --no-default-features --features "$features" --lib --target-dir "$target" \
+                    -- -Z unstable-options --output-format json
+                cargo public-api \
+                  --rustdoc-json "$target/doc/papo.json" \
+                  --color=never -sss > "$actual"
+                diff -u "$expected" "$actual"
+                rm -f "$actual"
+              }
+              stable=bot,sts-file,websocket,tls-aws-lc,tls-ring
+              check_api "$stable" crates/papo/public-api.txt target/public-api
+              check_api "$stable,unstable" crates/papo/public-api-unstable.txt target/public-api-unstable
             '';
           };
           plain-tests = cargoHook {
@@ -275,8 +286,7 @@
             runtimeInputs = [ pkgs.cargo-nextest ];
             text = ''
               cargo nextest run --workspace --locked
-              cargo nextest run -p papo-proto --features precis --locked
-              cargo nextest run -p papo --lib --all-features --locked
+              cargo nextest run --workspace --all-features --locked
             '';
             stages = [ "pre-push" ];
           };
