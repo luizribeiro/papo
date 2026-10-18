@@ -143,6 +143,23 @@ fn removing_before_registration_or_without_support_sends_nothing() {
 }
 
 #[test]
+fn registration_clears_unconfirmed_monitor_presence() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test 005 * MONITOR=100 :are supported")
+        .update(|session| session.monitor_add(["alice"]))
+        .server(":ergo.test 730 * :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .inspect(|session| assert_eq!(session.state().monitor_online().count(), 1))
+        .welcome(":ergo.test 001 papo :Welcome")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .client("MONITOR + alice")
+        .event(|event| matches!(event, Event::Registered(_)))
+        .inspect(|session| assert_eq!(session.state().monitor_online().count(), 0))
+        .no_event();
+}
+
+#[test]
 fn honors_the_advertised_monitor_limit_before_chunking() {
     let nicks: Vec<_> = (0..150).map(|index| format!("user{index:03}")).collect();
     let unavailable = nicks[100..].to_vec();
