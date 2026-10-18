@@ -1949,6 +1949,18 @@ async fn command_builder_quotes_real_commands_and_obeys_the_rate_limit() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn join_rejects_an_invalid_channel_name_before_queueing() {
+    let client = crate::Client::disconnected_for_test();
+    assert!(matches!(
+        client.join("rust").await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+            name,
+            reason: crate::InvalidIdentifier::InvalidPrefix('r'),
+        })) if name == "rust"
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn structured_commands_reject_parameter_injection() {
     let client = crate::Client::disconnected_for_test();
     for params in [
