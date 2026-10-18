@@ -1815,14 +1815,25 @@ mod tests {
 
     #[test]
     fn maps_state_limit_reached() {
-        assert!(matches!(
-            forwarded(papo_core::Event::StateLimitReached {
-                limit: StateLimit::Members
-            }),
-            Event::Warning(Warning::StateLimitReached {
-                limit: super::StateLimit::Members
-            })
-        ));
+        for (core, public) in [
+            (StateLimit::Channels, super::StateLimit::Channels),
+            (StateLimit::Members, super::StateLimit::Members),
+            (
+                StateLimit::MetadataTargets,
+                super::StateLimit::MetadataTargets,
+            ),
+            (StateLimit::MetadataKeys, super::StateLimit::MetadataKeys),
+            #[cfg(feature = "unstable")]
+            (
+                StateLimit::BouncerNetworks,
+                super::StateLimit::BouncerNetworks,
+            ),
+        ] {
+            assert!(matches!(
+                forwarded(papo_core::Event::StateLimitReached { limit: core }),
+                Event::Warning(Warning::StateLimitReached { limit }) if limit == public
+            ));
+        }
     }
 
     #[test]
@@ -2030,20 +2041,39 @@ mod tests {
 
     #[test]
     fn maps_batch_abandoned() {
-        let Event::Warning(Warning::BatchAbandoned {
-            id,
-            batch_type,
-            reason,
-        }) = forwarded(papo_core::Event::BatchAbandoned {
-            reference: "history42".into(),
-            batch_type: "chathistory".into(),
-            reason: BatchAbandonReason::Timeout,
-        })
-        else {
-            panic!("abandonment was not forwarded")
-        };
-        assert_eq!(id, "history42");
-        assert_eq!(batch_type, "chathistory");
-        assert_eq!(reason, super::BatchAbandonReason::Timeout);
+        for (core, public) in [
+            (
+                BatchAbandonReason::OpenBatchLimit,
+                super::BatchAbandonReason::OpenBatchLimit,
+            ),
+            (
+                BatchAbandonReason::LineLimit,
+                super::BatchAbandonReason::LineLimit,
+            ),
+            (
+                BatchAbandonReason::ByteLimit,
+                super::BatchAbandonReason::ByteLimit,
+            ),
+            (
+                BatchAbandonReason::Timeout,
+                super::BatchAbandonReason::Timeout,
+            ),
+        ] {
+            let Event::Warning(Warning::BatchAbandoned {
+                id,
+                batch_type,
+                reason,
+            }) = forwarded(papo_core::Event::BatchAbandoned {
+                reference: "history42".into(),
+                batch_type: "chathistory".into(),
+                reason: core,
+            })
+            else {
+                panic!("abandonment was not forwarded")
+            };
+            assert_eq!(id, "history42");
+            assert_eq!(batch_type, "chathistory");
+            assert_eq!(reason, public);
+        }
     }
 }
