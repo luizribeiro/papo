@@ -1,9 +1,7 @@
-use libtest_mimic::Failed;
 use papo::{Account, Event, ModeKind};
 use papo_conformance_macros::scenario;
 
-use super::support::{EXPECT_TIMEOUT, close_pair, joined_pair};
-use crate::{Scenario, ScenarioResult};
+use crate::Scenario;
 
 /// exposes the joining account and real name to every channel member
 #[scenario(
@@ -169,70 +167,67 @@ async fn multi_prefix(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// notifies channel members about invitations
-#[scenario(requires(caps = ["invite-notify"]))]
-async fn invite_notify(context: Scenario) -> ScenarioResult {
-    let (inviter, mut observer, channel) = joined_pair(&context).await?;
-    let observer_nick = observer.welcome.nick.clone();
-    if !observer.client.state().has_cap("invite-notify") {
-        return Err("invite-notify observer did not negotiate the capability".into());
-    }
-    inviter
-        .client
-        .mode(&channel)
-        .op(&observer_nick)
-        .await
-        .map_err(Failed::from)?;
-    let casemapping = observer.client.state().casemapping();
-    context
-        .expect(
-            &mut observer.events,
-            |event| {
-                matches!(event, Event::ModeChanged(changed) if casemapping.eq(&changed.target, &channel))
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    let observer_is_op = observer
-        .client
-        .state()
-        .channel(&channel)
-        .and_then(|channel| channel.member(&observer_nick))
-        .is_some_and(papo_core::Member::is_op);
-    if !observer_is_op {
-        return Err("invite-notify observer is not a channel operator".into());
-    }
-    let target_nick = context.unique();
-    let mut target = context.client(&target_nick).await?;
-    inviter
-        .client
-        .invite(&channel, &target_nick)
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut observer.events,
-            |event| {
-                matches!(event, Event::Invited(invite_event)
-                    if invite_event.nick.as_ref() == target_nick
-                        && invite_event.channel.as_ref() == channel
-                        && !invite_event.is_self)
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    context
-        .expect(
-            &mut target.events,
-            |event| {
-                matches!(event, Event::Invited(invite_event)
-                    if invite_event.nick.as_ref() == target_nick
-                        && invite_event.channel.as_ref() == channel
-                        && invite_event.is_self)
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    observer.close().await?;
-    close_pair(inviter, target).await
+/// delivers an invitation to its target and every capable channel observer
+#[scenario(
+    requires(caps = ["invite-notify"]),
+    covers = ["base.invite.target-delivery", "ircv3.invite-notify"]
+)]
+async fn invite_notify(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let mut carol = context.connect("carol").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+    let carol_nick = carol.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+
+    alice.mode(&channel).op(bob_nick.clone()).await?;
+    let promoted = bob.wait_for(Event::as_mode_changed).await?;
+
+    assert_eq!(promoted.target.as_ref(), channel);
+    assert_eq!(promoted.by.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(promoted.changes.len(), 1);
+    assert!(promoted.changes[0].set);
+    assert_eq!(promoted.changes[0].mode, 'o');
+    assert_eq!(promoted.changes[0].arg.as_deref(), Some(bob_nick.as_ref()));
+    assert!(
+        bob.state()
+            .channel(&channel)
+            .unwrap()
+            .member(&bob_nick)
+            .unwrap()
+            .is_op()
+    );
+
+    alice.invite(&channel, carol_nick.clone()).await?;
+    let target = carol.wait_for(Event::as_invited).await?;
+    let observer = bob.wait_for(Event::as_invited).await?;
+
+    assert_eq!(target.channel.as_ref(), channel);
+    assert_eq!(target.nick.as_ref(), carol_nick.as_ref());
+    assert_eq!(target.by.nick(), Some(alice_nick.as_ref()));
+    assert!(target.is_self);
+    assert_eq!(observer.channel.as_ref(), channel);
+    assert_eq!(observer.nick.as_ref(), carol_nick.as_ref());
+    assert_eq!(observer.by.nick(), Some(alice_nick.as_ref()));
+    assert!(!observer.is_self);
+    assert!(
+        alice
+            .state()
+            .channel(&channel)
+            .unwrap()
+            .member(&carol_nick)
+            .is_none()
+    );
+    assert!(
+        bob.state()
+            .channel(&channel)
+            .unwrap()
+            .member(&carol_nick)
+            .is_none()
+    );
+    carol.expect_none(Event::as_invited).await?;
+    Ok(())
 }
