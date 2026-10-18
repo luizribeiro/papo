@@ -52,10 +52,12 @@ impl Session {
         text: &str,
     ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::Relay)?;
-        let Some(value) = self.caps.enabled().get("draft/relaymsg") else {
-            unreachable!("supported relay messaging has a negotiated capability");
-        };
-        let separators = value.as_deref().unwrap_or("/");
+        let separators = self
+            .caps
+            .enabled()
+            .get("draft/relaymsg")
+            .and_then(Option::as_deref)
+            .unwrap_or("/");
         if !nick_with_separator
             .chars()
             .any(|separator| separators.contains(separator))
