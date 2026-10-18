@@ -1,0 +1,90 @@
+use super::*;
+
+#[tokio::test(flavor = "current_thread")]
+async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
+    for (first, second, third) in inputs() {
+        check_action({
+            let (first, second, third) = (first.clone(), second.clone(), third.clone());
+            move |client| action(client.send_command(first, [second, third]))
+        })
+        .await;
+        check_action({
+            let (first, second, third) = (first.clone(), second.clone(), third.clone());
+            move |client| action(client.request_command(first, [second, third]))
+        })
+        .await;
+        check_action({
+            let first = first.clone();
+            move |client| action(client.send_raw(first))
+        })
+        .await;
+        check_action({
+            let first = first.clone();
+            move |client| action(client.request_raw(first))
+        })
+        .await;
+
+        macro_rules! check {
+            ($call:expr) => {
+                let call = $call;
+                check_action(move |client| action(call(&client))).await
+            };
+        }
+        check!({
+            let (first, second, third) = (first.clone(), second.clone(), third.clone());
+            move |client: &crate::Client| client.react(first, second, third)
+        });
+        check!({
+            let (first, second, third) = (first.clone(), second.clone(), third.clone());
+            move |client: &crate::Client| client.unreact(first, second, third)
+        });
+        check!({
+            let first = first.clone();
+            move |client: &crate::Client| client.typing(first, Typing::Active)
+        });
+        check!({
+            let (first, second, third) = (first.clone(), second.clone(), third.clone());
+            move |client: &crate::Client| client.redact(first, second, third)
+        });
+        check!({
+            let first = first.clone();
+            move |client: &crate::Client| client.whois(first)
+        });
+        check!({
+            let first = first.clone();
+            move |client: &crate::Client| client.who(first)
+        });
+        check!({
+            let (first, third) = (first.clone(), third.clone());
+            move |client: &crate::Client| client.join(first).key(third)
+        });
+        check!({
+            let (first, second) = (first.clone(), second.clone());
+            move |client: &crate::Client| client.part(first, second)
+        });
+        check!({
+            let (first, second, third) = (first.clone(), second.clone(), third.clone());
+            move |client: &crate::Client| client.kick(first, second, third)
+        });
+        check!({
+            let (first, second) = (first.clone(), second.clone());
+            move |client: &crate::Client| client.invite(first, second)
+        });
+        check!({
+            let first = first.clone();
+            move |client: &crate::Client| client.set_nick(first)
+        });
+        check!({
+            let first = first.clone();
+            move |client: &crate::Client| client.set_away(first)
+        });
+        check!({
+            let first = first.clone();
+            move |client: &crate::Client| client.set_realname(first)
+        });
+        check!({
+            let (first, second) = (first.clone(), second.clone());
+            move |client: &crate::Client| client.oper(first, second)
+        });
+    }
+}

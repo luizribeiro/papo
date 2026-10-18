@@ -1,4 +1,8 @@
-use std::time::Duration;
+use std::{
+    future::{Future, IntoFuture},
+    pin::Pin,
+    time::Duration,
+};
 
 use papo_proto::MessageRef;
 use proptest::{prelude::*, strategy::ValueTree, test_runner::TestRunner};
@@ -55,6 +59,51 @@ fn validate_line(line: &[u8]) -> papo_proto::MessageRef<'_> {
     assert!(line.len() - body_start <= 512);
     assert!(tag_len <= 4094);
     MessageRef::parse_bytes(line).unwrap()
+}
+
+type Action = Pin<Box<dyn Future<Output = Result<(), Error>>>>;
+
+fn action<T: 'static, F>(future: F) -> Action
+where
+    F: IntoFuture<Output = Result<T, Error>> + 'static,
+    F::IntoFuture: 'static,
+{
+    Box::pin(async move { future.await.map(drop) })
+}
+
+async fn check_action(make: impl FnOnce(super::Client) -> Action) {
+    let (mut server, client, _events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    let mut request = make(client);
+    let mut lines = Vec::new();
+    let result = tokio::select! {
+        result = &mut request => Some(result),
+        line = read_line(&mut server) => {
+            lines.push(line);
+            None
+        }
+    };
+    while let Ok(line) =
+        tokio::time::timeout(Duration::from_millis(1), read_line(&mut server)).await
+    {
+        lines.push(line);
+    }
+    for line in &lines {
+        validate_line(line);
+    }
+    if let Some(result) = result {
+        match result {
+            Ok(()) => assert!(!lines.is_empty()),
+            Err(error) => {
+                assert!(matches!(
+                    error,
+                    Error::InvalidInput(_) | Error::Unsupported(_)
+                ));
+            }
+        }
+    }
+    abort_task(driver).await;
 }
 
 #[derive(Clone, Copy)]
@@ -127,3 +176,5 @@ async fn arbitrary_chat_input_is_rejected_or_round_trips_on_the_wire() {
         check_chat(ChatKind::Action, text, key, value).await;
     }
 }
+
+mod actions;
