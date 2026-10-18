@@ -1,3 +1,6 @@
+[away_private_message]
+reason = "Solanum's away numeric completes the direct message before papo captures echo metadata for Sent"
+
 [invite_rules]
 reason = "Solanum keeps a channel ban effective after the banned user receives an invitation"
 

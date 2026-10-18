@@ -129,6 +129,40 @@ async fn away_notify(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// delivers a private message to an away user without changing away state
+#[scenario(covers = ["base.away.privmsg-to-away-user"])]
+async fn away_private_message(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+    let away = "reviewing private-message delivery";
+    alice.set_away(away).await?;
+
+    let text = "the review can wait until you return";
+    let sent = bob.privmsg(alice_nick.clone(), text).await?;
+    let message = alice
+        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
+
+    assert_eq!(
+        message.sender.as_ref().and_then(Source::nick),
+        Some(bob_nick.as_ref())
+    );
+    assert_eq!(message.target(), alice_nick.as_ref());
+    assert_eq!(message.text(), text);
+    assert_eq!(message.id(), sent.id.as_ref());
+    assert_eq!(message.server_time, sent.time);
+    assert_eq!(message.origin(), Origin::Live);
+    assert!(alice.state().away());
+    assert_eq!(alice.state().away_message(), Some(away));
+    assert!(sent.fallbacks.is_empty());
+    alice
+        .expect_none(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
+    Ok(())
+}
+
 /// updates real-name state for the sender and every shared-channel peer
 #[scenario(requires(caps = ["setname"]), covers = ["ircv3.setname"])]
 async fn setname(context: Scenario) -> papo_testing::Result<()> {
