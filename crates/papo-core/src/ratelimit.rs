@@ -152,17 +152,15 @@ mod tests {
 
     #[test]
     fn rejects_an_empty_burst() {
-        assert_eq!(
-            RateLimit::new(0, Duration::from_millis(500)),
-            Err(super::InvalidRateLimit::EmptyBurst)
-        );
+        let error = RateLimit::new(0, Duration::from_millis(500)).unwrap_err();
+        assert_eq!(error, super::InvalidRateLimit::EmptyBurst);
+        assert_eq!(error.to_string(), "rate-limit burst must be positive");
     }
 
     #[test]
     fn rejects_a_zero_refill_interval() {
-        assert_eq!(
-            RateLimit::new(5, Duration::ZERO),
-            Err(super::InvalidRateLimit::ZeroRefill)
-        );
+        let error = RateLimit::new(5, Duration::ZERO).unwrap_err();
+        assert_eq!(error, super::InvalidRateLimit::ZeroRefill);
+        assert_eq!(error.to_string(), "rate-limit refill must be positive");
     }
 }
