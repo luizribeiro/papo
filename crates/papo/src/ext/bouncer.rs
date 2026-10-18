@@ -54,9 +54,7 @@ impl Bouncer {
                     .then(|| message.param(1).map(NetworkId::new))
                     .flatten()
                 })
-                .ok_or_else(|| {
-                    Error::disconnected_protocol("malformed BOUNCER ADDNETWORK response")
-                })
+                .ok_or_else(|| Error::unexpected_reply("BOUNCER ADDNETWORK"))
         })
     }
 
@@ -180,6 +178,23 @@ mod tests {
         client_line(&mut server, b"@label=2 BOUNCER DELNETWORK 44\r\n").await;
         server_line(&mut server, b"@label=2 BOUNCER DELNETWORK 44\r\n").await;
         assert!(within(remove).await.unwrap().is_ok());
+
+        let add = tokio::spawn(async move {
+            client
+                .bouncer()
+                .add(NetworkConfig::new("irc.libera.chat"))
+                .await
+        });
+        client_line(
+            &mut server,
+            b"@label=3 BOUNCER ADDNETWORK host=irc.libera.chat\r\n",
+        )
+        .await;
+        server_line(&mut server, b"@label=3 BOUNCER ADDNETWORK\r\n").await;
+        assert!(matches!(
+            within(add).await.unwrap(),
+            Err(Error::UnexpectedReply { command }) if command == "BOUNCER ADDNETWORK"
+        ));
         abort_task(driver).await;
     }
 }

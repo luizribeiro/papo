@@ -470,6 +470,8 @@ pub papo::Error::Registration(papo::RegistrationError)
 pub papo::Error::RequestLimit
 pub papo::Error::Server(papo::ServerError)
 pub papo::Error::Timeout
+pub papo::Error::UnexpectedReply
+pub papo::Error::UnexpectedReply::command: alloc::string::String
 pub papo::Error::Unsupported(papo::Unsupported)
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)

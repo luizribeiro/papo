@@ -2550,7 +2550,7 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
     server_line(&mut server, b"@label=1 :papo-driver!papo@localhost JOIN #limited * :papo driver test\r\n:ergo.test KICK #limited papo-driver :Channel is full\r\n").await;
     assert!(matches!(
         within(kicked).await.unwrap(),
-        Err(disconnected!())
+        Err(Error::UnexpectedReply { command }) if command == "JOIN"
     ));
 
     let parted = tokio::spawn({
@@ -2561,7 +2561,7 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
     server_line(&mut server, b"@label=2 :papo-driver!papo@localhost JOIN #registered * :papo driver test\r\n:papo-driver!papo@localhost PART #registered :Registration required\r\n").await;
     assert!(matches!(
         within(parted).await.unwrap(),
-        Err(disconnected!())
+        Err(Error::UnexpectedReply { command }) if command == "JOIN"
     ));
 
     within(server.shutdown()).await.unwrap();

@@ -462,12 +462,24 @@ pub enum Error {
     /// An operation did not complete before its deadline.
     #[error("the IRC operation timed out")]
     Timeout,
+    /// The server's reply did not have the shape required by its command.
+    #[error("the server sent an unexpected reply to {command}")]
+    UnexpectedReply {
+        /// The command whose reply was malformed or incomplete.
+        command: String,
+    },
     /// The IRC server rejected a request.
     #[error("the IRC server rejected the request: {0}")]
     Server(ServerError),
 }
 
 impl Error {
+    pub(crate) fn unexpected_reply(command: impl Into<String>) -> Self {
+        Self::UnexpectedReply {
+            command: command.into(),
+        }
+    }
+
     pub(crate) const fn disconnected() -> Self {
         Self::Disconnected(Disconnected::new(DisconnectCause::ConnectionLost, None))
     }

@@ -85,7 +85,7 @@ impl Client {
                     password: account.password,
                 })
                 .await?;
-            account_registration_result(&response)
+            account_registration_result(&response, "REGISTER")
         })
     }
 
@@ -116,28 +116,34 @@ impl Client {
                     code,
                 })
                 .await?;
-            account_registration_result(&response)
+            account_registration_result(&response, "VERIFY")
         })
     }
 }
 
-fn account_registration_result(response: &Response) -> Result<AccountRegistration, Error> {
+fn account_registration_result(
+    response: &Response,
+    command: &'static str,
+) -> Result<AccountRegistration, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));
     }
     let message = response
         .lines
         .first()
-        .ok_or_else(Error::disconnected)?
+        .ok_or_else(|| Error::unexpected_reply(command))?
         .as_ref();
-    let account = message.param(1).ok_or_else(Error::disconnected)?.into();
+    let account = message
+        .param(1)
+        .ok_or_else(|| Error::unexpected_reply(command))?
+        .into();
     match message.param(0) {
         Some("SUCCESS") => Ok(AccountRegistration::Registered { account }),
         Some("VERIFICATION_REQUIRED") => Ok(AccountRegistration::VerificationRequired {
             account,
             message: message.param(2).unwrap_or_default().to_owned(),
         }),
-        _ => Err(Error::disconnected()),
+        _ => Err(Error::unexpected_reply(command)),
     }
 }
 
@@ -223,6 +229,17 @@ mod tests {
         assert!(matches!(
             within(verify).await.unwrap(),
             Err(Error::Server(error)) if error.code() == "INVALID_CODE"
+        ));
+
+        let verify = tokio::spawn({
+            let client = client.clone();
+            async move { client.verify_account("alice", "392814").await }
+        });
+        client_line(&mut server, b"@label=3 VERIFY alice 392814\r\n").await;
+        server_line(&mut server, b"@label=3 :ergo.test VERIFY SUCCESS\r\n").await;
+        assert!(matches!(
+            within(verify).await.unwrap(),
+            Err(Error::UnexpectedReply { command }) if command == "VERIFY"
         ));
 
         assert!(matches!(

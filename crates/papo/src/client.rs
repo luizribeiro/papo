@@ -794,7 +794,7 @@ impl Client {
             return Err(Error::server(error));
         }
         if self.state().channel(&channel).is_none() {
-            return Err(Error::disconnected());
+            return Err(Error::unexpected_reply("JOIN"));
         }
         if !self
             .state()
