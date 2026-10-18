@@ -624,7 +624,15 @@ fn serializes_realistic_client_lines() {
 
 #[test]
 fn rejects_forbidden_command_and_parameter_bytes() {
-    for command in ["", "PRIV MSG", "PRIV\rMSG", "PRIV\nMSG", "PRIV\0MSG"] {
+    for command in [
+        "",
+        "@",
+        ":source",
+        "PRIV MSG",
+        "PRIV\rMSG",
+        "PRIV\nMSG",
+        "PRIV\0MSG",
+    ] {
         assert_eq!(
             Message::new(command, ["#papo", "hello"]).to_line(),
             Err(BuildError::InvalidCommand)

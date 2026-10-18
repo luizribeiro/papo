@@ -410,7 +410,10 @@ impl Message {
     }
 
     fn validate_fields(&self) -> Result<(), BuildError> {
-        if self.command.is_empty() || self.command.contains([' ', '\r', '\n', '\0']) {
+        if self.command.is_empty()
+            || self.command.starts_with(['@', ':'])
+            || self.command.contains([' ', '\r', '\n', '\0'])
+        {
             return Err(BuildError::InvalidCommand);
         }
         if self
