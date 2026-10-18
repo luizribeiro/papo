@@ -1,4 +1,4 @@
-use libtest_mimic::Failed;
+use libtest_mimic::{Completion, Failed};
 use papo::Endpoint;
 use papo_conformance_macros::scenario;
 
@@ -54,10 +54,12 @@ async fn validate_registration(connection: RegisteredClient, nick: &str) -> Scen
 }
 
 /// answers a client PING with the matching PONG
-#[scenario(requires(caps = ["labeled-response"]))]
+#[scenario(
+    requires(caps = ["labeled-response"]),
+    covers = ["base.ping"]
+)]
 async fn ping(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let connection = context.client(&nick).await?;
-    connection.client.ping().await.map_err(Failed::from)?;
-    connection.close().await
+    let alice = context.connect("alice").await?;
+    alice.ping().await.map_err(Failed::from)?;
+    Ok(Completion::Completed)
 }

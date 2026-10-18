@@ -1,4 +1,4 @@
-use libtest_mimic::Failed;
+use libtest_mimic::{Completion, Failed};
 use papo::{Event, MessageKind, Source};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
@@ -77,24 +77,35 @@ async fn server_time(context: Scenario) -> ScenarioResult {
 }
 
 /// delivers a client-only typing tag
-#[scenario(requires(caps = ["message-tags"]))]
+#[scenario(
+    requires(caps = ["message-tags"]),
+    covers = ["ircv3.message-tags.typing-direct"]
+)]
 async fn message_tags(context: Scenario) -> ScenarioResult {
-    let (mut receiver, sender, channel) = joined_pair(&context).await?;
-    sender
-        .client
-        .typing(&channel, Typing::Active)
+    let alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+
+    alice
+        .typing(bob_nick.clone(), Typing::Active)
         .await
         .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut receiver.events,
-            |event| {
-                matches!(event, Event::TypingChanged(typing) if typing.target == channel.as_str() && typing.state == Typing::Active)
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    close_pair(receiver, sender).await
+    let typing = bob.wait_for(Event::as_typing_changed).await?;
+
+    assert_eq!(
+        typing.source.as_ref().and_then(Source::nick),
+        Some(alice_nick.as_ref())
+    );
+    assert_eq!(typing.target.as_ref(), bob_nick.as_ref());
+    assert_eq!(typing.state, Typing::Active);
+
+    alice
+        .typing(bob_nick, Typing::Active)
+        .await
+        .map_err(Failed::from)?;
+    bob.expect_none(Event::as_typing_changed).await?;
+    Ok(Completion::Completed)
 }
 
 /// preserves identities for plain and multiline messages

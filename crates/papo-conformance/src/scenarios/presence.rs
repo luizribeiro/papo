@@ -1,40 +1,45 @@
-use libtest_mimic::Failed;
-use papo::Event;
+use libtest_mimic::{Completion, Failed};
+use papo::{Account, Event, Origin, Source};
 use papo_conformance_macros::scenario;
-use papo_core::Sasl;
-use papo_test_server::register_account;
 
-use super::support::{EXPECT_TIMEOUT, PASSWORD, close_pair, join, joined_pair};
+use super::support::{EXPECT_TIMEOUT, close_pair, joined_pair};
 use crate::{Scenario, ScenarioResult, required_environment};
 
 /// delivers an authenticated sender account
-#[scenario(requires(caps = ["account-tag", "account-notify"]))]
+#[scenario(
+    requires(caps = ["account-tag", "account-notify"]),
+    covers = ["ircv3.account-tag.channel"]
+)]
 async fn account_notify(context: Scenario) -> ScenarioResult {
-    let account = context.unique();
-    register_account(&context.server, &account, PASSWORD).map_err(Failed::from)?;
-    let sender_nick = context.unique();
-    let receiver_nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let mut sender = context
-        .client_with(&sender_nick, Some(Sasl::plain(&account, PASSWORD)))
-        .await?;
-    join(&context, &mut sender, &channel).await?;
-    let mut receiver = context.client(&receiver_nick).await?;
-    join(&context, &mut receiver, &channel).await?;
-    let text = format!("authenticated message from {sender_nick}");
-    sender
-        .client
-        .privmsg(&channel, &text)
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut receiver.events,
-            |event| matches!(event, Event::Message(message) if message.raw_text() == text && message.account() == Some(account.as_str())),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    close_pair(receiver, sender).await
+    let alice = context.connect_as_account("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let account = alice.state().account().unwrap().clone();
+    let alice_nick = alice.nick();
+    let channel = context.channel_name();
+    alice.join(&channel).await.map_err(Failed::from)?;
+    bob.join(&channel).await.map_err(Failed::from)?;
+
+    let text = "authenticated hello from alice";
+    let sent = alice.privmsg(&channel, text).await.map_err(Failed::from)?;
+    let message = bob.wait_for(Event::as_message).await?;
+
+    assert_eq!(message.text(), text);
+    assert_eq!(
+        message.sender.as_ref().and_then(Source::nick),
+        Some(alice_nick.as_ref())
+    );
+    assert_eq!(message.target(), channel);
+    assert_eq!(message.id(), sent.id.as_ref());
+    assert_eq!(message.server_time, sent.time);
+    assert_eq!(message.account(), Some(account.as_ref()));
+    assert_eq!(message.origin(), Origin::Live);
+    assert!(sent.fallbacks.is_empty());
+    assert!(matches!(
+        bob.state().user(&alice_nick).unwrap().account(),
+        Account::LoggedIn(observed) if observed == &account
+    ));
+    bob.expect_none(Event::as_message).await?;
+    Ok(Completion::Completed)
 }
 
 /// notifies channel peers of away state
