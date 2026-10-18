@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use libtest_mimic::Failed;
 use papo::Event;
 

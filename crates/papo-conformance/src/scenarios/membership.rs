@@ -726,6 +726,29 @@ async fn topic(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// rejects a topic change from a member without channel privileges
+#[scenario(covers = ["base.topic.protected-mode"])]
+async fn protected_topic(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+
+    assert_refusal(
+        bob.set_topic(&channel, "unauthorized topic")
+            .await
+            .unwrap_err(),
+        Refusal::ChannelOperatorPrivilegesNeeded,
+        "482",
+    );
+    assert_eq!(alice.state().channel(&channel).unwrap().topic(), None);
+    assert_eq!(bob.state().channel(&channel).unwrap().topic(), None);
+    alice.expect_none(Event::as_topic_changed).await?;
+    bob.expect_none(Event::as_topic_changed).await?;
+    Ok(())
+}
+
 /// enforces channel admission and messaging modes with typed refusals
 #[scenario(covers = [
     "base.join.key-single",

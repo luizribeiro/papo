@@ -91,6 +91,7 @@ struct CapRequirement {
 #[derive(Clone)]
 struct Scenario<S = ServerInfo> {
     server: S,
+    #[allow(dead_code)]
     name: &'static str,
     fixture: Option<papo_testing::Scenario>,
 }
@@ -102,11 +103,13 @@ struct Connection {
 }
 
 struct Welcome {
+    #[allow(dead_code)]
     nick: String,
     caps: Capabilities,
     isupport: Isupport,
 }
 
+#[allow(dead_code)]
 struct RegisteredClient {
     client: Client,
     events: Events,
@@ -114,6 +117,7 @@ struct RegisteredClient {
     welcome: Welcome,
 }
 
+#[allow(dead_code)]
 trait EventSource {
     fn next_event(&mut self) -> impl Future<Output = Option<Event>>;
 }
@@ -304,11 +308,13 @@ fn json_string(input: &str) -> String {
 }
 
 impl<S> Scenario<S> {
+    #[allow(dead_code)]
     fn unique(&self) -> String {
         papo_test_server::unique(self.name)
     }
 }
 
+#[allow(dead_code)]
 impl Scenario {
     async fn quit_all(&self) -> FixtureResult {
         self.fixture
@@ -377,6 +383,7 @@ impl Deref for Scenario {
     }
 }
 
+#[allow(dead_code)]
 async fn expect_event(
     events: &mut impl EventSource,
     mut matcher: impl FnMut(&Event) -> bool,
@@ -398,6 +405,7 @@ async fn expect_event(
     .map_err(|_| Failed::from("timed out waiting for an event"))?
 }
 
+#[allow(dead_code)]
 impl RegisteredClient {
     async fn close(self) -> ScenarioResult {
         self.client
