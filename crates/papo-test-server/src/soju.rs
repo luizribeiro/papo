@@ -127,3 +127,43 @@ impl Drop for TestServer {
         let _ = self.child.wait();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        net::TcpStream,
+        time::Duration,
+    };
+
+    use super::{ACCOUNT, PASSWORD, TestServer};
+
+    #[test]
+    fn bouncer_account_reaches_the_ergo_upstream() {
+        let server = TestServer::start().unwrap();
+        let stream = TcpStream::connect(server.endpoints()[0]).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .unwrap();
+        let mut connection = BufReader::new(stream);
+        write!(
+            connection.get_mut(),
+            "PASS {PASSWORD}\r\nNICK {ACCOUNT}\r\nUSER {ACCOUNT}/ergo 0 * :papo bouncer test\r\n"
+        )
+        .unwrap();
+
+        for _ in 0..128 {
+            let mut line = String::new();
+            assert_ne!(
+                connection.read_line(&mut line).unwrap(),
+                0,
+                "soju closed before welcoming its configured account"
+            );
+            if line.contains(" 001 ") {
+                assert!(line.contains(ACCOUNT), "{line:?}");
+                return;
+            }
+        }
+        panic!("soju did not welcome its configured account");
+    }
+}

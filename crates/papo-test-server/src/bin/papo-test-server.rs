@@ -9,7 +9,7 @@ use std::{
 
 #[cfg(not(target_family = "wasm"))]
 use papo_test_server::{
-    DeploymentProfile, InspIrcdServer, SolanumServer, TestServer, UnrealIrcdServer,
+    DeploymentProfile, InspIrcdServer, SojuServer, SolanumServer, TestServer, UnrealIrcdServer,
     register_account_at,
 };
 
@@ -18,6 +18,7 @@ enum Server {
     Ergo(TestServer),
     InspIrcd(InspIrcdServer),
     Solanum(SolanumServer),
+    Soju(SojuServer),
     UnrealIrcd(UnrealIrcdServer),
 }
 
@@ -30,10 +31,7 @@ impl Server {
             DeploymentProfile::InspIrcd => InspIrcdServer::start().map(Self::InspIrcd),
             DeploymentProfile::Solanum => SolanumServer::start().map(Self::Solanum),
             DeploymentProfile::UnrealIrcd => UnrealIrcdServer::start().map(Self::UnrealIrcd),
-            DeploymentProfile::SojuErgo => Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "soju-ergo support is unavailable",
-            )),
+            DeploymentProfile::SojuErgo => SojuServer::start().map(Self::Soju),
         }
     }
 
@@ -63,6 +61,15 @@ impl Server {
                     String::new(),
                 )
             }
+            Self::Soju(server) => {
+                let [plaintext, tls, websocket, secure_websocket] = server.endpoints();
+                (
+                    plaintext.to_string(),
+                    tls.to_string(),
+                    format!("ws://{websocket}/"),
+                    format!("wss://localhost:{}/", secure_websocket.port()),
+                )
+            }
             Self::UnrealIrcd(server) => {
                 let [plaintext, tls, websocket, secure_websocket] = server.endpoints();
                 (
@@ -80,6 +87,7 @@ impl Server {
             Self::Ergo(server) => server.ca_pem_path(),
             Self::InspIrcd(server) => server.ca_pem_path(),
             Self::Solanum(server) => server.ca_pem_path(),
+            Self::Soju(server) => server.ca_pem_path(),
             Self::UnrealIrcd(server) => server.ca_pem_path(),
         }
     }
@@ -89,6 +97,7 @@ impl Server {
             Self::Ergo(server) => server.process_id(),
             Self::InspIrcd(server) => server.process_id(),
             Self::Solanum(server) => server.process_id(),
+            Self::Soju(server) => server.process_id(),
             Self::UnrealIrcd(server) => server.process_id(),
         }
     }
