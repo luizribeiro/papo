@@ -1,57 +1,69 @@
 use libtest_mimic::{Completion, Failed};
-use papo::{Event, MessageKind, Source};
+use papo::{Event, MessageKind, Origin, Source};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
+use papo_testing::Peer;
 
 use super::support::{EXPECT_TIMEOUT, close_pair, join, joined_pair};
 use crate::{Scenario, ScenarioResult};
 
-/// echoes a channel PRIVMSG to its sender
-#[scenario(requires(caps = ["echo-message"]))]
+async fn fixture_pair(context: &Scenario) -> Result<(Peer, Peer, String), Failed> {
+    let mut alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    alice.join(&channel).await.map_err(Failed::from)?;
+    bob.join(&channel).await.map_err(Failed::from)?;
+    let bob_nick = bob.nick();
+    let joined = alice
+        .wait_for(|event| event.as_joined().filter(|joined| joined.nick == bob_nick))
+        .await?;
+    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.nick, bob_nick);
+    assert!(!joined.is_self);
+    for peer in [&alice, &bob] {
+        let state = peer.state();
+        let members = state.channel(&channel).expect("joined channel is in state");
+        assert!(members.is_synced());
+        assert!(members.member(alice.nick()).is_some());
+        assert!(members.member(bob.nick()).is_some());
+    }
+    Ok((alice, bob, channel))
+}
+
+/// a channel PRIVMSG has one correlated echo and matching recipient metadata
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
+    covers = ["base.privmsg.channel", "ircv3.echo-message"]
+)]
 async fn echo_message(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let text = format!("echo from {}", context.unique());
-    let mut connection = context.client(&nick).await?;
-    let registered_nick = connection.welcome.nick.clone();
-    connection
-        .client
-        .join(&channel)
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut connection.events,
-            |event| {
-                matches!(
-                    event,
-                    Event::Joined(papo::event::Joined { channel: joined,
-                        nick: joined_nick, .. }) if joined == channel.as_str() && joined_nick == registered_nick.as_str()
-                )
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    connection
-        .client
-        .privmsg(&channel, &text)
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut connection.events,
-            |event| {
-                matches!(event, Event::Message(message) if {
-                    matches!(message.kind(), MessageKind::Privmsg)
-                        && message.target() == channel
-                        && message.raw_text() == text
-                        && matches!(message.source(), Some(Source::User { nick, .. }) if nick == registered_nick.as_str())
-                })
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    connection.close().await
+    let (mut alice, mut bob, channel) = fixture_pair(&context).await?;
+    let sent = alice.privmsg(&channel, "hello from alice").await?;
+    let echo = alice.wait_for(Event::as_message).await?;
+    let message = bob.wait_for(Event::as_message).await?;
+    assert_eq!(echo.kind(), MessageKind::Privmsg);
+    assert_eq!(echo.target(), channel);
+    assert_eq!(echo.raw_text(), "hello from alice");
+    assert_eq!(echo.id(), sent.id.as_ref());
+    assert_eq!(echo.server_time, sent.time);
+    assert_eq!(echo.origin(), Origin::Echo);
+    assert_eq!(message.kind(), MessageKind::Privmsg);
+    assert_eq!(
+        message.source().as_ref().and_then(Source::nick),
+        Some(alice.nick().as_ref())
+    );
+    assert_eq!(message.target(), channel);
+    assert_eq!(message.raw_text(), "hello from alice");
+    assert_eq!(message.text(), "hello from alice");
+    assert_eq!(message.id(), sent.id.as_ref());
+    assert_eq!(message.server_time, sent.time);
+    assert_eq!(message.id(), echo.id());
+    assert_eq!(message.server_time, echo.server_time);
+    assert_eq!(message.origin(), Origin::Live);
+    assert!(!message.is_private());
+    assert!(sent.fallbacks.is_empty());
+    alice.expect_none(Event::as_message).await?;
+    bob.expect_none(Event::as_message).await?;
+    Ok(Completion::Completed)
 }
 
 /// delivers a channel message with server time
