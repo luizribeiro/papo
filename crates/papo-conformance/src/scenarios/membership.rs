@@ -231,3 +231,38 @@ async fn invite_notify(context: Scenario) -> papo_testing::Result<()> {
     carol.expect_none(Event::as_invited).await?;
     Ok(())
 }
+
+/// removes a departing member from both peers with the same reason
+#[scenario(covers = ["base.part.basic"])]
+async fn part(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+
+    let reason = "leaving for the specification review";
+    alice.part(&channel, reason).await?;
+    let own = alice.wait_for(Event::as_parted).await?;
+    let observed = bob.wait_for(Event::as_parted).await?;
+
+    for departed in [&own, &observed] {
+        assert_eq!(departed.channel.as_ref(), channel);
+        assert_eq!(departed.nick, alice_nick);
+        assert_eq!(departed.reason.as_deref(), Some(reason));
+    }
+    assert!(own.is_self);
+    assert!(!observed.is_self);
+    assert!(alice.state().channel(&channel).is_none());
+    assert!(
+        bob.state()
+            .channel(&channel)
+            .unwrap()
+            .member(&alice_nick)
+            .is_none()
+    );
+    alice.expect_none(Event::as_parted).await?;
+    bob.expect_none(Event::as_parted).await?;
+    Ok(())
+}
