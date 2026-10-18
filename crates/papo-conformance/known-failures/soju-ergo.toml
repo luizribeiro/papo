@@ -13,8 +13,17 @@ reason = "soju's history layer does not expose the earlier upstream message"
 [draft_metadata_2]
 reason = "soju advertises the upstream metadata limit but applies a smaller local limit"
 
+[metadata_subscriptions]
+reason = "soju advertises metadata subscriptions but rejects a valid vendor key as KEY_INVALID"
+
+[channel_metadata]
+reason = "soju advertises a one-byte metadata value limit, preventing this channel metadata value"
+
 [extended_join]
 reason = "soju omits the upstream real name from relayed extended JOIN messages"
 
 [sasl_plain]
 reason = "bouncer authentication replaces the scenario's direct upstream SASL credentials"
+
+[sasl_protocol_errors]
+reason = "soju treats post-registration AUTHENTICATE as a fatal bouncer login failure"

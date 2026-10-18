@@ -222,13 +222,18 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
         };
         let network_nick = papo_test_server::unique("alice");
         let login = bouncer.provision_network(&network_nick)?;
+        let address = s.server.plaintext_addr();
         let alice = s
             .connect_with(
-                s.configure("alice")?
-                    .nick(network_nick)
-                    .username(login.username())
-                    .password(login.password())
-                    .request_caps(["batch", "soju.im/bouncer-networks"]),
+                Client::builder(Endpoint::plaintext(
+                    address.ip().to_string(),
+                    address.port(),
+                ))
+                .nick(network_nick)
+                .username(login.username())
+                .realname("papo bouncer control")
+                .password(login.password())
+                .request_caps(["batch", "soju.im/bouncer-networks"]),
             )
             .await?;
         let initial = alice.bouncer().networks().await?;
