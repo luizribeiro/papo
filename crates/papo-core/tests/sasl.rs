@@ -40,6 +40,16 @@ fn debug_output_redacts_server_and_sasl_passwords() {
 }
 
 #[test]
+fn reports_binary_secrets_for_each_credential_mechanism() {
+    assert!(!Sasl::plain("alice", "hunter2").has_binary_secret());
+    assert!(Sasl::plain("alice", Secret::from_bytes([0xff])).has_binary_secret());
+    assert!(!Sasl::oauth_bearer("oauth-token-7391").has_binary_secret());
+    assert!(Sasl::oauth_bearer(Secret::from_bytes([0xff])).has_binary_secret());
+    assert!(!Sasl::external().has_binary_secret());
+    assert!(Sasl::scram_sha256("alice", Secret::from_bytes([0xff])).has_binary_secret());
+}
+
+#[test]
 fn byte_sasl_secrets_fail_without_panicking() {
     for (name, sasl) in [
         ("PLAIN", Sasl::plain("alice", Secret::from_bytes([0xff]))),
