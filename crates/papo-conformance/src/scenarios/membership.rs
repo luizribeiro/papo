@@ -1,24 +1,59 @@
-use libtest_mimic::Failed;
-use papo::Event;
+use libtest_mimic::{Completion, Failed};
+use papo::{Account, Event};
 use papo_conformance_macros::scenario;
 
 use super::support::{EXPECT_TIMEOUT, close_pair, join, joined_pair};
 use crate::{Scenario, ScenarioResult};
 
-/// records real names from extended JOIN
-#[scenario(requires(caps = ["extended-join"]))]
+/// exposes the joining account and real name to every channel member
+#[scenario(
+    requires(caps = ["extended-join"]),
+    covers = ["ircv3.extended-join"]
+)]
 async fn extended_join(context: Scenario) -> ScenarioResult {
-    let (receiver, sender, _channel) = joined_pair(&context).await?;
-    let observed = receiver
-        .client
-        .state()
-        .user(&sender.welcome.nick)
-        .and_then(papo::User::realname)
-        == Some("papo conformance client");
-    if !observed {
-        return Err("extended JOIN did not populate the sender real name".into());
-    }
-    close_pair(receiver, sender).await
+    let mut bob = context.connect("bob").await?;
+    let mut alice = context.connect_as_account("alice").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+    let account = alice.state().account().unwrap().clone();
+    bob.join(&channel).await.map_err(Failed::from)?;
+    let joined = bob.wait_for(Event::as_joined).await?;
+    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.nick, bob_nick);
+    assert!(joined.is_self);
+
+    alice.join(&channel).await.map_err(Failed::from)?;
+    let joined = alice.wait_for(Event::as_joined).await?;
+    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.nick, alice_nick);
+    assert!(joined.is_self);
+    let joined = bob.wait_for(Event::as_joined).await?;
+
+    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.nick, alice_nick);
+    assert!(!joined.is_self);
+    let bob_state = bob.state();
+    let observed = bob_state.user(&alice_nick).unwrap();
+    assert_eq!(observed.realname(), Some("papo test peer"));
+    assert!(matches!(observed.account(), Account::LoggedIn(name) if name == &account));
+    assert!(
+        bob_state
+            .channel(&channel)
+            .unwrap()
+            .member(&alice_nick)
+            .is_some()
+    );
+    assert!(
+        alice
+            .state()
+            .channel(&channel)
+            .unwrap()
+            .member(&bob_nick)
+            .is_some()
+    );
+    bob.expect_none(Event::as_joined).await?;
+    Ok(Completion::Completed)
 }
 
 /// records usernames and hosts from NAMES
