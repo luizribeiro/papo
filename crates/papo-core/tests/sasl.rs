@@ -3,7 +3,7 @@
 mod support;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use papo_core::{CloseKind, Config, Entropy, Event, Sasl, Session};
+use papo_core::{CloseKind, Config, Entropy, Event, Sasl, Secret, Session};
 use support::Transcript;
 
 struct FixedEntropy;
@@ -37,6 +37,43 @@ fn debug_output_redacts_server_and_sasl_passwords() {
         assert!(!debug.contains("correct horse battery staple"));
         assert!(debug.contains("[REDACTED]"));
     }
+}
+
+#[test]
+fn byte_sasl_secrets_fail_without_panicking() {
+    for (name, sasl) in [
+        ("PLAIN", Sasl::plain("alice", Secret::from_bytes([0xff]))),
+        (
+            "OAUTHBEARER",
+            Sasl::oauth_bearer(Secret::from_bytes([0xff])),
+        ),
+    ] {
+        Transcript::new(Config::default().sasl(sasl))
+            .connect_default()
+            .server(&format!("CAP * LS :sasl={name}"))
+            .client("CAP REQ :sasl")
+            .server("CAP * ACK :sasl")
+            .client(&format!("AUTHENTICATE {name}"))
+            .server("AUTHENTICATE +")
+            .client("AUTHENTICATE *")
+            .server(":ergo.test 906 alice :SASL authentication aborted")
+            .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("not text")))
+            .no_client();
+    }
+
+    Transcript::with_entropy(
+        Config::default().sasl(Sasl::scram_sha256(
+            "alice",
+            Secret::from_bytes([0xff]),
+        )),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("not text")))
+    .no_client();
 }
 
 #[test]

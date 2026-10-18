@@ -357,25 +357,27 @@ impl SaslSession {
             self.deadline = Some(now + SASL_TIMEOUT);
             return Handled::Yes;
         }
-        match mechanism {
+        let response = match mechanism {
             Mechanism::Plain { username, password } => {
                 let authcid = with_device(username, self.device.as_deref());
-                transmit_response(
-                    format!("\0{authcid}\0{}", password.expose()).as_bytes(),
-                    outbox,
-                );
+                password
+                    .expose_text()
+                    .map(|password| format!("\0{authcid}\0{password}").into_bytes())
             }
-            Mechanism::OAuthBearer { token } => {
-                transmit_response(
-                    format!("n,,\u{1}auth=Bearer {}\u{1}\u{1}", token.expose()).as_bytes(),
-                    outbox,
-                );
-            }
+            Mechanism::OAuthBearer { token } => token
+                .expose_text()
+                .map(|token| format!("n,,\u{1}auth=Bearer {token}\u{1}\u{1}").into_bytes()),
             Mechanism::External { authzid } => {
-                transmit_response(authzid.as_deref().unwrap_or("").as_bytes(), outbox);
+                Some(authzid.as_deref().unwrap_or("").as_bytes().to_vec())
             }
+            // SCRAM challenges return through `handle_scram_challenge` above.
             Mechanism::ScramSha256 { .. } => unreachable!(),
-        }
+        };
+        let Some(response) = response else {
+            self.abort(now, "the configured SASL secret is not text", outbox);
+            return Handled::Yes;
+        };
+        transmit_response(&response, outbox);
         self.awaiting_challenge = false;
         self.deadline = Some(now + SASL_TIMEOUT);
         Handled::Yes
@@ -503,13 +505,18 @@ impl SaslSession {
                 continue;
             }
             if let Mechanism::ScramSha256 { username, password } = &mechanism {
+                let Some(password) = password.expose_text() else {
+                    self.failures
+                        .push("SCRAM-SHA-256: configured secret is not text".to_owned());
+                    continue;
+                };
                 let mut nonce = [0; 18];
-                self.entropy
-                    .as_mut()
-                    .expect("SCRAM entropy was checked")
-                    .fill(&mut nonce);
+                let Some(entropy) = self.entropy.as_mut() else {
+                    continue;
+                };
+                entropy.fill(&mut nonce);
                 let authcid = with_device(username, self.device.as_deref());
-                match ScramClient::new(&authcid, password.expose(), &STANDARD.encode(nonce)) {
+                match ScramClient::new(&authcid, password, &STANDARD.encode(nonce)) {
                     Ok(scram) => {
                         self.scram = Some(scram);
                         self.scram_step = ScramStep::Initial;
