@@ -69,6 +69,56 @@ pub fn register_account_at(address: SocketAddr, name: &str, password: &str) -> i
     read_until(&mut connection, |line| line.contains(" REGISTER SUCCESS "))
 }
 
+/// Changes an Ergo account password through its local `NickServ` service.
+///
+/// # Errors
+///
+/// Returns an error for invalid credentials, connection failures, or a rejected change.
+pub fn change_account_password_at(
+    address: SocketAddr,
+    name: &str,
+    current: &str,
+    replacement: &str,
+) -> io::Result<()> {
+    if !credentials_valid(name, current)
+        || replacement.contains([' ', '\r', '\n'])
+        || current.contains(' ')
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "account credentials contain IRC parameter delimiters",
+        ));
+    }
+    let stream = TcpStream::connect(address)?;
+    stream.set_read_timeout(Some(Duration::from_secs(10)))?;
+    let mut connection = BufReader::new(stream);
+    send(
+        &mut connection,
+        &format!("PASS {name}:{current}\r\nNICK {name}\r\nUSER papo 0 * :papo password change\r\n"),
+    )?;
+    read_until(&mut connection, |line| line.contains(" 001 "))?;
+    send(
+        &mut connection,
+        &format!("PRIVMSG NickServ :PASSWD {current} {replacement} {replacement}\r\n"),
+    )?;
+    for _ in 0..128 {
+        let mut line = String::new();
+        if connection.read_line(&mut line)? == 0 {
+            break;
+        }
+        if line.contains("NickServ") && line.contains(" NOTICE ") {
+            return if line.contains("Password changed") {
+                Ok(())
+            } else {
+                Err(io::Error::other("NickServ rejected the password change"))
+            };
+        }
+    }
+    Err(io::Error::other(
+        "NickServ did not confirm the password change",
+    ))
+}
+
 pub(crate) fn register_atheme(address: SocketAddr, name: &str, password: &str) -> io::Result<()> {
     if password.contains(' ') {
         return Err(io::Error::new(

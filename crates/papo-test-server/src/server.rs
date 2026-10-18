@@ -121,6 +121,20 @@ impl TestServer {
         crate::FaultProxy::start(self.plaintext)
     }
 
+    /// Changes an account password while preserving the running server.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if authentication or the `NickServ` command fails.
+    pub fn change_account_password(
+        &self,
+        account: &str,
+        current: &str,
+        replacement: &str,
+    ) -> io::Result<()> {
+        crate::change_account_password_at(self.plaintext, account, current, replacement)
+    }
+
     /// Stops Ergo while retaining its configuration and data directory.
     ///
     /// # Errors
