@@ -39,8 +39,8 @@ fn message_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo
     requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
     covers = ["base.privmsg.channel", "ircv3.echo-message"]
 )]
-async fn echo_message(context: Scenario) -> papo_testing::Result<()> {
-    let (mut alice, mut bob, channel) = fixture_pair(&context).await?;
+async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     let sent = alice.privmsg(&channel, "hello from alice").await?;
     let echo = alice
         .wait_for(|event| message_text(event, "hello from alice"))
@@ -82,8 +82,8 @@ async fn echo_message(context: Scenario) -> papo_testing::Result<()> {
     requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
     covers = ["base.notice.channel", "ircv3.server-time"]
 )]
-async fn server_time(context: Scenario) -> papo_testing::Result<()> {
-    let (mut alice, mut bob, channel) = fixture_pair(&context).await?;
+async fn server_time(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     let sent = alice.notice(&channel, "maintenance at midnight").await?;
     let echo = alice
         .wait_for(|event| message_text(event, "maintenance at midnight"))
@@ -128,9 +128,9 @@ async fn server_time(context: Scenario) -> papo_testing::Result<()> {
         "core.dm.echo-self"
     ]
 )]
-async fn direct_messages(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
+async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
 
     let sent = alice.privmsg(bob.nick(), "private hello").await?;
     let echo = alice
@@ -390,9 +390,9 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     requires(caps = ["message-tags"]),
     covers = ["ircv3.message-tags.tagmsg", "tag.typing"]
 )]
-async fn message_tags(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
+async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
 
