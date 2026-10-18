@@ -138,7 +138,8 @@ impl Scenario {
     ///
     /// # Errors
     ///
-    /// Returns the first failure after attempting to quit every peer.
+    /// Returns the first failure after attempting to quit every peer. Peers that
+    /// already disconnected during the scenario need no further cleanup.
     #[doc(hidden)]
     pub async fn quit_all(&self) -> Result<()> {
         let clients = std::mem::take(
@@ -149,10 +150,10 @@ impl Scenario {
         );
         let mut first: Option<Error> = None;
         for client in clients {
-            if let Err(error) = client.quit("test scenario complete").await
-                && first.is_none()
-            {
-                first = Some(error.into());
+            match client.quit("test scenario complete").await {
+                Ok(()) | Err(papo::Error::Disconnected(_)) => {}
+                Err(error) if first.is_none() => first = Some(error.into()),
+                Err(_) => {}
             }
         }
         first.map_or(Ok(()), Err)
