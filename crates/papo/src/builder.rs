@@ -1056,10 +1056,7 @@ mod tests {
             .await
             .err()
             .unwrap();
-        assert_eq!(
-            error.to_string(),
-            "invalid input: event queue capacity 0 must be positive"
-        );
+        assert_eq!(error.to_string(), "event queue capacity 0 must be positive");
     }
 
     #[tokio::test(flavor = "current_thread")]

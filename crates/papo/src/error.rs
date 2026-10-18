@@ -476,22 +476,22 @@ impl std::error::Error for Disconnected {}
 #[non_exhaustive]
 pub enum Error {
     /// An input value is invalid.
-    #[error("invalid input: {0}")]
+    #[error(transparent)]
     InvalidInput(#[from] InvalidInput),
     /// Opening the connection failed.
-    #[error("connection failed: {0}")]
+    #[error(transparent)]
     Connect(#[from] ConnectError),
     /// The requested optional IRC behavior is unavailable.
-    #[error("{0}")]
+    #[error(transparent)]
     Unsupported(Unsupported),
     /// The connection already has 256 requests awaiting replies.
     #[error("too many IRC requests are awaiting replies")]
     RequestLimit,
     /// Registration ended before the server welcomed the client.
-    #[error("IRC registration failed: {0}")]
+    #[error(transparent)]
     Registration(RegistrationError),
     /// The established connection ended.
-    #[error("{0}")]
+    #[error(transparent)]
     Disconnected(Disconnected),
     /// An operation did not complete before its deadline.
     #[error("the IRC operation timed out")]
@@ -503,7 +503,7 @@ pub enum Error {
         command: String,
     },
     /// The IRC server rejected a request.
-    #[error("the IRC server rejected the request: {0}")]
+    #[error(transparent)]
     Server(ServerError),
 }
 
@@ -771,7 +771,7 @@ mod tests {
         assert_eq!(
             Error::InvalidInput(InvalidInput::InvalidMessage("invalid IRC line".into()))
                 .to_string(),
-            "invalid input: invalid IRC message: invalid IRC line"
+            "invalid IRC message: invalid IRC line"
         );
     }
 }

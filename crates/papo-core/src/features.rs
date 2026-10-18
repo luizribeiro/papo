@@ -211,6 +211,8 @@ impl std::fmt::Display for Unsupported {
     }
 }
 
+impl std::error::Error for Unsupported {}
+
 impl Session {
     pub(crate) fn supported_features(&self) -> std::collections::BTreeSet<Feature> {
         Feature::ALL
