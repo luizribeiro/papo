@@ -1,4 +1,4 @@
-use libtest_mimic::{Completion, Failed};
+use libtest_mimic::Failed;
 use papo::{Account, Event};
 use papo_conformance_macros::scenario;
 
@@ -10,20 +10,20 @@ use crate::{Scenario, ScenarioResult};
     requires(caps = ["extended-join"]),
     covers = ["ircv3.extended-join"]
 )]
-async fn extended_join(context: Scenario) -> ScenarioResult {
+async fn extended_join(context: Scenario) -> papo_testing::Result<()> {
     let mut bob = context.connect("bob").await?;
     let mut alice = context.connect_as_account("alice").await?;
     let channel = context.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     let account = alice.state().account().unwrap().clone();
-    bob.join(&channel).await.map_err(Failed::from)?;
+    bob.join(&channel).await?;
     let joined = bob.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.as_ref(), channel);
     assert_eq!(joined.nick, bob_nick);
     assert!(joined.is_self);
 
-    alice.join(&channel).await.map_err(Failed::from)?;
+    alice.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.as_ref(), channel);
     assert_eq!(joined.nick, alice_nick);
@@ -53,7 +53,7 @@ async fn extended_join(context: Scenario) -> ScenarioResult {
             .is_some()
     );
     bob.expect_none(Event::as_joined).await?;
-    Ok(Completion::Completed)
+    Ok(())
 }
 
 /// records complete userhosts from the initial names reply
@@ -61,15 +61,15 @@ async fn extended_join(context: Scenario) -> ScenarioResult {
     requires(caps = ["userhost-in-names"]),
     covers = ["base.names.basic", "ircv3.userhost-in-names"]
 )]
-async fn userhost_in_names(context: Scenario) -> ScenarioResult {
+async fn userhost_in_names(context: Scenario) -> papo_testing::Result<()> {
     let alice = context.connect("alice").await?;
     let bob = context.connect("bob").await?;
     let channel = context.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
-    alice.join(&channel).await.map_err(Failed::from)?;
+    alice.join(&channel).await?;
 
-    bob.join(&channel).await.map_err(Failed::from)?;
+    bob.join(&channel).await?;
 
     let bob_state = bob.state();
     let observed = bob_state.user(&alice_nick).unwrap();
@@ -90,7 +90,7 @@ async fn userhost_in_names(context: Scenario) -> ScenarioResult {
             .member(&bob_nick)
             .is_some()
     );
-    Ok(Completion::Completed)
+    Ok(())
 }
 
 /// returns a complete identity from an extended WHO query
@@ -98,13 +98,13 @@ async fn userhost_in_names(context: Scenario) -> ScenarioResult {
     requires(isupport = ["WHOX"]),
     covers = ["base.who.whox-extended", "ircv3.whox"]
 )]
-async fn whox(context: Scenario) -> ScenarioResult {
+async fn whox(context: Scenario) -> papo_testing::Result<()> {
     let alice = context
         .connect_with(context.configure("alice").realname("Alice Example"))
         .await?;
     let nick = alice.nick();
 
-    let entries = alice.who(nick.as_ref()).await.map_err(Failed::from)?;
+    let entries = alice.who(nick.as_ref()).await?;
     let entry = entries
         .iter()
         .find(|entry| alice.state().casemapping().eq(&entry.nick, &nick))
@@ -116,7 +116,7 @@ async fn whox(context: Scenario) -> ScenarioResult {
     assert_eq!(entry.realname, "Alice Example");
     assert!(!entry.away);
     assert!(!entry.is_oper);
-    Ok(Completion::Completed)
+    Ok(())
 }
 
 /// records every advertised membership prefix
