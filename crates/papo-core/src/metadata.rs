@@ -2,7 +2,7 @@ use web_time::Instant;
 
 use papo_proto::{Message, MetadataKey};
 
-use crate::{Capabilities, Feature, RequestError, RequestId, Session};
+use crate::{Capabilities, Feature, RequestError, RequestId, Session, cap};
 
 /// One server-returned metadata value.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -78,8 +78,8 @@ pub struct MetadataLimits {
 impl MetadataLimits {
     pub(crate) fn from_caps(caps: &Capabilities) -> Option<Self> {
         let value = caps
-            .get("draft/metadata-3")
-            .or_else(|| caps.get("draft/metadata-2"))?;
+            .get(cap::canonical(cap::METADATA))
+            .or_else(|| caps.get(cap::METADATA))?;
         Some(Self::parse(value.as_deref()))
     }
 

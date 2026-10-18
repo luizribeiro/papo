@@ -48,10 +48,9 @@ impl Caps {
                 if message.param(2) != Some("*")
                     && let Some(requested) = self.pending.pop_front()
                 {
-                    let sasl_acked = requested.iter().any(|name| name == "sasl");
-                    let isupport_acked = requested
-                        .iter()
-                        .any(|name| name == "draft/extended-isupport");
+                    let sasl_acked = requested.iter().any(|name| name == cap::SASL);
+                    let isupport_acked =
+                        requested.iter().any(|name| name == cap::EXTENDED_ISUPPORT);
                     let mut added = Capabilities::new();
                     for name in requested {
                         let value = self.advertised.get(&name).cloned().flatten();
@@ -61,7 +60,7 @@ impl Caps {
                     if sasl_acked {
                         sasl.handle_cap_ack(
                             now,
-                            self.enabled.get("sasl").and_then(Option::as_deref),
+                            self.enabled.get(cap::SASL).and_then(Option::as_deref),
                             outbox,
                         );
                     }
@@ -79,7 +78,7 @@ impl Caps {
                 if self
                     .pending
                     .pop_front()
-                    .is_some_and(|request| request.iter().any(|name| name == "sasl"))
+                    .is_some_and(|request| request.iter().any(|name| name == cap::SASL))
                 {
                     sasl.unavailable("the server rejected the sasl capability", outbox);
                 }
@@ -108,14 +107,14 @@ impl Caps {
         let mut removed = Capabilities::new();
         let mut sasl_removed = false;
         for name in message.param(2).unwrap_or("").split_whitespace() {
-            if name == "sts" {
+            if name == cap::STS {
                 continue;
             }
             self.advertised.remove(name);
             if let Some(value) = self.enabled.remove(name) {
                 removed.insert(name.to_owned(), value);
             }
-            if name == "sasl" {
+            if name == cap::SASL {
                 sasl_removed = true;
             }
         }
@@ -154,7 +153,7 @@ impl Caps {
                 updated.insert(name.to_owned(), value);
             }
         }
-        if announced.contains("sts") && self.handle_sts(connection, outbox) {
+        if announced.contains(cap::STS) && self.handle_sts(connection, outbox) {
             return;
         }
         if !updated.is_empty() {
@@ -169,7 +168,7 @@ impl Caps {
             .wanted_caps
             .iter()
             .map(String::as_str)
-            .chain(config.sasl.as_ref().map(|_| "sasl"))
+            .chain(config.sasl.as_ref().map(|_| cap::SASL))
             .filter(|wanted| cap::requestable(wanted, &self.advertised, &config.wanted_caps))
             .filter(|wanted| !config.cap_disabled(wanted))
             .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
@@ -206,7 +205,7 @@ impl Caps {
         if self.handle_sts(connection, outbox) {
             return;
         }
-        if config.sasl.is_none() && self.advertised.contains_key("soju.im/account-required") {
+        if config.sasl.is_none() && self.advertised.contains_key(cap::ACCOUNT_REQUIRED) {
             outbox.close(
                 CloseKind::AccountRequired,
                 "the server requires an authenticated account".to_owned(),
@@ -215,13 +214,13 @@ impl Caps {
         }
         self.negotiating = true;
 
-        self.enabled.insert("cap-notify".to_owned(), None);
+        self.enabled.insert(cap::CAP_NOTIFY.to_owned(), None);
         let mut seen = BTreeSet::new();
         let wanted = config
             .wanted_caps
             .iter()
             .map(String::as_str)
-            .chain(config.sasl.as_ref().map(|_| "sasl"));
+            .chain(config.sasl.as_ref().map(|_| cap::SASL));
         let requested = wanted
             .filter(|wanted| cap::requestable(wanted, &self.advertised, &config.wanted_caps))
             .filter(|wanted| !config.cap_disabled(wanted))
@@ -230,7 +229,7 @@ impl Caps {
             .map(str::to_owned)
             .collect::<Vec<_>>();
         let requests = split_requests(requested);
-        if config.sasl.is_some() && !self.advertised.contains_key("sasl") {
+        if config.sasl.is_some() && !self.advertised.contains_key(cap::SASL) {
             sasl.unavailable("the server did not advertise sasl", outbox);
         }
         if !requests.is_empty() {
@@ -251,11 +250,14 @@ impl Caps {
     pub(super) fn maybe_finish(
         &mut self,
         authentication_finished: bool,
-        bouncer_network: Option<&str>,
+        #[cfg_attr(not(feature = "unstable"), allow(unused_variables))] bouncer_network: Option<
+            &str,
+        >,
         outbox: &mut Outbox,
     ) {
         if self.negotiating && authentication_finished && self.pending.is_empty() && !self.ended {
-            if self.enabled.contains_key("soju.im/bouncer-networks")
+            #[cfg(feature = "unstable")]
+            if self.enabled.contains_key(cap::BOUNCER_NETWORKS)
                 && let Some(id) = bouncer_network
             {
                 outbox.transmit_immediate("BOUNCER", ["BIND", id]);
@@ -286,7 +288,7 @@ impl Caps {
     }
 
     fn handle_sts(&self, connection: &Connection, outbox: &mut Outbox) -> bool {
-        let Some(value) = self.advertised.get("sts").and_then(Option::as_deref) else {
+        let Some(value) = self.advertised.get(cap::STS).and_then(Option::as_deref) else {
             return false;
         };
         let Ok(directive) = StsDirective::parse(value) else {

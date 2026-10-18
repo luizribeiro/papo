@@ -158,6 +158,18 @@ pub const fn is_known(name: &str) -> bool {
     !same(canonical(name), name) || known_primary(name)
 }
 
+pub(crate) const fn alias(name: &str, index: usize) -> &'static str {
+    let canonical = canonical(name);
+    let mut entry = 0;
+    while entry < ALL.len() {
+        if same(canonical, ALL[entry].name) {
+            return ALL[entry].aliases[index];
+        }
+        entry += 1;
+    }
+    panic!("capability alias requested for an unknown name")
+}
+
 const fn known_primary(name: &str) -> bool {
     let mut index = 0;
     while index < ALL.len() {

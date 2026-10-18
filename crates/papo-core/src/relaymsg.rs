@@ -2,7 +2,7 @@ use web_time::Instant;
 
 use papo_proto::Message;
 
-use crate::{Feature, RequestError, RequestId, Session};
+use crate::{Feature, RequestError, RequestId, Session, cap};
 
 impl Session {
     /// Sends a message attributed to a nickname on an external relay.
@@ -23,7 +23,7 @@ impl Session {
         let separators = self
             .caps
             .enabled()
-            .get("draft/relaymsg")
+            .get(cap::RELAYMSG)
             .and_then(Option::as_deref)
             .unwrap_or("/");
         if !nick_with_separator

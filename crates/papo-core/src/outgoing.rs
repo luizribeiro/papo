@@ -1,4 +1,4 @@
-use crate::{Capabilities, State};
+use crate::{Capabilities, State, cap};
 
 const UNKNOWN_HOST_LEN: usize = 63;
 
@@ -42,7 +42,7 @@ pub(super) struct MultilineLimits {
 }
 
 pub(super) fn multiline_limits(caps: &Capabilities) -> Option<MultilineLimits> {
-    let value = caps.get("draft/multiline")?.as_deref()?;
+    let value = caps.get(cap::MULTILINE)?.as_deref()?;
     let number = |name| {
         value.split(',').find_map(|item| {
             let (key, value) = item.split_once('=')?;
