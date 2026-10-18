@@ -69,6 +69,7 @@ pub(super) fn all() -> Vec<ScenarioSpec> {
         metadata::__papo_scenario_spec_channel_rename_error,
         metadata::__papo_scenario_spec_draft_channel_rename,
         presence::__papo_scenario_spec_account_notify,
+        presence::__papo_scenario_spec_account_tag,
         presence::__papo_scenario_spec_away_notify,
         presence::__papo_scenario_spec_setname,
         presence::__papo_scenario_spec_chghost,
@@ -103,6 +104,7 @@ mod tests {
             [
                 "account_notify",
                 "account_registration_error",
+                "account_tag",
                 "away_notify",
                 "batch",
                 "bot_mode",

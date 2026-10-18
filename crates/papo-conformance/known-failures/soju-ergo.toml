@@ -1,5 +1,5 @@
-[account_notify]
-reason = "soju does not relay upstream account-notify changes between attached clients"
+[account_tag]
+reason = "soju does not relay upstream account identity into shared-channel state and message tags"
 
 [away_notify]
 reason = "soju does not relay upstream away-notify changes between attached clients"

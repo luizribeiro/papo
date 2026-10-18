@@ -1,4 +1,7 @@
-use papo::{Account, Away, Error, Event, Origin, Refusal, Source};
+use papo::{
+    Account, AccountName, AccountRegistration, Away, Error, Event, NewAccount, Origin, Refusal,
+    Source,
+};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -6,9 +9,9 @@ use crate::Scenario;
 /// delivers an authenticated sender account
 #[scenario(
     requires(caps = ["account-tag", "account-notify"]),
-    covers = ["ircv3.account-tag.channel"]
+    covers = ["ircv3.account-tag"]
 )]
-async fn account_notify(context: Scenario) -> papo_testing::Result<()> {
+async fn account_tag(context: Scenario) -> papo_testing::Result<()> {
     let alice = context.connect_as_account("alice").await?;
     let mut bob = context.connect("bob").await?;
     let account = alice.state().account().unwrap().clone();
@@ -40,6 +43,47 @@ async fn account_notify(context: Scenario) -> papo_testing::Result<()> {
     ));
     bob.expect_none(|event| event.as_message().filter(|message| message.text() == text))
         .await?;
+    Ok(())
+}
+
+/// notifies a shared-channel peer when a user authenticates an account
+#[scenario(
+    requires(caps = ["account-notify", "draft/account-registration"]),
+    covers = ["ircv3.account-notify"]
+)]
+async fn account_notify(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context
+        .connect_with(
+            context
+                .configure("alice")?
+                .request_caps(["draft/account-registration"]),
+        )
+        .await?;
+    let mut bob = context.connect("bob").await?;
+    let alice_nick = alice.nick();
+    let channel = context.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    let account = AccountName::from(alice_nick.as_ref());
+
+    let outcome = alice
+        .register_account(NewAccount::new("q7Hx-2mZp_9vLcT4wRfB").account(account.clone()))
+        .await?;
+    assert!(matches!(
+        outcome,
+        AccountRegistration::Registered { account: ref registered } if registered == &account
+    ));
+    let changed = bob.wait_for(Event::as_account_changed).await?;
+
+    assert_eq!(changed.nick, alice_nick);
+    assert_eq!(changed.account.as_ref(), Some(&account));
+    assert_eq!(alice.state().account(), Some(&account));
+    assert!(matches!(
+        bob.state().user(&alice_nick).unwrap().account(),
+        Account::LoggedIn(observed) if observed == &account
+    ));
+    alice.wait_for(Event::as_account_registration).await?;
+    bob.expect_none(Event::as_account_changed).await?;
     Ok(())
 }
 
