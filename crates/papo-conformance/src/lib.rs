@@ -9,6 +9,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     env, fs,
     future::Future,
+    ops::Deref,
     path::Path,
     pin::Pin,
     process::{self, ExitCode},
@@ -55,6 +56,7 @@ struct CapRequirement {
 struct Scenario<S = ServerInfo> {
     server: S,
     name: &'static str,
+    fixture: Option<papo_testing::Scenario>,
 }
 
 struct Connection {
@@ -162,6 +164,7 @@ fn trial(
     }
     Trial::ignorable_test(spec.name, move || {
         let result = runtime().block_on((spec.run)(Scenario {
+            fixture: Some(papo_testing::Scenario::new(server.clone())),
             server,
             name: spec.name,
         }));
@@ -232,6 +235,15 @@ impl<S> Scenario<S> {
 }
 
 impl Scenario {
+    async fn quit_all(&self) -> Result<(), Failed> {
+        self.fixture
+            .as_ref()
+            .expect("live scenarios have a fixture")
+            .quit_all()
+            .await
+            .map_err(Failed::from)
+    }
+
     async fn client(&self, nick: &str) -> Result<RegisteredClient, Failed> {
         self.client_with(nick, None).await
     }
@@ -313,6 +325,16 @@ impl Scenario {
         limit: Duration,
     ) -> Result<Event, Failed> {
         expect_event(events, matcher, limit).await
+    }
+}
+
+impl Deref for Scenario {
+    type Target = papo_testing::Scenario;
+
+    fn deref(&self) -> &Self::Target {
+        self.fixture
+            .as_ref()
+            .expect("live scenarios have a fixture")
     }
 }
 
@@ -873,6 +895,7 @@ mod tests {
         let scenario = Scenario {
             server: (),
             name: "registration",
+            fixture: None,
         };
         let first = scenario.unique();
         let second = scenario.unique();

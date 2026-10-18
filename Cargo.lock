@@ -691,6 +691,7 @@ dependencies = [
  "papo-core",
  "papo-proto",
  "papo-test-server",
+ "papo-testing",
  "tokio",
  "toml",
 ]

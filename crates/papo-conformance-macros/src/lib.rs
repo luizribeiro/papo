@@ -145,7 +145,16 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
         #(const _: () = assert!(papo_core::cap::is_known(#cap_names), "unknown capability");)*
 
         fn #wrapper(context: crate::Scenario) -> crate::ScenarioFuture {
-            Box::pin(#name(context))
+            let cleanup = context.clone();
+            Box::pin(async move {
+                let result = #name(context).await;
+                let cleanup_result = cleanup.quit_all().await;
+                match (result, cleanup_result) {
+                    (Err(error), _) => Err(error),
+                    (Ok(_), Err(error)) => Err(error),
+                    (Ok(completion), Ok(())) => Ok(completion),
+                }
+            })
         }
 
         #[allow(non_upper_case_globals)]
@@ -224,6 +233,7 @@ mod tests {
         assert!(output.contains("authenticates with a real SCRAM exchange"));
         assert!(output.contains("SCRAM-SHA-256"));
         assert!(output.contains("papo_core :: cap :: is_known (\"sasl\")"));
+        assert!(output.contains("cleanup . quit_all ()"));
     }
 
     #[test]
