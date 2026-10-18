@@ -1249,6 +1249,38 @@ async fn account_required_cap_rejects_registration_without_sasl() {
     ));
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn password_numeric_is_a_generic_registration_rejection() {
+    let (client_stream, mut server) = tokio::io::duplex(4096);
+    let (registration, waiter) = tokio::sync::oneshot::channel();
+    let (_client, _events, driver) = Driver::with_stream_and_registration(
+        client_stream,
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        Some(registration),
+        super::PostRegistration::default(),
+    );
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b":ergo.test 464 papo-driver :Password incorrect\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        within(waiter).await.unwrap(),
+        Err(Error::Registration(crate::RegistrationError::Rejected { message }))
+            if message == "Password incorrect"
+    ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Registration(
+            crate::RegistrationError::Rejected { .. }
+        ))
+    ));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn required_sasl_failure_does_not_reconnect() {
     let settings = config()

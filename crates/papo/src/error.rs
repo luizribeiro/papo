@@ -252,9 +252,6 @@ pub enum RegistrationError {
     /// [`crate::State::isupport`] exposes the corresponding ISUPPORT indication when supplied.
     #[error("the server requires an authenticated account")]
     AccountRequired,
-    /// The server rejected its connection password.
-    #[error("the server password is incorrect")]
-    PasswordIncorrect,
     /// The server banned this connection.
     #[error("the server banned this connection: {message}")]
     Banned {
@@ -414,7 +411,7 @@ impl Error {
             papo_core::CloseKind::SaslFailed => {
                 Self::Registration(RegistrationError::Sasl { message })
             }
-            papo_core::CloseKind::WebIrcRejected => {
+            papo_core::CloseKind::WebIrcRejected | papo_core::CloseKind::PasswordIncorrect => {
                 Self::Registration(RegistrationError::Rejected { message })
             }
             papo_core::CloseKind::RegistrationTimeout => {
@@ -422,9 +419,6 @@ impl Error {
             }
             papo_core::CloseKind::AccountRequired => {
                 Self::Registration(RegistrationError::AccountRequired)
-            }
-            papo_core::CloseKind::PasswordIncorrect => {
-                Self::Registration(RegistrationError::PasswordIncorrect)
             }
             papo_core::CloseKind::Banned => {
                 Self::Registration(RegistrationError::Banned { message })
