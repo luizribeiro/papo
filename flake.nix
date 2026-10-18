@@ -89,8 +89,12 @@
             (craneLib.filterCargoSources path type)
             || pkgs.lib.hasInfix "/tests/data/" path
             || pkgs.lib.hasInfix "/known-failures/" path
+            || pkgs.lib.hasSuffix "/crates/papo-conformance/coverage-checklist.toml" path
+            || pkgs.lib.hasSuffix "/crates/papo-conformance/coverage-waivers.toml" path
             || pkgs.lib.hasInfix "/crates/papo-conformance/scripts/" path
+            || pkgs.lib.hasSuffix "/docs/conformance-coverage.md" path
             || pkgs.lib.hasSuffix "/docs/conformance-matrix.md" path
+            || pkgs.lib.hasSuffix "/scripts/conformance-coverage" path
             || pkgs.lib.hasSuffix "/scripts/conformance-matrix" path
             || pkgs.lib.hasSuffix "/nix" path
             || pkgs.lib.hasInfix "/nix/" path;
@@ -551,6 +555,19 @@
           profile-ergo-default = profileConformance "ergo-default";
           profile-ergo-persistent = profileConformance "ergo-persistent";
           profile-soju-ergo = profileConformance "soju-ergo";
+          conformance-coverage = craneLib.mkCargoDerivation (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              pname = "papo-conformance-coverage";
+              nativeBuildInputs = [ pkgs.python3 ];
+              buildPhaseCargoCommand = ''
+                python scripts/conformance-coverage --output generated-conformance-coverage.md
+                cmp docs/conformance-coverage.md generated-conformance-coverage.md
+              '';
+              installPhaseCommand = "mkdir -p $out";
+            }
+          );
           conformance-matrix = craneLib.mkCargoDerivation (
             craneArgs
             // {
