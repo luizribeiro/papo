@@ -2,8 +2,8 @@ use libtest_mimic::Failed;
 use papo::{Account, Away, Event, Origin, Source};
 use papo_conformance_macros::scenario;
 
-use super::support::{EXPECT_TIMEOUT, close_pair, joined_pair};
-use crate::{Scenario, ScenarioResult, required_environment};
+use super::support::{EXPECT_TIMEOUT, close_pair};
+use crate::{Scenario, ScenarioResult};
 
 /// delivers an authenticated sender account
 #[scenario(
@@ -115,38 +115,53 @@ async fn setname(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// notifies channel peers of operator host changes
-#[scenario(requires(caps = ["chghost"]))]
-async fn chghost(context: Scenario) -> ScenarioResult {
-    let oper = match required_environment("PAPO_TEST_OPER") {
-        Ok(oper) => oper,
-        Err(ignored) => return Ok(ignored),
+/// updates username and host state for the target and a shared-channel peer
+#[scenario(
+    requires(caps = ["chghost"]),
+    covers = ["base.oper.success", "ircv3.chghost"]
+)]
+async fn chghost(context: Scenario) -> papo_testing::Result<()> {
+    let Ok(oper) = std::env::var("PAPO_TEST_OPER") else {
+        return context.skip("PAPO_TEST_OPER is not set up");
     };
     let Some((oper_name, password)) = oper.split_once(':') else {
         return Err("PAPO_TEST_OPER must contain name:password".into());
     };
-    let (mut observer, operator, _channel) = joined_pair(&context).await?;
-    operator
-        .client
-        .oper(oper_name, password)
-        .await
-        .map_err(Failed::from)?;
-    operator
-        .client
-        .send_command(
-            "CHGHOST",
-            [observer.welcome.nick.as_str(), "conformance.example"],
-        )
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut observer.events,
-            |event| matches!(event, Event::HostChanged(changed) if changed.nick == observer.welcome.nick.as_str() && changed.host == "conformance.example"),
-            EXPECT_TIMEOUT,
-        )
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let bob_nick = bob.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    let username = bob
+        .state()
+        .user(&bob_nick)
+        .unwrap()
+        .username()
+        .unwrap()
+        .to_owned();
+
+    alice.oper(oper_name, password).await?;
+    alice
+        .send_command("CHGHOST", [bob_nick.as_ref(), "conformance.example"])
         .await?;
-    close_pair(observer, operator).await
+    let own = bob.wait_for(Event::as_host_changed).await?;
+    let observed = alice.wait_for(Event::as_host_changed).await?;
+
+    for changed in [&own, &observed] {
+        assert_eq!(changed.nick, bob_nick);
+        assert_eq!(changed.user, username);
+        assert_eq!(changed.host, "conformance.example");
+    }
+    for peer in [&alice, &bob] {
+        let state = peer.state();
+        let user = state.user(&bob_nick).unwrap();
+        assert_eq!(user.username(), Some(username.as_str()));
+        assert_eq!(user.host(), Some("conformance.example"));
+    }
+    alice.expect_none(Event::as_host_changed).await?;
+    bob.expect_none(Event::as_host_changed).await?;
+    Ok(())
 }
 
 /// reports monitored users with extended-monitor enabled
