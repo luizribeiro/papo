@@ -1,0 +1,236 @@
+use super::{
+    Account, Arc, Channel, Command, Event, Folded, Handled, Isupport, Join, Member, MessageRef,
+    Numeric, Outbox, Source, State, StateLimit, User,
+};
+
+impl State {
+    pub(super) fn handle_quit(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> Handled {
+        let Some(Source::User { nick, .. }) = message.source() else {
+            return Handled::No;
+        };
+        let ours = self.casemapping.eq(nick, &self.nick);
+        let channels = if ours {
+            self.channels
+                .values()
+                .map(|channel| channel.name.as_ref().to_owned())
+                .collect()
+        } else {
+            self.users
+                .get(&Folded::new(nick, self.casemapping))
+                .map(|user| {
+                    user.channels
+                        .iter()
+                        .map(|key| key.original().to_owned())
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        outbox.event(Event::Quit {
+            nick: nick.to_owned(),
+            reason: message.param(0).map(str::to_owned),
+            channels,
+        });
+        if ours {
+            self.channels.clear();
+            self.users.clear();
+            self.who_sweeps.clear();
+        } else {
+            self.remove_user(nick);
+        }
+        Handled::Yes
+    }
+
+    pub(super) fn handle_join(
+        &mut self,
+        message: &MessageRef<'_>,
+        join: Join<'_>,
+        isupport: &Isupport,
+        no_implicit_names: bool,
+        outbox: &mut Outbox,
+    ) -> Handled {
+        let Some(Source::User { nick, user, host }) = message.source() else {
+            return Handled::No;
+        };
+        outbox.event(Event::Joined {
+            channel: join.channel.to_owned(),
+            nick: nick.to_owned(),
+        });
+        let ours = self.casemapping.eq(nick, &self.nick);
+        if ours {
+            self.nick = nick.into();
+            if let Some(user) = user {
+                user.clone_into(&mut self.user);
+            }
+            if let Some(host) = host {
+                self.host = Some(host.to_owned());
+            }
+            if let Some(realname) = join.realname {
+                realname.clone_into(&mut self.realname);
+            }
+            let key = Folded::new(join.channel, self.casemapping);
+            if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
+                self.warn_limit(StateLimit::Channels, outbox);
+                return Handled::Yes;
+            }
+            self.channels.insert(
+                key,
+                Channel::new(join.channel, self.casemapping, isupport, false),
+            );
+        }
+        self.add_member(join.channel, nick, user, host, Vec::new(), outbox);
+        if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping))
+            && join.realname.is_some()
+        {
+            user.account = Account::from_notify(join.account);
+            user.realname = join.realname.map(str::to_owned);
+        }
+        if ours && no_implicit_names {
+            outbox.transmit("NAMES", [join.channel]);
+        }
+        Handled::Yes
+    }
+
+    pub(super) fn finish_names(
+        &mut self,
+        message: &MessageRef<'_>,
+        isupport: &Isupport,
+        no_implicit_names: bool,
+        outbox: &mut Outbox,
+    ) -> bool {
+        if message.command() != Command::Numeric(Numeric::RPL_ENDOFNAMES) {
+            return false;
+        }
+        let name = message.param(1);
+        let Some(channel) =
+            name.and_then(|name| self.channels.get_mut(&Folded::new(name, self.casemapping)))
+        else {
+            return false;
+        };
+        if no_implicit_names && !channel.names_reply_seen {
+            return true;
+        }
+        channel.synced = true;
+        if let Some(channel) = name {
+            outbox.transmit("MODE", [channel]);
+            self.start_who(channel, isupport, outbox);
+            outbox.event(Event::ChannelSynced {
+                channel: channel.to_owned(),
+            });
+        }
+        true
+    }
+
+    pub(super) fn add_member(
+        &mut self,
+        channel_name: &str,
+        nick: &str,
+        user: Option<&str>,
+        host: Option<&str>,
+        mut prefixes: Vec<char>,
+        outbox: &mut Outbox,
+    ) {
+        let mapping = self.casemapping;
+        let channel_key = Folded::new(channel_name, mapping);
+        let nick_key = Folded::new(nick, mapping);
+        let full = self.channels.get(&channel_key).is_some_and(|channel| {
+            !channel.members.contains_key(&nick_key)
+                && channel.members.len() >= self.max_members_per_channel
+        });
+        if full {
+            self.warn_limit(StateLimit::Members, outbox);
+            return;
+        }
+        if let Some(channel) = self.channels.get_mut(&channel_key) {
+            prefixes.sort_by_key(|symbol| channel.prefix_order.iter().position(|p| p == symbol));
+            prefixes.dedup();
+            channel.members.insert(
+                nick_key,
+                Member {
+                    nick: nick.into(),
+                    prefixes,
+                    prefix_order: Arc::clone(&channel.prefix_order),
+                },
+            );
+            let shared = self
+                .users
+                .entry(Folded::new(nick, mapping))
+                .or_insert_with(|| User::new(nick, user, host));
+            shared.update_userhost(user, host);
+            shared.channels.insert(Folded::new(channel_name, mapping));
+        }
+    }
+
+    pub(super) fn warn_limit(&mut self, limit: StateLimit, outbox: &mut Outbox) {
+        let first = match limit {
+            StateLimit::Channels => !std::mem::replace(&mut self.channel_limit_warned, true),
+            StateLimit::Members => !std::mem::replace(&mut self.member_limit_warned, true),
+            StateLimit::MetadataTargets | StateLimit::MetadataKeys => {
+                self.limits_warned.insert(limit)
+            }
+            #[cfg(feature = "unstable")]
+            StateLimit::BouncerNetworks => self.limits_warned.insert(limit),
+        };
+        if first {
+            outbox.event(Event::StateLimitReached { limit });
+        }
+    }
+
+    pub(super) fn remove_channel(&mut self, name: &str) {
+        let key = Folded::new(name, self.casemapping);
+        self.who_sweeps.remove(&key);
+        let Some(channel) = self.channels.remove(&key) else {
+            return;
+        };
+        for member in channel.members.keys() {
+            if let Some(user) = self.users.get_mut(member) {
+                user.channels.remove(&key);
+            }
+        }
+        self.users
+            .retain(|_, user| user.monitored || !user.channels.is_empty());
+    }
+
+    pub(super) fn remove_member(&mut self, channel: &str, nick: &str) {
+        let channel = Folded::new(channel, self.casemapping);
+        let nick = Folded::new(nick, self.casemapping);
+        if let Some(joined) = self.channels.get_mut(&channel) {
+            joined.members.remove(&nick);
+        }
+        if let Some(user) = self.users.get_mut(&nick) {
+            user.channels.remove(&channel);
+            if user.channels.is_empty() && !user.monitored {
+                self.users.remove(&nick);
+            }
+        }
+    }
+
+    pub(super) fn remove_user(&mut self, nick: &str) {
+        let key = Folded::new(nick, self.casemapping);
+        let Some(user) = self.users.remove(&key) else {
+            return;
+        };
+        for channel in user.channels {
+            if let Some(joined) = self.channels.get_mut(&channel) {
+                joined.members.remove(&key);
+            }
+        }
+    }
+
+    pub(super) fn rename_user(&mut self, old_nick: &str, new_nick: &str) {
+        let old_key = Folded::new(old_nick, self.casemapping);
+        let new_key = Folded::new(new_nick, self.casemapping);
+        let Some(mut user) = self.users.remove(&old_key) else {
+            return;
+        };
+        user.nick = new_nick.into();
+        for channel_key in &user.channels {
+            if let Some(channel) = self.channels.get_mut(channel_key)
+                && let Some(mut member) = channel.members.remove(&old_key)
+            {
+                member.nick = new_nick.into();
+                channel.members.insert(new_key.clone(), member);
+            }
+        }
+        self.users.insert(new_key, user);
+    }
+}
