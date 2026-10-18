@@ -1,8 +1,8 @@
 use libtest_mimic::Failed;
-use papo::{Account, Event};
+use papo::{Account, Event, ModeKind};
 use papo_conformance_macros::scenario;
 
-use super::support::{EXPECT_TIMEOUT, close_pair, join, joined_pair};
+use super::support::{EXPECT_TIMEOUT, close_pair, joined_pair};
 use crate::{Scenario, ScenarioResult};
 
 /// exposes the joining account and real name to every channel member
@@ -119,44 +119,54 @@ async fn whox(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// records every advertised membership prefix
-#[scenario(requires(caps = ["multi-prefix"]))]
-async fn multi_prefix(context: Scenario) -> ScenarioResult {
-    let first_nick = context.unique();
-    let second_nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let mut first = context.client(&first_nick).await?;
-    join(&context, &mut first, &channel).await?;
-    first
-        .client
-        .mode(&channel)
-        .voice(&first_nick)
-        .await
-        .map_err(Failed::from)?;
-    let casemapping = first.client.state().casemapping();
-    context
-        .expect(
-            &mut first.events,
-            |event| {
-                matches!(event, Event::ModeChanged(changed) if casemapping.eq(&changed.target, &channel))
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    let mut second = context.client(&second_nick).await?;
-    join(&context, &mut second, &channel).await?;
-    let prefixes = second
-        .client
+/// preserves every membership prefix in the joined member list
+#[scenario(
+    requires(caps = ["multi-prefix"]),
+    covers = ["base.isupport.prefix", "ircv3.multi-prefix"]
+)]
+async fn multi_prefix(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+    alice.join(&channel).await?;
+
+    alice.mode(&channel).voice(alice_nick.clone()).await?;
+    let changed = alice.wait_for(Event::as_mode_changed).await?;
+
+    assert_eq!(changed.target.as_ref(), channel);
+    assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(changed.changes.len(), 1);
+    assert!(changed.changes[0].set);
+    assert_eq!(changed.changes[0].mode, 'v');
+    let voice_rank = alice
+        .state()
+        .isupport()
+        .prefix()
+        .iter()
+        .find(|prefix| prefix.mode == 'v')
+        .unwrap()
+        .rank;
+    assert_eq!(changed.changes[0].kind, ModeKind::Prefix(voice_rank));
+    assert_eq!(changed.changes[0].arg.as_deref(), Some(alice_nick.as_ref()));
+    bob.join(&channel).await?;
+    let prefixes = bob
         .state()
         .channel(&channel)
-        .and_then(|channel| channel.member(&first_nick))
+        .and_then(|channel| channel.member(&alice_nick))
         .map(|member| member.prefixes().to_vec());
-    if prefixes.as_deref() != Some(&['@', '+']) {
-        return Err(
-            format!("NAMES did not preserve operator and voice prefixes: {prefixes:?}").into(),
-        );
-    }
-    close_pair(first, second).await
+    assert_eq!(prefixes.as_deref(), Some(&['@', '+'][..]));
+    assert!(
+        alice
+            .state()
+            .channel(&channel)
+            .unwrap()
+            .member(&bob_nick)
+            .is_some()
+    );
+    bob.expect_none(Event::as_mode_changed).await?;
+    Ok(())
 }
 
 /// notifies channel members about invitations
