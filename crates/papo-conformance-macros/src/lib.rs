@@ -107,17 +107,28 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
     let name = &function.sig.ident;
     let wrapper = format_ident!("__papo_scenario_{name}");
     let spec = format_ident!("__papo_scenario_spec_{name}");
-    let caps = args.caps.unwrap_or_default().into_iter().map(|cap| {
-        let cap = cap.value();
-        let (name, value) = cap
-            .split_once('=')
-            .map_or((cap.as_str(), None), |(name, value)| (name, Some(value)));
-        let value = value.map_or_else(|| quote!(None), |value| quote!(Some(#value)));
-        quote!(crate::CapRequirement { name: #name, value: #value })
-    });
+    let (cap_names, caps): (Vec<_>, Vec<_>) = args
+        .caps
+        .unwrap_or_default()
+        .into_iter()
+        .map(|cap| {
+            let text = cap.value();
+            let (name, value) = text
+                .split_once('=')
+                .map_or((text.as_str(), None), |(name, value)| (name, Some(value)));
+            let name_literal = LitStr::new(name, cap.span());
+            let value = value.map_or_else(|| quote!(None), |value| quote!(Some(#value)));
+            (
+                name_literal,
+                quote!(crate::CapRequirement { name: #name, value: #value }),
+            )
+        })
+        .unzip();
     let isupport = args.isupport.unwrap_or_default();
     Ok(quote! {
         #function
+
+        #(const _: () = assert!(papo_core::cap::is_known(#cap_names), "unknown capability");)*
 
         fn #wrapper(context: crate::Scenario) -> crate::ScenarioFuture {
             Box::pin(#name(context))
@@ -194,6 +205,7 @@ mod tests {
         assert!(output.contains("__papo_scenario_spec_sasl_scram"));
         assert!(output.contains("authenticates with a real SCRAM exchange"));
         assert!(output.contains("SCRAM-SHA-256"));
+        assert!(output.contains("papo_core :: cap :: is_known (\"sasl\")"));
     }
 
     #[test]
