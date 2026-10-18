@@ -363,6 +363,14 @@ mod tests {
     }
 
     #[test]
+    fn displays_a_stable_server_refusal_message() {
+        assert_eq!(
+            Refusal::ChannelOperatorPrivilegesNeeded.to_string(),
+            "the IRC server refused the request"
+        );
+    }
+
+    #[test]
     fn classifies_account_metadata_and_rename_failures() {
         macro_rules! cases {
             ($($command:literal $code:literal => $variant:ident),* $(,)?) => {$(
@@ -453,7 +461,9 @@ mod tests {
             "RELAYMSG" "BANNED" => BannedRelaySender,
             "WEBPUSH" "INVALID_PARAMS" => InvalidWebPushParameters,
             "WEBPUSH" "MAX_REGISTRATIONS" => WebPushRegistrationLimit,
+            "PERSISTENCE" "ACCOUNT_REQUIRED" => AccountRequired,
             "PERSISTENCE" "INVALID_PARAMETERS" => InvalidPersistenceParameters,
+            "PERSISTENCE" "INTERNAL_ERROR" => InternalError,
         );
     }
 }
