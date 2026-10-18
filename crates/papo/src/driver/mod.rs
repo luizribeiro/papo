@@ -1493,4 +1493,7 @@ fn now() -> Instant {
 pub(crate) mod test_support;
 
 #[cfg(test)]
+mod proptests;
+
+#[cfg(test)]
 mod tests;

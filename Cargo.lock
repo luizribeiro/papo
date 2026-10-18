@@ -636,6 +636,7 @@ dependencies = [
  "papo-core",
  "papo-proto",
  "papo-test-server",
+ "proptest",
  "rustls",
  "rustls-platform-verifier",
  "serde",

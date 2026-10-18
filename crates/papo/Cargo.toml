@@ -59,6 +59,7 @@ web-sys = { version = "0.3.106", features = ["BinaryType", "CloseEvent", "ErrorE
 
 [dev-dependencies]
 papo-test-server = { path = "../papo-test-server", version = "=0.0.0" }
+proptest = { version = "1.9", default-features = false, features = ["std"] }
 tokio = { version = "1.53.3", features = ["test-util"] }
 
 [lints]
