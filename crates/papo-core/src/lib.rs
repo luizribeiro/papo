@@ -117,7 +117,7 @@ pub const DEFAULT_WANTED_CAPS: &[&str] = &[
     "soju.im/bouncer-networks",
     #[cfg(feature = "unstable")]
     "soju.im/bouncer-networks-notify",
-    "draft/chathistory",
+    "chathistory",
     "draft/read-marker",
     #[cfg(feature = "unstable")]
     "draft/persistence",

@@ -105,7 +105,7 @@ fn defaults_cover_every_implemented_negotiable_capability() {
             "soju.im/bouncer-networks",
             #[cfg(feature = "unstable")]
             "soju.im/bouncer-networks-notify",
-            "draft/chathistory",
+            "chathistory",
             "draft/read-marker",
             #[cfg(feature = "unstable")]
             "draft/persistence",
@@ -125,6 +125,13 @@ fn defaults_cover_every_implemented_negotiable_capability() {
 
 #[test]
 fn capability_alias_resolution_stays_in_its_namespace() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server("CAP * LS :chathistory")
+        .client("CAP REQ :chathistory")
+        .server("CAP * ACK :chathistory")
+        .client("CAP END");
+
     Transcript::new(Config::default().wanted_caps(["draft/chathistory"]))
         .connect_default()
         .server("CAP * LS :chathistory")
