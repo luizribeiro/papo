@@ -78,21 +78,53 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
         )
         .await;
         wait_for(&mut events, |event| joined(event, &nick, &channel)).await;
-        let messages = wait_history(&mut events, &channel).await;
-        let missed = messages
-            .iter()
+        let history = wait_history(&mut events, &channel).await;
+        let missed = history
+            .messages()
             .filter(|message| message.text().contains("missed during the outage"))
             .collect::<Vec<_>>();
-        assert_eq!(missed.len(), 2);
+        assert_eq!(missed.len(), 1);
         assert!(
             missed
                 .iter()
                 .all(|message| message.origin() == Origin::History)
         );
+        let delivered_ids = history
+            .messages()
+            .filter_map(|message| message.msgid().map(str::to_owned))
+            .collect::<Vec<_>>();
+        reconnect_and_rejoin(&client, &mut events, &nick, &channel).await;
+        let repeated = wait_history(&mut events, &channel).await;
+        assert!(
+            repeated.messages().all(|message| {
+                !message.text().contains("missed during the outage")
+                    && message
+                        .msgid()
+                        .is_none_or(|msgid| !delivered_ids.iter().any(|seen| seen == msgid))
+            }),
+            "repeated catch-up item: {:#?}",
+            repeated.items,
+        );
         poster.quit("messages delivered").await.unwrap();
         client.quit("reconnect test complete").await.unwrap();
     })
     .await;
+}
+
+async fn reconnect_and_rejoin(
+    client: &Client,
+    events: &mut papo::Events,
+    nick: &str,
+    channel: &str,
+) {
+    client.reconnect().await.unwrap();
+    wait_for(events, |event| matches!(event, Event::Disconnected(_))).await;
+    wait_for(
+        events,
+        |event| matches!(event, Event::Registered(registered) if registered.reconnected),
+    )
+    .await;
+    wait_for(events, |event| joined(event, nick, channel)).await;
 }
 
 async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
@@ -116,17 +148,13 @@ async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
         .await
         .unwrap();
     poster
-        .privmsg(channel, "also missed during the outage")
-        .await
-        .unwrap();
-    poster
 }
 
-async fn wait_history(events: &mut papo::Events, target: &str) -> Vec<papo::Message> {
+async fn wait_history(events: &mut papo::Events, target: &str) -> papo::HistoryPage {
     loop {
         match events.next().await {
             Some(Event::History(history)) if history.target == target => {
-                return history.messages().cloned().collect();
+                return *history;
             }
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected: {disconnected}")
