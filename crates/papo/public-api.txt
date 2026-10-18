@@ -605,7 +605,6 @@ pub papo::InvalidInput::InvalidName
 pub papo::InvalidInput::InvalidName::name: alloc::string::String
 pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
-pub papo::InvalidInput::MetadataKey
 pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize

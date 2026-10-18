@@ -198,7 +198,10 @@ fn rejects_invalid_keys_values_and_subscription_counts_locally() {
                         keys: vec!["Avatar".into()],
                     },
                 ),
-                Err(RequestError::InvalidMetadataKey)
+                Err(RequestError::InvalidMetadataKey {
+                    key: "Avatar".into(),
+                    reason: papo_proto::InvalidIdentifier::InvalidCharacter('A'),
+                })
             );
             assert_eq!(
                 session.metadata(

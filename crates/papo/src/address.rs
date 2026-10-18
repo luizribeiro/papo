@@ -45,11 +45,12 @@ pub enum InvalidInput {
     #[error("invalid IRC message: {0}")]
     InvalidMessage(String),
     /// An IRC name is invalid in its protocol context.
-    #[error("invalid IRC name {name:?}: {reason}")]
+    #[error("invalid IRC name {name:?}")]
     InvalidName {
         /// The rejected name.
         name: String,
         /// Why the protocol rejected the name.
+        #[source]
         reason: crate::InvalidIdentifier,
     },
     /// Outgoing chat text has no nonempty lines.
@@ -72,9 +73,6 @@ pub enum InvalidInput {
     /// The server requires an account name to match the current nickname.
     #[error("the server does not support a custom account name")]
     AccountNameMustMatchNick,
-    /// A metadata key does not follow the negotiated syntax.
-    #[error("invalid metadata key")]
-    MetadataKey,
     /// A metadata value exceeds the server's advertised byte limit.
     #[error("metadata value length {actual} exceeds limit {maximum}")]
     MetadataValueTooLong {

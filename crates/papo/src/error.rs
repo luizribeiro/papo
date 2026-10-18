@@ -477,7 +477,9 @@ impl Error {
             Request::CustomAccountNameUnsupported => {
                 Self::InvalidInput(InvalidInput::AccountNameMustMatchNick)
             }
-            Request::InvalidMetadataKey => Self::InvalidInput(InvalidInput::MetadataKey),
+            Request::InvalidMetadataKey { key, reason } => {
+                Self::InvalidInput(InvalidInput::invalid_name(key, reason))
+            }
             Request::MetadataValueTooLong { maximum, actual } => {
                 Self::InvalidInput(InvalidInput::MetadataValueTooLong { maximum, actual })
             }

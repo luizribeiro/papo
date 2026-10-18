@@ -635,7 +635,6 @@ pub papo::InvalidInput::InvalidPort(alloc::string::String)
 pub papo::InvalidInput::InvalidRelayNickname
 pub papo::InvalidInput::InvalidWebPushEndpoint
 pub papo::InvalidInput::InvalidWebPushKey
-pub papo::InvalidInput::MetadataKey
 pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize

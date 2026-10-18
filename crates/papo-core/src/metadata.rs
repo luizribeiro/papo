@@ -1,6 +1,6 @@
 use web_time::Instant;
 
-use papo_proto::Message;
+use papo_proto::{Message, MetadataKey};
 
 use crate::{Capabilities, Feature, RequestError, RequestId, Session};
 
@@ -157,15 +157,21 @@ impl Session {
 }
 
 fn validate_keys(keys: &[String]) -> Result<(), RequestError> {
-    (!keys.is_empty()
-        && keys.iter().all(|key| {
-            !key.is_empty()
-                && key.bytes().all(|byte| {
-                    byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"_./-".contains(&byte)
-                })
-        }))
-    .then_some(())
-    .ok_or(RequestError::InvalidMetadataKey)
+    if keys.is_empty() {
+        return Err(RequestError::InvalidMetadataKey {
+            key: String::new(),
+            reason: papo_proto::InvalidIdentifier::Empty,
+        });
+    }
+    for key in keys {
+        if let Err(reason) = MetadataKey::from(key.as_str()).check() {
+            return Err(RequestError::InvalidMetadataKey {
+                key: key.clone(),
+                reason,
+            });
+        }
+    }
+    Ok(())
 }
 
 fn validate_subscriptions(

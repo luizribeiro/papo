@@ -1258,7 +1258,7 @@ pub struct Redacted {
 }
 
 /// A failure to queue a request.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum RequestError {
     /// The IRC message could not be represented on the wire.
@@ -1277,8 +1277,13 @@ pub enum RequestError {
     EmailRequired,
     /// The server requires the account name to match the current nickname.
     CustomAccountNameUnsupported,
-    /// A metadata key is empty or contains a character outside `[a-z0-9_./-]`.
-    InvalidMetadataKey,
+    /// A metadata key is invalid.
+    InvalidMetadataKey {
+        /// The rejected key.
+        key: String,
+        /// Why the key was rejected.
+        reason: papo_proto::InvalidIdentifier,
+    },
     /// A metadata value exceeds the server's advertised byte limit.
     MetadataValueTooLong {
         /// Advertised maximum.
@@ -1345,7 +1350,9 @@ impl std::fmt::Display for RequestError {
             Self::CustomAccountNameUnsupported => {
                 formatter.write_str("server does not support a custom account name")
             }
-            Self::InvalidMetadataKey => formatter.write_str("invalid metadata key"),
+            Self::InvalidMetadataKey { key, .. } => {
+                write!(formatter, "invalid metadata key {key:?}")
+            }
             Self::MetadataValueTooLong { .. } => formatter.write_str("metadata value is too long"),
             Self::TooManyMetadataSubscriptions { .. } => {
                 formatter.write_str("too many metadata subscriptions")
@@ -1373,9 +1380,9 @@ impl std::error::Error for RequestError {
             | Self::InvalidMessageReference
             | Self::EmailRequired
             | Self::CustomAccountNameUnsupported
-            | Self::InvalidMetadataKey
             | Self::MetadataValueTooLong { .. }
             | Self::TooManyMetadataSubscriptions { .. } => None,
+            Self::InvalidMetadataKey { reason, .. } => Some(reason),
             #[cfg(feature = "unstable")]
             Self::InvalidRelayNickname => None,
             #[cfg(feature = "unstable")]
