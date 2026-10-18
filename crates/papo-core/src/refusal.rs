@@ -62,6 +62,50 @@ pub enum Refusal {
     InvalidModeParameter,
     /// The server is temporarily too busy (`263`).
     TryAgain,
+    /// The requested account name is already registered.
+    AccountExists,
+    /// The requested account name is invalid or restricted.
+    BadAccountName,
+    /// The account name must match the current nickname.
+    AccountNameMustMatchNick,
+    /// A nickname must be selected before continuing.
+    NicknameRequired,
+    /// The session is already authenticated.
+    AlreadyAuthenticated,
+    /// The password does not meet the server's strength policy.
+    WeakPassword,
+    /// The password is otherwise unacceptable.
+    UnacceptablePassword,
+    /// The server cannot send mail to the address.
+    InvalidEmail,
+    /// The email address cannot be used for registration.
+    UnacceptableEmail,
+    /// Connection registration must complete before retrying.
+    RegistrationRequired,
+    /// The verification code is invalid or expired.
+    InvalidVerificationCode,
+    /// The target is invalid for the requested operation.
+    InvalidTarget,
+    /// A metadata key does not follow the required syntax.
+    InvalidMetadataKey,
+    /// The session cannot modify the metadata key.
+    MetadataPermissionDenied,
+    /// The requested metadata key is not set.
+    MetadataKeyNotSet,
+    /// A server metadata limit was reached.
+    MetadataLimitReached,
+    /// The request is temporarily rate limited.
+    RateLimited,
+    /// The metadata subscription limit was reached.
+    TooManyMetadataSubscriptions,
+    /// The requested subcommand is not recognized.
+    InvalidSubcommand,
+    /// The supplied metadata value is invalid.
+    InvalidMetadataValue,
+    /// The destination channel name is already in use.
+    ChannelNameInUse,
+    /// The server does not permit the channel to be renamed.
+    ChannelRenameForbidden,
     /// A refusal without a more specific classification.
     ///
     /// A later minor release may refine a code currently classified as `Other`.
@@ -104,6 +148,40 @@ impl Refusal {
             _ => Self::Other,
         }
     }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn from_standard(command: &str, code: &str) -> Self {
+        let command = command.to_ascii_uppercase();
+        let code = code.to_ascii_uppercase();
+        match (command.as_str(), code.as_str()) {
+            ("REGISTER", "ACCOUNT_EXISTS") => Self::AccountExists,
+            ("REGISTER", "BAD_ACCOUNT_NAME") => Self::BadAccountName,
+            ("REGISTER", "ACCOUNT_NAME_MUST_BE_NICK" | "ACCOUNT_NAME_MUST_MATCH_NICK") => {
+                Self::AccountNameMustMatchNick
+            }
+            ("REGISTER", "NEED_NICK") => Self::NicknameRequired,
+            ("REGISTER" | "VERIFY", "ALREADY_AUTHENTICATED") => Self::AlreadyAuthenticated,
+            ("REGISTER", "WEAK_PASSWORD") => Self::WeakPassword,
+            ("REGISTER", "UNACCEPTABLE_PASSWORD") => Self::UnacceptablePassword,
+            ("REGISTER", "INVALID_EMAIL") => Self::InvalidEmail,
+            ("REGISTER", "UNACCEPTABLE_EMAIL") => Self::UnacceptableEmail,
+            ("REGISTER" | "VERIFY", "COMPLETE_CONNECTION_REQUIRED") => Self::RegistrationRequired,
+            ("VERIFY", "INVALID_CODE") => Self::InvalidVerificationCode,
+            ("REGISTER" | "VERIFY", "TEMPORARILY_UNAVAILABLE") => Self::TemporarilyUnavailable,
+            ("METADATA", "INVALID_TARGET") => Self::InvalidTarget,
+            ("METADATA", "KEY_INVALID") => Self::InvalidMetadataKey,
+            ("METADATA", "KEY_NO_PERMISSION") => Self::MetadataPermissionDenied,
+            ("METADATA", "KEY_NOT_SET") => Self::MetadataKeyNotSet,
+            ("METADATA", "LIMIT_REACHED") => Self::MetadataLimitReached,
+            ("METADATA", "RATE_LIMITED") => Self::RateLimited,
+            ("METADATA", "TOO_MANY_SUBS") => Self::TooManyMetadataSubscriptions,
+            ("METADATA", "SUBCOMMAND_INVALID") => Self::InvalidSubcommand,
+            ("METADATA", "VALUE_INVALID") => Self::InvalidMetadataValue,
+            ("RENAME", "CHANNEL_NAME_IN_USE") => Self::ChannelNameInUse,
+            ("RENAME", "CANNOT_RENAME") => Self::ChannelRenameForbidden,
+            _ => Self::Other,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -127,6 +205,44 @@ mod tests {
             481 => NoPrivileges, 482 => ChannelOperatorPrivilegesNeeded, 489 => SecureOnlyChannel,
             491 => NoOperHost, 501 => UnknownUserMode, 502 => UsersDontMatch,
             696 => InvalidModeParameter, 263 => TryAgain, 999 => Other,
+        );
+    }
+
+    #[test]
+    fn classifies_account_metadata_and_rename_failures() {
+        macro_rules! cases {
+            ($($command:literal $code:literal => $variant:ident),* $(,)?) => {$(
+                assert_eq!(Refusal::from_standard($command, $code), Refusal::$variant);
+            )*};
+        }
+        cases!(
+            "REGISTER" "ACCOUNT_EXISTS" => AccountExists,
+            "REGISTER" "BAD_ACCOUNT_NAME" => BadAccountName,
+            "REGISTER" "ACCOUNT_NAME_MUST_BE_NICK" => AccountNameMustMatchNick,
+            "REGISTER" "NEED_NICK" => NicknameRequired,
+            "VERIFY" "ALREADY_AUTHENTICATED" => AlreadyAuthenticated,
+            "REGISTER" "WEAK_PASSWORD" => WeakPassword,
+            "REGISTER" "UNACCEPTABLE_PASSWORD" => UnacceptablePassword,
+            "REGISTER" "INVALID_EMAIL" => InvalidEmail,
+            "REGISTER" "UNACCEPTABLE_EMAIL" => UnacceptableEmail,
+            "VERIFY" "COMPLETE_CONNECTION_REQUIRED" => RegistrationRequired,
+            "VERIFY" "INVALID_CODE" => InvalidVerificationCode,
+            "REGISTER" "TEMPORARILY_UNAVAILABLE" => TemporarilyUnavailable,
+            "METADATA" "INVALID_TARGET" => InvalidTarget,
+            "METADATA" "KEY_INVALID" => InvalidMetadataKey,
+            "METADATA" "KEY_NO_PERMISSION" => MetadataPermissionDenied,
+            "METADATA" "KEY_NOT_SET" => MetadataKeyNotSet,
+            "METADATA" "LIMIT_REACHED" => MetadataLimitReached,
+            "METADATA" "RATE_LIMITED" => RateLimited,
+            "METADATA" "TOO_MANY_SUBS" => TooManyMetadataSubscriptions,
+            "METADATA" "SUBCOMMAND_INVALID" => InvalidSubcommand,
+            "METADATA" "VALUE_INVALID" => InvalidMetadataValue,
+            "RENAME" "CHANNEL_NAME_IN_USE" => ChannelNameInUse,
+            "RENAME" "CANNOT_RENAME" => ChannelRenameForbidden,
+        );
+        assert_eq!(
+            Refusal::from_standard("WHOIS", "INVALID_TARGET"),
+            Refusal::Other
         );
     }
 }
