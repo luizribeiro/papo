@@ -264,7 +264,7 @@ impl std::fmt::Debug for Config {
             .field("wanted_caps", &self.wanted_caps)
             .field("disabled_caps", &self.disabled_caps)
             .field("alt_nicks", &self.alt_nicks)
-            .field("sasl", &self.sasl)
+            .field(cap::SASL, &self.sasl)
             .field("device", &self.device)
             .field("max_channels", &self.max_channels)
             .field("max_members_per_channel", &self.max_members_per_channel)
@@ -1775,7 +1775,7 @@ impl std::fmt::Debug for Session {
             .field("unlabelled_requests", &self.unlabelled_requests)
             .field("next_request_id", &self.next_request_id)
             .field("registration", &self.registration)
-            .field("sasl", &self.sasl)
+            .field(cap::SASL, &self.sasl)
             .field("state", &self.state)
             .field("state_generation", &self.state_generation)
             .field("outbox", &self.outbox)
@@ -2178,7 +2178,7 @@ impl Session {
         let multiline = self
             .caps
             .enabled()
-            .contains_key("batch")
+            .contains_key(cap::BATCH)
             .then(|| outgoing::multiline_limits(self.caps.enabled()))
             .flatten();
         let budget = multiline.map_or(self.text_budget(kind, target), |limits| {
@@ -2188,7 +2188,7 @@ impl Session {
         if segments.is_empty() {
             return Err(RequestError::EmptyText);
         }
-        let labelled = self.caps.enabled().contains_key("labeled-response");
+        let labelled = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);
         }
@@ -2210,7 +2210,7 @@ impl Session {
                     end += 1;
                 }
                 let id = format!("b{}-{batch_count}", encode_label(self.next_request_id));
-                let params = [format!("+{id}"), "draft/multiline".into(), target.into()];
+                let params = [format!("+{id}"), cap::MULTILINE.into(), target.into()];
                 let mut open = Message::new("BATCH", params);
                 for &(key, value) in tags {
                     if batch_count == 0 || !outgoing::first_line_only(key) {
@@ -2224,8 +2224,8 @@ impl Session {
                 }
                 lines.push(open.to_line()?.into_bytes());
                 for (offset, segment) in segments[start..end].iter().enumerate() {
-                    let mut inner =
-                        Message::new(kind.command(), [target, segment.text]).with_tag("batch", &id);
+                    let mut inner = Message::new(kind.command(), [target, segment.text])
+                        .with_tag(cap::BATCH, &id);
                     if offset > 0 && segments[offset + start - 1].concat {
                         inner = inner.with_tag("draft/multiline-concat", "");
                     }
@@ -2257,7 +2257,7 @@ impl Session {
         }
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
-            let sent = self.caps.enabled().contains_key("echo-message");
+            let sent = self.caps.enabled().contains_key(cap::ECHO_MESSAGE);
             self.requests.insert(label, (id, now, sent, None, true));
         }
         if batch_count == 0 {
@@ -2342,12 +2342,12 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.rate_limit.advance(now);
         let id = RequestId(self.next_request_id);
-        let sent = self.caps.enabled().contains_key("echo-message")
+        let sent = self.caps.enabled().contains_key(cap::ECHO_MESSAGE)
             && matches!(
                 message.as_ref().command(),
                 Command::Privmsg | Command::Notice
             );
-        let labelled = self.caps.enabled().contains_key("labeled-response");
+        let labelled = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
         let label = labelled.then(|| encode_label(self.next_request_id));
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);
@@ -2384,7 +2384,7 @@ impl Session {
         let away_message = matches!(matcher, ResponseMatcher::Away(true))
             .then(|| message.as_ref().param(0).map(str::to_owned))
             .flatten();
-        if self.caps.enabled().contains_key("labeled-response") {
+        if self.caps.enabled().contains_key(cap::LABELED_RESPONSE) {
             let track_sync = matches!(matcher, ResponseMatcher::Join(_));
             if track_sync && self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
                 return Err(RequestError::PendingLimit);
@@ -2625,11 +2625,11 @@ impl Session {
         let value = if registered {
             self.caps
                 .enabled()
-                .get("draft/account-registration")
+                .get(cap::ACCOUNT_REGISTRATION)
                 .map(Option::as_deref)
         } else {
             self.caps
-                .advertised_value("draft/account-registration")
+                .advertised_value(cap::ACCOUNT_REGISTRATION)
                 .map(Option::as_deref)
         };
         let Some(value) = value else {
@@ -2650,7 +2650,7 @@ impl Session {
         }
         let password = password.into();
         if !registered {
-            if !self.caps.is_pending("draft/account-registration") {
+            if !self.caps.is_pending(cap::ACCOUNT_REGISTRATION) {
                 return self.require_feature(Feature::AccountRegistration);
             }
             self.account_registration.begin(PendingRegistration {
@@ -2698,7 +2698,7 @@ impl Session {
             && !RegistrationPolicy::parse(
                 self.caps
                     .enabled()
-                    .get("draft/account-registration")
+                    .get(cap::ACCOUNT_REGISTRATION)
                     .and_then(Option::as_deref),
             )
             .before_connect
@@ -2737,11 +2737,14 @@ impl Session {
 
     /// Starts another SASL exchange with the configured credentials.
     pub fn reauthenticate(&mut self, now: Instant) {
-        let available = self.caps.enabled().contains_key("sasl");
+        let available = self.caps.enabled().contains_key(cap::SASL);
         self.sasl.reauthenticate(
             now,
             available,
-            self.caps.enabled().get("sasl").and_then(Option::as_deref),
+            self.caps
+                .enabled()
+                .get(cap::SASL)
+                .and_then(Option::as_deref),
             &mut self.outbox,
         );
         self.apply_close_request();
@@ -2757,7 +2760,7 @@ impl Session {
         if self.away_on_connect_sent {
             return;
         }
-        let pre_away = self.caps.enabled().contains_key("draft/pre-away");
+        let pre_away = self.caps.enabled().contains_key(cap::PRE_AWAY);
         if !pre_away && !self.registration.is_registered() {
             return;
         }
@@ -3004,11 +3007,7 @@ impl Session {
     }
 
     fn send_pending_registration(&mut self, now: Instant) {
-        if self
-            .caps
-            .enabled()
-            .contains_key("draft/account-registration")
-        {
+        if self.caps.enabled().contains_key(cap::ACCOUNT_REGISTRATION) {
             if let Some(pending) = self.account_registration.take_pending() {
                 _ = self.send_register(
                     now,
@@ -3017,14 +3016,13 @@ impl Session {
                     &pending.password,
                 );
             }
-        } else if self.caps.is_negotiating() && !self.caps.is_pending("draft/account-registration")
-        {
+        } else if self.caps.is_negotiating() && !self.caps.is_pending(cap::ACCOUNT_REGISTRATION) {
             self.account_registration.cancel_pending();
         }
     }
 
     fn handle_whoami(&mut self, message: &MessageRef<'_>) -> bool {
-        if !self.caps.enabled().contains_key("draft/whoami")
+        if !self.caps.enabled().contains_key(cap::WHOAMI)
             || !self.registration.is_in_welcome_burst()
             || !self.state.handle_whoami(
                 message,
@@ -3308,7 +3306,7 @@ impl Session {
             }
             #[cfg(feature = "unstable")]
             BatchEvent::Bouncer(messages) => {
-                let context = DispatchContext::from_batch_type("soju.im/bouncer-networks".into());
+                let context = DispatchContext::from_batch_type(cap::BOUNCER_NETWORKS.into());
                 for message in messages {
                     self.dispatch_message(now, &message.as_ref(), &context, true);
                 }
@@ -3349,7 +3347,10 @@ impl Session {
             .as_ref()
             .is_none_or(|(_, _, _, _, emit_events)| *emit_events);
         let queued_events = self.outbox.events.len();
-        let bouncer_batch = batch_type == "soju.im/bouncer-networks";
+        #[cfg(feature = "unstable")]
+        let bouncer_batch = batch_type == cap::BOUNCER_NETWORKS;
+        #[cfg(not(feature = "unstable"))]
+        let bouncer_batch = false;
         let context = DispatchContext::from_batch_type(batch_type);
         if (history.is_none() || request.is_none()) && !bouncer_batch {
             for message in &messages {
@@ -3419,7 +3420,7 @@ impl Session {
         labelled_echo: bool,
     ) -> ReceivedMessage {
         let own_source = self.is_own_source(&message.as_ref());
-        let labels = self.caps.enabled().contains_key("labeled-response");
+        let labels = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
         ReceivedMessage {
             message,
             batch_type,
@@ -3458,7 +3459,7 @@ impl Session {
         self.caps
             .enabled()
             .keys()
-            .any(|name| cap::canonical(name) == "no-implicit-names")
+            .any(|name| cap::canonical(name) == cap::canonical(cap::NO_IMPLICIT_NAMES))
     }
 
     fn maybe_subscribe_metadata(&mut self, now: Instant) {

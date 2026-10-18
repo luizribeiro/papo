@@ -6,7 +6,7 @@ use web_time::Instant;
 
 use papo_proto::{Command, Message, MessageRef, Reaction, time};
 
-use crate::{BatchAbandonReason, Config, HistoryItem, HistoryMessage, HistoryPage};
+use crate::{BatchAbandonReason, Config, HistoryItem, HistoryMessage, HistoryPage, cap};
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -234,7 +234,7 @@ impl Batches {
         for reference in &ancestors {
             let batch = self.open.get_mut(reference).expect("resolved ancestor");
             batch.lines = batch.lines.saturating_add(1);
-            if batch.kind == "draft/multiline" {
+            if batch.kind == cap::MULTILINE {
                 let concat = message
                     .tags()
                     .any(|(key, _)| key == "draft/multiline-concat");
@@ -260,7 +260,7 @@ impl Batches {
             .rev()
             .find(|reference| {
                 self.open[*reference].lines > self.max_lines
-                    || (self.open[*reference].kind == "draft/multiline"
+                    || (self.open[*reference].kind == cap::MULTILINE
                         && self.open[*reference].bytes > multiline_max_bytes)
             })
             .cloned()
@@ -425,24 +425,24 @@ impl Batches {
 }
 
 fn is_history(kind: &str) -> bool {
-    matches!(
-        kind,
-        "chathistory" | "draft/chathistory" | "draft/chathistory-targets" | "draft/event-playback"
-    )
+    kind == cap::canonical(cap::CHATHISTORY)
+        || kind == cap::CHATHISTORY
+        || kind == "draft/chathistory-targets"
+        || kind == cap::EVENT_PLAYBACK
 }
 
 fn is_aggregate(kind: &str) -> bool {
+    #[cfg(feature = "unstable")]
+    let bouncer = kind == cap::BOUNCER_NETWORKS;
+    #[cfg(not(feature = "unstable"))]
+    let bouncer = false;
     is_history(kind)
         || cfg!(feature = "unstable") && kind == "soju.im/search"
-        || cfg!(feature = "unstable") && kind == "soju.im/bouncer-networks"
+        || bouncer
+        || kind == cap::MULTILINE
         || matches!(
             kind,
-            "netsplit"
-                | "netjoin"
-                | "draft/multiline"
-                | "metadata"
-                | "metadata-subs"
-                | "draft/isupport"
+            "netsplit" | "netjoin" | "metadata" | "metadata-subs" | "draft/isupport"
         )
 }
 
@@ -458,7 +458,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         return Vec::new();
     }
     #[cfg(feature = "unstable")]
-    if batch.kind == "soju.im/bouncer-networks" {
+    if batch.kind == cap::BOUNCER_NETWORKS {
         return vec![BatchEvent::Bouncer(std::mem::take(&mut batch.messages))];
     }
     if batch.kind == "draft/isupport" {
@@ -470,7 +470,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
             messages: std::mem::take(&mut batch.messages),
         }];
     }
-    if batch.kind == "draft/multiline" {
+    if batch.kind == cap::MULTILINE {
         return multiline(batch)
             .into_iter()
             .map(BatchEvent::Multiline)
