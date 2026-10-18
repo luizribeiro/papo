@@ -8,7 +8,9 @@ use std::{
 };
 
 #[cfg(not(target_family = "wasm"))]
-use papo_test_server::{InspIrcdServer, SolanumServer, TestServer, UnrealIrcdServer};
+use papo_test_server::{
+    InspIrcdServer, SolanumServer, TestServer, UnrealIrcdServer, register_account_at,
+};
 
 #[cfg(not(target_family = "wasm"))]
 enum Server {
@@ -99,6 +101,16 @@ fn main() -> io::Result<()> {
         fs::write(path, server.process_id().to_string())?;
     }
     let (plaintext, tls, websocket, secure_websocket) = server.endpoints();
+    if let (Ok(account), Ok(password)) = (
+        env::var("PAPO_BROWSER_ACCOUNT"),
+        env::var("PAPO_BROWSER_PASSWORD"),
+    ) {
+        register_account_at(
+            plaintext.parse().map_err(io::Error::other)?,
+            &account,
+            &password,
+        )?;
+    }
     println!("{plaintext}");
     println!("{tls}");
     println!("{websocket}");

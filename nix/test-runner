@@ -88,6 +88,8 @@ if [[ $binary_name == live_* || $binary_name == papo ]]; then
 fi
 
 if $browser_tests; then
+  export PAPO_BROWSER_ACCOUNT=papo-browser-$PAPO_TEST_PID
+  export PAPO_BROWSER_PASSWORD=q7Hx-2mZp_9vLcT4wRfB
   start_server
   if [[ ! -d ${HOME-} ]]; then
     export HOME=$invocation_dir/target/browser-home

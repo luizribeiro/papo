@@ -45,8 +45,12 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
     }
     #[cfg(browser)]
     {
-        _ = plan;
-        Err(Error::connect_unavailable("browser transport"))
+        let Some(url) = plan.address.websocket_url() else {
+            return Err(Error::connect_unavailable("TCP in browsers"));
+        };
+        transport::connect_websocket(&url, None)
+            .await
+            .map_err(|error| Error::Connect(error.into()))
     }
     #[cfg(all(not(browser), not(sockets)))]
     {

@@ -1,3 +1,4 @@
+use papo::{Client, Error, Event as ClientEvent, Events, RequestFuture, Sasl};
 use papo_core::{Config, Event, Session};
 use papo_proto::MessageRef;
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -6,6 +7,86 @@ use web_time::Instant;
 mod rt;
 #[path = "../../../../../papo/src/transport/websocket_browser.rs"]
 mod websocket_browser;
+
+#[wasm_bindgen_test]
+fn public_browser_values_and_actions_remain_send() {
+    fn assert_send<T: Send>() {}
+    fn assert_send_value<T: Send>(_: T) {}
+
+    assert_send::<Client>();
+    assert_send::<Events>();
+    assert_send::<ClientEvent>();
+    assert_send::<Error>();
+    assert_send::<RequestFuture<()>>();
+    let (client, _, driver) = Client::builder(papo::Endpoint::websocket(env!("PAPO_BROWSER_WS")))
+        .build();
+    assert_send_value(client.reconnect());
+    drop(driver);
+}
+
+#[wasm_bindgen_test]
+async fn high_level_client_uses_the_browser_websocket() {
+    let account = env!("PAPO_BROWSER_ACCOUNT");
+    let password = env!("PAPO_BROWSER_PASSWORD");
+    let channel = format!("#{}-channel", account);
+    let (client, mut events) = Client::builder(papo::Endpoint::websocket(env!("PAPO_BROWSER_WS")))
+        .nick(account)
+        .sasl(Sasl::plain(account, password))
+        .autojoin([&channel])
+        .connect()
+        .await
+        .unwrap();
+    wait_for(&mut events, |event| {
+        matches!(event, ClientEvent::ChannelSynced(synced) if synced.channel.as_ref() == channel)
+    })
+    .await;
+
+    let peer_nick = format!("{account}-peer");
+    let (peer, mut peer_events) = Client::builder(papo::Endpoint::websocket(env!("PAPO_BROWSER_WS")))
+        .nick(&peer_nick)
+        .autojoin([&channel])
+        .connect()
+        .await
+        .unwrap();
+    wait_for(&mut peer_events, |event| {
+        matches!(event, ClientEvent::ChannelSynced(synced) if synced.channel.as_ref() == channel)
+    })
+    .await;
+
+    peer.privmsg(&channel, "hello from another browser client")
+        .await
+        .unwrap();
+    wait_for(&mut events, |event| {
+        matches!(event, ClientEvent::Message(message) if message.text() == "hello from another browser client")
+    })
+    .await;
+    let sent = client
+        .privmsg(&channel, "hello from the high-level browser driver")
+        .await
+        .unwrap();
+    assert!(sent.id.is_some());
+
+    client.reconnect().await.unwrap();
+    wait_for(&mut events, |event| {
+        matches!(event, ClientEvent::Registered(registered) if registered.reconnected)
+    })
+    .await;
+    peer.quit("browser peer test complete").await.unwrap();
+    client.quit("browser driver test complete").await.unwrap();
+}
+
+async fn wait_for(events: &mut Events, accepted: impl Fn(&ClientEvent) -> bool) {
+    loop {
+        match events.next().await {
+            Some(event) if accepted(&event) => return,
+            Some(ClientEvent::Disconnected(disconnected)) if !disconnected.is_retrying() => {
+                panic!("browser client disconnected: {disconnected}")
+            }
+            Some(_) => {}
+            None => panic!("browser driver stopped before the expected event"),
+        }
+    }
+}
 
 #[wasm_bindgen_test]
 fn parses_an_ergo_message() {

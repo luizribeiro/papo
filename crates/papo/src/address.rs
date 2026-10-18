@@ -372,7 +372,7 @@ impl ServerAddress {
         matches!(self.protocol, Protocol::Ircs | Protocol::Wss)
     }
 
-    #[cfg(sockets)]
+    #[cfg(any(sockets, browser))]
     pub(crate) fn websocket_url(&self) -> Option<String> {
         let scheme = match self.protocol {
             Protocol::Ws => "ws",
