@@ -1099,13 +1099,19 @@ mod tests {
             MessageKind::Action
         );
         assert_eq!(chat("PRIVMSG", "\x01VERSION\x01").kind(), MessageKind::Ctcp);
-        assert_eq!(
-            chat("PRIVMSG", "\x01VERSION\x01").ctcp().unwrap().command(),
-            "VERSION"
-        );
+        let version = chat("PRIVMSG", "\x01VERSION\x01");
+        assert_eq!(version.ctcp().unwrap().command(), "VERSION");
+        assert_eq!(version.ctcp().unwrap().params(), None);
         assert_eq!(
             chat("NOTICE", "\x01VERSION papo-0.1\x01").kind(),
             MessageKind::CtcpReply
+        );
+        assert_eq!(
+            chat("NOTICE", "\x01VERSION papo-0.1\x01")
+                .ctcp()
+                .unwrap()
+                .params(),
+            Some("papo-0.1")
         );
         assert!(
             ChatMessage::new(
@@ -1262,6 +1268,7 @@ mod tests {
         let classify = |message| event(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH);
         let echo = classify(Message::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
         assert_eq!(echo.origin(), Origin::Echo);
+        assert!(echo.is_own());
         assert!(!echo.is_live());
         let tagged = classify(
             Message::privmsg("#papo", "earlier")
@@ -1272,6 +1279,7 @@ mod tests {
         assert!(tagged.is_live());
         let live = classify(Message::privmsg("#papo", "now").with_source("emily!e@localhost"));
         assert_eq!(live.origin(), Origin::Live);
+        assert!(!live.is_own());
         assert!(live.is_live());
     }
     fn forwarded(event: papo_core::Event) -> Event {
