@@ -153,6 +153,7 @@ mod tests {
             Some(Source::User { nick, user: Some(user), host: Some(host) })
                 if nick == "alice" && user == "~a" && host == "cloak.example"
         ));
+        assert_eq!(line.source().unwrap().to_string(), "alice");
         assert_eq!(
             line.to_string(),
             "@account=alice;example.org/note=one\\stwo\\:three :alice!~a@cloak.example NOTICE #papo :maintenance soon"
@@ -174,6 +175,15 @@ mod tests {
             line.source(),
             Some(Source::Server { name }) if name == "ergo.test"
         ));
+        assert_eq!(line.source().unwrap().to_string(), "ergo.test");
         assert_eq!(line.to_string(), "@bot= :ergo.test 372 papo :");
+
+        let mode = MessageRef::parse(":papo-driver!papo@localhost MODE #papo +o alice")
+            .unwrap()
+            .to_owned();
+        assert_eq!(
+            RawLine::from_proto(&mode).to_string(),
+            ":papo-driver!papo@localhost MODE #papo +o alice"
+        );
     }
 }

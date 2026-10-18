@@ -101,6 +101,10 @@ mod tests {
         assert_eq!(tags.get("example.org/note"), Some("one two;three"));
         assert_eq!(tags.get("missing"), None);
         assert!(tags.contains("bot"));
+        assert!(!tags.contains("missing"));
+        assert!(!tags.is_empty());
+        assert!(Tags::default().is_empty());
+        assert!(format!("{tags:?}").contains("account"));
         assert_eq!(tags.iter().count(), 5);
         assert_eq!(tags.iter().nth(1), Some(("draft/label", "old")));
         assert_eq!(tags.iter().nth(2), Some(("bot", "")));
@@ -114,5 +118,8 @@ mod tests {
 
         assert_eq!(left, reordered);
         assert_ne!(left, different);
+
+        let subset = tags("@account=alice :ergo.test TAGMSG #papo");
+        assert_ne!(subset, reordered);
     }
 }
