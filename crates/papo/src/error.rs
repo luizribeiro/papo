@@ -2,7 +2,7 @@ use std::{fmt, io, sync::Arc, time::Duration};
 
 use thiserror::Error;
 
-use crate::{InvalidInput, Unsupported};
+use crate::{InvalidInput, Refusal, Unsupported};
 
 /// Broad classification of a connection-opening failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -110,144 +110,6 @@ impl std::error::Error for ConnectError {
     }
 }
 
-/// Stable classification of a server refusal.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum Refusal {
-    /// The requested nickname is not connected (`401`).
-    NoSuchNick,
-    /// The requested server is unknown (`402`).
-    NoSuchServer,
-    /// The requested channel does not exist (`403`).
-    NoSuchChannel,
-    /// The message could not be sent to the channel (`404`).
-    CannotSendToChannel,
-    /// The session has joined too many channels (`405`).
-    TooManyChannels,
-    /// A command requiring text received none (`412`).
-    NoTextToSend,
-    /// An input line exceeded the server limit (`417`).
-    InputTooLong,
-    /// The server does not recognize the command (`421`).
-    UnknownCommand,
-    /// The nickname is malformed (`432`).
-    ErroneousNickname,
-    /// The nickname is already in use (`433`).
-    NicknameInUse,
-    /// A nickname collided during a network split (`436`).
-    NickCollision,
-    /// A nickname or channel is temporarily unavailable (`437`).
-    NickUnavailable,
-    /// The session is not on the channel (`442`).
-    NotOnChannel,
-    /// The named user is already on the channel (`443`).
-    UserOnChannel,
-    /// A required command parameter is missing (`461`).
-    NeedMoreParameters,
-    /// The server password is incorrect (`464`).
-    PasswordIncorrect,
-    /// The channel has reached its user limit (`471`).
-    ChannelIsFull,
-    /// The requested channel mode is unknown (`472`).
-    UnknownMode,
-    /// The channel is invite-only (`473`).
-    InviteOnlyChannel,
-    /// The session is banned from the channel (`474`).
-    BannedFromChannel,
-    /// The supplied channel key is incorrect (`475`).
-    BadChannelKey,
-    /// A channel mask is malformed (`476`).
-    BadChannelMask,
-    /// The channel accepts only secure connections (`489`).
-    SecureOnlyChannel,
-    /// The host is not authorized for operator access (`491`).
-    NoOperHost,
-    /// The action requires IRC operator privileges (`481`).
-    NoPrivileges,
-    /// The action requires channel operator privileges (`482`).
-    ChannelOperatorPrivilegesNeeded,
-    /// A user mode flag is unknown (`501`).
-    UnknownUserMode,
-    /// A bouncer network identifier does not exist.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    InvalidNetwork,
-    /// A bouncer network attribute value is invalid.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    InvalidAttribute,
-    /// A bouncer network attribute cannot be changed.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    ReadOnlyAttribute,
-    /// A bouncer does not recognize a network attribute.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    UnknownAttribute,
-    /// A required bouncer network attribute is missing.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    MissingAttribute,
-    /// The session tried to change another user's modes (`502`).
-    UsersDontMatch,
-    /// A channel mode parameter is invalid (`696`).
-    InvalidModeParameter,
-    /// The server is temporarily too busy (`263`).
-    TryAgain,
-    /// A refusal without a more specific classification.
-    ///
-    /// A later minor release may refine a code currently classified as `Other`.
-    Other,
-}
-
-impl Refusal {
-    fn from_core(kind: papo_core::Refusal) -> Self {
-        match kind {
-            papo_core::Refusal::NoSuchNick => Self::NoSuchNick,
-            papo_core::Refusal::NoSuchServer => Self::NoSuchServer,
-            papo_core::Refusal::NoSuchChannel => Self::NoSuchChannel,
-            papo_core::Refusal::CannotSendToChannel => Self::CannotSendToChannel,
-            papo_core::Refusal::TooManyChannels => Self::TooManyChannels,
-            papo_core::Refusal::InputTooLong => Self::InputTooLong,
-            papo_core::Refusal::UnknownCommand => Self::UnknownCommand,
-            papo_core::Refusal::ErroneousNickname => Self::ErroneousNickname,
-            papo_core::Refusal::NicknameInUse => Self::NicknameInUse,
-            papo_core::Refusal::NickCollision => Self::NickCollision,
-            papo_core::Refusal::TemporarilyUnavailable => Self::NickUnavailable,
-            papo_core::Refusal::NotOnChannel => Self::NotOnChannel,
-            papo_core::Refusal::UserOnChannel => Self::UserOnChannel,
-            papo_core::Refusal::PasswordIncorrect => Self::PasswordIncorrect,
-            papo_core::Refusal::ChannelIsFull => Self::ChannelIsFull,
-            papo_core::Refusal::UnknownMode => Self::UnknownMode,
-            papo_core::Refusal::InviteOnlyChannel => Self::InviteOnlyChannel,
-            papo_core::Refusal::BannedFromChannel => Self::BannedFromChannel,
-            papo_core::Refusal::BadChannelKey => Self::BadChannelKey,
-            papo_core::Refusal::BadChannelMask => Self::BadChannelMask,
-            papo_core::Refusal::NoPrivileges => Self::NoPrivileges,
-            papo_core::Refusal::ChannelOperatorPrivilegesNeeded => {
-                Self::ChannelOperatorPrivilegesNeeded
-            }
-            papo_core::Refusal::SecureOnlyChannel => Self::SecureOnlyChannel,
-            papo_core::Refusal::NoOperHost => Self::NoOperHost,
-            papo_core::Refusal::UnknownUserMode => Self::UnknownUserMode,
-            papo_core::Refusal::UsersDontMatch => Self::UsersDontMatch,
-            papo_core::Refusal::InvalidModeParameter => Self::InvalidModeParameter,
-            papo_core::Refusal::TryAgain => Self::TryAgain,
-            #[cfg(feature = "unstable")]
-            papo_core::Refusal::InvalidNetwork => Self::InvalidNetwork,
-            #[cfg(feature = "unstable")]
-            papo_core::Refusal::InvalidAttribute => Self::InvalidAttribute,
-            #[cfg(feature = "unstable")]
-            papo_core::Refusal::ReadOnlyAttribute => Self::ReadOnlyAttribute,
-            #[cfg(feature = "unstable")]
-            papo_core::Refusal::UnknownAttribute => Self::UnknownAttribute,
-            #[cfg(feature = "unstable")]
-            papo_core::Refusal::MissingAttribute => Self::MissingAttribute,
-            _ => Self::Other,
-        }
-    }
-}
-
 /// A server refusal with its wire-level diagnostic context.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServerError {
@@ -323,7 +185,7 @@ impl ServerError {
     }
 
     pub(crate) fn from_core(error: papo_core::ServerError) -> Self {
-        let kind = Refusal::from_core(error.refusal());
+        let kind = error.refusal();
         match error {
             papo_core::ServerError::Standard {
                 command,

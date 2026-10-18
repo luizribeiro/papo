@@ -51,8 +51,8 @@ pub use builder::Builder;
 pub use client::{Client, JoinChannel, SendMessage, Sent};
 pub use driver::{Driver, Events};
 pub use error::{
-    ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
-    RegistrationError, ServerError,
+    ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, RegistrationError,
+    ServerError,
 };
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -79,6 +79,8 @@ pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport::Isupport;
 pub use metadata::MetadataValue;
 pub use mode::SetModes;
+#[doc(inline)]
+pub use papo_core::Refusal;
 #[doc(inline)]
 pub use papo_core::Secret;
 #[doc(inline)]

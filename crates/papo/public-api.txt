@@ -15,6 +15,7 @@ pub use papo::MessageId
 pub use papo::MetadataKey
 pub use papo::Nick
 pub use papo::RateLimit
+pub use papo::Refusal
 pub use papo::Sasl
 pub use papo::Secret
 pub use papo::Target
@@ -641,38 +642,6 @@ pub papo::Origin::History
 pub papo::Origin::Live
 pub papo::Origin::OtherSession
 pub papo::Origin::Replay
-#[non_exhaustive] pub enum papo::Refusal
-pub papo::Refusal::BadChannelKey
-pub papo::Refusal::BadChannelMask
-pub papo::Refusal::BannedFromChannel
-pub papo::Refusal::CannotSendToChannel
-pub papo::Refusal::ChannelIsFull
-pub papo::Refusal::ChannelOperatorPrivilegesNeeded
-pub papo::Refusal::ErroneousNickname
-pub papo::Refusal::InputTooLong
-pub papo::Refusal::InvalidModeParameter
-pub papo::Refusal::InviteOnlyChannel
-pub papo::Refusal::NeedMoreParameters
-pub papo::Refusal::NickCollision
-pub papo::Refusal::NickUnavailable
-pub papo::Refusal::NicknameInUse
-pub papo::Refusal::NoOperHost
-pub papo::Refusal::NoPrivileges
-pub papo::Refusal::NoSuchChannel
-pub papo::Refusal::NoSuchNick
-pub papo::Refusal::NoSuchServer
-pub papo::Refusal::NoTextToSend
-pub papo::Refusal::NotOnChannel
-pub papo::Refusal::Other
-pub papo::Refusal::PasswordIncorrect
-pub papo::Refusal::SecureOnlyChannel
-pub papo::Refusal::TooManyChannels
-pub papo::Refusal::TryAgain
-pub papo::Refusal::UnknownCommand
-pub papo::Refusal::UnknownMode
-pub papo::Refusal::UnknownUserMode
-pub papo::Refusal::UserOnChannel
-pub papo::Refusal::UsersDontMatch
 #[non_exhaustive] pub enum papo::RegistrationError
 pub papo::RegistrationError::AccountRequired
 pub papo::RegistrationError::Banned

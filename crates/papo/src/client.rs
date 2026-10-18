@@ -773,7 +773,7 @@ impl Client {
     /// # Errors
     ///
     /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
-    /// [`crate::Refusal::TooManyChannels`], [`crate::Refusal::NickUnavailable`],
+    /// [`crate::Refusal::TooManyChannels`], [`crate::Refusal::TemporarilyUnavailable`],
     /// [`crate::Refusal::ChannelIsFull`], [`crate::Refusal::InviteOnlyChannel`],
     /// [`crate::Refusal::BannedFromChannel`], [`crate::Refusal::BadChannelKey`],
     /// [`crate::Refusal::BadChannelMask`], [`crate::Refusal::SecureOnlyChannel`],
