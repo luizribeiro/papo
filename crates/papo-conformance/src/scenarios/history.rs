@@ -1,12 +1,10 @@
 use std::time::{Duration, SystemTime};
 
-use libtest_mimic::Failed;
 use papo::{Error, HistoryItem, Origin, Sent, Source};
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
-use super::support::join;
-use crate::{Scenario, ScenarioResult};
+use crate::Scenario;
 
 fn read_marker_time() -> SystemTime {
     SystemTime::UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
@@ -181,23 +179,25 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// sets and receives a channel read marker
-#[scenario(requires(caps = ["draft/read-marker"]))]
-async fn draft_read_marker(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let mut connection = context.client_caps(&nick, &["draft/read-marker"]).await?;
-    join(&context, &mut connection, &channel).await?;
+/// sets, fetches, and monotonically advances a channel read marker
+#[scenario(
+    requires(caps = ["draft/read-marker"]),
+    covers = ["draft.read-marker.set-get", "draft.read-marker.monotonic"]
+)]
+async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
     let time = read_marker_time();
-    let observed = connection
-        .client
-        .mark_read(&channel, time)
-        .await
-        .map_err(Failed::from)?;
-    if observed != Some(time) {
-        return Err("MARKREAD did not return the set timestamp".into());
-    }
-    connection.close().await
+    assert_eq!(alice.mark_read(&channel, time).await?, Some(time));
+    assert_eq!(alice.state().read_marker(&channel), Some(time));
+    assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
+
+    let older = time - Duration::from_secs(60);
+    assert_eq!(alice.mark_read(&channel, older).await?, Some(time));
+    assert_eq!(alice.state().read_marker(&channel), Some(time));
+    assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
+    Ok(())
 }
 
 #[cfg(test)]
