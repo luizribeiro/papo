@@ -1,5 +1,5 @@
 use libtest_mimic::Failed;
-use papo::{Account, Event, Origin, Source};
+use papo::{Account, Away, Event, Origin, Source};
 use papo_conformance_macros::scenario;
 
 use super::support::{EXPECT_TIMEOUT, close_pair, joined_pair};
@@ -42,20 +42,46 @@ async fn account_notify(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// notifies channel peers of away state
-#[scenario(requires(caps = ["away-notify"]))]
-async fn away_notify(context: Scenario) -> ScenarioResult {
-    let (mut receiver, sender, _channel) = joined_pair(&context).await?;
+/// confirms away state locally and notifies channel peers of both transitions
+#[scenario(
+    requires(caps = ["away-notify"]),
+    covers = ["base.away.self-ack", "ircv3.away-notify"]
+)]
+async fn away_notify(context: Scenario) -> papo_testing::Result<()> {
+    let mut bob = context.connect("bob").await?;
+    let alice = context.connect("alice").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    bob.join(&channel).await?;
+    alice.join(&channel).await?;
     let away = "reviewing the IRCv3 specification";
-    sender.client.set_away(away).await.map_err(Failed::from)?;
-    context
-        .expect(
-            &mut receiver.events,
-            |event| matches!(event, Event::AwayChanged(changed) if changed.nick == sender.welcome.nick.as_str() && changed.message.as_deref() == Some(away)),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    close_pair(receiver, sender).await
+    alice.set_away(away).await?;
+    let changed = bob.wait_for(Event::as_away_changed).await?;
+
+    assert_eq!(changed.nick, alice_nick);
+    assert_eq!(changed.message.as_deref(), Some(away));
+    assert!(alice.state().away());
+    assert_eq!(alice.state().away_message(), Some(away));
+    assert_eq!(
+        bob.state().user(&alice_nick).unwrap().away(),
+        &Away::Away {
+            message: Some(away.to_owned())
+        }
+    );
+
+    alice.clear_away().await?;
+    let returned = bob.wait_for(Event::as_away_changed).await?;
+
+    assert_eq!(returned.nick, alice_nick);
+    assert_eq!(returned.message, None);
+    assert!(!alice.state().away());
+    assert_eq!(alice.state().away_message(), None);
+    assert_eq!(
+        bob.state().user(&alice_nick).unwrap().away(),
+        &Away::Present
+    );
+    bob.expect_none(Event::as_away_changed).await?;
+    Ok(())
 }
 
 /// notifies channel peers of real-name changes
