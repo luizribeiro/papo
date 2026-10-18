@@ -395,7 +395,7 @@ impl Client {
     /// awaiting a response, or [`Error::Disconnected`] when the driver stops. A refusal returns
     /// [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
-    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
+    /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub fn privmsg(
         &self,
@@ -426,7 +426,7 @@ impl Client {
     /// awaiting a response, or [`Error::Disconnected`] when the driver stops. A refusal returns
     /// [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
-    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
+    /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub fn notice(&self, target: impl Into<crate::Target>, text: impl Into<String>) -> SendMessage {
         SendMessage {

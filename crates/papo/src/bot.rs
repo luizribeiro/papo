@@ -229,7 +229,7 @@ impl Command {
     /// [`crate::Error::Disconnected`] with the same conditions as [`crate::Client::privmsg`]. A refusal
     /// returns [`crate::Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
-    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
+    /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub fn reply(&self, text: impl Into<String>) -> crate::RequestFuture<ReplyStatus> {
         let client = self.client.clone();
@@ -258,7 +258,7 @@ impl Command {
     /// [`crate::Error::Disconnected`] with the same conditions as [`crate::Client::notice`]. A refusal
     /// returns [`crate::Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
-    /// [`crate::Refusal::NoTextToSend`], [`crate::Refusal::InputTooLong`],
+    /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub fn private_notice(&self, text: impl Into<String>) -> crate::RequestFuture<ReplyStatus> {
         let client = self.client.clone();
