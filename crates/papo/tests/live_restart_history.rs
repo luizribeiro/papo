@@ -8,12 +8,13 @@ use papo_test_server::{TestServer, register_account_at, unique};
 use support::within;
 
 #[tokio::test(flavor = "current_thread")]
-async fn restart_loses_memory_history_but_retains_persistent_history() {
-    within(async {
-        assert!(!retains_message(false).await);
-        assert!(retains_message(true).await);
-    })
-    .await;
+async fn restart_loses_memory_history() {
+    within(async { assert!(!retains_message(false).await) }).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn restart_retains_persistent_history() {
+    within(async { assert!(retains_message(true).await) }).await;
 }
 
 async fn retains_message(persistent: bool) -> bool {

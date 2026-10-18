@@ -77,17 +77,7 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
             .filter_map(|message| message.msgid().map(str::to_owned))
             .collect::<Vec<_>>();
         reconnect_and_rejoin(&client, &mut events, &nick, &channel).await;
-        let repeated = wait_history(&mut events, &channel).await;
-        assert!(
-            repeated.messages().all(|message| {
-                !message.text().contains("missed during the outage")
-                    && message
-                        .msgid()
-                        .is_none_or(|msgid| !delivered_ids.iter().any(|seen| seen == msgid))
-            }),
-            "repeated catch-up item: {:#?}",
-            repeated.items,
-        );
+        assert_no_repeated_history(&mut events, &channel, &delivered_ids).await;
         poster.quit("messages delivered").await.unwrap();
         client.quit("reconnect test complete").await.unwrap();
     })
@@ -144,6 +134,37 @@ async fn wait_history(events: &mut papo::Events, target: &str) -> papo::HistoryP
             }
             Some(_) => {}
             None => panic!("driver stopped before history arrived"),
+        }
+    }
+}
+
+async fn assert_no_repeated_history(
+    events: &mut papo::Events,
+    target: &str,
+    delivered_ids: &[String],
+) {
+    let deadline = tokio::time::sleep(Duration::from_secs(1));
+    tokio::pin!(deadline);
+    loop {
+        tokio::select! {
+            () = &mut deadline => return,
+            event = events.next() => match event {
+                Some(Event::History(history)) if history.target == target => assert!(
+                    history.messages().all(|message| {
+                        !message.text().contains("missed during the outage")
+                            && message.msgid().is_none_or(|msgid| {
+                                !delivered_ids.iter().any(|seen| seen == msgid)
+                            })
+                    }),
+                    "repeated catch-up item: {:#?}",
+                    history.items,
+                ),
+                Some(Event::Disconnected(disconnected)) => {
+                    panic!("disconnected: {disconnected}")
+                }
+                Some(_) => {}
+                None => panic!("driver stopped while checking repeated history"),
+            },
         }
     }
 }
