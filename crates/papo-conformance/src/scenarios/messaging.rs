@@ -1,4 +1,4 @@
-use libtest_mimic::{Completion, Failed};
+use libtest_mimic::Failed;
 use papo::{Event, MessageKind, Origin, Source};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
@@ -7,12 +7,12 @@ use papo_testing::Peer;
 use super::support::{EXPECT_TIMEOUT, close_pair, join, joined_pair};
 use crate::{Scenario, ScenarioResult};
 
-async fn fixture_pair(context: &Scenario) -> Result<(Peer, Peer, String), Failed> {
+async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
     let mut alice = context.connect("alice").await?;
     let bob = context.connect("bob").await?;
     let channel = context.channel_name();
-    alice.join(&channel).await.map_err(Failed::from)?;
-    bob.join(&channel).await.map_err(Failed::from)?;
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
     let bob_nick = bob.nick();
     let joined = alice
         .wait_for(|event| event.as_joined().filter(|joined| joined.nick == bob_nick))
@@ -35,7 +35,7 @@ async fn fixture_pair(context: &Scenario) -> Result<(Peer, Peer, String), Failed
     requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
     covers = ["base.privmsg.channel", "ircv3.echo-message"]
 )]
-async fn echo_message(context: Scenario) -> ScenarioResult {
+async fn echo_message(context: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&context).await?;
     let sent = alice.privmsg(&channel, "hello from alice").await?;
     let echo = alice.wait_for(Event::as_message).await?;
@@ -63,7 +63,7 @@ async fn echo_message(context: Scenario) -> ScenarioResult {
     assert!(sent.fallbacks.is_empty());
     alice.expect_none(Event::as_message).await?;
     bob.expect_none(Event::as_message).await?;
-    Ok(Completion::Completed)
+    Ok(())
 }
 
 /// a channel NOTICE carries server time and matching sender metadata
@@ -71,7 +71,7 @@ async fn echo_message(context: Scenario) -> ScenarioResult {
     requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
     covers = ["base.notice.channel", "ircv3.server-time"]
 )]
-async fn server_time(context: Scenario) -> ScenarioResult {
+async fn server_time(context: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&context).await?;
     let sent = alice.notice(&channel, "maintenance at midnight").await?;
     let echo = alice.wait_for(Event::as_message).await?;
@@ -96,7 +96,7 @@ async fn server_time(context: Scenario) -> ScenarioResult {
     assert!(sent.fallbacks.is_empty());
     alice.expect_none(Event::as_message).await?;
     bob.expect_none(Event::as_message).await?;
-    Ok(Completion::Completed)
+    Ok(())
 }
 
 /// direct PRIVMSG and NOTICE traffic has distinct sender and recipient views
@@ -106,10 +106,11 @@ async fn server_time(context: Scenario) -> ScenarioResult {
         "base.privmsg.user-dm",
         "base.notice.user",
         "core.dm.privmsg",
-        "core.dm.notice"
+        "core.dm.notice",
+        "core.dm.echo-self"
     ]
 )]
-async fn direct_messages(context: Scenario) -> ScenarioResult {
+async fn direct_messages(context: Scenario) -> papo_testing::Result<()> {
     let mut alice = context.connect("alice").await?;
     let mut bob = context.connect("bob").await?;
 
@@ -140,28 +141,84 @@ async fn direct_messages(context: Scenario) -> ScenarioResult {
     assert_eq!(received.id(), sent.id.as_ref());
     assert_eq!(received.id(), echo.id());
     assert_eq!(received.server_time, sent.time);
+
+    let sent = alice.privmsg(alice.nick(), "note to self").await?;
+    let first = alice.wait_for(Event::as_message).await?;
+    let second = alice.wait_for(Event::as_message).await?;
+    assert!(matches!(
+        (first.origin(), second.origin()),
+        (Origin::Echo, Origin::OtherSession) | (Origin::OtherSession, Origin::Echo)
+    ));
+    for received in [&first, &second] {
+        assert_eq!(received.target(), alice.nick().as_ref());
+        assert_eq!(received.raw_text(), "note to self");
+        assert_eq!(received.id(), sent.id.as_ref());
+        assert!(received.is_private());
+    }
     assert_eq!(alice.state().nick(), &alice.nick());
     assert_eq!(bob.state().nick(), &bob.nick());
     alice.expect_none(Event::as_message).await?;
     bob.expect_none(Event::as_message).await?;
-    Ok(Completion::Completed)
+    Ok(())
+}
+
+/// status-prefixed channel messages reach only members with the requested privilege
+#[scenario(
+    requires(
+        caps = ["echo-message", "labeled-response"],
+        isupport = ["STATUSMSG"]
+    ),
+    covers = ["base.privmsg.statusmsg", "base.isupport.statusmsg-token"]
+)]
+async fn status_message(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let mut charlie = s.connect("charlie").await?;
+    charlie.join(&channel).await?;
+    let charlie_nick = charlie.nick();
+    alice
+        .wait_for(|event| {
+            event
+                .as_joined()
+                .filter(|joined| joined.nick == charlie_nick)
+        })
+        .await?;
+
+    alice.mode(&channel).voice(bob.nick()).await?;
+    let sent = alice
+        .privmsg(format!("+{channel}"), "voiced members only")
+        .await?;
+    let echo = alice.wait_for(Event::as_message).await?;
+    let received = bob.wait_for(Event::as_message).await?;
+    for message in [&echo, &received] {
+        assert_eq!(message.target(), channel);
+        assert_eq!(message.status.as_deref(), Some(['+'].as_slice()));
+        assert_eq!(message.raw_text(), "voiced members only");
+        assert_eq!(message.id(), sent.id.as_ref());
+    }
+    assert_eq!(echo.origin(), Origin::Echo);
+    assert_eq!(received.origin(), Origin::Live);
+    assert!(
+        bob.state()
+            .channel(&channel)
+            .and_then(|members| members.member(bob.nick()))
+            .is_some_and(|member| member.prefixes().contains(&'+'))
+    );
+    charlie.expect_none(Event::as_message).await?;
+    Ok(())
 }
 
 /// delivers a client-only typing tag
 #[scenario(
     requires(caps = ["message-tags"]),
-    covers = ["ircv3.message-tags.typing-direct"]
+    covers = ["ircv3.message-tags.tagmsg", "tag.typing"]
 )]
-async fn message_tags(context: Scenario) -> ScenarioResult {
+async fn message_tags(context: Scenario) -> papo_testing::Result<()> {
     let alice = context.connect("alice").await?;
     let mut bob = context.connect("bob").await?;
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
 
-    alice
-        .typing(bob_nick.clone(), Typing::Active)
-        .await
-        .map_err(Failed::from)?;
+    alice.typing(bob_nick.clone(), Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;
 
     assert_eq!(
@@ -171,12 +228,19 @@ async fn message_tags(context: Scenario) -> ScenarioResult {
     assert_eq!(typing.target.as_ref(), bob_nick.as_ref());
     assert_eq!(typing.state, Typing::Active);
 
-    alice
-        .typing(bob_nick, Typing::Active)
-        .await
-        .map_err(Failed::from)?;
+    alice.typing(bob_nick.clone(), Typing::Active).await?;
     bob.expect_none(Event::as_typing_changed).await?;
-    Ok(Completion::Completed)
+    alice.typing(bob_nick.clone(), Typing::Paused).await?;
+    assert_eq!(
+        bob.wait_for(Event::as_typing_changed).await?.state,
+        Typing::Paused
+    );
+    alice.typing(bob_nick, Typing::Done).await?;
+    assert_eq!(
+        bob.wait_for(Event::as_typing_changed).await?.state,
+        Typing::Done
+    );
+    Ok(())
 }
 
 /// preserves identities for plain and multiline messages
