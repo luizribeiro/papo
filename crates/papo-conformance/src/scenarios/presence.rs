@@ -1,4 +1,4 @@
-use libtest_mimic::{Completion, Failed};
+use libtest_mimic::Failed;
 use papo::{Account, Event, Origin, Source};
 use papo_conformance_macros::scenario;
 
@@ -10,17 +10,17 @@ use crate::{Scenario, ScenarioResult, required_environment};
     requires(caps = ["account-tag", "account-notify"]),
     covers = ["ircv3.account-tag.channel"]
 )]
-async fn account_notify(context: Scenario) -> ScenarioResult {
+async fn account_notify(context: Scenario) -> papo_testing::Result<()> {
     let alice = context.connect_as_account("alice").await?;
     let mut bob = context.connect("bob").await?;
     let account = alice.state().account().unwrap().clone();
     let alice_nick = alice.nick();
     let channel = context.channel_name();
-    alice.join(&channel).await.map_err(Failed::from)?;
-    bob.join(&channel).await.map_err(Failed::from)?;
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
 
     let text = "authenticated hello from alice";
-    let sent = alice.privmsg(&channel, text).await.map_err(Failed::from)?;
+    let sent = alice.privmsg(&channel, text).await?;
     let message = bob.wait_for(Event::as_message).await?;
 
     assert_eq!(message.text(), text);
@@ -39,7 +39,7 @@ async fn account_notify(context: Scenario) -> ScenarioResult {
         Account::LoggedIn(observed) if observed == &account
     ));
     bob.expect_none(Event::as_message).await?;
-    Ok(Completion::Completed)
+    Ok(())
 }
 
 /// notifies channel peers of away state
