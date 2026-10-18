@@ -1,6 +1,6 @@
 use papo_proto::Advertised;
 
-use crate::{RequestError, Session};
+use crate::{RequestError, Session, cap};
 
 /// Optional IRC behavior understood by the session.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -128,27 +128,27 @@ impl Feature {
 
     const fn caps(self) -> &'static [&'static str] {
         match self {
-            Self::Replies | Self::Reactions | Self::Typing => &["message-tags"],
-            Self::Redaction => &["draft/message-redaction"],
-            Self::Multiline => &["draft/multiline"],
-            Self::History => &["draft/chathistory", "chathistory"],
-            Self::ReadMarkers => &["draft/read-marker", "read-marker"],
-            Self::Metadata => &["draft/metadata-3", "draft/metadata-2"],
-            Self::SetName => &["setname"],
-            Self::AccountRegistration => &["draft/account-registration"],
+            Self::Replies | Self::Reactions | Self::Typing => &[cap::MESSAGE_TAGS],
+            Self::Redaction => &[cap::MESSAGE_REDACTION],
+            Self::Multiline => &[cap::MULTILINE],
+            Self::History => &[cap::CHATHISTORY],
+            Self::ReadMarkers => &[cap::READ_MARKER],
+            Self::Metadata => &[cap::METADATA],
+            Self::SetName => &[cap::SETNAME],
+            Self::AccountRegistration => &[cap::ACCOUNT_REGISTRATION],
             #[cfg(feature = "unstable")]
-            Self::Bouncer => &["soju.im/bouncer-networks"],
+            Self::Bouncer => &[cap::BOUNCER_NETWORKS],
             #[cfg(feature = "unstable")]
-            Self::Persistence => &["draft/persistence"],
+            Self::Persistence => &[cap::PERSISTENCE],
             #[cfg(feature = "unstable")]
-            Self::WebPush => &["draft/webpush", "soju.im/webpush"],
-            Self::ChannelRename => &["draft/channel-rename"],
+            Self::WebPush => &[cap::WEBPUSH],
+            Self::ChannelRename => &[cap::CHANNEL_RENAME],
             #[cfg(feature = "unstable")]
-            Self::Relay => &["draft/relaymsg"],
-            Self::LabeledResponse => &["labeled-response"],
-            Self::AwayTracking => &["away-notify"],
-            Self::AccountTracking => &["account-notify", "account-tag"],
-            Self::HostTracking => &["chghost"],
+            Self::Relay => &[cap::RELAYMSG],
+            Self::LabeledResponse => &[cap::LABELED_RESPONSE],
+            Self::AwayTracking => &[cap::AWAY_NOTIFY],
+            Self::AccountTracking => &[cap::ACCOUNT_NOTIFY, cap::ACCOUNT_TAG],
+            Self::HostTracking => &[cap::CHGHOST],
             Self::Monitor | Self::BotMode => &[],
         }
     }
@@ -252,19 +252,21 @@ impl Session {
             feature
                 .caps()
                 .iter()
-                .all(|name| self.caps.enabled().contains_key(*name))
+                .all(|name| cap::advertised_spelling(name, self.caps.enabled()).is_some())
         } else {
             feature
                 .caps()
                 .iter()
-                .any(|name| self.caps.enabled().contains_key(*name))
+                .any(|name| cap::advertised_spelling(name, self.caps.enabled()).is_some())
         };
         if !enabled {
             let disabled = feature.caps().iter().any(|required| {
                 self.config.cap_disabled(required)
-                    && self.caps.advertised().keys().any(|offered| {
-                        papo_proto::canonical(offered) == papo_proto::canonical(required)
-                    })
+                    && self
+                        .caps
+                        .advertised()
+                        .keys()
+                        .any(|offered| cap::canonical(offered) == cap::canonical(required))
             });
             return Err(if disabled {
                 UnsupportedReason::DisabledByClient
@@ -283,5 +285,36 @@ impl Session {
             return Err(UnsupportedReason::TagDenied);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Feature;
+    use crate::cap;
+
+    #[test]
+    fn registry_and_feature_capabilities_agree_in_both_directions() {
+        for feature in Feature::ALL {
+            for required in feature.caps() {
+                let info = cap::ALL
+                    .iter()
+                    .find(|info| info.name == cap::canonical(required))
+                    .unwrap();
+                assert!(info.features.contains(feature), "{feature:?}: {required}");
+            }
+        }
+        for info in cap::ALL {
+            for feature in info.features {
+                assert!(
+                    feature
+                        .caps()
+                        .iter()
+                        .any(|name| cap::canonical(name) == info.name),
+                    "{}: {feature:?}",
+                    info.name
+                );
+            }
+        }
     }
 }
