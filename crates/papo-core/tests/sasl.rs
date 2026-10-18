@@ -498,6 +498,19 @@ fn informational_account_required_cap_is_not_requested_with_credentials() {
 }
 
 #[test]
+fn informational_account_required_cap_accepts_a_server_password() {
+    Transcript::new(Config::default().password("mC8r-Zq4v_N7xLp2"))
+        .connect()
+        .client("CAP LS 302")
+        .client("PASS mC8r-Zq4v_N7xLp2")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .server("CAP * LS :soju.im/account-required standard-replies")
+        .client("CAP REQ :standard-replies")
+        .no_event();
+}
+
+#[test]
 fn unrelated_fail_replies_do_not_trigger_account_required_policy() {
     for reply in [
         ":ergo.test FAIL AUTHENTICATE ACCOUNT_REQUIRED :Authentication required",
