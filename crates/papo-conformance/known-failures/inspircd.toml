@@ -1,1 +1,2 @@
-# No known failures.
+[standard_replies]
+reason = "InspIRCd advertises standard-replies but does not reject this invalid real name with FAIL"
