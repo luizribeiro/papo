@@ -133,3 +133,66 @@ impl Drop for FaultProxy {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        io::{Read, Write},
+        net::{TcpListener, TcpStream},
+        sync::mpsc,
+        thread,
+        time::Duration,
+    };
+
+    use super::FaultProxy;
+
+    #[test]
+    fn forwards_bytes_then_drops_exactly_its_connection() {
+        let upstream = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = upstream.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut connection, _) = upstream.accept().unwrap();
+            let mut request = [0; 4];
+            connection.read_exact(&mut request).unwrap();
+            assert_eq!(&request, b"PING");
+            connection.write_all(b"PONG").unwrap();
+            let mut eof = [0];
+            assert_eq!(connection.read(&mut eof).unwrap(), 0);
+        });
+        let proxy = FaultProxy::start(address).unwrap();
+        let mut client = TcpStream::connect(proxy.address()).unwrap();
+        client
+            .set_read_timeout(Some(Duration::from_secs(1)))
+            .unwrap();
+        client.write_all(b"PING").unwrap();
+        let mut reply = [0; 4];
+        client.read_exact(&mut reply).unwrap();
+        assert_eq!(&reply, b"PONG");
+        proxy.drop_connection().unwrap();
+        assert_eq!(client.read(&mut reply).unwrap_or(0), 0);
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn black_hole_stops_reading_client_bytes() {
+        let upstream = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = upstream.local_addr().unwrap();
+        let (accepted, connection) = mpsc::sync_channel(0);
+        let server = thread::spawn(move || {
+            let (stream, _) = upstream.accept().unwrap();
+            accepted.send(stream).unwrap();
+        });
+        let proxy = FaultProxy::start(address).unwrap();
+        let mut client = TcpStream::connect(proxy.address()).unwrap();
+        let mut upstream = connection.recv_timeout(Duration::from_secs(1)).unwrap();
+        proxy.black_hole().unwrap();
+        client.write_all(b"QUIT :bounded shutdown\r\n").unwrap();
+        upstream
+            .set_read_timeout(Some(Duration::from_millis(50)))
+            .unwrap();
+        let mut byte = [0];
+        assert!(upstream.read(&mut byte).is_err());
+        drop(proxy);
+        server.join().unwrap();
+    }
+}
