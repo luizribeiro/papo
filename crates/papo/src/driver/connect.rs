@@ -384,9 +384,7 @@ fn finish_slow_consumer(
     registration: &mut RegistrationWait,
     pending_events: VecDeque<Event>,
 ) -> Result<(), Error> {
-    registration.failed(Error::Registration(crate::RegistrationError::Banned {
-        message: SLOW_CONSUMER_REASON.to_owned(),
-    }));
+    registration.failed(Error::disconnected_slow_consumer());
     finish(
         events,
         ConnectionEnd {

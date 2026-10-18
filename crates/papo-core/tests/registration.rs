@@ -96,6 +96,20 @@ fn tries_alternative_nicks_then_appends_bounded_underscores() {
 }
 
 #[test]
+fn terminal_registration_numerics_close_with_their_wire_diagnostic() {
+    for (numeric, text) in [
+        ("464", "Password incorrect"),
+        ("465", "You are banned from this server"),
+    ] {
+        Transcript::new(Config::default())
+            .connect_default()
+            .server(&format!(":ergo.test {numeric} papo :{text}"))
+            .event(|event| matches!(event, Event::Close { reason, .. } if reason == text))
+            .no_client();
+    }
+}
+
+#[test]
 fn generated_nicks_stay_within_the_default_30_byte_limit() {
     let requested = "a-realistically-long-client-nick";
     let first = format!("NICK {}_", &requested[..29]);

@@ -136,14 +136,17 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Connect(crate::ConnectErrorKind::Unavailable),
             retry_in: Some(retry_in),
-            ..
         })) if retry_in == Duration::from_millis(800)
     ));
     tokio::time::advance(Duration::from_secs(2)).await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Connect(crate::ConnectErrorKind::Unavailable),
+            retry_in: None,
+        }))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -223,11 +226,17 @@ async fn registration_disconnect_does_not_enter_reconnect_backoff() {
 
     assert!(matches!(
         within(waiting).await.unwrap(),
-        Err(Error::Registration(_))
+        Err(Error::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::ConnectionLost,
+            ..
+        }))
     ));
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::ConnectionLost,
+            retry_in: None,
+        }))
     ));
     assert!(within(driver).await.unwrap().is_err());
     assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -1158,7 +1167,7 @@ async fn required_sasl_failure_rejects_registration_waiter() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(disconnected!())
+        Err(Error::Registration(crate::RegistrationError::Sasl { .. }))
     ));
 }
 
@@ -1189,7 +1198,9 @@ async fn account_required_cap_rejects_registration_without_sasl() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(disconnected!())
+        Err(Error::Registration(
+            crate::RegistrationError::AccountRequired
+        ))
     ));
 }
 
@@ -1232,11 +1243,14 @@ async fn required_sasl_failure_does_not_reconnect() {
 
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Registration(crate::RegistrationError::Sasl { .. }),
+            retry_in: None,
+        }))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(disconnected!())
+        Err(Error::Registration(crate::RegistrationError::Sasl { .. }))
     ));
     tokio::time::advance(Duration::from_secs(10)).await;
     assert_eq!(calls.load(Ordering::Relaxed), 1);

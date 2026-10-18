@@ -365,11 +365,6 @@ pub enum RegistrationError {
         /// The bounded diagnostic reported by the server.
         message: String,
     },
-    /// The server does not offer a required SASL mechanism.
-    ///
-    /// [`crate::State::isupport`] can report whether the network requires authentication.
-    #[error("required SASL authentication is unavailable")]
-    SaslUnavailable,
     /// The server requires authentication but no account credentials were configured.
     ///
     /// [`crate::State::isupport`] exposes the corresponding ISUPPORT indication when supplied.
@@ -384,9 +379,12 @@ pub enum RegistrationError {
         /// The bounded diagnostic reported by the server.
         message: String,
     },
-    /// Every configured nickname was unavailable.
-    #[error("every configured nickname is unavailable")]
-    NickUnavailable,
+    /// The server rejected registration for another reason.
+    #[error("the server rejected the connection: {message}")]
+    Rejected {
+        /// The bounded diagnostic reported by the server.
+        message: String,
+    },
     /// Registration did not finish before its deadline.
     #[error("IRC registration timed out")]
     Timeout,
@@ -404,6 +402,10 @@ pub enum RegistrationError {
 pub enum DisconnectCause {
     /// The transport reached EOF or otherwise vanished.
     ConnectionLost,
+    /// Opening a replacement connection failed.
+    Connect(ConnectErrorKind),
+    /// Registration failed on a replacement connection.
+    Registration(RegistrationError),
     /// The server sent `ERROR` with bounded explanatory text.
     Server {
         /// The server's bounded explanation.
@@ -426,6 +428,8 @@ impl fmt::Display for DisconnectCause {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ConnectionLost => formatter.write_str("the connection was lost"),
+            Self::Connect(kind) => write!(formatter, "a connection attempt failed: {kind:?}"),
+            Self::Registration(error) => error.fmt(formatter),
             Self::Server { message } => write!(formatter, "the server disconnected: {message}"),
             Self::PingTimeout => formatter.write_str("the server stopped responding"),
             Self::Protocol { message } => write!(formatter, "protocol failure: {message}"),
@@ -468,7 +472,7 @@ impl fmt::Display for Disconnected {
 impl std::error::Error for Disconnected {}
 
 /// An error produced by the asynchronous IRC client.
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 #[non_exhaustive]
 pub enum Error {
     /// An input value is invalid.
@@ -524,12 +528,33 @@ impl Error {
     }
 
     pub(crate) fn disconnected_close(kind: papo_core::CloseKind, message: String) -> Self {
-        let cause = match kind {
-            papo_core::CloseKind::ServerError => DisconnectCause::Server { message },
-            papo_core::CloseKind::PingTimeout => DisconnectCause::PingTimeout,
-            _ => DisconnectCause::Protocol { message },
-        };
-        Self::Disconnected(Disconnected::new(cause, None))
+        match kind {
+            papo_core::CloseKind::SaslFailed => {
+                Self::Registration(RegistrationError::Sasl { message })
+            }
+            papo_core::CloseKind::WebIrcRejected => {
+                Self::Registration(RegistrationError::Rejected { message })
+            }
+            papo_core::CloseKind::RegistrationTimeout => {
+                Self::Registration(RegistrationError::Timeout)
+            }
+            papo_core::CloseKind::AccountRequired => {
+                Self::Registration(RegistrationError::AccountRequired)
+            }
+            papo_core::CloseKind::PasswordIncorrect => {
+                Self::Registration(RegistrationError::PasswordIncorrect)
+            }
+            papo_core::CloseKind::Banned => {
+                Self::Registration(RegistrationError::Banned { message })
+            }
+            papo_core::CloseKind::ServerError => {
+                Self::Disconnected(Disconnected::new(DisconnectCause::Server { message }, None))
+            }
+            papo_core::CloseKind::PingTimeout => {
+                Self::Disconnected(Disconnected::new(DisconnectCause::PingTimeout, None))
+            }
+            _ => Self::disconnected_protocol(message),
+        }
     }
 
     pub(crate) const fn disconnected_slow_consumer() -> Self {

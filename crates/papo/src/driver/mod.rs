@@ -646,25 +646,15 @@ struct StsActions {
 
 impl ConnectionEnd {
     fn registration_error(&self) -> Error {
-        let registration = match self.close_kind {
-            Some(papo_core::CloseKind::SaslFailed) => crate::RegistrationError::Sasl {
+        match &self.error {
+            Error::Disconnected(crate::Disconnected {
+                cause: crate::DisconnectCause::Server { .. },
+                ..
+            }) => Error::Registration(crate::RegistrationError::Rejected {
                 message: self.reason.clone(),
-            },
-            Some(papo_core::CloseKind::AccountRequired) => {
-                crate::RegistrationError::AccountRequired
-            }
-            Some(papo_core::CloseKind::RegistrationTimeout) => crate::RegistrationError::Timeout,
-            _ if self.reason.to_ascii_lowercase().contains("password") => {
-                crate::RegistrationError::PasswordIncorrect
-            }
-            _ if self.reason.to_ascii_lowercase().contains("nickname") => {
-                crate::RegistrationError::NickUnavailable
-            }
-            _ => crate::RegistrationError::Banned {
-                message: self.reason.clone(),
-            },
-        };
-        Error::Registration(registration)
+            }),
+            error => error.clone(),
+        }
     }
 }
 
@@ -1463,6 +1453,8 @@ fn finish(events: EventSink, end: ConnectionEnd, _will_retry: bool) -> Result<()
 fn disconnected_event(error: &Error, retry_in: Option<Duration>) -> crate::Disconnected {
     let cause = match error {
         Error::Disconnected(disconnected) => disconnected.cause.clone(),
+        Error::Connect(error) => crate::DisconnectCause::Connect(error.kind()),
+        Error::Registration(error) => crate::DisconnectCause::Registration(error.clone()),
         _ => crate::DisconnectCause::ConnectionLost,
     };
     crate::Disconnected::new(cause, retry_in)

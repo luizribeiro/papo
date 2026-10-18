@@ -122,6 +122,18 @@ impl Registration {
             self.complete(caps, isupport, outbox);
             Handled::Yes
         } else if self.deadline.is_some()
+            && (message.command_is("464") || message.command_is("465"))
+        {
+            outbox.close(
+                if message.command_is("464") {
+                    CloseKind::PasswordIncorrect
+                } else {
+                    CloseKind::Banned
+                },
+                message.param(1).unwrap_or_default().to_owned(),
+            );
+            Handled::Yes
+        } else if self.deadline.is_some()
             && ["432", "433", "436", "437"]
                 .iter()
                 .any(|numeric| message.command_is(numeric))

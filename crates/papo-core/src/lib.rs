@@ -1498,6 +1498,10 @@ pub enum CloseKind {
     StsUpgrade,
     /// The server requires an authenticated account.
     AccountRequired,
+    /// The server rejected the connection password (`464`).
+    PasswordIncorrect,
+    /// The server banned the connection (`465`).
+    Banned,
     /// Another protocol condition requires the connection to close.
     Other,
 }
