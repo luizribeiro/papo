@@ -65,6 +65,26 @@ fn splits_a_six_hundred_byte_privmsg_at_the_literal_budget() {
 }
 
 #[test]
+fn detailed_send_reports_only_actual_text_splitting() {
+    let now = Instant::now();
+    let mut single = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    assert!(
+        !single
+            .send_text_detailed(now, TextKind::Privmsg, "#papo", "one complete message", &[],)
+            .unwrap()
+            .split
+    );
+
+    let mut split = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    assert!(
+        split
+            .send_text_detailed(now, TextKind::Privmsg, "#papo", &"a".repeat(600), &[])
+            .unwrap()
+            .split
+    );
+}
+
+#[test]
 fn repeats_client_tags_except_context_on_fallback_lines() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -412,6 +432,36 @@ fn text_response_retains_labelled_echo_identity() {
         })
         .unwrap();
     assert_eq!(response.sent().unwrap().msgid, "RfcBTzyxY120004");
+}
+
+#[test]
+fn response_batch_without_echo_message_emits_no_synthetic_echo() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .wanted_caps(["batch", "labeled-response"])
+            .rate_limit(RateLimit::unlimited()),
+    );
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :batch labeled-response");
+    session.handle_line(now, b"CAP * ACK :batch labeled-response");
+    while session.poll_transmit().is_some() {}
+    let id = session
+        .send_text(now, TextKind::Privmsg, "#papo", "hello everyone", &[])
+        .unwrap()
+        .unwrap();
+    session.handle_line(now, b"@label=0 BATCH +response labeled-response");
+    session.handle_line(
+        now,
+        b"@batch=response :papo!p@localhost PRIVMSG #papo :hello everyone",
+    );
+    session.handle_line(now, b"BATCH -response");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id && response.sent().is_none()
+    ));
+    assert_eq!(session.poll_event(), None);
 }
 
 #[test]
