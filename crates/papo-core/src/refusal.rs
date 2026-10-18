@@ -106,6 +106,46 @@ pub enum Refusal {
     ChannelNameInUse,
     /// The server does not permit the channel to be renamed.
     ChannelRenameForbidden,
+    /// Authentication is required for the requested operation.
+    AccountRequired,
+    /// One or more request parameters are invalid.
+    InvalidParameters,
+    /// A history message could not be retrieved.
+    MessageError,
+    /// The requested message-reference type is unavailable.
+    InvalidMessageReferenceType,
+    /// A channel was renamed while it was being joined.
+    ChannelRenamed,
+    /// The session is not permitted to redact the message.
+    RedactionForbidden,
+    /// The message is too old to redact.
+    RedactionWindowExpired,
+    /// The requested message identifier is unknown.
+    UnknownMessage,
+    /// A multiline message exceeds the server's byte limit.
+    MultilineTooLarge,
+    /// A multiline message exceeds the server's line limit.
+    MultilineTooManyLines,
+    /// Multiline batch members do not share one target.
+    MultilineTargetMismatch,
+    /// A multiline batch is malformed.
+    InvalidMultiline,
+    /// A client batch reference tag is invalid.
+    InvalidBatchReference,
+    /// A client batch was not completed in time.
+    BatchTimedOut,
+    /// The client batch type is unknown.
+    UnknownBatchType,
+    /// The requested real name is invalid.
+    InvalidRealname,
+    /// The server does not permit the real name to be changed.
+    RealnameChangeForbidden,
+    /// Required parameters are missing.
+    MissingParameters,
+    /// The server could not complete the operation.
+    InternalError,
+    /// The request contains invalid UTF-8.
+    InvalidUtf8,
     /// A refusal without a more specific classification.
     ///
     /// A later minor release may refine a code currently classified as `Other`.
@@ -168,7 +208,7 @@ impl Refusal {
             ("REGISTER" | "VERIFY", "COMPLETE_CONNECTION_REQUIRED") => Self::RegistrationRequired,
             ("VERIFY", "INVALID_CODE") => Self::InvalidVerificationCode,
             ("REGISTER" | "VERIFY", "TEMPORARILY_UNAVAILABLE") => Self::TemporarilyUnavailable,
-            ("METADATA", "INVALID_TARGET") => Self::InvalidTarget,
+            ("METADATA" | "CHATHISTORY" | "REDACT", "INVALID_TARGET") => Self::InvalidTarget,
             ("METADATA", "KEY_INVALID") => Self::InvalidMetadataKey,
             ("METADATA", "KEY_NO_PERMISSION") => Self::MetadataPermissionDenied,
             ("METADATA", "KEY_NOT_SET") => Self::MetadataKeyNotSet,
@@ -179,6 +219,28 @@ impl Refusal {
             ("METADATA", "VALUE_INVALID") => Self::InvalidMetadataValue,
             ("RENAME", "CHANNEL_NAME_IN_USE") => Self::ChannelNameInUse,
             ("RENAME", "CANNOT_RENAME") => Self::ChannelRenameForbidden,
+            ("*", "ACCOUNT_REQUIRED") => Self::AccountRequired,
+            ("CHATHISTORY" | "MARKREAD", "INVALID_PARAMS" | "INVALID_PARAMETERS") => {
+                Self::InvalidParameters
+            }
+            ("CHATHISTORY", "MESSAGE_ERROR") => Self::MessageError,
+            ("CHATHISTORY", "INVALID_MSGREFTYPE") => Self::InvalidMessageReferenceType,
+            ("JOIN", "CHANNEL_RENAMED") => Self::ChannelRenamed,
+            ("REDACT", "REDACT_FORBIDDEN") => Self::RedactionForbidden,
+            ("REDACT", "REDACT_WINDOW_EXPIRED") => Self::RedactionWindowExpired,
+            ("REDACT", "UNKNOWN_MSGID" | "UNKNOWN_MESSAGE_ID") => Self::UnknownMessage,
+            ("BATCH", "MULTILINE_MAX_BYTES") => Self::MultilineTooLarge,
+            ("BATCH", "MULTILINE_MAX_LINES") => Self::MultilineTooManyLines,
+            ("BATCH", "MULTILINE_INVALID_TARGET") => Self::MultilineTargetMismatch,
+            ("BATCH", "MULTILINE_INVALID") => Self::InvalidMultiline,
+            ("BATCH", "INVALID_REFTAG") => Self::InvalidBatchReference,
+            ("BATCH", "TIMEOUT") => Self::BatchTimedOut,
+            ("BATCH", "UNKNOWN_TYPE") => Self::UnknownBatchType,
+            ("SETNAME", "INVALID_REALNAME") => Self::InvalidRealname,
+            ("SETNAME", "CANNOT_CHANGE_REALNAME") => Self::RealnameChangeForbidden,
+            ("MARKREAD", "NEED_MORE_PARAMS") => Self::MissingParameters,
+            ("MARKREAD", "INTERNAL_ERROR") => Self::InternalError,
+            (_, "INVALID_UTF8") => Self::InvalidUtf8,
             _ => Self::Other,
         }
     }
@@ -243,6 +305,38 @@ mod tests {
         assert_eq!(
             Refusal::from_standard("WHOIS", "INVALID_TARGET"),
             Refusal::Other
+        );
+    }
+
+    #[test]
+    fn classifies_message_and_batch_failures() {
+        macro_rules! cases {
+            ($($command:literal $code:literal => $variant:ident),* $(,)?) => {$(
+                assert_eq!(Refusal::from_standard($command, $code), Refusal::$variant);
+            )*};
+        }
+        cases!(
+            "*" "ACCOUNT_REQUIRED" => AccountRequired,
+            "CHATHISTORY" "INVALID_PARAMS" => InvalidParameters,
+            "CHATHISTORY" "INVALID_TARGET" => InvalidTarget,
+            "CHATHISTORY" "MESSAGE_ERROR" => MessageError,
+            "CHATHISTORY" "INVALID_MSGREFTYPE" => InvalidMessageReferenceType,
+            "JOIN" "CHANNEL_RENAMED" => ChannelRenamed,
+            "REDACT" "REDACT_FORBIDDEN" => RedactionForbidden,
+            "REDACT" "REDACT_WINDOW_EXPIRED" => RedactionWindowExpired,
+            "REDACT" "UNKNOWN_MSGID" => UnknownMessage,
+            "BATCH" "MULTILINE_MAX_BYTES" => MultilineTooLarge,
+            "BATCH" "MULTILINE_MAX_LINES" => MultilineTooManyLines,
+            "BATCH" "MULTILINE_INVALID_TARGET" => MultilineTargetMismatch,
+            "BATCH" "MULTILINE_INVALID" => InvalidMultiline,
+            "BATCH" "INVALID_REFTAG" => InvalidBatchReference,
+            "BATCH" "TIMEOUT" => BatchTimedOut,
+            "BATCH" "UNKNOWN_TYPE" => UnknownBatchType,
+            "SETNAME" "INVALID_REALNAME" => InvalidRealname,
+            "SETNAME" "CANNOT_CHANGE_REALNAME" => RealnameChangeForbidden,
+            "MARKREAD" "NEED_MORE_PARAMS" => MissingParameters,
+            "MARKREAD" "INTERNAL_ERROR" => InternalError,
+            "PRIVMSG" "INVALID_UTF8" => InvalidUtf8,
         );
     }
 }
