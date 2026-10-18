@@ -510,6 +510,16 @@ fn caps_the_desired_monitor_list_at_ten_thousand() {
 }
 
 #[test]
+fn rekeys_monitor_presence_when_casemapping_changes() {
+    registered()
+        .server(":ergo.test 730 papo :[alice!user@users.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "[alice"))
+        .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported")
+        .server(":ergo.test 730 papo :[alice!user@users.example")
+        .no_event();
+}
+
+#[test]
 fn user_requested_monitor_list_replies_remain_messages() {
     registered()
         .send(Message::new("MONITOR", ["L"]))

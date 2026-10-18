@@ -1,6 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use papo_proto::{Folded, Isupport, LimitValue, MAX_MESSAGE_LEN, MessageRef, Nick};
+use papo_proto::{Casemapping, Folded, Isupport, LimitValue, MAX_MESSAGE_LEN, MessageRef, Nick};
 
 use crate::{Event, Handled, Outbox};
 
@@ -11,7 +11,8 @@ type NickKey = Folded<Nick>;
 #[derive(Debug, Default)]
 pub(super) struct Monitor {
     desired: Vec<String>,
-    presence: Vec<Presence>,
+    presence: HashMap<NickKey, Presence>,
+    casemapping: Casemapping,
     unsupported_warned: bool,
 }
 
@@ -27,12 +28,14 @@ enum Presence {
 
 impl Monitor {
     pub(super) fn online(&self) -> impl Iterator<Item = (&str, Option<&str>, Option<&str>)> {
-        self.presence.iter().filter_map(|presence| match presence {
-            Presence::Online { nick, user, host } => {
-                Some((nick.as_str(), user.as_deref(), host.as_deref()))
-            }
-            Presence::Offline(_) => None,
-        })
+        self.presence
+            .values()
+            .filter_map(|presence| match presence {
+                Presence::Online { nick, user, host } => {
+                    Some((nick.as_str(), user.as_deref(), host.as_deref()))
+                }
+                Presence::Offline(_) => None,
+            })
     }
 
     pub(super) fn handle_disconnected(&mut self) {
@@ -71,6 +74,7 @@ impl Monitor {
         S: Into<String>,
     {
         let mapping = isupport.casemapping();
+        self.update_casemapping(mapping);
         let support = isupport.monitor();
         let limit = match support {
             Some(LimitValue::Limited(limit)) => limit,
@@ -131,6 +135,7 @@ impl Monitor {
         S: AsRef<str>,
     {
         let mapping = isupport.casemapping();
+        self.update_casemapping(mapping);
         let limit = match isupport.monitor() {
             Some(LimitValue::Limited(limit)) => limit,
             Some(LimitValue::Unlimited) => usize::MAX,
@@ -145,8 +150,7 @@ impl Monitor {
                 .position(|known| mapping.eq(known, nick))
             {
                 self.desired.remove(index);
-                self.presence
-                    .retain(|presence| !mapping.eq(presence.nick(), nick));
+                self.presence.remove(&NickKey::new(nick, mapping));
             }
         }
         if registered && isupport.monitor().is_some() {
@@ -180,6 +184,7 @@ impl Monitor {
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Handled {
+        self.update_casemapping(isupport.casemapping());
         match message.raw_command() {
             "730" => {
                 let Some(entries) = message.param(1) else {
@@ -190,20 +195,20 @@ impl Monitor {
                     if let Some((nick, user, host)) = parse_entry(entry) {
                         handled = true;
                         let (was_online, userhost_changed) = {
-                            let previous = self.presence.iter().find_map(|presence| {
-                                let Presence::Online {
-                                    nick: current,
-                                    user,
-                                    host,
-                                } = presence
-                                else {
-                                    return None;
-                                };
-                                isupport
-                                    .casemapping()
-                                    .eq(current, nick)
-                                    .then_some((user.as_deref(), host.as_deref()))
-                            });
+                            let previous = self
+                                .presence
+                                .get(&NickKey::new(nick, isupport.casemapping()))
+                                .and_then(|presence| {
+                                    let Presence::Online {
+                                        nick: _,
+                                        user,
+                                        host,
+                                    } = presence
+                                    else {
+                                        return None;
+                                    };
+                                    Some((user.as_deref(), host.as_deref()))
+                                });
                             (
                                 previous.is_some(),
                                 previous.is_some_and(|old| old != (user, host)),
@@ -267,8 +272,9 @@ impl Monitor {
                     return Handled::No;
                 }
                 let mapping = isupport.casemapping();
-                self.presence
-                    .retain(|presence| !nicks.iter().any(|nick| mapping.eq(presence.nick(), nick)));
+                for nick in &nicks {
+                    self.presence.remove(&NickKey::new(nick, mapping));
+                }
                 outbox.event(Event::MonitorListFull { limit, nicks });
             }
             _ => return Handled::No,
@@ -278,19 +284,27 @@ impl Monitor {
 
     fn replace_presence(&mut self, nick: &str, next: Presence, isupport: &Isupport) -> bool {
         let mapping = isupport.casemapping();
-        if let Some(current) = self
-            .presence
-            .iter_mut()
-            .find(|presence| mapping.eq(presence.nick(), nick))
-        {
+        let key = NickKey::new(nick, mapping);
+        if let Some(current) = self.presence.get_mut(&key) {
             if *current == next {
                 return false;
             }
             *current = next;
         } else {
-            self.presence.push(next);
+            self.presence.insert(key, next);
         }
         true
+    }
+
+    fn update_casemapping(&mut self, mapping: Casemapping) {
+        if self.casemapping == mapping {
+            return;
+        }
+        self.casemapping = mapping;
+        self.presence = std::mem::take(&mut self.presence)
+            .into_values()
+            .map(|presence| (NickKey::new(presence.nick(), mapping), presence))
+            .collect();
     }
 
     fn warn_unsupported(&mut self, outbox: &mut Outbox) {
