@@ -360,3 +360,57 @@ async fn nick_change_and_collision(context: Scenario) -> papo_testing::Result<()
     bob.expect_none(Event::as_nick_changed).await?;
     Ok(())
 }
+
+/// synchronizes topic metadata and propagates setting and clearing the topic
+#[scenario(covers = [
+    "base.topic.get",
+    "base.topic.set",
+    "base.topic.clear",
+    "base.topic.whotime"
+])]
+async fn topic(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let mut carol = context.connect("carol").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+
+    let text = "Reviewing IRC topic synchronization";
+    alice.set_topic(&channel, text).await?;
+    let own = alice.wait_for(Event::as_topic_changed).await?;
+    let observed = bob.wait_for(Event::as_topic_changed).await?;
+
+    for changed in [&own, &observed] {
+        assert_eq!(changed.channel.as_ref(), channel);
+        assert_eq!(changed.topic.as_deref(), Some(text));
+        assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+    }
+    for peer in [&alice, &bob] {
+        assert_eq!(peer.state().channel(&channel).unwrap().topic(), Some(text));
+    }
+
+    carol.join(&channel).await?;
+    let state = carol.state();
+    let synchronized = state.channel(&channel).unwrap();
+    assert_eq!(synchronized.topic(), Some(text));
+    assert_eq!(
+        synchronized
+            .topic_set_by()
+            .and_then(|source| source.split('!').next()),
+        Some(alice_nick.as_ref())
+    );
+    assert!(synchronized.topic_set_at().is_some());
+
+    alice.clear_topic(&channel).await?;
+    for peer in [&mut alice, &mut bob, &mut carol] {
+        let changed = peer.wait_for(Event::as_topic_changed).await?;
+        assert_eq!(changed.channel.as_ref(), channel);
+        assert_eq!(changed.topic, None);
+        assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(peer.state().channel(&channel).unwrap().topic(), None);
+        peer.expect_none(Event::as_topic_changed).await?;
+    }
+    Ok(())
+}
