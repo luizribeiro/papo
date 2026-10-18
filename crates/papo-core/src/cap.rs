@@ -12,7 +12,7 @@ pub enum Request {
     /// Observed but never requested.
     Never,
     /// Requested only when a preferred capability is unavailable.
-    Superseded,
+    Superseded(&'static str),
 }
 
 /// Registry information for one IRC capability.
@@ -50,7 +50,7 @@ capabilities! {
     CAP_NOTIFY = "cap-notify"; "Capability change notifications."; name: "cap-notify"; aliases: []; request: Request::Default("cap-notify"); features: []; code: [crate::caps];
     MESSAGE_TAGS = "message-tags"; "`IRCv3` message tags."; name: "message-tags"; aliases: []; request: Request::Default("message-tags"); features: [Feature::Replies, Feature::Reactions, Feature::Typing]; code: [crate::features];
     SERVER_TIME = "server-time"; "Server-assigned message timestamps."; name: "server-time"; aliases: []; request: Request::Default("server-time"); features: []; code: [crate::state];
-    BATCH = "batch"; "Batched messages."; name: "batch"; aliases: []; request: Request::Default("batch"); features: [Feature::Multiline]; code: [crate::batch];
+    BATCH = "batch"; "Batched messages."; name: "batch"; aliases: []; request: Request::Default("batch"); features: []; code: [crate::batch];
     EVENT_PLAYBACK = "draft/event-playback"; "Replay of missed events."; name: "draft/event-playback"; aliases: []; request: Request::Default("draft/event-playback"); features: []; code: [crate::batch];
     ECHO_MESSAGE = "echo-message"; "Echoes of sent messages."; name: "echo-message"; aliases: []; request: Request::Default("echo-message"); features: []; code: [crate::outgoing];
     ACCOUNT_TAG = "account-tag"; "Account tags on messages."; name: "account-tag"; aliases: []; request: Request::Default("account-tag"); features: [Feature::AccountTracking]; code: [crate::state];
@@ -68,16 +68,16 @@ capabilities! {
     MULTILINE = "draft/multiline"; "Multiline messages."; name: "draft/multiline"; aliases: []; request: Request::Default("draft/multiline"); features: [Feature::Multiline]; code: [crate::outgoing, crate::batch];
     OPER_TAG = "draft/oper-tag"; "Operator tags on messages."; name: "draft/oper-tag"; aliases: []; request: Request::Default("draft/oper-tag"); features: []; code: [crate::state];
     METADATA = "draft/metadata-2"; "Client metadata."; name: "draft/metadata-3"; aliases: ["draft/metadata-2"]; request: Request::Default("draft/metadata-2"); features: [Feature::Metadata]; code: [crate::metadata];
-    METADATA_NOTIFY = "metadata-notify"; "Legacy metadata notifications."; name: "metadata-notify"; aliases: []; request: Request::Superseded; features: []; code: [crate::metadata];
+    METADATA_NOTIFY = "metadata-notify"; "Legacy metadata notifications."; name: "metadata-notify"; aliases: []; request: Request::Superseded("draft/metadata-3"); features: []; code: [crate::metadata];
     SASL = "sasl"; "SASL authentication."; name: "sasl"; aliases: []; request: Request::Automatic; features: []; code: [crate::sasl];
     STS = "sts"; "Strict Transport Security policy."; name: "sts"; aliases: []; request: Request::Never; features: []; code: [crate::sts];
     NOPE = "ergo.chat/nope"; "Ergo capability-negotiation test trap."; name: "ergo.chat/nope"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
     ACCOUNT_REQUIRED = "soju.im/account-required"; "Soju authentication requirement."; name: "soju.im/account-required"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
     ACCOUNT_REGISTRATION = "draft/account-registration"; "Account registration."; name: "draft/account-registration"; aliases: ["account-registration"]; request: Request::Default("draft/account-registration"); features: [Feature::AccountRegistration]; code: [crate::account_registration];
+    #[cfg(feature = "unstable")] BOUNCER_NETWORKS = "soju.im/bouncer-networks"; "Bouncer network management."; name: "soju.im/bouncer-networks"; aliases: []; request: Request::Default("soju.im/bouncer-networks"); features: [Feature::Bouncer]; code: [crate::bouncer];
+    #[cfg(feature = "unstable")] BOUNCER_NETWORKS_NOTIFY = "soju.im/bouncer-networks-notify"; "Bouncer network change notifications."; name: "soju.im/bouncer-networks-notify"; aliases: []; request: Request::Default("soju.im/bouncer-networks-notify"); features: []; code: [crate::bouncer];
     CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "chathistory"; aliases: ["draft/chathistory"]; request: Request::Default("chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
     READ_MARKER = "draft/read-marker"; "Channel read markers."; name: "draft/read-marker"; aliases: ["read-marker"]; request: Request::Default("draft/read-marker"); features: [Feature::ReadMarkers]; code: [crate::history, crate::state];
-    #[cfg(feature = "unstable")] BOUNCER_NETWORKS = "soju.im/bouncer-networks"; "Bouncer network management."; name: "soju.im/bouncer-networks"; aliases: []; request: Request::Default("soju.im/bouncer-networks"); features: [Feature::Bouncer]; code: [crate::bouncer];
-    #[cfg(feature = "unstable")] BOUNCER_NETWORKS_NOTIFY = "soju.im/bouncer-networks-notify"; "Bouncer network change notifications."; name: "soju.im/bouncer-networks-notify"; aliases: []; request: Request::Default("soju.im/bouncer-networks-notify"); features: [Feature::Bouncer]; code: [crate::bouncer];
     #[cfg(feature = "unstable")] PERSISTENCE = "draft/persistence"; "Account persistence preferences."; name: "draft/persistence"; aliases: []; request: Request::Default("draft/persistence"); features: [Feature::Persistence]; code: [crate::persistence];
     CHANNEL_RENAME = "draft/channel-rename"; "Channel renaming."; name: "draft/channel-rename"; aliases: []; request: Request::Default("draft/channel-rename"); features: [Feature::ChannelRename]; code: [crate::channel_rename];
     #[cfg(feature = "unstable")] RELAYMSG = "draft/relaymsg"; "Relayed messages."; name: "draft/relaymsg"; aliases: []; request: Request::Default("draft/relaymsg"); features: [Feature::Relay]; code: [crate::relaymsg];
@@ -173,17 +173,35 @@ const fn known_primary(name: &str) -> bool {
 #[must_use]
 pub fn advertised_spelling<'a>(wanted: &str, advertised: &'a Capabilities) -> Option<&'a str> {
     let canonical = canonical(wanted);
-    ALL.iter()
-        .find(|info| info.name == canonical)
-        .and_then(|info| {
-            std::iter::once(info.name)
-                .chain(info.aliases.iter().copied())
-                .find_map(|name| {
-                    advertised
-                        .get_key_value(name)
-                        .map(|(name, _)| name.as_str())
-                })
-        })
+    match ALL.iter().find(|info| info.name == canonical) {
+        Some(info) => std::iter::once(info.name)
+            .chain(info.aliases.iter().copied())
+            .find_map(|name| {
+                advertised
+                    .get_key_value(name)
+                    .map(|(name, _)| name.as_str())
+            }),
+        None => advertised
+            .get_key_value(wanted)
+            .map(|(name, _)| name.as_str()),
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) fn requestable(name: &str, advertised: &Capabilities, wanted: &[String]) -> bool {
+    let Some(info) = ALL.iter().find(|info| info.name == canonical(name)) else {
+        return true;
+    };
+    match info.request {
+        Request::Never => false,
+        Request::Superseded(preferred) => {
+            !wanted
+                .iter()
+                .any(|name| canonical(name) == canonical(preferred))
+                || advertised_spelling(preferred, advertised).is_none()
+        }
+        Request::Default(_) | Request::Automatic => true,
+    }
 }
 
 #[cfg(test)]

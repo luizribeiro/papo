@@ -95,48 +95,7 @@ pub struct SendTextResult {
 const CTCP_REPLY_INTERVAL: Duration = Duration::from_secs(2);
 
 /// Capabilities requested by a default session when the server advertises them.
-pub const DEFAULT_WANTED_CAPS: &[&str] = &[
-    "cap-notify",
-    "message-tags",
-    "server-time",
-    "batch",
-    "draft/event-playback",
-    "echo-message",
-    "account-tag",
-    "extended-join",
-    "multi-prefix",
-    "userhost-in-names",
-    "chghost",
-    "setname",
-    "away-notify",
-    "account-notify",
-    "extended-monitor",
-    "invite-notify",
-    "standard-replies",
-    "labeled-response",
-    "draft/multiline",
-    "draft/oper-tag",
-    "draft/metadata-2",
-    "draft/account-registration",
-    #[cfg(feature = "unstable")]
-    "soju.im/bouncer-networks",
-    #[cfg(feature = "unstable")]
-    "soju.im/bouncer-networks-notify",
-    "chathistory",
-    "draft/read-marker",
-    #[cfg(feature = "unstable")]
-    "draft/persistence",
-    "draft/channel-rename",
-    #[cfg(feature = "unstable")]
-    "draft/relaymsg",
-    "draft/message-redaction",
-    #[cfg(feature = "unstable")]
-    "draft/webpush",
-    "draft/pre-away",
-    "draft/no-implicit-names",
-    "draft/whoami",
-    "draft/extended-isupport",
-];
+pub use cap::DEFAULTS as DEFAULT_WANTED_CAPS;
 
 /// Enabled `IRCv3` capability names and their advertised values.
 pub type Capabilities = BTreeMap<String, Option<String>>;
@@ -505,7 +464,7 @@ impl Config {
     fn cap_disabled(&self, name: &str) -> bool {
         self.disabled_caps
             .iter()
-            .any(|disabled| papo_proto::canonical(disabled) == papo_proto::canonical(name))
+            .any(|disabled| cap::canonical(disabled) == cap::canonical(name))
     }
 
     /// Sets the alternative nicknames tried during registration.
@@ -3499,7 +3458,7 @@ impl Session {
         self.caps
             .enabled()
             .keys()
-            .any(|name| papo_proto::canonical(name) == "no-implicit-names")
+            .any(|name| cap::canonical(name) == "no-implicit-names")
     }
 
     fn maybe_subscribe_metadata(&mut self, now: Instant) {
