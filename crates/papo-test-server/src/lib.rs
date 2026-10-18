@@ -16,6 +16,7 @@ mod inspircd;
 mod inspircd_config;
 #[cfg(not(target_family = "wasm"))]
 mod ports;
+mod profile;
 #[cfg(not(target_family = "wasm"))]
 mod server;
 #[cfg(not(target_family = "wasm"))]
@@ -30,6 +31,7 @@ pub use environment::{ServerInfo, from_env, unique};
 #[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
 pub use inspircd::TestServer as InspIrcdServer;
+pub use profile::DeploymentProfile;
 #[cfg(not(target_family = "wasm"))]
 pub use server::TestServer;
 #[cfg(not(target_family = "wasm"))]
