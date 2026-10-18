@@ -1,11 +1,9 @@
-use libtest_mimic::Failed;
 use papo::{Event, MessageKind, Origin, Source};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 use papo_testing::Peer;
 
-use super::support::{EXPECT_TIMEOUT, close_pair, join};
-use crate::{Scenario, ScenarioResult};
+use crate::Scenario;
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
     let mut alice = context.connect("alice").await?;
@@ -421,49 +419,26 @@ async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
         "draft/multiline",
         "echo-message",
         "labeled-response"
-    ])
+    ]),
+    covers = ["draft.message-redaction.redact"]
 )]
-async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
-    let caps = [
-        "batch",
-        "draft/message-redaction",
-        "draft/multiline",
-        "echo-message",
-        "labeled-response",
-    ];
-    let sender_nick = context.unique();
-    let receiver_nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let mut sender = context.client_caps(&sender_nick, &caps).await?;
-    join(&context, &mut sender, &channel).await?;
-    let mut receiver = context.client_caps(&receiver_nick, &caps).await?;
-    join(&context, &mut receiver, &channel).await?;
-    let sent = sender
-        .client
-        .privmsg(&channel, "message to\nredact")
-        .await
-        .map_err(Failed::from)?;
-    let Some(id) = sent.id else {
-        return Err("multiline echo did not include a message identifier".into());
-    };
-    context
-        .expect(
-            &mut receiver.events,
-            |event| matches!(event, Event::Message(message) if message.raw_text() == "message to\nredact" && message.id() == Some(&id)),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    sender
-        .client
-        .redact(papo::Target::from(&channel), &id, "conformance redaction")
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut receiver.events,
-            |event| matches!(event, Event::Redacted(redacted) if redacted.target == channel.as_str() && redacted.message == id),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    close_pair(sender, receiver).await
+async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let sent = alice.privmsg(&channel, "message to\nredact").await?;
+    alice.wait_for(Event::as_message).await?;
+    let received = bob.wait_for(Event::as_message).await?;
+    let id = received.id().expect("message has an identifier").clone();
+    assert_eq!(Some(&id), sent.id.as_ref());
+
+    alice.redact(&channel, id.clone(), "superseded").await?;
+    let redacted = bob.wait_for(Event::as_redacted).await?;
+    assert_eq!(redacted.target.as_ref(), channel);
+    assert_eq!(redacted.message, id);
+    assert_eq!(redacted.reason.as_deref(), Some("superseded"));
+    assert_eq!(
+        redacted.source.as_ref().and_then(Source::nick),
+        Some(alice.nick().as_ref())
+    );
+    bob.expect_none(Event::as_redacted).await?;
+    Ok(())
 }
