@@ -197,3 +197,40 @@ async fn account_registration_error(s: Scenario) -> papo_testing::Result<()> {
     );
     Ok(())
 }
+
+/// reads and changes account persistence
+#[scenario(
+    requires(caps = ["draft/persistence"]),
+    covers = ["draft.persistence"]
+)]
+async fn persistence(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect_as_account("alice").await?;
+    let initial = alice.persistence().get().await?;
+    assert_eq!(alice.state().persistence(), Some(initial));
+
+    let enabled = alice
+        .persistence()
+        .set(papo::PersistenceSetting::On)
+        .await?;
+    assert_eq!(enabled.setting, papo::PersistenceSetting::On);
+    assert!(enabled.effective);
+    let changed = alice
+        .wait_for(|event| {
+            event.as_persistence_changed().filter(|changed| {
+                changed.setting == papo::PersistenceSetting::On && changed.effective
+            })
+        })
+        .await?;
+    assert_eq!(changed.setting, enabled.setting);
+    assert_eq!(changed.effective, enabled.effective);
+    assert_eq!(alice.state().persistence(), Some(enabled));
+
+    let disabled = alice
+        .persistence()
+        .set(papo::PersistenceSetting::Off)
+        .await?;
+    assert_eq!(disabled.setting, papo::PersistenceSetting::Off);
+    assert!(!disabled.effective);
+    assert_eq!(alice.state().persistence(), Some(disabled));
+    Ok(())
+}
