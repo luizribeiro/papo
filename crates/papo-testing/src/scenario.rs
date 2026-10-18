@@ -27,17 +27,25 @@ impl Scenario {
     }
 
     /// Configures a client with a unique nickname derived from `label`.
-    pub fn configure(&self, label: &str) -> Builder {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a selected bouncer network cannot be provisioned.
+    pub fn configure(&self, label: &str) -> Result<Builder> {
         let address = self.server.plaintext_addr();
-        Self::configure_named_at(
+        self.configure_named_at(
             unique_name(label),
             Endpoint::plaintext(address.ip().to_string(), address.port()),
         )
     }
 
     /// Configures a named client for an explicit endpoint.
-    pub fn configure_at(&self, label: &str, endpoint: impl IntoEndpoint) -> Builder {
-        Self::configure_named_at(unique_name(label), endpoint)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a selected bouncer network cannot be provisioned.
+    pub fn configure_at(&self, label: &str, endpoint: impl IntoEndpoint) -> Result<Builder> {
+        self.configure_named_at(unique_name(label), endpoint)
     }
 
     /// Configures, connects, and retains a peer named from `label`.
@@ -46,7 +54,7 @@ impl Scenario {
     ///
     /// Returns the client's connection or registration failure.
     pub async fn connect(&self, label: &str) -> Result<Peer> {
-        self.connect_with(self.configure(label)).await
+        self.connect_with(self.configure(label)?).await
     }
 
     /// Registers an account, authenticates it with SASL PLAIN, and connects it.
@@ -59,11 +67,15 @@ impl Scenario {
         let account = unique_name(label);
         register_account(&self.server, &account, ACCOUNT_PASSWORD)?;
         let address = self.server.plaintext_addr();
-        let builder = Self::configure_named_at(
+        let builder = self.configure_named_at(
             account.clone(),
             Endpoint::plaintext(address.ip().to_string(), address.port()),
-        )
-        .sasl(Sasl::plain(account, ACCOUNT_PASSWORD));
+        )?;
+        let builder = if self.server.bouncer().is_some() {
+            builder
+        } else {
+            builder.sasl(Sasl::plain(account, ACCOUNT_PASSWORD))
+        };
         self.connect_with(builder).await
     }
 
@@ -123,10 +135,22 @@ impl Scenario {
         first.map_or(Ok(()), Err)
     }
 
-    fn configure_named_at(name: String, endpoint: impl IntoEndpoint) -> Builder {
-        Client::builder(endpoint)
+    fn configure_named_at(&self, name: String, endpoint: impl IntoEndpoint) -> Result<Builder> {
+        #[cfg(not(target_family = "wasm"))]
+        let bouncer_login = self
+            .server
+            .bouncer()
+            .map(|bouncer| bouncer.provision_network(&name))
+            .transpose()?;
+        let builder = Client::builder(endpoint)
             .nick(name)
-            .realname("papo test peer")
+            .realname("papo test peer");
+        #[cfg(not(target_family = "wasm"))]
+        let builder = match bouncer_login {
+            Some(login) => builder.sasl(Sasl::plain(login.username(), login.password())),
+            None => builder,
+        };
+        Ok(builder)
     }
 }
 

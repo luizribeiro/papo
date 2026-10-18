@@ -42,7 +42,7 @@ async fn sasl_scram_sha_256(s: Scenario) -> papo_testing::Result<()> {
 async fn sasl_failure(s: Scenario) -> papo_testing::Result<()> {
     let result = s
         .connect_with(
-            s.configure("alice")
+            s.configure("alice")?
                 .sasl(Sasl::plain("missing-account", "incorrect password")),
         )
         .await;
@@ -71,7 +71,7 @@ async fn sasl_failure(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
-        .connect_with(s.configure("alice").request_caps(["sasl"]))
+        .connect_with(s.configure("alice")?.request_caps(["sasl"]))
         .await?;
     assert!(alice.state().has_cap("sasl"));
     // SASL is driven raw here because the numeric wire outcomes are the behavior under test.
@@ -118,7 +118,7 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
     } else {
         Sasl::plain(&account, PASSWORD)
     };
-    let mut alice = s.connect_with(s.configure("alice").sasl(sasl)).await?;
+    let mut alice = s.connect_with(s.configure("alice")?.sasl(sasl)).await?;
     let registered = alice.wait_for(Event::as_registered).await?;
     assert_eq!(&registered.nick, alice.state().nick());
     assert!(registered.caps.contains_key("sasl"));
@@ -142,7 +142,7 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
 async fn draft_account_registration(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
         .connect_with(
-            s.configure("alice")
+            s.configure("alice")?
                 .request_caps(["draft/account-registration"]),
         )
         .await?;

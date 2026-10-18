@@ -13,7 +13,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     let value = "fixture metadata value";
     let mut alice = s
         .connect_with(
-            s.configure("alice")
+            s.configure("alice")?
                 .request_caps(["batch", "draft/metadata-2"]),
         )
         .await?;
@@ -120,7 +120,7 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     let alice = s.connect("alice").await?;
     let mut bob = s
-        .connect_with(s.configure("bob").metadata_subscriptions([key]))
+        .connect_with(s.configure("bob")?.metadata_subscriptions([key]))
         .await?;
     alice.join(channel.clone()).await?;
     bob.join(channel.clone()).await?;
@@ -137,7 +137,7 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(bob_change.visibility, Visibility::Public);
 
     let mut charlie = s
-        .connect_with(s.configure("charlie").metadata_subscriptions([key]))
+        .connect_with(s.configure("charlie")?.metadata_subscriptions([key]))
         .await?;
     charlie.join(channel.clone()).await?;
     let charlie_change = charlie
@@ -228,10 +228,10 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     let renamed = format!("{channel}-renamed");
     let reason = "the project moved";
     let mut alice = s
-        .connect_with(s.configure("alice").request_caps(["draft/channel-rename"]))
+        .connect_with(s.configure("alice")?.request_caps(["draft/channel-rename"]))
         .await?;
     let mut bob = s
-        .connect_with(s.configure("bob").request_caps(["draft/channel-rename"]))
+        .connect_with(s.configure("bob")?.request_caps(["draft/channel-rename"]))
         .await?;
     alice.join(channel.clone()).await?;
     bob.join(channel.clone()).await?;

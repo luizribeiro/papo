@@ -128,7 +128,7 @@ async fn isupport(s: Scenario) -> papo_testing::Result<()> {
 async fn extended_isupport(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
         .connect_with(
-            s.configure("alice")
+            s.configure("alice")?
                 .request_caps(["draft/extended-isupport"]),
         )
         .await?;
@@ -193,7 +193,7 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
         let login = bouncer.provision_network(&network_nick)?;
         let alice = s
             .connect_with(
-                s.configure("alice")
+                s.configure("alice")?
                     .nick(network_nick)
                     .username(login.username())
                     .password(login.password())
@@ -265,7 +265,7 @@ async fn webirc(s: Scenario) -> papo_testing::Result<()> {
     let hostname = "client.papo.test";
     let mut alice = s
         .connect_with(
-            s.configure("alice").webirc(
+            s.configure("alice")?.webirc(
                 WebIrc::new(
                     papo_test_server::WEBIRC_PASSWORD,
                     "papo-gateway",
@@ -299,7 +299,7 @@ async fn tls(s: Scenario) -> papo_testing::Result<()> {
 #[scenario(covers = ["core.tls.cert-verification-failure"])]
 async fn tls_certificate_rejected(s: Scenario) -> papo_testing::Result<()> {
     let endpoint = Endpoint::tls("localhost", s.server.tls_addr().port());
-    let Err(error) = s.connect_with(s.configure_at("alice", endpoint)).await else {
+    let Err(error) = s.connect_with(s.configure_at("alice", endpoint)?).await else {
         panic!("the private test CA was trusted by default")
     };
     let error = error
@@ -390,7 +390,7 @@ async fn register_over(
     endpoint: Endpoint,
     ca: Option<Vec<u8>>,
 ) -> papo_testing::Result<()> {
-    let mut builder = s.configure_at("alice", endpoint);
+    let mut builder = s.configure_at("alice", endpoint)?;
     if let Some(ca) = ca {
         builder = builder.tls_ca_pem(ca);
     }
