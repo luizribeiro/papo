@@ -98,7 +98,7 @@ async fn userhost_in_names(context: Scenario) -> papo_testing::Result<()> {
 )]
 async fn whox(context: Scenario) -> papo_testing::Result<()> {
     let alice = context
-        .connect_with(context.configure("alice").realname("Alice Example"))
+        .connect_with(context.configure("alice")?.realname("Alice Example"))
         .await?;
     let nick = alice.nick();
 

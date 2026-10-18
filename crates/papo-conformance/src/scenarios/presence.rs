@@ -228,7 +228,7 @@ async fn monitor(context: Scenario) -> papo_testing::Result<()> {
 )]
 async fn bot_mode(context: Scenario) -> papo_testing::Result<()> {
     let mut alice = context
-        .connect_with(context.configure("alice").bot())
+        .connect_with(context.configure("alice")?.bot())
         .await?;
     let mut bob = context.connect("bob").await?;
     let alice_nick = alice.nick();
