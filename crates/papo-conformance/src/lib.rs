@@ -33,6 +33,7 @@ struct ScenarioSpec {
     name: &'static str,
     doc: &'static str,
     requires: Requirements,
+    covers: &'static [&'static str],
     run: fn(Scenario) -> ScenarioFuture,
 }
 
@@ -134,7 +135,13 @@ fn run_trials(arguments: &Arguments, trials: Vec<Trial>) -> Result<Conclusion, S
 }
 
 fn scenario_specs() -> Vec<ScenarioSpec> {
-    scenarios::all()
+    let scenarios = scenarios::all();
+    debug_assert!(
+        scenarios
+            .iter()
+            .all(|scenario| { scenario.covers.iter().all(|behavior| !behavior.is_empty()) })
+    );
+    scenarios
 }
 
 fn trial(

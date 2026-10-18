@@ -12,6 +12,7 @@ use syn::{
 struct ScenarioArgs {
     caps: Option<Vec<LitStr>>,
     isupport: Option<Vec<LitStr>>,
+    covers: Option<Vec<LitStr>>,
 }
 
 impl Parse for ScenarioArgs {
@@ -19,36 +20,48 @@ impl Parse for ScenarioArgs {
         if input.is_empty() {
             return Ok(Self::default());
         }
-        let keyword: Ident = input.parse()?;
-        if keyword != "requires" {
-            return Err(syn::Error::new(keyword.span(), "expected `requires(...)`"));
-        }
-        let content;
-        parenthesized!(content in input);
         let mut args = Self::default();
-        while !content.is_empty() {
-            let name: Ident = content.parse()?;
-            content.parse::<Token![=]>()?;
-            let destination = if name == "caps" {
-                &mut args.caps
-            } else if name == "isupport" {
-                &mut args.isupport
+        while !input.is_empty() {
+            let keyword: Ident = input.parse()?;
+            if keyword == "requires" {
+                let content;
+                parenthesized!(content in input);
+                while !content.is_empty() {
+                    let name: Ident = content.parse()?;
+                    content.parse::<Token![=]>()?;
+                    let destination = if name == "caps" {
+                        &mut args.caps
+                    } else if name == "isupport" {
+                        &mut args.isupport
+                    } else {
+                        return Err(syn::Error::new(
+                            name.span(),
+                            "expected `caps` or `isupport`",
+                        ));
+                    };
+                    if destination.is_some() {
+                        return Err(syn::Error::new(name.span(), "requirement specified twice"));
+                    }
+                    *destination = Some(parse_strings(&content)?);
+                    if !content.is_empty() {
+                        content.parse::<Token![,]>()?;
+                    }
+                }
+            } else if keyword == "covers" {
+                input.parse::<Token![=]>()?;
+                if args.covers.is_some() {
+                    return Err(syn::Error::new(keyword.span(), "coverage specified twice"));
+                }
+                args.covers = Some(parse_strings(input)?);
             } else {
                 return Err(syn::Error::new(
-                    name.span(),
-                    "expected `caps` or `isupport`",
+                    keyword.span(),
+                    "expected `requires(...)` or `covers = [...]`",
                 ));
-            };
-            if destination.is_some() {
-                return Err(syn::Error::new(name.span(), "requirement specified twice"));
             }
-            *destination = Some(parse_strings(&content)?);
-            if !content.is_empty() {
-                content.parse::<Token![,]>()?;
+            if !input.is_empty() {
+                input.parse::<Token![,]>()?;
             }
-        }
-        if !input.is_empty() {
-            return Err(input.error("unexpected scenario arguments"));
         }
         Ok(args)
     }
@@ -125,6 +138,7 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
         })
         .unzip();
     let isupport = args.isupport.unwrap_or_default();
+    let covers = args.covers.unwrap_or_default();
     Ok(quote! {
         #function
 
@@ -142,6 +156,7 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
                 caps: &[#(#caps),*],
                 isupport: &[#(#isupport),*],
             },
+            covers: &[#(#covers),*],
             run: #wrapper,
         };
 
@@ -172,13 +187,15 @@ mod tests {
         let empty = syn::parse_str::<ScenarioArgs>("").unwrap();
         assert!(empty.caps.is_none());
         assert!(empty.isupport.is_none());
+        assert!(empty.covers.is_none());
 
         let args = syn::parse_str::<ScenarioArgs>(
-            r#"requires(caps = ["echo-message", "sasl=SCRAM-SHA-256"], isupport = ["MONITOR"])"#,
+            r#"requires(caps = ["echo-message", "sasl=SCRAM-SHA-256"], isupport = ["MONITOR"]), covers = ["base.privmsg.channel"]"#,
         )
         .unwrap();
         assert_eq!(args.caps.unwrap()[1].value(), "sasl=SCRAM-SHA-256");
         assert_eq!(args.isupport.unwrap()[0].value(), "MONITOR");
+        assert_eq!(args.covers.unwrap()[0].value(), "base.privmsg.channel");
     }
 
     #[test]
@@ -187,6 +204,7 @@ mod tests {
             r#"requires(tokens = ["WHOX"])"#,
             "other(caps = [])",
             "requires(caps = [], caps = [])",
+            "covers = [], covers = []",
         ] {
             assert!(syn::parse_str::<ScenarioArgs>(input).is_err());
         }
