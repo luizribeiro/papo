@@ -176,7 +176,7 @@ impl Builder {
         {
             self.config
                 .wanted_caps
-                .push("draft/account-registration".into());
+                .push(cap::ACCOUNT_REGISTRATION.into());
         }
         self.config =
             self.config

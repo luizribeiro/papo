@@ -170,7 +170,7 @@ impl Message {
             };
             isupport.casemapping().eq(source, nick)
         });
-        let other_session = echo && caps.contains_key("labeled-response");
+        let other_session = echo && caps.contains_key(crate::cap::LABELED_RESPONSE);
         Self::new_with_context(
             raw,
             None,
@@ -288,7 +288,7 @@ impl Message {
         let is_bot = tags.contains("bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]).map(MessageId::from);
         #[cfg(feature = "unstable")]
-        let relayed_by = tag_owned(&message, &["draft/relaymsg"]).map(Nick::from);
+        let relayed_by = tag_owned(&message, &[crate::cap::RELAYMSG]).map(Nick::from);
         let oper_tag = message.tags().find(|(key, _)| *key == "draft/oper");
         let is_oper = oper_tag.is_some();
         let oper = oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned));
