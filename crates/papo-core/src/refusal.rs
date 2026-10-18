@@ -332,6 +332,12 @@ impl Refusal {
     }
 }
 
+impl std::fmt::Display for Refusal {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("the IRC server refused the request")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use {super::Refusal, papo_proto::Numeric};

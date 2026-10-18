@@ -1120,6 +1120,15 @@ impl RefusalKind {
 impl ServerError {
     /// Classifies this refusal independently of its wire representation.
     #[must_use]
+    pub fn refusal(&self) -> Refusal {
+        match self {
+            Self::Numeric { numeric, .. } => Refusal::from_numeric(*numeric),
+            Self::Standard { command, code, .. } => Refusal::from_standard(command, code),
+        }
+    }
+
+    /// Classifies this refusal independently of its wire representation.
+    #[must_use]
     pub const fn refusal_kind(&self) -> RefusalKind {
         match self {
             Self::Numeric { numeric, .. } => RefusalKind::from_numeric(*numeric),
