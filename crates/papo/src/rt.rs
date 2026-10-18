@@ -38,7 +38,12 @@ pub(crate) fn now_wall() -> SystemTime {
 
 #[cfg(browser)]
 pub(crate) fn now_wall() -> SystemTime {
-    SystemTime::UNIX_EPOCH + std::time::Duration::from_secs_f64(js_sys::Date::now() / 1_000.0)
+    wall_time_from_millis(js_sys::Date::now())
+}
+
+#[cfg(any(browser, test))]
+fn wall_time_from_millis(milliseconds: f64) -> SystemTime {
+    SystemTime::UNIX_EPOCH + std::time::Duration::from_secs_f64(milliseconds / 1_000.0)
 }
 
 #[cfg(not(browser))]
@@ -129,16 +134,20 @@ mod tests {
 
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use super::{Timer, now_mono, sleep_until, spawn};
+    use super::{Timer, now_mono, now_wall, sleep_until, spawn};
 
     #[wasm_bindgen_test]
     async fn orders_worker_timers_and_spawns_locally() {
-        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let (sender, mut receiver) = tokio::sync::oneshot::channel();
         spawn(async move {
             sleep_until(now_mono() + D::from_millis(20)).await;
             _ = sender.send(2);
         });
         sleep_until(now_mono() + D::from_millis(1)).await;
+        assert_eq!(
+            receiver.try_recv(),
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+        );
         assert_eq!(receiver.await.unwrap(), 2);
     }
 
@@ -153,8 +162,28 @@ mod tests {
     }
 
     #[wasm_bindgen_test]
-    fn monotonic_clock_never_goes_backwards() {
+    async fn worker_clocks_track_elapsed_and_wall_time() {
+        let javascript_wall =
+            std::time::SystemTime::UNIX_EPOCH + D::from_secs_f64(js_sys::Date::now() / 1_000.0);
+        assert!(now_wall().duration_since(javascript_wall).unwrap() < D::from_secs(1));
+
         let earlier = now_mono();
-        assert!(now_mono() >= earlier);
+        sleep_until(earlier + D::from_millis(2)).await;
+        let elapsed = now_mono().duration_since(earlier);
+        assert!(elapsed >= D::from_millis(1));
+        assert!(elapsed < D::from_secs(1));
+    }
+}
+
+#[cfg(all(test, not(browser)))]
+mod native_tests {
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn converts_javascript_milliseconds_to_system_time() {
+        assert_eq!(
+            super::wall_time_from_millis(1_500.0),
+            SystemTime::UNIX_EPOCH + Duration::from_millis(1_500)
+        );
     }
 }
