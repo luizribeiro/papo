@@ -1,7 +1,7 @@
 use std::time::{Duration, SystemTime};
 
 use libtest_mimic::Failed;
-use papo::{Origin, Sent, Source};
+use papo::{Error, HistoryItem, Origin, Sent, Source};
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
@@ -72,6 +72,112 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
         );
         assert!(message.server_time.is_some());
     }
+    Ok(())
+}
+
+fn message_texts(page: &papo::HistoryPage, expected: &[&str]) -> Vec<String> {
+    page.messages()
+        .filter(|message| expected.contains(&message.text()))
+        .map(|message| message.text().to_owned())
+        .collect()
+}
+
+/// pages channel history around message identifiers
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory"]),
+    covers = [
+        "draft.chathistory.before-after-around",
+        "draft.chathistory.between"
+    ]
+)]
+async fn chathistory_paging(s: Scenario) -> papo_testing::Result<()> {
+    let texts = [
+        "release window opened",
+        "database migration started",
+        "database migration completed",
+        "health checks passed",
+        "release window closed",
+    ];
+    let (_, reader, channel, sent) = history_peers(&s, &texts).await?;
+    let ids = sent
+        .iter()
+        .map(|message| message.id.as_ref().expect("Ergo supplies a message ID"))
+        .collect::<Vec<_>>();
+
+    let before = reader
+        .history(&channel)
+        .before(ids[3].as_ref())
+        .limit(10)
+        .await?;
+    assert_eq!(message_texts(&before, &texts), texts[..3]);
+
+    let after = reader
+        .history(&channel)
+        .after(ids[1].as_ref())
+        .limit(10)
+        .await?;
+    assert_eq!(message_texts(&after, &texts), texts[2..]);
+
+    let around = reader
+        .history(&channel)
+        .around(ids[2].as_ref())
+        .limit(3)
+        .await?;
+    assert_eq!(message_texts(&around, &texts), texts[1..4]);
+
+    let between = reader
+        .history(&channel)
+        .between(ids[0].as_ref(), ids[4].as_ref())
+        .limit(10)
+        .await?;
+    assert_eq!(message_texts(&between, &texts), texts[1..4]);
+    Ok(())
+}
+
+/// rejects history for an unavailable target with a typed server error
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory"]),
+    covers = ["draft.chathistory.errors"]
+)]
+async fn chathistory_errors(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let target = s.channel_name();
+    let error = alice.history(&target).latest(10).await.unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Server(ref error) if error.code() == "INVALID_TARGET"
+    ));
+    Ok(())
+}
+
+/// includes typed channel activity when event playback is negotiated
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory", "draft/event-playback"]),
+    covers = ["draft.event-playback"]
+)]
+async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
+    let writer = s.connect("writer").await?;
+    let channel = s.channel_name();
+    writer.join(&channel).await?;
+    writer
+        .set_topic(&channel, "incident response completed")
+        .await?;
+    writer.privmsg(&channel, "service is healthy").await?;
+
+    let reader = s.connect("reader").await?;
+    reader.join(&channel).await?;
+    let page = reader.history(&channel).latest(10).await?;
+    let topic = page
+        .items
+        .iter()
+        .find_map(|item| match item {
+            HistoryItem::TopicChanged(topic) => Some(topic),
+            _ => None,
+        })
+        .expect("history contains the topic change");
+    assert_eq!(topic.channel.as_ref(), channel);
+    assert_eq!(topic.topic.as_deref(), Some("incident response completed"));
+    assert_eq!(topic.by.nick(), Some(writer.nick().as_ref()));
     Ok(())
 }
 

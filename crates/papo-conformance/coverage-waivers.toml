@@ -8,3 +8,4 @@
 "core.sasl.reauth" = "papo has no public API for starting a second SASL exchange after registration."
 "core.batch.netsplit-netjoin" = "A single local IRC server cannot produce a server-link split or netjoin batch."
 "core.tls.sni" = "The local harness has no TLS-terminating observer that can inspect the ClientHello server name."
+"draft.chathistory.targets" = "The public history_targets API emits bare RFC3339 bounds, but the live specification and Ergo require timestamp= references."
