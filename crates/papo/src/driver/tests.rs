@@ -638,7 +638,7 @@ async fn explicit_reconnect_redials_without_backoff() {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 #[allow(clippy::too_many_lines)]
-async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
+async fn reconnect_history_pages_stop_at_the_target_limit() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
     let streams = Arc::new(Mutex::new(VecDeque::from([
@@ -721,31 +721,58 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     let timestamp_request = String::from_utf8(timestamp_request).unwrap();
     assert!(timestamp_request.starts_with("@label=1 CHATHISTORY AFTER #rust timestamp="));
     assert!(timestamp_request.ends_with(" 100\r\n"));
-    server_line(&mut second_server, b"@label=0 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0 :ergo.test BATCH +history0 chathistory #papo\r\n@batch=history0;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n@batch=history0;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed one\r\n@batch=reply0 :ergo.test BATCH -history0\r\n:ergo.test BATCH -reply0\r\n").await;
+    let mut first_page = String::from(
+        "@label=0 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0 :ergo.test BATCH +history0 chathistory #papo\r\n",
+    );
+    for index in 0..=950 {
+        use std::fmt::Write as _;
+        writeln!(
+            first_page,
+            "@batch=history0;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY12{index:04} :emily!~e@localhost PRIVMSG #papo :missed {index}\r"
+        )
+        .unwrap();
+    }
+    first_page.push_str("@batch=reply0 :ergo.test BATCH -history0\r\n:ergo.test BATCH -reply0\r\n");
+    server_line(&mut second_server, first_page.as_bytes()).await;
     client_line(
         &mut second_server,
-        b"@label=2 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
+        b"@label=2 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120950 50\r\n",
     )
     .await;
-    server_line(&mut second_server, b"@label=2 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2;draft/chathistory-end :ergo.test BATCH +history2 chathistory #papo\r\n@batch=history2;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed one\r\n@batch=history2;time=2026-10-15T12:02:00.000Z;msgid=RfcBTzyxY120002 :emily!~e@localhost PRIVMSG #papo :missed two\r\n@batch=reply2 :ergo.test BATCH -history2\r\n:ergo.test BATCH -reply2\r\n").await;
+    let mut second_page = String::from(
+        "@label=2 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2 :ergo.test BATCH +history2 chathistory #papo\r\n",
+    );
+    for index in 950..=1_000 {
+        use std::fmt::Write as _;
+        writeln!(
+            second_page,
+            "@batch=history2;time=2026-10-15T12:02:00.000Z;msgid=RfcBTzyxY12{index:04} :emily!~e@localhost PRIVMSG #papo :missed {index}\r"
+        )
+        .unwrap();
+    }
+    second_page
+        .push_str("@batch=reply2 :ergo.test BATCH -history2\r\n:ergo.test BATCH -reply2\r\n");
+    server_line(&mut second_server, second_page.as_bytes()).await;
 
     let Some(Event::History(history)) = events.next().await else {
         panic!("expected aggregate history event")
     };
     assert_eq!(history.target, "#papo");
+    assert_eq!(history.messages().count(), 1_000);
     assert_eq!(
-        history
-            .messages()
-            .map(ChatMessage::text)
-            .collect::<Vec<_>>(),
-        ["missed one", "missed two"]
+        history.messages().next().map(ChatMessage::text),
+        Some("missed 1")
+    );
+    assert_eq!(
+        history.messages().last().map(ChatMessage::text),
+        Some("missed 1000")
     );
     assert!(
         history
             .messages()
             .all(|message| message.origin() == Origin::History && !message.is_live())
     );
-    assert!(history.end);
+    assert!(!history.end);
     abort_task(driver).await;
 }
 

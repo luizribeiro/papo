@@ -198,7 +198,9 @@ pub(super) fn should_fetch_history(session: &Session) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use papo_core::{HistoryItem, HistoryMessage, MsgRef};
+    use std::{collections::BTreeMap, time::SystemTime};
+
+    use papo_core::{Config, HistoryItem, HistoryMessage, MsgRef, RateLimit, Session};
     use papo_proto::MessageRef;
 
     #[test]
@@ -215,5 +217,41 @@ mod tests {
         let cursor = super::newest_cursor(&[item]).unwrap();
         assert_eq!(cursor.reference(true), Some(MsgRef::Timestamp(time)));
         assert_eq!(cursor.reference(false), None);
+    }
+
+    #[test]
+    fn reconnect_without_timestamp_references_skips_an_unknown_cursor() {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(
+            Config::default()
+                .rate_limit(RateLimit::unlimited())
+                .wanted_caps(["draft/chathistory", "labeled-response"]),
+        );
+        session.handle_connected(now);
+        while session.poll_transmit().is_some() {}
+        session.handle_bytes(
+            now,
+            b":ergo.test CAP * LS :draft/chathistory labeled-response\r\n",
+        );
+        while session.poll_transmit().is_some() {}
+        session.handle_bytes(
+            now,
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response\r\n",
+        );
+        while session.poll_transmit().is_some() {}
+        session.handle_bytes(now, b":ergo.test 005 papo MSGREFTYPES=msgid :supported\r\n:ergo.test 001 papo :Welcome\r\n:ergo.test 422 papo :No MOTD\r\n");
+        while session.poll_event().is_some() {}
+
+        let defaults = super::super::PostRegistration {
+            bot: false,
+            channels: vec!["#papo".into()],
+            history_on_reconnect: true,
+            disconnected_at: Some(SystemTime::UNIX_EPOCH),
+        };
+        let mut catchups = BTreeMap::new();
+        super::begin_catchup(&mut session, &defaults, &mut catchups);
+
+        assert!(catchups.is_empty());
+        assert!(session.poll_transmit().is_none());
     }
 }
