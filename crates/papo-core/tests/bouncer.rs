@@ -5,7 +5,7 @@ mod support;
 
 use std::time::{Duration, Instant};
 
-use papo_core::{Config, Event, NetworkConfig, NetworkId, StateLimit};
+use papo_core::{Config, Event, NetworkConfig, NetworkId, NetworkState, StateLimit};
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -101,6 +101,53 @@ fn merges_bounded_notification_batches_and_deletes_networks() {
         .event(|event| matches!(event, Event::BouncerNetwork { id, network: None }
             if id.as_str() == "42"))
         .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 0))
+        .no_event();
+}
+
+#[test]
+fn parses_each_network_attribute_and_rejects_nearby_commands() {
+    registered()
+        .server(r"BOUNCER OTHER 42 name=Wrong\sSubcommand")
+        .event(|event| {
+            matches!(event, Event::Message(message) if message.as_ref().command_is("BOUNCER"))
+        })
+        .server(r"NOTICE NETWORK 42 name=Wrong\sCommand")
+        .event(|event| {
+            matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE"))
+        })
+        .server(
+            r"BOUNCER NETWORK network-42 name=Example\sNet;state=connecting;host=irc.example.org;port=6697;tls=0;nickname=alice;username=alice_;realname=Alice\sExample;error=Connection\srefused;vendor.example/region=us-east",
+        )
+        .event(|event| {
+            matches!(
+                event,
+                Event::BouncerNetwork {
+                    id,
+                    network: Some(network),
+                } if id.to_string() == "network-42"
+                    && network.name.as_deref() == Some("Example Net")
+                    && network.state == Some(NetworkState::Connecting)
+                    && network.host.as_deref() == Some("irc.example.org")
+                    && network.port == Some(6697)
+                    && network.tls == Some(false)
+                    && network.nickname.as_deref() == Some("alice")
+                    && network.username.as_deref() == Some("alice_")
+                    && network.realname.as_deref() == Some("Alice Example")
+                    && network.error.as_deref() == Some("Connection refused")
+                    && network.other.get("vendor.example/region").map(String::as_str)
+                        == Some("us-east")
+            )
+        })
+        .server("BOUNCER NETWORK network-42 state=disconnected")
+        .event(|event| {
+            matches!(
+                event,
+                Event::BouncerNetwork {
+                    network: Some(network),
+                    ..
+                } if network.state == Some(NetworkState::Disconnected)
+            )
+        })
         .no_event();
 }
 
