@@ -22,6 +22,9 @@ mod websocket;
 #[cfg(browser)]
 #[path = "transport/websocket_browser.rs"]
 mod websocket_browser;
+#[cfg(all(test, not(browser)))]
+#[path = "transport/websocket_browser/pure.rs"]
+mod websocket_browser_pure;
 
 #[cfg(test)]
 mod live;

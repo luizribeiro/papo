@@ -4,14 +4,7 @@ use js_sys::Array;
 use wasm_bindgen::{JsCast, closure::Closure};
 use web_sys::{BinaryType, CloseEvent, ErrorEvent, Event};
 
-pub(super) const BINARY: &str = "binary.ircv3.net";
-pub(super) const TEXT: &str = "text.ircv3.net";
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum Protocol {
-    Binary,
-    Text,
-}
+use super::pure::{BINARY, Protocol, TEXT, select_protocol};
 
 struct Handshake {
     socket: web_sys::WebSocket,
@@ -80,11 +73,7 @@ pub(super) async fn open_with(
     receiver
         .await
         .map_err(|_| "WebSocket opening callbacks were released".to_owned())??;
-    let protocol = match handshake.socket.protocol().as_str() {
-        BINARY => Protocol::Binary,
-        TEXT | "" => Protocol::Text,
-        _ => return Err("browser selected an unknown WebSocket subprotocol".to_owned()),
-    };
+    let protocol = select_protocol(&handshake.socket.protocol()).map_err(str::to_owned)?;
     let socket = handshake.socket.clone();
     drop(handshake);
     Ok((socket, protocol))

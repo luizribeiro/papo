@@ -2,6 +2,8 @@
 mod callbacks;
 #[path = "websocket_browser/handshake.rs"]
 mod handshake;
+#[path = "websocket_browser/pure.rs"]
+mod pure;
 #[path = "websocket_browser/read.rs"]
 mod read;
 #[path = "websocket_browser/write.rs"]
@@ -21,7 +23,7 @@ use std::{
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use callbacks::Callbacks;
-use handshake::Protocol;
+use pure::{Protocol, below};
 use read::ReadState;
 use write::WriteState;
 
@@ -69,8 +71,8 @@ impl WebSocket {
 
     pub(super) const fn subprotocol(&self) -> Option<&'static str> {
         Some(match self.protocol {
-            Protocol::Binary => handshake::BINARY,
-            Protocol::Text => handshake::TEXT,
+            Protocol::Binary => pure::BINARY,
+            Protocol::Text => pure::TEXT,
         })
     }
 
@@ -108,10 +110,6 @@ impl WebSocket {
             }
         }
     }
-}
-
-fn below(amount: u32, ceiling: u32) -> bool {
-    amount < ceiling
 }
 
 fn send_error(_error: wasm_bindgen::JsValue) -> io::Error {
@@ -189,14 +187,6 @@ mod tests {
     use super::WebSocket;
 
     #[wasm_bindgen_test]
-    fn applies_the_literal_backpressure_threshold() {
-        assert!(super::below(65_535, 65_536));
-        assert!(!super::below(65_536, 65_536));
-        assert!(super::below(0, 1));
-        assert!(!super::below(1, 1));
-    }
-
-    #[wasm_bindgen_test]
     async fn dropping_a_stream_releases_every_callback() {
         let stream = WebSocket::connect(env!("PAPO_BROWSER_WS")).await.unwrap();
         let socket = stream.socket.clone();
@@ -223,10 +213,9 @@ mod tests {
 
     #[wasm_bindgen_test]
     async fn text_mode_rejects_invalid_utf8_and_shutdown_releases_callbacks() {
-        let mut stream =
-            WebSocket::connect_with(env!("PAPO_BROWSER_WS"), &[super::handshake::TEXT])
-                .await
-                .unwrap();
+        let mut stream = WebSocket::connect_with(env!("PAPO_BROWSER_WS"), &[super::pure::TEXT])
+            .await
+            .unwrap();
         assert_eq!(
             stream.write_all(&[0xff, b'\n']).await.unwrap_err().kind(),
             std::io::ErrorKind::InvalidData
@@ -246,7 +235,7 @@ mod tests {
 
     #[wasm_bindgen_test]
     async fn registers_with_ergo_using_text_messages() {
-        let stream = WebSocket::connect_with(env!("PAPO_BROWSER_WS"), &[super::handshake::TEXT])
+        let stream = WebSocket::connect_with(env!("PAPO_BROWSER_WS"), &[super::pure::TEXT])
             .await
             .unwrap();
         register(stream, "papo-text").await;

@@ -4,7 +4,7 @@ use js_sys::{ArrayBuffer, Uint8Array};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{CloseEvent, ErrorEvent, MessageEvent};
 
-use super::{handshake::Protocol, read::ReadState};
+use super::{pure::Protocol, read::ReadState};
 
 pub(super) struct Callbacks {
     socket: web_sys::WebSocket,
