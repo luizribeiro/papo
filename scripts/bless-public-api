@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$repo_root"
+
+nightly_cargo=
+while IFS= read -r directory; do
+  candidate="$directory/cargo"
+  if [[ -x "$candidate" ]] && "$candidate" --version | grep -q nightly; then
+    nightly_cargo=$candidate
+    break
+  fi
+done < <(printf '%s' "$PATH" | tr : '\n')
+if [[ -z "$nightly_cargo" ]]; then
+  echo "nightly cargo is unavailable; enter the flake dev shell" >&2
+  exit 1
+fi
+
+nightly_bin=$(dirname "$nightly_cargo")
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+generate() {
+  local features=$1
+  local snapshot=$2
+  local target=$3
+  local actual="$work/$snapshot"
+  CARGO_INCREMENTAL=0 \
+    RUSTC="$nightly_bin/rustc" \
+    RUSTDOC="$nightly_bin/rustdoc" \
+    "$nightly_cargo" rustdoc \
+      -p papo --no-default-features --features "$features" --lib --target-dir "$target" \
+      -- -Z unstable-options --output-format json
+  cargo public-api \
+    --rustdoc-json "$target/doc/papo.json" \
+    --color=never -sss | bash nix/normalize-public-api.sh > "$actual"
+  mv "$actual" "crates/papo/$snapshot"
+}
+
+stable=bot,sts-file,websocket,tls-aws-lc,tls-ring
+generate "$stable" public-api.txt "$work/stable"
+generate "$stable,unstable" public-api-unstable.txt "$work/unstable"
