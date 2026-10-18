@@ -210,8 +210,10 @@ mod tests {
             matches!(within(verify).await.unwrap().unwrap(), super::AccountRegistration::Registered { account } if account == "alice")
         );
 
-        let verify =
-            tokio::spawn(async move { client.verify_account("alice", "expired-code").await });
+        let verify = tokio::spawn({
+            let client = client.clone();
+            async move { client.verify_account("alice", "expired-code").await }
+        });
         client_line(&mut server, b"@label=2 VERIFY alice expired-code\r\n").await;
         server_line(
             &mut server,
@@ -221,6 +223,13 @@ mod tests {
         assert!(matches!(
             within(verify).await.unwrap(),
             Err(Error::Server(error)) if error.code() == "INVALID_CODE"
+        ));
+
+        assert!(matches!(
+            client
+                .register_account(super::NewAccount::new(crate::Secret::from_bytes([0xff])))
+                .await,
+            Err(Error::InvalidInput(crate::InvalidInput::BinarySecret))
         ));
 
         abort_task(driver).await;

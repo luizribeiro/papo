@@ -151,7 +151,10 @@ impl CoreRequest {
                 endpoint,
                 p256dh,
                 auth,
-            } => return session.webpush_register(now(), &endpoint, &p256dh, auth.expose()),
+            } => {
+                let auth = auth.expose_text().ok_or(RequestError::InvalidSecret)?;
+                return session.webpush_register(now(), &endpoint, &p256dh, auth);
+            }
             #[cfg(feature = "unstable")]
             Self::WebPushUnregister(endpoint) => {
                 return session.webpush_unregister(now(), &endpoint);
@@ -814,7 +817,13 @@ where
                 }
                 Some(Command::Join { channel, key, result }) => {
                     let params = match &key {
-                        Some(key) => vec![channel.to_string(), key.expose().to_owned()],
+                        Some(key) => {
+                            let Some(key) = key.expose_text() else {
+                                _ = result.send(Err(InvalidInput::BinarySecret.into()));
+                                continue;
+                            };
+                            vec![channel.to_string(), key.to_owned()]
+                        }
                         None => vec![channel.to_string()],
                     };
                     match session.request_with_matcher(
@@ -1403,7 +1412,12 @@ fn after_registration(
     if should_rejoin(session) {
         for channel in &defaults.channels {
             let params = match &channel.key {
-                Some(key) => vec![channel.channel.clone(), key.expose().to_owned()],
+                Some(key) => {
+                    let key = key.expose_text().ok_or_else(|| {
+                        io::Error::new(io::ErrorKind::InvalidInput, "channel key is not text")
+                    })?;
+                    vec![channel.channel.clone(), key.to_owned()]
+                }
                 None => vec![channel.channel.clone()],
             };
             session

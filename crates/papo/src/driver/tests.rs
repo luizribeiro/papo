@@ -2457,6 +2457,26 @@ async fn keyed_join_redacts_the_key_and_waits_for_channel_sync() {
     ));
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn text_only_commands_reject_byte_secrets() {
+    let (mut server, client, _events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+
+    assert!(matches!(
+        client
+            .join("#ergo-ops")
+            .key(crate::Secret::from_bytes([0xff]))
+            .await,
+        Err(Error::InvalidInput(crate::InvalidInput::BinarySecret))
+    ));
+    assert!(matches!(
+        client.oper("papo", crate::Secret::from_bytes([0xff])).await,
+        Err(Error::InvalidInput(crate::InvalidInput::BinarySecret))
+    ));
+    abort_task(driver).await;
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn oper_and_ping_return_server_outcomes() {
     let (mut server, client, mut events, driver) = scripted(config());

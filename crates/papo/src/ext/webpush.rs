@@ -172,4 +172,22 @@ mod tests {
         assert!(output.contains("[REDACTED]"));
         assert!(!output.contains("unique-webpush-auth-secret-4862"));
     }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn rejects_a_byte_authentication_secret() {
+        let settings = config().wanted_caps(["draft/webpush", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        complete_registration(&mut server, &mut events).await;
+        let keys =
+            super::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", crate::Secret::from_bytes([0xff]));
+        assert!(matches!(
+            client
+                .webpush()
+                .register("https://push.example.net/message/ErgoTest/alice", keys)
+                .await,
+            Err(Error::InvalidInput(crate::InvalidInput::BinarySecret))
+        ));
+        abort_task(driver).await;
+    }
 }
