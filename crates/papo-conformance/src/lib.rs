@@ -27,7 +27,33 @@ mod scenarios;
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 type ScenarioResult = Result<Completion, Failed>;
-type ScenarioFuture = Pin<Box<dyn Future<Output = ScenarioResult>>>;
+type FixtureResult = papo_testing::Result<()>;
+type ScenarioFuture = Pin<Box<dyn Future<Output = FixtureResult>>>;
+
+trait IntoScenarioResult {
+    fn into_scenario_result(self) -> FixtureResult;
+}
+
+impl IntoScenarioResult for FixtureResult {
+    fn into_scenario_result(self) -> FixtureResult {
+        self
+    }
+}
+
+impl IntoScenarioResult for ScenarioResult {
+    fn into_scenario_result(self) -> FixtureResult {
+        match self {
+            Ok(Completion::Completed) => Ok(()),
+            Ok(Completion::Ignored { reason }) => Err(papo_testing::skipped(
+                reason.unwrap_or_else(|| "scenario skipped".into()),
+            )),
+            Err(error) => Err(std::io::Error::other(
+                error.message().unwrap_or("scenario failed").to_owned(),
+            )
+            .into()),
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 struct ScenarioSpec {
@@ -189,10 +215,21 @@ fn trial(
             server,
             name: spec.name,
         }));
+        let result = fixture_completion(result);
         report_scenario_status(spec.name, &result, known_failure.as_deref(), json);
         known_failure_verdict(result, known_failure.as_deref(), &server_name)
     })
     .with_kind(spec.doc)
+}
+
+fn fixture_completion(result: FixtureResult) -> ScenarioResult {
+    match result {
+        Ok(()) => Ok(Completion::Completed),
+        Err(error) => match papo_testing::skip_reason(&error) {
+            Some(reason) => Ok(Completion::ignored_with(reason)),
+            None => Err(Failed::from(error)),
+        },
+    }
 }
 
 fn report_scenario_status(
@@ -256,13 +293,12 @@ impl<S> Scenario<S> {
 }
 
 impl Scenario {
-    async fn quit_all(&self) -> Result<(), Failed> {
+    async fn quit_all(&self) -> FixtureResult {
         self.fixture
             .as_ref()
             .expect("live scenarios have a fixture")
             .quit_all()
             .await
-            .map_err(Failed::from)
     }
 
     async fn client(&self, nick: &str) -> Result<RegisteredClient, Failed> {
@@ -664,9 +700,9 @@ mod tests {
     use libtest_mimic::{Arguments, Completion, Failed, Trial};
 
     use super::{
-        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event, json_string,
-        known_failure_verdict, load_known_failures_from, required_environment_from, run_trials,
-        runtime, scenario_status,
+        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event,
+        fixture_completion, json_string, known_failure_verdict, load_known_failures_from,
+        required_environment_from, run_trials, runtime, scenario_status,
     };
 
     struct TestDirectory(PathBuf);
@@ -886,6 +922,23 @@ mod tests {
             json_string("quote \" and\ncontrol\u{1f}"),
             "\"quote \\\" and\\ncontrol\\u001f\""
         );
+    }
+
+    #[test]
+    fn fixture_completion_preserves_pass_failure_and_skip() {
+        assert!(matches!(
+            fixture_completion(Ok(())),
+            Ok(Completion::Completed)
+        ));
+        let skipped = fixture_completion(Err(papo_testing::skipped("local setup absent")));
+        assert!(
+            matches!(skipped, Ok(Completion::Ignored { reason: Some(reason) }) if reason == "local setup absent")
+        );
+        let failed = fixture_completion(Err(std::io::Error::other("wire mismatch").into()));
+        let Err(failed) = failed else {
+            panic!("fixture failure unexpectedly passed")
+        };
+        assert_eq!(failed.message(), Some("wire mismatch"));
     }
 
     #[test]

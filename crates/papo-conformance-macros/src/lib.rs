@@ -147,7 +147,7 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
         fn #wrapper(context: crate::Scenario) -> crate::ScenarioFuture {
             let cleanup = context.clone();
             Box::pin(async move {
-                let result = #name(context).await;
+                let result = crate::IntoScenarioResult::into_scenario_result(#name(context).await);
                 let cleanup_result = cleanup.quit_all().await;
                 match (result, cleanup_result) {
                     (Err(error), _) => Err(error),
@@ -224,7 +224,7 @@ mod tests {
         let args = syn::parse2(quote!(requires(caps = ["sasl=SCRAM-SHA-256"]))).unwrap();
         let function = syn::parse2(quote! {
             /// authenticates with a real SCRAM exchange
-            async fn sasl_scram(context: Scenario) -> ScenarioResult { context.close().await }
+            async fn sasl_scram(context: Scenario) -> papo_testing::Result<()> { Ok(()) }
         })
         .unwrap();
         let output = expand(args, &function).unwrap().to_string();
