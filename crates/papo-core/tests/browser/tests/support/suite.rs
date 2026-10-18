@@ -1,4 +1,4 @@
-use papo::{Client, Error, Event as ClientEvent, Events, RequestFuture, Sasl};
+use papo::{Client, Error, Event as ClientEvent, Events, Reconnect, RequestFuture, Sasl};
 use papo_core::{Config, Event, Session};
 use papo_proto::MessageRef;
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -33,6 +33,7 @@ async fn high_level_client_uses_the_browser_websocket() {
         .nick(account)
         .sasl(Sasl::plain(account, password))
         .autojoin([&channel])
+        .reconnect(Reconnect::exponential().max_delay(std::time::Duration::from_millis(20)))
         .connect()
         .await
         .unwrap();
@@ -66,7 +67,18 @@ async fn high_level_client_uses_the_browser_websocket() {
         .unwrap();
     assert!(sent.id.is_some());
 
-    client.reconnect().await.unwrap();
+    client
+        .send_command("QUIT", ["exercise browser reconnect backoff"])
+        .await
+        .unwrap();
+    wait_for(&mut events, |event| {
+        matches!(
+            event,
+            ClientEvent::Disconnected(disconnected)
+                if disconnected.retry_in.is_some_and(|delay| !delay.is_zero())
+        )
+    })
+    .await;
     wait_for(&mut events, |event| {
         matches!(event, ClientEvent::Registered(registered) if registered.reconnected)
     })
