@@ -67,9 +67,9 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, a, _b, _c => builder.without_caps([a]));
         probe!(builder, a, b, _c => builder.metadata_subscriptions([a, b]));
         probe!(builder, _a, _b, _c => builder.rate_limit(crate::RateLimit::unlimited()));
-        probe!(builder, a, _b, _c => builder.ping_interval(Duration::from_nanos(a.len() as u64)));
-        probe!(builder, a, _b, _c => builder.ping_timeout(Duration::from_nanos(a.len() as u64)));
-        probe!(builder, a, _b, _c => builder.request_timeout(Duration::from_nanos(a.len() as u64)));
+        probe!(builder, a, _b, _c => builder.ping_interval(Duration::from_secs(a.len() as u64)));
+        probe!(builder, a, _b, _c => builder.ping_timeout(Duration::from_secs(a.len() as u64)));
+        probe!(builder, a, _b, _c => builder.request_timeout(Duration::from_secs(a.len() as u64)));
         probe!(builder, a, _b, _c => builder.away_on_connect(a));
         probe!(builder, a, _b, _c => builder.ctcp_version(Some(&a)));
         probe!(builder, a, _b, _c => builder.ctcp_source(a));
