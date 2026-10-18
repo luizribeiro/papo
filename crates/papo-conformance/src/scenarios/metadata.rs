@@ -56,6 +56,109 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// notifies subscribed channel peers about client metadata
+#[scenario(
+    requires(caps = ["batch", "draft/metadata-2"]),
+    covers = ["draft.metadata.sub-notifications"]
+)]
+async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
+    let key = "example.org/papo-presence";
+    let channel = s.channel_name();
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    alice.join(channel.clone()).await?;
+    bob.join(channel).await?;
+    bob.metadata().subscribe([key]).await?;
+    assert!(
+        bob.state()
+            .metadata_subscriptions()
+            .iter()
+            .any(|subscribed| subscribed.as_ref() == key)
+    );
+
+    let alice_nick = alice.state().nick().clone();
+    alice.metadata().set(key, "available").await?;
+    let alice_change = alice
+        .wait_for(|event| {
+            event
+                .as_metadata_changed()
+                .filter(|changed| changed.key.as_ref() == key)
+        })
+        .await?;
+    let bob_change = bob
+        .wait_for(|event| {
+            event.as_metadata_changed().filter(|changed| {
+                changed.target.as_ref() == alice_nick.as_ref() && changed.key.as_ref() == key
+            })
+        })
+        .await?;
+    assert_eq!(alice_change, bob_change);
+    assert_eq!(bob_change.value.as_deref(), Some("available"));
+    assert_eq!(bob_change.visibility, Visibility::Public);
+    let cached = bob
+        .state()
+        .metadata(&alice_nick)
+        .expect("subscriber caches the visible metadata");
+    assert_eq!(cached[key].value, "available");
+
+    bob.metadata().unsubscribe([key]).await?;
+    assert!(bob.state().metadata_subscriptions().is_empty());
+    alice.metadata().set(key, "busy").await?;
+    bob.expect_none(Event::as_metadata_changed).await?;
+    assert_eq!(bob.state().metadata(&alice_nick), Some(cached));
+    Ok(())
+}
+
+/// synchronizes channel metadata to current and later members
+#[scenario(
+    requires(caps = ["batch", "draft/metadata-2"]),
+    covers = ["draft.metadata.channel-metadata"]
+)]
+async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
+    let key = "example.org/papo-topic-category";
+    let value = "systems programming";
+    let channel = s.channel_name();
+    let alice = s.connect("alice").await?;
+    let mut bob = s
+        .connect_with(s.configure("bob").metadata_subscriptions([key]))
+        .await?;
+    alice.join(channel.clone()).await?;
+    bob.join(channel.clone()).await?;
+
+    alice.metadata().set_on(channel.clone(), key, value).await?;
+    let bob_change = bob
+        .wait_for(|event| {
+            event
+                .as_metadata_changed()
+                .filter(|changed| changed.target.as_ref() == channel && changed.key.as_ref() == key)
+        })
+        .await?;
+    assert_eq!(bob_change.value.as_deref(), Some(value));
+    assert_eq!(bob_change.visibility, Visibility::Public);
+
+    let mut charlie = s
+        .connect_with(s.configure("charlie").metadata_subscriptions([key]))
+        .await?;
+    charlie.join(channel.clone()).await?;
+    let charlie_change = charlie
+        .wait_for(|event| {
+            event
+                .as_metadata_changed()
+                .filter(|changed| changed.target.as_ref() == channel && changed.key.as_ref() == key)
+        })
+        .await?;
+    assert_eq!(charlie_change, bob_change);
+    for peer in [&alice, &bob, &charlie] {
+        let values = peer
+            .state()
+            .metadata(&channel)
+            .expect("channel metadata is synchronized");
+        assert_eq!(values[key].value, value);
+        assert_eq!(values[key].visibility, "*");
+    }
+    Ok(())
+}
+
 /// renames a channel for every joined member
 #[scenario(
     requires(caps = ["draft/channel-rename"]),
