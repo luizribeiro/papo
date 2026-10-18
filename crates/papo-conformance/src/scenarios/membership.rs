@@ -288,7 +288,11 @@ async fn multi_prefix(context: Scenario) -> papo_testing::Result<()> {
 /// delivers an invitation to its target and every capable channel observer
 #[scenario(
     requires(caps = ["invite-notify"]),
-    covers = ["base.invite.target-delivery", "ircv3.invite-notify"]
+    covers = [
+        "base.invite.sender-ack",
+        "base.invite.target-delivery",
+        "ircv3.invite-notify"
+    ]
 )]
 async fn invite_notify(context: Scenario) -> papo_testing::Result<()> {
     let alice = context.connect("alice").await?;
@@ -350,6 +354,68 @@ async fn invite_notify(context: Scenario) -> papo_testing::Result<()> {
             .is_none()
     );
     carol.expect_none(Event::as_invited).await?;
+    Ok(())
+}
+
+/// enforces invitation privileges and lets an invitation override a channel ban
+#[scenario(covers = [
+    "base.invite.err-not-op",
+    "base.invite.err-already-on-channel",
+    "base.invite.exempts-ban"
+])]
+async fn invite_rules(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let mut carol = context.connect("carol").await?;
+    let channel = context.channel_name();
+    let bob_nick = bob.nick();
+    let carol_nick = carol.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    alice
+        .mode(&channel)
+        .ban(format!("{carol_nick}!*@*"))
+        .add('i')
+        .await?;
+
+    assert_refusal(
+        bob.invite(&channel, carol_nick.clone()).await.unwrap_err(),
+        Refusal::ChannelOperatorPrivilegesNeeded,
+        "482",
+    );
+    assert_refusal(
+        alice.invite(&channel, bob_nick).await.unwrap_err(),
+        Refusal::UserOnChannel,
+        "443",
+    );
+
+    alice.invite(&channel, carol_nick.clone()).await?;
+    let invited = carol.wait_for(Event::as_invited).await?;
+    assert_eq!(invited.channel.as_ref(), channel);
+    assert_eq!(invited.nick, carol_nick);
+    assert!(invited.is_self);
+    carol.join(&channel).await?;
+    let joined = alice
+        .wait_for(|event| event.as_joined().filter(|joined| joined.nick == carol_nick))
+        .await?;
+    assert_eq!(joined.channel.as_ref(), channel);
+    assert!(!joined.is_self);
+    assert!(
+        alice
+            .state()
+            .channel(&channel)
+            .unwrap()
+            .member(&carol_nick)
+            .is_some()
+    );
+    assert!(
+        carol
+            .state()
+            .channel(&channel)
+            .unwrap()
+            .member(&carol_nick)
+            .is_some()
+    );
     Ok(())
 }
 

@@ -1,2 +1,5 @@
+[invite_rules]
+reason = "Solanum keeps a channel ban effective after the banned user receives an invitation"
+
 [kick_rules]
 reason = "Solanum applies a multi-target KICK only to the first target and uses that target as the default comment"
