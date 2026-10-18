@@ -1,4 +1,4 @@
-use papo::{AccountName, AccountRegistration, Event, NewAccount};
+use papo::{AccountName, AccountRegistration, Event, NewAccount, event::Warning};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
 use papo_test_server::{register_account, unique};
@@ -32,6 +32,82 @@ async fn sasl_plain(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn sasl_scram_sha_256(s: Scenario) -> papo_testing::Result<()> {
     authenticate(s, true).await
+}
+
+/// reports invalid SASL credentials as a registration failure
+#[scenario(
+    requires(caps = ["sasl"]),
+    covers = ["ircv3.sasl.fail-904"]
+)]
+async fn sasl_failure(s: Scenario) -> papo_testing::Result<()> {
+    let result = s
+        .connect_with(
+            s.configure("alice")
+                .sasl(Sasl::plain("missing-account", "incorrect password")),
+        )
+        .await;
+    let Err(error) = result else {
+        panic!("invalid SASL credentials must reject registration")
+    };
+    let error = error
+        .downcast_ref::<papo::Error>()
+        .expect("registration failure retains papo::Error");
+    assert!(matches!(
+        error,
+        papo::Error::Registration(papo::RegistrationError::Sasl { message })
+            if message.contains("SASL")
+    ));
+    Ok(())
+}
+
+/// exposes SASL abort, repeated-authentication, and mechanism replies
+#[scenario(
+    requires(caps = ["sasl"]),
+    covers = [
+        "ircv3.sasl.abort-906",
+        "ircv3.sasl.already-907",
+        "ircv3.sasl.mechs-908"
+    ]
+)]
+async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s
+        .connect_with(s.configure("alice").request_caps(["sasl"]))
+        .await?;
+    assert!(alice.state().has_cap("sasl"));
+    // SASL is driven raw here because the numeric wire outcomes are the behavior under test.
+    alice.send_raw("AUTHENTICATE PLAIN").await?;
+    let challenge = alice
+        .wait_for(|event| {
+            event
+                .as_raw()
+                .filter(|line| line.command() == "AUTHENTICATE")
+        })
+        .await?;
+    assert_eq!(challenge.params(), ["+"]);
+    alice.send_raw("AUTHENTICATE *").await?;
+    let aborted = alice.wait_for(Event::as_warning).await?;
+    assert!(matches!(
+        aborted,
+        Warning::AuthenticationFailed { reason, .. } if reason.contains("aborted")
+    ));
+
+    alice.send_raw("AUTHENTICATE PAPO-UNKNOWN").await?;
+    alice.expect_none(Event::as_disconnected).await?;
+    assert!(
+        alice
+            .state()
+            .caps()
+            .get("sasl")
+            .and_then(|value| value.as_deref())
+            .is_some_and(|value| value.contains("PLAIN"))
+    );
+
+    let mut bob = s.connect_as_account("bob").await?;
+    let account = bob.state().account().cloned();
+    bob.send_raw("AUTHENTICATE PLAIN").await?;
+    bob.expect_none(Event::as_disconnected).await?;
+    assert_eq!(bob.state().account(), account.as_ref());
+    Ok(())
 }
 
 async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
@@ -89,5 +165,35 @@ async fn draft_account_registration(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(whois.nick, nick);
     assert_eq!(whois.account, Some(account));
     alice.expect_none(Event::as_account_registration).await?;
+    Ok(())
+}
+
+/// rejects registration of an existing account
+#[scenario(
+    requires(caps = ["draft/account-registration"]),
+    covers = ["draft.account-registration.errors"]
+)]
+async fn account_registration_error(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let account = AccountName::from(alice.state().nick().as_ref());
+    let registered = alice
+        .register_account(NewAccount::new(PASSWORD).account(account.clone()))
+        .await?;
+    assert!(matches!(registered, AccountRegistration::Registered { .. }));
+    assert_eq!(
+        alice.wait_for(Event::as_account_registration).await?,
+        registered
+    );
+    let error = alice
+        .register_account(NewAccount::new(PASSWORD).account(account))
+        .await
+        .expect_err("an existing account cannot be registered twice");
+    assert!(
+        matches!(
+        &error,
+        papo::Error::Server(error) if error.code() == "ALREADY_REGISTERED"
+        ),
+        "{error:?}"
+    );
     Ok(())
 }

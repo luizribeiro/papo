@@ -16,7 +16,10 @@ pub(super) fn all() -> Vec<ScenarioSpec> {
     let mut scenarios = vec![
         auth::__papo_scenario_spec_sasl_plain,
         auth::__papo_scenario_spec_sasl_scram_sha_256,
+        auth::__papo_scenario_spec_sasl_failure,
+        auth::__papo_scenario_spec_sasl_protocol_errors,
         auth::__papo_scenario_spec_draft_account_registration,
+        auth::__papo_scenario_spec_account_registration_error,
         connection::__papo_scenario_spec_registration,
         connection::__papo_scenario_spec_capability_negotiation,
         connection::__papo_scenario_spec_isupport,
@@ -74,6 +77,7 @@ mod tests {
             names,
             [
                 "account_notify",
+                "account_registration_error",
                 "away_notify",
                 "batch",
                 "bot_mode",
@@ -96,7 +100,9 @@ mod tests {
                 "multi_prefix",
                 "ping",
                 "registration",
+                "sasl_failure",
                 "sasl_plain",
+                "sasl_protocol_errors",
                 "sasl_scram_sha_256",
                 "server_information",
                 "server_time",
