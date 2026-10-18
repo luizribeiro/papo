@@ -121,6 +121,15 @@ mod tests {
         ));
         assert_eq!(frame(&mut split, b"\r\n").1.len(), 8_701);
 
+        let mut split_after_cr = WriteState::default();
+        let mut accepted_through_cr = vec![b'x'; 8_701];
+        accepted_through_cr.push(b'\r');
+        assert!(matches!(
+            split_after_cr.push(&accepted_through_cr).unwrap(),
+            Write::Buffered(8_702)
+        ));
+        assert_eq!(frame(&mut split_after_cr, b"\n").1.len(), 8_701);
+
         let mut rejected = WriteState::default();
         let mut overlong = vec![b'x'; 8_702];
         overlong.extend_from_slice(b"\r\n");
