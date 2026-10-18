@@ -66,26 +66,85 @@ async fn echo_message(context: Scenario) -> ScenarioResult {
     Ok(Completion::Completed)
 }
 
-/// delivers a channel message with server time
-#[scenario(requires(caps = ["server-time"]))]
+/// a channel NOTICE carries server time and matching sender metadata
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
+    covers = ["base.notice.channel", "ircv3.server-time"]
+)]
 async fn server_time(context: Scenario) -> ScenarioResult {
-    let (mut receiver, sender, channel) = joined_pair(&context).await?;
-    let text = format!("timestamped message from {}", sender.welcome.nick);
-    sender
-        .client
-        .privmsg(&channel, &text)
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut receiver.events,
-            |event| {
-                matches!(event, Event::Message(message) if message.raw_text() == text && message.tags().contains("time"))
-            },
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    close_pair(receiver, sender).await
+    let (mut alice, mut bob, channel) = fixture_pair(&context).await?;
+    let sent = alice.notice(&channel, "maintenance at midnight").await?;
+    let echo = alice.wait_for(Event::as_message).await?;
+    let message = bob.wait_for(Event::as_message).await?;
+    assert_eq!(echo.kind(), MessageKind::Notice);
+    assert_eq!(echo.id(), sent.id.as_ref());
+    assert_eq!(echo.server_time, sent.time);
+    assert_eq!(echo.origin(), Origin::Echo);
+    assert_eq!(message.kind(), MessageKind::Notice);
+    assert_eq!(
+        message.source().as_ref().and_then(Source::nick),
+        Some(alice.nick().as_ref())
+    );
+    assert_eq!(message.target(), channel);
+    assert_eq!(message.raw_text(), "maintenance at midnight");
+    assert_eq!(message.id(), sent.id.as_ref());
+    assert_eq!(message.server_time, sent.time);
+    assert_eq!(message.id(), echo.id());
+    assert_eq!(message.server_time, echo.server_time);
+    assert!(message.tags().contains("time"));
+    assert_eq!(message.origin(), Origin::Live);
+    assert!(sent.fallbacks.is_empty());
+    alice.expect_none(Event::as_message).await?;
+    bob.expect_none(Event::as_message).await?;
+    Ok(Completion::Completed)
+}
+
+/// direct PRIVMSG and NOTICE traffic has distinct sender and recipient views
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
+    covers = [
+        "base.privmsg.user-dm",
+        "base.notice.user",
+        "core.dm.privmsg",
+        "core.dm.notice"
+    ]
+)]
+async fn direct_messages(context: Scenario) -> ScenarioResult {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+
+    let sent = alice.privmsg(bob.nick(), "private hello").await?;
+    let echo = alice.wait_for(Event::as_message).await?;
+    let received = bob.wait_for(Event::as_message).await?;
+    assert_eq!(echo.origin(), Origin::Echo);
+    assert_eq!(received.origin(), Origin::Live);
+    assert_eq!(received.kind(), MessageKind::Privmsg);
+    assert_eq!(received.target(), bob.nick().as_ref());
+    assert_eq!(received.reply_target(), alice.nick().as_ref());
+    assert_eq!(received.raw_text(), "private hello");
+    assert!(received.is_private());
+    assert_eq!(received.id(), sent.id.as_ref());
+    assert_eq!(received.id(), echo.id());
+    assert_eq!(received.server_time, sent.time);
+
+    let sent = bob.notice(alice.nick(), "private notice").await?;
+    let echo = bob.wait_for(Event::as_message).await?;
+    let received = alice.wait_for(Event::as_message).await?;
+    assert_eq!(echo.origin(), Origin::Echo);
+    assert_eq!(received.origin(), Origin::Live);
+    assert_eq!(received.kind(), MessageKind::Notice);
+    assert_eq!(received.target(), alice.nick().as_ref());
+    assert_eq!(received.reply_target(), bob.nick().as_ref());
+    assert_eq!(received.raw_text(), "private notice");
+    assert!(received.is_private());
+    assert_eq!(received.id(), sent.id.as_ref());
+    assert_eq!(received.id(), echo.id());
+    assert_eq!(received.server_time, sent.time);
+    assert_eq!(alice.state().nick(), &alice.nick());
+    assert_eq!(bob.state().nick(), &bob.nick());
+    alice.expect_none(Event::as_message).await?;
+    bob.expect_none(Event::as_message).await?;
+    Ok(Completion::Completed)
 }
 
 /// delivers a client-only typing tag
