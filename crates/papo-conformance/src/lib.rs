@@ -623,14 +623,13 @@ fn connect_client(
         builder = builder.request_caps(wanted_caps);
     }
     #[cfg(not(target_family = "wasm"))]
-    let bouncer_login = server
-        .bouncer()
-        .map(|bouncer| bouncer.provision_network(nick))
-        .transpose()
-        .map_err(|error| error.to_string())?;
-    #[cfg(not(target_family = "wasm"))]
-    if let Some(login) = &bouncer_login {
-        builder = builder.sasl(Sasl::plain(login.username(), login.password()));
+    if let Some(bouncer) = server.bouncer() {
+        let login = bouncer
+            .provision_network(nick)
+            .map_err(|error| error.to_string())?;
+        builder = builder
+            .username(login.username())
+            .password(login.password());
     } else if let Some(sasl) = sasl {
         builder = builder.sasl(sasl);
     }
