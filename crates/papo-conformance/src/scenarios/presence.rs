@@ -2,7 +2,7 @@ use libtest_mimic::Failed;
 use papo::{Account, Away, Event, Origin, Source};
 use papo_conformance_macros::scenario;
 
-use super::support::{EXPECT_TIMEOUT, close_pair};
+use super::support::EXPECT_TIMEOUT;
 use crate::{Scenario, ScenarioResult};
 
 /// delivers an authenticated sender account
@@ -164,31 +164,57 @@ async fn chghost(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// reports monitored users with extended-monitor enabled
+/// tracks both online and offline transitions with extended identity fields
 #[scenario(requires(
     caps = ["extended-monitor", "away-notify"],
     isupport = ["MONITOR"]
-))]
-async fn monitor(context: Scenario) -> ScenarioResult {
-    let observer_nick = context.unique();
-    let target_nick = context.unique();
-    let mut observer = context.client(&observer_nick).await?;
-    let target = context.client(&target_nick).await?;
-    observer
-        .client
-        .monitor()
-        .add([target_nick.clone()])
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut observer.events,
-            |event| matches!(event, Event::MonitorOnline(online) if online.nick == target_nick.as_str()),
-            EXPECT_TIMEOUT,
-        )
-        .await
-        .map_err(|_| Failed::from("timed out waiting for MONITOR presence"))?;
-    close_pair(observer, target).await
+), covers = [
+    "ircv3.extended-monitor",
+    "ircv3.monitor.online",
+    "ircv3.monitor.offline"
+])]
+async fn monitor(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let bob_nick = bob.nick();
+    alice.monitor().add([bob_nick.clone()]).await?;
+    let online = alice.wait_for(Event::as_monitor_online).await?;
+
+    assert_eq!(online.nick, bob_nick);
+    let state = alice.state();
+    let monitored = state.monitor_online().collect::<Vec<_>>();
+    assert_eq!(monitored.len(), 1);
+    assert_eq!(monitored[0].nick(), &bob_nick);
+    assert_eq!(monitored[0].username(), online.user.as_deref());
+    assert_eq!(monitored[0].host(), online.host.as_deref());
+
+    let away = "reading the monitor specification";
+    bob.set_away(away).await?;
+    let changed = alice.wait_for(Event::as_away_changed).await?;
+
+    assert_eq!(changed.nick, bob_nick);
+    assert_eq!(changed.message.as_deref(), Some(away));
+    assert_eq!(
+        alice.state().user(&bob_nick).unwrap().away(),
+        &Away::Away {
+            message: Some(away.to_owned())
+        }
+    );
+
+    let new_nick = format!("r{bob_nick}");
+    bob.set_nick(new_nick.clone()).await?;
+    let offline = alice.wait_for(Event::as_monitor_offline).await?;
+
+    assert_eq!(offline.nick, bob_nick);
+    assert_eq!(bob.state().nick(), new_nick.as_str());
+    assert!(
+        alice
+            .state()
+            .monitor_online()
+            .all(|user| user.nick() != &bob_nick)
+    );
+    alice.expect_none(Event::as_monitor_offline).await?;
+    Ok(())
 }
 
 /// marks a client with the advertised bot mode
