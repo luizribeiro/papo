@@ -90,6 +90,9 @@ mod tests {
         let (socket, protocol) = open(env!("PAPO_BROWSER_WS")).await.unwrap();
         assert_eq!(protocol, Protocol::Binary);
         assert_eq!(socket.binary_type(), web_sys::BinaryType::Arraybuffer);
+        assert!(socket.onopen().is_none());
+        assert!(socket.onerror().is_none());
+        assert!(socket.onclose().is_none());
         socket.close().unwrap();
     }
 

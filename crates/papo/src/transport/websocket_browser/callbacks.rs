@@ -83,6 +83,8 @@ fn wrong_type() -> io::Error {
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+
     use js_sys::Uint8Array;
     use wasm_bindgen::JsValue;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -96,13 +98,21 @@ mod tests {
             decode(text.clone(), Protocol::Text).unwrap(),
             b":ergo.test CAP papo LS :message-tags"
         );
-        assert!(decode(text, Protocol::Binary).is_err());
+        assert_eq!(
+            decode(text, Protocol::Binary).unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
 
         let array = Uint8Array::from(b":ergo.test 001 papo :Welcome".as_slice()).buffer();
         assert_eq!(
             decode(array.clone().into(), Protocol::Binary).unwrap(),
             b":ergo.test 001 papo :Welcome"
         );
-        assert!(decode(array.into(), Protocol::Text).is_err());
+        assert_eq!(
+            decode(array.into(), Protocol::Text)
+                .unwrap_err()
+                .to_string(),
+            "WebSocket message type does not match its IRCv3 subprotocol"
+        );
     }
 }

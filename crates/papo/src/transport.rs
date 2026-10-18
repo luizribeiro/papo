@@ -254,7 +254,7 @@ impl AsyncWrite for Stream {
     }
 }
 
-#[cfg(not(sockets))]
+#[cfg(any(not(sockets), test))]
 fn transport_unavailable() -> io::Error {
     io::Error::new(io::ErrorKind::Unsupported, "transport is unavailable")
 }
@@ -561,6 +561,13 @@ mod tests {
         assert!(output.contains("certificate_chain"));
         assert!(output.contains("[REDACTED]"));
         assert!(!output.contains("private key material"));
+    }
+
+    #[test]
+    fn unavailable_transport_has_a_typed_diagnostic() {
+        let error = super::transport_unavailable();
+        assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+        assert_eq!(error.to_string(), "transport is unavailable");
     }
 
     #[cfg(tls)]

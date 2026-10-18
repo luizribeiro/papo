@@ -19,9 +19,13 @@ pub(super) fn below(amount: u32, ceiling: u32) -> bool {
     amount < ceiling
 }
 
+pub(super) fn retry_at(now: web_time::Instant) -> web_time::Instant {
+    now + std::time::Duration::from_millis(10)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{BINARY, Protocol, TEXT, below, select_protocol};
+    use super::{BINARY, Protocol, TEXT, below, retry_at, select_protocol};
 
     #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
     #[cfg_attr(not(browser), test)]
@@ -42,5 +46,11 @@ mod tests {
         assert!(!below(65_536, 65_536));
         assert!(below(0, 1));
         assert!(!below(1, 1));
+
+        let now = web_time::Instant::now();
+        assert_eq!(
+            retry_at(now).duration_since(now),
+            std::time::Duration::from_millis(10)
+        );
     }
 }

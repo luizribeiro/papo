@@ -17,13 +17,12 @@ use std::{
     pin::Pin,
     rc::Rc,
     task::{Context, Poll},
-    time::Duration,
 };
 
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use callbacks::Callbacks;
-use pure::{Protocol, below};
+use pure::{Protocol, below, retry_at};
 use read::ReadState;
 use write::WriteState;
 
@@ -88,9 +87,7 @@ impl WebSocket {
             return Poll::Ready(Ok(()));
         }
         let wait = self.wait.get_or_insert_with(|| {
-            Box::pin(crate::rt::sleep_until(
-                crate::rt::now_mono() + Duration::from_millis(10),
-            ))
+            Box::pin(crate::rt::sleep_until(retry_at(crate::rt::now_mono())))
         });
         if wait.as_mut().poll(context).is_ready() {
             self.wait = None;
@@ -197,18 +194,47 @@ mod tests {
         assert!(socket.onmessage().is_none());
         assert!(socket.onerror().is_none());
         assert!(socket.onclose().is_none());
+        assert_ne!(socket.ready_state(), web_sys::WebSocket::OPEN);
     }
 
     #[wasm_bindgen_test]
     async fn remote_close_releases_every_callback() {
-        let stream = WebSocket::connect(env!("PAPO_BROWSER_WS")).await.unwrap();
+        let mut stream = WebSocket::connect(env!("PAPO_BROWSER_WS")).await.unwrap();
         let socket = stream.socket.clone();
         socket.close_with_code(1000).unwrap();
         crate::rt::sleep_until(crate::rt::now_mono() + std::time::Duration::from_millis(100)).await;
         assert!(socket.onmessage().is_none());
         assert!(socket.onerror().is_none());
         assert!(socket.onclose().is_none());
+        assert_eq!(
+            stream.flush().await.unwrap_err().kind(),
+            std::io::ErrorKind::NotConnected
+        );
         drop(stream);
+    }
+
+    #[wasm_bindgen_test]
+    async fn reports_security_protocol_and_redacted_buffer_state() {
+        let mut binary = WebSocket::connect(env!("PAPO_BROWSER_WS")).await.unwrap();
+        assert!(!binary.is_secure());
+        assert_eq!(binary.subprotocol(), Some(super::pure::BINARY));
+        binary.write.push(b"AUTHENTICATE c2VjcmV0").unwrap();
+        let debug = format!("{binary:?}");
+        assert!(debug.contains("secure: false"));
+        assert!(debug.contains("protocol: Binary"));
+        assert!(debug.contains("buffered_write_bytes: 21"));
+        assert!(!debug.contains("c2VjcmV0"));
+
+        let (socket, protocol) = super::handshake::open(env!("PAPO_BROWSER_WS"))
+            .await
+            .unwrap();
+        let secure = WebSocket::from_open(socket, protocol, true);
+        assert!(secure.is_secure());
+
+        let text = WebSocket::connect_with(env!("PAPO_BROWSER_WS"), &[super::pure::TEXT])
+            .await
+            .unwrap();
+        assert_eq!(text.subprotocol(), Some(super::pure::TEXT));
     }
 
     #[wasm_bindgen_test]
