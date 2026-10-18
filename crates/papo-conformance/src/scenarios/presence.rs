@@ -1,9 +1,7 @@
-use libtest_mimic::Failed;
 use papo::{Account, Away, Event, Origin, Source};
 use papo_conformance_macros::scenario;
 
-use super::support::EXPECT_TIMEOUT;
-use crate::{Scenario, ScenarioResult};
+use crate::Scenario;
 
 /// delivers an authenticated sender account
 #[scenario(
@@ -217,31 +215,53 @@ async fn monitor(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// marks a client with the advertised bot mode
-#[scenario(requires(isupport = ["BOT"]))]
-async fn bot_mode(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let mut connection = context.client(&nick).await?;
-    let registered = connection.welcome.nick.clone();
-    connection
-        .client
-        .send_command("MODE", [registered.as_str(), "+B"])
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut connection.events,
-            |event| matches!(event, Event::ModeChanged(changed) if changed.target == registered.as_str()),
-            EXPECT_TIMEOUT,
-        )
+/// exposes configured bot identity through mode, WHOIS, state, and message tags
+#[scenario(
+    requires(caps = ["message-tags"], isupport = ["BOT"]),
+    covers = [
+        "base.mode.user.bot",
+        "base.whois.bot-flag",
+        "base.whois.user",
+        "ircv3.bot-mode",
+        "tag.bot"
+    ]
+)]
+async fn bot_mode(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context
+        .connect_with(context.configure("alice").bot())
         .await?;
-    let whois = connection
-        .client
-        .whois(&registered)
-        .await
-        .map_err(Failed::from)?;
-    if !whois.is_bot {
-        return Err("WHOIS did not report the advertised bot mode".into());
-    }
-    connection.close().await
+    let mut bob = context.connect("bob").await?;
+    let alice_nick = alice.nick();
+    let channel = context.channel_name();
+    let changed = alice.wait_for(Event::as_mode_changed).await?;
+
+    assert_eq!(changed.target.as_ref(), alice_nick.as_ref());
+    assert_eq!(changed.changes.len(), 1);
+    assert!(changed.changes[0].set);
+    assert_eq!(changed.changes[0].mode, 'B');
+    assert!(alice.state().user_modes().any(|mode_| mode_ == 'B'));
+
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    let whois = bob.whois(alice_nick.clone()).await?;
+
+    assert_eq!(whois.nick, alice_nick);
+    assert!(whois.user.as_ref().is_some_and(|user| !user.is_empty()));
+    assert!(whois.host.as_ref().is_some_and(|host| !host.is_empty()));
+    assert_eq!(whois.realname.as_deref(), Some("papo test peer"));
+    assert!(whois.is_bot);
+
+    let text = "automated conformance report";
+    alice.privmsg(&channel, text).await?;
+    let message = bob.wait_for(Event::as_message).await?;
+
+    assert_eq!(
+        message.sender.as_ref().and_then(Source::nick),
+        Some(alice_nick.as_ref())
+    );
+    assert_eq!(message.target(), channel);
+    assert_eq!(message.text(), text);
+    assert!(message.is_bot());
+    bob.expect_none(Event::as_message).await?;
+    Ok(())
 }
