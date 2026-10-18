@@ -73,6 +73,10 @@ pub struct WhoEntry {
 }
 
 /// Optional channel names or masks supplied to `LIST`.
+///
+/// Servers advertise their supported mask filters with the `ELIST` ISUPPORT
+/// token. Papo does not require that token: when it is absent, the configured
+/// filter is still sent and the server decides how to interpret or reject it.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ListFilter {
     channels: Vec<Mask>,
