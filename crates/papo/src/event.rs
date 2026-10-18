@@ -153,7 +153,7 @@ pub struct Message {
     pub origin: Origin,
     /// All message tags in wire order.
     pub tags: Tags,
-    private: bool,
+    pub(crate) private: bool,
 }
 
 impl Message {

@@ -41,6 +41,10 @@ pub mod time;
 mod transport;
 mod webirc;
 
+#[doc(hidden)]
+#[path = "testing.rs"]
+pub mod __testing;
+
 #[cfg(feature = "bot")]
 pub mod bot;
 pub mod cap;
