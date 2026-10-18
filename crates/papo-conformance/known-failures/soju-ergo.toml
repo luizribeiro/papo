@@ -1,0 +1,20 @@
+[account_notify]
+reason = "soju does not relay upstream account-notify changes between attached clients"
+
+[away_notify]
+reason = "soju does not relay upstream away-notify changes between attached clients"
+
+[batch]
+reason = "soju's replay does not expose the upstream history batch expected by this scenario"
+
+[draft_chathistory]
+reason = "soju's history layer does not expose the earlier upstream message"
+
+[draft_metadata_2]
+reason = "soju advertises the upstream metadata limit but applies a smaller local limit"
+
+[extended_join]
+reason = "soju omits the upstream real name from relayed extended JOIN messages"
+
+[sasl_plain]
+reason = "bouncer authentication replaces the scenario's direct upstream SASL credentials"
