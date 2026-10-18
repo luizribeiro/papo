@@ -59,7 +59,7 @@ use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
 use keepalive::Keepalive;
-pub use metadata::{MetadataCommand, MetadataError, MetadataLimits, MetadataValue};
+pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue};
 use monitor::Monitor;
 pub use outgoing::TextKind;
 use ratelimit::RateLimiter;
@@ -940,12 +940,6 @@ impl Response {
         Some(self.error()?.refusal())
     }
 
-    /// Returns a typed metadata failure from this response.
-    #[must_use]
-    pub fn metadata_error(&self) -> Option<MetadataError> {
-        self.error()?.metadata_error()
-    }
-
     /// Returns a typed relay-message failure from this response.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -1003,20 +997,6 @@ impl ServerError {
         match self {
             Self::Numeric { numeric, .. } => Refusal::from_numeric(*numeric),
             Self::Standard { command, code, .. } => Refusal::from_standard(command, code),
-        }
-    }
-
-    /// Returns the typed metadata code when this is a matching standard failure.
-    #[must_use]
-    pub fn metadata_error(&self) -> Option<MetadataError> {
-        match self {
-            Self::Standard {
-                command,
-                code,
-                context,
-                ..
-            } => MetadataError::parse(command, code, context),
-            Self::Numeric { .. } => None,
         }
     }
 
@@ -1112,14 +1092,6 @@ impl StandardReply {
     pub fn refusal(&self) -> Option<Refusal> {
         (self.kind == StandardReplyKind::Fail)
             .then(|| Refusal::from_standard(&self.command, &self.code))
-    }
-
-    /// Returns the typed metadata code when this is a matching failure.
-    #[must_use]
-    pub fn metadata_error(&self) -> Option<MetadataError> {
-        (self.kind == StandardReplyKind::Fail)
-            .then(|| MetadataError::parse(&self.command, &self.code, &self.context))
-            .flatten()
     }
 
     /// Returns the typed relay-message code when this is a matching failure.

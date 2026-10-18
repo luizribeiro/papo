@@ -3,7 +3,7 @@
 mod support;
 
 use papo_core::{
-    Config, Event, MetadataCommand, MetadataError, MetadataLimits, RequestError, StateLimit,
+    Config, Event, MetadataCommand, MetadataLimits, Refusal, RequestError, StateLimit,
 };
 use std::time::Duration;
 use support::Transcript;
@@ -117,7 +117,7 @@ fn prefers_metadata_3_and_reads_known_limits() {
     .client("@label=3 METADATA alice CLEAR")
     .server("@label=3 :ergo.test FAIL METADATA VALUE_INVALID :Metadata value is invalid")
     .event(|event| matches!(event, Event::Response(response)
-        if response.metadata_error() == Some(MetadataError::ValueInvalid)));
+        if response.refusal() == Some(Refusal::InvalidMetadataValue)));
 }
 
 #[test]
@@ -382,50 +382,42 @@ fn unsubscribe_reply_removes_only_the_acknowledged_key() {
 
 #[test]
 fn types_contextual_metadata_failures() {
-    for (line, expected) in [
+    for (line, expected, context) in [
         (
             ":ergo.test FAIL METADATA RATE_LIMITED alice avatar 45 :Metadata update rate limit exceeded",
-            MetadataError::RateLimited {
-                target: "alice".into(),
-                key: "avatar".into(),
-                retry_after: Some(Duration::from_secs(45)),
-            },
+            Refusal::RateLimited,
+            &["alice", "avatar", "45"][..],
         ),
         (
             ":ergo.test FAIL METADATA RATE_LIMITED alice pronouns * :Metadata update rate limit exceeded",
-            MetadataError::RateLimited {
-                target: "alice".into(),
-                key: "pronouns".into(),
-                retry_after: None,
-            },
+            Refusal::RateLimited,
+            &["alice", "pronouns", "*"][..],
         ),
         (
             ":ergo.test FAIL METADATA TOO_MANY_SUBS status :Too many metadata subscriptions",
-            MetadataError::TooManySubscriptions {
-                first_unprocessed_key: "status".into(),
-            },
+            Refusal::TooManyMetadataSubscriptions,
+            &["status"][..],
         ),
     ] {
         registered("max-subs=100,max-keys=100")
             .server(line)
             .event(|event| {
                 matches!(event, Event::StandardReply(reply)
-                if reply.metadata_error() == Some(expected))
+                if reply.refusal() == Some(expected) && reply.context == context)
             });
     }
 }
 
 #[test]
 fn types_each_simple_metadata_failure_only_for_metadata() {
-    use MetadataError as E;
     for (code, expected) in [
-        ("INVALID_TARGET", E::InvalidTarget),
-        ("KEY_INVALID", E::KeyInvalid),
-        ("KEY_NO_PERMISSION", E::KeyNoPermission),
-        ("KEY_NOT_SET", E::KeyNotSet),
-        ("LIMIT_REACHED", E::LimitReached),
-        ("SUBCOMMAND_INVALID", E::SubcommandInvalid),
-        ("VALUE_INVALID", E::ValueInvalid),
+        ("INVALID_TARGET", Refusal::InvalidTarget),
+        ("KEY_INVALID", Refusal::InvalidMetadataKey),
+        ("KEY_NO_PERMISSION", Refusal::MetadataPermissionDenied),
+        ("KEY_NOT_SET", Refusal::MetadataKeyNotSet),
+        ("LIMIT_REACHED", Refusal::MetadataLimitReached),
+        ("SUBCOMMAND_INVALID", Refusal::InvalidSubcommand),
+        ("VALUE_INVALID", Refusal::InvalidMetadataValue),
     ] {
         registered("max-subs=100,max-keys=100")
             .server(&format!(
@@ -433,14 +425,14 @@ fn types_each_simple_metadata_failure_only_for_metadata() {
             ))
             .event(|event| {
                 matches!(event, Event::StandardReply(reply)
-                if reply.metadata_error() == Some(expected))
+                if reply.refusal() == Some(expected))
             });
     }
     registered("max-subs=100,max-keys=100")
         .server(":ergo.test FAIL WHOIS KEY_INVALID :WHOIS request rejected")
         .event(|event| {
             matches!(event, Event::StandardReply(reply)
-            if reply.metadata_error().is_none())
+            if reply.refusal() == Some(Refusal::Other))
         });
 }
 
