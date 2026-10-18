@@ -19,7 +19,9 @@ mod ports;
 mod profile;
 #[cfg(not(target_family = "wasm"))]
 mod server;
-#[cfg(all(not(target_family = "wasm"), test))]
+#[cfg(not(target_family = "wasm"))]
+mod soju;
+#[cfg(not(target_family = "wasm"))]
 mod soju_config;
 #[cfg(not(target_family = "wasm"))]
 mod solanum;
@@ -36,6 +38,9 @@ pub use inspircd::TestServer as InspIrcdServer;
 pub use profile::DeploymentProfile;
 #[cfg(not(target_family = "wasm"))]
 pub use server::TestServer;
+#[cfg(not(target_family = "wasm"))]
+#[doc(hidden)]
+pub use soju::TestServer as SojuServer;
 #[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
 pub use solanum::TestServer as SolanumServer;

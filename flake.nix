@@ -579,6 +579,7 @@
             pkgs.atheme
             pkgs.inspircd
             solanum
+            pkgs.soju
             ergochat
             unrealircd
             nightlyToolchain
@@ -588,6 +589,8 @@
           ERGO_BIN = pkgs.lib.getExe ergochat;
           ERGO_CONFIG = ergoConfig;
           ERGO_LANGUAGES = "${ergochat.src}/languages";
+          SOJU_BIN = pkgs.lib.getExe pkgs.soju;
+          SOJUCTL_BIN = pkgs.lib.getExe' pkgs.soju "sojuctl";
           ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
           ATHEME_MODULES = "${pkgs.atheme}/modules";
           INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";
