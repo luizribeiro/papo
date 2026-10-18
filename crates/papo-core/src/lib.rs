@@ -2439,7 +2439,7 @@ impl Session {
         let label = labelled.then(|| encode_label(self.next_request_id));
         let mut lines = Vec::new();
         let mut batch_count = 0;
-        if let Some(limits) = multiline {
+        if let Some(limits) = multiline.filter(|_| text.contains('\n') || segments.len() > 1) {
             let mut start = 0;
             while start < segments.len() {
                 let mut end = start;

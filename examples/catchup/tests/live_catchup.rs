@@ -22,6 +22,21 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         let poster_nick = unique("papo-poster");
         register_account(&server, &account, PASSWORD).unwrap();
 
+        let (persistent, mut persistent_events) = Client::builder(endpoint.clone())
+            .nick(&account)
+            .sasl(Sasl::plain(&account, PASSWORD))
+            .request_caps(["sasl", "draft/persistence", "labeled-response"])
+            .autojoin([&channel])
+            .connect()
+            .await
+            .unwrap();
+        wait_synced(&mut persistent_events, &channel).await;
+        persistent.send_raw("PERSISTENCE SET ON").await.unwrap();
+        persistent
+            .quit("persistent catchup test account ready")
+            .await
+            .unwrap();
+
         let (poster, mut poster_events) = Client::builder(endpoint.clone())
             .nick(&poster_nick)
             .autojoin([&channel])

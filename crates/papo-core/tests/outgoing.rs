@@ -110,6 +110,25 @@ fn sends_six_hundred_bytes_as_one_labelled_multiline_batch() {
 }
 
 #[test]
+fn sends_a_fitting_single_line_without_a_multiline_batch() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", true);
+    session
+        .send_text(
+            now,
+            TextKind::Privmsg,
+            "#papo",
+            "hello from the deployment",
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        drain(&mut session),
+        ["@label=0 PRIVMSG #papo :hello from the deployment\r\n"]
+    );
+}
+
+#[test]
 fn max_bytes_counts_text_and_joining_newlines() {
     let now = Instant::now();
     let mut exact = multiline_session(now, "max-bytes=40,max-lines=3", false);
@@ -338,7 +357,13 @@ fn multiline_failure_is_a_response_error_without_retry() {
     let now = Instant::now();
     let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", true);
     let id = session
-        .send_text(now, TextKind::Privmsg, "#papo", "hello everyone", &[])
+        .send_text(
+            now,
+            TextKind::Privmsg,
+            "#papo",
+            "hello everyone\nwelcome back",
+            &[],
+        )
         .unwrap()
         .unwrap();
     drain(&mut session);
