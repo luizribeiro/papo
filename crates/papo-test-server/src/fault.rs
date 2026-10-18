@@ -62,66 +62,79 @@ impl FaultProxy {
 }
 
 fn forward(listener: &TcpListener, upstream: SocketAddr, commands: &mpsc::Receiver<Command>) {
-    let Ok((mut client, _)) = listener.accept() else {
-        return;
-    };
-    let Ok(mut server) = TcpStream::connect(upstream) else {
-        return;
-    };
-    let (Ok(mut client_writer), Ok(mut server_reader)) = (client.try_clone(), server.try_clone())
-    else {
-        return;
-    };
-    let reverse = thread::spawn(move || {
-        let _ = io::copy(&mut server_reader, &mut client_writer);
-    });
-    let _ = client.set_read_timeout(Some(Duration::from_millis(20)));
-    let mut buffer = [0_u8; 4096];
-    'forward: loop {
-        match commands.try_recv() {
-            Ok(Command::Drop(acknowledge)) => {
-                let _ = client.shutdown(Shutdown::Both);
-                let _ = server.shutdown(Shutdown::Both);
-                let _ = acknowledge.send(());
-                break;
-            }
-            Ok(Command::BlackHole(acknowledge)) => {
-                let _ = acknowledge.send(());
-                loop {
-                    match commands.recv() {
-                        Ok(Command::Drop(acknowledge)) => {
-                            let _ = acknowledge.send(());
-                            break;
-                        }
-                        Ok(Command::Close) | Err(_) => break,
-                        Ok(Command::BlackHole(acknowledge)) => {
-                            let _ = acknowledge.send(());
+    loop {
+        let Ok((mut client, _)) = listener.accept() else {
+            return;
+        };
+        let Ok(mut server) = TcpStream::connect(upstream) else {
+            return;
+        };
+        let (Ok(mut client_writer), Ok(mut server_reader)) =
+            (client.try_clone(), server.try_clone())
+        else {
+            return;
+        };
+        let reverse = thread::spawn(move || {
+            let _ = io::copy(&mut server_reader, &mut client_writer);
+        });
+        let _ = client.set_read_timeout(Some(Duration::from_millis(20)));
+        let mut buffer = [0_u8; 4096];
+        let mut stop = false;
+        'connection: loop {
+            match commands.try_recv() {
+                Ok(Command::Drop(acknowledge)) => {
+                    let _ = client.shutdown(Shutdown::Both);
+                    let _ = server.shutdown(Shutdown::Both);
+                    let _ = acknowledge.send(());
+                    break;
+                }
+                Ok(Command::BlackHole(acknowledge)) => {
+                    let _ = acknowledge.send(());
+                    loop {
+                        match commands.recv() {
+                            Ok(Command::Drop(acknowledge)) => {
+                                let _ = acknowledge.send(());
+                                break;
+                            }
+                            Ok(Command::Close) | Err(_) => {
+                                stop = true;
+                                break;
+                            }
+                            Ok(Command::BlackHole(acknowledge)) => {
+                                let _ = acknowledge.send(());
+                            }
                         }
                     }
+                    break;
                 }
-                break;
+                Ok(Command::Close) | Err(mpsc::TryRecvError::Disconnected) => {
+                    stop = true;
+                    break;
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
             }
-            Ok(Command::Close) | Err(mpsc::TryRecvError::Disconnected) => break,
-            Err(mpsc::TryRecvError::Empty) => {}
+            match client.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(count) => {
+                    if std::io::Write::write_all(&mut server, &buffer[..count]).is_err() {
+                        break 'connection;
+                    }
+                }
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+                    ) => {}
+                Err(_) => break,
+            }
         }
-        match client.read(&mut buffer) {
-            Ok(0) => break,
-            Ok(count) => {
-                if std::io::Write::write_all(&mut server, &buffer[..count]).is_err() {
-                    break 'forward;
-                }
-            }
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
-                ) => {}
-            Err(_) => break,
+        let _ = client.shutdown(Shutdown::Both);
+        let _ = server.shutdown(Shutdown::Both);
+        let _ = reverse.join();
+        if stop {
+            return;
         }
     }
-    let _ = client.shutdown(Shutdown::Both);
-    let _ = server.shutdown(Shutdown::Both);
-    let _ = reverse.join();
 }
 
 impl Drop for FaultProxy {
@@ -151,13 +164,15 @@ mod tests {
         let upstream = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let address = upstream.local_addr().unwrap();
         let server = thread::spawn(move || {
-            let (mut connection, _) = upstream.accept().unwrap();
-            let mut request = [0; 4];
-            connection.read_exact(&mut request).unwrap();
-            assert_eq!(&request, b"PING");
-            connection.write_all(b"PONG").unwrap();
-            let mut eof = [0];
-            assert_eq!(connection.read(&mut eof).unwrap(), 0);
+            for _ in 0..2 {
+                let (mut connection, _) = upstream.accept().unwrap();
+                let mut request = [0; 4];
+                connection.read_exact(&mut request).unwrap();
+                assert_eq!(&request, b"PING");
+                connection.write_all(b"PONG").unwrap();
+                let mut eof = [0];
+                assert_eq!(connection.read(&mut eof).unwrap(), 0);
+            }
         });
         let proxy = FaultProxy::start(address).unwrap();
         let mut client = TcpStream::connect(proxy.address()).unwrap();
@@ -170,6 +185,11 @@ mod tests {
         assert_eq!(&reply, b"PONG");
         proxy.drop_connection().unwrap();
         assert_eq!(client.read(&mut reply).unwrap_or(0), 0);
+        let mut replacement = TcpStream::connect(proxy.address()).unwrap();
+        replacement.write_all(b"PING").unwrap();
+        replacement.read_exact(&mut reply).unwrap();
+        assert_eq!(&reply, b"PONG");
+        drop(replacement);
         server.join().unwrap();
     }
 
