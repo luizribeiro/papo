@@ -3,7 +3,7 @@
 #[doc(inline)]
 pub use papo_core::sts::{MemoryStsStore, StsPolicy, StsStore};
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 use std::{
     collections::BTreeMap,
     env,
@@ -13,16 +13,16 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 const MAX_FILE_BYTES: u64 = 1024 * 1024;
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 const MAX_ENTRIES: usize = 1024;
 
 /// A write-through JSON file store for STS policies.
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 #[derive(Debug)]
 pub struct FileStsStore {
     path: PathBuf,
@@ -30,7 +30,7 @@ pub struct FileStsStore {
     last_error: Option<io::Error>,
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 impl FileStsStore {
     /// Opens `path`, loading its policies once.
     #[must_use]
@@ -89,7 +89,7 @@ impl FileStsStore {
     }
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 impl StsStore for FileStsStore {
     fn get(&self, host: &str) -> Option<StsPolicy> {
         let host = normalize_host(host);
@@ -111,7 +111,7 @@ impl StsStore for FileStsStore {
     }
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct DiskPolicy {
     #[serde(default = "default_sts_port")]
@@ -120,12 +120,12 @@ struct DiskPolicy {
     expires_at_unix: u64,
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 const fn default_sts_port() -> u16 {
     6697
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 impl DiskPolicy {
     fn from_stored(policy: &StsPolicy) -> Self {
         Self {
@@ -149,7 +149,7 @@ impl DiskPolicy {
     }
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 fn write_atomic(path: &Path, entries: &BTreeMap<String, DiskPolicy>) -> io::Result<()> {
     if let Some(parent) = path.parent().filter(|path| !path.as_os_str().is_empty()) {
         fs::create_dir_all(parent)?;
@@ -165,12 +165,12 @@ fn write_atomic(path: &Path, entries: &BTreeMap<String, DiskPolicy>) -> io::Resu
     result
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 fn invalid_data(error: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, error)
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 fn read_entries(path: &Path) -> io::Result<Option<BTreeMap<String, DiskPolicy>>> {
     let metadata = match fs::metadata(path) {
         Ok(metadata) => metadata,
@@ -189,7 +189,7 @@ fn read_entries(path: &Path) -> io::Result<Option<BTreeMap<String, DiskPolicy>>>
         .map_err(invalid_data)
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 fn cap_entries(entries: &mut BTreeMap<String, DiskPolicy>) {
     let excess = entries.len().saturating_sub(MAX_ENTRIES);
     let mut expiry_order: Vec<_> = entries
@@ -202,7 +202,7 @@ fn cap_entries(entries: &mut BTreeMap<String, DiskPolicy>) {
     }
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 fn default_path_with(
     mut lookup: impl FnMut(&str) -> Option<OsString>,
     is_macos: bool,
@@ -220,12 +220,12 @@ fn default_path_with(
         .map(|home| home.join(".local/state/papo/sts.json"))
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 fn nonempty(value: Option<OsString>) -> Option<OsString> {
     value.filter(|value| !value.is_empty())
 }
 
-#[cfg(feature = "sts-file")]
+#[cfg(all(feature = "sts-file", not(browser)))]
 fn normalize_host(host: &str) -> String {
     let mut store = MemoryStsStore::new();
     store.put(StsPolicy::new(host, 6697, UNIX_EPOCH, Duration::ZERO));
@@ -234,7 +234,7 @@ fn normalize_host(host: &str) -> String {
         .map_or_else(|| host.to_owned(), |policy| policy.host)
 }
 
-#[cfg(all(test, feature = "sts-file"))]
+#[cfg(all(test, feature = "sts-file", not(browser)))]
 mod tests {
     use std::{fs, io, path::PathBuf, time::Duration};
 

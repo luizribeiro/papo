@@ -19,6 +19,13 @@ preserving the message text.
 WASI targets in `.cargo/config.toml`. Wasmtime needs `-S inherit-network -S
 allow-ip-name-lookup` for outbound networking and name lookup, plus `-S p3` for wasip3.
 
+## Browser workers
+
+`wasm32-unknown-unknown` runs the high-level client in dedicated workers, shared workers, and
+Node.js using browser WebSockets. Build with a `ws://` or `wss://` `Endpoint::websocket`; TCP
+endpoint constructors and the TLS and STS builder settings are not available. TLS is controlled by
+the browser for `wss://`, and IRC STS does not apply to WebSocket connections.
+
 Run all checks with:
 
 ```sh

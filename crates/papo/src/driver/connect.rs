@@ -1,8 +1,10 @@
 use std::{collections::VecDeque, ops::ControlFlow, time::Duration};
 
+#[cfg(not(browser))]
+use papo_core::sts::{StsAction, StsPolicy};
 use papo_core::{
     Connection, Session,
-    sts::{ConnectionSecurity, StsAction, StsPolicy, StsStore, reschedule_on_disconnect},
+    sts::{ConnectionSecurity, StsStore, reschedule_on_disconnect},
 };
 use tokio::sync::mpsc;
 
@@ -223,11 +225,15 @@ pub(super) async fn run_planned_connection(
     sts_store: Box<dyn StsStore + Send>,
     pending_events: VecDeque<Event>,
 ) -> ConnectionEnd {
+    #[cfg(not(browser))]
     let security = if plan.address.is_secure() {
         ConnectionSecurity::Secure
     } else {
         ConnectionSecurity::Plaintext
     };
+    // WebSocket security is selected by the URL and cannot be upgraded by IRC STS.
+    #[cfg(browser)]
+    let security = ConnectionSecurity::Secure;
     run_connection(
         stream,
         session,
@@ -410,6 +416,7 @@ fn finish_slow_consumer(
     )
 }
 
+#[cfg(not(browser))]
 pub(super) fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &StsAction) {
     match action {
         StsAction::Persist { host, duration } => {

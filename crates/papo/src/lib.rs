@@ -3,6 +3,9 @@
 //! TLS uses ring when both `tls-ring` and `tls-aws-lc` are enabled.
 //! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
 //! Applications can opt in while libraries should leave the feature disabled.
+//! Browser builds (`wasm32-unknown-unknown`) connect only through `ws://` and `wss://`
+//! [`Endpoint::websocket`] endpoints. The browser owns TLS policy, and IRC STS does not apply to
+//! WebSocket connections, so TCP endpoint constructors, TLS setters, and STS stores are absent.
 //!
 //! # Frozen re-exports
 //!

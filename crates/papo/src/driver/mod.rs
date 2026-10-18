@@ -7,9 +7,11 @@ use catchup::extend_catchup;
 use catchup::should_fetch_history;
 use catchup::{Catchup, advance_catchup, begin_catchup};
 
-use connect::{apply_sts_action, open_connection, run_plan};
+#[cfg(not(browser))]
+use connect::apply_sts_action;
 #[cfg(test)]
 use connect::{is_fatal_failure, record_sts_upgrade};
+use connect::{open_connection, run_plan};
 
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -1030,6 +1032,7 @@ async fn wait_until(deadline: Option<Instant>) {
 }
 
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+#[cfg_attr(browser, allow(unused_variables))]
 async fn drain<S>(
     stream: &mut S,
     session: &mut Session,
@@ -1231,8 +1234,13 @@ where
             }
             event::CoreEvent::StsUpgrade(port) => sts.upgrade = Some(port),
             event::CoreEvent::StsPolicy(action) => {
+                #[cfg(not(browser))]
                 if let Some(store) = sts_store {
                     apply_sts_action(store.as_mut(), sts_port, &action);
+                }
+                #[cfg(browser)]
+                {
+                    _ = action;
                 }
             }
             event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),

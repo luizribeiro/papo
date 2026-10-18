@@ -5,11 +5,13 @@ use papo_core::{AwayOnConnect, Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl};
 use papo_proto::{Message, escape_tag_value};
 use tokio::sync::oneshot;
 
+#[cfg(not(browser))]
+use crate::transport::{ClientCertificate, TlsRoots};
 use crate::{
     Error, InvalidInput, NewAccount, Reconnect,
     address::ServerAddress,
     driver::{Autojoin, ConnectionPlan, PostRegistration},
-    transport::{ClientCertificate, TlsConfig, TlsRoots},
+    transport::TlsConfig,
 };
 
 /// Configures an IRC client before it is built or connected.
@@ -323,6 +325,7 @@ impl Builder {
     }
 
     /// Sets the store used for IRC Strict Transport Security policies.
+    #[cfg(not(browser))]
     pub fn sts_store(mut self, store: impl StsStore + Send + 'static) -> Self {
         self.sts_store = Box::new(store);
         self
@@ -344,6 +347,7 @@ impl Builder {
     /// ```
     /// # _ = papo::Client::builder("irc.example.net").tls_ca_pem(Vec::new());
     /// ```
+    #[cfg(not(browser))]
     pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
         self.tls.roots = TlsRoots::Ca(pem.into());
         self
@@ -354,6 +358,7 @@ impl Builder {
     /// ```
     /// # _ = papo::Client::builder("irc.example.net").tls_extra_ca_pem(Vec::new());
     /// ```
+    #[cfg(not(browser))]
     pub fn tls_extra_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
         self.tls.roots = TlsRoots::PlatformAndCa(pem.into());
         self
@@ -364,6 +369,7 @@ impl Builder {
     /// ```
     /// # _ = papo::Client::builder("irc.example.net").tls_client_cert(Vec::new(), "key");
     /// ```
+    #[cfg(not(browser))]
     pub fn tls_client_cert(
         mut self,
         certificate: impl Into<Vec<u8>>,
@@ -378,6 +384,7 @@ impl Builder {
     /// ```
     /// # _ = papo::Client::builder("127.0.0.1").tls_server_name("irc.example.net");
     /// ```
+    #[cfg(not(browser))]
     pub fn tls_server_name(mut self, server_name: impl Into<String>) -> Self {
         self.tls.server_name = Some(server_name.into());
         self
