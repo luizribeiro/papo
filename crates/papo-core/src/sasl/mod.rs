@@ -54,6 +54,18 @@ impl std::fmt::Debug for Mechanism {
 }
 
 impl Sasl {
+    /// Reports whether a configured credential contains bytes rather than text.
+    #[must_use]
+    pub fn has_binary_secret(&self) -> bool {
+        self.mechanisms.iter().any(|mechanism| match mechanism {
+            Mechanism::Plain { password, .. } | Mechanism::ScramSha256 { password, .. } => {
+                password.expose_text().is_none()
+            }
+            Mechanism::OAuthBearer { token } => token.expose_text().is_none(),
+            Mechanism::External { .. } => false,
+        })
+    }
+
     /// Uses the SASL PLAIN mechanism.
     #[must_use]
     pub fn plain(username: impl Into<String>, password: impl Into<Secret>) -> Self {

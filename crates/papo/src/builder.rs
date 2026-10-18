@@ -119,18 +119,26 @@ impl Builder {
 
     /// Sets the server password sent with `PASS`.
     pub fn password(mut self, password: impl Into<papo_core::Secret>) -> Self {
-        self.config.password = Some(password.into());
+        let password = password.into();
+        self.reject_binary_secret(&password);
+        self.config.password = Some(password);
         self
     }
 
     /// Sets the identity asserted through a trusted `WEBIRC` gateway.
     pub fn webirc(mut self, webirc: crate::WebIrc) -> Self {
+        if webirc.has_binary_secret() {
+            self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
+        }
         self.config = self.config.webirc(webirc.into_core());
         self
     }
 
     /// Configures SASL authentication.
     pub fn sasl(mut self, sasl: Sasl) -> Self {
+        if sasl.has_binary_secret() {
+            self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
+        }
         self.config.sasl = Some(sasl);
         self
     }
@@ -156,6 +164,7 @@ impl Builder {
     /// # _ = papo::Client::builder("irc.example.net").register_account(account);
     /// ```
     pub fn register_account(mut self, account: NewAccount) -> Self {
+        self.reject_binary_secret(&account.password);
         if !self.config.wanted_caps.iter().any(|capability| {
             matches!(
                 capability.as_str(),
@@ -411,8 +420,16 @@ impl Builder {
         channel: impl Into<String>,
         key: impl Into<papo_core::Secret>,
     ) -> Self {
-        self.push_autojoin(Autojoin::new(channel, Some(key.into())));
+        let key = key.into();
+        self.reject_binary_secret(&key);
+        self.push_autojoin(Autojoin::new(channel, Some(key)));
         self
+    }
+
+    fn reject_binary_secret(&mut self, secret: &papo_core::Secret) {
+        if secret.expose_text().is_none() {
+            self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
+        }
     }
 
     fn push_autojoin(&mut self, entry: Autojoin) {
@@ -801,6 +818,37 @@ mod tests {
                 Err(Error::InvalidInput(actual)) if actual == expected
             ));
         }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn defers_binary_text_secrets_until_build() {
+        let byte_secret = || Secret::from_bytes([0xff]);
+        let cases = [
+            Builder::new("irc.example.net").password(byte_secret()),
+            Builder::new("irc.example.net").webirc(crate::WebIrc::new(
+                byte_secret(),
+                "papo-gateway",
+                "192.0.2.42",
+            )),
+            Builder::new("irc.example.net").sasl(Sasl::plain("alice", byte_secret())),
+            Builder::new("irc.example.net")
+                .register_account(NewAccount::new(byte_secret()).account("alice")),
+            Builder::new("irc.example.net").autojoin_with_key("#staff", byte_secret()),
+        ];
+        for builder in cases {
+            let (_client, _events, driver) = builder.build();
+            assert!(matches!(
+                within(driver).await,
+                Err(Error::InvalidInput(InvalidInput::BinarySecret))
+            ));
+        }
+
+        assert!(
+            Builder::new("irc.example.net")
+                .tls_client_cert(Vec::new(), byte_secret())
+                .invalid_input
+                .is_none()
+        );
     }
 
     #[test]

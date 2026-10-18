@@ -47,4 +47,8 @@ impl WebIrc {
     pub(crate) fn into_core(self) -> papo_core::WebIrc {
         self.inner
     }
+
+    pub(crate) fn has_binary_secret(&self) -> bool {
+        self.inner.password.expose_text().is_none()
+    }
 }
