@@ -1,11 +1,11 @@
 use std::collections::{BTreeSet, VecDeque};
 use web_time::Instant;
 
-use papo_proto::{MAX_MESSAGE_LEN, MessageRef, NAME_ALIASES, NameKind};
+use papo_proto::{MAX_MESSAGE_LEN, MessageRef};
 
 use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
-    Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox, sasl::SaslSession,
+    Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox, cap, sasl::SaslSession,
 };
 
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
@@ -165,23 +165,14 @@ impl Caps {
         }
 
         let mut seen = BTreeSet::new();
-        let modern_metadata = config
-            .wanted_caps
-            .iter()
-            .any(|name| matches!(name.as_str(), "draft/metadata-2" | "draft/metadata-3"))
-            && ["draft/metadata-3", "draft/metadata-2"]
-                .iter()
-                .any(|name| self.advertised.contains_key(*name));
         let requested = config
             .wanted_caps
             .iter()
             .map(String::as_str)
             .chain(config.sasl.as_ref().map(|_| "sasl"))
-            .filter(|wanted| *wanted != "ergo.chat/nope")
-            .filter(|wanted| *wanted != "sts")
+            .filter(|wanted| cap::requestable(wanted, &self.advertised, &config.wanted_caps))
             .filter(|wanted| !config.cap_disabled(wanted))
-            .filter(|wanted| *wanted != "metadata-notify" || !modern_metadata)
-            .filter_map(|wanted| self.advertised_spelling(wanted))
+            .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
             .filter(|name| announced.contains(*name))
             .filter(|name| !self.enabled.contains_key(*name))
             .filter(|name| seen.insert((*name).to_owned()))
@@ -226,25 +217,15 @@ impl Caps {
 
         self.enabled.insert("cap-notify".to_owned(), None);
         let mut seen = BTreeSet::new();
-        let modern_metadata = config
-            .wanted_caps
-            .iter()
-            .any(|name| matches!(name.as_str(), "draft/metadata-2" | "draft/metadata-3"))
-            && ["draft/metadata-3", "draft/metadata-2"]
-                .iter()
-                .any(|name| self.advertised.contains_key(*name));
         let wanted = config
             .wanted_caps
             .iter()
             .map(String::as_str)
             .chain(config.sasl.as_ref().map(|_| "sasl"));
         let requested = wanted
-            // Ergo disconnects pre-registration clients that request this trap capability.
-            .filter(|wanted| *wanted != "ergo.chat/nope")
-            .filter(|wanted| *wanted != "sts")
+            .filter(|wanted| cap::requestable(wanted, &self.advertised, &config.wanted_caps))
             .filter(|wanted| !config.cap_disabled(wanted))
-            .filter(|wanted| *wanted != "metadata-notify" || !modern_metadata)
-            .filter_map(|wanted| self.advertised_spelling(wanted))
+            .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
             .filter(|name| seen.insert((*name).to_owned()))
             .map(str::to_owned)
             .collect::<Vec<_>>();
@@ -265,31 +246,6 @@ impl Caps {
             outbox.transmit_raw(line);
             self.pending.push_back(request);
         }
-    }
-
-    fn advertised_spelling(&self, wanted: &str) -> Option<&str> {
-        if matches!(wanted, "draft/metadata-2" | "draft/metadata-3") {
-            return ["draft/metadata-3", "draft/metadata-2"]
-                .into_iter()
-                .find_map(|name| {
-                    self.advertised
-                        .get_key_value(name)
-                        .map(|(name, _)| name.as_str())
-                });
-        }
-        if let Some((name, _)) = self.advertised.get_key_value(wanted) {
-            return Some(name);
-        }
-        NAME_ALIASES.iter().find_map(|&(kind, draft, ratified)| {
-            (kind == NameKind::Capability && (wanted == draft || wanted == ratified))
-                .then(|| {
-                    [draft, ratified].into_iter().find_map(|alias| {
-                        self.advertised.get_key_value(alias).map(|(name, _)| name)
-                    })
-                })
-                .flatten()
-                .map(String::as_str)
-        })
     }
 
     pub(super) fn maybe_finish(

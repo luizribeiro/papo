@@ -187,7 +187,6 @@ pub fn advertised_spelling<'a>(wanted: &str, advertised: &'a Capabilities) -> Op
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn requestable(name: &str, advertised: &Capabilities, wanted: &[String]) -> bool {
     let Some(info) = ALL.iter().find(|info| info.name == canonical(name)) else {
         return true;
