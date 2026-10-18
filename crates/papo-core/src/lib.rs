@@ -10,11 +10,13 @@ mod bouncer;
 pub mod cap;
 mod caps;
 mod channel_rename;
+mod echo;
 mod features;
 mod framing;
 mod history;
 mod isupport;
 mod keepalive;
+mod labels;
 mod metadata;
 mod monitor;
 mod outgoing;
@@ -25,6 +27,7 @@ mod refusal;
 mod registration;
 #[cfg(feature = "unstable")]
 mod relaymsg;
+mod replies;
 mod sasl;
 mod secret;
 mod state;
@@ -57,6 +60,7 @@ use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
 use keepalive::Keepalive;
+use labels::encode_label;
 pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue};
 use monitor::Monitor;
 pub use outgoing::TextKind;
@@ -2333,40 +2337,6 @@ impl Session {
         self.queue_request(now, message, Some(feature), true)
     }
 
-    fn queue_request(
-        &mut self,
-        now: Instant,
-        mut message: Message,
-        feature: Option<Feature>,
-        emit_events: bool,
-    ) -> Result<RequestId, RequestError> {
-        self.rate_limit.advance(now);
-        let id = RequestId(self.next_request_id);
-        let sent = self.caps.enabled().contains_key(cap::ECHO_MESSAGE)
-            && matches!(
-                message.as_ref().command(),
-                Command::Privmsg | Command::Notice
-            );
-        let labelled = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
-        let label = labelled.then(|| encode_label(self.next_request_id));
-        if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
-            return Err(RequestError::PendingLimit);
-        }
-        if let Some(label) = &label {
-            message = message.with_tag("label", label);
-        }
-        let line = message.to_line()?;
-        self.next_request_id = self.next_request_id.wrapping_add(1);
-        if let Some(label) = label {
-            self.requests
-                .insert(label, (id, now, sent, feature, emit_events));
-        } else {
-            self.outbox.event(Event::RequestUntracked { id });
-        }
-        self.outbox.transmit_raw(line.into());
-        Ok(id)
-    }
-
     /// Queues a request with a fallback response boundary for unlabelled servers.
     ///
     /// Label correlation is still preferred whenever `labeled-response` is enabled.
@@ -2993,19 +2963,6 @@ impl Session {
         }
     }
 
-    fn enqueue_labelled_echo(&mut self, message: &MessageRef<'_>) {
-        let response = self
-            .outbox
-            .events
-            .pop_back()
-            .expect("a resolved request queued its response");
-        debug_assert!(matches!(response, Event::Response(_)));
-        let received = self.received_message(message.to_owned(), None, true);
-        self.outbox.event(Event::Message(received));
-        // Consumers must observe the confirming event before the action completes.
-        self.outbox.event(response);
-    }
-
     fn send_pending_registration(&mut self, now: Instant) {
         if self.caps.enabled().contains_key(cap::ACCOUNT_REGISTRATION) {
             if let Some(pending) = self.account_registration.take_pending() {
@@ -3076,180 +3033,6 @@ impl Session {
         if let Some(response) = Ctcp::build(query.command, Some(response)) {
             self.outbox.transmit("NOTICE", [nick, response.as_str()]);
         }
-        true
-    }
-
-    fn report_tag_message(&mut self, message: &MessageRef<'_>) -> bool {
-        let Some(target) = message.param(0).filter(|_| message.command_is("TAGMSG")) else {
-            return false;
-        };
-        self.outbox.event(Event::TagMessage(TagMessage {
-            source: message.raw_source().map(str::to_owned),
-            target: target.to_owned(),
-            tags: message
-                .tags()
-                .map(|(key, value)| (key.to_owned(), value.map(std::borrow::Cow::into_owned)))
-                .collect(),
-        }));
-        true
-    }
-
-    fn report_redaction(&mut self, message: &MessageRef<'_>) -> bool {
-        let (Some(target), Some(msgid)) = (
-            message.param(0).filter(|_| message.command_is("REDACT")),
-            message.param(1),
-        ) else {
-            return false;
-        };
-        self.outbox.event(Event::Redacted(Redacted {
-            source: message.raw_source().map(str::to_owned),
-            target: target.to_owned(),
-            msgid: msgid.to_owned(),
-            reason: message.param(2).map(str::to_owned),
-        }));
-        true
-    }
-
-    fn report_invite(&mut self, message: &MessageRef<'_>) -> bool {
-        let (Some(nick), Some(channel), Some(by)) = (
-            message.param(0).filter(|_| message.command_is("INVITE")),
-            message.param(1),
-            message.raw_source(),
-        ) else {
-            return false;
-        };
-        self.outbox.event(Event::Invited {
-            channel: channel.to_owned(),
-            nick: nick.to_owned(),
-            by: by.to_owned(),
-        });
-        true
-    }
-
-    fn resolve_message(&mut self, message: &MessageRef<'_>) -> bool {
-        let Some(label) = message.tag("label") else {
-            return false;
-        };
-        let Some((id, _, sent, _, _)) = self.requests.remove(label.as_ref()) else {
-            return false;
-        };
-        self.away_messages.remove(&id);
-        let lines = if message.command_is("ACK") {
-            Vec::new()
-        } else {
-            vec![message.to_owned()]
-        };
-        let whois_channels = parse_whois_channels(&lines, self.isupport.value());
-        if !self
-            .unlabelled_requests
-            .iter()
-            .any(|request| request.id == id)
-        {
-            self.outbox.event(Event::Response(Response {
-                id,
-                sent: if sent { sent_info(message) } else { None },
-                lines,
-                history: None,
-                history_targets: None,
-                whois_channels,
-            }));
-        }
-        true
-    }
-
-    fn resolve_labelled_message(
-        &mut self,
-        message: &MessageRef<'_>,
-        queued_events: usize,
-        emit_events: bool,
-    ) -> bool {
-        let resolved = self.resolve_message(message);
-        if resolved && !emit_events {
-            let response = self
-                .outbox
-                .events
-                .pop_back()
-                .expect("a resolved request queued its response");
-            self.outbox.events.truncate(queued_events);
-            self.outbox.event(response);
-        }
-        resolved
-    }
-
-    fn response_emits_events(&self, message: &MessageRef<'_>) -> bool {
-        message
-            .tag("label")
-            .and_then(|label| self.requests.get(label.as_ref()))
-            .is_none_or(|(_, _, _, _, emit_events)| *emit_events)
-    }
-
-    fn confirmed_away_message<'a>(&'a self, message: &MessageRef<'_>) -> Option<&'a str> {
-        if message.command() != Command::Numeric(Numeric::RPL_NOWAWAY) {
-            return None;
-        }
-        let id = if let Some(label) = message.tag("label") {
-            self.requests.get(label.as_ref()).map(|(id, ..)| *id)
-        } else {
-            self.unlabelled_requests.iter().find_map(|request| {
-                matches!(&request.matcher, ResponseMatcher::Away(true)).then_some(request.id)
-            })
-        }?;
-        self.away_messages.get(&id).map(String::as_str)
-    }
-
-    fn resolve_unlabelled(&mut self, message: &MessageRef<'_>) -> bool {
-        let mapping = self.isupport.value().casemapping();
-        let Some((index, complete)) =
-            self.unlabelled_requests
-                .iter()
-                .enumerate()
-                .find_map(|(index, request)| {
-                    let fence = request.fence.as_ref().and_then(|token| {
-                        (message.command() == Command::Pong
-                            && message.params().last() == Some(token.as_str()))
-                        .then_some(true)
-                    });
-                    fence
-                        .or_else(|| {
-                            request
-                                .matcher
-                                .matches(message, mapping, self.registration.nick(), &self.state)
-                                .map(|complete| complete && request.fence.is_none())
-                        })
-                        .map(|done| (index, done))
-                })
-        else {
-            return false;
-        };
-        let request = self.unlabelled_requests.get_mut(index).unwrap();
-        request.lines.push(message.to_owned());
-        if complete {
-            let request = self.unlabelled_requests.remove(index).unwrap();
-            self.away_messages.remove(&request.id);
-            let whois_channels = parse_whois_channels(&request.lines, self.isupport.value());
-            self.outbox.event(Event::Response(Response {
-                id: request.id,
-                sent: None,
-                lines: request.lines,
-                history: None,
-                history_targets: None,
-                whois_channels,
-            }));
-        }
-        true
-    }
-
-    fn report_standard_reply(&mut self, message: &MessageRef<'_>) -> bool {
-        let Some(reply) = StandardReplyView::parse(message) else {
-            return false;
-        };
-        self.outbox.event(Event::StandardReply(StandardReply {
-            kind: reply.kind,
-            command: reply.command.to_ascii_uppercase(),
-            code: reply.code.to_ascii_uppercase(),
-            context: reply.context.into_iter().map(str::to_owned).collect(),
-            description: reply.description.to_owned(),
-        }));
         true
     }
 
@@ -3401,34 +3184,6 @@ impl Session {
         }
     }
 
-    fn is_own_source(&self, message: &MessageRef<'_>) -> bool {
-        message.source().is_some_and(|source| {
-            let papo_proto::Source::User { nick, .. } = source else {
-                return false;
-            };
-            self.isupport
-                .value()
-                .casemapping()
-                .eq(nick, self.registration.nick())
-        })
-    }
-
-    fn received_message(
-        &self,
-        message: Message,
-        batch_type: Option<String>,
-        labelled_echo: bool,
-    ) -> ReceivedMessage {
-        let own_source = self.is_own_source(&message.as_ref());
-        let labels = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
-        ReceivedMessage {
-            message,
-            batch_type,
-            echo: own_source && (labelled_echo || !labels),
-            other_session: own_source && !labelled_echo && labels,
-        }
-    }
-
     fn apply_aggregate_state(&mut self, message: &Message) {
         let before = self.state.clone();
         let event_count = self.outbox.events.len();
@@ -3576,20 +3331,6 @@ fn parse_whois_channels(lines: &[Message], isupport: &papo_proto::Isupport) -> V
             })
         })
         .collect()
-}
-
-fn encode_label(mut value: u64) -> String {
-    const ALPHABET: &[u8; 62] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    let mut buffer = [0_u8; 11];
-    let mut index = buffer.len();
-    loop {
-        index -= 1;
-        buffer[index] = ALPHABET[(value % 62) as usize];
-        value /= 62;
-        if value == 0 {
-            return String::from_utf8(buffer[index..].to_vec()).expect("labels are ASCII");
-        }
-    }
 }
 
 fn sent_info(message: &MessageRef<'_>) -> Option<SentInfo> {
