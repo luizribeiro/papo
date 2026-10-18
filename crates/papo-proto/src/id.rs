@@ -359,6 +359,18 @@ mod tests {
     }
 
     #[test]
+    fn invalid_identifiers_explain_the_failed_boundary() {
+        assert_eq!(
+            InvalidIdentifier::TooLong {
+                length: 31,
+                maximum: 30,
+            }
+            .to_string(),
+            "identifier has 31 characters; maximum is 30"
+        );
+    }
+
+    #[test]
     fn identifiers_preserve_case_and_compare_exact_bytes() {
         let nick = Nick::from("Alice[bot]");
         let mut values = HashMap::new();

@@ -219,6 +219,7 @@ mod tests {
 
         let other = Folded::<String>::new("Bob", Casemapping::Rfc1459);
         assert_ne!(lookup, other);
+        assert_eq!(lookup.partial_cmp(&other), Some(std::cmp::Ordering::Less));
         let mut lookup_hash = DefaultHasher::new();
         lookup.hash(&mut lookup_hash);
         let mut other_hash = DefaultHasher::new();
