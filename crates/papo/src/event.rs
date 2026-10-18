@@ -1480,23 +1480,29 @@ mod tests {
 
     #[test]
     fn maps_standard_reply() {
-        let reply = CoreStandardReply {
-            kind: papo_proto::StandardReplyKind::Warn,
-            command: "CHATHISTORY".into(),
-            code: "RATE_LIMITED".into(),
-            context: vec!["#papo".into()],
-            description: "Please wait".into(),
-        };
-        let Event::StandardReply(mapped) =
-            forwarded(papo_core::Event::StandardReply(reply.clone()))
-        else {
-            panic!("standard reply was not forwarded")
-        };
-        assert_eq!(mapped.kind, StandardReplyKind::Warn);
-        assert_eq!(mapped.command, reply.command);
-        assert_eq!(mapped.code, reply.code);
-        assert_eq!(mapped.context, reply.context);
-        assert_eq!(mapped.description, reply.description);
+        for (core, public) in [
+            (papo_proto::StandardReplyKind::Fail, StandardReplyKind::Fail),
+            (papo_proto::StandardReplyKind::Warn, StandardReplyKind::Warn),
+            (papo_proto::StandardReplyKind::Note, StandardReplyKind::Note),
+        ] {
+            let reply = CoreStandardReply {
+                kind: core,
+                command: "CHATHISTORY".into(),
+                code: "RATE_LIMITED".into(),
+                context: vec!["#papo".into()],
+                description: "Please wait".into(),
+            };
+            let Event::StandardReply(mapped) =
+                forwarded(papo_core::Event::StandardReply(reply.clone()))
+            else {
+                panic!("standard reply was not forwarded")
+            };
+            assert_eq!(mapped.kind, public);
+            assert_eq!(mapped.command, reply.command);
+            assert_eq!(mapped.code, reply.code);
+            assert_eq!(mapped.context, reply.context);
+            assert_eq!(mapped.description, reply.description);
+        }
     }
 
     #[test]
@@ -1540,22 +1546,29 @@ mod tests {
     #[cfg(feature = "unstable")]
     #[test]
     fn maps_persistence_status() {
-        assert!(matches!(
-            forwarded(papo_core::Event::PersistenceStatus {
-                setting: papo_core::PersistenceSetting::Default,
+        for (core, public) in [
+            (papo_core::PersistenceSetting::On, PersistenceSetting::On),
+            (papo_core::PersistenceSetting::Off, PersistenceSetting::Off),
+            (
+                papo_core::PersistenceSetting::Default,
+                PersistenceSetting::Default,
+            ),
+        ] {
+            let event = forwarded(papo_core::Event::PersistenceStatus {
+                setting: core,
                 effective: true,
-            }),
-            Event::PersistenceChanged(changed)
-                if changed.setting == PersistenceSetting::Default && changed.effective
-        ));
-        assert!(matches!(
-            forwarded(papo_core::Event::BouncerNetwork {
-                id: papo_core::NetworkId::new("42"),
-                network: None,
-            }),
-            Event::BouncerNetwork(changed)
-                if changed.id.as_str() == "42" && changed.network.is_none()
-        ));
+            });
+            let changed = event.as_persistence_changed().unwrap();
+            assert_eq!(changed.setting, public);
+            assert!(changed.effective);
+        }
+        let event = forwarded(papo_core::Event::BouncerNetwork {
+            id: papo_core::NetworkId::new("42"),
+            network: None,
+        });
+        let changed = event.as_bouncer_network().unwrap();
+        assert_eq!(changed.id.as_str(), "42");
+        assert!(changed.network.is_none());
     }
 
     #[test]
