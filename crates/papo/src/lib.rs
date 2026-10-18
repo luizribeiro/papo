@@ -23,6 +23,7 @@ mod error;
 #[path = "event.rs"]
 mod event_impl;
 mod ext;
+pub mod fail;
 pub mod format;
 mod io_compat;
 pub mod isupport;
