@@ -281,7 +281,7 @@ pub(crate) async fn history_response(server: &mut DuplexStream, label: usize) {
 }
 
 pub(crate) async fn assert_join_waits_for_sync(server: &mut DuplexStream, client: &super::Client) {
-    let join = tokio::spawn({
+    let mut join = tokio::spawn({
         let client = client.clone();
         async move { client.join("#papo").await }
     });
@@ -291,8 +291,11 @@ pub(crate) async fn assert_join_waits_for_sync(server: &mut DuplexStream, client
         b"@label=2 :papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n",
     )
     .await;
-    tokio::task::yield_now().await;
-    assert!(!join.is_finished());
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), &mut join)
+            .await
+            .is_err()
+    );
     server_line(server, b":ergo.test 332 papo-driver #papo :Ergonomic IRC\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
     within(join).await.unwrap().unwrap();
     let state = client.state();

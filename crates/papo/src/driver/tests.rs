@@ -3065,6 +3065,10 @@ async fn reactions_reject_empty_and_oversized_text() {
             actual: 4095,
         }))
     ));
+    assert!(matches!(
+        within(client.react("#papo", "RfcBTzyxY120004", "x".repeat(4094))).await,
+        Err(Error::Unsupported(_))
+    ));
 
     task.abort();
 }

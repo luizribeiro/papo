@@ -656,7 +656,7 @@ mod tests {
     use papo_core::{DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, sts::ConnectionSecurity};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    use super::{Builder, apply_address};
+    use super::{Builder, apply_address, registration_input_error};
     use crate::{
         Error, InvalidInput, NewAccount, address::Protocol, driver::test_support::within,
         transport::TlsRoots,
@@ -971,6 +971,18 @@ mod tests {
                 Err(Error::InvalidInput(InvalidInput::InvalidMessage(_)))
             ));
         }
+    }
+
+    #[test]
+    fn accepts_webirc_without_options() {
+        let config = Builder::new("irc.example.net")
+            .webirc(crate::WebIrc::new(
+                "gateway-password",
+                "papo-gateway",
+                "192.0.2.42",
+            ))
+            .config;
+        assert_eq!(registration_input_error(&config), None);
     }
 
     #[test]
