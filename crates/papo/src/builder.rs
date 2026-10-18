@@ -310,7 +310,7 @@ impl Builder {
     pub fn event_capacity(mut self, capacity: usize) -> Self {
         if capacity == 0 {
             self.invalid_input
-                .get_or_insert(InvalidInput::EventCapacity(capacity));
+                .get_or_insert(InvalidInput::ZeroEventCapacity);
         }
         self.event_capacity = capacity;
         self
@@ -866,7 +866,7 @@ mod tests {
         let cases = [
             (
                 Builder::new("irc.example.net").event_capacity(0),
-                InvalidInput::EventCapacity(0),
+                InvalidInput::ZeroEventCapacity,
             ),
             #[cfg(not(feature = "unstable"))]
             (
@@ -1076,7 +1076,7 @@ mod tests {
             .await
             .err()
             .unwrap();
-        assert_eq!(error.to_string(), "event queue capacity 0 must be positive");
+        assert_eq!(error.to_string(), "event queue capacity must be positive");
     }
 
     #[tokio::test(flavor = "current_thread")]

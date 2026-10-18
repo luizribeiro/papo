@@ -368,7 +368,7 @@ pub enum Error {
     Unsupported(Unsupported),
     /// The connection already has 256 requests awaiting replies.
     #[error("too many IRC requests are awaiting replies")]
-    RequestLimit,
+    TooManyPendingRequests,
     /// Registration ended before the server welcomed the client.
     #[error(transparent)]
     Registration(RegistrationError),
@@ -468,26 +468,31 @@ impl Error {
             }
             Request::EmptyText => Self::InvalidInput(InvalidInput::EmptyText),
             Request::InvalidSecret => Self::InvalidInput(InvalidInput::BinarySecret),
+            Request::PendingLimit => Self::TooManyPendingRequests,
             Request::Unsupported(unsupported) => Self::Unsupported(unsupported),
-            Request::InvalidMessageReference => Self::InvalidInput(InvalidInput::MessageReference),
+            Request::InvalidMessageReference => {
+                Self::InvalidInput(InvalidInput::UnusableMessageReference)
+            }
             Request::EmailRequired => Self::InvalidInput(InvalidInput::EmailRequired),
             Request::CustomAccountNameUnsupported => {
-                Self::InvalidInput(InvalidInput::CustomAccountName)
+                Self::InvalidInput(InvalidInput::AccountNameMustMatchNick)
             }
             Request::InvalidMetadataKey => Self::InvalidInput(InvalidInput::MetadataKey),
             Request::MetadataValueTooLong { maximum, actual } => {
-                Self::InvalidInput(InvalidInput::MetadataValue { maximum, actual })
+                Self::InvalidInput(InvalidInput::MetadataValueTooLong { maximum, actual })
             }
             Request::TooManyMetadataSubscriptions { maximum, actual } => {
-                Self::InvalidInput(InvalidInput::MetadataSubscriptions { maximum, actual })
+                Self::InvalidInput(InvalidInput::TooManyMetadataSubscriptions { maximum, actual })
             }
             #[cfg(feature = "unstable")]
-            Request::InvalidRelayNickname => Self::InvalidInput(InvalidInput::RelayNickname),
+            Request::InvalidRelayNickname => Self::InvalidInput(InvalidInput::InvalidRelayNickname),
             #[cfg(feature = "unstable")]
-            Request::InvalidWebPushEndpoint => Self::InvalidInput(InvalidInput::WebPushEndpoint),
+            Request::InvalidWebPushEndpoint => {
+                Self::InvalidInput(InvalidInput::InvalidWebPushEndpoint)
+            }
             #[cfg(feature = "unstable")]
-            Request::InvalidWebPushKey => Self::InvalidInput(InvalidInput::WebPushKey),
-            _ => Self::RequestLimit,
+            Request::InvalidWebPushKey => Self::InvalidInput(InvalidInput::InvalidWebPushKey),
+            _ => Self::InvalidInput(InvalidInput::InvalidMessage(error.to_string())),
         }
     }
 }

@@ -9,7 +9,7 @@ impl Client {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`crate::Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`crate::Error::InvalidInput`],
-    /// [`crate::Error::RequestLimit`], [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
+    /// [`crate::Error::TooManyPendingRequests`], [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
     pub fn rename_channel(
         &self,
         old: impl Into<crate::ChannelName>,
@@ -45,7 +45,7 @@ impl Client {
     /// [`crate::UnsupportedReason::DisabledByClient`]. An invalid relayed nickname returns
     /// [`crate::Error::InvalidInput`]; a refusal returns [`crate::Error::Server`] with
     /// [`crate::Refusal::CannotSendToChannel`], [`crate::Refusal::BannedFromChannel`], or
-    /// [`crate::Refusal::Other`]. It can also return [`crate::Error::RequestLimit`],
+    /// [`crate::Refusal::Other`]. It can also return [`crate::Error::TooManyPendingRequests`],
     /// [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]

@@ -276,10 +276,9 @@ impl History {
     /// Requests messages before `reference`.
     #[must_use]
     pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let query = reference
-            .into()
-            .0
-            .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference));
+        let query = reference.into().0.ok_or(Error::InvalidInput(
+            crate::InvalidInput::UnusableMessageReference,
+        ));
         HistoryRequest {
             client: self.client,
             query: query.map(|before| HistoryQuery::Before {
@@ -293,10 +292,9 @@ impl History {
     /// Requests messages after `reference`.
     #[must_use]
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let query = reference
-            .into()
-            .0
-            .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference));
+        let query = reference.into().0.ok_or(Error::InvalidInput(
+            crate::InvalidInput::UnusableMessageReference,
+        ));
         HistoryRequest {
             client: self.client,
             query: query.map(|after| HistoryQuery::After {
@@ -310,10 +308,9 @@ impl History {
     /// Requests messages surrounding `reference`.
     #[must_use]
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let query = reference
-            .into()
-            .0
-            .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference));
+        let query = reference.into().0.ok_or(Error::InvalidInput(
+            crate::InvalidInput::UnusableMessageReference,
+        ));
         HistoryRequest {
             client: self.client,
             query: query.map(|around| HistoryQuery::Around {
@@ -331,14 +328,15 @@ impl History {
         start: impl Into<HistoryReference>,
         end: impl Into<HistoryReference>,
     ) -> HistoryRequest {
-        let start = start
-            .into()
-            .0
-            .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference));
+        let start = start.into().0.ok_or(Error::InvalidInput(
+            crate::InvalidInput::UnusableMessageReference,
+        ));
         let query = start.and_then(|start| {
             end.into()
                 .0
-                .ok_or(Error::InvalidInput(crate::InvalidInput::MessageReference))
+                .ok_or(Error::InvalidInput(
+                    crate::InvalidInput::UnusableMessageReference,
+                ))
                 .map(|end| HistoryQuery::Between {
                     target: self.target,
                     start,
@@ -394,7 +392,7 @@ impl From<&ChatMessage> for HistoryReference {
 /// [`crate::UnsupportedReason::NotOffered`] or
 /// [`crate::UnsupportedReason::DisabledByClient`]. An unusable reference returns
 /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with [`crate::Refusal::Other`]. It
-/// can also return [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
+/// can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
 pub struct HistoryRequest {
     client: Client,
     query: Result<HistoryQuery, Error>,
@@ -494,7 +492,7 @@ impl Client {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
-    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn history_targets(
         &self,
         since: SystemTime,
@@ -531,7 +529,7 @@ impl Client {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. An unencodable timestamp returns
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
     pub fn mark_read(
         &self,
@@ -567,7 +565,7 @@ impl Client {
     /// Returns [`Error::Unsupported`] for [`crate::Feature::ReadMarkers`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
-    /// [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
     /// [`Error::Disconnected`]; server refusals are classified as [`crate::Refusal::Other`].
     pub fn fetch_read_marker(
         &self,

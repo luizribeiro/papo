@@ -470,9 +470,9 @@ pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::Registration(papo::RegistrationError)
-pub papo::Error::RequestLimit
 pub papo::Error::Server(papo::ServerError)
 pub papo::Error::Timeout
+pub papo::Error::TooManyPendingRequests
 pub papo::Error::UnexpectedReply
 pub papo::Error::UnexpectedReply::command: alloc::string::String
 pub papo::Error::Unsupported(papo::Unsupported)
@@ -594,35 +594,35 @@ pub papo::HistoryItem::TopicChanged(papo::event::TopicChanged)
 impl papo::HistoryItem
 pub const fn papo::HistoryItem::message(&self) -> core::option::Option<&papo::Message>
 #[non_exhaustive] pub enum papo::InvalidInput
+pub papo::InvalidInput::AccountNameMustMatchNick
 pub papo::InvalidInput::BinarySecret
-pub papo::InvalidInput::CustomAccountName
 pub papo::InvalidInput::EmailRequired
-pub papo::InvalidInput::Empty(alloc::string::String)
+pub papo::InvalidInput::EmptyAddress
 pub papo::InvalidInput::EmptyText
-pub papo::InvalidInput::EventCapacity(usize)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)
 pub papo::InvalidInput::InvalidMessage(alloc::string::String)
 pub papo::InvalidInput::InvalidName
 pub papo::InvalidInput::InvalidName::name: alloc::string::String
 pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
-pub papo::InvalidInput::MessageReference
 pub papo::InvalidInput::MetadataKey
-pub papo::InvalidInput::MetadataSubscriptions
-pub papo::InvalidInput::MetadataSubscriptions::actual: usize
-pub papo::InvalidInput::MetadataSubscriptions::maximum: usize
-pub papo::InvalidInput::MetadataValue
-pub papo::InvalidInput::MetadataValue::actual: usize
-pub papo::InvalidInput::MetadataValue::maximum: usize
+pub papo::InvalidInput::MetadataValueTooLong
+pub papo::InvalidInput::MetadataValueTooLong::actual: usize
+pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
 pub papo::InvalidInput::Reaction
 pub papo::InvalidInput::Reaction::actual: usize
 pub papo::InvalidInput::Reaction::maximum: usize
 pub papo::InvalidInput::ReplyLimit(usize)
 pub papo::InvalidInput::ReplyWindow
 pub papo::InvalidInput::TlsConfig(alloc::string::String)
+pub papo::InvalidInput::TooManyMetadataSubscriptions
+pub papo::InvalidInput::TooManyMetadataSubscriptions::actual: usize
+pub papo::InvalidInput::TooManyMetadataSubscriptions::maximum: usize
 pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
 pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
+pub papo::InvalidInput::UnusableMessageReference
+pub papo::InvalidInput::ZeroEventCapacity
 #[non_exhaustive] pub enum papo::MessageKind
 pub papo::MessageKind::Action
 pub papo::MessageKind::Ctcp

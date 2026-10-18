@@ -50,7 +50,7 @@ impl Persistence {
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Persistence`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
     pub fn get(&self) -> crate::RequestFuture<PersistenceStatus> {
         let client = self.client.clone();
@@ -68,7 +68,7 @@ impl Persistence {
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Persistence`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
     pub fn set(
         &self,

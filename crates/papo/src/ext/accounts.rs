@@ -70,7 +70,7 @@ impl Client {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid account or email policy returns
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
     pub fn register_account(
         &self,
@@ -97,7 +97,7 @@ impl Client {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
-    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn verify_account(
         &self,
         account: impl Into<crate::AccountName>,

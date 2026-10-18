@@ -841,7 +841,7 @@ where
                         Ok(()) => match session.state().read_marker(&target) {
                             Some(marker) => { _ = result.send(Ok(marker.time)); }
                             None if read_marker_waiters.len() < 256 => read_marker_waiters.push((target, result)),
-                            None => { _ = result.send(Err(Error::RequestLimit)); }
+                            None => { _ = result.send(Err(Error::TooManyPendingRequests)); }
                         },
                         Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }

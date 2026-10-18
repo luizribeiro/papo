@@ -391,7 +391,7 @@ impl Client {
     /// # Errors
     ///
     /// Returns [`Error::InvalidInput`] for empty text or an unencodable message,
-    /// [`Error::RequestLimit`] when 256 labelled requests are pending, [`Error::Timeout`] while
+    /// [`Error::TooManyPendingRequests`] when 256 labelled requests are pending, [`Error::Timeout`] while
     /// awaiting a response, or [`Error::Disconnected`] when the driver stops. A refusal returns
     /// [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
@@ -422,7 +422,7 @@ impl Client {
     /// # Errors
     ///
     /// Returns [`Error::InvalidInput`] for empty text or an unencodable message,
-    /// [`Error::RequestLimit`] when 256 labelled requests are pending, [`Error::Timeout`] while
+    /// [`Error::TooManyPendingRequests`] when 256 labelled requests are pending, [`Error::Timeout`] while
     /// awaiting a response, or [`Error::Disconnected`] when the driver stops. A refusal returns
     /// [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
@@ -559,7 +559,9 @@ impl Client {
         emoji: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let Some(id) = message.id() else {
-            return crate::RequestFuture::new(async { Err(InvalidInput::MessageReference.into()) });
+            return crate::RequestFuture::new(async {
+                Err(InvalidInput::UnusableMessageReference.into())
+            });
         };
         self.react(message.target(), id, emoji)
     }
@@ -655,7 +657,7 @@ impl Client {
     /// Returns [`Error::Unsupported`] for [`Feature::Redaction`] with reason
     /// [`UnsupportedReason::NotOffered`] or [`UnsupportedReason::DisabledByClient`]. A refusal
     /// returns [`Error::Server`], currently classified as [`crate::Refusal::Other`]. It can also
-    /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
     /// [`Error::Disconnected`].
     pub fn redact(
         &self,
@@ -724,7 +726,7 @@ impl Client {
     /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchNick`],
     /// [`crate::Refusal::NoSuchServer`], [`crate::Refusal::TryAgain`], or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
-    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn whois(&self, nick: impl Into<crate::Nick>) -> crate::RequestFuture<crate::Whois> {
         let client = self.clone();
         let nick = nick.into();
@@ -747,7 +749,7 @@ impl Client {
     ///
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
-    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn who(&self, mask: impl Into<crate::Mask>) -> crate::RequestFuture<Vec<crate::WhoEntry>> {
         let client = self.clone();
         let mask = mask.into();
@@ -778,7 +780,7 @@ impl Client {
     /// [`crate::Refusal::BannedFromChannel`], [`crate::Refusal::BadChannelKey`],
     /// [`crate::Refusal::BadChannelMask`], [`crate::Refusal::SecureOnlyChannel`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
-    /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
     /// [`Error::Disconnected`].
     pub fn join(&self, channel: impl Into<crate::ChannelName>) -> JoinChannel {
         JoinChannel {
@@ -837,7 +839,7 @@ impl Client {
     /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::NotOnChannel`], [`crate::Refusal::TryAgain`], or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
-    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn part(
         &self,
         channel: impl Into<crate::ChannelName>,
@@ -1072,7 +1074,7 @@ impl Client {
     /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::NotOnChannel`], [`crate::Refusal::ChannelOperatorPrivilegesNeeded`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
-    /// return [`Error::InvalidInput`], [`Error::RequestLimit`], [`Error::Timeout`], or
+    /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
     /// [`Error::Disconnected`].
     pub fn set_topic(
         &self,
@@ -1115,7 +1117,7 @@ impl Client {
     ///
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
-    /// [`Error::RequestLimit`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn list(&self, filter: crate::ListFilter) -> crate::RequestFuture<Vec<crate::ListEntry>> {
         let client = self.clone();
         crate::RequestFuture::new(async move {

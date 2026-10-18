@@ -9,8 +9,8 @@ const REJECTED_ADDRESS_CHARACTERS: [char; 5] = ['?', '#', '@', ' ', '\t'];
 #[non_exhaustive]
 pub enum InvalidInput {
     /// The address is empty.
-    #[error("server address {0:?} is empty")]
-    Empty(String),
+    #[error("server address is empty")]
+    EmptyAddress,
     /// The URL scheme is not supported.
     #[error("unsupported scheme {0:?}")]
     UnsupportedScheme(String),
@@ -30,8 +30,8 @@ pub enum InvalidInput {
     #[error("papo does not request capability {0:?} by default")]
     UnknownCapability(String),
     /// The event queue capacity is zero.
-    #[error("event queue capacity {0} must be positive")]
-    EventCapacity(usize),
+    #[error("event queue capacity must be positive")]
+    ZeroEventCapacity,
     /// A bot reply limiter permits no replies.
     #[error("reply limit {0} must be positive")]
     ReplyLimit(usize),
@@ -65,19 +65,19 @@ pub enum InvalidInput {
     },
     /// A history or reply reference lacks a server message identifier.
     #[error("the message reference has no server identifier")]
-    MessageReference,
+    UnusableMessageReference,
     /// An account operation omitted a required email address.
     #[error("account registration requires an email address")]
     EmailRequired,
     /// The server requires an account name to match the current nickname.
     #[error("the server does not support a custom account name")]
-    CustomAccountName,
+    AccountNameMustMatchNick,
     /// A metadata key does not follow the negotiated syntax.
     #[error("invalid metadata key")]
     MetadataKey,
     /// A metadata value exceeds the server's advertised byte limit.
     #[error("metadata value length {actual} exceeds limit {maximum}")]
-    MetadataValue {
+    MetadataValueTooLong {
         /// The advertised maximum length.
         maximum: usize,
         /// The supplied length.
@@ -85,7 +85,7 @@ pub enum InvalidInput {
     },
     /// A metadata subscription exceeds the server's advertised limit.
     #[error("metadata subscription count {actual} exceeds limit {maximum}")]
-    MetadataSubscriptions {
+    TooManyMetadataSubscriptions {
         /// The advertised maximum count.
         maximum: usize,
         /// The supplied count.
@@ -95,17 +95,17 @@ pub enum InvalidInput {
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[error("relayed nickname has no allowed separator")]
-    RelayNickname,
+    InvalidRelayNickname,
     /// A Web Push endpoint is not a nonempty HTTPS URL.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[error("invalid Web Push endpoint")]
-    WebPushEndpoint,
+    InvalidWebPushEndpoint,
     /// A Web Push key is not valid URL-safe base64.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[error("invalid Web Push key")]
-    WebPushKey,
+    InvalidWebPushKey,
 }
 
 impl InvalidInput {
@@ -318,7 +318,7 @@ impl FromStr for ServerAddress {
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         if input.is_empty() {
-            return Err(InvalidInput::Empty(input.to_owned()));
+            return Err(InvalidInput::EmptyAddress);
         }
         let (protocol, remainder) = match input.split_once("://") {
             Some((scheme, rest)) if scheme.eq_ignore_ascii_case("irc") => (Protocol::Irc, rest),

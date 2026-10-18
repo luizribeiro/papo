@@ -47,7 +47,7 @@ impl WebPush {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid endpoints or keys return
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
     pub fn register(
         &self,
@@ -76,7 +76,7 @@ impl WebPush {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. An invalid endpoint returns
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::RequestLimit`], [`Error::Timeout`],
+    /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
     pub fn unregister(&self, endpoint: impl Into<String>) -> crate::RequestFuture<()> {
         let client = self.client.clone();

@@ -225,7 +225,7 @@ impl Command {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::Error::InvalidInput`], [`crate::Error::RequestLimit`], [`crate::Error::Timeout`], or
+    /// Returns [`crate::Error::InvalidInput`], [`crate::Error::TooManyPendingRequests`], [`crate::Error::Timeout`], or
     /// [`crate::Error::Disconnected`] with the same conditions as [`crate::Client::privmsg`]. A refusal
     /// returns [`crate::Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
@@ -254,7 +254,7 @@ impl Command {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::Error::InvalidInput`], [`crate::Error::RequestLimit`], [`crate::Error::Timeout`], or
+    /// Returns [`crate::Error::InvalidInput`], [`crate::Error::TooManyPendingRequests`], [`crate::Error::Timeout`], or
     /// [`crate::Error::Disconnected`] with the same conditions as [`crate::Client::notice`]. A refusal
     /// returns [`crate::Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
