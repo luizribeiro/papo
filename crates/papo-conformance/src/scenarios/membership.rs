@@ -56,47 +56,67 @@ async fn extended_join(context: Scenario) -> ScenarioResult {
     Ok(Completion::Completed)
 }
 
-/// records usernames and hosts from NAMES
-#[scenario(requires(caps = ["userhost-in-names"]))]
+/// records complete userhosts from the initial names reply
+#[scenario(
+    requires(caps = ["userhost-in-names"]),
+    covers = ["base.names.basic", "ircv3.userhost-in-names"]
+)]
 async fn userhost_in_names(context: Scenario) -> ScenarioResult {
-    let (receiver, sender, _channel) = joined_pair(&context).await?;
-    let userhost = receiver
-        .client
-        .state()
-        .user(&sender.welcome.nick)
-        .map(|user| {
-            (
-                user.username().map(str::to_owned),
-                user.host().map(str::to_owned),
-            )
-        });
-    if !matches!(userhost, Some((Some(_), Some(_)))) {
-        return Err(format!("NAMES did not include a complete userhost: {userhost:?}").into());
-    }
-    close_pair(receiver, sender).await
+    let alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+    alice.join(&channel).await.map_err(Failed::from)?;
+
+    bob.join(&channel).await.map_err(Failed::from)?;
+
+    let bob_state = bob.state();
+    let observed = bob_state.user(&alice_nick).unwrap();
+    assert!(observed.username().is_some_and(|user| !user.is_empty()));
+    assert!(observed.host().is_some_and(|host| !host.is_empty()));
+    assert!(
+        bob_state
+            .channel(&channel)
+            .unwrap()
+            .member(&alice_nick)
+            .is_some()
+    );
+    assert!(
+        alice
+            .state()
+            .channel(&channel)
+            .unwrap()
+            .member(&bob_nick)
+            .is_some()
+    );
+    Ok(Completion::Completed)
 }
 
-/// parses an extended WHO reply
-#[scenario(requires(isupport = ["WHOX"]))]
+/// returns a complete identity from an extended WHO query
+#[scenario(
+    requires(isupport = ["WHOX"]),
+    covers = ["base.who.whox-extended", "ircv3.whox"]
+)]
 async fn whox(context: Scenario) -> ScenarioResult {
-    let nick = context.unique();
-    let connection = context.client(&nick).await?;
-    let entries = connection
-        .client
-        .who(&connection.welcome.nick)
-        .await
-        .map_err(Failed::from)?;
-    let casemapping = connection.client.state().casemapping();
-    let complete = entries.iter().any(|entry| {
-        casemapping.eq(&entry.nick, &connection.welcome.nick)
-            && !entry.user.is_empty()
-            && !entry.host.is_empty()
-            && !entry.realname.is_empty()
-    });
-    if !complete {
-        return Err("WHOX reply did not contain the registered user's identity".into());
-    }
-    connection.close().await
+    let alice = context
+        .connect_with(context.configure("alice").realname("Alice Example"))
+        .await?;
+    let nick = alice.nick();
+
+    let entries = alice.who(nick.as_ref()).await.map_err(Failed::from)?;
+    let entry = entries
+        .iter()
+        .find(|entry| alice.state().casemapping().eq(&entry.nick, &nick))
+        .expect("WHO must include its exact target");
+
+    assert_eq!(entry.nick, nick);
+    assert!(!entry.user.is_empty());
+    assert!(!entry.host.is_empty());
+    assert_eq!(entry.realname, "Alice Example");
+    assert!(!entry.away);
+    assert!(!entry.is_oper);
+    Ok(Completion::Completed)
 }
 
 /// records every advertised membership prefix
