@@ -11,35 +11,33 @@ use papo::{Client, Endpoint, Event, Origin, Reconnect, Sasl, cap};
 use papo_test_server::{TestServer, register_account_at, unique};
 
 #[tokio::test(flavor = "current_thread")]
-async fn reconnects_and_rejoins_after_ergo_restarts() {
-    // This needs exclusive server lifecycle control, so it owns a TestServer.
+async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
     within(async {
-        let mut server = TestServer::start().unwrap();
+        let server = TestServer::start().unwrap();
+        let proxy = server.fault_proxy().unwrap();
         let nick = unique("papo-reconnect");
         let channel = format!("#{}", unique("papo-reconnect"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
         register_account_at(server.plaintext_addr(), &nick, password).unwrap();
-        let (client, mut events) = Client::builder(Endpoint::plaintext(
-            "localhost",
-            server.plaintext_addr().port(),
-        ))
-        .nick(&nick)
-        .sasl(Sasl::plain(&nick, password))
-        .request_caps([
-            "message-tags",
-            "server-time",
-            "batch",
-            "echo-message",
-            "labeled-response",
-            "draft/chathistory",
-        ])
-        .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
-        .autojoin([&channel])
-        .history_on_reconnect(true)
-        .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)))
-        .connect()
-        .await
-        .unwrap();
+        let (client, mut events) =
+            Client::builder(Endpoint::plaintext("localhost", proxy.address().port()))
+                .nick(&nick)
+                .sasl(Sasl::plain(&nick, password))
+                .request_caps([
+                    "message-tags",
+                    "server-time",
+                    "batch",
+                    "echo-message",
+                    "labeled-response",
+                    "draft/chathistory",
+                ])
+                .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
+                .autojoin([&channel])
+                .history_on_reconnect(true)
+                .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)))
+                .connect()
+                .await
+                .unwrap();
 
         wait_for(&mut events, |event| matches!(event, Event::Registered(_))).await;
         wait_for(&mut events, |event| joined(event, &nick, &channel)).await;
@@ -47,7 +45,7 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
             .privmsg(&channel, "seen before the outage")
             .await
             .unwrap();
-        server.stop().unwrap();
+        proxy.drop_connection().unwrap();
         wait_for(&mut events, |event| {
             matches!(
                 event,
@@ -55,21 +53,6 @@ async fn reconnects_and_rejoins_after_ergo_restarts() {
             )
         })
         .await;
-        wait_for(&mut events, |event| {
-            matches!(
-                event,
-                Event::Disconnected(disconnected) if disconnected.is_retrying()
-            )
-        })
-        .await;
-        wait_for(&mut events, |event| {
-            matches!(
-                event,
-                Event::Disconnected(disconnected) if disconnected.is_retrying()
-            )
-        })
-        .await;
-        server.restart().unwrap();
         let poster = post_during_outage(&server, &channel).await;
 
         wait_for(
