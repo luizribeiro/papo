@@ -19,6 +19,8 @@ mod ports;
 mod profile;
 #[cfg(not(target_family = "wasm"))]
 mod server;
+#[cfg(all(not(target_family = "wasm"), test))]
+mod soju_config;
 #[cfg(not(target_family = "wasm"))]
 mod solanum;
 #[cfg(not(target_family = "wasm"))]
