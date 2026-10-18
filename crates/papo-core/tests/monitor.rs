@@ -231,6 +231,16 @@ fn list_full_forgets_only_the_rejected_presence() {
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "bob"))
         .server(":ergo.test 734 papo 100 alice :Monitor list is full")
         .event(|event| matches!(event, Event::MonitorListFull { nicks, .. } if nicks == &["alice"]))
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .monitor_online()
+                    .map(|user| user.nick().as_ref())
+                    .collect::<Vec<_>>(),
+                ["bob"]
+            );
+        })
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
         .server(":ergo.test 730 papo :bob!bob@users.example")
