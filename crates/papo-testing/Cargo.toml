@@ -1,0 +1,16 @@
+[package]
+name = "papo-testing"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+papo = { path = "../papo", version = "=0.0.0", default-features = false }
+papo-test-server = { path = "../papo-test-server", version = "=0.0.0" }
+tokio = { version = "1.53.3", features = ["macros", "time"] }
+
+[lints]
+workspace = true

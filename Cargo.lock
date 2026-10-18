@@ -779,6 +779,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-testing"
+version = "0.0.0"
+dependencies = [
+ "papo",
+ "papo-test-server",
+ "tokio",
+]
+
+[[package]]
 name = "pbkdf2"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
