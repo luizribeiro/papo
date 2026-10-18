@@ -485,6 +485,71 @@ async fn kick(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// rejects unauthorized kicks and applies a default comment to multiple targets
+#[scenario(covers = [
+    "base.kick.multi-target-split",
+    "base.kick.err-not-privileged",
+    "base.kick.default-comment"
+])]
+async fn kick_rules(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let mut carol = context.connect("carol").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+    let carol_nick = carol.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    carol.join(&channel).await?;
+
+    assert_refusal(
+        bob.kick(&channel, carol_nick.clone(), "not permitted")
+            .await
+            .unwrap_err(),
+        Refusal::ChannelOperatorPrivilegesNeeded,
+        "482",
+    );
+    let targets = format!("{bob_nick},{carol_nick}");
+    alice.send_command("KICK", [&channel, &targets]).await?;
+    let mut observed = [
+        alice.wait_for(Event::as_kicked).await?,
+        alice.wait_for(Event::as_kicked).await?,
+    ];
+    observed.sort_unstable_by(|left, right| left.nick.cmp(&right.nick));
+    let mut own = [
+        bob.wait_for(|event| event.as_kicked().filter(|kicked| kicked.nick == bob_nick))
+            .await?,
+        carol
+            .wait_for(|event| event.as_kicked().filter(|kicked| kicked.nick == carol_nick))
+            .await?,
+    ];
+    own.sort_unstable_by(|left, right| left.nick.cmp(&right.nick));
+    let mut expected = [&bob_nick, &carol_nick];
+    expected.sort_unstable();
+    for ((observed, own), nick) in observed.iter().zip(&own).zip(expected) {
+        assert_eq!(&observed.nick, nick);
+        assert_eq!(&own.nick, nick);
+        assert_eq!(observed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(own.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(observed.reason.as_deref(), Some(alice_nick.as_ref()));
+        assert_eq!(own.reason, observed.reason);
+        assert!(!observed.is_self);
+        assert!(own.is_self);
+        assert!(
+            alice
+                .state()
+                .channel(&channel)
+                .unwrap()
+                .member(nick)
+                .is_none()
+        );
+    }
+    assert!(bob.state().channel(&channel).is_none());
+    assert!(carol.state().channel(&channel).is_none());
+    Ok(())
+}
+
 /// propagates a nickname change and rejects a later claim of the same nickname
 #[scenario(covers = ["base.nick.change", "base.nick.collision-in-use"])]
 async fn nick_change_and_collision(context: Scenario) -> papo_testing::Result<()> {
