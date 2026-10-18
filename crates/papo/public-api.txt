@@ -1,6 +1,7 @@
 pub mod papo
 pub use papo::Account
 pub use papo::AccountName
+pub use papo::Away
 pub use papo::Capabilities
 pub use papo::Casemapping
 pub use papo::Channel

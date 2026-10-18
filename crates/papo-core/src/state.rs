@@ -7,9 +7,9 @@ use std::{
 };
 
 use papo_proto::{
-    Account as AccountNotify, AccountName, Away, Casemapping, ChannelName, Chghost, Command,
-    Folded, Isupport, Join, MessageRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Setname,
-    Source, Target, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
+    Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
+    Command, Folded, Isupport, Join, MessageRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric,
+    Setname, Source, Target, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
 #[cfg(feature = "unstable")]
@@ -89,7 +89,7 @@ pub struct User {
     username: Option<String>,
     host: Option<String>,
     account: Account,
-    away: Option<String>,
+    away: Away,
     realname: Option<String>,
     is_bot: bool,
     monitored: bool,
@@ -106,6 +106,19 @@ pub enum Account {
     LoggedOut,
     /// The user is logged in to the named account.
     LoggedIn(AccountName),
+}
+
+/// A user's known presence state.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Away {
+    /// The user is known to be present.
+    Present,
+    /// The user is away, with a message when the server supplied one.
+    Away {
+        /// The away message, or `None` when a WHO reply reported only the away flag.
+        message: Option<String>,
+    },
 }
 
 #[derive(Clone, Copy)]
@@ -1065,17 +1078,19 @@ impl State {
         own_away_message: Option<&str>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
-        if let Some(away) = Away::parse(message) {
+        if let Some(away) = AwayNotify::parse(message) {
             let Source::User { nick, .. } = message.source()? else {
                 return Some(Handled::No);
             };
             if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
-                let message = away.message.map(str::to_owned);
-                if user.away != message {
-                    user.away.clone_from(&message);
+                let next = away.message.map_or(Away::Present, |message| Away::Away {
+                    message: Some(message.to_owned()),
+                });
+                if user.away != next {
+                    user.away = next;
                     outbox.event(Event::AwayChanged {
                         nick: nick.to_owned(),
-                        message,
+                        message: away.message.map(str::to_owned),
                     });
                 }
             }
@@ -1087,12 +1102,15 @@ impl State {
                     return Some(Handled::No);
                 };
                 if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
-                    let message = Some(away.to_owned());
-                    if user.away != message {
-                        user.away.clone_from(&message);
+                    let message = away.to_owned();
+                    let next = Away::Away {
+                        message: Some(message.clone()),
+                    };
+                    if user.away != next {
+                        user.away = next;
                         outbox.event(Event::AwayChanged {
                             nick: nick.to_owned(),
-                            message,
+                            message: Some(message),
                         });
                     }
                 }
@@ -1260,9 +1278,9 @@ impl State {
         {
             user.realname = reply.realname.map(str::to_owned);
             user.away = match flags.presence {
-                Some(WhoxPresence::Gone) => Some(String::new()),
-                Some(WhoxPresence::Here) => None,
-                None => user.away.take(),
+                Some(WhoxPresence::Gone) => Away::Away { message: None },
+                Some(WhoxPresence::Here) => Away::Present,
+                None => user.away.clone(),
             };
             user.is_bot = flags.bot;
         }
@@ -1743,7 +1761,7 @@ impl User {
             username: user.map(str::to_owned),
             host: host.map(str::to_owned),
             account: Account::Unknown,
-            away: None,
+            away: Away::Present,
             realname: None,
             is_bot: false,
             monitored: false,
@@ -1784,10 +1802,10 @@ impl User {
         &self.account
     }
 
-    /// Returns the user's away message when they are marked away.
+    /// Returns the user's known presence state.
     #[must_use]
-    pub fn away(&self) -> Option<&str> {
-        self.away.as_deref()
+    pub const fn away(&self) -> &Away {
+        &self.away
     }
 
     /// Returns the user's real name when known.

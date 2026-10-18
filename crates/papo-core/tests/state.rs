@@ -4,7 +4,9 @@ mod support;
 
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
-use papo_core::{Account, Config, Event, OwnedModeChange, RateLimit, ResponseMatcher, StateLimit};
+use papo_core::{
+    Account, Away, Config, Event, OwnedModeChange, RateLimit, ResponseMatcher, StateLimit,
+};
 use papo_proto::{AccountName, ChannelName, Message, ModeKind, Nick};
 use support::Transcript;
 
@@ -207,12 +209,14 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
-                Some("Gone to lunch")
+                &Away::Away {
+                    message: Some("Gone to lunch".into())
+                }
             );
         })
         .server(":dan!~dan@cloak.example AWAY")
         .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "dan" && message.is_none()))
-        .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), None))
+        .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), &Away::Present))
         .ignore_rest();
 }
 
@@ -225,7 +229,9 @@ fn away_notify_immediately_after_join_records_initial_state() {
         .inspect(|session| {
             assert_eq!(
                 session.state().user("alice").unwrap().away(),
-                Some("Working")
+                &Away::Away {
+                    message: Some("Working".into())
+                }
             );
         })
         .ignore_rest();
@@ -241,7 +247,9 @@ fn whois_away_reply_records_the_message() {
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
-                Some("Gone to lunch")
+                &Away::Away {
+                    message: Some("Gone to lunch".into())
+                }
             );
         })
         .ignore_rest();
@@ -916,7 +924,7 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
         assert_eq!(dan.username(), Some("~dan"));
         assert_eq!(dan.host(), Some("account/dan"));
         assert_eq!(dan.realname(), Some("Daniel Garcia"));
-        assert_eq!(dan.away(), Some(""));
+        assert_eq!(dan.away(), &Away::Away { message: None });
         assert!(dan.is_bot());
     })
     .no_event();
@@ -941,7 +949,7 @@ fn falls_back_to_plain_who_without_whox() {
             assert_eq!(dan.username(), Some("~dan"));
             assert_eq!(dan.host(), Some("account/dan"));
             assert_eq!(dan.realname(), Some("Daniel Garcia"));
-            assert_eq!(dan.away(), Some(""));
+            assert_eq!(dan.away(), &Away::Away { message: None });
             assert!(dan.is_bot());
         })
         .no_event();
@@ -969,7 +977,7 @@ fn who_here_flags_clear_a_previous_away_state() {
         .client("WHO #papo")
         .event(|event| matches!(event, Event::ChannelSynced { .. }))
         .server(":ergo.test 352 emily #papo ~dan cloak.example ergo.test dan H :0 Daniel Garcia")
-        .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), None))
+        .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), &Away::Present))
         .no_event();
 }
 

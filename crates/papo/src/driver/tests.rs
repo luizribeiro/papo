@@ -3617,7 +3617,9 @@ async fn every_state_change_replaces_the_snapshot() {
     previous = changed_snapshot(&client, &previous, "AWAY");
     assert_eq!(
         previous.user("papo-driver").unwrap().away(),
-        Some("Gone to lunch")
+        &crate::Away::Away {
+            message: Some("Gone to lunch".into())
+        }
     );
 
     server_line(

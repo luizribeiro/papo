@@ -4,7 +4,7 @@ mod support;
 
 use std::cell::Cell;
 
-use papo_core::{Account, Config, Event};
+use papo_core::{Account, Away, Config, Event};
 use papo_proto::Message;
 use support::Transcript;
 
@@ -343,7 +343,12 @@ fn extended_monitor_updates_an_unshared_users_record() {
         .inspect(|session| {
             let alice = session.state().user("alice").unwrap();
             assert_eq!(alice.channels().count(), 0);
-            assert_eq!(alice.away(), Some("Gone to lunch"));
+            assert_eq!(
+                alice.away(),
+                &Away::Away {
+                    message: Some("Gone to lunch".into())
+                }
+            );
             assert_eq!(alice.account(), &Account::LoggedIn("alice".into()));
             assert_eq!(alice.host(), Some("account/alice"));
             assert_eq!(alice.realname(), Some("Alice Smith"));

@@ -72,7 +72,7 @@ pub use relaymsg::RelayError;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
 use state::MetadataContext;
-pub use state::{Account, Channel, Member, State, User};
+pub use state::{Account, Away, Channel, Member, State, User};
 use sts::ConnectionSecurity;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;

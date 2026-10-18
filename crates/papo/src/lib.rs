@@ -85,7 +85,7 @@ pub use papo_core::Refusal;
 #[doc(inline)]
 pub use papo_core::Secret;
 #[doc(inline)]
-pub use papo_core::{Account, Capabilities, Channel, Feature, Member, User};
+pub use papo_core::{Account, Away, Capabilities, Channel, Feature, Member, User};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
