@@ -4,5 +4,7 @@
 //! stability promise, including between minor releases.
 
 mod builders;
+mod event_builders;
 
 pub use builders::MessageBuilder;
+pub use event_builders::{AwayChangedBuilder, JoinedBuilder, RegisteredBuilder};
