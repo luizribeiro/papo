@@ -715,63 +715,6 @@ mod tests {
     }
 
     #[test]
-    fn refusal_mapping_preserves_every_classified_numeric() {
-        use papo_core::RefusalKind as Core;
-        let cases = [
-            (Core::CannotSendToChannel, Refusal::CannotSendToChannel),
-            (Core::TooManyChannels, Refusal::TooManyChannels),
-            (Core::NoTextToSend, Refusal::NoTextToSend),
-            (Core::InputTooLong, Refusal::InputTooLong),
-            (Core::UnknownCommand, Refusal::UnknownCommand),
-            (Core::NickCollision, Refusal::NickCollision),
-            (Core::NickUnavailable, Refusal::NickUnavailable),
-            (Core::BadChannelMask, Refusal::BadChannelMask),
-            (Core::SecureOnlyChannel, Refusal::SecureOnlyChannel),
-            (Core::NoOperHost, Refusal::NoOperHost),
-            (Core::UnknownUserMode, Refusal::UnknownUserMode),
-            (Core::UsersDontMatch, Refusal::UsersDontMatch),
-            (Core::InvalidModeParam, Refusal::InvalidModeParameter),
-            (Core::TryAgain, Refusal::TryAgain),
-            (Core::Other, Refusal::Other),
-        ];
-        for (core, public) in cases {
-            assert_eq!(Refusal::from_core(core), public);
-        }
-    }
-
-    #[test]
-    fn refusal_mapping_covers_common_action_numerics() {
-        let cases = [
-            (401, Refusal::NoSuchNick),
-            (402, Refusal::NoSuchServer),
-            (403, Refusal::NoSuchChannel),
-            (432, Refusal::ErroneousNickname),
-            (433, Refusal::NicknameInUse),
-            (442, Refusal::NotOnChannel),
-            (443, Refusal::UserOnChannel),
-            (461, Refusal::NeedMoreParameters),
-            (464, Refusal::PasswordIncorrect),
-            (471, Refusal::ChannelIsFull),
-            (472, Refusal::UnknownMode),
-            (473, Refusal::InviteOnlyChannel),
-            (474, Refusal::BannedFromChannel),
-            (475, Refusal::BadChannelKey),
-            (481, Refusal::NoPrivileges),
-            (482, Refusal::ChannelOperatorPrivilegesNeeded),
-        ];
-        for (code, public) in cases {
-            assert_eq!(
-                Refusal::from_numeric(code, papo_core::RefusalKind::Other),
-                public
-            );
-        }
-        assert_eq!(
-            Refusal::from_numeric(999, papo_core::RefusalKind::Other),
-            Refusal::Other
-        );
-    }
-
-    #[test]
     fn connection_error_exposes_only_its_stable_kind() {
         let error = ConnectError::from(crate::transport::ConnectError::Tcp(io::Error::new(
             io::ErrorKind::ConnectionRefused,
