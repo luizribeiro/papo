@@ -5,6 +5,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+#[cfg(not(target_family = "wasm"))]
+use std::process::{Command, Stdio};
+
 static NEXT_NAME: AtomicU64 = AtomicU64::new(0);
 const RUNNER_HINT: &str = "run tests through the dev shell's test runner";
 
@@ -26,6 +29,13 @@ pub struct BouncerInfo {
     password: String,
     config: PathBuf,
     upstream: SocketAddr,
+}
+
+/// Credentials bound to one bouncer network.
+#[derive(Clone, Eq, PartialEq)]
+pub struct BouncerLogin {
+    username: String,
+    password: String,
 }
 
 impl fmt::Debug for BouncerInfo {
@@ -50,6 +60,16 @@ impl fmt::Debug for ServerInfo {
             .field("secure_websocket", &self.secure_websocket)
             .field("ca", &self.ca)
             .field("bouncer", &self.bouncer)
+            .finish()
+    }
+}
+
+impl fmt::Debug for BouncerLogin {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("BouncerLogin")
+            .field("username", &self.username)
+            .field("password", &"[REDACTED]")
             .finish()
     }
 }
@@ -115,6 +135,66 @@ impl BouncerInfo {
     #[must_use]
     pub const fn upstream_addr(&self) -> SocketAddr {
         self.upstream
+    }
+
+    /// Creates a bouncer network whose upstream nickname is `nick`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the network name is invalid or soju rejects it.
+    #[cfg(not(target_family = "wasm"))]
+    pub fn provision_network(&self, nick: &str) -> io::Result<BouncerLogin> {
+        if nick.is_empty() || nick.contains([' ', '\r', '\n', '/', '\0']) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid bouncer network nickname",
+            ));
+        }
+        let upstream = format!("irc+insecure://{}", self.upstream);
+        let status = Command::new(
+            env::var("SOJUCTL_BIN").map_err(|_| io::Error::other("SOJUCTL_BIN is unset"))?,
+        )
+        .args(["-config"])
+        .arg(&self.config)
+        .args([
+            "user",
+            "run",
+            &self.username,
+            "network",
+            "create",
+            "-addr",
+            &upstream,
+            "-name",
+            nick,
+            "-nick",
+            nick,
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()?;
+        if !status.success() {
+            return Err(io::Error::other(format!(
+                "sojuctl could not provision network: {status}"
+            )));
+        }
+        Ok(BouncerLogin {
+            username: format!("{}/{nick}", self.username),
+            password: self.password.clone(),
+        })
+    }
+}
+
+impl BouncerLogin {
+    /// Returns the network-qualified bouncer username.
+    #[must_use]
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    /// Returns the bouncer password.
+    #[must_use]
+    pub fn password(&self) -> &str {
+        &self.password
     }
 }
 
@@ -227,7 +307,7 @@ fn parse_address(name: &str, value: &str) -> io::Result<SocketAddr> {
 
 #[cfg(test)]
 mod tests {
-    use super::{RUNNER_HINT, from_values, test_process_id, unique};
+    use super::{BouncerLogin, RUNNER_HINT, from_values, test_process_id, unique};
 
     #[test]
     fn distinguishes_unset_complete_and_partial_environments() {
@@ -265,6 +345,12 @@ mod tests {
         assert_eq!(bouncer.username(), "papo-bouncer");
         assert_eq!(bouncer.upstream_addr().port(), 7667);
         assert!(!format!("{server:?}").contains("unique-bouncer-password"));
+        let login = BouncerLogin {
+            username: "papo-bouncer/reader".into(),
+            password: "another-unique-password".into(),
+        };
+        assert_eq!(login.username(), "papo-bouncer/reader");
+        assert!(!format!("{login:?}").contains("another-unique-password"));
         for missing in 0..5 {
             let mut partial = [
                 Some(String::new()),

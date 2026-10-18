@@ -26,10 +26,14 @@ pub fn register_account(server: &ServerInfo, name: &str, password: &str) -> io::
         DeploymentProfile::InspIrcd
         | DeploymentProfile::Solanum
         | DeploymentProfile::UnrealIrcd => register_atheme(server.plaintext_addr(), name, password),
-        DeploymentProfile::SojuErgo => Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "account registration through soju is unavailable",
-        )),
+        DeploymentProfile::SojuErgo => register_account_at(
+            server
+                .bouncer()
+                .ok_or_else(|| io::Error::other("soju profile lacks bouncer metadata"))?
+                .upstream_addr(),
+            name,
+            password,
+        ),
     }
 }
 

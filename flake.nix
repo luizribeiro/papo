@@ -592,7 +592,7 @@
           ERGO_BIN = pkgs.lib.getExe ergochat;
           ERGO_CONFIG = ergoConfig;
           ERGO_LANGUAGES = "${ergochat.src}/languages";
-          SOJU_BIN = pkgs.lib.getExe soju;
+          SOJU_BIN = pkgs.lib.getExe' soju "soju";
           SOJUCTL_BIN = pkgs.lib.getExe' soju "sojuctl";
           ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
           ATHEME_MODULES = "${pkgs.atheme}/modules";
