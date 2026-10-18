@@ -68,8 +68,6 @@ fn check_size(length: usize, terminator_allowance: usize) -> io::Result<()> {
 mod tests {
     use std::io;
 
-    use wasm_bindgen_test::wasm_bindgen_test;
-
     use super::{Write, WriteState};
 
     fn frame(state: &mut WriteState, input: &[u8]) -> (usize, Vec<u8>) {
@@ -79,10 +77,12 @@ mod tests {
         (consumed, bytes)
     }
 
-    #[wasm_bindgen_test]
+    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(not(browser), test)]
     fn emits_one_message_per_complete_irc_line() {
         let mut state = WriteState::default();
         assert!(matches!(state.push(b"CAP LS").unwrap(), Write::Buffered(6)));
+        assert_eq!(state.len(), 6);
         assert_eq!(
             frame(&mut state, b" 302\r\nNICK papo\r\n"),
             (6, b"CAP LS 302".to_vec())
@@ -92,9 +92,22 @@ mod tests {
             (12, b"NICK papo".to_vec())
         );
         assert_eq!(state.len(), 0);
+        assert!(state.finish().is_ok());
+
+        state.push(b"PING :ergo.test\r").unwrap();
+        assert_eq!(
+            frame(&mut state, b"\nQUIT :done\r\n"),
+            (1, b"PING :ergo.test".to_vec())
+        );
+        assert_eq!(
+            frame(&mut state, b"QUIT :done\r\n"),
+            (12, b"QUIT :done".to_vec())
+        );
+        assert_eq!(frame(&mut state, b"\n"), (1, Vec::new()));
     }
 
-    #[wasm_bindgen_test]
+    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(not(browser), test)]
     fn enforces_the_literal_outgoing_message_limit() {
         let mut complete = WriteState::default();
         let mut accepted = vec![b'x'; 8_701];
@@ -115,9 +128,16 @@ mod tests {
             rejected.push(&overlong).err().unwrap().kind(),
             io::ErrorKind::InvalidData
         );
+
+        let mut unterminated = WriteState::default();
+        assert_eq!(
+            unterminated.push(&vec![b'x'; 8_703]).err().unwrap().kind(),
+            io::ErrorKind::InvalidData
+        );
     }
 
-    #[wasm_bindgen_test]
+    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(not(browser), test)]
     fn rejects_shutdown_with_a_partial_line() {
         let mut state = WriteState::default();
         state.push(b"AUTHENTICATE c2VjcmV0").unwrap();
