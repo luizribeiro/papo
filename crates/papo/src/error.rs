@@ -583,6 +583,107 @@ mod tests {
     }
 
     #[test]
+    fn every_public_error_leaf_can_be_constructed() {
+        for kind in [
+            ConnectErrorKind::HostNotFound,
+            ConnectErrorKind::Refused,
+            ConnectErrorKind::Unreachable,
+            ConnectErrorKind::CertificateRejected,
+            ConnectErrorKind::HandshakeFailed,
+            ConnectErrorKind::Unavailable,
+            ConnectErrorKind::Other,
+        ] {
+            let error = ConnectError::new(kind, io::Error::other("recorded cause"));
+            assert_eq!(error.kind(), kind);
+            assert!(std::error::Error::source(&error).is_some());
+        }
+
+        for error in [
+            RegistrationError::Sasl {
+                message: "Invalid credentials".into(),
+            },
+            RegistrationError::AccountRequired,
+            RegistrationError::Banned {
+                message: "K-lined".into(),
+            },
+            RegistrationError::Rejected {
+                message: "Too many connections".into(),
+            },
+            RegistrationError::Timeout,
+            RegistrationError::StsUpgradeLoop {
+                host: "irc.example.net".into(),
+            },
+        ] {
+            assert!(!error.to_string().is_empty());
+        }
+
+        for cause in [
+            DisconnectCause::ConnectionLost,
+            DisconnectCause::Connect(ConnectErrorKind::Refused),
+            DisconnectCause::Registration(RegistrationError::Timeout),
+            DisconnectCause::Server {
+                message: "maintenance".into(),
+            },
+            DisconnectCause::PingTimeout,
+            DisconnectCause::Protocol {
+                message: "overlong line".into(),
+            },
+            DisconnectCause::SlowConsumer,
+            DisconnectCause::Requested,
+        ] {
+            assert!(!cause.to_string().is_empty());
+        }
+    }
+
+    #[test]
+    fn every_public_invalid_input_variant_can_be_constructed() {
+        let variants = [
+            InvalidInput::EmptyAddress,
+            InvalidInput::UnsupportedScheme("ftp".into()),
+            InvalidInput::InvalidHost("[not-an-address".into()),
+            InvalidInput::InvalidPort("0".into()),
+            InvalidInput::UnexpectedPath("/channels".into()),
+            InvalidInput::TlsConfig("invalid PEM".into()),
+            InvalidInput::UnknownCapability("example/cap".into()),
+            InvalidInput::ZeroEventCapacity,
+            InvalidInput::ReplyLimit(0),
+            InvalidInput::ReplyWindow,
+            InvalidInput::BinarySecret,
+            InvalidInput::InvalidMessage("embedded CR".into()),
+            InvalidInput::InvalidName {
+                name: String::new(),
+                reason: crate::InvalidIdentifier::Empty,
+            },
+            InvalidInput::EmptyText,
+            InvalidInput::Reaction {
+                maximum: 4094,
+                actual: 4095,
+            },
+            InvalidInput::UnusableMessageReference,
+            InvalidInput::EmailRequired,
+            InvalidInput::AccountNameMustMatchNick,
+            InvalidInput::MetadataValueTooLong {
+                maximum: 512,
+                actual: 513,
+            },
+            InvalidInput::TooManyMetadataSubscriptions {
+                maximum: 10,
+                actual: 11,
+            },
+        ];
+        assert!(variants.iter().all(|error| !error.to_string().is_empty()));
+
+        #[cfg(feature = "unstable")]
+        for error in [
+            InvalidInput::InvalidRelayNickname,
+            InvalidInput::InvalidWebPushEndpoint,
+            InvalidInput::InvalidWebPushKey,
+        ] {
+            assert!(!error.to_string().is_empty());
+        }
+    }
+
+    #[test]
     fn protocol_disconnect_keeps_its_diagnostic() {
         let error = Error::Disconnected(Disconnected::new(
             DisconnectCause::Protocol {
