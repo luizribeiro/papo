@@ -1,3 +1,9 @@
 [waivers]
+"base.ping.server-initiated" = "The managed servers expose no deterministic control that emits a server-originated PING on demand."
+"ircv3.sasl.external" = "The managed servers do not provision a client certificate fingerprint mapped to an account."
+"draft.account-registration.verify" = "The managed servers expose no mail sink from which a verification code can be obtained."
+"core.cap-notify.new" = "The managed servers cannot add a capability while connected without reloading or replacing the server process."
+"core.cap-notify.del" = "The managed servers cannot remove a capability while connected without reloading or replacing the server process."
+"core.sasl.reauth" = "papo has no public API for starting a second SASL exchange after registration."
 "core.batch.netsplit-netjoin" = "A single local IRC server cannot produce a server-link split or netjoin batch."
 "core.tls.sni" = "The local harness has no TLS-terminating observer that can inspect the ClientHello server name."
