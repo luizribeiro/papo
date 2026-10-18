@@ -1,4 +1,4 @@
-use papo::{Account, Away, Event, Origin, Source};
+use papo::{Account, Away, Error, Event, Origin, Refusal, Source};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -263,5 +263,63 @@ async fn bot_mode(context: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.text(), text);
     assert!(message.is_bot());
     bob.expect_none(Event::as_message).await?;
+    Ok(())
+}
+
+/// reports channel identity and away state through WHO and WHOIS
+#[scenario(covers = [
+    "base.away.reflected-in-whois",
+    "base.who.channel-scoped",
+    "base.who.away-flag",
+    "base.whois.user",
+    "base.whois.idle",
+    "base.whois.channels",
+    "base.whois.err-no-such-nick"
+])]
+async fn who_and_whois(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    let away = "reading WHO reply fields";
+    alice.set_away(away).await?;
+
+    let who = bob.who(channel.clone()).await?;
+    let alice_who = who.iter().find(|entry| entry.nick == alice_nick).unwrap();
+
+    assert_eq!(
+        alice_who.channel.as_ref().map(AsRef::as_ref),
+        Some(channel.as_str())
+    );
+    assert!(!alice_who.user.is_empty());
+    assert!(!alice_who.host.is_empty());
+    assert_eq!(alice_who.realname, "papo test peer");
+    assert!(alice_who.away);
+    assert!(!alice_who.is_oper);
+    assert!(!alice_who.is_bot);
+    assert_eq!(alice_who.prefixes, ['@']);
+
+    let whois = bob.whois(alice_nick.clone()).await?;
+
+    assert_eq!(whois.nick, alice_nick);
+    assert!(whois.user.as_ref().is_some_and(|user| !user.is_empty()));
+    assert!(whois.host.as_ref().is_some_and(|host| !host.is_empty()));
+    assert_eq!(whois.realname.as_deref(), Some("papo test peer"));
+    assert!(whois.idle.is_some());
+    assert_eq!(whois.away.as_deref(), Some(away));
+    assert!(
+        whois
+            .channels
+            .iter()
+            .any(|joined| joined.name.as_ref() == channel)
+    );
+
+    let Error::Server(refusal) = bob.whois("missing-presence-target").await.unwrap_err() else {
+        panic!("unknown WHOIS target did not return a server refusal");
+    };
+    assert_eq!(refusal.kind(), Refusal::NoSuchNick);
+    assert_eq!(refusal.code(), "401");
     Ok(())
 }

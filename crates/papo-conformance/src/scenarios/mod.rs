@@ -72,6 +72,7 @@ pub(super) fn all() -> Vec<ScenarioSpec> {
         presence::__papo_scenario_spec_chghost,
         presence::__papo_scenario_spec_monitor,
         presence::__papo_scenario_spec_bot_mode,
+        presence::__papo_scenario_spec_who_and_whois,
         requests::__papo_scenario_spec_labeled_response,
         requests::__papo_scenario_spec_batch,
         requests::__papo_scenario_spec_standard_replies,
@@ -158,6 +159,7 @@ mod tests {
                 "webirc",
                 "websocket",
                 "websocket_tls",
+                "who_and_whois",
                 "whox",
             ]
         );
