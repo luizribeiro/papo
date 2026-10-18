@@ -697,6 +697,13 @@ where
     let mut reconnect_now = false;
     let mut buffer = [0; 4096];
     let (reason, error, close_kind, quit_timed_out) = loop {
+        let write_deadline = [
+            session.poll_timeout(),
+            quit.as_ref().map(|quit: &Quit| quit.deadline),
+        ]
+        .into_iter()
+        .flatten()
+        .min();
         match drain(
             &mut stream,
             session,
@@ -714,6 +721,7 @@ where
             &mut sts,
             &mut sts_store,
             sts_port,
+            write_deadline,
         )
         .await
         {
@@ -1026,13 +1034,16 @@ async fn drain<S>(
     sts: &mut StsActions,
     sts_store: &mut Option<Box<dyn StsStore + Send>>,
     sts_port: u16,
+    deadline: Option<Instant>,
 ) -> io::Result<Option<(papo_core::CloseKind, String)>>
 where
     S: AsyncWrite + Unpin,
 {
     publish_state(events, session, true);
     while let Some(line) = session.poll_transmit() {
-        stream.write_all(&line).await?;
+        if !write_before(stream, &line, deadline).await? {
+            return Ok(None);
+        }
     }
     let read_ahead = !requests.is_empty()
         || !sync_waiters.is_empty()
@@ -1223,9 +1234,21 @@ where
         }
     }
     while let Some(line) = session.poll_transmit() {
-        stream.write_all(&line).await?;
+        if !write_before(stream, &line, deadline).await? {
+            return Ok(None);
+        }
     }
     Ok(None)
+}
+
+async fn write_before<S>(stream: &mut S, line: &[u8], deadline: Option<Instant>) -> io::Result<bool>
+where
+    S: AsyncWrite + Unpin,
+{
+    tokio::select! {
+        result = stream.write_all(line) => result.map(|()| true),
+        () = wait_until(deadline) => Ok(false),
+    }
 }
 
 fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, event: &Event) {

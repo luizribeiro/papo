@@ -9,6 +9,37 @@ macro_rules! disconnected {
 fn unavailable(message: &'static str) -> Error {
     Error::connect_unavailable(message)
 }
+
+struct NeverWrite;
+
+impl AsyncWrite for NeverWrite {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+        _buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Poll::Pending
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn write_deadline_interrupts_a_socket_that_never_accepts_data() {
+    let deadline = crate::rt::now_mono() + Duration::from_millis(1);
+    assert!(
+        !super::write_before(&mut NeverWrite, b"QUIT\r\n", Some(deadline))
+            .await
+            .unwrap()
+    );
+}
+
 #[test]
 fn shared_test_deadline_is_five_seconds() {
     assert_eq!(TEST_DEADLINE, Duration::from_secs(5));
