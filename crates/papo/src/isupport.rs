@@ -267,6 +267,8 @@ impl Isupport {
 
 #[cfg(test)]
 mod tests {
+    use papo_proto::MessageRef;
+
     #[test]
     fn exposes_read_only_protocol_views() {
         let support = super::Isupport::default();
@@ -275,5 +277,121 @@ mod tests {
         assert_eq!(support.nicklen(), None);
         assert_eq!(support.msgreftypes(), ["msgid", "timestamp"]);
         assert!(!support.whox());
+    }
+
+    fn assert_limits_and_lengths(support: &super::Isupport) {
+        assert!(
+            support
+                .targmax()
+                .iter()
+                .any(|limit| limit.name == "MONITOR" && limit.limit == Some(100))
+        );
+        assert_eq!(support.maxtargets(), Some(super::LimitValue::Limited(4)));
+        assert_eq!(support.modes(), Some(4));
+        assert_eq!(
+            support.chanlimit(),
+            [super::Limit {
+                name: "#",
+                limit: Some(100)
+            }]
+        );
+        assert_eq!(
+            support.maxlist(),
+            [super::Limit {
+                name: "beI",
+                limit: Some(100)
+            }]
+        );
+        assert_eq!(support.channellen(), Some(64));
+        assert_eq!(support.topiclen(), Some(390));
+        assert_eq!(support.kicklen(), Some(390));
+        assert_eq!(support.awaylen(), Some(390));
+        assert_eq!(support.namelen(), Some(150));
+        assert_eq!(support.monitor(), Some(super::LimitValue::Limited(100)));
+        assert_eq!(
+            support.chathistory(),
+            Some(super::LimitValue::Limited(1000))
+        );
+    }
+
+    #[test]
+    fn exposes_a_complete_server_advertisement() {
+        let mut inner = papo_proto::Isupport::default();
+        for line in [
+            ":ergo.test 005 papo-fixture AWAYLEN=390 BOT=B CASEMAPPING=ascii CHANLIMIT=#:100 CHANMODES=Ibe,k,fl,CEMRUimnstu CHANNELLEN=64 CHANTYPES=# CHATHISTORY=1000 ELIST=U EXCEPTS EXTBAN=,m FORWARD=f INVEX :are supported by this server",
+            ":ergo.test 005 papo-fixture KICKLEN=390 MAXLIST=beI:100 MAXTARGETS=4 MODES=4 MONITOR=100 MSGREFTYPES=msgid,timestamp NETWORK=ErgoTest NICKLEN=32 PREFIX=(qaohv)~&@%+ SAFELIST SAFERATE STATUSMSG=~&@%+ TARGMAX=NAMES:1,LIST:1,KICK:,WHOIS:1,USERHOST:10,PRIVMSG:4,TAGMSG:4,NOTICE:4,MONITOR:100 :are supported by this server",
+            ":ergo.test 005 papo-fixture TOPICLEN=390 NAMELEN=150 UTF8ONLY WHOX draft/ACCOUNTREQUIRED ACCOUNTEXTBAN=$a,~a draft/ICON=https://cdn.example.net/ergo-{size}.png VAPID=BN2Zr6VZlaXr1w :are supported by this server",
+        ] {
+            inner.apply(&MessageRef::parse(line).unwrap());
+        }
+        let support = super::Isupport::from_proto(inner);
+
+        assert_eq!(
+            support.prefix(),
+            [
+                super::Prefix {
+                    mode: 'q',
+                    symbol: '~',
+                    rank: 0
+                },
+                super::Prefix {
+                    mode: 'a',
+                    symbol: '&',
+                    rank: 1
+                },
+                super::Prefix {
+                    mode: 'o',
+                    symbol: '@',
+                    rank: 2
+                },
+                super::Prefix {
+                    mode: 'h',
+                    symbol: '%',
+                    rank: 3
+                },
+                super::Prefix {
+                    mode: 'v',
+                    symbol: '+',
+                    rank: 4
+                },
+            ]
+        );
+        assert_eq!(support.chanmodes().unwrap().never, "CEMRUimnstu");
+        assert_eq!(support.statusmsg(), Some("~&@%+"));
+        assert!(support.is_channel("#papo"));
+        assert!(!support.is_channel("&local"));
+        assert_limits_and_lengths(&support);
+        assert_eq!(support.network(), Some("ErgoTest"));
+        assert_eq!(
+            support.icon(),
+            Some("https://cdn.example.net/ergo-{size}.png")
+        );
+        assert_eq!(
+            support.icon_url(128).as_deref(),
+            Some("https://cdn.example.net/ergo-128.png")
+        );
+        assert_eq!(support.vapid(), Some("BN2Zr6VZlaXr1w"));
+        assert!(support.utf8only());
+        assert!(support.account_required());
+        assert!(support.safelist());
+        assert!(support.saferate());
+        assert_eq!(support.bot_mode(), Some('B'));
+        assert_eq!(support.excepts(), Some('e'));
+        assert_eq!(support.invex(), Some('I'));
+        assert_eq!(
+            support.extban(),
+            Some(super::Extban {
+                prefix: None,
+                types: "m"
+            })
+        );
+        assert_eq!(support.accountextban(), ["$a", "~a"]);
+        assert_eq!(support.elist(), Some("U"));
+
+        let absent = super::Isupport::default();
+        assert!(!absent.utf8only());
+        assert!(!absent.account_required());
+        assert!(!absent.safelist());
+        assert!(!absent.saferate());
     }
 }
