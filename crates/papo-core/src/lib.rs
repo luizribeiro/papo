@@ -87,6 +87,16 @@ const DEFAULT_BATCH_TIMEOUT: Duration = Duration::from_secs(120);
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_PENDING_REQUESTS: usize = 256;
 const MAX_CTCP_SOURCES: usize = 1024;
+
+/// Details about text queued by [`Session::send_text_detailed`].
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SendTextResult {
+    /// Correlation identifier when labeled responses are enabled.
+    pub request: Option<RequestId>,
+    /// Whether the text was divided into multiple message lines.
+    pub split: bool,
+}
 const CTCP_REPLY_INTERVAL: Duration = Duration::from_secs(2);
 
 /// Capabilities requested by a default session when the server advertises them.
@@ -2254,6 +2264,20 @@ impl Session {
         text: &str,
         tags: &[(&str, &str)],
     ) -> Result<Option<RequestId>, RequestError> {
+        self.send_text_detailed(now, kind, target, text, tags)
+            .map(|sent| sent.request)
+    }
+
+    /// Queues text and reports whether line splitting was applied.
+    #[doc(hidden)]
+    pub fn send_text_detailed(
+        &mut self,
+        now: Instant,
+        kind: TextKind,
+        target: &str,
+        text: &str,
+        tags: &[(&str, &str)],
+    ) -> Result<SendTextResult, RequestError> {
         self.rate_limit.advance(now);
         let multiline = self
             .caps
@@ -2347,7 +2371,10 @@ impl Session {
         } else {
             self.outbox.transmit_batch(lines);
         }
-        Ok(labelled.then_some(id))
+        Ok(SendTextResult {
+            request: labelled.then_some(id),
+            split: segments.len() > 1,
+        })
     }
 
     /// Queues a message and assigns an identifier for its eventual response.

@@ -49,7 +49,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub use action::RequestFuture;
 pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
-pub use client::{Client, JoinChannel, SendMessage, Sent};
+pub use client::{Client, Fallback, JoinChannel, SendMessage, Sent};
 pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, RegistrationError,

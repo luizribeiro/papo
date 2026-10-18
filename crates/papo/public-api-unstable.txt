@@ -665,6 +665,10 @@ impl papo::Event
 pub const fn papo::Event::as_typing_changed(&self) -> core::option::Option<&papo::event::TypingChanged>
 impl papo::Event
 pub const fn papo::Event::as_warning(&self) -> core::option::Option<&papo::event::Warning>
+#[non_exhaustive] pub enum papo::Fallback
+pub papo::Fallback::ContextTagDropped
+pub papo::Fallback::ReplyTagDropped
+pub papo::Fallback::SplitIntoLines
 #[non_exhaustive] pub enum papo::HistoryItem
 pub papo::HistoryItem::Joined(papo::event::Joined)
 pub papo::HistoryItem::Kicked(papo::event::Kicked)
@@ -1103,6 +1107,7 @@ pub type papo::SendMessage::IntoFuture = papo::RequestFuture<papo::Sent>
 pub type papo::SendMessage::Output = core::result::Result<papo::Sent, papo::Error>
 pub fn papo::SendMessage::into_future(self) -> Self::IntoFuture
 #[non_exhaustive] pub struct papo::Sent
+pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
 pub papo::Sent::id: core::option::Option<papo::MessageId>
 pub papo::Sent::target: papo::Target
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>

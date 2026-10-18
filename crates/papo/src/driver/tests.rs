@@ -2674,12 +2674,11 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    assert_eq!(
-        within(client.privmsg("#papo", "a".repeat(600)))
-            .await
-            .unwrap(),
-        super::Sent::without_echo("#papo")
-    );
+    let sent = within(client.privmsg("#papo", "a".repeat(600)))
+        .await
+        .unwrap();
+    assert_eq!(sent.target, "#papo");
+    assert_eq!(sent.fallbacks, [crate::Fallback::SplitIntoLines]);
     let lines = format!(
         "PRIVMSG #papo {}\r\nPRIVMSG #papo {}\r\n",
         "a".repeat(413),
@@ -2688,6 +2687,20 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     client_line(&mut server, lines.as_bytes()).await;
     client.notice("helper", "maintenance soon").await.unwrap();
     client_line(&mut server, b"NOTICE helper :maintenance soon\r\n").await;
+    let sent = client
+        .privmsg("helper", "reviewed")
+        .reply_to(&crate::MessageId::from("RfcBTzyxY120004"))
+        .channel_context(&crate::ChannelName::from("#papo"))
+        .await
+        .unwrap();
+    assert_eq!(
+        sent.fallbacks,
+        [
+            crate::Fallback::ReplyTagDropped,
+            crate::Fallback::ContextTagDropped,
+        ]
+    );
+    client_line(&mut server, b"PRIVMSG helper reviewed\r\n").await;
     assert!(matches!(
         within(client.privmsg("#papo", "\n")).await,
         Err(Error::InvalidInput(crate::InvalidInput::EmptyText))

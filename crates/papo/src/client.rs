@@ -45,6 +45,20 @@ pub struct Sent {
     pub id: Option<crate::MessageId>,
     /// Server time from a labelled echo.
     pub time: Option<SystemTime>,
+    /// Compatibility fallbacks applied while sending.
+    pub fallbacks: Vec<Fallback>,
+}
+
+/// A compatibility fallback applied to an outgoing chat message.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Fallback {
+    /// The reply tag was unavailable or denied by the server.
+    ReplyTagDropped,
+    /// The channel-context tag was unavailable or denied by the server.
+    ContextTagDropped,
+    /// The text was divided into multiple IRC message lines.
+    SplitIntoLines,
 }
 
 /// Builds a chat message with optional `IRCv3` client tags.
@@ -137,48 +151,62 @@ impl IntoFuture for SendMessage {
                     .map_err(|reason| InvalidInput::invalid_name(channel.to_string(), reason))?;
             }
             let mut tags = self.tags;
+            let mut fallbacks = Vec::new();
             if state.has_cap("message-tags") {
                 let denied = state.isupport().clienttagdeny();
-                if let Some(message) = self.reply_to
+                if let Some(message) = self.reply_to.as_ref()
                     && let Some(tag) = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
                 {
-                    tags.push((tag.to_owned(), message.into_string()));
+                    tags.push((tag.to_owned(), message.to_string()));
+                } else if self.reply_to.is_some() {
+                    fallbacks.push(Fallback::ReplyTagDropped);
                 }
-                if let Some(channel) = self.channel_context
+                if let Some(channel) = self.channel_context.as_ref()
                     && let Some(tag) = event_impl::allowed_alias(
                         &denied,
                         "+channel-context",
                         "+draft/channel-context",
                     )
                 {
-                    tags.push((tag.to_owned(), channel.into_string()));
+                    tags.push((tag.to_owned(), channel.to_string()));
+                } else if self.channel_context.is_some() {
+                    fallbacks.push(Fallback::ContextTagDropped);
                 }
+            } else {
+                fallbacks.extend(self.reply_to.map(|_| Fallback::ReplyTagDropped));
+                fallbacks.extend(self.channel_context.map(|_| Fallback::ContextTagDropped));
             }
             self.client
-                .send_text(self.kind, self.target.as_ref(), &self.text, tags)
+                .send_text(self.kind, self.target.as_ref(), &self.text, tags, fallbacks)
                 .await
         })
     }
 }
 
 impl Sent {
-    pub(crate) fn without_echo(target: &str) -> Self {
+    pub(crate) fn without_echo(target: &str, fallbacks: Vec<Fallback>) -> Self {
         Self {
             target: target.into(),
             id: None,
             time: None,
+            fallbacks,
         }
     }
 
-    pub(crate) fn from_response(response: &Response, target: &str) -> Self {
-        response.sent().map_or_else(
-            || Self::without_echo(target),
-            |sent| Self {
+    pub(crate) fn from_response(
+        response: &Response,
+        target: &str,
+        fallbacks: Vec<Fallback>,
+    ) -> Self {
+        match response.sent() {
+            Some(sent) => Self {
                 target: target.into(),
                 id: Some(sent.msgid.into()),
                 time: sent.time.and_then(|value| time::parse(&value)),
+                fallbacks,
             },
-        )
+            None => Self::without_echo(target, fallbacks),
+        }
     }
 }
 
@@ -693,6 +721,7 @@ impl Client {
         target: &str,
         text: &str,
         tags: Vec<(String, String)>,
+        fallbacks: Vec<Fallback>,
     ) -> Result<Sent, Error> {
         if !self.state().is_connected() {
             let mut message = match kind {
@@ -703,7 +732,7 @@ impl Client {
                 message = message.with_tag(key, value);
             }
             self.send_message(message).await?;
-            return Ok(Sent::without_echo(target));
+            return Ok(Sent::without_echo(target, fallbacks));
         }
         let (result, receiver) = oneshot::channel();
         self.commands
@@ -712,6 +741,7 @@ impl Client {
                 target: target.to_owned(),
                 text: text.to_owned(),
                 tags,
+                fallbacks,
                 result,
             })
             .await

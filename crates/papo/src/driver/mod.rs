@@ -212,6 +212,7 @@ pub(crate) enum Command {
         target: String,
         text: String,
         tags: Vec<(String, String)>,
+        fallbacks: Vec<crate::Fallback>,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
     Typing {
@@ -236,6 +237,7 @@ enum PendingRequest {
     Response(oneshot::Sender<Result<Response, Error>>),
     Text {
         target: String,
+        fallbacks: Vec<crate::Fallback>,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
 }
@@ -244,9 +246,13 @@ impl PendingRequest {
     fn respond(self, response: Response) {
         match self {
             Self::Response(result) => _ = result.send(Ok(response)),
-            Self::Text { target, result } => {
+            Self::Text {
+                target,
+                fallbacks,
+                result,
+            } => {
                 let response = response.error().map_or_else(
-                    || Ok(Sent::from_response(&response, &target)),
+                    || Ok(Sent::from_response(&response, &target, fallbacks)),
                     |error| Err(Error::server(error)),
                 );
                 _ = result.send(response);
@@ -866,13 +872,19 @@ where
                     session.monitor_clear();
                     _ = result.send(Ok(()));
                 }
-                Some(Command::SendText { kind, target, text, tags, result }) => {
+                Some(Command::SendText { kind, target, text, tags, mut fallbacks, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
-                    match session.send_text(now(), kind, &target, &text, &tags) {
-                        Ok(Some(id)) => {
-                            requests.insert(id, PendingRequest::Text { target, result });
+                    match session.send_text_detailed(now(), kind, &target, &text, &tags) {
+                        Ok(sent) => {
+                            if sent.split {
+                                fallbacks.push(crate::Fallback::SplitIntoLines);
+                            }
+                            if let Some(id) = sent.request {
+                                requests.insert(id, PendingRequest::Text { target, fallbacks, result });
+                            } else {
+                                _ = result.send(Ok(Sent::without_echo(&target, fallbacks)));
+                            }
                         }
-                        Ok(None) => _ = result.send(Ok(Sent::without_echo(&target))),
                         Err(error) => {
                             _ = result.send(Err(Error::request(error)));
                         }
