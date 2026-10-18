@@ -7,6 +7,9 @@ reason = "soju does not relay upstream away-notify changes between attached clie
 [batch]
 reason = "soju's replay does not expose the upstream history batch expected by this scenario"
 
+[channel_modes_and_join_refusals]
+reason = "soju does not relay a later upstream channel MODE change to the observing client"
+
 [chathistory_errors]
 reason = "soju returns an empty page for an unavailable target instead of relaying INVALID_TARGET"
 
@@ -28,8 +31,23 @@ reason = "soju advertises a one-byte metadata value limit, preventing this chann
 [extended_join]
 reason = "soju omits the upstream real name from relayed extended JOIN messages"
 
+[monitor]
+reason = "soju reports a monitored user online but does not relay that user's upstream away change"
+
+[nick_change_and_collision]
+reason = "soju rejects an upstream nickname collision without preserving the 433 refusal category"
+
 [sasl_plain]
 reason = "bouncer authentication replaces the scenario's direct upstream SASL credentials"
 
 [sasl_protocol_errors]
 reason = "soju treats post-registration AUTHENTICATE as a fatal bouncer login failure"
+
+[setname]
+reason = "soju replaces the upstream real name with the nickname in relayed SETNAME state"
+
+[who_and_whois]
+reason = "soju omits a shared-channel upstream user from the downstream WHO result"
+
+[whox]
+reason = "soju replaces the configured upstream real name with the nickname in WHOX replies"
