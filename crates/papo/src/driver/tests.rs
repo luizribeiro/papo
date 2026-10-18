@@ -616,6 +616,91 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     abort_task(driver).await;
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn reconnect_history_advances_past_the_previous_catchup() {
+    let (first_stream, mut first_server) = tokio::io::duplex(4096);
+    let (second_stream, mut second_server) = tokio::io::duplex(4096);
+    let (third_stream, mut third_server) = tokio::io::duplex(4096);
+    let streams = Arc::new(Mutex::new(VecDeque::from([
+        Box::new(first_stream) as super::BoxConnection,
+        Box::new(second_stream) as super::BoxConnection,
+        Box::new(third_stream) as super::BoxConnection,
+    ])));
+    let connector: super::Connector = Arc::new(move |_| {
+        let stream = streams.lock().unwrap().pop_front().unwrap();
+        Box::pin(async move { Ok(stream) })
+    });
+    let config = config().wanted_caps([
+        "draft/chathistory",
+        "labeled-response",
+        "batch",
+        "server-time",
+    ]);
+    let (_client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostRegistration {
+            bot: false,
+            channels: vec!["#papo".into()],
+            history_on_reconnect: true,
+            disconnected_at: None,
+        },
+        Reconnect::exponential(),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+
+    complete_history_registration(&mut first_server, &mut events).await;
+    client_line(&mut first_server, b"JOIN #papo\r\n").await;
+    server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    within(first_server.shutdown()).await.unwrap();
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    tokio::time::advance(Duration::from_secs(2)).await;
+
+    complete_history_registration(&mut second_server, &mut events).await;
+    client_line(&mut second_server, b"JOIN #papo\r\n").await;
+    client_line(
+        &mut second_server,
+        b"@label=0 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
+    )
+    .await;
+    server_line(&mut second_server, b"@label=0 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0;draft/chathistory-end :ergo.test BATCH +history0 chathistory #papo\r\n@batch=history0;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed once\r\n@batch=reply0 :ergo.test BATCH -history0\r\n:ergo.test BATCH -reply0\r\n").await;
+    let Some(Event::History(history)) = events.next().await else {
+        panic!("expected first catch-up")
+    };
+    assert_eq!(
+        history
+            .messages()
+            .map(ChatMessage::text)
+            .collect::<Vec<_>>(),
+        ["missed once"]
+    );
+    within(second_server.shutdown()).await.unwrap();
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    tokio::time::advance(Duration::from_secs(2)).await;
+
+    complete_history_registration(&mut third_server, &mut events).await;
+    client_line(&mut third_server, b"JOIN #papo\r\n").await;
+    client_line(
+        &mut third_server,
+        b"@label=1 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
+    )
+    .await;
+    server_line(&mut third_server, b"@label=1 :ergo.test BATCH +reply1 labeled-response\r\n@batch=reply1;draft/chathistory-end :ergo.test BATCH +history1 chathistory #papo\r\n@batch=reply1 :ergo.test BATCH -history1\r\n:ergo.test BATCH -reply1\r\n").await;
+    let Some(Event::History(history)) = events.next().await else {
+        panic!("expected empty second catch-up")
+    };
+    assert!(history.items.is_empty());
+    abort_task(driver).await;
+}
+
 #[test]
 fn reconnect_history_stops_at_the_literal_per_target_limit() {
     for count in [1_000, 1_001] {
