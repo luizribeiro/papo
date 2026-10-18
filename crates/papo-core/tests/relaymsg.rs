@@ -3,7 +3,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, Feature, RelayError, RequestError};
+use papo_core::{Config, Event, Feature, Refusal, RequestError};
 use support::{Transcript, unsupported_error};
 
 fn registered(value: Option<&str>) -> Transcript {
@@ -91,11 +91,11 @@ fn requires_the_relaymsg_capability() {
 #[test]
 fn types_every_relaymsg_failure() {
     for (code, expected) in [
-        ("NOT_ENABLED", RelayError::NotEnabled),
-        ("PRIVS_NEEDED", RelayError::PrivilegesNeeded),
-        ("BLANK_MSG", RelayError::BlankMessage),
-        ("INVALID_NICK", RelayError::InvalidNick),
-        ("BANNED", RelayError::Banned),
+        ("NOT_ENABLED", Refusal::RelayDisabled),
+        ("PRIVS_NEEDED", Refusal::RelayPrivilegesNeeded),
+        ("BLANK_MSG", Refusal::BlankRelayMessage),
+        ("INVALID_NICK", Refusal::InvalidRelayNickname),
+        ("BANNED", Refusal::BannedRelaySender),
     ] {
         registered(Some("/"))
             .server(&format!(
@@ -103,14 +103,14 @@ fn types_every_relaymsg_failure() {
             ))
             .event(|event| {
                 matches!(event, Event::StandardReply(reply)
-                if reply.relay_error() == Some(expected))
+                if reply.refusal() == Some(expected))
             });
     }
     registered(Some("/"))
         .server(":ergo.test FAIL PRIVMSG BANNED #bridged :Message rejected")
         .event(|event| {
             matches!(event, Event::StandardReply(reply)
-            if reply.relay_error().is_none())
+            if reply.refusal() == Some(Refusal::Other))
         });
 }
 
@@ -131,6 +131,6 @@ fn types_a_labelled_relaymsg_failure() {
         .server("@label=0 :ergo.test FAIL RELAYMSG BANNED #bridged :Relayed sender is banned")
         .event(|event| {
             matches!(event, Event::Response(response)
-            if response.relay_error() == Some(RelayError::Banned))
+            if response.refusal() == Some(Refusal::BannedRelaySender))
         });
 }

@@ -8,32 +8,6 @@ use papo_proto::Message;
 
 use crate::{Feature, RequestError, RequestId, Session};
 
-/// A typed `FAIL WEBPUSH` code.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum WebPushError {
-    /// The request parameters are invalid.
-    InvalidParams,
-    /// The server could not complete the operation.
-    InternalError,
-    /// The account already has the maximum number of registrations.
-    MaxRegistrations,
-}
-
-impl WebPushError {
-    pub(crate) fn parse(command: &str, code: &str) -> Option<Self> {
-        if !command.eq_ignore_ascii_case("WEBPUSH") {
-            return None;
-        }
-        match code.to_ascii_uppercase().as_str() {
-            "INVALID_PARAMS" => Some(Self::InvalidParams),
-            "INTERNAL_ERROR" => Some(Self::InternalError),
-            "MAX_REGISTRATIONS" => Some(Self::MaxRegistrations),
-            _ => None,
-        }
-    }
-}
-
 impl Session {
     /// Registers an HTTPS Web Push subscription.
     ///

@@ -32,9 +32,6 @@ pub mod sts;
 mod webpush;
 
 pub use secret::Secret;
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use webpush::WebPushError;
 
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -66,9 +63,6 @@ use ratelimit::RateLimiter;
 pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
 use registration::Registration;
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use relaymsg::RelayError;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
 use state::MetadataContext;
@@ -949,22 +943,6 @@ impl Response {
     pub fn refusal(&self) -> Option<Refusal> {
         Some(self.error()?.refusal())
     }
-
-    /// Returns a typed relay-message failure from this response.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    #[must_use]
-    pub fn relay_error(&self) -> Option<RelayError> {
-        self.error()?.relay_error()
-    }
-
-    /// Returns a typed Web Push failure from this response.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    #[must_use]
-    pub fn webpush_error(&self) -> Option<WebPushError> {
-        self.error()?.webpush_error()
-    }
 }
 
 /// Server-assigned identity of a message sent by this session.
@@ -1007,28 +985,6 @@ impl ServerError {
         match self {
             Self::Numeric { numeric, .. } => Refusal::from_numeric(*numeric),
             Self::Standard { command, code, .. } => Refusal::from_standard(command, code),
-        }
-    }
-
-    /// Returns the typed relay-message code when this is a matching standard failure.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    #[must_use]
-    pub fn relay_error(&self) -> Option<RelayError> {
-        match self {
-            Self::Standard { command, code, .. } => RelayError::parse(command, code),
-            Self::Numeric { .. } => None,
-        }
-    }
-
-    /// Returns the typed Web Push code when this is a matching standard failure.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    #[must_use]
-    pub fn webpush_error(&self) -> Option<WebPushError> {
-        match self {
-            Self::Standard { command, code, .. } => WebPushError::parse(command, code),
-            Self::Numeric { .. } => None,
         }
     }
 }
@@ -1102,26 +1058,6 @@ impl StandardReply {
     pub fn refusal(&self) -> Option<Refusal> {
         (self.kind == StandardReplyKind::Fail)
             .then(|| Refusal::from_standard(&self.command, &self.code))
-    }
-
-    /// Returns the typed relay-message code when this is a matching failure.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    #[must_use]
-    pub fn relay_error(&self) -> Option<RelayError> {
-        (self.kind == StandardReplyKind::Fail)
-            .then(|| RelayError::parse(&self.command, &self.code))
-            .flatten()
-    }
-
-    /// Returns the typed Web Push code when this is a matching failure.
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    #[must_use]
-    pub fn webpush_error(&self) -> Option<WebPushError> {
-        (self.kind == StandardReplyKind::Fail)
-            .then(|| WebPushError::parse(&self.command, &self.code))
-            .flatten()
     }
 }
 
