@@ -1,11 +1,10 @@
 use std::{
-    env,
     io::{self, BufRead, BufReader, Write},
     net::{SocketAddr, TcpStream},
     time::Duration,
 };
 
-use crate::ServerInfo;
+use crate::{DeploymentProfile, ServerInfo};
 
 /// Creates an account through `IRCv3` account registration.
 ///
@@ -20,17 +19,16 @@ pub fn register_account(server: &ServerInfo, name: &str, password: &str) -> io::
             "account credentials contain IRC line delimiters",
         ));
     }
-    match env::var("PAPO_TEST_SERVER").as_deref() {
-        Err(env::VarError::NotPresent) | Ok("ergo") => {
+    match DeploymentProfile::from_env()? {
+        DeploymentProfile::ErgoDefault | DeploymentProfile::ErgoPersistent => {
             register_account_at(server.plaintext_addr(), name, password)
         }
-        Ok("inspircd" | "solanum" | "unrealircd") => {
-            register_atheme(server.plaintext_addr(), name, password)
-        }
-        Err(error) => Err(io::Error::other(format!("PAPO_TEST_SERVER: {error}"))),
-        Ok(server) => Err(io::Error::new(
+        DeploymentProfile::InspIrcd
+        | DeploymentProfile::Solanum
+        | DeploymentProfile::UnrealIrcd => register_atheme(server.plaintext_addr(), name, password),
+        DeploymentProfile::SojuErgo => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("unknown test server {server:?}"),
+            "account registration through soju is unavailable",
         )),
     }
 }

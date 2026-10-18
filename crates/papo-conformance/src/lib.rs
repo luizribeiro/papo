@@ -91,7 +91,9 @@ pub fn run() -> ExitCode {
     let arguments = Arguments::from_args();
     let server = from_env();
     let specs = scenario_specs();
-    let server_name = env::var("PAPO_TEST_SERVER").unwrap_or_else(|_| "ergo".into());
+    let server_name = env::var("PAPO_TEST_PROFILE")
+        .or_else(|_| env::var("PAPO_TEST_SERVER"))
+        .unwrap_or_else(|_| "ergo-default".into());
     let known_failures =
         load_known_failures(&server_name, &specs).unwrap_or_else(|error| startup_error(&error));
     let wanted_caps = specs

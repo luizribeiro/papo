@@ -76,6 +76,41 @@ read -r _ || true"#
 }
 
 #[test]
+fn live_binary_forwards_profiles_and_maps_the_legacy_ergo_name() {
+    for (server, selected, expected) in [
+        ("ergo", None, "ergo-default"),
+        ("ergo", Some("ergo-persistent"), "ergo-persistent"),
+        ("inspircd", Some("inspircd"), "inspircd"),
+    ] {
+        let directory = directory();
+        let helper = executable(
+            &directory,
+            "server-helper",
+            &format!(
+                r#"test "$PAPO_TEST_PROFILE" = {expected}
+printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem
+read -r _ || true"#
+            ),
+        );
+        let binary = executable(
+            &directory,
+            "live_profile-deadbeef",
+            &format!("test \"$PAPO_TEST_PROFILE\" = {expected}"),
+        );
+        let mut command = runner(&binary);
+        command
+            .env("PAPO_TEST_SERVER", server)
+            .env("PAPO_TEST_SERVER_BIN", helper);
+        if let Some(selected) = selected {
+            command.env("PAPO_TEST_PROFILE", selected);
+        }
+        let status = command.status().unwrap();
+        assert!(status.success());
+        fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+#[test]
 fn plain_binary_does_not_start_a_server() {
     let directory = directory();
     let binary = executable(&directory, "parser_tests-deadbeef", "exit 0");
@@ -97,7 +132,8 @@ fn runner(binary: &Path) -> Command {
         .env_remove("PAPO_TEST_WS")
         .env_remove("PAPO_TEST_WSS")
         .env_remove("PAPO_TEST_CA")
-        .env_remove("PAPO_TEST_SERVER");
+        .env_remove("PAPO_TEST_SERVER")
+        .env_remove("PAPO_TEST_PROFILE");
     command
 }
 

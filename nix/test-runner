@@ -27,6 +27,13 @@ server_input=
 ca_file=
 export PAPO_TEST_PID=$$
 export PAPO_TEST_SERVER=${PAPO_TEST_SERVER-ergo}
+if [[ -z ${PAPO_TEST_PROFILE-} ]]; then
+  if [[ $PAPO_TEST_SERVER == ergo ]]; then
+    export PAPO_TEST_PROFILE=ergo-default
+  else
+    export PAPO_TEST_PROFILE=$PAPO_TEST_SERVER
+  fi
+fi
 
 # The EXIT trap is the only caller.
 # shellcheck disable=SC2329
@@ -116,6 +123,7 @@ if [[ $artifact == *.wasm ]]; then
       --env PAPO_TEST_WSS
       --env PAPO_TEST_CA
       --env PAPO_TEST_SERVER
+      --env PAPO_TEST_PROFILE
     )
   fi
   wasmtime_args+=(-S inherit-network -S allow-ip-name-lookup)

@@ -9,7 +9,8 @@ use std::{
 
 #[cfg(not(target_family = "wasm"))]
 use papo_test_server::{
-    InspIrcdServer, SolanumServer, TestServer, UnrealIrcdServer, register_account_at,
+    DeploymentProfile, InspIrcdServer, SolanumServer, TestServer, UnrealIrcdServer,
+    register_account_at,
 };
 
 #[cfg(not(target_family = "wasm"))]
@@ -22,15 +23,16 @@ enum Server {
 
 #[cfg(not(target_family = "wasm"))]
 impl Server {
-    fn start(kind: &str) -> io::Result<Self> {
-        match kind {
-            "ergo" => TestServer::start_with_ephemeral_channels().map(Self::Ergo),
-            "inspircd" => InspIrcdServer::start().map(Self::InspIrcd),
-            "solanum" => SolanumServer::start().map(Self::Solanum),
-            "unrealircd" => UnrealIrcdServer::start().map(Self::UnrealIrcd),
-            kind => Err(io::Error::new(
+    fn start(profile: DeploymentProfile) -> io::Result<Self> {
+        match profile {
+            DeploymentProfile::ErgoDefault => TestServer::start_default().map(Self::Ergo),
+            DeploymentProfile::ErgoPersistent => TestServer::start_persistent().map(Self::Ergo),
+            DeploymentProfile::InspIrcd => InspIrcdServer::start().map(Self::InspIrcd),
+            DeploymentProfile::Solanum => SolanumServer::start().map(Self::Solanum),
+            DeploymentProfile::UnrealIrcd => UnrealIrcdServer::start().map(Self::UnrealIrcd),
+            DeploymentProfile::SojuErgo => Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                format!("unknown PAPO_TEST_SERVER value {kind:?}"),
+                "soju-ergo support is unavailable",
             )),
         }
     }
@@ -95,8 +97,7 @@ impl Server {
 #[cfg(not(target_family = "wasm"))]
 fn main() -> io::Result<()> {
     // The runner helper owns the fixture outside every test process.
-    let kind = env::var("PAPO_TEST_SERVER").unwrap_or_else(|_| "ergo".into());
-    let server = Server::start(&kind)?;
+    let server = Server::start(DeploymentProfile::from_env()?)?;
     if let Some(path) = env::var_os("PAPO_TEST_ERGO_PID_FILE") {
         fs::write(path, server.process_id().to_string())?;
     }
