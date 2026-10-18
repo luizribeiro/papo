@@ -152,7 +152,7 @@ impl CoreRequest {
                 p256dh,
                 auth,
             } => {
-                let auth = auth.expose_text().ok_or(RequestError::InvalidSecret)?;
+                let auth = auth.expose().ok_or(RequestError::InvalidSecret)?;
                 return session.webpush_register(now(), &endpoint, &p256dh, auth);
             }
             #[cfg(feature = "unstable")]
@@ -818,7 +818,7 @@ where
                 Some(Command::Join { channel, key, result }) => {
                     let params = match &key {
                         Some(key) => {
-                            let Some(key) = key.expose_text() else {
+                            let Some(key) = key.expose() else {
                                 _ = result.send(Err(InvalidInput::BinarySecret.into()));
                                 continue;
                             };
@@ -1413,7 +1413,7 @@ fn after_registration(
         for channel in &defaults.channels {
             let params = match &channel.key {
                 Some(key) => {
-                    let key = key.expose_text().ok_or_else(|| {
+                    let key = key.expose().ok_or_else(|| {
                         io::Error::new(io::ErrorKind::InvalidInput, "channel key is not text")
                     })?;
                     vec![channel.channel.clone(), key.to_owned()]

@@ -1014,7 +1014,7 @@ impl Client {
         let name = name.into();
         let password = password.into();
         crate::RequestFuture::new(async move {
-            let password = password.expose_text().ok_or(InvalidInput::BinarySecret)?;
+            let password = password.expose().ok_or(InvalidInput::BinarySecret)?;
             let response = client
                 .correlated(
                     Message::new("OPER", [name, password.to_owned()]),

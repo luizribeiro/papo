@@ -59,9 +59,9 @@ impl Sasl {
     pub fn has_binary_secret(&self) -> bool {
         self.mechanisms.iter().any(|mechanism| match mechanism {
             Mechanism::Plain { password, .. } | Mechanism::ScramSha256 { password, .. } => {
-                password.expose_text().is_none()
+                password.expose().is_none()
             }
-            Mechanism::OAuthBearer { token } => token.expose_text().is_none(),
+            Mechanism::OAuthBearer { token } => token.expose().is_none(),
             Mechanism::External { .. } => false,
         })
     }
@@ -373,11 +373,11 @@ impl SaslSession {
             Mechanism::Plain { username, password } => {
                 let authcid = with_device(username, self.device.as_deref());
                 password
-                    .expose_text()
+                    .expose()
                     .map(|password| format!("\0{authcid}\0{password}").into_bytes())
             }
             Mechanism::OAuthBearer { token } => token
-                .expose_text()
+                .expose()
                 .map(|token| format!("n,,\u{1}auth=Bearer {token}\u{1}\u{1}").into_bytes()),
             Mechanism::External { authzid } => {
                 Some(authzid.as_deref().unwrap_or("").as_bytes().to_vec())
@@ -517,7 +517,7 @@ impl SaslSession {
                 continue;
             }
             if let Mechanism::ScramSha256 { username, password } = &mechanism {
-                let Some(password) = password.expose_text() else {
+                let Some(password) = password.expose() else {
                     self.failures
                         .push("SCRAM-SHA-256: configured secret is not text".to_owned());
                     continue;

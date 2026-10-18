@@ -49,6 +49,6 @@ impl WebIrc {
     }
 
     pub(crate) fn has_binary_secret(&self) -> bool {
-        self.inner.password.expose_text().is_none()
+        self.inner.password.expose().is_none()
     }
 }

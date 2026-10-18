@@ -2917,7 +2917,7 @@ impl Session {
                 [
                     account.unwrap_or("*"),
                     email.unwrap_or("*"),
-                    password.expose_text().ok_or(RequestError::InvalidSecret)?,
+                    password.expose().ok_or(RequestError::InvalidSecret)?,
                 ],
             ),
             Feature::AccountRegistration,

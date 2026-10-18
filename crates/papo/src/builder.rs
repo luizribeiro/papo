@@ -427,7 +427,7 @@ impl Builder {
     }
 
     fn reject_binary_secret(&mut self, secret: &papo_core::Secret) {
-        if secret.expose_text().is_none() {
+        if secret.expose().is_none() {
             self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
         }
     }

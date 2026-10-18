@@ -248,7 +248,7 @@ impl NetworkConfig {
         let password = self
             .password
             .as_ref()
-            .map(|secret| secret.expose_text().ok_or(RequestError::InvalidSecret))
+            .map(|secret| secret.expose().ok_or(RequestError::InvalidSecret))
             .transpose()?;
         for (key, value) in [
             ("nickname", self.nickname.as_deref()),

@@ -39,7 +39,7 @@ impl Registration {
         self.registered = false;
         self.webirc_pending = config.webirc.is_some();
         if let Some(webirc) = &config.webirc {
-            let Some(password) = webirc.password.expose_text() else {
+            let Some(password) = webirc.password.expose() else {
                 outbox.close(
                     CloseKind::Other,
                     "WEBIRC password contains bytes rather than text".to_owned(),
@@ -73,7 +73,7 @@ impl Registration {
         }
         outbox.transmit_raw(b"CAP LS 302\r\n".to_vec());
         if let Some(password) = &config.password {
-            let Some(password) = password.expose_text() else {
+            let Some(password) = password.expose() else {
                 outbox.close(
                     CloseKind::Other,
                     "server password contains bytes rather than text".to_owned(),
