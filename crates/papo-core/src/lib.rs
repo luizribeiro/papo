@@ -2094,20 +2094,26 @@ impl Outbox {
     }
 
     fn transmit<const N: usize>(&mut self, command: &str, params: [&str; N]) {
-        let line = Message::new(command, params)
-            .to_line()
-            .expect("protocol-generated IRC messages are valid");
-        self.transmit_raw(line.into());
+        match Message::new(command, params).to_line() {
+            Ok(line) => self.transmit_raw(line.into()),
+            Err(error) => self.close(
+                CloseKind::Other,
+                format!("invalid outbound message: {error}"),
+            ),
+        }
     }
 
     fn transmit_immediate<const N: usize>(&mut self, command: &str, params: [&str; N]) {
         if self.close_requested {
             return;
         }
-        let line = Message::new(command, params)
-            .to_line()
-            .expect("protocol-generated IRC messages are valid");
-        self.immediate.push_back(line.into());
+        match Message::new(command, params).to_line() {
+            Ok(line) => self.immediate.push_back(line.into()),
+            Err(error) => self.close(
+                CloseKind::Other,
+                format!("invalid outbound message: {error}"),
+            ),
+        }
     }
 
     fn event(&mut self, event: Event) {
@@ -3839,5 +3845,26 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn invalid_internal_messages_close_without_panicking() {
+        for immediate in [false, true] {
+            let mut outbox = Outbox::default();
+            if immediate {
+                outbox.transmit_immediate("NOTICE", ["alice", "bad\rtext"]);
+            } else {
+                outbox.transmit("NOTICE", ["alice", "bad\rtext"]);
+            }
+            assert!(matches!(
+                outbox.events.pop_front(),
+                Some(Event::Close {
+                    kind: CloseKind::Other,
+                    ..
+                })
+            ));
+            assert!(outbox.transmits.is_empty());
+            assert!(outbox.immediate.is_empty());
+        }
     }
 }

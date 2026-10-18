@@ -39,18 +39,20 @@ impl Registration {
         self.registered = false;
         self.webirc_pending = config.webirc.is_some();
         if let Some(webirc) = &config.webirc {
+            let Some(password) = webirc.password.expose_text() else {
+                outbox.close(
+                    CloseKind::Other,
+                    "WEBIRC password contains bytes rather than text".to_owned(),
+                );
+                return;
+            };
             let ip = if webirc.ip.starts_with(':') {
                 format!("0{}", webirc.ip)
             } else {
                 webirc.ip.clone()
             };
             let hostname = webirc.hostname.as_deref().unwrap_or(&ip);
-            let mut params = vec![
-                webirc.password.expose(),
-                webirc.gateway.as_str(),
-                hostname,
-                ip.as_str(),
-            ];
+            let mut params = vec![password, webirc.gateway.as_str(), hostname, ip.as_str()];
             let options = webirc
                 .options
                 .iter()
@@ -63,14 +65,22 @@ impl Registration {
             if !options.is_empty() {
                 params.push(&options);
             }
-            let line = Message::new("WEBIRC", params)
-                .to_line()
-                .expect("configured WEBIRC fields are valid");
+            let Ok(line) = Message::new("WEBIRC", params).to_line() else {
+                outbox.close(CloseKind::Other, "invalid WEBIRC configuration".to_owned());
+                return;
+            };
             outbox.transmit_raw(line.into());
         }
         outbox.transmit_raw(b"CAP LS 302\r\n".to_vec());
         if let Some(password) = &config.password {
-            outbox.transmit("PASS", [password.expose()]);
+            let Some(password) = password.expose_text() else {
+                outbox.close(
+                    CloseKind::Other,
+                    "server password contains bytes rather than text".to_owned(),
+                );
+                return;
+            };
+            outbox.transmit("PASS", [password]);
         }
         outbox.transmit("NICK", [&config.nick]);
         outbox.transmit("USER", [&config.username, "0", "*", &config.realname]);
