@@ -7,6 +7,12 @@ reason = "soju does not relay upstream away-notify changes between attached clie
 [batch]
 reason = "soju's replay does not expose the upstream history batch expected by this scenario"
 
+[chathistory_errors]
+reason = "soju returns an empty page for an unavailable target instead of relaying INVALID_TARGET"
+
+[chathistory_paging]
+reason = "soju echoes messages without server identifiers usable as history page references"
+
 [draft_chathistory]
 reason = "soju's history layer does not expose the earlier upstream message"
 

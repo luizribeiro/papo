@@ -1,4 +1,4 @@
-use papo::{Event, Fallback, MessageKind, Origin, Source};
+use papo::{Error, Event, Fallback, Feature, MessageKind, Origin, Source, UnsupportedReason};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 use papo_testing::Peer;
@@ -365,7 +365,16 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(reply.reply_to(), Some(original_id.as_ref()));
     assert_eq!(reply.target(), channel);
 
-    bob.react_to(&original, "👍").await?;
+    match bob.react_to(&original, "👍").await {
+        Ok(()) => {}
+        Err(Error::Unsupported(unsupported))
+            if unsupported.feature == Feature::Reactions
+                && unsupported.reason == UnsupportedReason::TagDenied =>
+        {
+            return s.skip("server denies its reaction client-only tag");
+        }
+        Err(error) => return Err(error.into()),
+    }
     let added = alice.wait_for(Event::as_reacted).await?;
     assert_eq!(added.target.as_ref(), channel);
     assert_eq!(added.message, original_id);
