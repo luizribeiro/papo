@@ -10,13 +10,22 @@ MODULE = runpy.run_path(PATH)
 
 class MatrixTests(unittest.TestCase):
     def test_renders_every_outcome_and_known_failure_reason(self):
+        MODULE["render"].__globals__["PROFILES"] = ("ergo-default", "soju-ergo")
+        MODULE["render"].__globals__["PROFILE_LABELS"] = {
+            "ergo-default": "Ergo default",
+            "soju-ergo": "soju + Ergo",
+        }
         MODULE["render"].__globals__["KNOWN_FAILURE_REASONS"] = {
-            ("unrealircd", "known"): "wire difference"
+            ("soju-ergo", "known"): "wire difference"
         }
         output = MODULE["render"](
             {
-                "ergo": {"fail": "failed", "known": "passed", "skip": "ignored (cap)"},
-                "unrealircd": {
+                "ergo-default": {
+                    "fail": "failed",
+                    "known": "passed",
+                    "skip": "ignored (cap)",
+                },
+                "soju-ergo": {
                     "fail": "passed",
                     "known": "expected-failure",
                     "skip": "passed",
@@ -26,4 +35,4 @@ class MatrixTests(unittest.TestCase):
         self.assertIn("| `fail` | ✗ | ✓ |", output)
         self.assertIn("| `known` | ✓ | ⚠ [^1] |", output)
         self.assertIn("| `skip` | — | ✓ |", output)
-        self.assertIn("[^1]: `unrealircd` / `known`: wire difference", output)
+        self.assertIn("[^1]: `soju-ergo` / `known`: wire difference", output)
