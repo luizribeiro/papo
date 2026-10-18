@@ -193,6 +193,7 @@ fn applies_client_tag_denials_per_feature() {
         ":irc.solanum.example 005 papo CLIENTTAGDENY=reply :are supported by this server",
     );
     assert_eq!(draft_reply.supports(Feature::Replies), Ok(()));
+    assert_eq!(draft_reply.supports(Feature::Reactions), Ok(()));
 
     let no_reply_for_reactions = session_with(
         Config::default().wanted_caps(["message-tags"]),
