@@ -112,6 +112,15 @@ impl TestServer {
         self.child.id()
     }
 
+    /// Creates a controllable forwarding endpoint for one plaintext client.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if its loopback listener cannot be created.
+    pub fn fault_proxy(&self) -> io::Result<crate::FaultProxy> {
+        crate::FaultProxy::start(self.plaintext)
+    }
+
     /// Stops Ergo while retaining its configuration and data directory.
     ///
     /// # Errors

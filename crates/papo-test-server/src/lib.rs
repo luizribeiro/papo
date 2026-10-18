@@ -11,6 +11,8 @@ mod environment;
 #[cfg(not(target_family = "wasm"))]
 mod ergo;
 #[cfg(not(target_family = "wasm"))]
+mod fault;
+#[cfg(not(target_family = "wasm"))]
 mod inspircd;
 #[cfg(not(target_family = "wasm"))]
 mod inspircd_config;
@@ -32,6 +34,8 @@ mod unrealircd;
 
 pub use account::{register_account, register_account_at};
 pub use environment::{BouncerInfo, BouncerLogin, ServerInfo, from_env, unique};
+#[cfg(not(target_family = "wasm"))]
+pub use fault::FaultProxy;
 #[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
 pub use inspircd::TestServer as InspIrcdServer;
