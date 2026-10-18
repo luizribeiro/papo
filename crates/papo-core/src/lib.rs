@@ -20,6 +20,7 @@ mod outgoing;
 #[cfg(feature = "unstable")]
 mod persistence;
 mod ratelimit;
+mod refusal;
 mod registration;
 #[cfg(feature = "unstable")]
 mod relaymsg;
@@ -64,6 +65,7 @@ use monitor::Monitor;
 pub use outgoing::TextKind;
 use ratelimit::RateLimiter;
 pub use ratelimit::{InvalidRateLimit, RateLimit};
+pub use refusal::Refusal;
 use registration::Registration;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
