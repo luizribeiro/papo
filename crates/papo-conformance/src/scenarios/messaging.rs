@@ -4,7 +4,7 @@ use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 use papo_testing::Peer;
 
-use super::support::{EXPECT_TIMEOUT, close_pair, join, joined_pair};
+use super::support::{EXPECT_TIMEOUT, close_pair, join};
 use crate::{Scenario, ScenarioResult};
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
@@ -368,94 +368,61 @@ async fn message_tags(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// preserves identities for plain and multiline messages
-#[scenario(requires(caps = [
-    "batch",
-    "draft/multiline",
-    "echo-message",
-    "labeled-response",
-    "message-tags"
-]))]
-async fn draft_multiline(context: Scenario) -> ScenarioResult {
-    let (mut receiver, mut sender, channel) = joined_pair(&context).await?;
-    let plain_text = format!("plain message from {}", sender.welcome.nick);
-    let plain = sender
-        .client
-        .privmsg(&channel, &plain_text)
-        .await
-        .map_err(Failed::from)?;
-    let Some(plain_id) = plain.id else {
-        return Err("plain message echo did not include a message identifier".into());
-    };
-    context
-        .expect(
-            &mut receiver.events,
-            |event| matches!(event, Event::Message(message) if message.raw_text() == plain_text && message.id() == Some(&plain_id)),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-
-    let multiline_text = "first deployment line\nsecond deployment line";
-    let multiline = sender
-        .client
-        .privmsg(&channel, multiline_text)
-        .await
-        .map_err(Failed::from)?;
-    let Some(multiline_id) = multiline.id else {
-        return Err("multiline echo did not include a message identifier".into());
-    };
-    context
-        .expect(
-            &mut receiver.events,
-            |event| matches!(event, Event::Message(message) if message.raw_text() == multiline_text && message.id() == Some(&multiline_id)),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-
-    receiver
-        .client
-        .privmsg(&channel, "reply through the multiline id")
-        .reply_to(&multiline_id)
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut sender.events,
-            |event| matches!(event, Event::Message(message) if message.raw_text() == "reply through the multiline id" && message.reply_to() == Some(multiline_id.as_ref())),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    close_pair(receiver, sender).await
+/// multiline delivery concatenates lines while preserving message metadata
+#[scenario(
+    requires(caps = [
+        "batch",
+        "draft/multiline",
+        "echo-message",
+        "labeled-response",
+        "message-tags"
+    ]),
+    covers = ["draft.multiline.concat", "tag.multiline-concat"]
+)]
+async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
+    let (alice, mut bob, channel) = fixture_pair(&s).await?;
+    let text = "first deployment line\nsecond deployment line";
+    let sent = alice.privmsg(&channel, text).await?;
+    let received = bob.wait_for(Event::as_message).await?;
+    assert_eq!(received.kind(), MessageKind::Privmsg);
+    assert_eq!(received.target(), channel);
+    assert_eq!(received.raw_text(), text);
+    assert_eq!(received.text(), text);
+    assert_eq!(received.id(), sent.id.as_ref());
+    assert_eq!(received.server_time, sent.time);
+    assert_eq!(received.origin(), Origin::Live);
+    bob.expect_none(Event::as_message).await?;
+    Ok(())
 }
 
 /// delivers UTF-8 channel text without replacement
-#[scenario(requires(isupport = ["UTF8ONLY"]))]
-async fn utf8only(context: Scenario) -> ScenarioResult {
-    let (mut receiver, sender, channel) = joined_pair(&context).await?;
+#[scenario(
+    requires(isupport = ["UTF8ONLY"]),
+    covers = ["ircv3.utf8only"]
+)]
+async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     let text = "Olá, IRC 世界";
-    sender
-        .client
-        .privmsg(&channel, text)
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut receiver.events,
-            |event| matches!(event, Event::Message(message) if message.raw_text() == text),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    close_pair(receiver, sender).await
+    let sent = alice.privmsg(&channel, text).await?;
+    let echo = alice.wait_for(Event::as_message).await?;
+    let received = bob.wait_for(Event::as_message).await?;
+    assert_eq!(echo.raw_text(), text);
+    assert_eq!(received.raw_text(), text);
+    assert_eq!(received.text(), text);
+    assert_eq!(received.id(), sent.id.as_ref());
+    Ok(())
 }
 
 /// redacts a delivered channel message
-#[scenario(requires(caps = [
-    "batch",
-    "draft/message-redaction",
-    "draft/multiline",
-    "echo-message",
-    "labeled-response"
-]))]
+#[scenario(
+    requires(caps = [
+        "batch",
+        "draft/message-redaction",
+        "draft/multiline",
+        "echo-message",
+        "labeled-response"
+    ])
+)]
 async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
     let caps = [
         "batch",
