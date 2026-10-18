@@ -2,6 +2,7 @@ use std::{fmt, time::Duration};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
 use papo_core::{AwayOnConnect, Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl};
+use papo_proto::{Message, escape_tag_value};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -481,7 +482,11 @@ impl Builder {
         if let Ok(address) = &self.address {
             apply_address(&mut self.config, address);
         }
-        let input_error = self.address.err().or(self.invalid_input);
+        let input_error = self
+            .address
+            .err()
+            .or(self.invalid_input)
+            .or_else(|| registration_input_error(&self.config));
         let session =
             papo_core::Session::with_entropy(self.config, Box::new(crate::entropy::OsEntropy));
         if let Some(error) = input_error {
@@ -513,8 +518,11 @@ impl Builder {
         if let Some(stream) = self.stream.take() {
             return self.build_stream_with_registration(stream, registration);
         }
+        let validation_error = self
+            .invalid_input
+            .or_else(|| registration_input_error(&self.config));
         let plan = self.address.and_then(|address| {
-            if let Some(error) = self.invalid_input {
+            if let Some(error) = validation_error {
                 return Err(error);
             }
             apply_address(&mut self.config, &address);
@@ -549,6 +557,64 @@ fn apply_address(config: &mut Config, address: &ServerAddress) {
     } else {
         ConnectionSecurity::Plaintext
     };
+}
+
+fn registration_input_error(config: &Config) -> Option<InvalidInput> {
+    let invalid = |message: Message| {
+        message
+            .to_line()
+            .err()
+            .map(|error| InvalidInput::InvalidMessage(error.to_string()))
+    };
+    if let Some(error) = invalid(Message::new("NICK", [&config.nick]))
+        .or_else(|| {
+            invalid(Message::new(
+                "USER",
+                [&config.username, "0", "*", &config.realname],
+            ))
+        })
+        .or_else(|| {
+            config.password.as_ref().and_then(|password| {
+                password
+                    .expose()
+                    .and_then(|password| invalid(Message::new("PASS", [password])))
+            })
+        })
+        .or_else(|| {
+            config
+                .alt_nicks
+                .iter()
+                .find_map(|nick| invalid(Message::new("NICK", [nick])))
+        })
+        .or_else(|| match &config.away_on_connect {
+            Some(AwayOnConnect::Message(message)) => invalid(Message::new("AWAY", [message])),
+            Some(_) | None => None,
+        })
+    {
+        return Some(error);
+    }
+    let webirc = config.webirc.as_ref()?;
+    let password = webirc.password.expose()?;
+    let ip = if webirc.ip.starts_with(':') {
+        format!("0{}", webirc.ip)
+    } else {
+        webirc.ip.clone()
+    };
+    let hostname = webirc.hostname.as_deref().unwrap_or(&ip);
+    let options = webirc
+        .options
+        .iter()
+        .map(|(name, value)| match value {
+            Some(value) => format!("{name}={}", escape_tag_value(value)),
+            None => name.clone(),
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut params = vec![password, &webirc.gateway, hostname, &ip];
+    if !options.is_empty() {
+        params.push(&options);
+    }
+    invalid(Message::new("WEBIRC", params))
 }
 
 #[cfg(test)]
@@ -849,6 +915,33 @@ mod tests {
                 .invalid_input
                 .is_none()
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn rejects_invalid_registration_messages_before_connecting() {
+        let cases = [
+            Builder::new("irc.example.net").nick("papo\rOPER root password"),
+            Builder::new("irc.example.net").alt_nicks(["papo-away\nQUIT"]),
+            Builder::new("irc.example.net").username("papo\0admin"),
+            Builder::new("irc.example.net").realname("Papo\rClient"),
+            Builder::new("irc.example.net").password("network\npassword"),
+            Builder::new("irc.example.net").webirc(crate::WebIrc::new(
+                "gateway-password",
+                "papo\rgateway",
+                "192.0.2.42",
+            )),
+            Builder::new("irc.example.net").away_on_connect("gone\nAWAY"),
+            Builder::new("irc.example.net")
+                .username("u".repeat(250))
+                .realname("r".repeat(251)),
+        ];
+        for builder in cases {
+            let (_client, _events, driver) = builder.build();
+            assert!(matches!(
+                within(driver).await,
+                Err(Error::InvalidInput(InvalidInput::InvalidMessage(_)))
+            ));
+        }
     }
 
     #[test]
