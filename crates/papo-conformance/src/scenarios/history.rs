@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Error, HistoryItem, Origin, Sent, Source};
+use papo::{Error, Event, HistoryItem, Origin, Sent, Source};
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
@@ -197,6 +197,35 @@ async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice.mark_read(&channel, older).await?, Some(time));
     assert_eq!(alice.state().read_marker(&channel), Some(time));
     assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
+    Ok(())
+}
+
+/// replays an account's stored read marker when another session joins
+#[scenario(
+    requires(caps = ["draft/read-marker"]),
+    covers = ["draft.read-marker.on-join"]
+)]
+async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect_as_account("alice").await?;
+    let account = alice.nick().as_ref().to_owned();
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    let initial = alice.wait_for(Event::as_read_marker).await?;
+    assert_eq!(initial.target.as_ref(), channel);
+    assert_eq!(initial.time, None);
+
+    let time = read_marker_time();
+    alice.mark_read(&channel, time).await?;
+    let stored = alice.wait_for(Event::as_read_marker).await?;
+    assert_eq!(stored.target.as_ref(), channel);
+    assert_eq!(stored.time, Some(time));
+
+    let mut phone = s.connect_account_session("alice-phone", account).await?;
+    assert!(phone.state().channel(&channel).is_some());
+    let replayed = phone.wait_for(Event::as_read_marker).await?;
+    assert_eq!(replayed.target.as_ref(), channel);
+    assert_eq!(replayed.time, Some(time));
+    assert_eq!(phone.state().read_marker(&channel), Some(time));
     Ok(())
 }
 
