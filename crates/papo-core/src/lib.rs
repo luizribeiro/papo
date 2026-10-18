@@ -7,6 +7,7 @@ mod account_registration;
 mod batch;
 #[cfg(feature = "unstable")]
 mod bouncer;
+pub mod cap;
 mod caps;
 mod channel_rename;
 mod features;
