@@ -179,6 +179,26 @@ mod tests {
         server_line(&mut server, b"@label=2 BOUNCER DELNETWORK 44\r\n").await;
         assert!(within(remove).await.unwrap().is_ok());
 
+        let add = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .bouncer()
+                    .add(NetworkConfig::new("irc.libera.chat"))
+                    .await
+            }
+        });
+        client_line(
+            &mut server,
+            b"@label=3 BOUNCER ADDNETWORK host=irc.libera.chat\r\n",
+        )
+        .await;
+        server_line(&mut server, b"@label=3 NOTICE ADDNETWORK 45\r\n").await;
+        assert!(matches!(
+            within(add).await.unwrap(),
+            Err(Error::UnexpectedReply { command }) if command == "BOUNCER ADDNETWORK"
+        ));
+
         let add = tokio::spawn(async move {
             client
                 .bouncer()
@@ -187,10 +207,10 @@ mod tests {
         });
         client_line(
             &mut server,
-            b"@label=3 BOUNCER ADDNETWORK host=irc.libera.chat\r\n",
+            b"@label=4 BOUNCER ADDNETWORK host=irc.libera.chat\r\n",
         )
         .await;
-        server_line(&mut server, b"@label=3 BOUNCER ADDNETWORK\r\n").await;
+        server_line(&mut server, b"@label=4 BOUNCER ADDNETWORK\r\n").await;
         assert!(matches!(
             within(add).await.unwrap(),
             Err(Error::UnexpectedReply { command }) if command == "BOUNCER ADDNETWORK"

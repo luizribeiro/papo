@@ -692,6 +692,16 @@ mod tests {
             HistoryItem::Joined(event)
                 if event.channel == "#papo" && event.nick == "emily" && !event.is_self
         ));
+
+        let joined = history_item(
+            papo_core::HistoryItem::Joined(core_item(
+                ":PAPO!papo@localhost JOIN #papo papo :Papo client",
+            )),
+            &client,
+            UNIX_EPOCH,
+            crate::Origin::Replay,
+        );
+        assert!(matches!(joined, HistoryItem::Joined(event) if event.is_self));
     }
 
     #[test]

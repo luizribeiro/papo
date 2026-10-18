@@ -121,10 +121,12 @@ mod tests {
         client_line(&mut server, b"@label=0 PERSISTENCE GET\r\n").await;
         server_line(
             &mut server,
-            b"@label=0 :ergo.test PERSISTENCE STATUS OFF OFF\r\n",
+            b"@label=0 :ergo.test PERSISTENCE STATUS DEFAULT ON\r\n",
         )
         .await;
-        assert!(!within(get).await.unwrap().unwrap().effective);
+        let status = within(get).await.unwrap().unwrap();
+        assert_eq!(status.setting, crate::PersistenceSetting::Default);
+        assert!(status.effective);
 
         let set = tokio::spawn({
             let client = client.clone();
