@@ -34,6 +34,9 @@ reason = "soju omits the upstream real name from relayed extended JOIN messages"
 [monitor]
 reason = "soju reports a monitored user online but does not relay that user's upstream away change"
 
+[multiple_joins]
+reason = "soju treats JOIN zero as a channel name instead of forwarding the leave-all operation upstream"
+
 [nick_change_and_collision]
 reason = "soju rejects an upstream nickname collision without preserving the 433 refusal category"
 

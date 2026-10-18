@@ -1,2 +1,5 @@
+[multiple_joins]
+reason = "InspIRCd rejects JOIN zero as an invalid channel name instead of leaving every channel"
+
 [standard_replies]
 reason = "InspIRCd advertises standard-replies but does not reject this invalid real name with FAIL"

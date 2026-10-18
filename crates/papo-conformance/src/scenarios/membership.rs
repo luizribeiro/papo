@@ -1,6 +1,7 @@
 use papo::event::ModeChanged;
 use papo::{Account, Error, Event, ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
+use papo_test_server::DeploymentProfile;
 
 use crate::Scenario;
 
@@ -93,6 +94,110 @@ async fn userhost_in_names(context: Scenario) -> papo_testing::Result<()> {
             .member(&bob_nick)
             .is_some()
     );
+    Ok(())
+}
+
+/// joins several keyed channels and leaves all of them with JOIN zero
+#[scenario(covers = [
+    "base.join.basic",
+    "base.join.multiple-channels",
+    "base.join.key-multiple",
+    "base.join.zero-part-all"
+])]
+async fn multiple_joins(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let first = context.channel_name();
+    let second = context.channel_name();
+    let bob_nick = bob.nick();
+    let channels = format!("{first},{second}");
+    let keys = "first-channel-key,second-channel-key";
+    alice.join(&first).await?;
+    alice.join(&second).await?;
+    alice
+        .mode(&first)
+        .add_with('k', "first-channel-key")
+        .await?;
+    alice
+        .mode(&second)
+        .add_with('k', "second-channel-key")
+        .await?;
+
+    bob.send_command("JOIN", [&channels, keys]).await?;
+    for channel in [&first, &second] {
+        let synced = bob
+            .wait_for(|event| {
+                event
+                    .as_channel_synced()
+                    .filter(|synced| synced.channel.as_ref() == channel)
+            })
+            .await?;
+        assert_eq!(synced.channel.as_ref(), channel);
+        let joined = alice
+            .wait_for(|event| {
+                event
+                    .as_joined()
+                    .filter(|joined| joined.channel.as_ref() == channel && joined.nick == bob_nick)
+            })
+            .await?;
+        assert!(!joined.is_self);
+        assert!(bob.state().channel(channel).is_some());
+        assert!(
+            alice
+                .state()
+                .channel(channel)
+                .unwrap()
+                .member(&bob_nick)
+                .is_some()
+        );
+    }
+
+    bob.send_command("JOIN", ["0"]).await?;
+    if matches!(
+        DeploymentProfile::from_env()?,
+        DeploymentProfile::ErgoDefault | DeploymentProfile::ErgoPersistent
+    ) {
+        let warning = bob
+            .wait_for(|event| {
+                event.as_message().filter(|message| {
+                    message
+                        .text()
+                        .starts_with("Warning: /JOIN 0 will remove you from all channels")
+                })
+            })
+            .await?;
+        let confirmation = warning.text().split_ascii_whitespace().last().unwrap();
+        bob.send_command("JOIN", ["0", confirmation]).await?;
+    }
+    let mut own = [
+        bob.wait_for(Event::as_parted).await?,
+        bob.wait_for(Event::as_parted).await?,
+    ];
+    let mut observed = [
+        alice.wait_for(Event::as_parted).await?,
+        alice.wait_for(Event::as_parted).await?,
+    ];
+    own.sort_unstable_by(|left, right| left.channel.cmp(&right.channel));
+    observed.sort_unstable_by(|left, right| left.channel.cmp(&right.channel));
+    let mut channels = [&first, &second];
+    channels.sort_unstable();
+    for ((own, observed), channel) in own.iter().zip(&observed).zip(channels) {
+        assert_eq!(own.channel.as_ref(), channel);
+        assert_eq!(observed.channel.as_ref(), channel);
+        assert_eq!(own.nick, bob_nick);
+        assert_eq!(observed.nick, bob_nick);
+        assert!(own.is_self);
+        assert!(!observed.is_self);
+        assert!(bob.state().channel(channel).is_none());
+        assert!(
+            alice
+                .state()
+                .channel(channel)
+                .unwrap()
+                .member(&bob_nick)
+                .is_none()
+        );
+    }
     Ok(())
 }
 
