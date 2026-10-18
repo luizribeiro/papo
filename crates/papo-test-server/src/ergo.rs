@@ -4,6 +4,8 @@ use serde_json::json;
 
 use crate::directory::TemporaryDirectory;
 
+const WEBIRC_PASSWORD_HASH: &str = "$2a$04$04hAlnfNNCBj4DZF1nKiRuX6Z.HVpSDJXEFV8gW9E/CbJ04v0M1OO";
+
 #[derive(Clone)]
 pub(crate) struct Configuration {
     pub(crate) plaintext: std::net::SocketAddr,
@@ -93,6 +95,15 @@ impl Configuration {
             ("ERGO__DATASTORE__SQLITE__ENABLED", "true".into()),
             ("ERGO__LANGUAGES__ENABLED", "false".into()),
             ("ERGO__ACCOUNTS__REGISTRATION__ENABLED", "true".into()),
+            (
+                "ERGO__SERVER__WEBIRC",
+                json!([{
+                    "password": WEBIRC_PASSWORD_HASH,
+                    "hosts": ["127.0.0.1"],
+                    "accept-hostname": true
+                }])
+                .to_string(),
+            ),
         ];
         Self {
             plaintext,
@@ -166,7 +177,7 @@ mod tests {
         config.enable_sts();
 
         assert_eq!(
-            &config.overrides[5..],
+            &config.overrides[6..],
             &[
                 ("ERGO__SERVER__STS__ENABLED", "true".into()),
                 ("ERGO__SERVER__STS__PORT", "7668".into()),
