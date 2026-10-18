@@ -146,6 +146,58 @@ pub enum Refusal {
     InternalError,
     /// The request contains invalid UTF-8.
     InvalidUtf8,
+    /// A bouncer network identifier does not exist.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    InvalidNetwork,
+    /// A bouncer network attribute value is invalid.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    InvalidAttribute,
+    /// A bouncer network attribute cannot be changed.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    ReadOnlyAttribute,
+    /// A bouncer does not recognize a network attribute.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    UnknownAttribute,
+    /// A required bouncer network attribute is missing.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    MissingAttribute,
+    /// Relay messaging is disabled by server configuration.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    RelayDisabled,
+    /// The session lacks permission to relay a message.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    RelayPrivilegesNeeded,
+    /// The supplied relay message is blank.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    BlankRelayMessage,
+    /// The supplied relay nickname is invalid.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    InvalidRelayNickname,
+    /// The relayed sender is banned from the channel.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    BannedRelaySender,
+    /// Web Push parameters are invalid.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    InvalidWebPushParameters,
+    /// The account has reached its Web Push registration limit.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    WebPushRegistrationLimit,
+    /// Persistence parameters are invalid.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    InvalidPersistenceParameters,
     /// A refusal without a more specific classification.
     ///
     /// A later minor release may refine a code currently classified as `Other`.
@@ -241,6 +293,40 @@ impl Refusal {
             ("MARKREAD", "NEED_MORE_PARAMS") => Self::MissingParameters,
             ("MARKREAD", "INTERNAL_ERROR") => Self::InternalError,
             (_, "INVALID_UTF8") => Self::InvalidUtf8,
+            #[cfg(feature = "unstable")]
+            ("BOUNCER", "INVALID_NETID") => Self::InvalidNetwork,
+            #[cfg(feature = "unstable")]
+            ("BOUNCER", "INVALID_ATTRIBUTE") => Self::InvalidAttribute,
+            #[cfg(feature = "unstable")]
+            ("BOUNCER", "READ_ONLY_ATTRIBUTE") => Self::ReadOnlyAttribute,
+            #[cfg(feature = "unstable")]
+            ("BOUNCER", "UNKNOWN_ATTRIBUTE") => Self::UnknownAttribute,
+            #[cfg(feature = "unstable")]
+            ("BOUNCER", "NEED_ATTRIBUTE") => Self::MissingAttribute,
+            #[cfg(feature = "unstable")]
+            ("RELAYMSG", "NOT_ENABLED") => Self::RelayDisabled,
+            #[cfg(feature = "unstable")]
+            ("RELAYMSG", "PRIVS_NEEDED") => Self::RelayPrivilegesNeeded,
+            #[cfg(feature = "unstable")]
+            ("RELAYMSG", "BLANK_MSG") => Self::BlankRelayMessage,
+            #[cfg(feature = "unstable")]
+            ("RELAYMSG", "INVALID_NICK") => Self::InvalidRelayNickname,
+            #[cfg(feature = "unstable")]
+            ("RELAYMSG", "BANNED") => Self::BannedRelaySender,
+            #[cfg(feature = "unstable")]
+            ("WEBPUSH", "INVALID_PARAMS") => Self::InvalidWebPushParameters,
+            #[cfg(feature = "unstable")]
+            ("WEBPUSH", "INTERNAL_ERROR") => Self::InternalError,
+            #[cfg(feature = "unstable")]
+            ("WEBPUSH", "MAX_REGISTRATIONS") => Self::WebPushRegistrationLimit,
+            #[cfg(feature = "unstable")]
+            ("PERSISTENCE", "ACCOUNT_REQUIRED") => Self::AccountRequired,
+            #[cfg(feature = "unstable")]
+            ("PERSISTENCE", "INVALID_PARAMETERS" | "INVALID_PARAMS") => {
+                Self::InvalidPersistenceParameters
+            }
+            #[cfg(feature = "unstable")]
+            ("PERSISTENCE", "INTERNAL_ERROR") => Self::InternalError,
             _ => Self::Other,
         }
     }
@@ -337,6 +423,31 @@ mod tests {
             "MARKREAD" "NEED_MORE_PARAMS" => MissingParameters,
             "MARKREAD" "INTERNAL_ERROR" => InternalError,
             "PRIVMSG" "INVALID_UTF8" => InvalidUtf8,
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[test]
+    fn classifies_unstable_extension_failures() {
+        macro_rules! cases {
+            ($($command:literal $code:literal => $variant:ident),* $(,)?) => {$(
+                assert_eq!(Refusal::from_standard($command, $code), Refusal::$variant);
+            )*};
+        }
+        cases!(
+            "BOUNCER" "INVALID_NETID" => InvalidNetwork,
+            "BOUNCER" "INVALID_ATTRIBUTE" => InvalidAttribute,
+            "BOUNCER" "READ_ONLY_ATTRIBUTE" => ReadOnlyAttribute,
+            "BOUNCER" "UNKNOWN_ATTRIBUTE" => UnknownAttribute,
+            "BOUNCER" "NEED_ATTRIBUTE" => MissingAttribute,
+            "RELAYMSG" "NOT_ENABLED" => RelayDisabled,
+            "RELAYMSG" "PRIVS_NEEDED" => RelayPrivilegesNeeded,
+            "RELAYMSG" "BLANK_MSG" => BlankRelayMessage,
+            "RELAYMSG" "INVALID_NICK" => InvalidRelayNickname,
+            "RELAYMSG" "BANNED" => BannedRelaySender,
+            "WEBPUSH" "INVALID_PARAMS" => InvalidWebPushParameters,
+            "WEBPUSH" "MAX_REGISTRATIONS" => WebPushRegistrationLimit,
+            "PERSISTENCE" "INVALID_PARAMETERS" => InvalidPersistenceParameters,
         );
     }
 }
