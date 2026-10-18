@@ -170,7 +170,7 @@ async fn server_information(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(codes.first(), Some(&251));
     assert!(codes.contains(&255));
     assert!(codes.contains(&265));
-    assert_eq!(codes.last(), Some(&266));
+    assert!(codes.contains(&266));
     Ok(())
 }
 

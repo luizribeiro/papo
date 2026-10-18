@@ -1,2 +1,5 @@
 [draft_channel_rename]
 reason = "Ergo rejects renaming channels that have persistent history"
+
+[persistence]
+reason = "Ergo's always-on account profile keeps persistence effective after accepting an OFF preference"
