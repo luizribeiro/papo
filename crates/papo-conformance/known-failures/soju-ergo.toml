@@ -16,6 +16,9 @@ reason = "soju returns an empty page for an unavailable target instead of relayi
 [chathistory_paging]
 reason = "soju echoes messages without server identifiers usable as history page references"
 
+[kick_missing_member]
+reason = "soju relays Ergo's 482 rather than 441 when an operator kicks a user outside the channel"
+
 [draft_chathistory]
 reason = "soju's history layer does not expose the earlier upstream message"
 
@@ -39,6 +42,9 @@ reason = "soju treats JOIN zero as a channel name instead of forwarding the leav
 
 [nick_change_and_collision]
 reason = "soju rejects an upstream nickname collision without preserving the 433 refusal category"
+
+[partially_invalid_join]
+reason = "soju does not complete the labelled response for a mixed valid and malformed JOIN"
 
 [quit]
 reason = "soju disconnects the downstream client without quitting its persistent upstream connection"

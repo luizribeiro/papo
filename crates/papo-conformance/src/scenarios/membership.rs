@@ -201,6 +201,74 @@ async fn multiple_joins(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// accepts valid JOIN targets while reporting a malformed channel mask
+#[scenario(covers = [
+    "base.join.err-bad-chanmask",
+    "base.join.partially-invalid"
+])]
+async fn partially_invalid_join(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let channel = context.channel_name();
+    let invalid = format!("#invalid\x07{}", channel.trim_start_matches('#'));
+
+    // A single JOIN command must still apply its valid target before reporting the bad one.
+    let targets = format!("{channel},{invalid}");
+    let partial = alice.request_command("JOIN", [&targets]).await?;
+    let synced = alice
+        .wait_for(|event| {
+            event
+                .as_channel_synced()
+                .filter(|synced| synced.channel.as_ref() == channel)
+        })
+        .await?;
+    assert_eq!(synced.channel.as_ref(), channel);
+    let state = alice.state();
+    assert!(
+        state
+            .channel(&channel)
+            .is_some_and(papo::Channel::is_synced)
+    );
+    assert!(state.channel(&invalid).is_none());
+    assert!(
+        partial.iter().any(|line| line.numeric() == Some(476)),
+        "unexpected malformed JOIN response: {partial:?}"
+    );
+    Ok(())
+}
+
+/// refuses the first JOIN target beyond the advertised channel limit
+#[scenario(covers = ["base.join.err-too-many-channels"])]
+async fn too_many_channels(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let Some(limit) = alice
+        .state()
+        .isupport()
+        .chanlimit()
+        .into_iter()
+        .find(|entry| entry.name.contains('#'))
+        .and_then(|entry| entry.limit)
+    else {
+        return context.skip("server does not advertise a finite # channel limit");
+    };
+    if limit > 20 {
+        return context.skip("advertised channel limit exceeds bounded live-test capacity");
+    }
+    let channels = (0..=limit)
+        .map(|_| context.channel_name())
+        .collect::<Vec<_>>();
+    let targets = channels.join(",");
+
+    // The server numeric is the behavior under test, so retain its raw response.
+    let response = alice.request_command("JOIN", [&targets]).await?;
+    assert!(
+        response.iter().any(|line| line.numeric() == Some(405)),
+        "unexpected channel-limit response: {response:?}"
+    );
+    assert_eq!(alice.state().channels().count(), limit);
+    assert!(alice.state().channel(&channels[limit]).is_none());
+    Ok(())
+}
+
 /// returns a complete identity from an extended WHO query
 #[scenario(
     requires(isupport = ["WHOX"]),
@@ -649,6 +717,31 @@ async fn kick_rules(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// rejects an operator's attempt to kick a user outside the channel
+#[scenario(covers = ["base.kick.err-user-not-in-channel"])]
+async fn kick_missing_member(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let bob_nick = bob.nick();
+    alice.join(&channel).await?;
+
+    let Error::Server(refusal) = alice
+        .kick(&channel, bob_nick, "not a channel member")
+        .await
+        .unwrap_err()
+    else {
+        panic!("missing channel member did not return a server refusal");
+    };
+    assert_eq!(refusal.kind(), Refusal::Other);
+    assert_eq!(refusal.code(), "441");
+    assert_eq!(alice.state().channels().count(), 1);
+    assert_eq!(bob.state().channels().count(), 0);
+    alice.expect_none(Event::as_kicked).await?;
+    bob.expect_none(Event::as_kicked).await?;
+    Ok(())
+}
+
 /// propagates a nickname change and rejects a later claim of the same nickname
 #[scenario(covers = ["base.nick.change", "base.nick.collision-in-use"])]
 async fn nick_change_and_collision(context: Scenario) -> papo_testing::Result<()> {
@@ -888,11 +981,12 @@ async fn channel_modes_and_join_refusals(context: Scenario) -> papo_testing::Res
 }
 
 fn assert_refusal(error: Error, expected: Refusal, code: &str) {
-    let Error::Server(error) = error else {
-        panic!("operation did not return a server refusal");
+    let refusal = match error {
+        Error::Server(refusal) => refusal,
+        other => panic!("operation did not return a server refusal: {other:?}"),
     };
-    assert_eq!(error.kind(), expected);
-    assert_eq!(error.code(), code);
+    assert_eq!(refusal.kind(), expected);
+    assert_eq!(refusal.code(), code);
 }
 
 async fn wait_channel_mode(

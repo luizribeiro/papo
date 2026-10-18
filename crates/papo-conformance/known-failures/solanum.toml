@@ -6,3 +6,6 @@ reason = "Solanum keeps a channel ban effective after the banned user receives a
 
 [kick_rules]
 reason = "Solanum applies a multi-target KICK only to the first target and uses that target as the default comment"
+
+[partially_invalid_join]
+reason = "Solanum accepts the valid JOIN target but reports the malformed target with 479 rather than 476"

@@ -4,5 +4,11 @@ reason = "Ergo rejects renaming channels that have persistent history"
 [channel_rename_error]
 reason = "Ergo rejects renaming persistent-history channels before checking destination collisions"
 
+[kick_missing_member]
+reason = "Ergo returns 482 rather than 441 when an operator kicks a user outside the channel"
+
+[partially_invalid_join]
+reason = "Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476"
+
 [persistence]
 reason = "Ergo's always-on account profile keeps persistence effective after accepting an OFF preference"
