@@ -1,4 +1,4 @@
-use papo::{Account, Event, ModeKind};
+use papo::{Account, Error, Event, ModeKind, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -302,5 +302,61 @@ async fn kick(context: Scenario) -> papo_testing::Result<()> {
     assert!(bob.state().channel(&channel).is_none());
     alice.expect_none(Event::as_kicked).await?;
     bob.expect_none(Event::as_kicked).await?;
+    Ok(())
+}
+
+/// propagates a nickname change and rejects a later claim of the same nickname
+#[scenario(covers = ["base.nick.change", "base.nick.collision-in-use"])]
+async fn nick_change_and_collision(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let old_nick = alice.nick();
+    let bob_nick = bob.nick();
+    let new_nick = format!("r{old_nick}");
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+
+    alice.set_nick(new_nick.clone()).await?;
+    let own = alice.wait_for(Event::as_nick_changed).await?;
+    let observed = bob.wait_for(Event::as_nick_changed).await?;
+
+    for changed in [&own, &observed] {
+        assert_eq!(changed.old, old_nick);
+        assert_eq!(changed.new.as_ref(), new_nick);
+    }
+    assert!(own.is_self);
+    assert!(!observed.is_self);
+    assert_eq!(alice.state().nick(), new_nick.as_str());
+    assert!(
+        alice
+            .state()
+            .channel(&channel)
+            .unwrap()
+            .member(&new_nick)
+            .is_some()
+    );
+    assert!(
+        bob.state()
+            .channel(&channel)
+            .unwrap()
+            .member(&new_nick)
+            .is_some()
+    );
+    assert!(
+        bob.state()
+            .channel(&channel)
+            .unwrap()
+            .member(&old_nick)
+            .is_none()
+    );
+
+    let Error::Server(refusal) = bob.set_nick(new_nick.clone()).await.unwrap_err() else {
+        panic!("nickname collision did not return a server refusal");
+    };
+    assert_eq!(refusal.kind(), Refusal::NicknameInUse);
+    assert_eq!(refusal.code(), "433");
+    assert_eq!(bob.state().nick(), &bob_nick);
+    bob.expect_none(Event::as_nick_changed).await?;
     Ok(())
 }
