@@ -1,6 +1,6 @@
 use std::{env, fs, time::Duration};
 
-use papo::{ConnectErrorKind, Endpoint, Event, isupport::Advertised};
+use papo::{ConnectErrorKind, Endpoint, Event, WebIrc, isupport::Advertised};
 use papo_conformance_macros::scenario;
 #[cfg(not(target_family = "wasm"))]
 use papo_core::NetworkConfig;
@@ -8,10 +8,13 @@ use papo_core::NetworkConfig;
 use crate::Scenario;
 
 /// registers with the requested nickname
-#[scenario(covers = ["base.connreg.nick-user"])]
+#[scenario(covers = ["base.connreg.nick-user", "base.connreg.welcome-order"])]
 async fn registration(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     assert_registered(&alice, "alice");
+    let registered = alice.wait_for(Event::as_registered).await?;
+    assert_eq!(registered.nick, alice.state().nick().as_ref());
+    assert_eq!(registered.caps, *alice.state().caps());
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
 }
@@ -81,6 +84,25 @@ async fn isupport(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// negotiates extended ISUPPORT before registration completes
+#[scenario(
+    requires(caps = ["draft/extended-isupport"]),
+    covers = ["draft.extended-isupport"]
+)]
+async fn extended_isupport(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s
+        .connect_with(
+            s.configure("alice")
+                .request_caps(["draft/extended-isupport"]),
+        )
+        .await?;
+    assert!(alice.state().has_cap("draft/extended-isupport"));
+    assert!(!alice.state().isupport().chantypes().is_empty());
+    assert!(!alice.state().isupport().prefix().is_empty());
+    alice.expect_none(Event::as_disconnected).await?;
+    Ok(())
+}
+
 /// returns complete MOTD and LUSERS reply sequences
 #[scenario(covers = ["base.motd.full", "base.motd.absent", "base.lusers.basic"])]
 async fn server_information(s: Scenario) -> papo_testing::Result<()> {
@@ -119,7 +141,7 @@ async fn server_information(s: Scenario) -> papo_testing::Result<()> {
 /// lists, adds, changes, and removes a bouncer network
 #[scenario(
     requires(caps = ["soju.im/bouncer-networks"]),
-    covers = ["draft.bouncer-networks"]
+    covers = ["base.connreg.pass", "draft.bouncer-networks"]
 )]
 async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     #[cfg(target_family = "wasm")]
@@ -195,6 +217,38 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
         );
         Ok(())
     }
+}
+
+/// registers through a trusted WEBIRC gateway identity
+#[scenario(covers = ["core.webirc.gateway"])]
+async fn webirc(s: Scenario) -> papo_testing::Result<()> {
+    let profile = env::var("PAPO_TEST_PROFILE").unwrap_or_default();
+    if !profile.starts_with("ergo-") {
+        return s.skip("the selected profile has no managed WEBIRC gateway");
+    }
+    let hostname = "client.papo.test";
+    let mut alice = s
+        .connect_with(
+            s.configure("alice").webirc(
+                WebIrc::new(
+                    papo_test_server::WEBIRC_PASSWORD,
+                    "papo-gateway",
+                    "192.0.2.42",
+                )
+                .hostname(hostname)
+                .flag("tls"),
+            ),
+        )
+        .await?;
+    let bob = s.connect("bob").await?;
+    let whois = alice.whois(alice.state().nick().clone()).await?;
+    let ordinary = alice.whois(bob.state().nick().clone()).await?;
+    assert_eq!(whois.nick, *alice.state().nick());
+    assert_eq!(ordinary.nick, *bob.state().nick());
+    assert!(whois.host.is_some());
+    assert_ne!(whois.host, ordinary.host);
+    alice.expect_none(Event::as_disconnected).await?;
+    Ok(())
 }
 
 /// registers over TLS with the configured test CA
