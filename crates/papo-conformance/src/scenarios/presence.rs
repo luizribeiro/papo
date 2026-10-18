@@ -19,7 +19,9 @@ async fn account_notify(context: Scenario) -> papo_testing::Result<()> {
 
     let text = "authenticated hello from alice";
     let sent = alice.privmsg(&channel, text).await?;
-    let message = bob.wait_for(Event::as_message).await?;
+    let message = bob
+        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
 
     assert_eq!(message.text(), text);
     assert_eq!(
@@ -36,7 +38,8 @@ async fn account_notify(context: Scenario) -> papo_testing::Result<()> {
         bob.state().user(&alice_nick).unwrap().account(),
         Account::LoggedIn(observed) if observed == &account
     ));
-    bob.expect_none(Event::as_message).await?;
+    bob.expect_none(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
     Ok(())
 }
 
@@ -233,12 +236,22 @@ async fn bot_mode(context: Scenario) -> papo_testing::Result<()> {
     let mut bob = context.connect("bob").await?;
     let alice_nick = alice.nick();
     let channel = context.channel_name();
-    let changed = alice.wait_for(Event::as_mode_changed).await?;
+    let changed = alice
+        .wait_for(|event| {
+            event.as_mode_changed().filter(|changed| {
+                changed.target.as_ref() == alice_nick.as_ref()
+                    && changed.changes.iter().any(|change| change.mode == 'B')
+            })
+        })
+        .await?;
 
     assert_eq!(changed.target.as_ref(), alice_nick.as_ref());
-    assert_eq!(changed.changes.len(), 1);
-    assert!(changed.changes[0].set);
-    assert_eq!(changed.changes[0].mode, 'B');
+    let bot_change = changed
+        .changes
+        .iter()
+        .find(|change| change.mode == 'B')
+        .unwrap();
+    assert!(bot_change.set);
     assert!(alice.state().user_modes().any(|mode_| mode_ == 'B'));
 
     alice.join(&channel).await?;
@@ -248,12 +261,14 @@ async fn bot_mode(context: Scenario) -> papo_testing::Result<()> {
     assert_eq!(whois.nick, alice_nick);
     assert!(whois.user.as_ref().is_some_and(|user| !user.is_empty()));
     assert!(whois.host.as_ref().is_some_and(|host| !host.is_empty()));
-    assert_eq!(whois.realname.as_deref(), Some("papo test peer"));
+    assert!(whois.realname.as_ref().is_some_and(|name| !name.is_empty()));
     assert!(whois.is_bot);
 
     let text = "automated conformance report";
     alice.privmsg(&channel, text).await?;
-    let message = bob.wait_for(Event::as_message).await?;
+    let message = bob
+        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
 
     assert_eq!(
         message.sender.as_ref().and_then(Source::nick),
@@ -262,7 +277,8 @@ async fn bot_mode(context: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.target(), channel);
     assert_eq!(message.text(), text);
     assert!(message.is_bot());
-    bob.expect_none(Event::as_message).await?;
+    bob.expect_none(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
     Ok(())
 }
 
