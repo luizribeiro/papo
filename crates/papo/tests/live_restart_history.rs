@@ -3,7 +3,7 @@
 
 mod support;
 
-use papo::{Client, Endpoint, Event, Origin, Sasl};
+use papo::{Client, Endpoint, Origin, Sasl};
 use papo_test_server::{TestServer, register_account_at, unique};
 use support::within;
 
@@ -32,14 +32,14 @@ async fn retains_message(persistent: bool) -> bool {
         "memory history ends with the server process"
     };
     register_account_at(server.plaintext_addr(), &account, password).unwrap();
-    let (client, mut events) = connect(&server, &account, password, &channel).await;
-    wait_synced(&mut events, &channel).await;
+    let (client, _events) = connect(&server, &account, password).await;
+    client.join(&channel).await.unwrap();
     client.privmsg(&channel, text).await.unwrap();
     client.quit("restart fixture prepared").await.unwrap();
 
     server.restart().unwrap();
-    let (client, mut events) = connect(&server, &account, password, &channel).await;
-    wait_synced(&mut events, &channel).await;
+    let (client, _events) = connect(&server, &account, password).await;
+    client.join(&channel).await.unwrap();
     let page = client.history(&channel).latest(10).await.unwrap();
     let retained = page
         .messages()
@@ -48,12 +48,7 @@ async fn retains_message(persistent: bool) -> bool {
     retained
 }
 
-async fn connect(
-    server: &TestServer,
-    account: &str,
-    password: &str,
-    channel: &str,
-) -> (Client, papo::Events) {
+async fn connect(server: &TestServer, account: &str, password: &str) -> (Client, papo::Events) {
     Client::builder(Endpoint::plaintext(
         "localhost",
         server.plaintext_addr().port(),
@@ -68,23 +63,7 @@ async fn connect(
         "labeled-response",
         "draft/chathistory",
     ])
-    .autojoin([channel])
     .connect()
     .await
     .unwrap()
-}
-
-async fn wait_synced(events: &mut papo::Events, channel: &str) {
-    loop {
-        match events.next().await {
-            Some(Event::ChannelSynced(papo::event::ChannelSynced {
-                channel: synced, ..
-            })) if synced == channel => return,
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("disconnected before channel sync: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped before channel sync"),
-        }
-    }
 }
