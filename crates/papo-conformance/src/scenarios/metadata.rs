@@ -159,6 +159,65 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// rejects metadata writes to another client
+#[scenario(
+    requires(caps = ["batch", "draft/metadata-2"]),
+    covers = ["draft.metadata.errors"]
+)]
+async fn metadata_error(s: Scenario) -> papo_testing::Result<()> {
+    let key = "example.org/papo-protected";
+    let channel = s.channel_name();
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    alice.join(channel.clone()).await?;
+    bob.join(channel).await?;
+
+    let error = bob
+        .metadata()
+        .set_on(alice.state().nick().clone(), key, "unauthorized")
+        .await
+        .expect_err("a client cannot write another client's metadata");
+    let papo::Error::Server(error) = error else {
+        panic!("metadata refusal retains a server error: {error:?}")
+    };
+    assert_eq!(error.command(), "METADATA");
+    assert_eq!(error.code(), "KEY_NO_PERMISSION");
+    assert!(alice.state().metadata(alice.state().nick()).is_none());
+    alice.expect_none(Event::as_metadata_changed).await?;
+    bob.expect_none(Event::as_metadata_changed).await?;
+    Ok(())
+}
+
+/// rejects a channel rename that collides with another channel
+#[scenario(
+    requires(caps = ["draft/channel-rename"]),
+    covers = ["draft.channel-rename.errors"]
+)]
+async fn channel_rename_error(s: Scenario) -> papo_testing::Result<()> {
+    let old = s.channel_name();
+    let occupied = s.channel_name();
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    alice.join(old.clone()).await?;
+    bob.join(occupied.clone()).await?;
+
+    let error = alice
+        .rename_channel(old.clone(), occupied.clone(), "collision")
+        .await
+        .expect_err("a rename cannot replace an existing channel");
+    let papo::Error::Server(error) = error else {
+        panic!("rename refusal retains a server error: {error:?}")
+    };
+    assert_eq!(error.command(), "RENAME");
+    assert_eq!(error.code(), "CHANNEL_NAME_IN_USE");
+    assert!(alice.state().channel(&old).is_some());
+    assert!(alice.state().channel(&occupied).is_none());
+    assert!(bob.state().channel(&occupied).is_some());
+    alice.expect_none(Event::as_channel_renamed).await?;
+    bob.expect_none(Event::as_channel_renamed).await?;
+    Ok(())
+}
+
 /// renames a channel for every joined member
 #[scenario(
     requires(caps = ["draft/channel-rename"]),
