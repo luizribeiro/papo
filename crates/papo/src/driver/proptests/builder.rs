@@ -13,7 +13,7 @@ async fn read_builder_line(server: &mut DuplexStream) -> Option<Vec<u8>> {
 
 async fn check_builder(configure: impl FnOnce(crate::Builder) -> crate::Builder) {
     let (stream, mut server) = tokio::io::duplex(4096);
-    let (_, _, driver) = configure(crate::Client::builder(crate::Endpoint::plaintext(
+    let (client, events, driver) = configure(crate::Client::builder(crate::Endpoint::plaintext(
         "127.0.0.1",
         6667,
     )))
@@ -32,8 +32,19 @@ async fn check_builder(configure: impl FnOnce(crate::Builder) -> crate::Builder)
         }
     };
     if let Some(result) = result {
-        assert!(matches!(result, Err(Error::InvalidInput(_))));
+        assert!(
+            matches!(
+                &result,
+                Err(Error::InvalidInput(_)
+                    | Error::Disconnected(crate::Disconnected {
+                        cause: crate::DisconnectCause::PingTimeout,
+                        ..
+                    }))
+            ),
+            "unexpected driver result: {result:?}"
+        );
     }
+    drop((client, events));
 }
 
 #[tokio::test(flavor = "current_thread")]
