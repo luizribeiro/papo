@@ -2840,6 +2840,12 @@ async fn reactions_obey_clienttagdeny() {
         None,
     )
     .await;
+    assert_reaction_wire(
+        ":ergo.test 005 papo-driver CLIENTTAGDENY=reply,draft/reply :are supported\r\n",
+        false,
+        None,
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "current_thread")]

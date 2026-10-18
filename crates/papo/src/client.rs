@@ -577,6 +577,7 @@ impl Client {
                 .and_then(|()| message.check())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let denied = state.isupport().clienttagdeny();
+            // Feature preflight rejects the only state where both aliases are unavailable.
             let reply_tag = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
                 .expect("feature preflight requires an allowed reply tag");
             if denied.denies(reaction_tag) {

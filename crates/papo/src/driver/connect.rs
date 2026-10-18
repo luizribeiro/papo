@@ -18,13 +18,9 @@ use crate::{Error, Event, InvalidInput, Reconnect, transport};
 pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::Stream, Error> {
     #[cfg(sockets)]
     {
-        if plan.address.websocket_url().is_some() {
+        if let Some(url) = plan.address.websocket_url() {
             #[cfg(feature = "websocket")]
             {
-                let url = plan
-                    .address
-                    .websocket_url()
-                    .expect("WebSocket URL is present");
                 return transport::connect_websocket(
                     &url,
                     plan.address.is_secure().then_some(&plan.tls),
@@ -33,12 +29,15 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
                 .map_err(|error| Error::Connect(error.into()));
             }
             #[cfg(not(feature = "websocket"))]
-            return Err(Error::connect_unavailable("websocket"));
+            {
+                _ = url;
+                return Err(Error::connect_unavailable("websocket"));
+            }
         }
         let security = match plan.address.protocol {
             Protocol::Irc => transport::Security::Plaintext,
             Protocol::Ircs => transport::Security::Tls(plan.tls),
-            Protocol::Ws | Protocol::Wss => unreachable!("WebSocket URL handled above"),
+            Protocol::Ws | Protocol::Wss => return Err(Error::connect_unavailable("websocket")),
         };
         transport::connect(&plan.address.host, plan.address.port, &security)
             .await
