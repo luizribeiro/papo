@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{AccountRegistrationError, Config, Event, Feature, RequestError, Secret};
+use papo_core::{Config, Event, Feature, Refusal, RequestError, Secret};
 use support::{Transcript, unsupported_error};
 
 fn registered() -> Transcript {
@@ -149,7 +149,7 @@ fn verifies_an_account_after_the_server_requires_it() {
 
 #[test]
 fn types_every_registered_account_failure_code() {
-    use AccountRegistrationError as E;
+    use Refusal as E;
 
     let cases = [
         (
@@ -166,11 +166,16 @@ fn types_every_registered_account_failure_code() {
         ),
         (
             "ACCOUNT_NAME_MUST_BE_NICK",
-            E::AccountNameMustBeNick,
+            E::AccountNameMustMatchNick,
             &["REGISTER"][..],
             "VERIFY",
         ),
-        ("NEED_NICK", E::NeedNick, &["REGISTER"][..], "VERIFY"),
+        (
+            "NEED_NICK",
+            E::NicknameRequired,
+            &["REGISTER"][..],
+            "VERIFY",
+        ),
         (
             "ALREADY_AUTHENTICATED",
             E::AlreadyAuthenticated,
@@ -203,11 +208,16 @@ fn types_every_registered_account_failure_code() {
         ),
         (
             "COMPLETE_CONNECTION_REQUIRED",
-            E::CompleteConnectionRequired,
+            E::RegistrationRequired,
             &["REGISTER", "VERIFY"][..],
             "PERSISTENCE",
         ),
-        ("INVALID_CODE", E::InvalidCode, &["VERIFY"][..], "REGISTER"),
+        (
+            "INVALID_CODE",
+            E::InvalidVerificationCode,
+            &["VERIFY"][..],
+            "REGISTER",
+        ),
         (
             "TEMPORARILY_UNAVAILABLE",
             E::TemporarilyUnavailable,
@@ -223,7 +233,7 @@ fn types_every_registered_account_failure_code() {
                 ))
                 .event(|event| {
                     matches!(event, Event::StandardReply(reply)
-                        if reply.account_registration_error() == Some(expected))
+                        if reply.refusal() == Some(expected))
                 });
         }
         registered()
@@ -234,7 +244,7 @@ fn types_every_registered_account_failure_code() {
                 matches!(event, Event::StandardReply(reply)
                     if reply.command == invalid_command
                         && reply.code == code
-                        && reply.account_registration_error().is_none())
+                        && reply.refusal() == Some(Refusal::Other))
             });
     }
 }
@@ -251,8 +261,7 @@ fn types_a_labelled_verification_failure() {
         .server("@label=0 :ergo.test FAIL VERIFY INVALID_CODE alice :Invalid verification code")
         .event(|event| {
             matches!(event, Event::Response(response)
-                if response.account_registration_error()
-                    == Some(AccountRegistrationError::InvalidCode))
+                if response.refusal() == Some(Refusal::InvalidVerificationCode))
         });
 }
 
@@ -393,7 +402,7 @@ fn early_registration_failure_releases_cap_end() {
         .event(|event| matches!(event, Event::RequestUntracked { .. }))
         .event(|event| {
             matches!(event, Event::StandardReply(reply)
-            if reply.account_registration_error() == Some(AccountRegistrationError::WeakPassword))
+            if reply.refusal() == Some(Refusal::WeakPassword))
         })
         .client("CAP END");
 }

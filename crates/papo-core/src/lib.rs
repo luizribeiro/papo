@@ -935,10 +935,10 @@ impl Response {
         })
     }
 
-    /// Returns a typed account-registration failure from this response.
+    /// Returns the first refusal category in this response.
     #[must_use]
-    pub fn account_registration_error(&self) -> Option<AccountRegistrationError> {
-        self.error()?.account_registration_error()
+    pub fn refusal(&self) -> Option<Refusal> {
+        Some(self.error()?.refusal())
     }
 
     /// Returns a typed metadata failure from this response.
@@ -967,60 +967,6 @@ impl Response {
     #[must_use]
     pub fn webpush_error(&self) -> Option<WebPushError> {
         self.error()?.webpush_error()
-    }
-}
-
-/// A standardized `REGISTER` or `VERIFY` failure code.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum AccountRegistrationError {
-    /// The account name is already registered.
-    AccountExists,
-    /// The requested account name is invalid or restricted.
-    BadAccountName,
-    /// The account name must match the current nickname.
-    AccountNameMustBeNick,
-    /// A nickname must be selected before registration.
-    NeedNick,
-    /// The session is already authenticated.
-    AlreadyAuthenticated,
-    /// The password does not meet the server's strength policy.
-    WeakPassword,
-    /// The password is otherwise unacceptable.
-    UnacceptablePassword,
-    /// The server cannot send mail to the address.
-    InvalidEmail,
-    /// The email address cannot be used for registration.
-    UnacceptableEmail,
-    /// Connection registration must complete before retrying.
-    CompleteConnectionRequired,
-    /// The verification code is invalid or expired.
-    InvalidCode,
-    /// Account registration is temporarily unavailable.
-    TemporarilyUnavailable,
-}
-
-impl AccountRegistrationError {
-    fn parse(command: &str, code: &str) -> Option<Self> {
-        let register = command.eq_ignore_ascii_case("REGISTER");
-        let verify = command.eq_ignore_ascii_case("VERIFY");
-        match code.to_ascii_uppercase().as_str() {
-            "ACCOUNT_EXISTS" if register => Some(Self::AccountExists),
-            "BAD_ACCOUNT_NAME" if register => Some(Self::BadAccountName),
-            "ACCOUNT_NAME_MUST_BE_NICK" if register => Some(Self::AccountNameMustBeNick),
-            "NEED_NICK" if register => Some(Self::NeedNick),
-            "ALREADY_AUTHENTICATED" if register || verify => Some(Self::AlreadyAuthenticated),
-            "WEAK_PASSWORD" if register => Some(Self::WeakPassword),
-            "UNACCEPTABLE_PASSWORD" if register => Some(Self::UnacceptablePassword),
-            "INVALID_EMAIL" if register => Some(Self::InvalidEmail),
-            "UNACCEPTABLE_EMAIL" if register => Some(Self::UnacceptableEmail),
-            "COMPLETE_CONNECTION_REQUIRED" if register || verify => {
-                Some(Self::CompleteConnectionRequired)
-            }
-            "INVALID_CODE" if verify => Some(Self::InvalidCode),
-            "TEMPORARILY_UNAVAILABLE" if register || verify => Some(Self::TemporarilyUnavailable),
-            _ => None,
-        }
     }
 }
 
@@ -1064,15 +1010,6 @@ impl ServerError {
         match self {
             Self::Numeric { numeric, .. } => Refusal::from_numeric(*numeric),
             Self::Standard { command, code, .. } => Refusal::from_standard(command, code),
-        }
-    }
-
-    /// Returns the typed account-registration code when this is a matching standard failure.
-    #[must_use]
-    pub fn account_registration_error(&self) -> Option<AccountRegistrationError> {
-        match self {
-            Self::Standard { command, code, .. } => AccountRegistrationError::parse(command, code),
-            Self::Numeric { .. } => None,
         }
     }
 
@@ -1186,12 +1123,11 @@ pub struct PersistenceStatus {
 }
 
 impl StandardReply {
-    /// Returns the typed account-registration code when this is a matching failure.
+    /// Returns the refusal category when this is a failure.
     #[must_use]
-    pub fn account_registration_error(&self) -> Option<AccountRegistrationError> {
+    pub fn refusal(&self) -> Option<Refusal> {
         (self.kind == StandardReplyKind::Fail)
-            .then(|| AccountRegistrationError::parse(&self.command, &self.code))
-            .flatten()
+            .then(|| Refusal::from_standard(&self.command, &self.code))
     }
 
     /// Returns the typed metadata code when this is a matching failure.
