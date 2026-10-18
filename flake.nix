@@ -103,6 +103,26 @@
           version = "0.0.0";
         };
         cargoArtifacts = craneLib.buildDepsOnly craneArgs;
+        profileConformance =
+          profile:
+          craneLib.cargoTest (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "-p papo-conformance";
+              nativeBuildInputs = [
+                pkgs.openssl
+                soju
+              ];
+              PAPO_TEST_PROFILE = profile;
+              ERGO_BIN = pkgs.lib.getExe ergochat;
+              ERGO_CONFIG = ergoConfig;
+              ERGO_LANGUAGES = "${ergochat.src}/languages";
+              SOJU_BIN = pkgs.lib.getExe' soju "soju";
+              SOJUCTL_BIN = pkgs.lib.getExe' soju "sojuctl";
+              CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
+            }
+          );
         browserCargoVendor = craneLib.vendorCargoDeps {
           src = cargoSource;
           cargoLock = ./crates/papo-core/tests/browser/Cargo.lock;
@@ -393,12 +413,15 @@
                 pkgs.openssl
                 pkgs.atheme
                 pkgs.inspircd
+                soju
                 solanum
                 unrealircd
               ];
               ERGO_BIN = pkgs.lib.getExe ergochat;
               ERGO_CONFIG = ergoConfig;
               ERGO_LANGUAGES = "${ergochat.src}/languages";
+              SOJU_BIN = pkgs.lib.getExe' soju "soju";
+              SOJUCTL_BIN = pkgs.lib.getExe' soju "sojuctl";
               ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
               ATHEME_MODULES = "${pkgs.atheme}/modules";
               INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";
@@ -524,6 +547,9 @@
               CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
             }
           );
+          profile-ergo-default = profileConformance "ergo-default";
+          profile-ergo-persistent = profileConformance "ergo-persistent";
+          profile-soju-ergo = profileConformance "soju-ergo";
           conformance-matrix = craneLib.mkCargoDerivation (
             craneArgs
             // {
@@ -534,12 +560,15 @@
                 pkgs.atheme
                 pkgs.inspircd
                 pkgs.python3
+                soju
                 solanum
                 unrealircd
               ];
               ERGO_BIN = pkgs.lib.getExe ergochat;
               ERGO_CONFIG = ergoConfig;
               ERGO_LANGUAGES = "${ergochat.src}/languages";
+              SOJU_BIN = pkgs.lib.getExe' soju "soju";
+              SOJUCTL_BIN = pkgs.lib.getExe' soju "sojuctl";
               ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
               ATHEME_MODULES = "${pkgs.atheme}/modules";
               INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";
