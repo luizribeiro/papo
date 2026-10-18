@@ -97,37 +97,60 @@ async fn message_tags(context: Scenario) -> ScenarioResult {
     close_pair(receiver, sender).await
 }
 
-/// reassembles a client multiline message
-#[scenario(requires(caps = ["draft/multiline"]))]
+/// preserves identities for plain and multiline messages
+#[scenario(requires(caps = [
+    "batch",
+    "draft/multiline",
+    "echo-message",
+    "labeled-response",
+    "message-tags"
+]))]
 async fn draft_multiline(context: Scenario) -> ScenarioResult {
-    let (receiver, mut sender, channel) = joined_pair(&context).await?;
-    let reference = context.unique().replace('_', "-");
-    sender
+    let (mut receiver, mut sender, channel) = joined_pair(&context).await?;
+    let plain_text = format!("plain message from {}", sender.welcome.nick);
+    let plain = sender
         .client
-        .send_raw(format!("BATCH +{reference} draft/multiline {channel}"))
+        .privmsg(&channel, &plain_text)
         .await
         .map_err(Failed::from)?;
-    sender
+    let Some(plain_id) = plain.id else {
+        return Err("plain message echo did not include a message identifier".into());
+    };
+    context
+        .expect(
+            &mut receiver.events,
+            |event| matches!(event, Event::Message(message) if message.raw_text() == plain_text && message.id() == Some(&plain_id)),
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+
+    let multiline_text = "first deployment line\nsecond deployment line";
+    let multiline = sender
         .client
-        .send_raw(format!("@batch={reference} PRIVMSG {channel} :first "))
+        .privmsg(&channel, multiline_text)
         .await
         .map_err(Failed::from)?;
-    sender
+    let Some(multiline_id) = multiline.id else {
+        return Err("multiline echo did not include a message identifier".into());
+    };
+    context
+        .expect(
+            &mut receiver.events,
+            |event| matches!(event, Event::Message(message) if message.raw_text() == multiline_text && message.id() == Some(&multiline_id)),
+            EXPECT_TIMEOUT,
+        )
+        .await?;
+
+    receiver
         .client
-        .send_raw(format!(
-            "@batch={reference};draft/multiline-concat PRIVMSG {channel} second"
-        ))
-        .await
-        .map_err(Failed::from)?;
-    sender
-        .client
-        .send_raw(format!("BATCH -{reference}"))
+        .privmsg(&channel, "reply through the multiline id")
+        .reply_to(&multiline_id)
         .await
         .map_err(Failed::from)?;
     context
         .expect(
             &mut sender.events,
-            |event| matches!(event, Event::Message(message) if message.raw_text() == "first second"),
+            |event| matches!(event, Event::Message(message) if message.raw_text() == "reply through the multiline id" && message.reply_to() == Some(multiline_id.as_ref())),
             EXPECT_TIMEOUT,
         )
         .await?;
@@ -155,27 +178,43 @@ async fn utf8only(context: Scenario) -> ScenarioResult {
 }
 
 /// redacts a delivered channel message
-#[scenario(requires(caps = ["draft/message-redaction"]))]
+#[scenario(requires(caps = [
+    "batch",
+    "draft/message-redaction",
+    "draft/multiline",
+    "echo-message",
+    "labeled-response"
+]))]
 async fn draft_message_redaction(context: Scenario) -> ScenarioResult {
+    let caps = [
+        "batch",
+        "draft/message-redaction",
+        "draft/multiline",
+        "echo-message",
+        "labeled-response",
+    ];
     let sender_nick = context.unique();
     let receiver_nick = context.unique();
     let channel = format!("#{}", context.unique());
-    let mut sender = context
-        .client_caps(&sender_nick, &["draft/message-redaction"])
-        .await?;
+    let mut sender = context.client_caps(&sender_nick, &caps).await?;
     join(&context, &mut sender, &channel).await?;
-    let mut receiver = context
-        .client_caps(&receiver_nick, &["draft/message-redaction"])
-        .await?;
+    let mut receiver = context.client_caps(&receiver_nick, &caps).await?;
     join(&context, &mut receiver, &channel).await?;
     let sent = sender
         .client
-        .privmsg(&channel, "message to redact")
+        .privmsg(&channel, "message to\nredact")
         .await
         .map_err(Failed::from)?;
     let Some(id) = sent.id else {
-        return Err("echoed message did not include a message identifier".into());
+        return Err("multiline echo did not include a message identifier".into());
     };
+    context
+        .expect(
+            &mut receiver.events,
+            |event| matches!(event, Event::Message(message) if message.raw_text() == "message to\nredact" && message.id() == Some(&id)),
+            EXPECT_TIMEOUT,
+        )
+        .await?;
     sender
         .client
         .redact(papo::Target::from(&channel), &id, "conformance redaction")

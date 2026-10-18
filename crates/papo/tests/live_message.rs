@@ -152,6 +152,62 @@ async fn multiline_delivers_a_thousand_byte_message_whole() {
     .await;
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn multiline_capability_preserves_plain_and_batched_message_ids() {
+    within(async {
+        let server = from_env();
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        );
+        let channel = format!("#{}", unique("papo-multiline-id"));
+        let (client_a, mut events_a) =
+            client(address.clone(), &unique("papo-multi-id-a"), &channel).await;
+        let (client_b, mut events_b) = client(address, &unique("papo-multi-id-b"), &channel).await;
+        assert!(client_a.state().has_cap("batch"));
+        assert!(client_a.state().has_cap("draft/multiline"));
+
+        let plain = client_a
+            .privmsg(&channel, "plain message with multiline enabled")
+            .await
+            .unwrap();
+        let plain_id = plain.id.expect("plain echo supplies msgid");
+        assert!(plain.time.is_some());
+        let incoming = wait_message(&mut events_b, |message| {
+            message.raw_text() == "plain message with multiline enabled"
+        })
+        .await;
+        assert_eq!(incoming.id(), Some(&plain_id));
+
+        let multiline = client_a
+            .privmsg(&channel, "first deployment line\nsecond deployment line")
+            .await
+            .unwrap();
+        let multiline_id = multiline.id.expect("multiline echo supplies msgid");
+        assert!(multiline.time.is_some());
+        let incoming = wait_message(&mut events_b, |message| {
+            message.raw_text() == "first deployment line\nsecond deployment line"
+        })
+        .await;
+        assert_eq!(incoming.id(), Some(&multiline_id));
+
+        client_b
+            .privmsg(&channel, "reply through the multiline id")
+            .reply_to(&multiline_id)
+            .await
+            .unwrap();
+        let reply = wait_message(&mut events_a, |message| {
+            message.raw_text() == "reply through the multiline id"
+        })
+        .await;
+        assert_eq!(reply.reply_to(), Some(multiline_id.as_ref()));
+
+        client_b.quit("multiline id test complete").await.unwrap();
+        client_a.quit("multiline id test complete").await.unwrap();
+    })
+    .await;
+}
+
 async fn client(address: Endpoint, nick: &str, channel: &str) -> (Client, papo::Events) {
     let (client, mut events) = Client::builder(address)
         .nick(nick)
