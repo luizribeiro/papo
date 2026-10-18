@@ -54,7 +54,6 @@ use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use bouncer::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 use caps::Caps;
-pub use channel_rename::ChannelRenameError;
 pub use features::{Feature, Unsupported, UnsupportedReason};
 use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
@@ -947,12 +946,6 @@ impl Response {
         self.error()?.metadata_error()
     }
 
-    /// Returns a typed channel-rename failure from this response.
-    #[must_use]
-    pub fn channel_rename_error(&self) -> Option<ChannelRenameError> {
-        self.error()?.channel_rename_error()
-    }
-
     /// Returns a typed relay-message failure from this response.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -1023,15 +1016,6 @@ impl ServerError {
                 context,
                 ..
             } => MetadataError::parse(command, code, context),
-            Self::Numeric { .. } => None,
-        }
-    }
-
-    /// Returns the typed channel-rename code when this is a matching standard failure.
-    #[must_use]
-    pub fn channel_rename_error(&self) -> Option<ChannelRenameError> {
-        match self {
-            Self::Standard { command, code, .. } => ChannelRenameError::parse(command, code),
             Self::Numeric { .. } => None,
         }
     }
@@ -1135,14 +1119,6 @@ impl StandardReply {
     pub fn metadata_error(&self) -> Option<MetadataError> {
         (self.kind == StandardReplyKind::Fail)
             .then(|| MetadataError::parse(&self.command, &self.code, &self.context))
-            .flatten()
-    }
-
-    /// Returns the typed channel-rename code when this is a matching failure.
-    #[must_use]
-    pub fn channel_rename_error(&self) -> Option<ChannelRenameError> {
-        (self.kind == StandardReplyKind::Fail)
-            .then(|| ChannelRenameError::parse(&self.command, &self.code))
             .flatten()
     }
 

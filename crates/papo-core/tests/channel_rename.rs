@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{ChannelRenameError, Config, Event, Feature};
+use papo_core::{Config, Event, Feature, Refusal};
 use support::{Transcript, unsupported_error};
 
 fn registered() -> Transcript {
@@ -20,8 +20,8 @@ fn registered() -> Transcript {
 #[test]
 fn sends_rename_and_types_failures() {
     for (code, expected) in [
-        ("CHANNEL_NAME_IN_USE", ChannelRenameError::ChannelNameInUse),
-        ("CANNOT_RENAME", ChannelRenameError::CannotRename),
+        ("CHANNEL_NAME_IN_USE", Refusal::ChannelNameInUse),
+        ("CANNOT_RENAME", Refusal::ChannelRenameForbidden),
     ] {
         registered()
             .update(|session| {
@@ -40,7 +40,7 @@ fn sends_rename_and_types_failures() {
             ))
             .event(|event| {
                 matches!(event, Event::Response(response)
-                if response.channel_rename_error() == Some(expected))
+                if response.refusal() == Some(expected))
             });
     }
 }
@@ -62,7 +62,7 @@ fn types_an_unsolicited_rename_failure() {
         .server(":ergo.test FAIL RENAME CANNOT_RENAME :Persistent channels cannot be renamed")
         .event(|event| {
             matches!(event, Event::StandardReply(reply)
-            if reply.channel_rename_error() == Some(ChannelRenameError::CannotRename))
+            if reply.refusal() == Some(Refusal::ChannelRenameForbidden))
         });
 }
 
