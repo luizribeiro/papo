@@ -18,7 +18,8 @@ use crate::{
 };
 use crate::{
     Config, Event, Handled, LastSeen, MetadataValue, Outbox, OwnedModeChange, ReadMarker,
-    StateLimit, monitor::Monitor,
+    StateLimit,
+    monitor::{Monitor, presence_nicks},
 };
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
@@ -144,6 +145,7 @@ pub(crate) enum StateSnapshot {
         key: String,
         value: Option<MetadataValue>,
     },
+    Monitor(Vec<(Folded<Nick>, Option<User>)>),
     #[cfg(feature = "unstable")]
     Bouncer {
         id: NetworkId,
@@ -188,6 +190,19 @@ impl State {
                 key: key.to_owned(),
                 value,
             };
+        }
+        let nicks = presence_nicks(message);
+        if !nicks.is_empty() {
+            return StateSnapshot::Monitor(
+                nicks
+                    .into_iter()
+                    .map(|nick| {
+                        let key = Folded::new(nick, self.casemapping);
+                        let user = self.users.get(&key).cloned();
+                        (key, user)
+                    })
+                    .collect(),
+            );
         }
         #[cfg(feature = "unstable")]
         if let Some(update) = NetworkUpdate::parse(message) {
@@ -255,6 +270,27 @@ impl State {
         }
         self.users
             .retain(|_, user| user.monitored || !user.channels.is_empty());
+    }
+
+    pub(crate) fn sync_monitored_nick(
+        &mut self,
+        monitor: &Monitor,
+        isupport: &Isupport,
+        nick: &str,
+    ) {
+        self.update_casemapping(isupport.casemapping());
+        let key = Folded::new(nick, self.casemapping);
+        if let Some((username, host)) = monitor.online_nick(nick, isupport) {
+            self.users
+                .entry(key)
+                .or_insert_with(|| User::new(nick, username, host))
+                .monitored = true;
+        } else if let Some(user) = self.users.get_mut(&key) {
+            user.monitored = false;
+            if user.channels.is_empty() {
+                self.users.remove(&key);
+            }
+        }
     }
 
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)]

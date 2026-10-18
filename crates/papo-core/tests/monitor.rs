@@ -2,7 +2,10 @@
 
 mod support;
 
-use std::cell::Cell;
+use std::{
+    cell::Cell,
+    time::{Duration, Instant},
+};
 
 use papo_core::{Account, Away, Config, Event};
 use papo_proto::Message;
@@ -517,6 +520,23 @@ fn rekeys_monitor_presence_when_casemapping_changes() {
         .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported")
         .server(":ergo.test 730 papo :[alice!user@users.example")
         .no_event();
+}
+
+#[test]
+fn processes_the_literal_monitor_cache_bound_in_linear_time() {
+    registered().update(|session| {
+        let start = Instant::now();
+        for index in 0..10_001 {
+            session.handle_line(
+                Instant::now(),
+                format!(":ergo.test 730 papo :user{index:05}!user@users.example").as_bytes(),
+            );
+            let _ = session.poll_event();
+        }
+        let elapsed = start.elapsed();
+        assert!(elapsed < Duration::from_secs(5), "took {elapsed:?}");
+        assert_eq!(session.state().monitor_online().count(), 10_000);
+    });
 }
 
 #[test]

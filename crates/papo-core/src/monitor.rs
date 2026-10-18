@@ -38,6 +38,20 @@ impl Monitor {
             })
     }
 
+    pub(super) fn online_nick(
+        &self,
+        nick: &str,
+        isupport: &Isupport,
+    ) -> Option<(Option<&str>, Option<&str>)> {
+        match self
+            .presence
+            .get(&NickKey::new(nick, isupport.casemapping()))?
+        {
+            Presence::Online { user, host, .. } => Some((user.as_deref(), host.as_deref())),
+            Presence::Offline(_) => None,
+        }
+    }
+
     pub(super) fn handle_disconnected(&mut self) {
         self.presence.clear();
     }
@@ -219,8 +233,8 @@ impl Monitor {
                             user: user.map(str::to_owned),
                             host: host.map(str::to_owned),
                         };
-                        self.replace_presence(nick, next, isupport);
-                        if !was_online {
+                        let changed = self.replace_presence(nick, next, isupport);
+                        if !was_online && changed {
                             outbox.event(Event::MonitorOnline {
                                 nick: nick.to_owned(),
                                 user: user.map(str::to_owned),
@@ -290,8 +304,10 @@ impl Monitor {
                 return false;
             }
             *current = next;
-        } else {
+        } else if self.presence.len() < MAX_DESIRED {
             self.presence.insert(key, next);
+        } else {
+            return false;
         }
         true
     }
@@ -312,6 +328,30 @@ impl Monitor {
             self.unsupported_warned = true;
             outbox.event(Event::MonitorUnsupported);
         }
+    }
+}
+
+pub(super) fn presence_nicks<'a>(message: &MessageRef<'a>) -> Vec<&'a str> {
+    match message.raw_command() {
+        "730" => message
+            .param(1)
+            .into_iter()
+            .flat_map(|entries| entries.split(','))
+            .filter_map(|entry| parse_entry(entry).map(|(nick, _, _)| nick))
+            .collect(),
+        "731" => message
+            .param(1)
+            .into_iter()
+            .flat_map(|entries| entries.split(','))
+            .filter(|nick| !nick.is_empty())
+            .collect(),
+        "734" => message
+            .param(2)
+            .into_iter()
+            .flat_map(|entries| entries.split(','))
+            .filter(|nick| !nick.is_empty())
+            .collect(),
+        _ => Vec::new(),
     }
 }
 

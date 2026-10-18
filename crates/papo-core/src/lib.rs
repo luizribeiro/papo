@@ -2875,7 +2875,8 @@ impl Session {
             == Handled::Yes;
         self.maybe_send_away_on_connect();
         let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
-        if !was_registered && self.registration.is_registered() {
+        let registration_finished = !was_registered && self.registration.is_registered();
+        if registration_finished {
             self.monitor
                 .restore(self.isupport.value(), &mut self.outbox);
         }
@@ -2884,7 +2885,14 @@ impl Session {
                 .handle_message(message, self.isupport.value(), &mut self.outbox)
                 == Handled::Yes;
         self.send_pending_registration(now);
-        self.sync_monitored_state();
+        if registration_finished || isupport_handled {
+            self.sync_monitored_state();
+        } else if monitor_handled {
+            for nick in monitor::presence_nicks(message) {
+                self.state
+                    .sync_monitored_nick(&self.monitor, self.isupport.value(), nick);
+            }
+        }
         let whoami = self.handle_whoami(message);
         let own_away_message = self.confirmed_away_message(message).map(str::to_owned);
         let state_handled = whoami
