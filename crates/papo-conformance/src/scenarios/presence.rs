@@ -84,24 +84,35 @@ async fn away_notify(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// notifies channel peers of real-name changes
-#[scenario(requires(caps = ["setname"]))]
-async fn setname(context: Scenario) -> ScenarioResult {
-    let (mut receiver, sender, _channel) = joined_pair(&context).await?;
+/// updates real-name state for the sender and every shared-channel peer
+#[scenario(requires(caps = ["setname"]), covers = ["ircv3.setname"])]
+async fn setname(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
     let realname = "Papo Conformance Client";
-    sender
-        .client
-        .set_realname(realname)
-        .await
-        .map_err(Failed::from)?;
-    context
-        .expect(
-            &mut receiver.events,
-            |event| matches!(event, Event::RealnameChanged(changed) if changed.nick == sender.welcome.nick.as_str() && changed.realname == realname),
-            EXPECT_TIMEOUT,
-        )
-        .await?;
-    close_pair(receiver, sender).await
+    alice.set_realname(realname).await?;
+    let own = alice.wait_for(Event::as_realname_changed).await?;
+    let observed = bob.wait_for(Event::as_realname_changed).await?;
+
+    assert_eq!(own.nick, alice_nick);
+    assert_eq!(own.realname, realname);
+    assert_eq!(observed.nick, alice_nick);
+    assert_eq!(observed.realname, realname);
+    assert_eq!(
+        alice.state().user(&alice_nick).unwrap().realname(),
+        Some(realname)
+    );
+    assert_eq!(
+        bob.state().user(&alice_nick).unwrap().realname(),
+        Some(realname)
+    );
+    alice.expect_none(Event::as_realname_changed).await?;
+    bob.expect_none(Event::as_realname_changed).await?;
+    Ok(())
 }
 
 /// notifies channel peers of operator host changes
