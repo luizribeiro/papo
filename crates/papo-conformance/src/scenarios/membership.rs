@@ -388,6 +388,65 @@ async fn part(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// parts several channels together and rejects a channel the actor has not joined
+#[scenario(covers = [
+    "base.part.multiple-channels",
+    "base.part.err-not-on-channel"
+])]
+async fn part_multiple_and_refusal(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let first = context.channel_name();
+    let second = context.channel_name();
+    let alice_nick = alice.nick();
+    for channel in [&first, &second] {
+        alice.join(channel).await?;
+        bob.join(channel).await?;
+    }
+
+    let channels = format!("{first},{second}");
+    let reason = "leaving both review channels";
+    alice.send_command("PART", [&channels, reason]).await?;
+    let mut own = [
+        alice.wait_for(Event::as_parted).await?,
+        alice.wait_for(Event::as_parted).await?,
+    ];
+    let mut observed = [
+        bob.wait_for(Event::as_parted).await?,
+        bob.wait_for(Event::as_parted).await?,
+    ];
+    own.sort_unstable_by(|left, right| left.channel.cmp(&right.channel));
+    observed.sort_unstable_by(|left, right| left.channel.cmp(&right.channel));
+    let mut expected = [&first, &second];
+    expected.sort_unstable();
+    for ((own, observed), channel) in own.iter().zip(&observed).zip(expected) {
+        assert_eq!(own.channel.as_ref(), channel);
+        assert_eq!(observed.channel.as_ref(), channel);
+        assert_eq!(own.nick, alice_nick);
+        assert_eq!(observed.nick, alice_nick);
+        assert_eq!(own.reason.as_deref(), Some(reason));
+        assert_eq!(observed.reason.as_deref(), Some(reason));
+        assert!(own.is_self);
+        assert!(!observed.is_self);
+        assert!(alice.state().channel(channel).is_none());
+        assert!(
+            bob.state()
+                .channel(channel)
+                .unwrap()
+                .member(&alice_nick)
+                .is_none()
+        );
+    }
+
+    assert_refusal(
+        alice.part(&first, "not joined here").await.unwrap_err(),
+        Refusal::NotOnChannel,
+        "442",
+    );
+    alice.expect_none(Event::as_parted).await?;
+    Ok(())
+}
+
 /// removes a kicked member from the channel state of the target and operator
 #[scenario(covers = ["base.kick.basic"])]
 async fn kick(context: Scenario) -> papo_testing::Result<()> {
