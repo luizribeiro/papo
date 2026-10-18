@@ -696,7 +696,7 @@ where
     let mut sts = StsActions::default();
     let mut reconnect_now = false;
     let mut buffer = [0; 4096];
-    let (mut reason, mut error, close_kind, quit_timed_out) = loop {
+    let (reason, error, close_kind, quit_timed_out) = loop {
         match drain(
             &mut stream,
             session,
@@ -728,12 +728,7 @@ where
             Ok(None) => {}
             Err(error) => {
                 let reason = error.to_string();
-                break (
-                    reason.clone(),
-                    Error::disconnected_protocol(reason),
-                    None,
-                    false,
-                );
+                break (reason, Error::disconnected(), None, false);
             }
         }
         let read_ahead = !requests.is_empty()
@@ -761,12 +756,7 @@ where
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
                 Err(error) => {
                     let reason = error.to_string();
-                    break (
-                        reason.clone(),
-                        Error::disconnected_protocol(reason),
-                        None,
-                        false,
-                    );
+                    break (reason, Error::disconnected(), None, false);
                 }
             },
             permit = events.regular.clone().reserve_owned(), if !pending_events.is_empty() => match permit {
@@ -963,19 +953,8 @@ where
     }
     connected.store(false, Ordering::Relaxed);
     publish_state(events, session, false);
-    let close_error = stream.flush().await.err().or(stream.shutdown().await.err());
-    if let Some(close_error) = close_error
-        && !matches!(
-            error,
-            Error::Disconnected(crate::Disconnected {
-                cause: crate::DisconnectCause::Protocol { .. },
-                ..
-            })
-        )
-    {
-        reason = close_error.to_string();
-        error = Error::disconnected_protocol(close_error.to_string());
-    }
+    _ = stream.flush().await;
+    _ = stream.shutdown().await;
     ConnectionEnd {
         reason,
         error,

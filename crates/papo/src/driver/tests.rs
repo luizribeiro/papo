@@ -1036,7 +1036,7 @@ async fn eof_emits_disconnected_and_returns_an_error() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn shutdown_error_overrides_a_non_io_terminal_cause() {
+async fn shutdown_error_does_not_replace_eof() {
     let (mut server, _client, mut events, driver) = scripted_with_failures(false);
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
@@ -1044,37 +1044,37 @@ async fn shutdown_error_overrides_a_non_io_terminal_cause() {
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::Protocol { message },
+            cause: crate::DisconnectCause::ConnectionLost,
             retry_in: None,
-        })) if message == "shutdown failed"
+        }))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::Protocol { message },
+            cause: crate::DisconnectCause::ConnectionLost,
             ..
-        })) if message == "shutdown failed"
+        }))
     ));
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn shutdown_error_does_not_replace_an_io_terminal_cause() {
+async fn read_error_is_connection_loss() {
     let (mut server, _client, mut events, driver) = scripted_with_failures(true);
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::Protocol { message },
+            cause: crate::DisconnectCause::ConnectionLost,
             retry_in: None,
-        })) if message == "original read failure"
+        }))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::Protocol { message },
+            cause: crate::DisconnectCause::ConnectionLost,
             ..
-        })) if message == "original read failure"
+        }))
     ));
 }
 
