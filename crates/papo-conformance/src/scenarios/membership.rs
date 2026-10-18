@@ -414,3 +414,109 @@ async fn topic(context: Scenario) -> papo_testing::Result<()> {
     }
     Ok(())
 }
+
+/// enforces channel admission and messaging modes with typed refusals
+#[scenario(covers = [
+    "base.join.key-single",
+    "base.join.err-bad-key",
+    "base.join.err-banned",
+    "base.join.err-invite-only",
+    "base.join.err-channel-full",
+    "base.mode.channel.ban",
+    "base.mode.channel.key",
+    "base.mode.channel.limit",
+    "base.mode.channel.moderated",
+    "base.mode.channel.secret"
+])]
+async fn channel_modes_and_join_refusals(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let mut carol = context.connect("carol").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+    let carol_nick = carol.nick();
+    let key = "correct-horse-battery-staple";
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+
+    alice.mode(&channel).add_with('k', key).add('s').await?;
+    let modes = bob.wait_for(Event::as_mode_changed).await?;
+    assert_eq!(modes.target.as_ref(), channel);
+    assert_eq!(modes.by.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(
+        modes
+            .changes
+            .iter()
+            .map(|change| (change.set, change.mode, change.arg.as_deref()))
+            .collect::<Vec<_>>(),
+        [(true, 'k', Some(key)), (true, 's', None)]
+    );
+    for peer in [&alice, &bob] {
+        let state = peer.state();
+        let channel_state = state.channel(&channel).unwrap();
+        assert_eq!(channel_state.mode('k'), Some(Some(key)));
+        assert_eq!(channel_state.mode('s'), Some(None));
+    }
+
+    assert_refusal(
+        carol.join(&channel).key("wrong key").await.unwrap_err(),
+        Refusal::BadChannelKey,
+        "475",
+    );
+    alice.mode(&channel).add_with('l', "2").await?;
+    bob.wait_for(Event::as_mode_changed).await?;
+    assert_refusal(
+        carol.join(&channel).key(key).await.unwrap_err(),
+        Refusal::ChannelIsFull,
+        "471",
+    );
+
+    alice.mode(&channel).remove('l').await?;
+    bob.wait_for(Event::as_mode_changed).await?;
+    let mask = format!("{carol_nick}!*@*");
+    alice.mode(&channel).ban(mask.clone()).await?;
+    bob.wait_for(Event::as_mode_changed).await?;
+    assert_refusal(
+        carol.join(&channel).key(key).await.unwrap_err(),
+        Refusal::BannedFromChannel,
+        "474",
+    );
+
+    alice.mode(&channel).unban(mask).add('i').await?;
+    bob.wait_for(Event::as_mode_changed).await?;
+    assert_refusal(
+        carol.join(&channel).key(key).await.unwrap_err(),
+        Refusal::InviteOnlyChannel,
+        "473",
+    );
+    alice.invite(&channel, carol_nick.clone()).await?;
+    let invited = carol.wait_for(Event::as_invited).await?;
+    assert_eq!(invited.nick, carol_nick);
+    assert_eq!(invited.channel.as_ref(), channel);
+    carol.join(&channel).key(key).await?;
+
+    alice.mode(&channel).add('m').await?;
+    bob.wait_for(Event::as_mode_changed).await?;
+    assert_refusal(
+        bob.privmsg(&channel, "blocked while unvoiced")
+            .await
+            .unwrap_err(),
+        Refusal::CannotSendToChannel,
+        "404",
+    );
+    alice.mode(&channel).voice(bob_nick).await?;
+    bob.wait_for(Event::as_mode_changed).await?;
+    bob.privmsg(&channel, "allowed after voice").await?;
+    let delivered = carol.wait_for(Event::as_message).await?;
+    assert_eq!(delivered.text(), "allowed after voice");
+    Ok(())
+}
+
+fn assert_refusal(error: Error, expected: Refusal, code: &str) {
+    let Error::Server(error) = error else {
+        panic!("operation did not return a server refusal");
+    };
+    assert_eq!(error.kind(), expected);
+    assert_eq!(error.code(), code);
+}
