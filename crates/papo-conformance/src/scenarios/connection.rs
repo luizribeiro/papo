@@ -49,7 +49,38 @@ async fn registration(s: Scenario) -> papo_testing::Result<()> {
     assert_registered(&alice, "alice");
     let registered = alice.wait_for(Event::as_registered).await?;
     assert_eq!(registered.nick, alice.state().nick().as_ref());
-    assert_eq!(registered.caps, *alice.state().caps());
+    for (name, value) in &registered.caps {
+        assert_eq!(alice.state().caps().get(name), Some(value));
+    }
+    alice.expect_none(Event::as_disconnected).await?;
+    Ok(())
+}
+
+/// applies a capability added after registration
+#[scenario(
+    requires(caps = ["soju.im/bouncer-networks"]),
+    covers = ["core.cap-notify.new"]
+)]
+async fn cap_notify_new(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let registered = alice.wait_for(Event::as_registered).await?;
+    let changed = alice
+        .wait_for(|event| {
+            event
+                .as_caps_changed()
+                .filter(|changed| !changed.added.is_empty())
+        })
+        .await?;
+    assert!(changed.removed.is_empty());
+    assert!(
+        changed
+            .added
+            .keys()
+            .any(|name| !registered.caps.contains_key(name))
+    );
+    for (name, value) in &changed.added {
+        assert_eq!(alice.state().caps().get(name), Some(value));
+    }
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
 }

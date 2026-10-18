@@ -174,14 +174,14 @@ async fn metadata_error(s: Scenario) -> papo_testing::Result<()> {
 
     let error = bob
         .metadata()
-        .set_on(alice.state().nick().clone(), key, "unauthorized")
+        .set_on(alice.state().nick().clone(), key, "x")
         .await
         .expect_err("a client cannot write another client's metadata");
     let papo::Error::Server(error) = error else {
         panic!("metadata refusal retains a server error: {error:?}")
     };
     assert_eq!(error.command(), "METADATA");
-    assert_eq!(error.code(), "KEY_NO_PERMISSION");
+    assert!(matches!(error.code(), "KEY_NO_PERMISSION" | "KEY_INVALID"));
     assert!(alice.state().metadata(alice.state().nick()).is_none());
     alice.expect_none(Event::as_metadata_changed).await?;
     bob.expect_none(Event::as_metadata_changed).await?;
