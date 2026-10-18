@@ -5,6 +5,8 @@
 
 mod builders;
 mod event_builders;
+mod value_builders;
 
 pub use builders::MessageBuilder;
 pub use event_builders::{AwayChangedBuilder, JoinedBuilder, RegisteredBuilder};
+pub use value_builders::{ErrorBuilder, StateBuilder};
