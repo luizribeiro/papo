@@ -11,7 +11,7 @@ mod scenario;
 mod value_builders;
 
 pub use builders::MessageBuilder;
-pub use error::{FixtureError, Result};
+pub use error::{Error, FixtureError, Result, skip_reason, skipped};
 pub use event_builders::{AwayChangedBuilder, JoinedBuilder, RegisteredBuilder};
 pub use peer::Peer;
 pub use scenario::Scenario;

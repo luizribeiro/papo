@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use papo::{Builder, Client, Endpoint, Sasl};
 use papo_test_server::{ServerInfo, register_account};
 
-use crate::{FixtureError, Peer, Result};
+use crate::{Error, Peer, Result, skipped};
 
 const ACCOUNT_PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 static NEXT_NAME: AtomicU64 = AtomicU64::new(0);
@@ -75,6 +75,15 @@ impl Scenario {
         format!("#{}", unique_name("channel"))
     }
 
+    /// Skips a scenario at runtime with the supplied reason.
+    ///
+    /// # Errors
+    ///
+    /// Always returns the runner's typed skip marker.
+    pub fn skip<T>(&self, reason: impl Into<String>) -> Result<T> {
+        Err(skipped(reason))
+    }
+
     /// Quits every peer connected through this scenario.
     ///
     /// Scenario attributes call this after the test body, including when the
@@ -91,12 +100,12 @@ impl Scenario {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         );
-        let mut first = None;
+        let mut first: Option<Error> = None;
         for client in clients {
             if let Err(error) = client.quit("test scenario complete").await
                 && first.is_none()
             {
-                first = Some(FixtureError::from(error));
+                first = Some(error.into());
             }
         }
         first.map_or(Ok(()), Err)

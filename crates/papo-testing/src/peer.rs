@@ -3,7 +3,7 @@ use std::{collections::VecDeque, ops::Deref, time::Duration};
 use papo::{Client, Event, Events};
 use tokio::time::timeout;
 
-use crate::{FixtureError, Result};
+use crate::{Error, FixtureError, Result};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const EVENT_HISTORY: usize = 20;
@@ -43,7 +43,8 @@ impl Peer {
                     return Err(FixtureError::with_events(
                         "driver stopped while waiting for an event",
                         self.recent.make_contiguous(),
-                    ));
+                    )
+                    .into());
                 };
                 let found = extract(&event).cloned();
                 let disconnected = event.as_disconnected().cloned();
@@ -55,7 +56,8 @@ impl Peer {
                     return Err(FixtureError::with_events(
                         disconnected,
                         self.recent.make_contiguous(),
-                    ));
+                    )
+                    .into());
                 }
             }
         })
@@ -64,7 +66,8 @@ impl Peer {
             Err(FixtureError::with_events(
                 "timed out after 10 seconds waiting for an event",
                 self.recent.make_contiguous(),
-            ))
+            )
+            .into())
         })
     }
 
@@ -90,7 +93,7 @@ impl Peer {
                             return Err(FixtureError::with_events(
                                 "driver stopped before the PING fence",
                                 self.recent.make_contiguous(),
-                            ));
+                            ).into());
                         };
                         let matched = extract(&event).is_some();
                         let disconnected = event.as_disconnected().cloned();
@@ -99,16 +102,16 @@ impl Peer {
                             return Err(FixtureError::with_events(
                                 "unexpected event before the PING fence",
                                 self.recent.make_contiguous(),
-                            ));
+                            ).into());
                         }
                         if let Some(disconnected) = disconnected {
                             return Err(FixtureError::with_events(
                                 disconnected,
                                 self.recent.make_contiguous(),
-                            ));
+                            ).into());
                         }
                     }
-                    result = &mut ping => return result.map(|_| ()).map_err(FixtureError::from),
+                    result = &mut ping => return result.map(|_| ()).map_err(Error::from),
                 }
             }
         })
@@ -117,7 +120,8 @@ impl Peer {
             Err(FixtureError::with_events(
                 "timed out after 10 seconds waiting for the PING fence",
                 self.recent.make_contiguous(),
-            ))
+            )
+            .into())
         })
     }
 
