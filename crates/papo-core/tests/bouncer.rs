@@ -3,6 +3,8 @@
 
 mod support;
 
+use std::time::{Duration, Instant};
+
 use papo_core::{Config, Event, NetworkConfig, NetworkId, StateLimit};
 use support::Transcript;
 
@@ -105,11 +107,15 @@ fn merges_bounded_notification_batches_and_deletes_networks() {
 #[test]
 fn bounds_the_server_driven_network_cache() {
     let mut transcript = registered();
+    let start = Instant::now();
     for index in 0..10_001 {
         transcript = transcript.server(&format!(
             "BOUNCER NETWORK {index} host=irc{index}.example.org;state=disconnected"
         ));
     }
+    let elapsed = start.elapsed();
+    // Deep-cloning the growing cache takes tens of seconds; this margin tolerates loaded hosts.
+    assert!(elapsed < Duration::from_secs(5), "took {elapsed:?}");
     transcript
         .event_until(|event| {
             matches!(

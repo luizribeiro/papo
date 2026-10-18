@@ -136,7 +136,70 @@ pub(crate) struct MetadataContext {
     pub(crate) subscription_batch: bool,
 }
 
+#[derive(Eq, PartialEq)]
+pub(crate) enum StateSnapshot {
+    Full(Box<State>),
+    Metadata {
+        target: Folded<Target>,
+        key: String,
+        value: Option<MetadataValue>,
+    },
+    #[cfg(feature = "unstable")]
+    Bouncer {
+        id: NetworkId,
+        network: Option<BouncerNetwork>,
+    },
+}
+
+fn metadata_update<'a>(
+    message: &MessageRef<'a>,
+) -> Option<(&'a str, &'a str, &'a str, Option<&'a str>)> {
+    match message.command() {
+        Command::Numeric(Numeric::RPL_KEYVALUE) => Some((
+            message.param(1)?,
+            message.param(2)?,
+            message.param(3)?,
+            Some(message.param(4)?),
+        )),
+        Command::Numeric(Numeric::RPL_KEYNOTSET) => {
+            Some((message.param(1)?, message.param(2)?, "*", None))
+        }
+        Command::Metadata => Some((
+            message.param(0)?,
+            message.param(1)?,
+            message.param(2)?,
+            message.param(3),
+        )),
+        _ => None,
+    }
+}
+
 impl State {
+    pub(crate) fn snapshot_for(&self, message: &MessageRef<'_>) -> StateSnapshot {
+        if let Some((target, key, _, _)) = metadata_update(message) {
+            let target = Folded::new(target, self.casemapping);
+            let value = self
+                .metadata
+                .get(&target)
+                .and_then(|values| values.get(key))
+                .cloned();
+            return StateSnapshot::Metadata {
+                target,
+                key: key.to_owned(),
+                value,
+            };
+        }
+        #[cfg(feature = "unstable")]
+        if let Some(update) = NetworkUpdate::parse(message) {
+            let network = self.bouncer_networks.get(&update.id).cloned();
+            return StateSnapshot::Bouncer {
+                id: update.id,
+                network,
+            };
+        }
+        StateSnapshot::Full(Box::new(self.clone()))
+    }
+
     pub(crate) fn new(config: &Config) -> Self {
         Self {
             nick: Nick::from(&config.nick),
@@ -488,33 +551,8 @@ impl State {
             }
             _ => {}
         }
-        let (target, key, visibility, value) = match message.command() {
-            Command::Numeric(Numeric::RPL_KEYVALUE) => {
-                let (Some(target), Some(key), Some(visibility), Some(value)) = (
-                    message.param(1),
-                    message.param(2),
-                    message.param(3),
-                    message.param(4),
-                ) else {
-                    return false;
-                };
-                (target, key, visibility, Some(value))
-            }
-            Command::Numeric(Numeric::RPL_KEYNOTSET) => {
-                let (Some(target), Some(key)) = (message.param(1), message.param(2)) else {
-                    return false;
-                };
-                (target, key, "*", None)
-            }
-            Command::Metadata => {
-                let (Some(target), Some(key), Some(visibility)) =
-                    (message.param(0), message.param(1), message.param(2))
-                else {
-                    return false;
-                };
-                (target, key, visibility, message.param(3))
-            }
-            _ => return false,
+        let Some((target, key, visibility, value)) = metadata_update(message) else {
+            return false;
         };
         self.update_metadata(target, key, visibility, value, max_keys, outbox);
         true

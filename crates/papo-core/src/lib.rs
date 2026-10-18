@@ -65,8 +65,8 @@ pub use refusal::Refusal;
 use registration::Registration;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
-use state::MetadataContext;
 pub use state::{Account, Away, Channel, Member, State, User};
+use state::{MetadataContext, StateSnapshot};
 use sts::ConnectionSecurity;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
@@ -2822,6 +2822,23 @@ impl Session {
         )
     }
 
+    fn snapshot_values_for(
+        &self,
+        message: &MessageRef<'_>,
+    ) -> (
+        StateSnapshot,
+        Capabilities,
+        papo_proto::Isupport,
+        Option<String>,
+    ) {
+        (
+            self.state.snapshot_for(message),
+            self.caps.enabled().clone(),
+            self.isupport.value().clone(),
+            self.account().map(str::to_owned),
+        )
+    }
+
     #[allow(clippy::too_many_lines)]
     fn dispatch_message(
         &mut self,
@@ -2832,7 +2849,7 @@ impl Session {
     ) {
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
-        let before = self.snapshot_values();
+        let before = self.snapshot_values_for(message);
         let was_registered = self.registration.is_registered();
         let before_features = was_registered.then(|| self.supported_features());
         let registration_handled = self.registration.handle_message(
@@ -2950,7 +2967,7 @@ impl Session {
         }
         self.apply_close_request();
         self.report_feature_changes(before_features);
-        if before != self.snapshot_values() {
+        if before != self.snapshot_values_for(message) {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
     }
