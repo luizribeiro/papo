@@ -1,0 +1,3 @@
+[waivers]
+"core.batch.netsplit-netjoin" = "A single local IRC server cannot produce a server-link split or netjoin batch."
+"core.tls.sni" = "The local harness has no TLS-terminating observer that can inspect the ClientHello server name."
