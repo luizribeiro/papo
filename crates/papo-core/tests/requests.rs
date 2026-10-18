@@ -3,7 +3,7 @@
 use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
-    Config, Event, RateLimit, RefusalKind, RequestError, RequestId, ResponseMatcher, ServerError,
+    Config, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher, ServerError,
     Session,
 };
 use papo_proto::{Message, MessageRef, Numeric};
@@ -1251,7 +1251,7 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
             description: "Invalid message reference".into(),
         })
     );
-    assert_eq!(fail.error().unwrap().refusal_kind(), RefusalKind::Other);
+    assert_eq!(fail.error().unwrap().refusal(), Refusal::InvalidParameters);
     let Some(Event::Response(numeric)) = session.poll_event() else {
         panic!("expected numeric failure response")
     };
@@ -1266,7 +1266,7 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
             ],
         })
     );
-    assert_eq!(numeric.error().unwrap().refusal_kind(), RefusalKind::Other);
+    assert_eq!(numeric.error().unwrap().refusal(), Refusal::NoSuchNick);
 }
 
 #[test]
@@ -1275,53 +1275,50 @@ fn classifies_common_numeric_refusals() {
     let cases = [
         (
             "404 papo #rust :Cannot send to channel",
-            RefusalKind::CannotSendToChannel,
+            Refusal::CannotSendToChannel,
         ),
         (
             "405 papo #staff :You have joined too many channels",
-            RefusalKind::TooManyChannels,
+            Refusal::TooManyChannels,
         ),
-        ("412 papo :No text to send", RefusalKind::NoTextToSend),
+        ("412 papo :No text to send", Refusal::Other),
         (
             "417 papo PRIVMSG :Input line was too long",
-            RefusalKind::InputTooLong,
+            Refusal::InputTooLong,
         ),
         (
             "421 papo FROBULATE :Unknown command",
-            RefusalKind::UnknownCommand,
+            Refusal::UnknownCommand,
         ),
         (
             "436 papo alice :Nickname collision KILL",
-            RefusalKind::NickCollision,
+            Refusal::NickCollision,
         ),
         (
             "437 papo #staff :Nick/channel is temporarily unavailable",
-            RefusalKind::NickUnavailable,
+            Refusal::TemporarilyUnavailable,
         ),
         (
             "476 papo #bad:mask :Bad Channel Mask",
-            RefusalKind::BadChannelMask,
+            Refusal::BadChannelMask,
         ),
         (
             "489 papo #secure :Cannot join channel (+z)",
-            RefusalKind::SecureOnlyChannel,
+            Refusal::SecureOnlyChannel,
         ),
-        (
-            "491 papo :No O-lines for your host",
-            RefusalKind::NoOperHost,
-        ),
-        ("501 papo :Unknown MODE flag", RefusalKind::UnknownUserMode),
+        ("491 papo :No O-lines for your host", Refusal::NoOperHost),
+        ("501 papo :Unknown MODE flag", Refusal::UnknownUserMode),
         (
             "502 papo :Cannot change mode for other users",
-            RefusalKind::UsersDontMatch,
+            Refusal::UsersDontMatch,
         ),
         (
             "696 papo #rust k * :Invalid mode parameter",
-            RefusalKind::InvalidModeParam,
+            Refusal::InvalidModeParameter,
         ),
         (
             "263 papo WHO :Server load is temporarily too heavy",
-            RefusalKind::TryAgain,
+            Refusal::TryAgain,
         ),
     ];
 
@@ -1332,7 +1329,7 @@ fn classifies_common_numeric_refusals() {
         let Some(Event::Response(response)) = session.poll_event() else {
             panic!("expected refusal response for {line}")
         };
-        assert_eq!(response.error().unwrap().refusal_kind(), expected, "{line}");
+        assert_eq!(response.error().unwrap().refusal(), expected, "{line}");
     }
 }
 
