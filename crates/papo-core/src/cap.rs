@@ -1,6 +1,6 @@
 //! IRC capability names and their implementation homes.
 
-use crate::Feature;
+use crate::{Capabilities, Feature};
 
 /// How papo requests a capability.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -115,3 +115,94 @@ const fn defaults() -> [&'static str; defaults_len()] {
 
 /// Capabilities requested by a default session when advertised.
 pub const DEFAULTS: &[&str] = &defaults();
+
+const fn same(left: &str, right: &str) -> bool {
+    let (left, right) = (left.as_bytes(), right.as_bytes());
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut index = 0;
+    while index < left.len() {
+        if left[index] != right[index] {
+            return false;
+        }
+        index += 1;
+    }
+    true
+}
+
+/// Returns the preferred spelling of a known capability.
+#[must_use]
+pub const fn canonical(name: &str) -> &str {
+    let mut index = 0;
+    while index < ALL.len() {
+        let info = &ALL[index];
+        if same(name, info.name) {
+            return info.name;
+        }
+        let mut alias = 0;
+        while alias < info.aliases.len() {
+            if same(name, info.aliases[alias]) {
+                return info.name;
+            }
+            alias += 1;
+        }
+        index += 1;
+    }
+    name
+}
+
+/// Reports whether a capability name is in the registry.
+#[must_use]
+pub const fn is_known(name: &str) -> bool {
+    !same(canonical(name), name) || known_primary(name)
+}
+
+const fn known_primary(name: &str) -> bool {
+    let mut index = 0;
+    while index < ALL.len() {
+        if same(name, ALL[index].name) {
+            return true;
+        }
+        index += 1;
+    }
+    false
+}
+
+/// Finds the preferred spelling of a wanted capability advertised by a server.
+#[must_use]
+pub fn advertised_spelling<'a>(wanted: &str, advertised: &'a Capabilities) -> Option<&'a str> {
+    let canonical = canonical(wanted);
+    ALL.iter()
+        .find(|info| info.name == canonical)
+        .and_then(|info| {
+            std::iter::once(info.name)
+                .chain(info.aliases.iter().copied())
+                .find_map(|name| {
+                    advertised
+                        .get_key_value(name)
+                        .map(|(name, _)| name.as_str())
+                })
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolves_aliases_and_advertised_preferences() {
+        assert_eq!(canonical("draft/chathistory"), "chathistory");
+        assert_eq!(canonical("draft/metadata-2"), "draft/metadata-3");
+        assert!(is_known("account-registration"));
+        assert!(!is_known("example.org/unknown"));
+        let advertised = Capabilities::from([
+            ("draft/metadata-2".into(), None),
+            ("draft/metadata-3".into(), None),
+        ]);
+        assert_eq!(
+            advertised_spelling(METADATA, &advertised),
+            Some("draft/metadata-3")
+        );
+    }
+}
