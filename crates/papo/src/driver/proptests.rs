@@ -178,5 +178,6 @@ async fn arbitrary_chat_input_is_rejected_or_round_trips_on_the_wire() {
 }
 
 mod actions;
+mod builder;
 mod extension_actions;
 mod remaining_actions;
