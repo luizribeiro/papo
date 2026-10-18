@@ -4,6 +4,7 @@ use serde_json::json;
 
 use crate::directory::TemporaryDirectory;
 
+#[derive(Clone)]
 pub(crate) struct Configuration {
     pub(crate) plaintext: std::net::SocketAddr,
     pub(crate) tls: std::net::SocketAddr,
@@ -21,6 +22,13 @@ impl Configuration {
         ))
     }
 
+    pub(crate) fn persistent(directory: &TemporaryDirectory) -> io::Result<Self> {
+        let mut configuration = Self::new(directory)?;
+        configuration.enable_persistence();
+        Ok(configuration)
+    }
+
+    #[cfg(test)]
     pub(crate) fn at_addresses(
         directory: &TemporaryDirectory,
         addresses: [std::net::SocketAddr; 4],
@@ -38,12 +46,25 @@ impl Configuration {
     }
 
     pub(crate) fn disable_persistent_unregistered_channels(&mut self) {
-        let (_, value) = self
+        self.set_override("ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS", "false");
+    }
+
+    fn enable_persistence(&mut self) {
+        self.set_override("ERGO__ACCOUNTS__MULTICLIENT__ALWAYS_ON", "mandatory");
+        self.set_override("ERGO__HISTORY__PERSISTENT__ENABLED", "true");
+        self.set_override("ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS", "true");
+    }
+
+    fn set_override(&mut self, key: &'static str, value: &str) {
+        if let Some((_, configured)) = self
             .overrides
             .iter_mut()
-            .find(|(key, _)| *key == "ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS")
-            .expect("persistent history override is configured");
-        *value = "false".into();
+            .find(|(configured, _)| *configured == key)
+        {
+            *configured = value.into();
+        } else {
+            self.overrides.push((key, value.into()));
+        }
     }
 
     fn from_addresses(
@@ -72,11 +93,6 @@ impl Configuration {
             ("ERGO__DATASTORE__SQLITE__ENABLED", "true".into()),
             ("ERGO__LANGUAGES__ENABLED", "false".into()),
             ("ERGO__ACCOUNTS__REGISTRATION__ENABLED", "true".into()),
-            ("ERGO__HISTORY__PERSISTENT__ENABLED", "true".into()),
-            (
-                "ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS",
-                "true".into(),
-            ),
         ];
         Self {
             plaintext,
@@ -150,7 +166,7 @@ mod tests {
         config.enable_sts();
 
         assert_eq!(
-            &config.overrides[7..],
+            &config.overrides[5..],
             &[
                 ("ERGO__SERVER__STS__ENABLED", "true".into()),
                 ("ERGO__SERVER__STS__PORT", "7668".into()),
@@ -176,5 +192,24 @@ mod tests {
                 "false".into()
             ))
         );
+    }
+
+    #[test]
+    fn persistent_profile_enables_always_on_accounts_and_all_history() {
+        let directory = TemporaryDirectory::create().unwrap();
+        let config = Configuration::persistent(&directory).unwrap();
+
+        for expected in [
+            ("ERGO__ACCOUNTS__MULTICLIENT__ALWAYS_ON", "mandatory"),
+            ("ERGO__HISTORY__PERSISTENT__ENABLED", "true"),
+            ("ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS", "true"),
+        ] {
+            assert!(
+                config
+                    .overrides
+                    .iter()
+                    .any(|(key, value)| (*key, value.as_str()) == expected)
+            );
+        }
     }
 }

@@ -15,6 +15,7 @@ const START_ATTEMPTS: usize = 5;
 pub struct TestServer {
     child: Child,
     directory: TemporaryDirectory,
+    configuration: Configuration,
     plaintext: SocketAddr,
     tls: SocketAddr,
     websocket: SocketAddr,
@@ -28,7 +29,25 @@ impl TestServer {
     ///
     /// Returns an error if setup fails or Ergo does not become ready in time.
     pub fn start() -> io::Result<Self> {
+        Self::start_persistent()
+    }
+
+    /// Starts Ergo with its shipped feature and history defaults.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if setup fails or Ergo does not become ready in time.
+    pub fn start_default() -> io::Result<Self> {
         Self::start_with(Configuration::new)
+    }
+
+    /// Starts Ergo with always-on accounts and persistent history.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if setup fails or Ergo does not become ready in time.
+    pub fn start_persistent() -> io::Result<Self> {
+        Self::start_with(Configuration::persistent)
     }
 
     /// Starts Ergo with STS advertising its isolated TLS listener.
@@ -38,7 +57,7 @@ impl TestServer {
     /// Returns an error if setup fails or Ergo does not become ready in time.
     pub fn start_with_sts() -> io::Result<Self> {
         Self::start_with(|directory| {
-            let mut configuration = Configuration::new(directory)?;
+            let mut configuration = Configuration::persistent(directory)?;
             configuration.enable_sts();
             Ok(configuration)
         })
@@ -113,16 +132,8 @@ impl TestServer {
     /// Returns an error if Ergo cannot be stopped, spawned, or made ready.
     pub fn restart(&mut self) -> io::Result<()> {
         self.stop()?;
-        let config = Configuration::at_addresses(
-            &self.directory,
-            [
-                self.plaintext,
-                self.tls,
-                self.websocket,
-                self.secure_websocket,
-            ],
-        );
-        self.child = config
+        self.child = self
+            .configuration
             .command("run", &self.directory)?
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -160,6 +171,7 @@ impl TestServer {
                 tls: config.tls,
                 websocket: config.websocket,
                 secure_websocket: config.secure_websocket,
+                configuration: config,
             };
             match server.wait_until_ready() {
                 Ok(()) => return Ok(server),
