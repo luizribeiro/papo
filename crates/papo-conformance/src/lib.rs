@@ -10,6 +10,7 @@ use std::{
     env, fs,
     future::Future,
     ops::Deref,
+    panic::{AssertUnwindSafe, catch_unwind},
     path::Path,
     pin::Pin,
     process::{self, ExitCode},
@@ -210,16 +211,32 @@ fn trial(
         .with_kind(spec.doc);
     }
     Trial::ignorable_test(spec.name, move || {
-        let result = runtime().block_on((spec.run)(Scenario {
-            fixture: Some(papo_testing::Scenario::new(server.clone())),
-            server,
-            name: spec.name,
-        }));
+        let result = catch_scenario_panic(|| {
+            runtime().block_on((spec.run)(Scenario {
+                fixture: Some(papo_testing::Scenario::new(server.clone())),
+                server,
+                name: spec.name,
+            }))
+        });
         let result = fixture_completion(result);
         report_scenario_status(spec.name, &result, known_failure.as_deref(), json);
         known_failure_verdict(result, known_failure.as_deref(), &server_name)
     })
     .with_kind(spec.doc)
+}
+
+fn catch_scenario_panic(run: impl FnOnce() -> FixtureResult) -> FixtureResult {
+    match catch_unwind(AssertUnwindSafe(run)) {
+        Ok(result) => result,
+        Err(payload) => {
+            let message = payload
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                .unwrap_or("non-string panic");
+            Err(std::io::Error::other(format!("scenario panicked: {message}")).into())
+        }
+    }
 }
 
 fn fixture_completion(result: FixtureResult) -> ScenarioResult {
@@ -934,6 +951,24 @@ mod tests {
             panic!("fixture failure unexpectedly passed")
         };
         assert_eq!(failed.message(), Some("wire mismatch"));
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    #[test]
+    fn scenario_panics_follow_the_known_failure_path() {
+        let result = super::catch_scenario_panic(|| panic!("identity was not synchronized"));
+        let scenario_result = fixture_completion(result);
+        let Err(failure) = &scenario_result else {
+            panic!("scenario panic unexpectedly passed")
+        };
+        assert_eq!(
+            failure.message(),
+            Some("scenario panicked: identity was not synchronized")
+        );
+        assert!(matches!(
+            known_failure_verdict(scenario_result, Some("server omits the identity"), "soju"),
+            Ok(Completion::Completed)
+        ));
     }
 
     #[test]
