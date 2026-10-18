@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashSet},
     sync::Arc,
+    time::SystemTime,
 };
 
 use super::{EventSink, PostRegistration, now};
@@ -13,10 +14,26 @@ pub(super) struct Catchup {
     pub(super) seen: HashSet<String>,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct CatchupCursor {
+    msgid: Option<String>,
+    time: SystemTime,
+}
+
+impl CatchupCursor {
+    fn reference(&self, supports_timestamp: bool) -> Option<papo_core::MsgRef> {
+        self.msgid
+            .clone()
+            .map(papo_core::MsgRef::Msgid)
+            .or_else(|| supports_timestamp.then_some(papo_core::MsgRef::Timestamp(self.time)))
+    }
+}
+
 pub(super) fn advance_catchup(
     session: &mut Session,
     events: &EventSink,
     catchups: &mut BTreeMap<RequestId, Catchup>,
+    defaults: &mut PostRegistration,
     mut catchup: Catchup,
     response: Response,
 ) -> Option<Event> {
@@ -37,6 +54,20 @@ pub(super) fn advance_catchup(
         }
     }
     let commands = events.commands.upgrade()?;
+    if let Some(cursor) = newest_cursor(&catchup.items)
+        && let Some(channel) = defaults.channels.iter_mut().find(|channel| {
+            session
+                .isupport()
+                .casemapping()
+                .eq(&channel.channel, &catchup.target)
+        })
+        && channel
+            .catchup_cursor
+            .as_ref()
+            .is_none_or(|previous| previous.time <= cursor.time)
+    {
+        channel.catchup_cursor = Some(cursor);
+    }
     let client = Client {
         commands,
         state: Arc::clone(&events.state),
@@ -87,6 +118,23 @@ pub(super) fn extend_catchup(
     next
 }
 
+fn newest_cursor(items: &[papo_core::HistoryItem]) -> Option<CatchupCursor> {
+    items
+        .iter()
+        .filter_map(|item| {
+            let raw = item.clone().into_raw().message;
+            let message = raw.as_ref();
+            let time = message
+                .tag("time")
+                .and_then(|value| papo_proto::time::parse(&value))?;
+            Some(CatchupCursor {
+                msgid: message.tag("msgid").map(std::borrow::Cow::into_owned),
+                time,
+            })
+        })
+        .max_by_key(|cursor| cursor.time)
+}
+
 pub(super) fn begin_catchup(
     session: &mut Session,
     defaults: &PostRegistration,
@@ -98,15 +146,24 @@ pub(super) fn begin_catchup(
     let supports_timestamp = session.isupport().msgreftypes().contains(&"timestamp");
     for channel in &defaults.channels {
         let seen = session.state().last_seen(&channel.channel).cloned();
-        let after = match &seen {
-            Some(seen) => papo_core::MsgRef::Msgid(seen.msgid.clone()),
-            None if supports_timestamp => {
-                let Some(disconnected_at) = defaults.disconnected_at else {
-                    continue;
-                };
-                papo_core::MsgRef::Timestamp(disconnected_at)
-            }
-            None => continue,
+        let cursor = channel
+            .catchup_cursor
+            .as_ref()
+            .filter(|cursor| seen.as_ref().is_none_or(|seen| cursor.time >= seen.time));
+        let after = if let Some(reference) = cursor
+            .and_then(|cursor| cursor.reference(supports_timestamp))
+            .or_else(|| {
+                seen.as_ref()
+                    .map(|seen| papo_core::MsgRef::Msgid(seen.msgid.clone()))
+            }) {
+            reference
+        } else if supports_timestamp {
+            let Some(disconnected_at) = defaults.disconnected_at else {
+                continue;
+            };
+            papo_core::MsgRef::Timestamp(disconnected_at)
+        } else {
+            continue;
         };
         let query = HistoryQuery::After {
             target: channel.channel.clone(),
@@ -119,7 +176,11 @@ pub(super) fn begin_catchup(
                 Catchup {
                     target: channel.channel.clone(),
                     items: Vec::new(),
-                    seen: seen.into_iter().map(|seen| seen.msgid).collect(),
+                    seen: cursor
+                        .and_then(|cursor| cursor.msgid.clone())
+                        .or_else(|| seen.map(|seen| seen.msgid))
+                        .into_iter()
+                        .collect(),
                 },
             );
         }
@@ -133,4 +194,26 @@ pub(super) fn should_fetch_history(session: &Session) -> bool {
     return !session.server_rejoins_channels();
     #[cfg(not(feature = "unstable"))]
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use papo_core::{HistoryItem, HistoryMessage, MsgRef};
+    use papo_proto::MessageRef;
+
+    #[test]
+    fn activity_without_a_msgid_advances_the_timestamp_cursor() {
+        let time = papo_proto::time::parse("2026-10-15T12:01:00.000Z").unwrap();
+        let item = HistoryItem::Joined(HistoryMessage {
+            message: MessageRef::parse(
+                "@time=2026-10-15T12:01:00.000Z :papo!papo@localhost JOIN #papo",
+            )
+            .unwrap()
+            .to_owned(),
+            context: false,
+        });
+        let cursor = super::newest_cursor(&[item]).unwrap();
+        assert_eq!(cursor.reference(true), Some(MsgRef::Timestamp(time)));
+        assert_eq!(cursor.reference(false), None);
+    }
 }

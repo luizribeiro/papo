@@ -5,7 +5,7 @@ mod connect;
 use catchup::extend_catchup;
 #[cfg(all(test, feature = "unstable"))]
 use catchup::should_fetch_history;
-use catchup::{Catchup, advance_catchup, begin_catchup};
+use catchup::{Catchup, CatchupCursor, advance_catchup, begin_catchup};
 
 #[cfg(not(browser))]
 use connect::apply_sts_action;
@@ -335,6 +335,7 @@ pub(crate) struct PostRegistration {
 pub(crate) struct Autojoin {
     pub(crate) channel: String,
     pub(crate) key: Option<papo_core::Secret>,
+    catchup_cursor: Option<CatchupCursor>,
 }
 
 impl Autojoin {
@@ -342,6 +343,7 @@ impl Autojoin {
         Self {
             channel: channel.into(),
             key,
+            catchup_cursor: None,
         }
     }
 }
@@ -1204,7 +1206,7 @@ where
                 }
                 if let Some(catchup) = catchups.remove(&response.id) {
                     if let Some(event) =
-                        advance_catchup(session, events, catchups, catchup, response)
+                        advance_catchup(session, events, catchups, defaults, catchup, response)
                         && !enqueue_event(events, pending_events, event)
                     {
                         return Ok(Some((
