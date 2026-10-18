@@ -458,6 +458,13 @@ fn tls_connector(
     ))
 }
 
+#[cfg(tls)]
+pub(crate) fn validate_tls_config(host: &str, settings: &TlsConfig) -> Result<(), String> {
+    tls_connector(host, settings)
+        .map(drop)
+        .map_err(|error| error.to_string())
+}
+
 #[cfg(all(tls, feature = "tls-ring"))]
 fn tls_provider() -> Arc<rustls::crypto::CryptoProvider> {
     Arc::new(rustls::crypto::ring::default_provider())

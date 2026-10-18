@@ -525,6 +525,11 @@ impl Builder {
             if let Some(error) = validation_error {
                 return Err(error);
             }
+            #[cfg(tls)]
+            if address.is_secure() {
+                crate::transport::validate_tls_config(&address.host, &self.tls)
+                    .map_err(InvalidInput::TlsConfig)?;
+            }
             apply_address(&mut self.config, &address);
             Ok(ConnectionPlan {
                 address,
@@ -1013,6 +1018,21 @@ mod tests {
         let (_client, mut events, driver) = Builder::new("irc://").build();
         assert!(matches!(within(driver).await, Err(Error::InvalidInput(_))));
         assert!(events.next().await.is_none());
+    }
+
+    #[cfg(tls)]
+    #[tokio::test(flavor = "current_thread")]
+    async fn build_rejects_invalid_tls_input_before_connecting() {
+        let (_client, _events, driver) =
+            crate::Client::builder(crate::Endpoint::tls("localhost", 9))
+                .tls_ca_pem(Vec::new())
+                .reconnect(crate::Reconnect::never())
+                .build();
+        assert!(matches!(
+            within(driver).await,
+            Err(Error::InvalidInput(InvalidInput::TlsConfig(message)))
+                if message.contains("no certificates")
+        ));
     }
 
     #[tokio::test(flavor = "current_thread")]

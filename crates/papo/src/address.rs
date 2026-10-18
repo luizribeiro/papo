@@ -23,6 +23,9 @@ pub enum InvalidInput {
     /// A TCP IRC URL contains a path, query, or fragment.
     #[error("IRC server address cannot contain path {0:?}")]
     UnexpectedPath(String),
+    /// TLS trust, identity, or server-name input is invalid.
+    #[error("invalid TLS configuration: {0}")]
+    TlsConfig(String),
     /// A capability cannot be removed because papo does not request it by default.
     #[error("papo does not request capability {0:?} by default")]
     UnknownCapability(String),

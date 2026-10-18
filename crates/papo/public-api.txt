@@ -618,6 +618,7 @@ pub papo::InvalidInput::Reaction::actual: usize
 pub papo::InvalidInput::Reaction::maximum: usize
 pub papo::InvalidInput::ReplyLimit(usize)
 pub papo::InvalidInput::ReplyWindow
+pub papo::InvalidInput::TlsConfig(alloc::string::String)
 pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
 pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
