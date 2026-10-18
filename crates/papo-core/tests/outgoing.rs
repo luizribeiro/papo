@@ -16,18 +16,23 @@ fn multiline_session_with_rate_limit(
     rate_limit: RateLimit,
 ) -> Session {
     let config = Config::default()
-        .wanted_caps(["batch", "draft/multiline", "labeled-response"])
+        .wanted_caps([
+            "batch",
+            "draft/multiline",
+            "echo-message",
+            "labeled-response",
+        ])
         .rate_limit(rate_limit);
     let mut session = Session::new(config);
     session.handle_connected(now);
     let labels = if labels { " labeled-response" } else { "" };
     session.handle_line(
         now,
-        format!("CAP * LS :batch draft/multiline={value}{labels}").as_bytes(),
+        format!("CAP * LS :batch draft/multiline={value} echo-message{labels}").as_bytes(),
     );
     session.handle_line(
         now,
-        format!("CAP * ACK :batch draft/multiline{labels}").as_bytes(),
+        format!("CAP * ACK :batch draft/multiline echo-message{labels}").as_bytes(),
     );
     while session.poll_transmit().is_some() {}
     session
@@ -407,4 +412,86 @@ fn text_response_retains_labelled_echo_identity() {
         })
         .unwrap();
     assert_eq!(response.sent().unwrap().msgid, "RfcBTzyxY120004");
+}
+
+#[test]
+fn multiline_response_takes_identity_from_its_labelled_opening() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", true);
+    let id = session
+        .send_text(
+            now,
+            TextKind::Privmsg,
+            "#papo",
+            "first line\nsecond line",
+            &[],
+        )
+        .unwrap()
+        .unwrap();
+    drain(&mut session);
+    session.handle_line(
+        now,
+        b"@label=0;msgid=RfcBTzyxY120004;time=2026-10-15T12:00:01.000Z :papo!~papo@localhost BATCH +echo draft/multiline #papo",
+    );
+    session.handle_line(
+        now,
+        b"@batch=echo :papo!~papo@localhost PRIVMSG #papo :first line",
+    );
+    session.handle_line(
+        now,
+        b"@batch=echo :papo!~papo@localhost PRIVMSG #papo :second line",
+    );
+    session.handle_line(now, b":papo!~papo@localhost BATCH -echo");
+
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) if response.id == id => Some(response),
+            _ => None,
+        })
+        .unwrap();
+    let sent = response.sent().unwrap();
+    assert_eq!(sent.msgid, "RfcBTzyxY120004");
+    assert_eq!(sent.time.as_deref(), Some("2026-10-15T12:00:01.000Z"));
+}
+
+#[test]
+fn nested_multiline_response_keeps_its_opening_identity() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", true);
+    let id = session
+        .send_text(
+            now,
+            TextKind::Notice,
+            "#papo",
+            "deployment started\ndeployment finished",
+            &[],
+        )
+        .unwrap()
+        .unwrap();
+    drain(&mut session);
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +response labeled-response");
+    session.handle_line(
+        now,
+        b"@batch=response;msgid=8sKY2A;time=2026-10-15T12:00:02.000Z :papo!~papo@localhost BATCH +echo draft/multiline #papo",
+    );
+    session.handle_line(
+        now,
+        b"@batch=echo :papo!~papo@localhost NOTICE #papo :deployment started",
+    );
+    session.handle_line(
+        now,
+        b"@batch=echo :papo!~papo@localhost NOTICE #papo :deployment finished",
+    );
+    session.handle_line(now, b"@batch=response :papo!~papo@localhost BATCH -echo");
+    session.handle_line(now, b":ergo.test BATCH -response");
+
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) if response.id == id => Some(response),
+            _ => None,
+        })
+        .unwrap();
+    let sent = response.sent().unwrap();
+    assert_eq!(sent.msgid, "8sKY2A");
+    assert_eq!(sent.time.as_deref(), Some("2026-10-15T12:00:02.000Z"));
 }

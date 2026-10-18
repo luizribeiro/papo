@@ -58,6 +58,7 @@ pub(crate) enum BatchAction {
 pub(crate) enum BatchEvent {
     Response {
         label: String,
+        echo: Option<Message>,
         messages: Vec<Message>,
         batch_type: String,
         history: Option<HistoryPage>,
@@ -194,6 +195,10 @@ impl Batches {
             completed.extend(complete(&mut batch));
         }
         if let Some(label) = batch.label.take() {
+            let echo = completed.iter().find_map(|event| match event {
+                BatchEvent::Multiline(message) => Some(message.clone()),
+                _ => None,
+            });
             let history = completed.iter().find_map(history_from_event);
             let history_targets = completed.iter().find_map(|event| match event {
                 BatchEvent::HistoryTargets(targets) => Some(targets.clone()),
@@ -201,6 +206,7 @@ impl Batches {
             });
             completed.push(BatchEvent::Response {
                 label,
+                echo,
                 messages: response_messages.expect("label captured response messages"),
                 batch_type: batch.kind.clone(),
                 history,

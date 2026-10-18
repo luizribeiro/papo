@@ -3472,20 +3472,7 @@ impl Session {
 
     fn dispatch_batch_event(&mut self, now: Instant, event: BatchEvent) {
         match event {
-            BatchEvent::Response {
-                label,
-                messages,
-                batch_type,
-                history,
-                history_targets,
-            } => self.dispatch_response_batch(
-                now,
-                &label,
-                messages,
-                batch_type,
-                history,
-                history_targets,
-            ),
+            event @ BatchEvent::Response { .. } => self.dispatch_response_batch(now, event),
             BatchEvent::History { target, items, end } => {
                 self.outbox.event(Event::History { target, items, end });
             }
@@ -3552,16 +3539,19 @@ impl Session {
         }
     }
 
-    fn dispatch_response_batch(
-        &mut self,
-        now: Instant,
-        label: &str,
-        messages: Vec<Message>,
-        batch_type: String,
-        history: Option<HistoryPage>,
-        history_targets: Option<Vec<(String, std::time::SystemTime)>>,
-    ) {
-        let request = self.requests.remove(label);
+    fn dispatch_response_batch(&mut self, now: Instant, response: BatchEvent) {
+        let BatchEvent::Response {
+            label,
+            echo,
+            messages,
+            batch_type,
+            history,
+            history_targets,
+        } = response
+        else {
+            unreachable!("response dispatcher received another batch event");
+        };
+        let request = self.requests.remove(&label);
         if let Some((id, _, _, _, _)) = &request {
             self.away_messages.remove(id);
         }
@@ -3603,9 +3593,13 @@ impl Session {
             self.outbox.event(Event::Response(Response {
                 id,
                 sent: if sent {
-                    messages
-                        .iter()
-                        .find_map(|message| sent_info(&message.as_ref()))
+                    echo.as_ref()
+                        .and_then(|message| sent_info(&message.as_ref()))
+                        .or_else(|| {
+                            messages
+                                .iter()
+                                .find_map(|message| sent_info(&message.as_ref()))
+                        })
                 } else {
                     None
                 },
