@@ -1024,7 +1024,9 @@ pub fn papo::ServerError::code(&self) -> &str
 pub fn papo::ServerError::command(&self) -> &str
 pub fn papo::ServerError::description(&self) -> &str
 pub const fn papo::ServerError::kind(&self) -> papo::Refusal
+pub fn papo::ServerError::numeric(u16, alloc::vec::Vec<alloc::string::String>) -> Self
 pub fn papo::ServerError::params(&self) -> &[alloc::string::String]
+pub fn papo::ServerError::standard(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>, alloc::vec::Vec<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::error::Error for papo::ServerError
 impl core::fmt::Display for papo::ServerError
 pub fn papo::ServerError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result

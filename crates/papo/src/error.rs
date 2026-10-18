@@ -255,6 +255,40 @@ pub struct ServerError {
 }
 
 impl ServerError {
+    /// Creates a numeric refusal using the same classifier as received replies.
+    #[must_use]
+    pub fn numeric(code: u16, params: Vec<String>) -> Self {
+        if let Some(numeric) = papo_proto::Numeric::new(code) {
+            return Self::from_core(papo_core::ServerError::Numeric { numeric, params });
+        }
+        Self {
+            kind: Refusal::Other,
+            command: String::new(),
+            code: code.to_string(),
+            description: params.last().cloned().unwrap_or_default(),
+            params,
+        }
+    }
+
+    /// Creates a standard-reply refusal using the same classifier as received replies.
+    #[must_use]
+    pub fn standard(
+        command: impl Into<String>,
+        code: impl Into<String>,
+        context: Vec<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        let command = command.into();
+        let code = code.into();
+        Self {
+            kind: bouncer_refusal(&command, &code).unwrap_or(Refusal::Other),
+            command,
+            code,
+            description: description.into(),
+            params: context,
+        }
+    }
+
     /// Returns the stable refusal category.
     #[must_use]
     pub const fn kind(&self) -> Refusal {
@@ -638,16 +672,26 @@ mod tests {
 
     #[test]
     fn server_errors_hide_core_shapes_behind_accessors() {
-        let error = ServerError::from_core(papo_core::ServerError::Numeric {
-            numeric: papo_proto::Numeric::ERR_CANNOTSENDTOCHAN,
-            params: vec!["papo-driver".into(), "#rust".into(), "Cannot send".into()],
-        });
+        let error = ServerError::numeric(
+            404,
+            vec!["papo-driver".into(), "#rust".into(), "Cannot send".into()],
+        );
         assert_eq!(error.kind(), Refusal::CannotSendToChannel);
         assert_eq!(error.command(), "");
         assert_eq!(error.code(), "404");
         assert_eq!(error.description(), "Cannot send");
         assert_eq!(error.params()[1], "#rust");
         assert_eq!(error.to_string(), "server refusal 404: Cannot send");
+
+        let standard = ServerError::standard(
+            "CHATHISTORY",
+            "INVALID_PARAMS",
+            vec!["LATEST".into()],
+            "Invalid parameters",
+        );
+        assert_eq!(standard.command(), "CHATHISTORY");
+        assert_eq!(standard.code(), "INVALID_PARAMS");
+        assert_eq!(standard.params(), ["LATEST"]);
     }
 
     #[cfg(feature = "unstable")]
