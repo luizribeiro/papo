@@ -13,54 +13,67 @@ use papo_test_server::{TestServer, register_account_at, unique};
 #[tokio::test(flavor = "current_thread")]
 async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
     within(async {
-        let server = TestServer::start().unwrap();
+        let server = TestServer::start_default().unwrap();
         let proxy = server.fault_proxy().unwrap();
         let nick = unique("papo-reconnect");
         let channel = format!("#{}", unique("papo-reconnect"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
         register_account_at(server.plaintext_addr(), &nick, password).unwrap();
-        let (client, mut events) =
-            Client::builder(Endpoint::plaintext("localhost", proxy.address().port()))
-                .nick(&nick)
-                .sasl(Sasl::plain(&nick, password))
-                .request_caps([
-                    "message-tags",
-                    "server-time",
-                    "batch",
-                    "echo-message",
-                    "labeled-response",
-                    "draft/chathistory",
-                ])
-                .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
-                .autojoin([&channel])
-                .history_on_reconnect(true)
-                .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)))
-                .connect()
-                .await
-                .unwrap();
+        let builder = Client::builder(Endpoint::plaintext("localhost", proxy.address().port()))
+            .nick(&nick)
+            .sasl(Sasl::plain(&nick, password))
+            .request_caps([
+                "message-tags",
+                "server-time",
+                "batch",
+                "echo-message",
+                "labeled-response",
+                "draft/chathistory",
+            ])
+            .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
+            .autojoin([&channel])
+            .history_on_reconnect(true)
+            .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)));
+        #[cfg(feature = "unstable")]
+        let builder = builder.without_caps([cap::PERSISTENCE]);
+        let (client, mut events) = builder.connect().await.unwrap();
 
-        wait_for(&mut events, |event| matches!(event, Event::Registered(_))).await;
-        wait_for(&mut events, |event| joined(event, &nick, &channel)).await;
+        wait_for(&mut events, "initial registration", |event| {
+            matches!(event, Event::Registered(_))
+        })
+        .await;
+        wait_for(&mut events, "initial join", |event| {
+            joined(event, &nick, &channel)
+        })
+        .await;
+        let poster = connect_poster(&server, &channel).await;
         client
             .privmsg(&channel, "seen before the outage")
             .await
             .unwrap();
         proxy.drop_connection().unwrap();
-        wait_for(&mut events, |event| {
+        wait_for(&mut events, "dropped connection", |event| {
             matches!(
                 event,
                 Event::Disconnected(disconnected) if disconnected.is_retrying()
             )
         })
         .await;
-        let poster = post_during_outage(&server, &channel).await;
+        poster
+            .privmsg(&channel, "missed during the outage")
+            .await
+            .unwrap();
 
         wait_for(
             &mut events,
+            "first reconnection",
             |event| matches!(event, Event::Registered(registered) if registered.reconnected),
         )
         .await;
-        wait_for(&mut events, |event| joined(event, &nick, &channel)).await;
+        wait_for(&mut events, "first rejoin", |event| {
+            joined(event, &nick, &channel)
+        })
+        .await;
         let history = wait_history(&mut events, &channel).await;
         let missed = history
             .messages()
@@ -91,16 +104,23 @@ async fn reconnect_and_rejoin(
     channel: &str,
 ) {
     client.reconnect().await.unwrap();
-    wait_for(events, |event| matches!(event, Event::Disconnected(_))).await;
+    wait_for(events, "explicit disconnect", |event| {
+        matches!(event, Event::Disconnected(_))
+    })
+    .await;
     wait_for(
         events,
+        "explicit reconnection",
         |event| matches!(event, Event::Registered(registered) if registered.reconnected),
     )
     .await;
-    wait_for(events, |event| joined(event, nick, channel)).await;
+    wait_for(events, "second rejoin", |event| {
+        joined(event, nick, channel)
+    })
+    .await;
 }
 
-async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
+async fn connect_poster(server: &TestServer, channel: &str) -> Client {
     let poster_nick = unique("papo-reconnect-poster");
     let (poster, mut events) = Client::builder(Endpoint::plaintext(
         "localhost",
@@ -113,29 +133,30 @@ async fn post_during_outage(server: &TestServer, channel: &str) -> Client {
     .unwrap();
     wait_for(
         &mut events,
+        "poster channel sync",
         |event| matches!(event, Event::ChannelSynced(papo::event::ChannelSynced { channel: synced, .. }) if synced == channel),
     )
     .await;
     poster
-        .privmsg(channel, "missed during the outage")
-        .await
-        .unwrap();
-    poster
 }
 
 async fn wait_history(events: &mut papo::Events, target: &str) -> papo::HistoryPage {
-    loop {
-        match events.next().await {
-            Some(Event::History(history)) if history.target == target => {
-                return *history;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match events.next().await {
+                Some(Event::History(history)) if history.target == target => {
+                    return *history;
+                }
+                Some(Event::Disconnected(disconnected)) => {
+                    panic!("disconnected: {disconnected}")
+                }
+                Some(_) => {}
+                None => panic!("driver stopped before history arrived"),
             }
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("disconnected: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped before history arrived"),
         }
-    }
+    })
+    .await
+    .expect("timed out waiting for reconnect history")
 }
 
 async fn assert_no_repeated_history(
@@ -169,13 +190,17 @@ async fn assert_no_repeated_history(
     }
 }
 
-async fn wait_for(events: &mut papo::Events, accepted: impl Fn(&Event) -> bool) {
-    loop {
-        let event = events.next().await.expect("driver stopped unexpectedly");
-        if accepted(&event) {
-            return;
+async fn wait_for(events: &mut papo::Events, operation: &str, accepted: impl Fn(&Event) -> bool) {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let event = events.next().await.expect("driver stopped unexpectedly");
+            if accepted(&event) {
+                return;
+            }
         }
-    }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("timed out waiting for {operation}"));
 }
 
 fn joined(event: &Event, nick: &str, channel: &str) -> bool {
