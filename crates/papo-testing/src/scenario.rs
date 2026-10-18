@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use papo::{Builder, Client, Endpoint, Sasl};
+use papo::{Builder, Client, Endpoint, IntoEndpoint, Sasl};
 use papo_test_server::{ServerInfo, register_account};
 
 use crate::{Error, Peer, Result, skipped};
@@ -28,7 +28,16 @@ impl Scenario {
 
     /// Configures a client with a unique nickname derived from `label`.
     pub fn configure(&self, label: &str) -> Builder {
-        self.configure_name(unique_name(label))
+        let address = self.server.plaintext_addr();
+        Self::configure_named_at(
+            unique_name(label),
+            Endpoint::plaintext(address.ip().to_string(), address.port()),
+        )
+    }
+
+    /// Configures a named client for an explicit endpoint.
+    pub fn configure_at(&self, label: &str, endpoint: impl IntoEndpoint) -> Builder {
+        Self::configure_named_at(unique_name(label), endpoint)
     }
 
     /// Configures, connects, and retains a peer named from `label`.
@@ -49,9 +58,12 @@ impl Scenario {
     pub async fn connect_as_account(&self, label: &str) -> Result<Peer> {
         let account = unique_name(label);
         register_account(&self.server, &account, ACCOUNT_PASSWORD)?;
-        let builder = self
-            .configure_name(account.clone())
-            .sasl(Sasl::plain(account, ACCOUNT_PASSWORD));
+        let address = self.server.plaintext_addr();
+        let builder = Self::configure_named_at(
+            account.clone(),
+            Endpoint::plaintext(address.ip().to_string(), address.port()),
+        )
+        .sasl(Sasl::plain(account, ACCOUNT_PASSWORD));
         self.connect_with(builder).await
     }
 
@@ -111,14 +123,10 @@ impl Scenario {
         first.map_or(Ok(()), Err)
     }
 
-    fn configure_name(&self, name: String) -> Builder {
-        let address = self.server.plaintext_addr();
-        Client::builder(Endpoint::plaintext(
-            address.ip().to_string(),
-            address.port(),
-        ))
-        .nick(name)
-        .realname("papo test peer")
+    fn configure_named_at(name: String, endpoint: impl IntoEndpoint) -> Builder {
+        Client::builder(endpoint)
+            .nick(name)
+            .realname("papo test peer")
     }
 }
 
