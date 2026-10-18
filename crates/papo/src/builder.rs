@@ -1133,7 +1133,7 @@ mod tests {
             .build();
         assert!(matches!(
             within(driver).await,
-            Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::WebSocket
+            Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Unavailable
         ));
     }
 }

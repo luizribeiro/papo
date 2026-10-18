@@ -9,74 +9,104 @@ use crate::{InvalidInput, Unsupported};
 #[non_exhaustive]
 pub enum ConnectErrorKind {
     /// The server name could not be resolved.
-    Resolve,
+    HostNotFound,
     /// The remote endpoint refused the connection.
     Refused,
-    /// TLS negotiation failed.
-    Tls,
+    /// The remote endpoint could not be reached.
+    Unreachable,
     /// The server certificate was rejected.
-    Certificate,
-    /// TLS settings or credentials were invalid or unavailable.
-    TlsConfig,
-    /// WebSocket parsing or negotiation failed.
-    WebSocket,
-    /// Another connection I/O operation failed.
-    Io,
+    CertificateRejected,
+    /// TLS or WebSocket negotiation failed.
+    HandshakeFailed,
+    /// This build or target cannot open the requested endpoint.
+    Unavailable,
+    /// Another connection-opening failure occurred.
+    Other,
 }
 
 /// An opaque, cloneable error from opening a network connection.
 #[derive(Clone, Debug)]
-pub struct ConnectError(Arc<crate::transport::ConnectError>);
+pub struct ConnectError {
+    kind: ConnectErrorKind,
+    source: Arc<dyn std::error::Error + Send + Sync>,
+}
 
 impl ConnectError {
+    /// Creates a connection error with a stable category and underlying cause.
+    pub fn new(
+        kind: ConnectErrorKind,
+        source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+    ) -> Self {
+        Self {
+            kind,
+            source: Arc::from(source.into()),
+        }
+    }
+
     /// Returns the stable category of this failure.
     #[must_use]
     pub fn kind(&self) -> ConnectErrorKind {
-        match self.0.as_ref() {
-            crate::transport::ConnectError::Unavailable("websocket") => ConnectErrorKind::WebSocket,
-            crate::transport::ConnectError::Unavailable(_) => ConnectErrorKind::Io,
-            crate::transport::ConnectError::Resolve { .. } => ConnectErrorKind::Resolve,
+        self.kind
+    }
+
+    fn classify(error: &crate::transport::ConnectError) -> ConnectErrorKind {
+        match error {
+            crate::transport::ConnectError::Unavailable(_)
+            | crate::transport::ConnectError::TlsUnavailable => ConnectErrorKind::Unavailable,
+            crate::transport::ConnectError::Resolve { .. } => ConnectErrorKind::HostNotFound,
             crate::transport::ConnectError::Tcp(error)
                 if error.kind() == io::ErrorKind::ConnectionRefused =>
             {
                 ConnectErrorKind::Refused
             }
-            crate::transport::ConnectError::Tcp(_) => ConnectErrorKind::Io,
+            crate::transport::ConnectError::Tcp(_) => ConnectErrorKind::Unreachable,
             #[cfg(tls)]
             crate::transport::ConnectError::Tls(rustls::Error::InvalidCertificate(_)) => {
-                ConnectErrorKind::Certificate
+                ConnectErrorKind::CertificateRejected
             }
             #[cfg(tls)]
-            crate::transport::ConnectError::Tls(_) => ConnectErrorKind::Tls,
+            crate::transport::ConnectError::Tls(_) => ConnectErrorKind::HandshakeFailed,
             #[cfg(tls)]
             crate::transport::ConnectError::InvalidServerName(_)
-            | crate::transport::ConnectError::InvalidTlsConfiguration(_) => {
-                ConnectErrorKind::TlsConfig
-            }
-            crate::transport::ConnectError::TlsUnavailable => ConnectErrorKind::TlsConfig,
+            | crate::transport::ConnectError::InvalidTlsConfiguration(_) => ConnectErrorKind::Other,
             #[cfg(all(feature = "websocket", sockets))]
-            crate::transport::ConnectError::WebSocket(_) => ConnectErrorKind::WebSocket,
+            crate::transport::ConnectError::WebSocket(_) => ConnectErrorKind::HandshakeFailed,
             #[cfg(browser)]
-            crate::transport::ConnectError::BrowserWebSocket(_) => ConnectErrorKind::WebSocket,
+            crate::transport::ConnectError::BrowserWebSocket(_) => {
+                ConnectErrorKind::HandshakeFailed
+            }
         }
     }
 }
 
 impl From<crate::transport::ConnectError> for ConnectError {
     fn from(error: crate::transport::ConnectError) -> Self {
-        Self(Arc::new(error))
+        let kind = Self::classify(&error);
+        Self {
+            kind,
+            source: Arc::new(error),
+        }
     }
 }
 
 impl fmt::Display for ConnectError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(formatter)
+        let message = match self.kind {
+            ConnectErrorKind::HostNotFound => "the server host could not be found",
+            ConnectErrorKind::Refused => "the server refused the connection",
+            ConnectErrorKind::Unreachable => "the server could not be reached",
+            ConnectErrorKind::CertificateRejected => "the server certificate was rejected",
+            ConnectErrorKind::HandshakeFailed => "the connection handshake failed",
+            ConnectErrorKind::Unavailable => "the requested connection transport is unavailable",
+            ConnectErrorKind::Other => "the connection could not be opened",
+        };
+        formatter.write_str(message)
     }
 }
 
 impl std::error::Error for ConnectError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.0.source()
+        Some(self.source.as_ref())
     }
 }
 
@@ -679,9 +709,16 @@ mod tests {
             "recorded refusal",
         )));
         assert_eq!(error.kind(), ConnectErrorKind::Refused);
-        assert_eq!(error.to_string(), "TCP connection failed: recorded refusal");
+        assert_eq!(error.to_string(), "the server refused the connection");
         assert!(std::error::Error::source(&error).is_some());
         assert_eq!(error.clone().kind(), ConnectErrorKind::Refused);
+
+        let external = ConnectError::new(
+            ConnectErrorKind::HostNotFound,
+            io::Error::new(io::ErrorKind::NotFound, "missing.example"),
+        );
+        assert_eq!(external.kind(), ConnectErrorKind::HostNotFound);
+        assert_eq!(external.to_string(), "the server host could not be found");
     }
 
     #[test]

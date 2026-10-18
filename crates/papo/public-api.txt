@@ -439,13 +439,13 @@ pub papo::AccountRegistration::VerificationRequired
 pub papo::AccountRegistration::VerificationRequired::account: papo::AccountName
 pub papo::AccountRegistration::VerificationRequired::message: alloc::string::String
 #[non_exhaustive] pub enum papo::ConnectErrorKind
-pub papo::ConnectErrorKind::Certificate
-pub papo::ConnectErrorKind::Io
+pub papo::ConnectErrorKind::CertificateRejected
+pub papo::ConnectErrorKind::HandshakeFailed
+pub papo::ConnectErrorKind::HostNotFound
+pub papo::ConnectErrorKind::Other
 pub papo::ConnectErrorKind::Refused
-pub papo::ConnectErrorKind::Resolve
-pub papo::ConnectErrorKind::Tls
-pub papo::ConnectErrorKind::TlsConfig
-pub papo::ConnectErrorKind::WebSocket
+pub papo::ConnectErrorKind::Unavailable
+pub papo::ConnectErrorKind::Unreachable
 #[non_exhaustive] pub enum papo::DisconnectCause
 pub papo::DisconnectCause::ConnectionLost
 pub papo::DisconnectCause::PingTimeout
@@ -780,9 +780,10 @@ impl papo::Client
 pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 impl core::fmt::Debug for papo::Client
 pub fn papo::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub struct papo::ConnectError(_)
+pub struct papo::ConnectError
 impl papo::ConnectError
 pub fn papo::ConnectError::kind(&self) -> papo::ConnectErrorKind
+pub fn papo::ConnectError::new(papo::ConnectErrorKind, impl core::convert::Into<alloc::boxed::Box<(dyn core::error::Error + core::marker::Send + core::marker::Sync)>>) -> Self
 impl core::error::Error for papo::ConnectError
 pub fn papo::ConnectError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for papo::ConnectError

@@ -444,7 +444,8 @@ fn plan_with_stored_sts(base: &ConnectionPlan, store: &mut dyn StsStore) -> Conn
 #[cfg_attr(not(any(browser, tls)), allow(unused_variables))]
 pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {
     #[cfg(browser)]
-    if matches!(error, Error::Connect(error) if error.kind() == crate::ConnectErrorKind::Io) {
+    if matches!(error, Error::Connect(error) if error.kind() == crate::ConnectErrorKind::Unavailable)
+    {
         return true;
     }
     if matches!(
@@ -460,7 +461,7 @@ pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::Clos
     #[cfg(tls)]
     if matches!(
         error,
-        Error::Connect(error) if error.kind() == crate::ConnectErrorKind::Certificate
+        Error::Connect(error) if error.kind() == crate::ConnectErrorKind::CertificateRejected
     ) {
         return true;
     }
