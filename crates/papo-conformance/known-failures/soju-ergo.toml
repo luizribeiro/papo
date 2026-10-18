@@ -40,6 +40,9 @@ reason = "soju treats JOIN zero as a channel name instead of forwarding the leav
 [nick_change_and_collision]
 reason = "soju rejects an upstream nickname collision without preserving the 433 refusal category"
 
+[quit]
+reason = "soju disconnects the downstream client without quitting its persistent upstream connection"
+
 [sasl_plain]
 reason = "bouncer authentication replaces the scenario's direct upstream SASL credentials"
 

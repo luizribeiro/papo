@@ -1,5 +1,6 @@
 [waivers]
 "base.ping.server-initiated" = "The managed servers expose no deterministic control that emits a server-originated PING on demand."
+"base.quit.server-initiated" = "A per-scenario local server shutdown is not exposed by the shared live-server harness."
 "ircv3.sasl.external" = "The managed servers do not provision a client certificate fingerprint mapped to an account."
 "ircv3.sasl.already-907" = "papo's public API cannot inject a second AUTHENTICATE exchange before registration completes."
 "ircv3.sasl.mechs-908" = "papo's public API cannot inject an unsupported AUTHENTICATE mechanism before registration completes."

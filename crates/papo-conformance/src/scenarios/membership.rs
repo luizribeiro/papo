@@ -1,5 +1,5 @@
 use papo::event::ModeChanged;
-use papo::{Account, Error, Event, ModeKind, Refusal, Source};
+use papo::{Account, DisconnectCause, Error, Event, ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
@@ -510,6 +510,39 @@ async fn part_multiple_and_refusal(context: Scenario) -> papo_testing::Result<()
         "442",
     );
     alice.expect_none(Event::as_parted).await?;
+    Ok(())
+}
+
+/// disconnects cleanly and removes the user from every shared channel
+#[scenario(covers = ["base.quit.self", "base.quit.peer-broadcast"])]
+async fn quit(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    let reason = "conformance review complete";
+
+    alice.quit(reason).await?;
+    let disconnected = alice.wait_for(Event::as_disconnected).await?;
+    let observed = bob.wait_for(Event::as_quit).await?;
+
+    assert_eq!(disconnected.cause, DisconnectCause::Requested);
+    assert_eq!(disconnected.retry_in, None);
+    assert_eq!(observed.nick, alice_nick);
+    let observed_reason = observed.reason.as_deref().unwrap();
+    assert!(observed_reason == reason || observed_reason == format!("Quit: {reason}"));
+    assert_eq!(observed.channels.len(), 1);
+    assert_eq!(observed.channels[0].as_ref(), channel);
+    assert!(
+        bob.state()
+            .channel(&channel)
+            .unwrap()
+            .member(&alice_nick)
+            .is_none()
+    );
+    bob.expect_none(Event::as_quit).await?;
     Ok(())
 }
 
