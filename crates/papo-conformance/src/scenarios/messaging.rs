@@ -1,4 +1,4 @@
-use papo::{Event, MessageKind, Origin, Source};
+use papo::{Event, Fallback, MessageKind, Origin, Source};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 use papo_testing::Peer;
@@ -28,6 +28,12 @@ async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, S
     Ok((alice, bob, channel))
 }
 
+fn message_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo::Message> {
+    event
+        .as_message()
+        .filter(|message| message.raw_text() == text)
+}
+
 /// a channel PRIVMSG has one correlated echo and matching recipient metadata
 #[scenario(
     requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
@@ -36,8 +42,12 @@ async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, S
 async fn echo_message(context: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&context).await?;
     let sent = alice.privmsg(&channel, "hello from alice").await?;
-    let echo = alice.wait_for(Event::as_message).await?;
-    let message = bob.wait_for(Event::as_message).await?;
+    let echo = alice
+        .wait_for(|event| message_text(event, "hello from alice"))
+        .await?;
+    let message = bob
+        .wait_for(|event| message_text(event, "hello from alice"))
+        .await?;
     assert_eq!(echo.kind(), MessageKind::Privmsg);
     assert_eq!(echo.target(), channel);
     assert_eq!(echo.raw_text(), "hello from alice");
@@ -59,8 +69,11 @@ async fn echo_message(context: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.origin(), Origin::Live);
     assert!(!message.is_private());
     assert!(sent.fallbacks.is_empty());
-    alice.expect_none(Event::as_message).await?;
-    bob.expect_none(Event::as_message).await?;
+    alice
+        .expect_none(|event| message_text(event, "hello from alice"))
+        .await?;
+    bob.expect_none(|event| message_text(event, "hello from alice"))
+        .await?;
     Ok(())
 }
 
@@ -72,8 +85,12 @@ async fn echo_message(context: Scenario) -> papo_testing::Result<()> {
 async fn server_time(context: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&context).await?;
     let sent = alice.notice(&channel, "maintenance at midnight").await?;
-    let echo = alice.wait_for(Event::as_message).await?;
-    let message = bob.wait_for(Event::as_message).await?;
+    let echo = alice
+        .wait_for(|event| message_text(event, "maintenance at midnight"))
+        .await?;
+    let message = bob
+        .wait_for(|event| message_text(event, "maintenance at midnight"))
+        .await?;
     assert_eq!(echo.kind(), MessageKind::Notice);
     assert_eq!(echo.id(), sent.id.as_ref());
     assert_eq!(echo.server_time, sent.time);
@@ -92,8 +109,11 @@ async fn server_time(context: Scenario) -> papo_testing::Result<()> {
     assert!(message.tags().contains("time"));
     assert_eq!(message.origin(), Origin::Live);
     assert!(sent.fallbacks.is_empty());
-    alice.expect_none(Event::as_message).await?;
-    bob.expect_none(Event::as_message).await?;
+    alice
+        .expect_none(|event| message_text(event, "maintenance at midnight"))
+        .await?;
+    bob.expect_none(|event| message_text(event, "maintenance at midnight"))
+        .await?;
     Ok(())
 }
 
@@ -113,8 +133,12 @@ async fn direct_messages(context: Scenario) -> papo_testing::Result<()> {
     let mut bob = context.connect("bob").await?;
 
     let sent = alice.privmsg(bob.nick(), "private hello").await?;
-    let echo = alice.wait_for(Event::as_message).await?;
-    let received = bob.wait_for(Event::as_message).await?;
+    let echo = alice
+        .wait_for(|event| message_text(event, "private hello"))
+        .await?;
+    let received = bob
+        .wait_for(|event| message_text(event, "private hello"))
+        .await?;
     assert_eq!(echo.origin(), Origin::Echo);
     assert_eq!(received.origin(), Origin::Live);
     assert_eq!(received.kind(), MessageKind::Privmsg);
@@ -127,8 +151,12 @@ async fn direct_messages(context: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.server_time, sent.time);
 
     let sent = bob.notice(alice.nick(), "private notice").await?;
-    let echo = bob.wait_for(Event::as_message).await?;
-    let received = alice.wait_for(Event::as_message).await?;
+    let echo = bob
+        .wait_for(|event| message_text(event, "private notice"))
+        .await?;
+    let received = alice
+        .wait_for(|event| message_text(event, "private notice"))
+        .await?;
     assert_eq!(echo.origin(), Origin::Echo);
     assert_eq!(received.origin(), Origin::Live);
     assert_eq!(received.kind(), MessageKind::Notice);
@@ -141,8 +169,12 @@ async fn direct_messages(context: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.server_time, sent.time);
 
     let sent = alice.privmsg(alice.nick(), "note to self").await?;
-    let first = alice.wait_for(Event::as_message).await?;
-    let second = alice.wait_for(Event::as_message).await?;
+    let first = alice
+        .wait_for(|event| message_text(event, "note to self"))
+        .await?;
+    let second = alice
+        .wait_for(|event| message_text(event, "note to self"))
+        .await?;
     assert!(matches!(
         (first.origin(), second.origin()),
         (Origin::Echo, Origin::OtherSession) | (Origin::OtherSession, Origin::Echo)
@@ -155,8 +187,11 @@ async fn direct_messages(context: Scenario) -> papo_testing::Result<()> {
     }
     assert_eq!(alice.state().nick(), &alice.nick());
     assert_eq!(bob.state().nick(), &bob.nick());
-    alice.expect_none(Event::as_message).await?;
-    bob.expect_none(Event::as_message).await?;
+    alice
+        .expect_none(|event| message_text(event, "note to self"))
+        .await?;
+    bob.expect_none(|event| message_text(event, "note to self"))
+        .await?;
     Ok(())
 }
 
@@ -185,8 +220,12 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     let sent = alice
         .privmsg(format!("+{channel}"), "voiced members only")
         .await?;
-    let echo = alice.wait_for(Event::as_message).await?;
-    let received = bob.wait_for(Event::as_message).await?;
+    let echo = alice
+        .wait_for(|event| message_text(event, "voiced members only"))
+        .await?;
+    let received = bob
+        .wait_for(|event| message_text(event, "voiced members only"))
+        .await?;
     for message in [&echo, &received] {
         assert_eq!(message.target(), channel);
         assert_eq!(message.status.as_deref(), Some(['+'].as_slice()));
@@ -201,7 +240,9 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
             .and_then(|members| members.member(bob.nick()))
             .is_some_and(|member| member.prefixes().contains(&'+'))
     );
-    charlie.expect_none(Event::as_message).await?;
+    charlie
+        .expect_none(|event| message_text(event, "voiced members only"))
+        .await?;
     Ok(())
 }
 
@@ -218,8 +259,12 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
 
     alice.action(&channel, "waves hello").await?;
-    let echo = alice.wait_for(Event::as_message).await?;
-    let action = bob.wait_for(Event::as_message).await?;
+    let echo = alice
+        .wait_for(|event| message_text(event, "\u{1}ACTION waves hello\u{1}"))
+        .await?;
+    let action = bob
+        .wait_for(|event| message_text(event, "\u{1}ACTION waves hello\u{1}"))
+        .await?;
     for message in [&echo, &action] {
         assert_eq!(message.kind(), MessageKind::Action);
         assert_eq!(message.target(), channel);
@@ -299,13 +344,23 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
 async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     alice.privmsg(&channel, "ship release 2.19").await?;
-    alice.wait_for(Event::as_message).await?;
-    let original = bob.wait_for(Event::as_message).await?;
+    alice
+        .wait_for(|event| message_text(event, "ship release 2.19"))
+        .await?;
+    let original = bob
+        .wait_for(|event| message_text(event, "ship release 2.19"))
+        .await?;
     let original_id = original.id().expect("message has an identifier").clone();
 
-    bob.reply(&original, "acknowledged").await?;
-    bob.wait_for(Event::as_message).await?;
-    let reply = alice.wait_for(Event::as_message).await?;
+    let sent = bob.reply(&original, "acknowledged").await?;
+    if sent.fallbacks.contains(&Fallback::ReplyTagDropped) {
+        return s.skip("server denies both supported reply-tag aliases");
+    }
+    bob.wait_for(|event| message_text(event, "acknowledged"))
+        .await?;
+    let reply = alice
+        .wait_for(|event| message_text(event, "acknowledged"))
+        .await?;
     assert_eq!(reply.raw_text(), "acknowledged");
     assert_eq!(reply.reply_to(), Some(original_id.as_ref()));
     assert_eq!(reply.target(), channel);
@@ -381,7 +436,7 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     let (alice, mut bob, channel) = fixture_pair(&s).await?;
     let text = "first deployment line\nsecond deployment line";
     let sent = alice.privmsg(&channel, text).await?;
-    let received = bob.wait_for(Event::as_message).await?;
+    let received = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(received.kind(), MessageKind::Privmsg);
     assert_eq!(received.target(), channel);
     assert_eq!(received.raw_text(), text);
@@ -389,7 +444,7 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.id(), sent.id.as_ref());
     assert_eq!(received.server_time, sent.time);
     assert_eq!(received.origin(), Origin::Live);
-    bob.expect_none(Event::as_message).await?;
+    bob.expect_none(|event| message_text(event, text)).await?;
     Ok(())
 }
 
@@ -402,8 +457,8 @@ async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     let text = "Olá, IRC 世界";
     let sent = alice.privmsg(&channel, text).await?;
-    let echo = alice.wait_for(Event::as_message).await?;
-    let received = bob.wait_for(Event::as_message).await?;
+    let echo = alice.wait_for(|event| message_text(event, text)).await?;
+    let received = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(echo.raw_text(), text);
     assert_eq!(received.raw_text(), text);
     assert_eq!(received.text(), text);
@@ -425,8 +480,12 @@ async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
 async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     let sent = alice.privmsg(&channel, "message to\nredact").await?;
-    alice.wait_for(Event::as_message).await?;
-    let received = bob.wait_for(Event::as_message).await?;
+    alice
+        .wait_for(|event| message_text(event, "message to\nredact"))
+        .await?;
+    let received = bob
+        .wait_for(|event| message_text(event, "message to\nredact"))
+        .await?;
     let id = received.id().expect("message has an identifier").clone();
     assert_eq!(Some(&id), sent.id.as_ref());
 
