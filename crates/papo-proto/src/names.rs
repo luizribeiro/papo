@@ -15,12 +15,6 @@ pub enum NameKind {
 pub const NAME_ALIASES: &[(NameKind, &str, &str)] = &[
     (NameKind::Tag, "+draft/reply", "+reply"),
     (NameKind::Tag, "+draft/channel-context", "+channel-context"),
-    (
-        NameKind::Capability,
-        "draft/no-implicit-names",
-        "no-implicit-names",
-    ),
-    (NameKind::Capability, "draft/chathistory", "chathistory"),
     (NameKind::Isupport, "draft/CHATHISTORY", "CHATHISTORY"),
     (NameKind::Isupport, "soju.im/SAFERATE", "SAFERATE"),
 ];

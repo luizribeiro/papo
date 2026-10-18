@@ -7,12 +7,6 @@ fn maps_every_draft_name_and_preserves_every_ratified_name() {
     let expected = [
         (NameKind::Tag, "+draft/reply", "+reply"),
         (NameKind::Tag, "+draft/channel-context", "+channel-context"),
-        (
-            NameKind::Capability,
-            "draft/no-implicit-names",
-            "no-implicit-names",
-        ),
-        (NameKind::Capability, "draft/chathistory", "chathistory"),
         (NameKind::Isupport, "draft/CHATHISTORY", "CHATHISTORY"),
         (NameKind::Isupport, "soju.im/SAFERATE", "SAFERATE"),
     ];
@@ -27,7 +21,7 @@ fn maps_every_draft_name_and_preserves_every_ratified_name() {
 #[test]
 fn applies_case_rules_for_each_name_kind() {
     assert_eq!(canonical("DRAFT/CHATHISTORY"), "CHATHISTORY");
-    assert_eq!(canonical("chathistory"), "chathistory");
+    assert_eq!(canonical("chathistory"), "CHATHISTORY");
     assert_eq!(canonical("+DRAFT/REPLY"), "+DRAFT/REPLY");
     assert_eq!(
         canonical("DRAFT/NO-IMPLICIT-NAMES"),

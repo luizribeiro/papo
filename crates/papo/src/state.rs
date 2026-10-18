@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use papo_core::{Capabilities, Channel, Feature, Session, UnsupportedReason, User};
-use papo_proto::{AccountName, Casemapping, NAME_ALIASES, NameKind, Nick};
+use papo_proto::{AccountName, Casemapping, Nick};
 
 use crate::Isupport;
 
@@ -213,12 +213,9 @@ impl State {
     /// Reports whether a capability or its ratified alias is enabled.
     #[must_use]
     pub fn has_cap(&self, name: &str) -> bool {
-        self.caps.contains_key(name)
-            || NAME_ALIASES.iter().any(|&(kind, draft, ratified)| {
-                kind == NameKind::Capability
-                    && (name == draft || name == ratified)
-                    && (self.caps.contains_key(draft) || self.caps.contains_key(ratified))
-            })
+        self.caps
+            .keys()
+            .any(|enabled| papo_core::cap::canonical(enabled) == papo_core::cap::canonical(name))
     }
 
     /// Returns the accumulated server feature advertisement.

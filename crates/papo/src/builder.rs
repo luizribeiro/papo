@@ -1,7 +1,7 @@
 use std::{fmt, time::Duration};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
-use papo_core::{AwayOnConnect, Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl};
+use papo_core::{AwayOnConnect, Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl, cap};
 use papo_proto::{Message, escape_tag_value};
 use tokio::sync::oneshot;
 
@@ -168,12 +168,12 @@ impl Builder {
     /// ```
     pub fn register_account(mut self, account: NewAccount) -> Self {
         self.reject_binary_secret(&account.password);
-        if !self.config.wanted_caps.iter().any(|capability| {
-            matches!(
-                capability.as_str(),
-                "account-registration" | "draft/account-registration"
-            )
-        }) {
+        if !self
+            .config
+            .wanted_caps
+            .iter()
+            .any(|name| cap::canonical(name) == cap::canonical(cap::ACCOUNT_REGISTRATION))
+        {
             self.config
                 .wanted_caps
                 .push("draft/account-registration".into());
@@ -217,12 +217,18 @@ impl Builder {
         S: Into<String>,
     {
         for capability in caps.into_iter().map(Into::into) {
-            if !DEFAULT_WANTED_CAPS.contains(&capability.as_str()) {
+            let canonical = cap::canonical(&capability);
+            if !DEFAULT_WANTED_CAPS
+                .iter()
+                .any(|name| cap::canonical(name) == canonical)
+            {
                 self.invalid_input
                     .get_or_insert(InvalidInput::UnknownCapability(capability));
                 continue;
             }
-            self.config.wanted_caps.retain(|name| name != &capability);
+            self.config
+                .wanted_caps
+                .retain(|name| cap::canonical(name) != canonical);
         }
         self
     }
@@ -770,6 +776,12 @@ mod tests {
                 .iter()
                 .any(|name| name == "soju.im/bouncer-networks")
         );
+        let aliases = Builder::new("irc.example.net")
+            .without_caps(["read-marker", "account-registration"])
+            .config;
+        for removed in ["draft/read-marker", "draft/account-registration"] {
+            assert!(!aliases.wanted_caps.iter().any(|name| name == removed));
+        }
         #[cfg(not(feature = "unstable"))]
         assert!(matches!(
             Builder::new("irc.example.net")
