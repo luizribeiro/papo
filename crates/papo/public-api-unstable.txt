@@ -628,6 +628,9 @@ pub papo::InvalidInput::EmptyText
 pub papo::InvalidInput::EventCapacity(usize)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)
 pub papo::InvalidInput::InvalidMessage(alloc::string::String)
+pub papo::InvalidInput::InvalidName
+pub papo::InvalidInput::InvalidName::name: alloc::string::String
+pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
 pub papo::InvalidInput::MessageReference
 pub papo::InvalidInput::MetadataKey

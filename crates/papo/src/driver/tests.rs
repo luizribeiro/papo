@@ -2655,11 +2655,8 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
         "a".repeat(187)
     );
     client_line(&mut server, lines.as_bytes()).await;
-    client
-        .notice("papo-helper", "maintenance soon")
-        .await
-        .unwrap();
-    client_line(&mut server, b"NOTICE papo-helper :maintenance soon\r\n").await;
+    client.notice("helper", "maintenance soon").await.unwrap();
+    client_line(&mut server, b"NOTICE helper :maintenance soon\r\n").await;
     assert!(matches!(
         within(client.privmsg("#papo", "\n")).await,
         Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
@@ -2715,7 +2712,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     let sender = client.clone();
     let sent = tokio::spawn(async move {
         sender
-            .privmsg("papo-helper", "fixed in 69876ec")
+            .privmsg("helper", "fixed in 69876ec")
             .reply_to(&crate::MessageId::from("RfcBTzyxY120004"))
             .channel_context(&crate::ChannelName::from("#papo"))
             .tag("+example.org/trace", "98")
@@ -2723,12 +2720,12 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     });
     client_line(
         &mut server,
-        b"@+example.org/trace=98;+reply=RfcBTzyxY120004;+channel-context=#papo;label=0 PRIVMSG papo-helper :fixed in 69876ec\r\n",
+        b"@+example.org/trace=98;+reply=RfcBTzyxY120004;+channel-context=#papo;label=0 PRIVMSG helper :fixed in 69876ec\r\n",
     )
     .await;
     server_line(
         &mut server,
-        b"@label=0;msgid=RfcBTzyxY120005 :papo-driver!papo@localhost PRIVMSG papo-helper :fixed in 69876ec\r\n",
+        b"@label=0;msgid=RfcBTzyxY120005 :papo-driver!papo@localhost PRIVMSG helper :fixed in 69876ec\r\n",
     )
     .await;
     assert_eq!(

@@ -3,7 +3,7 @@ use std::{borrow::Borrow, fmt, ops::Deref};
 use crate::Isupport;
 
 /// Why an IRC identifier cannot be sent to the server.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum InvalidIdentifier {
     /// The identifier is empty.

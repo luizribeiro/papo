@@ -454,6 +454,11 @@ impl Client {
             | HistoryQuery::Between { target, .. } => target.clone(),
             HistoryQuery::Targets { .. } | _ => String::new(),
         };
+        if !target.is_empty() {
+            crate::Target::from(target.clone())
+                .check(self.state().isupport().inner())
+                .map_err(|reason| crate::InvalidInput::invalid_name(target.clone(), reason))?;
+        }
         let response = self.history_response(query).await?;
         let page = response.history.ok_or_else(Error::disconnected)?;
         let items = page
@@ -830,6 +835,11 @@ mod tests {
         client_line(&mut server, b"CAP END\r\n").await;
         server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
         assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        assert!(matches!(
+            client.history("#papo invalid").latest(10).await,
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidName { name, .. }))
+                if name == "#papo invalid"
+        ));
         let request = tokio::spawn(async move { client.history("#papo").latest(10).await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 10\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;

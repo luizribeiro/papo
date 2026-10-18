@@ -122,8 +122,21 @@ impl IntoFuture for SendMessage {
             if let Some(error) = self.invalid_input {
                 return Err(error.into());
             }
-            let mut tags = self.tags;
             let state = self.client.state();
+            self.target
+                .check(state.isupport().inner())
+                .map_err(|reason| InvalidInput::invalid_name(self.target.to_string(), reason))?;
+            if let Some(message) = &self.reply_to {
+                message
+                    .check()
+                    .map_err(|reason| InvalidInput::invalid_name(message.to_string(), reason))?;
+            }
+            if let Some(channel) = &self.channel_context {
+                channel
+                    .check(state.isupport().inner())
+                    .map_err(|reason| InvalidInput::invalid_name(channel.to_string(), reason))?;
+            }
+            let mut tags = self.tags;
             if state.has_cap("message-tags") {
                 let denied = state.isupport().clienttagdeny();
                 if let Some(message) = self.reply_to
@@ -780,6 +793,9 @@ impl Client {
         channel: crate::ChannelName,
         key: Option<crate::Secret>,
     ) -> Result<(), Error> {
+        channel
+            .check(self.state().isupport().inner())
+            .map_err(|reason| InvalidInput::invalid_name(channel.to_string(), reason))?;
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::Join {

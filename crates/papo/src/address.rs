@@ -41,6 +41,14 @@ pub enum InvalidInput {
     /// An outbound IRC message cannot be represented on the wire.
     #[error("invalid IRC message: {0}")]
     InvalidMessage(String),
+    /// An IRC name is invalid in its protocol context.
+    #[error("invalid IRC name {name:?}: {reason}")]
+    InvalidName {
+        /// The rejected name.
+        name: String,
+        /// Why the protocol rejected the name.
+        reason: crate::InvalidIdentifier,
+    },
     /// Outgoing chat text has no nonempty lines.
     #[error("chat text is empty")]
     EmptyText,
@@ -95,6 +103,15 @@ pub enum InvalidInput {
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[error("invalid Web Push key")]
     WebPushKey,
+}
+
+impl InvalidInput {
+    pub(crate) fn invalid_name(name: impl Into<String>, reason: crate::InvalidIdentifier) -> Self {
+        Self::InvalidName {
+            name: name.into(),
+            reason,
+        }
+    }
 }
 
 /// The network endpoint used by an IRC client.
