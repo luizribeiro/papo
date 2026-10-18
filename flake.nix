@@ -146,6 +146,9 @@
               'if (getenv("BANDB_DBPATH") == NULL) rb_setenv("BANDB_DBPATH", ircd_paths[IRCD_PATH_BANDB], 1);'
           '';
         });
+        soju = pkgs.soju.overrideAttrs (old: {
+          patches = (old.patches or [ ]) ++ [ ./nix/soju-cap-lines.patch ];
+        });
         ergoConfig = pkgs.runCommand "ergo.yaml" { nativeBuildInputs = [ pkgs.yq-go ]; } ''
           yq eval-all '
             (select(fi == 0) | del(.server.listeners, .server.webirc, .opers))
@@ -579,7 +582,7 @@
             pkgs.atheme
             pkgs.inspircd
             solanum
-            pkgs.soju
+            soju
             ergochat
             unrealircd
             nightlyToolchain
@@ -589,8 +592,8 @@
           ERGO_BIN = pkgs.lib.getExe ergochat;
           ERGO_CONFIG = ergoConfig;
           ERGO_LANGUAGES = "${ergochat.src}/languages";
-          SOJU_BIN = pkgs.lib.getExe pkgs.soju;
-          SOJUCTL_BIN = pkgs.lib.getExe' pkgs.soju "sojuctl";
+          SOJU_BIN = pkgs.lib.getExe soju;
+          SOJUCTL_BIN = pkgs.lib.getExe' soju "sojuctl";
           ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
           ATHEME_MODULES = "${pkgs.atheme}/modules";
           INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";

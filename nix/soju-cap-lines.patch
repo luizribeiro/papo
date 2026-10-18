@@ -1,0 +1,24 @@
+diff --git a/downstream.go b/downstream.go
+index 0bf2214..1273abe 100644
+--- a/downstream.go
++++ b/downstream.go
+@@ -841,6 +841,13 @@
+-		// TODO: multi-line replies
+-		dc.SendMessage(ctx, &irc.Message{
+-			Prefix:  dc.srv.prefix(),
+-			Command: "CAP",
+-			Params:  []string{dc.nick, "LS", strings.Join(caps, " ")},
+-		})
++		for len(caps) > 0 {
++			n := 1
++			for n < len(caps) && len(strings.Join(caps[:n+1], " ")) <= 400 {
++				n++
++			}
++			params := []string{dc.nick, "LS"}
++			if n < len(caps) {
++				params = append(params, "*")
++			}
++			params = append(params, strings.Join(caps[:n], " "))
++			dc.SendMessage(ctx, &irc.Message{Prefix: dc.srv.prefix(), Command: "CAP", Params: params})
++			caps = caps[n:]
++		}
