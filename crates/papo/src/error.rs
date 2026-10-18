@@ -201,45 +201,49 @@ pub enum Refusal {
 }
 
 impl Refusal {
-    pub(crate) fn from_core(kind: papo_core::RefusalKind) -> Self {
+    fn from_core(kind: papo_core::Refusal) -> Self {
         match kind {
-            papo_core::RefusalKind::CannotSendToChannel => Self::CannotSendToChannel,
-            papo_core::RefusalKind::TooManyChannels => Self::TooManyChannels,
-            papo_core::RefusalKind::NoTextToSend => Self::NoTextToSend,
-            papo_core::RefusalKind::InputTooLong => Self::InputTooLong,
-            papo_core::RefusalKind::UnknownCommand => Self::UnknownCommand,
-            papo_core::RefusalKind::NickCollision => Self::NickCollision,
-            papo_core::RefusalKind::NickUnavailable => Self::NickUnavailable,
-            papo_core::RefusalKind::BadChannelMask => Self::BadChannelMask,
-            papo_core::RefusalKind::SecureOnlyChannel => Self::SecureOnlyChannel,
-            papo_core::RefusalKind::NoOperHost => Self::NoOperHost,
-            papo_core::RefusalKind::UnknownUserMode => Self::UnknownUserMode,
-            papo_core::RefusalKind::UsersDontMatch => Self::UsersDontMatch,
-            papo_core::RefusalKind::InvalidModeParam => Self::InvalidModeParameter,
-            papo_core::RefusalKind::TryAgain => Self::TryAgain,
+            papo_core::Refusal::NoSuchNick => Self::NoSuchNick,
+            papo_core::Refusal::NoSuchServer => Self::NoSuchServer,
+            papo_core::Refusal::NoSuchChannel => Self::NoSuchChannel,
+            papo_core::Refusal::CannotSendToChannel => Self::CannotSendToChannel,
+            papo_core::Refusal::TooManyChannels => Self::TooManyChannels,
+            papo_core::Refusal::InputTooLong => Self::InputTooLong,
+            papo_core::Refusal::UnknownCommand => Self::UnknownCommand,
+            papo_core::Refusal::ErroneousNickname => Self::ErroneousNickname,
+            papo_core::Refusal::NicknameInUse => Self::NicknameInUse,
+            papo_core::Refusal::NickCollision => Self::NickCollision,
+            papo_core::Refusal::TemporarilyUnavailable => Self::NickUnavailable,
+            papo_core::Refusal::NotOnChannel => Self::NotOnChannel,
+            papo_core::Refusal::UserOnChannel => Self::UserOnChannel,
+            papo_core::Refusal::PasswordIncorrect => Self::PasswordIncorrect,
+            papo_core::Refusal::ChannelIsFull => Self::ChannelIsFull,
+            papo_core::Refusal::UnknownMode => Self::UnknownMode,
+            papo_core::Refusal::InviteOnlyChannel => Self::InviteOnlyChannel,
+            papo_core::Refusal::BannedFromChannel => Self::BannedFromChannel,
+            papo_core::Refusal::BadChannelKey => Self::BadChannelKey,
+            papo_core::Refusal::BadChannelMask => Self::BadChannelMask,
+            papo_core::Refusal::NoPrivileges => Self::NoPrivileges,
+            papo_core::Refusal::ChannelOperatorPrivilegesNeeded => {
+                Self::ChannelOperatorPrivilegesNeeded
+            }
+            papo_core::Refusal::SecureOnlyChannel => Self::SecureOnlyChannel,
+            papo_core::Refusal::NoOperHost => Self::NoOperHost,
+            papo_core::Refusal::UnknownUserMode => Self::UnknownUserMode,
+            papo_core::Refusal::UsersDontMatch => Self::UsersDontMatch,
+            papo_core::Refusal::InvalidModeParameter => Self::InvalidModeParameter,
+            papo_core::Refusal::TryAgain => Self::TryAgain,
+            #[cfg(feature = "unstable")]
+            papo_core::Refusal::InvalidNetwork => Self::InvalidNetwork,
+            #[cfg(feature = "unstable")]
+            papo_core::Refusal::InvalidAttribute => Self::InvalidAttribute,
+            #[cfg(feature = "unstable")]
+            papo_core::Refusal::ReadOnlyAttribute => Self::ReadOnlyAttribute,
+            #[cfg(feature = "unstable")]
+            papo_core::Refusal::UnknownAttribute => Self::UnknownAttribute,
+            #[cfg(feature = "unstable")]
+            papo_core::Refusal::MissingAttribute => Self::MissingAttribute,
             _ => Self::Other,
-        }
-    }
-
-    fn from_numeric(code: u16, fallback: papo_core::RefusalKind) -> Self {
-        match code {
-            401 => Self::NoSuchNick,
-            402 => Self::NoSuchServer,
-            403 => Self::NoSuchChannel,
-            432 => Self::ErroneousNickname,
-            433 => Self::NicknameInUse,
-            442 => Self::NotOnChannel,
-            443 => Self::UserOnChannel,
-            461 => Self::NeedMoreParameters,
-            464 => Self::PasswordIncorrect,
-            471 => Self::ChannelIsFull,
-            472 => Self::UnknownMode,
-            473 => Self::InviteOnlyChannel,
-            474 => Self::BannedFromChannel,
-            475 => Self::BadChannelKey,
-            481 => Self::NoPrivileges,
-            482 => Self::ChannelOperatorPrivilegesNeeded,
-            _ => Self::from_core(fallback),
         }
     }
 }
@@ -280,13 +284,12 @@ impl ServerError {
     ) -> Self {
         let command = command.into();
         let code = code.into();
-        Self {
-            kind: bouncer_refusal(&command, &code).unwrap_or(Refusal::Other),
+        Self::from_core(papo_core::ServerError::Standard {
             command,
             code,
+            context,
             description: description.into(),
-            params: context,
-        }
+        })
     }
 
     /// Returns the stable refusal category.
@@ -320,7 +323,7 @@ impl ServerError {
     }
 
     pub(crate) fn from_core(error: papo_core::ServerError) -> Self {
-        let fallback = error.refusal_kind();
+        let kind = Refusal::from_core(error.refusal());
         match error {
             papo_core::ServerError::Standard {
                 command,
@@ -328,15 +331,14 @@ impl ServerError {
                 context,
                 description,
             } => Self {
-                kind: bouncer_refusal(&command, &code)
-                    .unwrap_or_else(|| Refusal::from_core(fallback)),
+                kind,
                 command,
                 code,
                 description,
                 params: context,
             },
             papo_core::ServerError::Numeric { numeric, params } => Self {
-                kind: Refusal::from_numeric(numeric.code(), fallback),
+                kind,
                 command: String::new(),
                 code: format!("{:03}", numeric.code()),
                 description: params.last().cloned().unwrap_or_default(),
@@ -351,22 +353,6 @@ impl ServerError {
             },
         }
     }
-}
-
-fn bouncer_refusal(command: &str, code: &str) -> Option<Refusal> {
-    #[cfg(feature = "unstable")]
-    if command.eq_ignore_ascii_case("BOUNCER") {
-        return match code.to_ascii_uppercase().as_str() {
-            "INVALID_NETID" => Some(Refusal::InvalidNetwork),
-            "INVALID_ATTRIBUTE" => Some(Refusal::InvalidAttribute),
-            "READ_ONLY_ATTRIBUTE" => Some(Refusal::ReadOnlyAttribute),
-            "UNKNOWN_ATTRIBUTE" => Some(Refusal::UnknownAttribute),
-            "NEED_ATTRIBUTE" => Some(Refusal::MissingAttribute),
-            _ => None,
-        };
-    }
-    let _ = (command, code);
-    None
 }
 
 impl fmt::Display for ServerError {
