@@ -439,7 +439,10 @@ impl Builder {
         self.autojoin.push(entry);
     }
 
-    /// Sets whether reconnects fetch history missed while disconnected.
+    /// Sets whether network reconnects fetch history missed while disconnected.
+    ///
+    /// This fills gaps caused by network blips. It cannot recover in-memory history lost when
+    /// the IRC server itself restarts.
     pub const fn history_on_reconnect(mut self, enabled: bool) -> Self {
         self.history_on_reconnect = enabled;
         self
@@ -507,6 +510,7 @@ impl Builder {
                 bot: self.bot,
                 channels: self.autojoin,
                 history_on_reconnect: self.history_on_reconnect,
+                disconnected_at: None,
             },
         )
     }
@@ -542,6 +546,7 @@ impl Builder {
             bot: self.bot,
             channels: self.autojoin,
             history_on_reconnect: self.history_on_reconnect,
+            disconnected_at: None,
         };
         crate::Driver::with_plan(
             plan,

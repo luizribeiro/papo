@@ -326,6 +326,7 @@ pub(crate) struct PostRegistration {
     pub(crate) bot: bool,
     pub(crate) channels: Vec<Autojoin>,
     pub(crate) history_on_reconnect: bool,
+    pub(crate) disconnected_at: Option<std::time::SystemTime>,
 }
 
 #[derive(Clone, Debug)]

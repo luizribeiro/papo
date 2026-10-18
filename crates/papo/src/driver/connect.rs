@@ -119,6 +119,9 @@ pub(super) async fn run_plan(
             std::mem::take(&mut pending_events),
         )
         .await;
+        if end.registered_at.is_some() {
+            defaults.disconnected_at = Some(crate::rt::now_wall());
+        }
         sts_store = end
             .sts_store
             .take()

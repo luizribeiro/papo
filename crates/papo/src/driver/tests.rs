@@ -380,6 +380,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             Some("private-channel-key".into()),
         )],
         history_on_reconnect: true,
+        disconnected_at: None,
     };
 
     super::update_rejoin_channels(
@@ -503,6 +504,7 @@ async fn explicit_reconnect_redials_without_backoff() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+#[allow(clippy::too_many_lines)]
 async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
@@ -530,8 +532,9 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
         None,
         super::PostRegistration {
             bot: false,
-            channels: vec!["#papo".into()],
+            channels: vec!["#papo".into(), "#rust".into()],
             history_on_reconnect: true,
+            disconnected_at: None,
         },
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
@@ -540,7 +543,7 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     let driver = tokio::spawn(driver);
 
     complete_history_registration(&mut first_server, &mut events).await;
-    client_line(&mut first_server, b"JOIN #papo\r\n").await;
+    client_line(&mut first_server, b"JOIN #papo\r\nJOIN #rust\r\n").await;
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     within(first_server.shutdown()).await.unwrap();
@@ -568,19 +571,30 @@ async fn reconnect_history_pages_deduplicate_into_one_non_live_event() {
     assert!(
         matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
     );
-    client_line(&mut second_server, b"JOIN #papo\r\n").await;
+    client_line(&mut second_server, b"JOIN #papo\r\nJOIN #rust\r\n").await;
     client_line(
         &mut second_server,
         b"@label=0 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
     )
     .await;
+    let mut timestamp_request = Vec::new();
+    loop {
+        let byte = within(second_server.read_u8()).await.unwrap();
+        timestamp_request.push(byte);
+        if byte == b'\n' {
+            break;
+        }
+    }
+    let timestamp_request = String::from_utf8(timestamp_request).unwrap();
+    assert!(timestamp_request.starts_with("@label=1 CHATHISTORY AFTER #rust timestamp="));
+    assert!(timestamp_request.ends_with(" 100\r\n"));
     server_line(&mut second_server, b"@label=0 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0 :ergo.test BATCH +history0 chathistory #papo\r\n@batch=history0;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n@batch=history0;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed one\r\n@batch=reply0 :ergo.test BATCH -history0\r\n:ergo.test BATCH -reply0\r\n").await;
     client_line(
         &mut second_server,
-        b"@label=1 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
+        b"@label=2 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
     )
     .await;
-    server_line(&mut second_server, b"@label=1 :ergo.test BATCH +reply1 labeled-response\r\n@batch=reply1;draft/chathistory-end :ergo.test BATCH +history1 chathistory #papo\r\n@batch=history1;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed one\r\n@batch=history1;time=2026-10-15T12:02:00.000Z;msgid=RfcBTzyxY120002 :emily!~e@localhost PRIVMSG #papo :missed two\r\n@batch=reply1 :ergo.test BATCH -history1\r\n:ergo.test BATCH -reply1\r\n").await;
+    server_line(&mut second_server, b"@label=2 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2;draft/chathistory-end :ergo.test BATCH +history2 chathistory #papo\r\n@batch=history2;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed one\r\n@batch=history2;time=2026-10-15T12:02:00.000Z;msgid=RfcBTzyxY120002 :emily!~e@localhost PRIVMSG #papo :missed two\r\n@batch=reply2 :ergo.test BATCH -history2\r\n:ergo.test BATCH -reply2\r\n").await;
 
     let Some(Event::History(history)) = events.next().await else {
         panic!("expected aggregate history event")
@@ -1404,6 +1418,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
                 super::Autojoin::new("#papo-bots", Some("private-channel-key".into())),
             ],
             history_on_reconnect: false,
+            disconnected_at: None,
         },
     );
     let driver = tokio::spawn(driver);
@@ -1435,6 +1450,7 @@ async fn bot_default_without_advertised_mode_sends_no_mode() {
             bot: true,
             channels: Vec::new(),
             history_on_reconnect: false,
+            disconnected_at: None,
         },
         None,
         b"",
@@ -1459,6 +1475,7 @@ async fn empty_channel_defaults_send_no_join() {
             bot: true,
             channels: Vec::new(),
             history_on_reconnect: false,
+            disconnected_at: None,
         },
         Some(b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n"),
         b"MODE papo-driver +B\r\n",

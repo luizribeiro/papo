@@ -95,24 +95,31 @@ pub(super) fn begin_catchup(
     if !defaults.history_on_reconnect || !should_fetch_history(session) {
         return;
     }
-    let seen = defaults
-        .channels
-        .iter()
-        .filter_map(|channel| session.state().last_seen(&channel.channel).cloned())
-        .collect::<Vec<_>>();
-    for seen in seen {
+    let supports_timestamp = session.isupport().msgreftypes().contains(&"timestamp");
+    for channel in &defaults.channels {
+        let seen = session.state().last_seen(&channel.channel).cloned();
+        let after = match &seen {
+            Some(seen) => papo_core::MsgRef::Msgid(seen.msgid.clone()),
+            None if supports_timestamp => {
+                let Some(disconnected_at) = defaults.disconnected_at else {
+                    continue;
+                };
+                papo_core::MsgRef::Timestamp(disconnected_at)
+            }
+            None => continue,
+        };
         let query = HistoryQuery::After {
-            target: seen.target.clone(),
-            after: papo_core::MsgRef::Msgid(seen.msgid.clone()),
+            target: channel.channel.clone(),
+            after,
             limit: 100,
         };
         if let Ok(id) = session.chathistory(now(), query) {
             catchups.insert(
                 id,
                 Catchup {
-                    target: seen.target,
+                    target: channel.channel.clone(),
                     items: Vec::new(),
-                    seen: HashSet::from([seen.msgid]),
+                    seen: seen.into_iter().map(|seen| seen.msgid).collect(),
                 },
             );
         }
