@@ -305,10 +305,6 @@ impl Scenario {
         self.client_with(nick, None).await
     }
 
-    async fn client_at(&self, nick: &str, endpoint: Endpoint) -> Result<RegisteredClient, Failed> {
-        self.client_with_at(nick, endpoint, None).await
-    }
-
     async fn client_caps(
         &self,
         nick: &str,
