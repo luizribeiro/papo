@@ -79,6 +79,25 @@ impl Scenario {
         self.connect_with(builder).await
     }
 
+    /// Connects another client authenticated to an account created by this fixture.
+    ///
+    /// # Errors
+    ///
+    /// Returns the client's connection, authentication, or registration failure.
+    pub async fn connect_account_session(
+        &self,
+        label: &str,
+        account: impl Into<String>,
+    ) -> Result<Peer> {
+        let address = self.server.plaintext_addr();
+        let builder = Self::configure_named_at(
+            unique_name(label),
+            Endpoint::plaintext(address.ip().to_string(), address.port()),
+        )
+        .sasl(Sasl::plain(account.into(), ACCOUNT_PASSWORD));
+        self.connect_with(builder).await
+    }
+
     /// Connects and retains a client configured by the caller.
     ///
     /// # Errors
