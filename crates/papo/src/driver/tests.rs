@@ -407,6 +407,33 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
+            channel: "#staff".into(),
+            nick: "alice".into(),
+            reason: Some("lunch".into()),
+            is_self: false,
+        }),
+    );
+    super::update_rejoin_channels(
+        &session,
+        &mut defaults,
+        &Event::Kicked(crate::event::Kicked {
+            channel: "#staff".into(),
+            nick: "alice".into(),
+            by: crate::Source::User {
+                nick: "chanserv".into(),
+                user: None,
+                host: None,
+            },
+            reason: Some("idle".into()),
+            is_self: false,
+        }),
+    );
+    assert_eq!(defaults.channels.len(), 2);
+
+    super::update_rejoin_channels(
+        &session,
+        &mut defaults,
+        &Event::Parted(crate::event::Parted {
             channel: "#Papo".into(),
             nick: "papo-driver".into(),
             reason: None,
@@ -429,6 +456,112 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         }),
     );
     assert!(defaults.channels.is_empty());
+}
+
+#[test]
+fn remembering_a_rejoin_replaces_only_the_same_channel() {
+    let session = Session::new(config());
+    let mut defaults = super::PostRegistration {
+        bot: false,
+        channels: vec![
+            super::Autojoin::new("#Papo", Some("old-channel-key".into())),
+            super::Autojoin::new("#rust", None),
+        ],
+        history_on_reconnect: true,
+        disconnected_at: None,
+    };
+
+    super::remember_rejoin(
+        &session,
+        &mut defaults,
+        super::Autojoin::new("#papo", Some("new-channel-key".into())),
+    );
+
+    assert_eq!(defaults.channels.len(), 2);
+    assert_eq!(defaults.channels[0].channel, "#rust");
+    assert_eq!(defaults.channels[1].channel, "#papo");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn write_timeout_preserves_later_registration_output() {
+    let now = crate::rt::now_mono();
+    let mut session = Session::new(config().rate_limit(papo_core::RateLimit::unlimited()));
+    session.handle_connected(now);
+    while session.poll_transmit().is_some() {}
+    session.handle_bytes(now, b":ergo.test CAP * LS :\r\n");
+    assert_eq!(
+        session.poll_transmit().as_deref(),
+        Some(b"CAP END\r\n".as_slice())
+    );
+    session.handle_bytes(
+        now,
+        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+    );
+
+    let channels = super::channels(8, &session);
+    let mut pending = VecDeque::new();
+    let mut requests = std::collections::BTreeMap::new();
+    let mut join_keys = std::collections::BTreeMap::new();
+    let mut sync_waiters = Vec::new();
+    let mut read_marker_waiters = Vec::new();
+    let mut catchups = std::collections::BTreeMap::new();
+    let mut registration = super::RegistrationWait::default();
+    let mut defaults = super::PostRegistration {
+        bot: false,
+        channels: vec!["#papo".into(), "#rust".into()],
+        history_on_reconnect: false,
+        disconnected_at: None,
+    };
+    let mut registered = false;
+    let mut registered_at = None;
+    let mut sts = super::StsActions::default();
+    let mut sts_store = None;
+
+    super::drain(
+        &mut NeverWrite,
+        &mut session,
+        &channels.event_sink,
+        &mut pending,
+        &mut requests,
+        &mut join_keys,
+        &mut sync_waiters,
+        &mut read_marker_waiters,
+        &mut catchups,
+        &mut registration,
+        &mut defaults,
+        &mut registered,
+        &mut registered_at,
+        &mut sts,
+        &mut sts_store,
+        6697,
+        Some(now),
+    )
+    .await
+    .unwrap();
+
+    let (mut stream, mut server) = tokio::io::duplex(4096);
+    super::drain(
+        &mut stream,
+        &mut session,
+        &channels.event_sink,
+        &mut pending,
+        &mut requests,
+        &mut join_keys,
+        &mut sync_waiters,
+        &mut read_marker_waiters,
+        &mut catchups,
+        &mut registration,
+        &mut defaults,
+        &mut registered,
+        &mut registered_at,
+        &mut sts,
+        &mut sts_store,
+        6697,
+        None,
+    )
+    .await
+    .unwrap();
+    client_line(&mut server, b"JOIN #rust\r\n").await;
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
