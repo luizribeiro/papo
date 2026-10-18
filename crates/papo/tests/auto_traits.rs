@@ -42,7 +42,7 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
 
 #[test]
 fn request_futures_are_send() {
-    let (client, _events, _driver) = Client::builder("irc.example.net").build();
+    let (client, _events, driver) = Client::builder("irc.example.net").build();
 
     assert_send_static(client.send_command("KILL", ["alice", "connection reset"]));
     assert_send_static(client.request_command("MOTD", std::iter::empty::<&str>()));
@@ -138,5 +138,6 @@ fn request_futures_are_send() {
     #[cfg(feature = "unstable")]
     assert_send_static(client.relay("#bridged", "matrix|alice", "Hello from Matrix"));
 
+    assert_send_static(driver);
     _ = assert_message_request_futures;
 }
