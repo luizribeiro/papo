@@ -207,6 +207,131 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// CTCP actions and automatic private query replies retain their typed forms
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response"]),
+    covers = [
+        "base.ctcp.action",
+        "base.ctcp.version-query-reply",
+        "base.ctcp.ping-roundtrip"
+    ]
+)]
+async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+
+    alice.action(&channel, "waves hello").await?;
+    let echo = alice.wait_for(Event::as_message).await?;
+    let action = bob.wait_for(Event::as_message).await?;
+    for message in [&echo, &action] {
+        assert_eq!(message.kind(), MessageKind::Action);
+        assert_eq!(message.target(), channel);
+        assert_eq!(message.raw_text(), "\u{1}ACTION waves hello\u{1}");
+        let ctcp = message.ctcp().expect("ACTION has a CTCP representation");
+        assert_eq!(ctcp.command(), "ACTION");
+        assert_eq!(ctcp.params(), Some("waves hello"));
+    }
+
+    alice
+        .send_command("PRIVMSG", [bob.nick().as_ref(), "\u{1}VERSION\u{1}"])
+        .await?;
+    let query = bob
+        .wait_for(|event| {
+            event
+                .as_message()
+                .filter(|message| message.kind() == MessageKind::Ctcp)
+        })
+        .await?;
+    assert_eq!(query.ctcp().map(|ctcp| ctcp.command()), Some("VERSION"));
+    let reply = alice
+        .wait_for(|event| {
+            event.as_message().filter(|message| {
+                message.kind() == MessageKind::CtcpReply
+                    && message.source().as_ref().and_then(Source::nick) == Some(bob.nick().as_ref())
+            })
+        })
+        .await?;
+    let version = reply.ctcp().expect("VERSION reply is CTCP");
+    assert_eq!(version.command(), "VERSION");
+    assert!(
+        version
+            .params()
+            .is_some_and(|params| params.starts_with("papo "))
+    );
+
+    let mut carol = s.connect("carol").await?;
+    alice
+        .send_command(
+            "PRIVMSG",
+            [carol.nick().as_ref(), "\u{1}PING 1735689600\u{1}"],
+        )
+        .await?;
+    let query = carol
+        .wait_for(|event| {
+            event
+                .as_message()
+                .filter(|message| message.kind() == MessageKind::Ctcp)
+        })
+        .await?;
+    assert_eq!(
+        query.ctcp().and_then(|ctcp| ctcp.params()),
+        Some("1735689600")
+    );
+    let reply = alice
+        .wait_for(|event| {
+            event.as_message().filter(|message| {
+                message.kind() == MessageKind::CtcpReply
+                    && message.source().as_ref().and_then(Source::nick)
+                        == Some(carol.nick().as_ref())
+                    && message.ctcp().map(|ctcp| ctcp.command()) == Some("PING")
+            })
+        })
+        .await?;
+    assert_eq!(
+        reply.ctcp().and_then(|ctcp| ctcp.params()),
+        Some("1735689600")
+    );
+    Ok(())
+}
+
+/// replies and reaction changes retain the referenced message identifier
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response", "message-tags"]),
+    covers = ["tag.reply", "tag.react"]
+)]
+async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    alice.privmsg(&channel, "ship release 2.19").await?;
+    alice.wait_for(Event::as_message).await?;
+    let original = bob.wait_for(Event::as_message).await?;
+    let original_id = original.id().expect("message has an identifier").clone();
+
+    bob.reply(&original, "acknowledged").await?;
+    bob.wait_for(Event::as_message).await?;
+    let reply = alice.wait_for(Event::as_message).await?;
+    assert_eq!(reply.raw_text(), "acknowledged");
+    assert_eq!(reply.reply_to(), Some(original_id.as_ref()));
+    assert_eq!(reply.target(), channel);
+
+    bob.react_to(&original, "👍").await?;
+    let added = alice.wait_for(Event::as_reacted).await?;
+    assert_eq!(added.target.as_ref(), channel);
+    assert_eq!(added.message, original_id);
+    assert_eq!(added.reaction, "👍");
+    assert!(!added.removed);
+    assert_eq!(
+        added.source.as_ref().and_then(Source::nick),
+        Some(bob.nick().as_ref())
+    );
+
+    bob.unreact(&channel, original_id.clone(), "👍").await?;
+    let removed = alice.wait_for(Event::as_reacted).await?;
+    assert_eq!(removed.target.as_ref(), channel);
+    assert_eq!(removed.message, original_id);
+    assert_eq!(removed.reaction, "👍");
+    assert!(removed.removed);
+    Ok(())
+}
+
 /// delivers a client-only typing tag
 #[scenario(
     requires(caps = ["message-tags"]),
