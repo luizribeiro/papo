@@ -199,6 +199,50 @@ pub fn advertised_spelling<'a>(wanted: &str, advertised: &'a Capabilities) -> Op
     }
 }
 
+/// Renders the capability registry as a Markdown implementation table.
+#[must_use]
+pub fn markdown_table() -> String {
+    use std::fmt::Write as _;
+
+    let mut table = String::from(
+        "| Capability | Aliases | Requested | Features | Code |\n|---|---|---|---|---|\n",
+    );
+    for info in ALL {
+        let aliases = info.aliases.join(", ");
+        let features = info
+            .features
+            .iter()
+            .map(|feature| feature.name())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let code = info
+            .code
+            .iter()
+            .map(|path| format!("`{}`", path.replace(' ', "").trim_start_matches("crate::")))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let requested = match info.request {
+            Request::Default(_) => "default",
+            Request::Automatic => "automatic",
+            Request::Never => "never",
+            Request::Superseded(_) => "fallback",
+        };
+        writeln!(
+            table,
+            "| `{}` | {} | {requested} | {} | {code} |",
+            info.name,
+            if aliases.is_empty() { "—" } else { &aliases },
+            if features.is_empty() {
+                "—"
+            } else {
+                &features
+            },
+        )
+        .expect("writing to a string cannot fail");
+    }
+    table
+}
+
 pub(crate) fn requestable(name: &str, advertised: &Capabilities, wanted: &[String]) -> bool {
     let Some(info) = ALL.iter().find(|info| info.name == canonical(name)) else {
         return true;
