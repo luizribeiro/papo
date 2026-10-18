@@ -3844,15 +3844,31 @@ async fn public_state_accessors_report_the_registered_session() {
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
     assert!(!client.state().away());
 
-    server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 :are supported\r\n:ergo.test 306 papo-driver :You have been marked as being away\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
+    server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 BOUNCER_NETID=42 draft/FILEHOST=https://files.example.net/upload :are supported\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
     while !matches!(events.next().await, Some(Event::MonitorOnline(_))) {}
+    client_line(&mut server, b"MODE #Papo\r\n").await;
+    client_line(&mut server, b"WHO #Papo\r\n").await;
+
+    let away = tokio::spawn({
+        let client = client.clone();
+        async move { client.set_away("reviewing patches").await }
+    });
+    client_line(&mut server, b"AWAY :reviewing patches\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 306 papo-driver :You have been marked as being away\r\n",
+    )
+    .await;
+    within(away).await.unwrap().unwrap();
 
     let nick: crate::Nick = client.nick();
     assert_eq!(nick, "papo-driver");
     let state = client.state();
     assert!(state.is_me(&nick));
+    assert!(!state.is_me("emily"));
     assert_eq!(state.account().map(AsRef::as_ref), Some("emily"));
     assert!(state.away());
+    assert_eq!(state.away_message(), Some("reviewing patches"));
     let mut modes: Vec<_> = state.user_modes().collect();
     modes.sort_unstable();
     assert_eq!(modes, ['i', 'w']);
@@ -3869,6 +3885,14 @@ async fn public_state_accessors_report_the_registered_session() {
     );
     assert_eq!(state.monitor_online().next().unwrap().nick(), "bob");
     assert_eq!(state.isupport().nicklen(), Some(27));
+    #[cfg(feature = "unstable")]
+    {
+        assert_eq!(
+            state.bouncer_network().map(papo_core::NetworkId::as_str),
+            Some("42")
+        );
+        assert_eq!(state.filehost(), Some("https://files.example.net/upload"));
+    }
     assert!(
         state
             .features()
