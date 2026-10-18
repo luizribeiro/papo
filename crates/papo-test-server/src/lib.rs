@@ -31,7 +31,7 @@ mod solanum_config;
 mod unrealircd;
 
 pub use account::{register_account, register_account_at};
-pub use environment::{ServerInfo, from_env, unique};
+pub use environment::{BouncerInfo, ServerInfo, from_env, unique};
 #[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
 pub use inspircd::TestServer as InspIrcdServer;
