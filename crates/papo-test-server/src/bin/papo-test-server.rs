@@ -18,7 +18,7 @@ enum Server {
     Ergo(TestServer),
     InspIrcd(InspIrcdServer),
     Solanum(SolanumServer),
-    Soju(SojuServer),
+    Soju(Box<SojuServer>),
     UnrealIrcd(UnrealIrcdServer),
 }
 
@@ -31,7 +31,7 @@ impl Server {
             DeploymentProfile::InspIrcd => InspIrcdServer::start().map(Self::InspIrcd),
             DeploymentProfile::Solanum => SolanumServer::start().map(Self::Solanum),
             DeploymentProfile::UnrealIrcd => UnrealIrcdServer::start().map(Self::UnrealIrcd),
-            DeploymentProfile::SojuErgo => SojuServer::start().map(Self::Soju),
+            DeploymentProfile::SojuErgo => SojuServer::start().map(Box::new).map(Self::Soju),
         }
     }
 
@@ -101,6 +101,19 @@ impl Server {
             Self::UnrealIrcd(server) => server.process_id(),
         }
     }
+
+    fn bouncer_metadata(&self) -> (String, String, String, String) {
+        if let Self::Soju(server) = self {
+            let (account, password, config, upstream) = server.fixture_metadata();
+            return (
+                account.into(),
+                password.into(),
+                config.display().to_string(),
+                upstream.to_string(),
+            );
+        }
+        (String::new(), String::new(), String::new(), String::new())
+    }
 }
 
 #[cfg(not(target_family = "wasm"))]
@@ -126,6 +139,11 @@ fn main() -> io::Result<()> {
     println!("{websocket}");
     println!("{secure_websocket}");
     println!("{}", server.ca_pem_path().display());
+    let (bouncer_user, bouncer_password, bouncer_config, upstream) = server.bouncer_metadata();
+    println!("{bouncer_user}");
+    println!("{bouncer_password}");
+    println!("{bouncer_config}");
+    println!("{upstream}");
     io::stdout().flush()?;
     io::copy(&mut io::stdin(), &mut io::sink())?;
     Ok(())

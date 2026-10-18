@@ -79,6 +79,10 @@ start_server() {
   IFS= read -r PAPO_TEST_WS <&"$server_output"
   IFS= read -r PAPO_TEST_WSS <&"$server_output"
   IFS= read -r host_ca <&"$server_output"
+  IFS= read -r PAPO_TEST_BOUNCER_USER <&"$server_output"
+  IFS= read -r PAPO_TEST_BOUNCER_PASSWORD <&"$server_output"
+  IFS= read -r PAPO_TEST_BOUNCER_CONFIG <&"$server_output"
+  IFS= read -r PAPO_TEST_UPSTREAM <&"$server_output"
   PAPO_TEST_CA=$host_ca
   if [[ $artifact == *.wasm ]]; then
     mkdir -p "$invocation_dir/target/papo-test-server"
@@ -88,6 +92,12 @@ start_server() {
     PAPO_TEST_CA=$ca_file
   fi
   export PAPO_TEST_PLAINTEXT PAPO_TEST_TLS PAPO_TEST_WS PAPO_TEST_WSS PAPO_TEST_CA
+  if [[ -n $PAPO_TEST_BOUNCER_USER && -n $PAPO_TEST_BOUNCER_PASSWORD && -n $PAPO_TEST_BOUNCER_CONFIG && -n $PAPO_TEST_UPSTREAM ]]; then
+    export PAPO_TEST_BOUNCER_USER PAPO_TEST_BOUNCER_PASSWORD PAPO_TEST_BOUNCER_CONFIG PAPO_TEST_UPSTREAM
+  elif [[ -n $PAPO_TEST_BOUNCER_USER || -n $PAPO_TEST_BOUNCER_PASSWORD || -n $PAPO_TEST_BOUNCER_CONFIG || -n $PAPO_TEST_UPSTREAM ]]; then
+    echo "PAPO test bouncer variables must be set together" >&2
+    exit 2
+  fi
 }
 
 if [[ $binary_name == live_* || $binary_name == papo ]]; then
@@ -125,6 +135,14 @@ if [[ $artifact == *.wasm ]]; then
       --env PAPO_TEST_SERVER
       --env PAPO_TEST_PROFILE
     )
+    if [[ -n ${PAPO_TEST_BOUNCER_USER-} ]]; then
+      wasmtime_args+=(
+        --env PAPO_TEST_BOUNCER_USER
+        --env PAPO_TEST_BOUNCER_PASSWORD
+        --env PAPO_TEST_BOUNCER_CONFIG
+        --env PAPO_TEST_UPSTREAM
+      )
+    fi
   fi
   wasmtime_args+=(-S inherit-network -S allow-ip-name-lookup)
   if [[ $artifact == *wasm32-wasip3* ]]; then

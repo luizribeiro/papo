@@ -56,7 +56,7 @@ fn live_binary_forwards_the_selected_server_kind() {
             "server-helper",
             &format!(
                 r#"test "$PAPO_TEST_SERVER" = {server}
-printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem
+printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem '' '' '' ''
 read -r _ || true"#
             ),
         );
@@ -88,7 +88,7 @@ fn live_binary_forwards_profiles_and_maps_the_legacy_ergo_name() {
             "server-helper",
             &format!(
                 r#"test "$PAPO_TEST_PROFILE" = {expected}
-printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem
+printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem '' '' '' ''
 read -r _ || true"#
             ),
         );
@@ -108,6 +108,32 @@ read -r _ || true"#
         assert!(status.success());
         fs::remove_dir_all(directory).unwrap();
     }
+}
+
+#[test]
+fn live_binary_receives_complete_bouncer_metadata() {
+    let directory = directory();
+    let helper = executable(
+        &directory,
+        "server-helper",
+        r"printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem papo-bouncer bouncer-password /tmp/soju.conf 127.0.0.1:7667
+read -r _ || true",
+    );
+    let binary = executable(
+        &directory,
+        "live_bouncer-deadbeef",
+        r#"test "$PAPO_TEST_BOUNCER_USER" = papo-bouncer
+test "$PAPO_TEST_BOUNCER_PASSWORD" = bouncer-password
+test "$PAPO_TEST_BOUNCER_CONFIG" = /tmp/soju.conf
+test "$PAPO_TEST_UPSTREAM" = 127.0.0.1:7667"#,
+    );
+    let status = runner(&binary)
+        .env("PAPO_TEST_PROFILE", "soju-ergo")
+        .env("PAPO_TEST_SERVER_BIN", helper)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    fs::remove_dir_all(directory).unwrap();
 }
 
 #[test]
@@ -132,6 +158,10 @@ fn runner(binary: &Path) -> Command {
         .env_remove("PAPO_TEST_WS")
         .env_remove("PAPO_TEST_WSS")
         .env_remove("PAPO_TEST_CA")
+        .env_remove("PAPO_TEST_BOUNCER_USER")
+        .env_remove("PAPO_TEST_BOUNCER_PASSWORD")
+        .env_remove("PAPO_TEST_BOUNCER_CONFIG")
+        .env_remove("PAPO_TEST_UPSTREAM")
         .env_remove("PAPO_TEST_SERVER")
         .env_remove("PAPO_TEST_PROFILE");
     command

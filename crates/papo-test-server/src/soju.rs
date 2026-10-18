@@ -17,8 +17,9 @@ pub(crate) const PASSWORD: &str = "mC8r-Zq4v_N7xLp2";
 /// A process-owned soju bouncer connected to an isolated Ergo upstream.
 pub struct TestServer {
     child: Child,
-    _ergo: ErgoServer,
+    ergo: ErgoServer,
     directory: TemporaryDirectory,
+    configuration: PathBuf,
     endpoints: [SocketAddr; 4],
 }
 
@@ -67,8 +68,9 @@ impl TestServer {
         )?;
         Ok(Self {
             child,
-            _ergo: ergo,
+            ergo,
             directory,
+            configuration: config.path,
             endpoints: config.endpoints,
         })
     }
@@ -89,6 +91,17 @@ impl TestServer {
     #[must_use]
     pub fn process_id(&self) -> u32 {
         self.child.id()
+    }
+
+    /// Returns account, password, configuration, and upstream runner metadata.
+    #[must_use]
+    pub fn fixture_metadata(&self) -> (&str, &str, &Path, SocketAddr) {
+        (
+            ACCOUNT,
+            PASSWORD,
+            &self.configuration,
+            self.ergo.plaintext_addr(),
+        )
     }
 }
 
