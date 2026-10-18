@@ -90,11 +90,15 @@ impl Scenario {
         account: impl Into<String>,
     ) -> Result<Peer> {
         let address = self.server.plaintext_addr();
-        let builder = Self::configure_named_at(
+        let builder = self.configure_named_at(
             unique_name(label),
             Endpoint::plaintext(address.ip().to_string(), address.port()),
-        )
-        .sasl(Sasl::plain(account.into(), ACCOUNT_PASSWORD));
+        )?;
+        let builder = if self.server.bouncer().is_some() {
+            builder
+        } else {
+            builder.sasl(Sasl::plain(account.into(), ACCOUNT_PASSWORD))
+        };
         self.connect_with(builder).await
     }
 

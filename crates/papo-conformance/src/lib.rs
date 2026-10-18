@@ -19,7 +19,7 @@ use std::{
 
 use libtest_mimic::{Arguments, Completion, Conclusion, Failed, FormatSetting, Trial};
 use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
-use papo_core::{Capabilities, DEFAULT_WANTED_CAPS, Sasl};
+use papo_core::{Capabilities, Sasl};
 use papo_test_server::{ServerInfo, from_env};
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 
@@ -320,37 +320,6 @@ impl Scenario {
 
     async fn client(&self, nick: &str) -> Result<RegisteredClient, Failed> {
         self.client_with(nick, None).await
-    }
-
-    async fn client_caps(
-        &self,
-        nick: &str,
-        extra_caps: &[&str],
-    ) -> Result<RegisteredClient, Failed> {
-        let endpoint = Endpoint::plaintext(
-            self.server.plaintext_addr().ip().to_string(),
-            self.server.plaintext_addr().port(),
-        );
-        let mut wanted_caps = DEFAULT_WANTED_CAPS
-            .iter()
-            .map(|cap| (*cap).to_owned())
-            .collect::<Vec<_>>();
-        wanted_caps.extend(extra_caps.iter().map(|cap| (*cap).to_owned()));
-        let mut connection = connect_client(
-            &self.server,
-            endpoint,
-            nick,
-            "papo conformance client",
-            Some(wanted_caps),
-            None,
-        )?;
-        let welcome = wait_for_registration(&connection.client, &mut connection.events).await?;
-        Ok(RegisteredClient {
-            client: connection.client,
-            events: connection.events,
-            driver: connection.driver,
-            welcome,
-        })
     }
 
     async fn client_with(
