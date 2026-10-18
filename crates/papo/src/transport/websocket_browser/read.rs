@@ -52,10 +52,7 @@ impl ReadState {
             self.wake();
             return;
         }
-        let mut end = reason.len().min(MAX_CLOSE_REASON_BYTES);
-        while !reason.is_char_boundary(end) {
-            end -= 1;
-        }
+        let end = reason.floor_char_boundary(reason.len().min(MAX_CLOSE_REASON_BYTES));
         let suffix = if end == 0 { "" } else { ": " };
         self.fail(io::Error::new(
             io::ErrorKind::ConnectionAborted,
@@ -111,28 +108,58 @@ impl ReadState {
 mod tests {
     use std::{
         io,
-        task::{Context, Poll},
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        },
+        task::{Poll, Wake, Waker},
     };
 
     use tokio::io::ReadBuf;
-    use wasm_bindgen_test::wasm_bindgen_test;
 
     use super::ReadState;
 
-    fn read(state: &mut ReadState, capacity: usize) -> io::Result<Vec<u8>> {
+    fn poll(state: &mut ReadState, capacity: usize) -> Poll<io::Result<Vec<u8>>> {
         let mut output = vec![0; capacity];
         let mut buffer = ReadBuf::new(&mut output);
-        let mut context = Context::from_waker(std::task::Waker::noop());
-        let Poll::Ready(result) = state.poll_read(&mut context, &mut buffer) else {
-            panic!("read should be ready");
-        };
-        result?;
-        let length = buffer.filled().len();
-        output.truncate(length);
-        Ok(output)
+        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+        match state.poll_read(&mut context, &mut buffer) {
+            Poll::Ready(result) => {
+                let length = buffer.filled().len();
+                output.truncate(length);
+                Poll::Ready(result.map(|()| output))
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 
-    #[wasm_bindgen_test]
+    fn read(state: &mut ReadState, capacity: usize) -> io::Result<Vec<u8>> {
+        let Poll::Ready(result) = poll(state, capacity) else {
+            panic!("read should be ready");
+        };
+        result
+    }
+
+    struct WakeCount(AtomicUsize);
+
+    impl Wake for WakeCount {
+        fn wake(self: Arc<Self>) {
+            self.0.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    fn wait_for_input(state: &mut ReadState) -> Arc<WakeCount> {
+        let count = Arc::new(WakeCount(AtomicUsize::new(0)));
+        let waker = Waker::from(Arc::clone(&count));
+        let mut context = std::task::Context::from_waker(&waker);
+        let mut storage = [0];
+        let mut buffer = ReadBuf::new(&mut storage);
+        assert!(state.poll_read(&mut context, &mut buffer).is_pending());
+        count
+    }
+
+    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(not(browser), test)]
     fn appends_crlf_and_enforces_the_literal_message_limit() {
         let mut state = ReadState::default();
         state.push(vec![b'x'; 8_701]);
@@ -147,35 +174,98 @@ mod tests {
         );
     }
 
-    #[wasm_bindgen_test]
+    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(not(browser), test)]
     fn bounds_an_unending_incoming_queue_at_65536_bytes() {
         let mut state = ReadState::default();
         for _ in 0..7 {
             state.push(vec![b'x'; 8_701]);
         }
-        state.push(vec![b'x'; 8_701]);
+        state.push(vec![b'x'; 4_613]);
+        state.push(Vec::new());
         assert_eq!(
             read(&mut state, 1).unwrap_err().kind(),
             io::ErrorKind::OutOfMemory
         );
+
+        let mut state = ReadState::default();
+        for _ in 0..7 {
+            state.push(vec![b'x'; 8_701]);
+        }
+        state.push(vec![b'x'; 4_613]);
+        assert_eq!(read(&mut state, 3).unwrap(), b"xxx");
+        state.push(Vec::new());
+        assert_eq!(read(&mut state, 1).unwrap(), b"x");
     }
 
-    #[wasm_bindgen_test]
+    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(not(browser), test)]
+    fn preserves_partial_reads_and_empty_buffer_readiness() {
+        let mut state = ReadState::default();
+        assert!(matches!(poll(&mut state, 1), Poll::Pending));
+        assert_eq!(read(&mut state, 0).unwrap(), b"");
+
+        state.push(b":emily PRIVMSG #papo :hello".to_vec());
+        let mut output = read(&mut state, 7).unwrap();
+        output.extend(read(&mut state, 4).unwrap());
+        output.extend(read(&mut state, 64).unwrap());
+        assert_eq!(output, b":emily PRIVMSG #papo :hello\r\n");
+        assert!(matches!(poll(&mut state, 1), Poll::Pending));
+    }
+
+    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(not(browser), test)]
     fn maps_normal_close_codes_to_eof_and_bounds_error_reasons() {
         for code in [1000, 1001] {
             let mut state = ReadState::default();
             state.close(code, "server restart");
             assert!(read(&mut state, 1).unwrap().is_empty());
+            state.push(b":ergo.test NOTICE * :late".to_vec());
+            assert!(read(&mut state, 1).unwrap().is_empty());
         }
+
         let mut state = ReadState::default();
-        state.close(4007, &"maintenance ".repeat(20));
+        state.close(4007, "");
         let error = read(&mut state, 1).unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::ConnectionAborted);
-        assert!(
-            error
-                .to_string()
-                .starts_with("WebSocket closed with code 4007: maintenance")
+        assert_eq!(error.to_string(), "WebSocket closed with code 4007");
+
+        let mut state = ReadState::default();
+        state.close(4008, &"é".repeat(62));
+        assert_eq!(
+            read(&mut state, 1).unwrap_err().to_string(),
+            format!("WebSocket closed with code 4008: {}", "é".repeat(61))
         );
-        assert!(error.to_string().len() <= 164);
+    }
+
+    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(not(browser), test)]
+    fn failure_discards_buffered_input_and_rejects_late_messages() {
+        let mut state = ReadState::default();
+        state.push(b":ergo.test CAP papo LS :message-tags".to_vec());
+        assert_eq!(read(&mut state, 4).unwrap(), b":erg");
+        state.fail(io::Error::new(io::ErrorKind::InvalidData, "wrong frame"));
+        state.push(b":ergo.test 001 papo :Welcome".to_vec());
+        assert_eq!(read(&mut state, 64).unwrap_err().to_string(), "wrong frame");
+        assert!(matches!(poll(&mut state, 64), Poll::Pending));
+    }
+
+    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(not(browser), test)]
+    fn messages_closes_and_failures_wake_a_waiting_reader() {
+        let mut message = ReadState::default();
+        let message_wakes = wait_for_input(&mut message);
+        message.push(b"PING :ergo.test".to_vec());
+        assert_eq!(message_wakes.0.load(Ordering::Relaxed), 1);
+
+        let mut close = ReadState::default();
+        let close_wakes = wait_for_input(&mut close);
+        close.close(1000, "");
+        assert_eq!(close_wakes.0.load(Ordering::Relaxed), 1);
+
+        let mut failure = ReadState::default();
+        let failure_wakes = wait_for_input(&mut failure);
+        failure.fail(io::Error::new(io::ErrorKind::InvalidData, "wrong frame"));
+        assert_eq!(failure_wakes.0.load(Ordering::Relaxed), 1);
     }
 }
