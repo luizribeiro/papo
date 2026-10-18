@@ -106,6 +106,7 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
     let doc = description(function)?;
     let name = &function.sig.ident;
     let wrapper = format_ident!("__papo_scenario_{name}");
+    let spec = format_ident!("__papo_scenario_spec_{name}");
     let caps = args.caps.unwrap_or_default().into_iter().map(|cap| {
         let cap = cap.value();
         let (name, value) = cap
@@ -122,16 +123,19 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
             Box::pin(#name(context))
         }
 
+        #[allow(non_upper_case_globals)]
+        pub(crate) const #spec: crate::ScenarioSpec = crate::ScenarioSpec {
+            name: stringify!(#name),
+            doc: #doc,
+            requires: crate::Requirements {
+                caps: &[#(#caps),*],
+                isupport: &[#(#isupport),*],
+            },
+            run: #wrapper,
+        };
+
         inventory::submit! {
-            crate::ScenarioSpec {
-                name: stringify!(#name),
-                doc: #doc,
-                requires: crate::Requirements {
-                    caps: &[#(#caps),*],
-                    isupport: &[#(#isupport),*],
-                },
-                run: #wrapper,
-            }
+            #spec
         }
     })
 }
@@ -187,6 +191,7 @@ mod tests {
         .unwrap();
         let output = expand(args, &function).unwrap().to_string();
         assert!(output.contains("__papo_scenario_sasl_scram"));
+        assert!(output.contains("__papo_scenario_spec_sasl_scram"));
         assert!(output.contains("authenticates with a real SCRAM exchange"));
         assert!(output.contains("SCRAM-SHA-256"));
     }
