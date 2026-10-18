@@ -68,7 +68,7 @@ pub struct RealnameChanged {
     pub realname: String,
 }
 
-/// A monitored nickname came online or changed its userhost.
+/// A monitored nickname came online.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct MonitorOnline {

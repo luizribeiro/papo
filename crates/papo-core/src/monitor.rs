@@ -189,16 +189,43 @@ impl Monitor {
                 for entry in entries.split(',') {
                     if let Some((nick, user, host)) = parse_entry(entry) {
                         handled = true;
+                        let (was_online, userhost_changed) = {
+                            let previous = self.presence.iter().find_map(|presence| {
+                                let Presence::Online {
+                                    nick: current,
+                                    user,
+                                    host,
+                                } = presence
+                                else {
+                                    return None;
+                                };
+                                isupport
+                                    .casemapping()
+                                    .eq(current, nick)
+                                    .then_some((user.as_deref(), host.as_deref()))
+                            });
+                            (
+                                previous.is_some(),
+                                previous.is_some_and(|old| old != (user, host)),
+                            )
+                        };
                         let next = Presence::Online {
                             nick: nick.to_owned(),
                             user: user.map(str::to_owned),
                             host: host.map(str::to_owned),
                         };
-                        if self.replace_presence(nick, next, isupport) {
+                        self.replace_presence(nick, next, isupport);
+                        if !was_online {
                             outbox.event(Event::MonitorOnline {
                                 nick: nick.to_owned(),
                                 user: user.map(str::to_owned),
                                 host: host.map(str::to_owned),
+                            });
+                        } else if userhost_changed && let (Some(user), Some(host)) = (user, host) {
+                            outbox.event(Event::HostChanged {
+                                nick: nick.to_owned(),
+                                user: user.to_owned(),
+                                host: host.to_owned(),
                             });
                         }
                     }

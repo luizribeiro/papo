@@ -1533,7 +1533,7 @@ pub enum Event {
         /// The state collection that rejected another entry.
         limit: StateLimit,
     },
-    /// A monitored nickname came online or changed its userhost.
+    /// A monitored nickname came online.
     MonitorOnline {
         /// The monitored nickname.
         nick: String,
