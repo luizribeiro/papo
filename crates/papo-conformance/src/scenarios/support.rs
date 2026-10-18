@@ -55,31 +55,3 @@ pub(super) async fn close_pair(
     first.close().await?;
     second.close().await
 }
-
-pub(super) async fn history_page(context: Scenario) -> ScenarioResult {
-    let writer_nick = context.unique();
-    let reader_nick = context.unique();
-    let channel = format!("#{}", context.unique());
-    let text = format!("history from {writer_nick}");
-    let mut writer = context.client(&writer_nick).await?;
-    join(&context, &mut writer, &channel).await?;
-    writer
-        .client
-        .privmsg(&channel, &text)
-        .await
-        .map_err(Failed::from)?;
-    let mut reader = context
-        .client_caps(&reader_nick, &["draft/chathistory"])
-        .await?;
-    join(&context, &mut reader, &channel).await?;
-    let history = reader
-        .client
-        .history(&channel)
-        .latest(10)
-        .await
-        .map_err(Failed::from)?;
-    if !history.messages().any(|message| message.raw_text() == text) {
-        return Err("history batch did not contain the earlier message".into());
-    }
-    close_pair(writer, reader).await
-}
