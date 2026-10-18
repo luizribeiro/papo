@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>papo SharedWorker</title>
+<form id="connect">
+  <input name="url" value="ws://127.0.0.1:8067/" aria-label="WebSocket URL">
+  <input name="nick" value="papo-browser" aria-label="Nickname">
+  <input name="channel" value="#papo" aria-label="Channel">
+  <button>Connect</button>
+</form>
+<pre id="events"></pre>
+<script type="module">
+  const worker = new SharedWorker("./worker.js", { type: "module" });
+  const output = document.querySelector("#events");
+  worker.port.onmessage = ({ data }) => output.append(`${data}\n`);
+  worker.port.start();
+  document.querySelector("#connect").onsubmit = event => {
+    event.preventDefault();
+    worker.port.postMessage(Object.fromEntries(new FormData(event.target)));
+  };
+</script>

@@ -661,6 +661,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-browser-worker"
+version = "0.0.0"
+dependencies = [
+ "papo",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "papo-catchup"
 version = "0.0.0"
 dependencies = [
