@@ -176,6 +176,13 @@ fn response_id(session: &mut Session) -> RequestId {
         .unwrap()
 }
 
+fn assert_no_response(session: &mut Session) {
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .all(|event| !matches!(event, Event::Response(_)))
+    );
+}
+
 fn response_lines(session: &mut Session) -> (BTreeMap<RequestId, Vec<Message>>, Vec<Message>) {
     let mut responses = BTreeMap::new();
     let mut messages = Vec::new();
@@ -388,6 +395,94 @@ fn membership_matchers_ignore_unrelated_successes_and_capture_errors() {
     );
     session.handle_line(now, b":ergo.test 401 papo carol :No such nick/channel");
     assert_eq!(response_id(&mut session), id);
+}
+
+#[test]
+fn action_matchers_require_every_identity_field() {
+    let now = Instant::now();
+
+    let mut kick = Session::new(Config::default().nick("papo"));
+    let kick_id = kick
+        .request_with_matcher(
+            now,
+            Message::new("KICK", ["#papo", "spambot"]),
+            ResponseMatcher::Kick {
+                channel: "#papo".into(),
+                nick: "spambot".into(),
+            },
+        )
+        .unwrap();
+    for line in [
+        ":alice!alice@staff.example KICK #papo alice :Requested",
+        ":alice!alice@staff.example KICK #rust spambot :Requested",
+        ":ergo.test 332 papo #papo :An unrelated topic",
+    ] {
+        kick.handle_line(now, line.as_bytes());
+        assert_no_response(&mut kick);
+    }
+    kick.handle_line(now, b":ergo.test 401 papo spambot :No such nick/channel");
+    assert_eq!(response_id(&mut kick), kick_id);
+
+    let mut invite = Session::new(Config::default().nick("papo"));
+    let invite_id = invite
+        .request_with_matcher(
+            now,
+            Message::new("INVITE", ["carol", "#papo"]),
+            ResponseMatcher::Invite {
+                channel: "#papo".into(),
+                nick: "carol".into(),
+            },
+        )
+        .unwrap();
+    for line in [
+        ":ergo.test 341 papo carol #rust",
+        ":ergo.test 332 papo carol :An unrelated topic",
+    ] {
+        invite.handle_line(now, line.as_bytes());
+        assert_no_response(&mut invite);
+    }
+    invite.handle_line(now, b":ergo.test 401 papo carol :No such nick/channel");
+    assert_eq!(response_id(&mut invite), invite_id);
+
+    let mut nick = Session::new(Config::default().nick("papo"));
+    let nick_id = nick
+        .request_with_matcher(
+            now,
+            Message::new("NICK", ["papo-away"]),
+            ResponseMatcher::Nick("papo-away".into()),
+        )
+        .unwrap();
+    for line in [
+        ":alice!alice@staff.example NICK :papo-away",
+        ":papo!papo@localhost NICK :papo-busy",
+        ":ergo.test 332 papo papo-away :An unrelated topic",
+    ] {
+        nick.handle_line(now, line.as_bytes());
+        assert_no_response(&mut nick);
+    }
+    nick.handle_line(
+        now,
+        b":ergo.test 433 papo papo-away :Nickname is already in use",
+    );
+    assert_eq!(response_id(&mut nick), nick_id);
+
+    let mut setname = Session::new(Config::default().nick("papo"));
+    let setname_id = setname
+        .request_with_matcher(
+            now,
+            Message::new("SETNAME", ["Papo Test Client"]),
+            ResponseMatcher::SetName("Papo Test Client".into()),
+        )
+        .unwrap();
+    for line in [
+        ":alice!alice@staff.example SETNAME :Papo Test Client",
+        ":papo!papo@localhost SETNAME :Different Name",
+    ] {
+        setname.handle_line(now, line.as_bytes());
+        assert_no_response(&mut setname);
+    }
+    setname.handle_line(now, b":papo!papo@localhost SETNAME :Papo Test Client");
+    assert_eq!(response_id(&mut setname), setname_id);
 }
 
 #[test]
