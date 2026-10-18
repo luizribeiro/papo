@@ -1,6 +1,8 @@
 [waivers]
 "base.ping.server-initiated" = "The managed servers expose no deterministic control that emits a server-originated PING on demand."
 "ircv3.sasl.external" = "The managed servers do not provision a client certificate fingerprint mapped to an account."
+"ircv3.sasl.already-907" = "papo's public API cannot inject a second AUTHENTICATE exchange before registration completes."
+"ircv3.sasl.mechs-908" = "papo's public API cannot inject an unsupported AUTHENTICATE mechanism before registration completes."
 "draft.account-registration.verify" = "The managed servers expose no mail sink from which a verification code can be obtained."
 "core.cap-notify.new" = "The managed servers cannot add a capability while connected without reloading or replacing the server process."
 "core.cap-notify.del" = "The managed servers cannot remove a capability while connected without reloading or replacing the server process."

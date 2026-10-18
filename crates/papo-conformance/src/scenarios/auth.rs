@@ -60,14 +60,10 @@ async fn sasl_failure(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// exposes SASL abort, repeated-authentication, and mechanism replies
+/// exposes a SASL abort reply
 #[scenario(
     requires(caps = ["sasl"]),
-    covers = [
-        "ircv3.sasl.abort-906",
-        "ircv3.sasl.already-907",
-        "ircv3.sasl.mechs-908"
-    ]
+    covers = ["ircv3.sasl.abort-906"]
 )]
 async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
@@ -90,23 +86,7 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
         aborted,
         Warning::AuthenticationFailed { reason, .. } if !reason.is_empty()
     ));
-
-    alice.send_raw("AUTHENTICATE PAPO-UNKNOWN").await?;
     alice.expect_none(Event::as_disconnected).await?;
-    assert!(
-        alice
-            .state()
-            .caps()
-            .get("sasl")
-            .and_then(|value| value.as_deref())
-            .is_some_and(|value| value.contains("PLAIN"))
-    );
-
-    let mut bob = s.connect_as_account("bob").await?;
-    let account = bob.state().account().cloned();
-    bob.send_raw("AUTHENTICATE PLAIN").await?;
-    bob.expect_none(Event::as_disconnected).await?;
-    assert_eq!(bob.state().account(), account.as_ref());
     Ok(())
 }
 
