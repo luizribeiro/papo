@@ -266,3 +266,41 @@ async fn part(context: Scenario) -> papo_testing::Result<()> {
     bob.expect_none(Event::as_parted).await?;
     Ok(())
 }
+
+/// removes a kicked member from the channel state of the target and operator
+#[scenario(covers = ["base.kick.basic"])]
+async fn kick(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let mut bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+
+    let reason = "refresh channel membership";
+    alice.kick(&channel, bob_nick.clone(), reason).await?;
+    let observed = alice.wait_for(Event::as_kicked).await?;
+    let own = bob.wait_for(Event::as_kicked).await?;
+
+    for kicked in [&observed, &own] {
+        assert_eq!(kicked.channel.as_ref(), channel);
+        assert_eq!(kicked.nick, bob_nick);
+        assert_eq!(kicked.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(kicked.reason.as_deref(), Some(reason));
+    }
+    assert!(!observed.is_self);
+    assert!(own.is_self);
+    assert!(
+        alice
+            .state()
+            .channel(&channel)
+            .unwrap()
+            .member(&bob_nick)
+            .is_none()
+    );
+    assert!(bob.state().channel(&channel).is_none());
+    alice.expect_none(Event::as_kicked).await?;
+    bob.expect_none(Event::as_kicked).await?;
+    Ok(())
+}
