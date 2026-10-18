@@ -580,6 +580,104 @@ mod tests {
         );
         assert_eq!(external.kind(), ConnectErrorKind::HostNotFound);
         assert_eq!(external.to_string(), "the server host could not be found");
+
+        let unreachable = ConnectError::from(crate::transport::ConnectError::Tcp(io::Error::new(
+            io::ErrorKind::ConnectionReset,
+            "peer reset",
+        )));
+        assert_eq!(unreachable.kind(), ConnectErrorKind::Unreachable);
+    }
+
+    #[test]
+    fn close_kinds_retain_their_specific_categories() {
+        assert!(matches!(
+            Error::disconnected_close(
+                papo_core::CloseKind::RegistrationTimeout,
+                "registration timed out".into()
+            ),
+            Error::Registration(RegistrationError::Timeout)
+        ));
+        assert!(matches!(
+            Error::disconnected_close(papo_core::CloseKind::Banned, "K-lined: open proxy".into()),
+            Error::Registration(RegistrationError::Banned { message })
+                if message == "K-lined: open proxy"
+        ));
+        assert!(matches!(
+            Error::disconnected_close(papo_core::CloseKind::PingTimeout, "ping timeout".into()),
+            Error::Disconnected(Disconnected {
+                cause: DisconnectCause::PingTimeout,
+                retry_in: None,
+            })
+        ));
+    }
+
+    #[test]
+    fn request_errors_retain_their_public_categories() {
+        use papo_core::RequestError as Request;
+
+        assert!(matches!(
+            Error::request(Request::PendingLimit),
+            Error::TooManyPendingRequests
+        ));
+        assert!(matches!(
+            Error::request(Request::InvalidMessageReference),
+            Error::InvalidInput(InvalidInput::UnusableMessageReference)
+        ));
+        assert!(matches!(
+            Error::request(Request::EmailRequired),
+            Error::InvalidInput(InvalidInput::EmailRequired)
+        ));
+        assert!(matches!(
+            Error::request(Request::CustomAccountNameUnsupported),
+            Error::InvalidInput(InvalidInput::AccountNameMustMatchNick)
+        ));
+        assert!(matches!(
+            Error::request(Request::InvalidMetadataKey {
+                key: "draft/example".into(),
+                reason: papo_proto::InvalidIdentifier::InvalidCharacter('/'),
+            }),
+            Error::InvalidInput(InvalidInput::InvalidName { name, reason })
+                if name == "draft/example"
+                    && reason == papo_proto::InvalidIdentifier::InvalidCharacter('/')
+        ));
+        assert!(matches!(
+            Error::request(Request::MetadataValueTooLong {
+                maximum: 512,
+                actual: 513,
+            }),
+            Error::InvalidInput(InvalidInput::MetadataValueTooLong {
+                maximum: 512,
+                actual: 513,
+            })
+        ));
+        assert!(matches!(
+            Error::request(Request::TooManyMetadataSubscriptions {
+                maximum: 10,
+                actual: 11,
+            }),
+            Error::InvalidInput(InvalidInput::TooManyMetadataSubscriptions {
+                maximum: 10,
+                actual: 11,
+            })
+        ));
+
+        #[cfg(feature = "unstable")]
+        for (request, expected) in [
+            (
+                Request::InvalidRelayNickname,
+                InvalidInput::InvalidRelayNickname,
+            ),
+            (
+                Request::InvalidWebPushEndpoint,
+                InvalidInput::InvalidWebPushEndpoint,
+            ),
+            (Request::InvalidWebPushKey, InvalidInput::InvalidWebPushKey),
+        ] {
+            assert!(matches!(
+                Error::request(request),
+                Error::InvalidInput(actual) if actual == expected
+            ));
+        }
     }
 
     #[test]
