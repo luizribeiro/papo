@@ -443,10 +443,25 @@
                   echo "papo-core browser probe exceeds its size budget" >&2
                   exit 1
                 fi
+                cargo build \
+                  --manifest-path crates/papo-core/tests/browser/Cargo.toml \
+                  --target wasm32-unknown-unknown --target-dir target/browser-driver-size \
+                  --release --features driver --locked
+                wasm-opt -Oz \
+                  target/browser-driver-size/wasm32-unknown-unknown/release/papo_core_browser_tests.wasm \
+                  -o papo-driver-probe.wasm
+                size=$(stat --format=%s papo-driver-probe.wasm)
+                budget=1330000
+                echo "optimized papo browser driver: $size bytes (recorded 1208550 on 2026-10-18; budget: $budget bytes)"
+                if (( size > budget )); then
+                  echo "papo browser driver exceeds its size budget" >&2
+                  exit 1
+                fi
               '';
               installPhaseCommand = ''
                 mkdir -p $out
                 cp papo-core-probe.wasm $out/
+                cp papo-driver-probe.wasm $out/
               '';
             }
           );

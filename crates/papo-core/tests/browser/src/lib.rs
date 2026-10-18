@@ -1,5 +1,7 @@
-//! Minimal browser and size probe for `papo-core`.
+//! Browser and size probes for the protocol core and high-level driver.
 
+#[cfg(feature = "driver")]
+use papo::{Client, Endpoint};
 use papo_core::{Config, Session};
 use papo_proto::MessageRef;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -22,4 +24,25 @@ pub fn core_probe() -> usize {
     session.handle_connected(now);
     session.handle_line(now, b":ergo.test 001 papo-browser :Welcome to Ergo");
     message.raw_command().len() + session.nick().len()
+}
+
+/// Connects and cleanly closes the high-level browser driver.
+///
+/// # Errors
+///
+/// Returns the public connection or shutdown diagnostic as a JavaScript string.
+#[wasm_bindgen]
+#[cfg(feature = "driver")]
+pub async fn driver_probe(url: String) -> Result<(), wasm_bindgen::JsValue> {
+    let (client, _) = Client::builder(Endpoint::websocket(url))
+        .nick("papo-browser-probe")
+        .connect()
+        .await
+        .map_err(js_error)?;
+    client.quit("browser probe complete").await.map_err(js_error)
+}
+
+#[cfg(feature = "driver")]
+fn js_error(error: papo::Error) -> wasm_bindgen::JsValue {
+    wasm_bindgen::JsValue::from_str(&error.to_string())
 }
