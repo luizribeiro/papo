@@ -205,6 +205,53 @@ async fn server_information(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// returns TIME and bounded WHOWAS replies
+#[scenario(covers = [
+    "base.time.basic",
+    "base.whowas.basic",
+    "base.whowas.err-no-such-nick",
+    "base.whowas.count-param"
+])]
+async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
+
+    // These commands expose protocol numerics rather than richer result types.
+    let time = bob
+        .request_command("TIME", std::iter::empty::<&str>())
+        .await?;
+    let reply = time
+        .iter()
+        .find(|line| line.numeric() == Some(papo::numeric::RPL_TIME))
+        .expect("TIME returns numeric 391");
+    assert!(reply.param(1).is_some_and(|server| !server.is_empty()));
+    assert!(reply.param(2).is_some_and(|time| !time.is_empty()));
+
+    let nick = alice.nick();
+    alice.quit("record this departure").await?;
+    let whowas = bob.request_command("WHOWAS", [nick.as_ref(), "1"]).await?;
+    let users = whowas
+        .iter()
+        .filter(|line| line.numeric() == Some(papo::numeric::RPL_WHOWASUSER))
+        .collect::<Vec<_>>();
+    assert_eq!(users.len(), 1);
+    assert_eq!(users[0].param(1), Some(nick.as_ref()));
+    assert!(
+        whowas
+            .iter()
+            .any(|line| line.numeric() == Some(papo::numeric::RPL_ENDOFWHOWAS))
+    );
+
+    let missing = papo_test_server::unique("missing-whowas");
+    let absent = bob.request_command("WHOWAS", [&missing]).await?;
+    assert!(
+        absent
+            .iter()
+            .any(|line| line.numeric() == Some(papo::numeric::ERR_WASNOSUCHNICK))
+    );
+    Ok(())
+}
+
 /// lists public channels through the typed LIST request
 #[scenario(covers = ["base.list.basic"])]
 async fn channel_list(s: Scenario) -> papo_testing::Result<()> {

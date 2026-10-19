@@ -54,6 +54,7 @@ numerics! {
     RPL_ENDOFWHOWAS = 369,
     RPL_WHOISHOST = 378,
     RPL_WHOISMODES = 379,
+    RPL_TIME = 391,
     RPL_WHOISSECURE = 671,
 }
 
@@ -142,6 +143,7 @@ mod tests {
         assert_eq!(RPL_ENDOFWHOWAS, 369);
         assert_eq!(RPL_WHOISHOST, 378);
         assert_eq!(RPL_WHOISMODES, 379);
+        assert_eq!(RPL_TIME, 391);
         assert_eq!(RPL_WHOISSECURE, 671);
     }
 

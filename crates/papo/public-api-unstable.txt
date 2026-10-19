@@ -471,6 +471,7 @@ pub const papo::numeric::RPL_MOTDSTART: u16
 pub const papo::numeric::RPL_MYINFO: u16
 pub const papo::numeric::RPL_NAMREPLY: u16
 pub const papo::numeric::RPL_NOTOPIC: u16
+pub const papo::numeric::RPL_TIME: u16
 pub const papo::numeric::RPL_TOPIC: u16
 pub const papo::numeric::RPL_TOPICWHOTIME: u16
 pub const papo::numeric::RPL_TRYAGAIN: u16
