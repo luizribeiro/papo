@@ -507,7 +507,11 @@ fn informational_account_required_cap_accepts_a_server_password() {
         .client("USER papo 0 * papo")
         .server("CAP * LS :soju.im/account-required standard-replies")
         .client("CAP REQ :standard-replies")
-        .no_event();
+        .server("CAP * ACK :standard-replies")
+        .client("CAP END")
+        .welcome(":soju.test 001 papo :Welcome to soju, papo")
+        .server(":soju.test 422 papo :No MOTD")
+        .event(|event| matches!(event, Event::Registered(_)));
 }
 
 #[test]
