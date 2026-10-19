@@ -42,6 +42,27 @@ fn negation_removes_tokens_and_readvertisement_overwrites() {
 }
 
 #[test]
+fn iterates_over_the_complete_accumulated_token_set() {
+    let mut support = Isupport::default();
+    support.apply_tokens([
+        "CASEMAPPING=ascii",
+        "UTF8ONLY",
+        "NETWORK=Ergo\\x20Test",
+        "-UTF8ONLY",
+    ]);
+
+    let mut tokens = support.tokens().collect::<Vec<_>>();
+    tokens.sort_unstable_by_key(|(key, _)| *key);
+    assert_eq!(
+        tokens,
+        [
+            ("CASEMAPPING", Advertised::Value("ascii")),
+            ("NETWORK", Advertised::Value("Ergo Test")),
+        ]
+    );
+}
+
+#[test]
 fn unescapes_values_in_one_pass() {
     let mut support = Isupport::default();
     support.apply_tokens([

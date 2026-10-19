@@ -165,6 +165,15 @@ impl Isupport {
         }
     }
 
+    /// Iterates over every advertised token in unspecified order.
+    #[must_use]
+    pub fn tokens(&self) -> impl ExactSizeIterator<Item = (&str, Advertised<'_>)> {
+        self.tokens.iter().map(|(key, value)| {
+            let advertised = value.as_deref().map_or(Advertised::Bare, Advertised::Value);
+            (key.as_str(), advertised)
+        })
+    }
+
     /// Returns the server's name casemapping.
     #[must_use]
     pub fn casemapping(&self) -> Casemapping {

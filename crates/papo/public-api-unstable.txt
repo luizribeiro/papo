@@ -384,6 +384,7 @@ pub fn papo::isupport::Isupport::safelist(&self) -> bool
 pub fn papo::isupport::Isupport::saferate(&self) -> bool
 pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::tokens(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, papo::isupport::Advertised<'_>)>
 pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::utf8only(&self) -> bool
 pub fn papo::isupport::Isupport::vapid(&self) -> core::option::Option<&str>
@@ -976,6 +977,7 @@ pub fn papo::isupport::Isupport::safelist(&self) -> bool
 pub fn papo::isupport::Isupport::saferate(&self) -> bool
 pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
 pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::isupport::Isupport::tokens(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, papo::isupport::Advertised<'_>)>
 pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::utf8only(&self) -> bool
 pub fn papo::isupport::Isupport::vapid(&self) -> core::option::Option<&str>

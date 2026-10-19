@@ -31,6 +31,12 @@ impl Isupport {
         self.inner.get(key)
     }
 
+    /// Iterates over every advertised token in unspecified order.
+    #[must_use]
+    pub fn tokens(&self) -> impl ExactSizeIterator<Item = (&str, Advertised<'_>)> {
+        self.inner.tokens()
+    }
+
     /// Returns the server's name casemapping.
     #[must_use]
     pub fn casemapping(&self) -> Casemapping {
