@@ -891,6 +891,67 @@ async fn nick_change_and_collision(context: Scenario) -> papo_testing::Result<()
     Ok(())
 }
 
+/// rejects empty and malformed nickname changes without changing local state
+#[scenario(covers = ["base.nick.empty", "base.nick.invalid-chars"])]
+async fn nick_errors(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let original = alice.nick();
+
+    // Empty and malformed wire parameters are needed to observe 431 and 432.
+    let empty = alice.request_command("NICK", [""]).await?;
+    assert!(
+        empty.iter().any(|line| line.numeric() == Some(431)),
+        "unexpected empty-nickname response: {empty:?}"
+    );
+    let malformed = alice.request_command("NICK", ["review#nick"]).await?;
+    assert!(
+        malformed.iter().any(|line| line.numeric() == Some(432)),
+        "unexpected malformed-nickname response: {malformed:?}"
+    );
+    assert_eq!(alice.state().nick(), &original);
+    alice.expect_none(Event::as_nick_changed).await?;
+    Ok(())
+}
+
+/// races two connected clients for one unclaimed nickname
+#[scenario(covers = ["base.nick.collision-race"])]
+async fn nickname_collision_race(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let claimed = format!("race-{}", alice.nick());
+    let alice_client = papo::Client::clone(&alice);
+    let bob_client = papo::Client::clone(&bob);
+    let alice_claim = claimed.clone();
+    let bob_claim = claimed.clone();
+
+    let alice_result = tokio::task::spawn(async move { alice_client.set_nick(alice_claim).await });
+    let bob_result = tokio::task::spawn(async move { bob_client.set_nick(bob_claim).await });
+    let results = [alice_result.await?, bob_result.await?];
+    assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
+    let error = results
+        .into_iter()
+        .find_map(Result::err)
+        .expect("one racing nickname claim must be refused");
+    let refusal = match error {
+        Error::Server(refusal) => refusal,
+        other => panic!("nickname race did not return a server refusal: {other:?}"),
+    };
+    assert_eq!(
+        refusal.kind(),
+        Refusal::NickCollision,
+        "unexpected nickname-race refusal: {refusal:?}"
+    );
+    assert_eq!(refusal.code(), "436");
+    assert!(
+        alice
+            .state()
+            .casemapping()
+            .eq(alice.state().nick(), &claimed)
+            || bob.state().casemapping().eq(bob.state().nick(), &claimed)
+    );
+    Ok(())
+}
+
 /// synchronizes topic metadata and propagates setting and clearing the topic
 #[scenario(covers = [
     "base.topic.get",

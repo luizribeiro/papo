@@ -4,6 +4,9 @@ reason = "Ergo returns 482 rather than 441 when an operator kicks a user outside
 [names_multiple_channels]
 reason = "Ergo returns NAMES for only the first channel in a comma-separated target list"
 
+[nickname_collision_race]
+reason = "Ergo serializes simultaneous local nickname claims and returns 433 rather than 436"
+
 [partially_invalid_join]
 reason = "Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476"
 

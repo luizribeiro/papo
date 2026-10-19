@@ -1,5 +1,8 @@
 [multiple_joins]
 reason = "InspIRCd rejects JOIN zero as an invalid channel name instead of leaving every channel"
 
+[nickname_collision_race]
+reason = "InspIRCd serializes simultaneous local nickname claims and returns 433 rather than 436"
+
 [standard_replies]
 reason = "InspIRCd advertises standard-replies but does not reject this invalid real name with FAIL"

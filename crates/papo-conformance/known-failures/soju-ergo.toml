@@ -46,6 +46,12 @@ reason = "soju treats JOIN zero as a channel name instead of forwarding the leav
 [nick_change_and_collision]
 reason = "soju rejects an upstream nickname collision without preserving the 433 refusal category"
 
+[nick_errors]
+reason = "soju reports an empty nickname with 432 rather than 431"
+
+[nickname_collision_race]
+reason = "soju reports a simultaneous nickname claim as generic numeric 400 rather than 436"
+
 [partially_invalid_join]
 reason = "soju does not complete the labelled response for a mixed valid and malformed JOIN"
 
