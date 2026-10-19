@@ -973,11 +973,11 @@ async fn nickname_collision_race(s: Scenario) -> papo_testing::Result<()> {
     "base.topic.clear",
     "base.topic.whotime"
 ])]
-async fn topic(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let mut carol = context.connect("carol").await?;
-    let channel = context.channel_name();
+async fn topic(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let mut carol = s.connect("carol").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -1022,10 +1022,10 @@ async fn topic(context: Scenario) -> papo_testing::Result<()> {
 
 /// rejects a topic change from a member without channel privileges
 #[scenario(covers = ["base.topic.protected-mode"])]
-async fn protected_topic(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn protected_topic(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
@@ -1045,9 +1045,9 @@ async fn protected_topic(context: Scenario) -> papo_testing::Result<()> {
 
 /// reports channel modes and round-trips the ban list
 #[scenario(covers = ["base.mode.channel.query", "base.mode.channel.ban"])]
-async fn channel_mode_lists(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let channel = context.channel_name();
+async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
     let mask = "troublesome!*@gateway.example";
     alice.join(&channel).await?;
     alice.mode(&channel).ban(mask).await?;
@@ -1087,9 +1087,9 @@ async fn channel_mode_lists(context: Scenario) -> papo_testing::Result<()> {
         "base.mode.channel.invite-exception"
     ]
 )]
-async fn channel_mode_exceptions(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let channel = context.channel_name();
+async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
     let mask = "reviewer!*@trusted.example";
     alice.join(&channel).await?;
     let support = alice.state().isupport().clone();
@@ -1143,10 +1143,10 @@ async fn channel_mode_exceptions(context: Scenario) -> papo_testing::Result<()> 
     "base.mode.channel.err-unknown-mode",
     "base.mode.channel.err-invalid-param"
 ])]
-async fn channel_mode_refusals(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     alice.join(&channel).await?;
     alice.mode(&channel).add('n').await?;
     assert_eq!(
@@ -1191,8 +1191,8 @@ async fn channel_mode_refusals(context: Scenario) -> papo_testing::Result<()> {
     "base.mode.user.invisible",
     "base.mode.user.err-unknown-flag"
 ])]
-async fn user_modes(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
+async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
     let nick = alice.nick();
 
     // User-mode query and error numerics have no richer public result type.
@@ -1267,11 +1267,11 @@ async fn user_modes(context: Scenario) -> papo_testing::Result<()> {
     "base.mode.channel.moderated",
     "base.mode.channel.secret"
 ])]
-async fn channel_modes_and_join_refusals(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let mut carol = context.connect("carol").await?;
-    let channel = context.channel_name();
+async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let mut carol = s.connect("carol").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     let carol_nick = carol.nick();
