@@ -10,10 +10,10 @@ use crate::Scenario;
     requires(caps = ["extended-join"]),
     covers = ["ircv3.extended-join"]
 )]
-async fn extended_join(context: Scenario) -> papo_testing::Result<()> {
-    let mut bob = context.connect("bob").await?;
-    let mut alice = context.connect_as_account("alice").await?;
-    let channel = context.channel_name();
+async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
+    let mut bob = s.connect("bob").await?;
+    let mut alice = s.connect_as_account("alice").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     let account = alice.state().account().unwrap().clone();
@@ -61,10 +61,10 @@ async fn extended_join(context: Scenario) -> papo_testing::Result<()> {
     requires(caps = ["userhost-in-names"]),
     covers = ["base.names.basic", "ircv3.userhost-in-names"]
 )]
-async fn userhost_in_names(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
@@ -99,10 +99,10 @@ async fn userhost_in_names(context: Scenario) -> papo_testing::Result<()> {
 
 /// returns names and completion for every channel in one request
 #[scenario(covers = ["base.names.multiple-channels"])]
-async fn names_multiple_channels(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let first = context.channel_name();
-    let second = context.channel_name();
+async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let first = s.channel_name();
+    let second = s.channel_name();
     alice.join(&first).await?;
     alice.join(&second).await?;
 
@@ -136,10 +136,10 @@ async fn names_multiple_channels(context: Scenario) -> papo_testing::Result<()> 
 
 /// hides the names of a secret channel from clients outside it
 #[scenario(covers = ["base.names.secret-channel-visibility"])]
-async fn secret_names_visibility(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     alice.join(&channel).await?;
     alice.mode(&channel).add('s').await?;
 
@@ -167,9 +167,9 @@ async fn secret_names_visibility(context: Scenario) -> papo_testing::Result<()> 
     requires(caps = ["no-implicit-names"]),
     covers = ["ircv3.no-implicit-names"]
 )]
-async fn no_implicit_names(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let channel = context.channel_name();
+async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     assert!(alice.state().has_cap("no-implicit-names"));
 
@@ -195,11 +195,11 @@ async fn no_implicit_names(context: Scenario) -> papo_testing::Result<()> {
     "base.join.key-multiple",
     "base.join.zero-part-all"
 ])]
-async fn multiple_joins(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let first = context.channel_name();
-    let second = context.channel_name();
+async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let first = s.channel_name();
+    let second = s.channel_name();
     let bob_nick = bob.nick();
     let channels = format!("{first},{second}");
     let keys = "first-channel-key,second-channel-key";
@@ -297,9 +297,9 @@ async fn multiple_joins(context: Scenario) -> papo_testing::Result<()> {
     "base.join.err-bad-chanmask",
     "base.join.partially-invalid"
 ])]
-async fn partially_invalid_join(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let channel = context.channel_name();
+async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let channel = s.channel_name();
     let invalid = format!("#invalid\x07{}", channel.trim_start_matches('#'));
 
     // A single JOIN command must still apply its valid target before reporting the bad one.
@@ -331,8 +331,8 @@ async fn partially_invalid_join(context: Scenario) -> papo_testing::Result<()> {
 
 /// refuses the first JOIN target beyond the advertised channel limit
 #[scenario(covers = ["base.join.err-too-many-channels"])]
-async fn too_many_channels(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
+async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
     let Some(limit) = alice
         .state()
         .isupport()
@@ -341,16 +341,14 @@ async fn too_many_channels(context: Scenario) -> papo_testing::Result<()> {
         .find(|entry| entry.name.contains('#'))
         .and_then(|entry| entry.limit)
     else {
-        return context.skip("server does not advertise a finite # channel limit");
+        return s.skip("server does not advertise a finite # channel limit");
     };
     if limit > 15 {
-        return context.skip(format!(
+        return s.skip(format!(
             "advertised channel limit {limit} exceeds bounded live-test capacity"
         ));
     }
-    let channels = (0..=limit)
-        .map(|_| context.channel_name())
-        .collect::<Vec<_>>();
+    let channels = (0..=limit).map(|_| s.channel_name()).collect::<Vec<_>>();
     let targets = channels.join(",");
 
     // The server numeric is the behavior under test, so retain its raw response.
@@ -370,9 +368,9 @@ async fn too_many_channels(context: Scenario) -> papo_testing::Result<()> {
     requires(isupport = ["WHOX"]),
     covers = ["base.who.whox-extended", "ircv3.whox"]
 )]
-async fn whox(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context
-        .connect_with(context.configure("alice")?.realname("Alice Example"))
+async fn whox(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s
+        .connect_with(s.configure("alice")?.realname("Alice Example"))
         .await?;
     let nick = alice.nick();
 
@@ -400,10 +398,10 @@ async fn whox(context: Scenario) -> papo_testing::Result<()> {
         "ircv3.multi-prefix"
     ]
 )]
-async fn multi_prefix(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
