@@ -11,6 +11,7 @@ mod presence;
 mod requests;
 mod support;
 
+#[allow(clippy::too_many_lines)]
 pub(super) fn all() -> Vec<ScenarioSpec> {
     // WASI command linking does not guarantee that inventory constructors run.
     #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
@@ -45,6 +46,7 @@ pub(super) fn all() -> Vec<ScenarioSpec> {
         isupport::__papo_scenario_spec_chanmode_classes,
         isupport::__papo_scenario_spec_prefix_above_rank_refused,
         isupport::__papo_scenario_spec_prefix_member_ranks,
+        isupport::__papo_scenario_spec_quiet_by_dialect,
         isupport::__papo_scenario_spec_unadvertised_mode_rejected,
         membership::__papo_scenario_spec_extended_join,
         membership::__papo_scenario_spec_channel_mode_exceptions,
@@ -188,6 +190,7 @@ mod tests {
                 "prefix_above_rank_refused",
                 "prefix_member_ranks",
                 "protected_topic",
+                "quiet_by_dialect",
                 "quit",
                 "read_marker_on_join",
                 "registration",
