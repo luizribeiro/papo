@@ -224,6 +224,50 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// synchronizes channel state and messages across sessions of one account
+#[scenario(covers = [
+    "core.multiclient.fanout",
+    "core.multiclient.state-sync-on-attach"
+])]
+async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
+    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
+    if !matches!(profile.as_str(), "ergo-default" | "ergo-persistent") {
+        return s.skip("the selected profile does not expose account multiclient attachment");
+    }
+    let mut desktop = s.connect_as_account("alice").await?;
+    let account = desktop.state().account().unwrap().clone();
+    let channel = s.channel_name();
+    desktop.join(&channel).await?;
+    let mut phone = s
+        .connect_account_session("alice-phone", account.as_ref())
+        .await?;
+    phone
+        .wait_for(|event| {
+            event
+                .as_channel_synced()
+                .filter(|synced| synced.channel.as_ref() == channel)
+        })
+        .await?;
+    let phone_state = phone.state();
+    let attached = phone_state
+        .channel(&channel)
+        .expect("another account session inherits joined channels");
+    assert!(attached.is_synced());
+
+    let text = "message from the desktop session";
+    desktop.privmsg(&channel, text).await?;
+    let other = phone
+        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
+    assert_eq!(other.origin(), Origin::OtherSession);
+    assert!(!other.is_live());
+    let echo = desktop
+        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
+    assert_eq!(echo.origin(), Origin::Echo);
+    Ok(())
+}
+
 /// status-prefixed channel messages reach only members with the requested privilege
 #[scenario(
     requires(
@@ -362,6 +406,63 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         reply.ctcp().and_then(|ctcp| ctcp.params()),
         Some("1735689600")
     );
+    Ok(())
+}
+
+/// answers a channel CTCP query with a private response
+#[scenario(covers = ["base.ctcp.channel-query-private-reply"])]
+async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
+    if std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into()) != "unrealircd"
+    {
+        return s.skip("the selected profile blocks channel CTCP by default");
+    }
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let alice_nick = alice.nick();
+    let bob_nick = bob.nick();
+    alice
+        .send_command("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"])
+        .await?;
+    let query = bob
+        .wait_for(|event| {
+            event.as_message().filter(|message| {
+                message.target() == channel
+                    && message.ctcp().map(|ctcp| ctcp.command()) == Some("VERSION")
+            })
+        })
+        .await?;
+    assert!(!query.is_private());
+    let reply = alice
+        .wait_for(|event| {
+            event.as_message().filter(|message| {
+                message.kind() == MessageKind::CtcpReply
+                    && message.target() == alice_nick.as_ref()
+                    && message.source().as_ref().and_then(Source::nick) == Some(bob_nick.as_ref())
+            })
+        })
+        .await?;
+    assert!(reply.is_private());
+    Ok(())
+}
+
+/// blocks channel CTCP traffic when the server's no-CTCP mode is set
+#[scenario(covers = ["base.ctcp.no-ctcp-mode"])]
+async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
+    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
+    if !matches!(profile.as_str(), "ergo-default" | "ergo-persistent") {
+        return s.skip("the selected profile has no managed no-CTCP channel mode");
+    }
+    let (mut alice, bob, channel) = fixture_pair(&s).await?;
+    alice.mode(&channel).add('C').await?;
+    bob.send_command("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"])
+        .await?;
+    alice
+        .expect_none(|event| {
+            event.as_message().filter(|message| {
+                message.target() == channel
+                    && message.ctcp().map(|ctcp| ctcp.command()) == Some("VERSION")
+            })
+        })
+        .await?;
     Ok(())
 }
 
