@@ -2,7 +2,7 @@ use papo::{Origin, Source};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{channel_mode_letter, join_seen_by, message_text};
+use crate::scenarios::support::{join_seen_by, message_text, wait_channel_mode};
 
 /// an @-prefixed channel message reaches only channel operators
 #[scenario(
@@ -41,15 +41,20 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
         .op(bob_nick.clone())
         .voice(carol_nick.clone())
         .await?;
-    bob.wait_for(|event| channel_mode_letter(event, &channel, 'v'))
-        .await?;
-    carol
-        .wait_for(|event| channel_mode_letter(event, &channel, 'v'))
-        .await?;
-    let changed = dave
-        .wait_for(|event| channel_mode_letter(event, &channel, 'v'))
-        .await?;
-    assert_eq!(changed.changes.len(), 2);
+    for peer in [&mut alice, &mut bob, &mut carol, &mut dave] {
+        let changed = wait_channel_mode(peer, &channel, 'v').await?;
+        assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(changed.changes.len(), 2);
+        for (letter, nick) in [('o', &bob_nick), ('v', &carol_nick)] {
+            let change = changed
+                .changes
+                .iter()
+                .find(|change| change.mode == letter)
+                .unwrap();
+            assert!(change.set);
+            assert_eq!(change.arg.as_deref(), Some(nick.as_ref()));
+        }
+    }
     for peer in [&alice, &bob, &carol, &dave] {
         let state = peer.state();
         let members = state.channel(&channel).expect("channel is in state");
