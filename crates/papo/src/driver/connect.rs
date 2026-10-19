@@ -102,7 +102,7 @@ pub(super) async fn run_plan(
             ConnectionAttempt::Connected(stream) => stream,
             ConnectionAttempt::Retry => continue,
             ConnectionAttempt::Stop => {
-                events.finish(pending_events);
+                finish_requested(events, pending_events);
                 return Ok(());
             }
             ConnectionAttempt::SlowConsumer => {
@@ -175,10 +175,18 @@ pub(super) async fn run_plan(
         )
         .await
         {
-            events.finish(pending_events);
+            finish_requested(events, pending_events);
             return Ok(());
         }
     }
+}
+
+fn finish_requested(events: EventSink, mut pending_events: VecDeque<Event>) {
+    pending_events.push_back(Event::Disconnected(crate::Disconnected::new(
+        crate::DisconnectCause::Requested,
+        None,
+    )));
+    events.finish(pending_events);
 }
 
 fn enqueue_retry_event(

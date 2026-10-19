@@ -1095,6 +1095,14 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
     assert_eq!(calls.load(Ordering::Relaxed), 2);
     within(client.quit("cancel reconnect")).await.unwrap();
     assert!(within(driver).await.unwrap().is_ok());
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Requested,
+            retry_in: None,
+        }))
+    ));
+    assert!(events.next().await.is_none());
     tokio::time::advance(Duration::from_secs(10)).await;
     assert_eq!(calls.load(Ordering::Relaxed), 2);
 }
