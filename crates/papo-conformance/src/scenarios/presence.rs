@@ -1,5 +1,6 @@
 use papo::{
-    Account, AccountName, AccountRegistration, Away, Event, NewAccount, Origin, Refusal, Source,
+    Account, AccountName, AccountRegistration, Away, Error, Event, NewAccount, Origin, Refusal,
+    Source,
 };
 use papo_conformance_macros::scenario;
 
