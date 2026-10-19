@@ -8,6 +8,7 @@ mod nicklen_limit;
 mod prefix_above_rank_refused;
 mod prefix_member_ranks;
 mod quiet_by_dialect;
+mod targmax_privmsg;
 mod unadvertised_mode_rejected;
 
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
@@ -26,5 +27,7 @@ pub(crate) use prefix_above_rank_refused::__papo_scenario_spec_prefix_above_rank
 pub(crate) use prefix_member_ranks::__papo_scenario_spec_prefix_member_ranks;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use quiet_by_dialect::__papo_scenario_spec_quiet_by_dialect;
+#[cfg(all(target_os = "wasi", not(target_env = "p1")))]
+pub(crate) use targmax_privmsg::__papo_scenario_spec_targmax_privmsg;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use unadvertised_mode_rejected::__papo_scenario_spec_unadvertised_mode_rejected;
