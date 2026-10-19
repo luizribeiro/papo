@@ -17,6 +17,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Specification ambiguities
 - `nickname_collision_race` (`2.19.1`) — Ergo serializes simultaneous local nickname claims and returns 433 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 433 race-review`
+- `targmax_privmsg` (`2.19.1`) — Ergo silently drops the target beyond its advertised TARGMAX PRIVMSG limit instead of returning 407 ([spec](https://modern.ircdocs.horse/#targmax-parameter)). Evidence: `S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to bob..erin, nothing to frank, no 407`
 - `whois_host_certificate` (`2.19.1`) — Ergo returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276 ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 338 review ...; 318 review`
 
 ### Fixture limits (none recorded)
@@ -37,6 +38,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ### Specification ambiguities
 - `channel_rename_error` (`2.19.1`) — Ergo rejects renaming persistent-history channels before checking destination collisions ([spec](https://ircv3.net/specs/extensions/channel-rename)). Evidence: `C: RENAME #old #occupied :collision | S: FAIL RENAME CANNOT_RENAME`
 - `nickname_collision_race` (`2.19.1`) — Ergo serializes simultaneous local nickname claims and returns 433 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 433 race-review`
+- `targmax_privmsg` (`2.19.1`) — Ergo silently drops the target beyond its advertised TARGMAX PRIVMSG limit instead of returning 407 ([spec](https://modern.ircdocs.horse/#targmax-parameter)). Evidence: `S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to bob..erin, nothing to frank, no 407`
 - `whois_host_certificate` (`2.19.1`) — Ergo returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276 ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 338 review ...; 318 review`
 
 ### Fixture limits
@@ -60,6 +62,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `partially_invalid_join` (`soju 0.11.1 / Ergo 2.19.1`) — soju does not complete the labelled response for a mixed valid and malformed JOIN ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... JOIN #valid,#invalid-control-G | S: partial response without labeled completion`
 - `setname` (`soju 0.11.1 / Ergo 2.19.1`) — soju replaces the upstream real name with the nickname in relayed SETNAME state ([spec](https://ircv3.net/specs/extensions/setname)). Evidence: `upstream S: SETNAME :Alice Reviewer | downstream S: SETNAME :alice`
 - `whox` (`soju 0.11.1 / Ergo 2.19.1`) — soju replaces the configured upstream real name with the nickname in WHOX replies ([spec](https://ircv3.net/specs/extensions/whox)). Evidence: `C: WHO #review %tcuhnfar,... | S: 354 ... alice :alice`
+- `targmax_privmsg` (`soju 0.11.1 / Ergo 2.19.1`) — soju delivers PRIVMSG to all five targets despite relaying Ergo's TARGMAX=PRIVMSG:4 ([spec](https://modern.ircdocs.horse/#targmax-parameter)). Evidence: `S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to all five, no 407`
 - `user_modes` (`soju 0.11.1 / Ergo 2.19.1`) — soju relays Ergo's 472 rather than 501 for an unknown user mode ([spec](https://modern.ircdocs.horse/#mode-message)). Evidence: `C: MODE review +? | S: 472 review ?`
 
 ### Unimplemented features
