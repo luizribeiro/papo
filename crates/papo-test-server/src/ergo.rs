@@ -104,6 +104,10 @@ impl Configuration {
                 }])
                 .to_string(),
             ),
+            (
+                "ERGO__HISTORY__RETENTION__ALLOW_INDIVIDUAL_DELETE",
+                "true".into(),
+            ),
         ];
         Self {
             plaintext,
@@ -168,6 +172,9 @@ mod tests {
             4
         );
         assert!(addresses.iter().all(|address| address.ip().is_loopback()));
+        assert!(config.overrides.iter().any(|(key, value)| {
+            *key == "ERGO__HISTORY__RETENTION__ALLOW_INDIVIDUAL_DELETE" && value == "true"
+        }));
     }
 
     #[test]
@@ -177,7 +184,7 @@ mod tests {
         config.enable_sts();
 
         assert_eq!(
-            &config.overrides[6..],
+            &config.overrides[7..],
             &[
                 ("ERGO__SERVER__STS__ENABLED", "true".into()),
                 ("ERGO__SERVER__STS__PORT", "7668".into()),
