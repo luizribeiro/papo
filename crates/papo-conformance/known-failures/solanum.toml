@@ -1,35 +1,83 @@
 [away_private_message]
 reason = "Solanum's away numeric completes the direct message before papo captures echo metadata for Sent"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/labeled-response"
+evidence = "C: @label=... PRIVMSG away-user :the review can wait | S: @label=... 301 away-user ...; unlabeled echo"
+server_version = "0-unstable-2026-09-13"
 
 [channel_mode_exceptions]
 reason = "Solanum labels the first exception-list row but not its terminator, completing the request early"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/labeled-response"
+evidence = "S: @label=... 348 #review mask; 349 #review without the label"
+server_version = "0-unstable-2026-09-13"
 
 [channel_mode_lists]
 reason = "Solanum labels the first ban-list row but not its terminator, completing the request early"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/labeled-response"
+evidence = "S: @label=... 367 #review mask; 368 #review without the label"
+server_version = "0-unstable-2026-09-13"
 
 [channel_mode_refusals]
 reason = "Solanum acknowledges a nonnumeric channel limit without returning 696"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#mode-message"
+evidence = "C: MODE #review +l not-a-limit | S: ACK, with no 696"
+server_version = "0-unstable-2026-09-13"
 
 [invite_rules]
 reason = "Solanum keeps a channel ban effective after the banned user receives an invitation"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#invite-message"
+evidence = "C: INVITE banned-user #review; JOIN #review | S: 474 #review"
+server_version = "0-unstable-2026-09-13"
 
 [kick_rules]
 reason = "Solanum applies a multi-target KICK only to the first target and uses that target as the default comment"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#kick-message"
+evidence = "C: KICK #review first,second | S: KICK #review first :first"
+server_version = "0-unstable-2026-09-13"
 
 [names_multiple_channels]
 reason = "Solanum returns NAMES for only the first channel in a comma-separated target list"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#names-message"
+evidence = "C: NAMES #first,#second | S: 353/366 for #first only"
+server_version = "0-unstable-2026-09-13"
 
 [nickname_collision_race]
 reason = "Solanum serializes simultaneous local nickname claims and returns 433 rather than 436"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#nick-message"
+evidence = "C: NICK race-review from two clients | S: 433 race-review"
+server_version = "0-unstable-2026-09-13"
 
 [partially_invalid_join]
 reason = "Solanum accepts the valid JOIN target but reports the malformed target with 479 rather than 476"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#join-message"
+evidence = "C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 479 #invalid-control-G"
+server_version = "0-unstable-2026-09-13"
 
 [part]
 reason = "Solanum does not complete the labelled PART request from its echoed channel departure"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/labeled-response"
+evidence = "C: @label=... PART #review :reason | S: unlabeled PART, with no labeled ACK"
+server_version = "0-unstable-2026-09-13"
 
 [topic]
 reason = "Solanum does not complete the labelled TOPIC request from its echoed topic change"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/labeled-response"
+evidence = "C: @label=... TOPIC #review :new topic | S: unlabeled TOPIC, with no labeled ACK"
+server_version = "0-unstable-2026-09-13"
 
 [whois_host_certificate]
 reason = "Solanum returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#whois-message"
+evidence = "C: WHOIS review | S: 338 review ...; 318 review"
+server_version = "0-unstable-2026-09-13"
