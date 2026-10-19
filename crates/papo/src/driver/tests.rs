@@ -30,14 +30,56 @@ impl AsyncWrite for NeverWrite {
     }
 }
 
+struct StallingWriter {
+    written: Vec<u8>,
+    first_write: usize,
+    stalled: bool,
+}
+
+impl AsyncWrite for StallingWriter {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        if self.stalled {
+            return Poll::Pending;
+        }
+        let count = if self.first_write == 0 {
+            buffer.len()
+        } else {
+            self.first_write.min(buffer.len())
+        };
+        self.written.extend_from_slice(&buffer[..count]);
+        if self.first_write != 0 {
+            self.first_write = 0;
+            self.stalled = true;
+        }
+        Poll::Ready(Ok(count))
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn write_deadline_interrupts_a_socket_that_never_accepts_data() {
     let deadline = crate::rt::now_mono() + Duration::from_millis(1);
+    let mut pending = super::PendingWrite {
+        buffer: b"QUIT\r\n".to_vec(),
+        offset: 0,
+    };
     assert!(
-        !super::write_before(&mut NeverWrite, b"QUIT\r\n", Some(deadline))
+        !super::write_before(&mut NeverWrite, &mut pending, Some(deadline))
             .await
             .unwrap()
     );
+    assert_eq!(pending.offset, 0);
 }
 
 #[test]
@@ -483,7 +525,7 @@ fn remembering_a_rejoin_replaces_only_the_same_channel() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn write_timeout_preserves_later_registration_output() {
+async fn write_timeout_resumes_before_the_next_line() {
     let now = crate::rt::now_mono();
     let mut session = Session::new(config().rate_limit(papo_core::RateLimit::unlimited()));
     session.handle_connected(now);
@@ -499,7 +541,8 @@ async fn write_timeout_preserves_later_registration_output() {
     );
 
     let channels = super::channels(8, &session);
-    let mut pending = VecDeque::new();
+    let mut pending_events = VecDeque::new();
+    let mut pending_write = None;
     let mut requests = std::collections::BTreeMap::new();
     let mut join_keys = std::collections::BTreeMap::new();
     let mut sync_waiters = Vec::new();
@@ -516,12 +559,18 @@ async fn write_timeout_preserves_later_registration_output() {
     let mut registered_at = None;
     let mut sts = super::StsActions::default();
     let mut sts_store = None;
-
+    let mut stream = StallingWriter {
+        written: Vec::new(),
+        first_write: 8,
+        stalled: false,
+    };
+    let deadline = crate::rt::now_mono() + Duration::from_millis(1);
     super::drain(
-        &mut NeverWrite,
+        &mut stream,
         &mut session,
+        &mut pending_write,
         &channels.event_sink,
-        &mut pending,
+        &mut pending_events,
         &mut requests,
         &mut join_keys,
         &mut sync_waiters,
@@ -534,17 +583,20 @@ async fn write_timeout_preserves_later_registration_output() {
         &mut sts,
         &mut sts_store,
         6697,
-        Some(now),
+        Some(deadline),
     )
     .await
     .unwrap();
+    assert_eq!(stream.written, b"JOIN #pa");
+    assert_eq!(pending_write.as_ref().unwrap().offset, 8);
 
-    let (mut stream, mut server) = tokio::io::duplex(4096);
+    stream.stalled = false;
     super::drain(
         &mut stream,
         &mut session,
+        &mut pending_write,
         &channels.event_sink,
-        &mut pending,
+        &mut pending_events,
         &mut requests,
         &mut join_keys,
         &mut sync_waiters,
@@ -561,7 +613,8 @@ async fn write_timeout_preserves_later_registration_output() {
     )
     .await
     .unwrap();
-    client_line(&mut server, b"JOIN #rust\r\n").await;
+    assert!(pending_write.is_none());
+    assert_eq!(stream.written, b"JOIN #papo\r\nJOIN #rust\r\n");
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]

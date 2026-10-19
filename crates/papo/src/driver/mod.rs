@@ -655,6 +655,11 @@ struct StsActions {
     upgrade: Option<u16>,
 }
 
+struct PendingWrite {
+    buffer: Vec<u8>,
+    offset: usize,
+}
+
 impl ConnectionEnd {
     fn registration_error(&self) -> Error {
         match &self.error {
@@ -707,6 +712,7 @@ where
     let mut sts = StsActions::default();
     let mut reconnect_now = false;
     let mut buffer = [0; 4096];
+    let mut pending_write = None;
     let (reason, error, close_kind, quit_timed_out) = loop {
         let write_deadline = [
             session.poll_timeout(),
@@ -718,6 +724,7 @@ where
         match drain(
             &mut stream,
             session,
+            &mut pending_write,
             events,
             &mut pending_events,
             &mut requests,
@@ -1038,6 +1045,7 @@ async fn wait_until(deadline: Option<Instant>) {
 async fn drain<S>(
     stream: &mut S,
     session: &mut Session,
+    pending_write: &mut Option<PendingWrite>,
     events: &EventSink,
     pending_events: &mut VecDeque<Event>,
     requests: &mut BTreeMap<RequestId, PendingRequest>,
@@ -1058,10 +1066,8 @@ where
     S: AsyncWrite + Unpin,
 {
     publish_state(events, session, true);
-    while let Some(line) = session.poll_transmit() {
-        if !write_before(stream, &line, deadline).await? {
-            return Ok(None);
-        }
+    if !drain_transmit(stream, session, pending_write, deadline).await? {
+        return Ok(None);
     }
     let read_ahead = !requests.is_empty()
         || !sync_waiters.is_empty()
@@ -1256,22 +1262,56 @@ where
             event::CoreEvent::Unknown => {}
         }
     }
-    while let Some(line) = session.poll_transmit() {
-        if !write_before(stream, &line, deadline).await? {
-            return Ok(None);
-        }
+    if !drain_transmit(stream, session, pending_write, deadline).await? {
+        return Ok(None);
     }
     Ok(None)
 }
 
-async fn write_before<S>(stream: &mut S, line: &[u8], deadline: Option<Instant>) -> io::Result<bool>
+async fn drain_transmit<S>(
+    stream: &mut S,
+    session: &mut Session,
+    pending: &mut Option<PendingWrite>,
+    deadline: Option<Instant>,
+) -> io::Result<bool>
 where
     S: AsyncWrite + Unpin,
 {
-    tokio::select! {
-        result = stream.write_all(line) => result.map(|()| true),
-        () = wait_until(deadline) => Ok(false),
+    loop {
+        if pending.is_none() {
+            *pending = session
+                .poll_transmit()
+                .map(|buffer| PendingWrite { buffer, offset: 0 });
+        }
+        let Some(write) = pending.as_mut() else {
+            return Ok(true);
+        };
+        if !write_before(stream, write, deadline).await? {
+            return Ok(false);
+        }
+        *pending = None;
     }
+}
+
+async fn write_before<S>(
+    stream: &mut S,
+    pending: &mut PendingWrite,
+    deadline: Option<Instant>,
+) -> io::Result<bool>
+where
+    S: AsyncWrite + Unpin,
+{
+    while pending.offset < pending.buffer.len() {
+        let written = tokio::select! {
+            result = stream.write(&pending.buffer[pending.offset..]) => result?,
+            () = wait_until(deadline) => return Ok(false),
+        };
+        if written == 0 {
+            return Err(io::ErrorKind::WriteZero.into());
+        }
+        pending.offset += written;
+    }
+    Ok(true)
 }
 
 fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, event: &Event) {
