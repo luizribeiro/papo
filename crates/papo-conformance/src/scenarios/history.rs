@@ -73,6 +73,26 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// replays channel history through Ergo's legacy command
+#[scenario(requires(caps = ["batch"]), covers = ["ergo.history-legacy"])]
+async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {
+    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
+    if !matches!(profile.as_str(), "ergo-default" | "ergo-persistent") {
+        return s.skip("the selected profile does not implement Ergo HISTORY");
+    }
+    let text = "legacy history checkpoint";
+    let (_, mut reader, channel, _) = history_peers(&s, &[text]).await?;
+    reader.send_command("HISTORY", [&channel, "10"]).await?;
+    let page = reader.wait_for(Event::as_history).await?;
+    assert_eq!(page.target.as_ref(), channel);
+    let message = page
+        .messages()
+        .find(|message| message.text() == text)
+        .expect("HISTORY replays the stored message");
+    assert_eq!(message.origin(), Origin::Replay);
+    Ok(())
+}
+
 fn message_texts(page: &papo::HistoryPage, expected: &[&str]) -> Vec<String> {
     page.messages()
         .filter(|message| expected.contains(&message.text()))

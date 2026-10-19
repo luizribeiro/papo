@@ -1137,6 +1137,31 @@ async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// prevents an authenticated account from joining through an account extban
+#[scenario(covers = ["ircv3.account-extban"])]
+async fn account_extban(s: Scenario) -> papo_testing::Result<()> {
+    if std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into()) != "solanum" {
+        return s.skip("the selected profile does not expose Solanum's account extban syntax");
+    }
+    let alice = s.connect("alice").await?;
+    let bob = s.connect_as_account("bob").await?;
+    let account = bob.state().account().unwrap().clone();
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    alice
+        .mode(&channel)
+        .add_with('b', format!("$a:{account}"))
+        .await?;
+
+    let Error::Server(refusal) = bob.join(&channel).await.unwrap_err() else {
+        panic!("account extban did not return a server refusal");
+    };
+    assert_eq!(refusal.kind(), Refusal::BannedFromChannel);
+    assert_eq!(refusal.code(), "474");
+    assert!(bob.state().channel(&channel).is_none());
+    Ok(())
+}
+
 /// blocks external messages and reports malformed channel mode changes
 #[scenario(covers = [
     "base.mode.channel.no-external-messages",
