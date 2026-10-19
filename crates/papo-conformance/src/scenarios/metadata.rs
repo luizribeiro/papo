@@ -258,3 +258,30 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     bob.expect_none(Event::as_channel_renamed).await?;
     Ok(())
 }
+
+/// delivers a relayed message with attribution to the submitting client
+#[scenario(
+    requires(caps = ["draft/relaymsg", "message-tags"]),
+    covers = ["ergo.relaymsg"]
+)]
+async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
+    let alice_nick = alice.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+
+    let text = "Hello from the bridged network";
+    alice.relay(&channel, "matrix/alice", text).await?;
+    let message = bob
+        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
+    assert_eq!(message.relayed_by(), Some(alice_nick.as_ref()));
+    assert_eq!(message.target(), channel);
+    assert_eq!(
+        message.sender.as_ref().and_then(papo::Source::nick),
+        Some("matrix/alice")
+    );
+    Ok(())
+}

@@ -63,7 +63,11 @@ async fn sasl_failure(s: Scenario) -> papo_testing::Result<()> {
 /// exposes a SASL abort reply
 #[scenario(
     requires(caps = ["sasl"]),
-    covers = ["ircv3.sasl.abort-906"]
+    covers = [
+        "core.sasl.reauth",
+        "ircv3.sasl.abort-906",
+        "ircv3.sasl.already-907"
+    ]
 )]
 async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
@@ -87,6 +91,19 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
         Warning::AuthenticationFailed { reason, .. } if !reason.is_empty()
     ));
     alice.expect_none(Event::as_disconnected).await?;
+
+    let account = unique("reauth-account");
+    register_account(&s.server, &account, PASSWORD)?;
+    let bob = s
+        .connect_with(s.configure("bob")?.sasl(Sasl::plain(&account, PASSWORD)))
+        .await?;
+    let response = bob.request_command("AUTHENTICATE", ["PLAIN"]).await?;
+    let reauth = response
+        .iter()
+        .find(|line| line.numeric() == Some(907))
+        .unwrap_or_else(|| panic!("post-registration SASL response omitted refusal: {response:?}"));
+    assert_eq!(reauth.numeric(), Some(907));
+    assert!(reauth.params().iter().any(|param| !param.is_empty()));
     Ok(())
 }
 
@@ -111,6 +128,43 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
     assert_eq!(whois.nick, *alice.state().nick());
     assert_eq!(whois.account.as_deref(), Some(account.as_str()));
     alice.expect_none(Event::as_account_changed).await?;
+    Ok(())
+}
+
+/// queries `NickServ` and registers a channel through `ChanServ` aliases
+#[scenario(covers = ["ergo.nickserv-chanserv"])]
+async fn services(s: Scenario) -> papo_testing::Result<()> {
+    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
+    if !matches!(profile.as_str(), "ergo-default" | "ergo-persistent") {
+        return s.skip("the selected profile does not expose Ergo services aliases");
+    }
+    let mut alice = s.connect_as_account("alice").await?;
+    let account = alice.state().account().unwrap().clone();
+    alice.send_command("NS", ["INFO", account.as_ref()]).await?;
+    let nickserv = alice
+        .wait_for(|event| {
+            event.as_message().filter(|message| {
+                message.kind() == papo::MessageKind::Notice
+                    && message.source().as_ref().and_then(papo::Source::nick) == Some("NickServ")
+                    && message.text().contains(account.as_ref())
+            })
+        })
+        .await?;
+    assert!(nickserv.is_private());
+
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    alice.send_command("CS", ["REGISTER", &channel]).await?;
+    let chanserv = alice
+        .wait_for(|event| {
+            event.as_message().filter(|message| {
+                message.kind() == papo::MessageKind::Notice
+                    && message.source().as_ref().and_then(papo::Source::nick) == Some("ChanServ")
+                    && message.text().contains(&channel)
+            })
+        })
+        .await?;
+    assert!(chanserv.is_private());
     Ok(())
 }
 

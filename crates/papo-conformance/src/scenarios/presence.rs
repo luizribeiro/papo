@@ -551,6 +551,63 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// relays operator broadcasts to users that request them
+#[scenario(covers = ["base.wallops.relay"])]
+async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
+    if std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into()) != "unrealircd"
+    {
+        return s.skip("the selected profile cannot combine a managed operator with user mode +w");
+    }
+    let (oper_name, password) = oper_credentials(&s)?;
+    let alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    alice.oper(oper_name, password).await?;
+    let bob_nick = bob.nick();
+    bob.send_command("MODE", [bob_nick.as_ref(), "+w"]).await?;
+    bob.wait_for(|event| {
+        event.as_mode_changed().filter(|changed| {
+            changed.target.as_ref() == bob_nick.as_ref()
+                && changed
+                    .changes
+                    .iter()
+                    .any(|change| change.mode == 'w' && change.set)
+        })
+    })
+    .await?;
+
+    let wallops = "Network maintenance begins soon";
+    alice.send_command("WALLOPS", [wallops]).await?;
+    let delivered = bob
+        .wait_for(|event| event.as_raw().filter(|line| line.command() == "WALLOPS"))
+        .await?;
+    assert_eq!(delivered.params(), [wallops]);
+    Ok(())
+}
+
+/// attaches operator identity to messages from an authenticated operator
+#[scenario(
+    requires(caps = ["draft/oper-tag"]),
+    covers = ["draft.oper-tag"]
+)]
+async fn operator_tag(s: Scenario) -> papo_testing::Result<()> {
+    let (oper_name, password) = oper_credentials(&s)?;
+    let alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    alice.oper(&oper_name, password).await?;
+
+    let text = "authenticated operator announcement";
+    alice.privmsg(&channel, text).await?;
+    let message = bob
+        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .await?;
+    assert!(message.is_oper());
+    assert_eq!(message.oper(), Some(oper_name.as_str()));
+    Ok(())
+}
+
 /// reports the target's server through WHOIS
 #[scenario(covers = ["base.whois.server"])]
 async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
