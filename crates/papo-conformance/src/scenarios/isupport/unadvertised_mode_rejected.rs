@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use papo::{Error, Event, InvalidInput, Isupport, ModeKind, isupport::Advertised};
+use papo::{Error, InvalidInput, Isupport, ModeKind, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{channel_mode, join_seen_by};
+use crate::scenarios::support::{channel_mode, join_seen_by, wait_channel_mode};
 
 /// rejects unadvertised mode letters and class-mismatched arguments before sending
 #[scenario(covers = ["base.isupport.chanmodes-local-validation"])]
@@ -35,15 +35,23 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice.state().channel(&channel).unwrap().mode('m'), None);
     assert_eq!(alice.state().channel(&channel).unwrap().mode(letter), None);
 
+    let alice_nick = alice.nick();
     alice.mode(&channel).add('m').await?;
-    let change_event = bob.wait_for(Event::as_mode_changed).await?;
-    assert_eq!(change_event.target.as_ref(), channel);
-    assert_eq!(change_event.changes.len(), 1);
-    let applied = &change_event.changes[0];
-    assert_eq!(applied.mode, 'm');
-    assert!(applied.set);
-    assert_eq!(applied.kind, ModeKind::NoArg);
-    assert_eq!(applied.arg, None);
+    for peer in [&mut alice, &mut bob] {
+        let changed = wait_channel_mode(peer, &channel, 'm').await?;
+        assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(changed.changes.len(), 1);
+        let applied = &changed.changes[0];
+        assert!(applied.set);
+        assert_eq!(applied.kind, ModeKind::NoArg);
+        assert_eq!(applied.arg, None);
+    }
+    for peer in [&alice, &bob] {
+        let state = peer.state();
+        let channel_state = state.channel(&channel).unwrap();
+        assert_eq!(channel_state.mode('m'), Some(None));
+        assert_eq!(channel_state.mode(letter), None);
+    }
     Ok(())
 }
 
@@ -67,7 +75,7 @@ fn unadvertised_mode_letter(support: &Isupport) -> Option<char> {
     let advertised: HashSet<char> = chanmodes
         .chars()
         .chain(prefix_modes.chars())
-        .filter(|&letter| letter != ':')
+        .filter(|&letter| letter != ',')
         .collect();
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         .chars()
