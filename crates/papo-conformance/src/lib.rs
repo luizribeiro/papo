@@ -66,7 +66,7 @@ struct CapRequirement {
 #[derive(Clone)]
 struct Scenario<S = ServerInfo> {
     server: S,
-    #[allow(dead_code)]
+    #[cfg(test)]
     name: &'static str,
     fixture: Option<papo_testing::Scenario>,
 }
@@ -78,25 +78,16 @@ struct Connection {
 }
 
 struct Welcome {
-    #[allow(dead_code)]
-    nick: String,
     caps: Capabilities,
     isupport: Isupport,
 }
 
-#[allow(dead_code)]
-struct RegisteredClient {
-    client: Client,
-    events: Events,
-    driver: JoinHandle<Result<(), papo::Error>>,
-    welcome: Welcome,
-}
-
-#[allow(dead_code)]
+#[cfg(test)]
 trait EventSource {
     fn next_event(&mut self) -> impl Future<Output = Option<Event>>;
 }
 
+#[cfg(test)]
 impl EventSource for Events {
     fn next_event(&mut self) -> impl Future<Output = Option<Event>> {
         self.next()
@@ -194,6 +185,7 @@ fn trial(
             runtime().block_on((spec.run)(Scenario {
                 fixture: Some(papo_testing::Scenario::new(server.clone())),
                 server,
+                #[cfg(test)]
                 name: spec.name,
             }))
         });
@@ -283,13 +275,12 @@ fn json_string(input: &str) -> String {
 }
 
 impl<S> Scenario<S> {
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn unique(&self) -> String {
         papo_test_server::unique(self.name)
     }
 }
 
-#[allow(dead_code)]
 impl Scenario {
     async fn quit_all(&self) -> FixtureResult {
         self.fixture
@@ -297,54 +288,6 @@ impl Scenario {
             .expect("live scenarios have a fixture")
             .quit_all()
             .await
-    }
-
-    async fn client(&self, nick: &str) -> Result<RegisteredClient, Failed> {
-        self.client_with(nick, None).await
-    }
-
-    async fn client_with(
-        &self,
-        nick: &str,
-        sasl: Option<Sasl>,
-    ) -> Result<RegisteredClient, Failed> {
-        let endpoint = Endpoint::plaintext(
-            self.server.plaintext_addr().ip().to_string(),
-            self.server.plaintext_addr().port(),
-        );
-        self.client_with_at(nick, endpoint, sasl).await
-    }
-
-    async fn client_with_at(
-        &self,
-        nick: &str,
-        endpoint: Endpoint,
-        sasl: Option<Sasl>,
-    ) -> Result<RegisteredClient, Failed> {
-        let mut connection = connect_client(
-            &self.server,
-            endpoint,
-            nick,
-            "papo conformance client",
-            None,
-            sasl,
-        )?;
-        let welcome = wait_for_registration(&connection.client, &mut connection.events).await?;
-        Ok(RegisteredClient {
-            client: connection.client,
-            events: connection.events,
-            driver: connection.driver,
-            welcome,
-        })
-    }
-
-    async fn expect(
-        &self,
-        events: &mut Events,
-        matcher: impl FnMut(&Event) -> bool,
-        limit: Duration,
-    ) -> Result<Event, Failed> {
-        expect_event(events, matcher, limit).await
     }
 }
 
@@ -358,7 +301,7 @@ impl Deref for Scenario {
     }
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 async fn expect_event(
     events: &mut impl EventSource,
     mut matcher: impl FnMut(&Event) -> bool,
@@ -378,21 +321,6 @@ async fn expect_event(
     })
     .await
     .map_err(|_| Failed::from("timed out waiting for an event"))?
-}
-
-#[allow(dead_code)]
-impl RegisteredClient {
-    async fn close(self) -> HarnessResult {
-        self.client
-            .quit("conformance scenario complete")
-            .await
-            .map_err(Failed::from)?;
-        self.driver
-            .await
-            .map_err(Failed::from)?
-            .map_err(Failed::from)?;
-        Ok(Completion::Completed)
-    }
 }
 
 fn load_known_failures(
@@ -555,25 +483,6 @@ impl IsupportView for papo_proto::Isupport {
     }
 }
 
-/// Reads setup supplied to a scenario.
-///
-/// # Errors
-///
-/// Returns a runtime-ignore completion when the named variable is unavailable.
-pub fn required_environment(name: &str) -> Result<String, Completion> {
-    required_environment_from(name, |name| env::var(name))
-}
-
-fn required_environment_from(
-    name: &str,
-    lookup: impl FnOnce(&str) -> Result<String, env::VarError>,
-) -> Result<String, Completion> {
-    match lookup(name) {
-        Ok(value) if !value.is_empty() => Ok(value),
-        Ok(_) | Err(_) => Err(Completion::ignored_with(format!("{name} is not set up"))),
-    }
-}
-
 fn connect_client(
     server: &ServerInfo,
     endpoint: Endpoint,
@@ -620,7 +529,6 @@ async fn wait_for_registration(client: &Client, events: &mut Events) -> Result<W
             match events.next().await {
                 Some(Event::Registered(registered)) => {
                     return Ok(Welcome {
-                        nick: registered.nick.into_string(),
                         caps: registered.caps,
                         isupport: client.state().isupport().clone(),
                     });
@@ -666,7 +574,7 @@ mod tests {
     use super::{
         CapRequirement, Event, EventSource, Requirements, Scenario, expect_event,
         fixture_completion, json_string, known_failure_verdict, load_known_failures_from,
-        required_environment_from, run_trials, runtime, scenario_status,
+        run_trials, runtime, scenario_status,
     };
 
     struct TestDirectory(PathBuf);
@@ -921,29 +829,6 @@ mod tests {
             known_failure_verdict(scenario_result, Some("server omits the identity"), "soju"),
             Ok(Completion::Completed)
         ));
-    }
-
-    #[test]
-    fn required_environment_distinguishes_set_and_unset_values() {
-        let configured = required_environment_from("PAPO_TEST_OPER", |name| {
-            assert_eq!(name, "PAPO_TEST_OPER");
-            Ok("oper-name:correct horse battery staple".into())
-        });
-        let Ok(configured) = configured else {
-            panic!("a configured setup variable must return its value")
-        };
-        assert_eq!(configured, "oper-name:correct horse battery staple");
-
-        let missing =
-            required_environment_from("PAPO_TEST_OPER", |_| Err(std::env::VarError::NotPresent));
-        match missing {
-            Err(Completion::Ignored {
-                reason: Some(reason),
-            }) => assert_eq!(reason, "PAPO_TEST_OPER is not set up"),
-            _ => panic!("an unset setup variable must ignore the scenario with a reason"),
-        }
-        let empty = required_environment_from("PAPO_TEST_WS", |_| Ok(String::new()));
-        assert!(matches!(empty, Err(Completion::Ignored { .. })));
     }
 
     #[test]
