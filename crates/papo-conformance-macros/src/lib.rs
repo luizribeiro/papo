@@ -147,12 +147,12 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
         fn #wrapper(context: crate::Scenario) -> crate::ScenarioFuture {
             let cleanup = context.clone();
             Box::pin(async move {
-                let result = crate::IntoScenarioResult::into_scenario_result(#name(context).await);
+                let result = #name(context).await;
                 let cleanup_result = cleanup.quit_all().await;
                 match (result, cleanup_result) {
                     (Err(error), _) => Err(error),
                     (Ok(_), Err(error)) => Err(error),
-                    (Ok(completion), Ok(())) => Ok(completion),
+                    (Ok(()), Ok(())) => Ok(()),
                 }
             })
         }

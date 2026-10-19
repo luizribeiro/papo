@@ -3,7 +3,7 @@
 use libtest_mimic::Failed;
 use papo::Event;
 
-use crate::{Scenario, ScenarioResult};
+use crate::{HarnessResult, Scenario};
 
 pub(super) const EXPECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -53,7 +53,7 @@ pub(super) async fn join(
 pub(super) async fn close_pair(
     first: crate::RegisteredClient,
     second: crate::RegisteredClient,
-) -> ScenarioResult {
+) -> HarnessResult {
     first.close().await?;
     second.close().await
 }

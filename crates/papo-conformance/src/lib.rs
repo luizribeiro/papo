@@ -27,34 +27,9 @@ mod scenarios;
 
 const TIMEOUT: Duration = Duration::from_secs(10);
 
-type ScenarioResult = Result<Completion, Failed>;
+type HarnessResult = Result<Completion, Failed>;
 type FixtureResult = papo_testing::Result<()>;
 type ScenarioFuture = Pin<Box<dyn Future<Output = FixtureResult>>>;
-
-trait IntoScenarioResult {
-    fn into_scenario_result(self) -> FixtureResult;
-}
-
-impl IntoScenarioResult for FixtureResult {
-    fn into_scenario_result(self) -> FixtureResult {
-        self
-    }
-}
-
-impl IntoScenarioResult for ScenarioResult {
-    fn into_scenario_result(self) -> FixtureResult {
-        match self {
-            Ok(Completion::Completed) => Ok(()),
-            Ok(Completion::Ignored { reason }) => Err(papo_testing::skipped(
-                reason.unwrap_or_else(|| "scenario skipped".into()),
-            )),
-            Err(error) => Err(std::io::Error::other(
-                error.message().unwrap_or("scenario failed").to_owned(),
-            )
-            .into()),
-        }
-    }
-}
 
 #[derive(Clone, Copy)]
 struct ScenarioSpec {
@@ -243,7 +218,7 @@ fn catch_scenario_panic(run: impl FnOnce() -> FixtureResult) -> FixtureResult {
     }
 }
 
-fn fixture_completion(result: FixtureResult) -> ScenarioResult {
+fn fixture_completion(result: FixtureResult) -> HarnessResult {
     match result {
         Ok(()) => Ok(Completion::Completed),
         Err(error) => match papo_testing::skip_reason(&error) {
@@ -255,7 +230,7 @@ fn fixture_completion(result: FixtureResult) -> ScenarioResult {
 
 fn report_scenario_status(
     name: &str,
-    result: &ScenarioResult,
+    result: &HarnessResult,
     known_failure: Option<&str>,
     json: bool,
 ) {
@@ -274,7 +249,7 @@ fn report_scenario_status(
 }
 
 fn scenario_status<'a>(
-    result: &'a ScenarioResult,
+    result: &'a HarnessResult,
     known_failure: Option<&'a str>,
 ) -> Option<(&'static str, Option<&'a str>)> {
     match result {
@@ -407,7 +382,7 @@ async fn expect_event(
 
 #[allow(dead_code)]
 impl RegisteredClient {
-    async fn close(self) -> ScenarioResult {
+    async fn close(self) -> HarnessResult {
         self.client
             .quit("conformance scenario complete")
             .await
@@ -481,10 +456,10 @@ fn parse_known_failures<'a>(
 }
 
 fn known_failure_verdict(
-    result: ScenarioResult,
+    result: HarnessResult,
     reason: Option<&str>,
     server: &str,
-) -> ScenarioResult {
+) -> HarnessResult {
     let Some(reason) = reason else {
         return result;
     };
