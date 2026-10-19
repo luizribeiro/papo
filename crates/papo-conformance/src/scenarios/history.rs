@@ -221,10 +221,26 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(stored.time, Some(time));
 
     let mut phone = s.connect_account_session("alice-phone", account).await?;
-    if phone.state().channel(&channel).is_none() {
-        return s.skip("bouncer fixture provisions isolated upstream identities");
-    }
-    let replayed = phone.wait_for(Event::as_read_marker).await?;
+    let mut early_marker = None;
+    let synced = phone
+        .wait_for(|event| {
+            if let Some(marker) = event
+                .as_read_marker()
+                .filter(|marker| marker.target.as_ref() == channel)
+            {
+                early_marker = Some(marker.clone());
+            }
+            event
+                .as_channel_synced()
+                .filter(|synced| synced.channel.as_ref() == channel)
+        })
+        .await?;
+    assert_eq!(synced.channel.as_ref(), channel);
+    assert!(phone.state().channel(&channel).is_some());
+    let replayed = match early_marker {
+        Some(marker) => marker,
+        None => phone.wait_for(Event::as_read_marker).await?,
+    };
     assert_eq!(replayed.target.as_ref(), channel);
     assert_eq!(replayed.time, Some(time));
     assert_eq!(phone.state().read_marker(&channel), Some(time));
