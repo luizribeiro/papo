@@ -985,8 +985,7 @@ where
     }
     connected.store(false, Ordering::Relaxed);
     publish_state(events, session, false);
-    _ = stream.flush().await;
-    _ = stream.shutdown().await;
+    close_stream_before(&mut stream, quit.as_ref().map(|quit: &Quit| quit.deadline)).await;
     ConnectionEnd {
         reason,
         error,
@@ -1037,6 +1036,19 @@ async fn wait_until(deadline: Option<Instant>) {
     match deadline {
         Some(deadline) => crate::rt::sleep_until(deadline).await,
         None => std::future::pending().await,
+    }
+}
+
+async fn close_stream_before<S>(stream: &mut S, deadline: Option<Instant>)
+where
+    S: AsyncWrite + Unpin,
+{
+    tokio::select! {
+        () = async {
+            _ = stream.flush().await;
+            _ = stream.shutdown().await;
+        } => {}
+        () = wait_until(deadline) => {}
     }
 }
 

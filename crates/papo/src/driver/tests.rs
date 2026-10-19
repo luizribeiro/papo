@@ -36,6 +36,48 @@ struct StallingWriter {
     stalled: bool,
 }
 
+struct NeverDrainingStream {
+    inner: DuplexStream,
+    written: Arc<Mutex<Vec<u8>>>,
+}
+
+impl AsyncRead for NeverDrainingStream {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_read(context, buffer)
+    }
+}
+
+impl AsyncWrite for NeverDrainingStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        match Pin::new(&mut self.inner).poll_write(context, buffer) {
+            Poll::Ready(Ok(count)) => {
+                self.written
+                    .lock()
+                    .unwrap()
+                    .extend_from_slice(&buffer[..count]);
+                Poll::Ready(Ok(count))
+            }
+            result => result,
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Pending
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Pending
+    }
+}
+
 impl AsyncWrite for StallingWriter {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -3655,6 +3697,42 @@ async fn quit_times_out_after_ten_seconds() {
             retry_in: None,
         }))
     ));
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn quit_deadline_bounds_final_flush_for_a_peer_that_never_drains() {
+    let (inner, mut server) = tokio::io::duplex(4096);
+    let written = Arc::new(Mutex::new(Vec::new()));
+    let stream = NeverDrainingStream {
+        inner,
+        written: Arc::clone(&written),
+    };
+    let (client, _events, driver) = Driver::with_stream(stream, Session::new(config()));
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    let quit = tokio::spawn(async move { client.quit("bounded shutdown").await });
+    while !written
+        .lock()
+        .unwrap()
+        .windows(b"QUIT :bounded shutdown\r\n".len())
+        .any(|window| window == b"QUIT :bounded shutdown\r\n")
+    {
+        tokio::task::yield_now().await;
+    }
+
+    tokio::time::advance(Duration::from_secs(10)).await;
+    let quit = tokio::time::timeout(Duration::from_secs(1), quit)
+        .await
+        .expect("final flush exceeded the quit deadline")
+        .unwrap();
+    assert!(matches!(quit, Err(Error::Timeout)));
+    assert!(
+        tokio::time::timeout(Duration::from_secs(1), driver)
+            .await
+            .expect("driver did not stop after the quit deadline")
+            .unwrap()
+            .is_ok()
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
