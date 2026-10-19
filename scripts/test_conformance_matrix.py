@@ -15,8 +15,11 @@ class MatrixTests(unittest.TestCase):
             "ergo-default": "Ergo default",
             "soju-ergo": "soju + Ergo",
         }
-        MODULE["render"].__globals__["KNOWN_FAILURE_REASONS"] = {
-            ("soju-ergo", "known"): "wire difference"
+        MODULE["render"].__globals__["KNOWN_FAILURES"] = {
+            ("soju-ergo", "known"): {
+                "kind": "not-implemented",
+                "reason": "wire difference",
+            }
         }
         output = MODULE["render"](
             {
@@ -35,4 +38,7 @@ class MatrixTests(unittest.TestCase):
         self.assertIn("| `fail` | ✗ | ✓ |", output)
         self.assertIn("| `known` | ✓ | ⚠ [^1] |", output)
         self.assertIn("| `skip` | — | ✓ |", output)
-        self.assertIn("[^1]: `soju-ergo` / `known`: wire difference", output)
+        self.assertIn(
+            "[^1]: ⚠ not implemented: `soju-ergo` / `known` — wire difference",
+            output,
+        )

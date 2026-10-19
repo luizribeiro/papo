@@ -31,6 +31,12 @@ PROFILE_LABELS = {
     "solanum": "Solanum",
     "unrealircd": "UnrealIRCd",
 }
+KIND_LABELS = {
+    "server-bug": "server bug",
+    "not-implemented": "not implemented",
+    "spec-ambiguity": "spec ambiguity",
+    "fixture-limit": "fixture limit",
+}
 
 
 def run_profile(profile):
@@ -75,8 +81,8 @@ def render(results):
         if status.startswith("ignored"):
             return "—"
         if status == "expected-failure":
-            reason = KNOWN_FAILURE_REASONS[(profile, scenario)]
-            footnotes.append((profile, scenario, reason))
+            entry = KNOWN_FAILURES[(profile, scenario)]
+            footnotes.append((profile, scenario, entry["kind"], entry["reason"]))
             return f"⚠ [^{len(footnotes)}]"
         return "✗"
 
@@ -98,16 +104,19 @@ def render(results):
             "✓ pass · — not advertised or unavailable setup · ⚠ known failure · ✗ fail",
         ]
     )
-    for number, (profile, scenario, reason) in enumerate(footnotes, 1):
-        lines.append(f"[^{number}]: `{profile}` / `{scenario}`: {reason}")
+    for number, (profile, scenario, kind, reason) in enumerate(footnotes, 1):
+        lines.append(
+            f"[^{number}]: ⚠ {KIND_LABELS[kind]}: "
+            f"`{profile}` / `{scenario}` — {reason}"
+        )
     return "\n".join(lines) + "\n"
 
 
 def load_known_failures():
-    """Read reasons from the suite's validated TOML-shaped files."""
+    """Read classified exceptions from the suite's validated TOML files."""
     import tomllib
 
-    reasons = {}
+    failures = {}
     directory = ROOT / "crates/papo-conformance/known-failures"
     for profile in PROFILES:
         path = directory / f"{profile}.toml"
@@ -115,11 +124,11 @@ def load_known_failures():
             continue
         with path.open("rb") as source:
             for scenario, entry in tomllib.load(source).items():
-                reasons[(profile, scenario)] = entry["reason"]
-    return reasons
+                failures[(profile, scenario)] = entry
+    return failures
 
 
-KNOWN_FAILURE_REASONS = load_known_failures()
+KNOWN_FAILURES = load_known_failures()
 
 
 def main():
