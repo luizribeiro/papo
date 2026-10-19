@@ -1,20 +1,48 @@
 [kick_missing_member]
 reason = "Ergo returns 482 rather than 441 when an operator kicks a user outside the channel"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#kick-message"
+evidence = "C: KICK #review absent :not a channel member | S: 482 operator #review"
+server_version = "2.19.1"
 
 [names_multiple_channels]
 reason = "Ergo returns NAMES for only the first channel in a comma-separated target list"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#names-message"
+evidence = "C: NAMES #first,#second | S: 353/366 for #first only"
+server_version = "2.19.1"
 
 [nickname_collision_race]
 reason = "Ergo serializes simultaneous local nickname claims and returns 433 rather than 436"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#nick-message"
+evidence = "C: NICK race-review from two clients | S: 433 race-review"
+server_version = "2.19.1"
 
 [partially_invalid_join]
 reason = "Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#join-message"
+evidence = "C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 403 #invalid-control-G"
+server_version = "2.19.1"
 
 [user_modes]
 reason = "Ergo reports an unknown user mode with channel-mode numeric 472 rather than 501"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#mode-message"
+evidence = "C: MODE review +? | S: 472 review ?"
+server_version = "2.19.1"
 
 [whois_host_certificate]
 reason = "Ergo returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#whois-message"
+evidence = "C: WHOIS review | S: 338 review ...; 318 review"
+server_version = "2.19.1"
 
 [whois_server]
 reason = "Ergo omits server numeric 312 from WHOIS replies"
+kind = "not-implemented"
+spec = "https://modern.ircdocs.horse/#whois-message"
+evidence = "C: WHOIS review | S: 311 review ...; 318 review, with no 312"
+server_version = "2.19.1"

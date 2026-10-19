@@ -1,14 +1,34 @@
 [multiple_joins]
 reason = "InspIRCd rejects JOIN zero as an invalid channel name instead of leaving every channel"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#join-message"
+evidence = "C: JOIN 0 | S: 403 0"
+server_version = "4.12.1"
 
 [nickname_collision_race]
 reason = "InspIRCd serializes simultaneous local nickname claims and returns 433 rather than 436"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#nick-message"
+evidence = "C: NICK race-review from two clients | S: 433 race-review"
+server_version = "4.12.1"
 
 [standard_replies]
 reason = "InspIRCd advertises standard-replies but does not reject this invalid real name with FAIL"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/setname"
+evidence = "C: SETNAME : | S: no FAIL SETNAME INVALID_REALNAME"
+server_version = "4.12.1"
 
 [topic]
 reason = "InspIRCd applies topic-change flood protection and returns 437 to the immediate update"
+kind = "fixture-limit"
+spec = "https://modern.ircdocs.horse/#topic-message"
+evidence = "C: TOPIC #review :Reviewing IRC topic synchronization | S: 437 #review"
+server_version = "4.12.1"
 
 [whois_host_certificate]
 reason = "InspIRCd returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#whois-message"
+evidence = "C: WHOIS review | S: 338 review ...; 318 review"
+server_version = "4.12.1"

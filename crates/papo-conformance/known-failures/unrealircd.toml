@@ -1,14 +1,34 @@
 [partially_invalid_join]
 reason = "UnrealIRCd accepts the valid JOIN target but reports the malformed target with 448 rather than 476"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#join-message"
+evidence = "C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 448 #invalid-control-G"
+server_version = "6.2.7"
 
 [names_multiple_channels]
 reason = "UnrealIRCd advertises and enforces a one-target limit for NAMES"
+kind = "fixture-limit"
+spec = "https://modern.ircdocs.horse/#rplisupport-parameter"
+evidence = "S: 005 TARGMAX=NAMES:1 | C: NAMES #first,#second | S: one target only"
+server_version = "6.2.7"
 
 [nickname_collision_race]
 reason = "UnrealIRCd serializes simultaneous local nickname claims and returns 433 rather than 436"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#nick-message"
+evidence = "C: NICK race-review from two clients | S: 433 race-review"
+server_version = "6.2.7"
 
 [standard_replies]
 reason = "UnrealIRCd advertises standard-replies but does not reject this invalid real name with FAIL"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/setname"
+evidence = "C: SETNAME : | S: no FAIL SETNAME INVALID_REALNAME"
+server_version = "6.2.7"
 
 [status_message]
 reason = "UnrealIRCd advertises STATUSMSG but does not deliver a message addressed to voiced members"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#statusmsg-parameter"
+evidence = "S: 005 STATUSMSG=@+ | C: PRIVMSG +#review :operators only | S: no delivery"
+server_version = "6.2.7"
