@@ -1,5 +1,5 @@
 use papo::isupport::{Advertised, Prefix};
-use papo::{Event, ModeKind, Nick, State};
+use papo::{ModeKind, Nick, State};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 use papo_testing::Peer;
@@ -22,7 +22,9 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let joined = alice.wait_for(Event::as_joined).await?;
+    let joined = alice
+        .wait_for(|event| event.as_joined().filter(|joined| !joined.is_self))
+        .await?;
     assert_eq!(joined.channel.as_ref(), channel);
     assert_eq!(joined.nick, bob_nick);
     assert!(!joined.is_self);
