@@ -30,7 +30,6 @@
 "draft.multiline.errors-limits" = "papo applies multiline limits before transmission, preventing a live server-limit refusal scenario."
 "draft.network-icon" = "Only UnrealIRCd exposes the draft network icon token among the managed profiles."
 "draft.oper-tag" = "The behavior requires portable operator provisioning and a server that advertises draft/oper-tag."
-"draft.pre-away" = "The public builder has no pre-registration AWAY setting."
 "draft.webpush" = "The managed profiles have no always-on HTTPS push endpoint configured for WEBPUSH registration."
 "ergo.authtoken" = "Ergo authtoken support is disabled in the managed profile."
 "ergo.history-legacy" = "papo exposes typed CHATHISTORY requests rather than Ergo's human-oriented HISTORY command."

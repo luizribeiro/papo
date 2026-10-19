@@ -162,6 +162,28 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// announces away state during registration when pre-away is negotiated
+#[scenario(requires(caps = ["draft/pre-away"]), covers = ["draft.pre-away"])]
+async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
+    let away = "reviewing the overnight deployment";
+    let mut alice = s
+        .connect_with(s.configure("alice")?.away_on_connect(away))
+        .await?;
+    let bob = s.connect("bob").await?;
+
+    let registered = alice.wait_for(Event::as_registered).await?;
+    assert_eq!(registered.nick, alice.nick());
+    assert!(registered.caps.contains_key("draft/pre-away"));
+    assert!(alice.state().away());
+    assert_eq!(alice.state().away_message(), None);
+
+    let whois = bob.whois(alice.nick()).await?;
+    assert_eq!(whois.nick, alice.nick());
+    assert_eq!(whois.away.as_deref(), Some(away));
+    alice.expect_none(Event::as_disconnected).await?;
+    Ok(())
+}
+
 /// updates real-name state for the sender and every shared-channel peer
 #[scenario(requires(caps = ["setname"]), covers = ["ircv3.setname"])]
 async fn setname(s: Scenario) -> papo_testing::Result<()> {
