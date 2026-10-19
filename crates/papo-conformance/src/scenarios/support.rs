@@ -1,5 +1,5 @@
 use papo::event::ModeChanged;
-use papo::{Event, Message};
+use papo::{Error, Event, Message, Refusal};
 use papo_testing::Peer;
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -39,4 +39,13 @@ pub(super) async fn wait_channel_mode(
 ) -> papo_testing::Result<ModeChanged> {
     peer.wait_for(|event| channel_mode_letter(event, channel, letter))
         .await
+}
+
+/// Asserts that `error` is a server refusal of `expected` kind carrying the numeric `code`.
+pub(super) fn assert_refusal(error: Error, expected: Refusal, code: &str) {
+    let Error::Server(refusal) = error else {
+        panic!("operation did not return a server refusal: {error:?}");
+    };
+    assert_eq!(refusal.kind(), expected);
+    assert_eq!(refusal.code(), code);
 }

@@ -1,8 +1,8 @@
-use papo::{Error, ModeKind, Refusal, Source};
+use papo::{ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{message_text, wait_channel_mode};
+use crate::scenarios::support::{assert_refusal, message_text, wait_channel_mode};
 
 enum Dialect {
     ListMode,
@@ -130,13 +130,4 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         Some(carol_nick.as_ref())
     );
     Ok(())
-}
-
-fn assert_refusal(error: Error, expected: Refusal, code: &str) {
-    let refusal = match error {
-        Error::Server(refusal) => refusal,
-        other => panic!("operation did not return a server refusal: {other:?}"),
-    };
-    assert_eq!(refusal.kind(), expected);
-    assert_eq!(refusal.code(), code);
 }

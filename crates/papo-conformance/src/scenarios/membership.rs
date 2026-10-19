@@ -2,7 +2,7 @@ use papo::{Account, DisconnectCause, Error, Event, ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
-use super::support::wait_channel_mode;
+use super::support::{assert_refusal, wait_channel_mode};
 use crate::Scenario;
 
 /// exposes the joining account and real name to every channel member
@@ -895,11 +895,11 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
             .is_none()
     );
 
-    let Error::Server(refusal) = bob.set_nick(new_nick.clone()).await.unwrap_err() else {
-        panic!("nickname collision did not return a server refusal");
-    };
-    assert_eq!(refusal.kind(), Refusal::NicknameInUse);
-    assert_eq!(refusal.code(), "433");
+    assert_refusal(
+        bob.set_nick(new_nick.clone()).await.unwrap_err(),
+        Refusal::NicknameInUse,
+        "433",
+    );
     assert_eq!(bob.state().nick(), &bob_nick);
     bob.expect_none(Event::as_nick_changed).await?;
     Ok(())
@@ -1357,15 +1357,6 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     let delivered = carol.wait_for(Event::as_message).await?;
     assert_eq!(delivered.text(), "allowed after voice");
     Ok(())
-}
-
-fn assert_refusal(error: Error, expected: Refusal, code: &str) {
-    let refusal = match error {
-        Error::Server(refusal) => refusal,
-        other => panic!("operation did not return a server refusal: {other:?}"),
-    };
-    assert_eq!(refusal.kind(), expected);
-    assert_eq!(refusal.code(), code);
 }
 
 fn assert_actor_or_server(source: &Source, actor: &str) {

@@ -1,7 +1,8 @@
-use papo::{Casemapping, Error, Event, Refusal, Source, isupport::Advertised};
+use papo::{Casemapping, Event, Refusal, Source, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
+use crate::scenarios::support::assert_refusal;
 
 /// folds []\~ onto {}|^ for nicknames, channels and state lookups under rfc1459
 #[scenario(
@@ -29,15 +30,11 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     assert!(changed.is_self);
 
     // ALICE-<n>{X} folds to the same name as alice-<n>[x], so this claim must collide.
-    let Error::Server(refusal) = bob
+    let collision = bob
         .set_nick(format!("{}{{X}}", base.to_ascii_uppercase()))
         .await
-        .unwrap_err()
-    else {
-        panic!("folded nickname collision did not return a server refusal");
-    };
-    assert_eq!(refusal.kind(), Refusal::NicknameInUse);
-    assert_eq!(refusal.code(), "433");
+        .unwrap_err();
+    assert_refusal(collision, Refusal::NicknameInUse, "433");
     assert_eq!(bob.state().nick(), &bob_nick);
     bob.expect_none(Event::as_nick_changed).await?;
 

@@ -1,9 +1,9 @@
 use papo::{
-    Account, AccountName, AccountRegistration, Away, Error, Event, NewAccount, Origin, Refusal,
-    Source,
+    Account, AccountName, AccountRegistration, Away, Event, NewAccount, Origin, Refusal, Source,
 };
 use papo_conformance_macros::scenario;
 
+use super::support::assert_refusal;
 use crate::Scenario;
 
 /// delivers an authenticated sender account
@@ -425,11 +425,11 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
             .any(|joined| joined.name.as_ref() == channel)
     );
 
-    let Error::Server(refusal) = bob.whois("missing-presence-target").await.unwrap_err() else {
-        panic!("unknown WHOIS target did not return a server refusal");
-    };
-    assert_eq!(refusal.kind(), Refusal::NoSuchNick);
-    assert_eq!(refusal.code(), "401");
+    assert_refusal(
+        bob.whois("missing-presence-target").await.unwrap_err(),
+        Refusal::NoSuchNick,
+        "401",
+    );
     Ok(())
 }
 
