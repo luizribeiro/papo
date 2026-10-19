@@ -105,12 +105,16 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     }
 
     alice.mode(&channel).remove_with(letter, arg).await?;
-    let removed = wait_channel_mode(&mut bob, &channel, letter).await?;
-    assert_eq!(removed.changes.len(), 1);
-    let change = &removed.changes[0];
-    assert_eq!(change.mode, letter);
-    assert!(!change.set);
-    assert_eq!(change.kind, ModeKind::List);
+    for peer in [&mut bob, &mut carol] {
+        let removed = wait_channel_mode(peer, &channel, letter).await?;
+        assert_eq!(removed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(removed.changes.len(), 1);
+        let change = &removed.changes[0];
+        assert_eq!(change.mode, letter);
+        assert!(!change.set);
+        assert_eq!(change.kind, ModeKind::List);
+        assert_eq!(change.arg.as_deref(), Some(echoed_arg.as_str()));
+    }
 
     let again = "unmuted again";
     carol.privmsg(&channel, again).await?;
