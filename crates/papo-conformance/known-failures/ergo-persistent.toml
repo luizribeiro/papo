@@ -47,6 +47,13 @@ spec = "https://ircv3.net/specs/extensions/persistence"
 evidence = "C: PERSISTENCE SET OFF | S: PERSISTENCE STATUS OFF ON"
 server_version = "2.19.1"
 
+[targmax_privmsg]
+reason = "Ergo silently drops the target beyond its advertised TARGMAX PRIVMSG limit instead of returning 407"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#targmax-parameter"
+evidence = "S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to bob..erin, nothing to frank, no 407"
+server_version = "2.19.1"
+
 [user_modes]
 reason = "Ergo reports an unknown user mode with channel-mode numeric 472 rather than 501"
 kind = "server-bug"

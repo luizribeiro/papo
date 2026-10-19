@@ -173,6 +173,13 @@ spec = "https://ircv3.net/specs/extensions/whox"
 evidence = "C: WHO #review %tcuhnfar,... | S: 354 ... alice :alice"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
+[targmax_privmsg]
+reason = "soju delivers PRIVMSG to all five targets despite relaying Ergo's TARGMAX=PRIVMSG:4"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#targmax-parameter"
+evidence = "S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to all five, no 407"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
 [user_modes]
 reason = "soju relays Ergo's 472 rather than 501 for an unknown user mode"
 kind = "server-bug"
