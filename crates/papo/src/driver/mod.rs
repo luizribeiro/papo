@@ -758,12 +758,14 @@ where
                 break (reason, Error::disconnected(), None, false);
             }
         }
-        let read_ahead = !requests.is_empty()
-            || !sync_waiters.is_empty()
-            || !read_marker_waiters.is_empty()
-            || !catchups.is_empty()
-            || registration.0.is_some()
-            || quit.is_some();
+        let read_ahead = should_read_ahead(
+            &requests,
+            &sync_waiters,
+            &read_marker_waiters,
+            &catchups,
+            registration,
+            quit.is_some(),
+        );
         let deadline = [
             session.poll_timeout(),
             quit.as_ref().map(|quit: &Quit| quit.deadline),
@@ -1084,12 +1086,14 @@ where
     if !drain_transmit(stream, session, pending_write, deadline).await? {
         return Ok(None);
     }
-    let read_ahead = !requests.is_empty()
-        || !sync_waiters.is_empty()
-        || !read_marker_waiters.is_empty()
-        || !catchups.is_empty()
-        || registration.0.is_some()
-        || quitting;
+    let read_ahead = should_read_ahead(
+        requests,
+        sync_waiters,
+        read_marker_waiters,
+        catchups,
+        registration,
+        quitting,
+    );
     while (pending_events.is_empty() || read_ahead)
         && let Some(core_event) = session.poll_event()
     {
@@ -1282,6 +1286,22 @@ where
         return Ok(None);
     }
     Ok(None)
+}
+
+fn should_read_ahead(
+    requests: &BTreeMap<RequestId, PendingRequest>,
+    sync_waiters: &[(String, oneshot::Sender<Result<(), Error>>)],
+    read_marker_waiters: &ReadMarkerWaiters,
+    catchups: &BTreeMap<RequestId, Catchup>,
+    registration: &RegistrationWait,
+    quitting: bool,
+) -> bool {
+    !requests.is_empty()
+        || !sync_waiters.is_empty()
+        || !read_marker_waiters.is_empty()
+        || !catchups.is_empty()
+        || registration.0.is_some()
+        || quitting
 }
 
 async fn drain_transmit<S>(
