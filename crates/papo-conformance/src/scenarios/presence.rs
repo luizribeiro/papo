@@ -363,6 +363,7 @@ async fn bot_mode(context: Scenario) -> papo_testing::Result<()> {
 /// reports channel identity and away state through WHO and WHOIS
 #[scenario(covers = [
     "base.away.reflected-in-whois",
+    "base.who.plain-reply",
     "base.who.channel-scoped",
     "base.who.away-flag",
     "base.whois.user",
@@ -394,6 +395,28 @@ async fn who_and_whois(context: Scenario) -> papo_testing::Result<()> {
     assert!(!alice_who.is_oper);
     assert!(!alice_who.is_bot);
     assert_eq!(alice_who.prefixes, ['@']);
+
+    // Plain WHO's numeric fields are the behavior under test, without WHOX rewriting them.
+    let plain = bob.request_command("WHO", [&channel]).await?;
+    let row = plain
+        .iter()
+        .find(|line| line.numeric() == Some(352) && line.param(5) == Some(alice_nick.as_ref()))
+        .unwrap();
+    assert_eq!(row.param(1), Some(channel.as_str()));
+    assert!(row.param(2).is_some_and(|user| !user.is_empty()));
+    assert!(row.param(3).is_some_and(|host| !host.is_empty()));
+    assert!(row.param(4).is_some_and(|server| !server.is_empty()));
+    assert!(row.param(6).is_some_and(|flags| flags.contains('G')));
+    assert!(row.param(7).is_some_and(|hop_realname| {
+        hop_realname
+            .split_once(' ')
+            .is_some_and(|(_, realname)| realname == "papo test peer")
+    }));
+    assert!(
+        plain
+            .iter()
+            .any(|line| { line.numeric() == Some(315) && line.param(1) == Some(channel.as_str()) })
+    );
 
     let whois = bob.whois(alice_nick.clone()).await?;
 
