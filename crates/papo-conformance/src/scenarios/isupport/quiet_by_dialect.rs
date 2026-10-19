@@ -1,5 +1,5 @@
 use papo::event::ModeChanged;
-use papo::{Error, Event, Message, ModeKind, Refusal};
+use papo::{Error, Event, Message, ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -71,7 +71,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(joined.nick, carol_nick);
     assert!(!joined.is_self);
 
-    alice.mode(&channel).add_with(letter, arg).await?;
+    alice.mode(&channel).add_with(letter, arg.clone()).await?;
     let on_bob = wait_channel_mode(&mut bob, &channel, letter).await?;
     let on_carol = wait_channel_mode(&mut carol, &channel, letter).await?;
     for changed in [&on_bob, &on_carol] {
@@ -92,6 +92,43 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     bob.expect_none(|event| message_text(event, blocked))
         .await?;
+
+    let unmuted = "unmuted members still speak";
+    bob.privmsg(&channel, unmuted).await?;
+    for peer in [&mut alice, &mut carol] {
+        let message = peer.wait_for(|event| message_text(event, unmuted)).await?;
+        assert_eq!(message.target(), channel);
+        assert_eq!(
+            message.sender.as_ref().and_then(Source::nick),
+            Some(bob_nick.as_ref())
+        );
+        assert!(!message.is_private());
+    }
+    for peer in [&alice, &bob, &carol] {
+        let state = peer.state();
+        let member = state
+            .channel(&channel)
+            .unwrap()
+            .member(&carol_nick)
+            .unwrap();
+        assert!(member.prefixes().is_empty());
+    }
+
+    alice.mode(&channel).remove_with(letter, arg).await?;
+    let removed = wait_channel_mode(&mut bob, &channel, letter).await?;
+    assert_eq!(removed.changes.len(), 1);
+    let change = &removed.changes[0];
+    assert_eq!(change.mode, letter);
+    assert!(!change.set);
+    assert_eq!(change.kind, ModeKind::List);
+
+    let again = "unmuted again";
+    carol.privmsg(&channel, again).await?;
+    let message = bob.wait_for(|event| message_text(event, again)).await?;
+    assert_eq!(
+        message.sender.as_ref().and_then(Source::nick),
+        Some(carol_nick.as_ref())
+    );
     Ok(())
 }
 
