@@ -131,6 +131,9 @@ spec = "https://ircv3.net/specs/extensions/labeled-response"
 evidence = "C: @label=... JOIN #valid,#invalid-control-G | S: partial response without labeled completion"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
+[pre_away]
+reason = "soju does not forward the downstream client's registration-time AWAY state to the upstream connection"
+
 [quit]
 reason = "soju disconnects the downstream client without quitting its persistent upstream connection"
 kind = "fixture-limit"
@@ -146,7 +149,7 @@ evidence = "C: PASS bouncer-credentials; AUTHENTICATE PLAIN targets the bouncer 
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [sasl_protocol_errors]
-reason = "soju treats post-registration AUTHENTICATE as a fatal bouncer login failure"
+reason = "soju treats a post-registration AUTHENTICATE abort as a fatal bouncer authentication failure"
 kind = "fixture-limit"
 spec = "https://ircv3.net/specs/extensions/sasl-3.2"
 evidence = "C: AUTHENTICATE PLAIN after registration | S: downstream connection closes"
@@ -158,6 +161,9 @@ kind = "server-bug"
 spec = "https://ircv3.net/specs/extensions/setname"
 evidence = "upstream S: SETNAME :Alice Reviewer | downstream S: SETNAME :alice"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
+
+[server_queries]
+reason = "soju keeps the upstream session attached after downstream QUIT, leaving no WHOWAS record to relay"
 
 [who_and_whois]
 reason = "soju omits a shared-channel upstream user from the downstream WHO result"

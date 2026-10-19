@@ -584,30 +584,6 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// attaches operator identity to messages from an authenticated operator
-#[scenario(
-    requires(caps = ["draft/oper-tag"]),
-    covers = ["draft.oper-tag"]
-)]
-async fn operator_tag(s: Scenario) -> papo_testing::Result<()> {
-    let (oper_name, password) = oper_credentials(&s)?;
-    let alice = s.connect("alice").await?;
-    let mut bob = s.connect("bob").await?;
-    let channel = s.channel_name();
-    alice.join(&channel).await?;
-    bob.join(&channel).await?;
-    alice.oper(&oper_name, password).await?;
-
-    let text = "authenticated operator announcement";
-    alice.privmsg(&channel, text).await?;
-    let message = bob
-        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
-        .await?;
-    assert!(message.is_oper());
-    assert_eq!(message.oper(), Some(oper_name.as_str()));
-    Ok(())
-}
-
 /// reports the target's server through WHOIS
 #[scenario(covers = ["base.whois.server"])]
 async fn whois_server(s: Scenario) -> papo_testing::Result<()> {

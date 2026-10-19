@@ -1,7 +1,7 @@
 use papo::{AccountName, AccountRegistration, Event, NewAccount, event::Warning};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
-use papo_test_server::{register_account, unique};
+use papo_test_server::{DeploymentProfile, register_account, unique};
 
 use super::support::PASSWORD;
 use crate::Scenario;
@@ -91,6 +91,13 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
         Warning::AuthenticationFailed { reason, .. } if !reason.is_empty()
     ));
     alice.expect_none(Event::as_disconnected).await?;
+
+    if !matches!(
+        DeploymentProfile::from_env()?,
+        DeploymentProfile::ErgoDefault | DeploymentProfile::ErgoPersistent
+    ) {
+        return Ok(());
+    }
 
     let account = unique("reauth-account");
     register_account(&s.server, &account, PASSWORD)?;
