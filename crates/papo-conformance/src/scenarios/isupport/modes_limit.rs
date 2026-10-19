@@ -47,18 +47,17 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
         }
     };
 
-    if let Some(max) = limit {
-        let first = bob.wait_for(|event| channel_mode(event, &channel)).await?;
-        assert_ban_changes(&first, &masks[..max]);
-
-        let second = bob.wait_for(|event| channel_mode(event, &channel)).await?;
-        assert_ban_changes(&second, &masks[max..]);
-    } else {
-        let changed = bob.wait_for(|event| channel_mode(event, &channel)).await?;
-        assert_ban_changes(&changed, &masks);
+    let expected_lines = match limit {
+        Some(max) => vec![&masks[..max], &masks[max..]],
+        None => vec![&masks[..]],
+    };
+    for peer in [&mut alice, &mut bob] {
+        for expected in &expected_lines {
+            let changed = peer.wait_for(|event| channel_mode(event, &channel)).await?;
+            assert_ban_changes(&changed, expected);
+        }
+        peer.expect_none(|event| channel_mode(event, &channel))
+            .await?;
     }
-
-    bob.expect_none(|event| channel_mode(event, &channel))
-        .await?;
     Ok(())
 }
