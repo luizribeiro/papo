@@ -57,6 +57,48 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// reports unknown client-batch types and invalid closing references
+#[scenario(
+    requires(caps = ["batch", "draft/multiline", "standard-replies"]),
+    covers = ["draft.client-batch.errors"]
+)]
+async fn client_batch_errors(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+
+    alice
+        .send_command(
+            "BATCH",
+            ["+papo-unknown", "papo.example/unknown", "#papo-missing"],
+        )
+        .await?;
+    let unknown = alice.wait_for(Event::as_standard_reply).await?;
+    assert_eq!(unknown.kind, StandardReplyKind::Fail);
+    assert_eq!(unknown.command, "BATCH");
+    let unknown_code = unknown.code.clone();
+
+    alice.send_command("BATCH", ["-papo-not-open"]).await?;
+    let invalid = alice.wait_for(Event::as_standard_reply).await?;
+    assert_eq!(invalid.kind, StandardReplyKind::Fail);
+    assert_eq!(invalid.command, "BATCH");
+    let invalid_code = invalid.code.clone();
+    alice.expect_none(Event::as_disconnected).await?;
+    if unknown_code != "UNKNOWN_TYPE" || invalid_code != "INVALID_REFTAG" {
+        return Err(std::io::Error::other(format!(
+            "client-batch refusals were {unknown_code} and {invalid_code}, expected UNKNOWN_TYPE and INVALID_REFTAG"
+        ))
+        .into());
+    }
+    assert_eq!(
+        unknown.context.first().map(String::as_str),
+        Some("papo-unknown")
+    );
+    assert_eq!(
+        invalid.context.first().map(String::as_str),
+        Some("papo-not-open")
+    );
+    Ok(())
+}
+
 /// an invalid real name produces a typed standard failure
 #[scenario(
     requires(caps = ["standard-replies", "setname"]),

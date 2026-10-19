@@ -120,6 +120,7 @@ pub(super) fn all() -> Vec<ScenarioSpec> {
         presence::__papo_scenario_spec_whois_server,
         requests::__papo_scenario_spec_labeled_response,
         requests::__papo_scenario_spec_batch,
+        requests::__papo_scenario_spec_client_batch_errors,
         requests::__papo_scenario_spec_standard_replies,
     ];
     #[cfg(not(all(target_os = "wasi", not(target_env = "p1"))))]
@@ -136,7 +137,10 @@ mod tests {
     use super::all;
 
     #[test]
-    #[allow(clippy::too_many_lines)]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the complete registry is intentional"
+    )]
     fn registered_scenarios_are_complete_and_sorted() {
         let names = all()
             .into_iter()
@@ -171,6 +175,7 @@ mod tests {
                 "chathistory_paging",
                 "chathistory_targets",
                 "chghost",
+                "client_batch_errors",
                 "ctcp",
                 "direct_messages",
                 "draft_account_registration",

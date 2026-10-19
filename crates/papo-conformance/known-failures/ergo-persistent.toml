@@ -1,3 +1,6 @@
+[client_batch_errors]
+reason = "Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG"
+
 [draft_channel_rename]
 reason = "Ergo rejects renaming channels that have persistent history"
 kind = "fixture-limit"

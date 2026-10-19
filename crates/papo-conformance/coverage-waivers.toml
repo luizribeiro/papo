@@ -20,7 +20,6 @@
 "base.wallops.relay" = "papo has no public WALLOPS action and the behavior requires portable operator setup."
 "core.multiclient.fanout" = "Portable same-account fanout needs shared upstream identity support that the managed bouncer profile does not provide."
 "core.multiclient.state-sync-on-attach" = "Portable attach replay needs shared upstream identity support that the managed bouncer profile does not provide."
-"draft.client-batch.errors" = "papo exposes no public client-batch construction API for malformed or unsupported client batches."
 "draft.message-redaction.errors" = "Portable typed redaction refusal coverage is deferred from the current scenario set."
 "draft.multiline.errors-limits" = "papo applies multiline limits before transmission, preventing a live server-limit refusal scenario."
 "draft.network-icon" = "Only UnrealIRCd exposes the draft network icon token among the managed profiles."

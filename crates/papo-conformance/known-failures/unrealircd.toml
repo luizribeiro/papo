@@ -32,3 +32,6 @@ kind = "server-bug"
 spec = "https://modern.ircdocs.horse/#statusmsg-parameter"
 evidence = "S: 005 STATUSMSG=@+ | C: PRIVMSG +#review :operators only | S: no delivery"
 server_version = "6.2.7"
+
+[client_batch_errors]
+reason = "UnrealIRCd reports MULTILINE_INVALID rather than INVALID_REFTAG when closing an unopened client batch"

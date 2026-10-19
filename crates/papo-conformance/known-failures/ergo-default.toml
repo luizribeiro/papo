@@ -1,3 +1,6 @@
+[client_batch_errors]
+reason = "Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG"
+
 [kick_missing_member]
 reason = "Ergo returns 482 rather than 441 when an operator kicks a user outside the channel"
 kind = "server-bug"
