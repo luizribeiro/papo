@@ -25,7 +25,7 @@ ids = [
   "base.whois.err-no-such-nick", "base.whois.bot-flag", "base.whowas.basic", "base.whowas.err-no-such-nick",
   "base.whowas.count-param", "base.motd.full", "base.motd.absent", "base.lusers.basic",
   "base.away.self-ack", "base.away.privmsg-to-away-user", "base.away.reflected-in-whois", "base.isupport.token-parsing",
-  "base.isupport.prefix", "base.isupport.casemapping", "base.isupport.chanmodes-groups", "base.isupport.targmax",
+  "base.isupport.prefix", "base.isupport.prefix-rank-order", "base.isupport.casemapping", "base.isupport.chanmodes-groups", "base.isupport.targmax",
   "base.isupport.statusmsg-token", "base.oper.success", "base.oper.failure", "base.wallops.relay",
   "base.kill.relay", "base.links.basic", "base.time.basic",
   "ircv3.cap.ls-req-ack", "ircv3.cap.nak-response", "ircv3.sasl.plain", "ircv3.sasl.scram-sha-256",

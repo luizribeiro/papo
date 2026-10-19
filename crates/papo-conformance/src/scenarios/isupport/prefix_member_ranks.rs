@@ -1,0 +1,138 @@
+use papo::isupport::{Advertised, Prefix};
+use papo::{Event, ModeKind, Nick, State};
+use papo_conformance_macros::scenario;
+use papo_test_server::DeploymentProfile;
+use papo_testing::Peer;
+
+use crate::Scenario;
+
+/// grants every status mode an operator may set and reports member prefixes in rank order
+#[scenario(
+    requires(caps = ["multi-prefix"]),
+    covers = ["base.isupport.prefix", "base.isupport.prefix-rank-order"]
+)]
+async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let (alice_nick, bob_nick) = (alice.nick(), bob.nick());
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    let joined = alice.wait_for(Event::as_joined).await?;
+    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.nick, bob_nick);
+    assert!(!joined.is_self);
+
+    // Parsed by hand from the raw token, independently of `Isupport::prefix`'s own parser.
+    let expected = parse_prefix_token(alice.state().isupport());
+    assert_eq!(alice.state().isupport().prefix(), expected);
+    let allowed = allowed_prefixes(&expected);
+    let allowed_symbols: Vec<char> = allowed.iter().map(|prefix| prefix.symbol).collect();
+    let expected_symbols: &[char] = match DeploymentProfile::from_env()? {
+        DeploymentProfile::ErgoDefault
+        | DeploymentProfile::ErgoPersistent
+        | DeploymentProfile::SojuErgo
+        | DeploymentProfile::UnrealIrcd => &['@', '%', '+'],
+        DeploymentProfile::InspIrcd | DeploymentProfile::Solanum => &['@', '+'],
+    };
+    assert_eq!(allowed_symbols, expected_symbols);
+    assert_eq!(
+        member_prefixes(&alice.state(), &channel, &alice_nick),
+        ['@']
+    );
+
+    // Reverse rank order so the final state can't be mistaken for insertion order.
+    for prefix in allowed.iter().rev() {
+        grant_rank(&alice, &mut bob, &channel, &alice_nick, &bob_nick, *prefix).await?;
+    }
+    for peer in [&alice, &bob] {
+        assert_eq!(
+            member_prefixes(&peer.state(), &channel, &bob_nick),
+            allowed_symbols
+        );
+    }
+
+    bob.expect_none(|event| {
+        event
+            .as_mode_changed()
+            .filter(|changed| changed.target.as_ref() == channel)
+    })
+    .await?;
+    Ok(())
+}
+
+fn parse_prefix_token(support: &papo::Isupport) -> Vec<Prefix> {
+    let Advertised::Value(raw) = support.get("PREFIX") else {
+        panic!(
+            "PREFIX must advertise a (modes)symbols value, got {:?}",
+            support.get("PREFIX")
+        );
+    };
+    let (modes, symbols) = raw
+        .strip_prefix('(')
+        .and_then(|rest| rest.split_once(')'))
+        .unwrap_or_else(|| panic!("PREFIX value {raw:?} is not (modes)symbols"));
+    assert_eq!(modes.chars().count(), symbols.chars().count());
+    modes
+        .chars()
+        .zip(symbols.chars())
+        .enumerate()
+        .map(|(rank, (mode, symbol))| Prefix { mode, symbol, rank })
+        .collect()
+}
+
+fn allowed_prefixes(expected: &[Prefix]) -> Vec<Prefix> {
+    let op_rank = expected
+        .iter()
+        .find(|prefix| prefix.symbol == '@')
+        .expect("the operator prefix @ must be advertised")
+        .rank;
+    expected
+        .iter()
+        .copied()
+        .filter(|prefix| prefix.rank >= op_rank)
+        .collect()
+}
+
+fn member_prefixes(state: &State, channel: &str, nick: &str) -> Vec<char> {
+    state
+        .channel(channel)
+        .unwrap()
+        .member(nick)
+        .unwrap()
+        .prefixes()
+        .to_vec()
+}
+
+async fn grant_rank(
+    alice: &Peer,
+    bob: &mut Peer,
+    channel: &str,
+    alice_nick: &Nick,
+    bob_nick: &Nick,
+    prefix: Prefix,
+) -> papo_testing::Result<()> {
+    alice
+        .mode(channel)
+        .add_with(prefix.mode, bob_nick.to_string())
+        .await?;
+    let changed = bob
+        .wait_for(|event| {
+            event.as_mode_changed().filter(|changed| {
+                changed.target.as_ref() == channel
+                    && changed
+                        .changes
+                        .iter()
+                        .any(|change| change.mode == prefix.mode)
+            })
+        })
+        .await?;
+    assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(changed.changes.len(), 1);
+    let change = &changed.changes[0];
+    assert!(change.set);
+    assert_eq!(change.mode, prefix.mode);
+    assert_eq!(change.kind, ModeKind::Prefix(prefix.rank));
+    assert_eq!(change.arg.as_deref(), Some(bob_nick.as_ref()));
+    Ok(())
+}
