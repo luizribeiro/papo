@@ -43,6 +43,7 @@ pub(super) fn all() -> Vec<ScenarioSpec> {
         history::__papo_scenario_spec_event_playback,
         history::__papo_scenario_spec_draft_read_marker,
         history::__papo_scenario_spec_read_marker_on_join,
+        isupport::__papo_scenario_spec_casemapping_rfc1459,
         isupport::__papo_scenario_spec_chanmode_classes,
         isupport::__papo_scenario_spec_prefix_above_rank_refused,
         isupport::__papo_scenario_spec_prefix_member_ranks,
@@ -122,6 +123,7 @@ mod tests {
     use super::all;
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn registered_scenarios_are_complete_and_sorted() {
         let names = all()
             .into_iter()
@@ -140,6 +142,7 @@ mod tests {
                 "bouncer_networks",
                 "cap_notify_new",
                 "capability_negotiation",
+                "casemapping_rfc1459",
                 "chanmode_classes",
                 "channel_metadata",
                 "channel_mode_exceptions",
