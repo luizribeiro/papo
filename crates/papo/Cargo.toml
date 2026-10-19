@@ -27,7 +27,7 @@ tls-ring = [
 unstable = ["papo-core/unstable"]
 
 [package.metadata.docs.rs]
-features = ["unstable"]
+features = ["bot", "sts-file", "unstable"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
