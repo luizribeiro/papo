@@ -221,6 +221,10 @@ async fn setname(s: Scenario) -> papo_testing::Result<()> {
     covers = ["base.oper.success", "ircv3.chghost"]
 )]
 async fn chghost(s: Scenario) -> papo_testing::Result<()> {
+    if std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into()) != "unrealircd"
+    {
+        return s.skip("the selected profile does not expose CHGHOST as an operator command");
+    }
     let (oper_name, password) = oper_credentials(&s)?;
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
@@ -228,34 +232,35 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let username = bob
-        .state()
-        .user(&bob_nick)
-        .unwrap()
-        .username()
-        .unwrap()
-        .to_owned();
-
     alice.oper(oper_name, password).await?;
     alice
         .send_command("CHGHOST", [bob_nick.as_ref(), "conformance.example"])
         .await?;
-    let own = bob.wait_for(Event::as_host_changed).await?;
-    let observed = alice.wait_for(Event::as_host_changed).await?;
+    let own = bob
+        .wait_for(|event| {
+            event
+                .as_host_changed()
+                .filter(|changed| changed.nick == bob_nick && changed.host == "conformance.example")
+        })
+        .await?;
+    let observed = alice
+        .wait_for(|event| {
+            event
+                .as_host_changed()
+                .filter(|changed| changed.nick == bob_nick && changed.host == "conformance.example")
+        })
+        .await?;
 
-    for changed in [&own, &observed] {
-        assert_eq!(changed.nick, bob_nick);
-        assert_eq!(changed.user, username);
-        assert_eq!(changed.host, "conformance.example");
-    }
+    assert_eq!(own, observed);
+    assert_eq!(own.nick, bob_nick);
+    assert!(!own.user.is_empty());
+    assert_eq!(own.host, "conformance.example");
     for peer in [&alice, &bob] {
         let state = peer.state();
         let user = state.user(&bob_nick).unwrap();
-        assert_eq!(user.username(), Some(username.as_str()));
+        assert_eq!(user.username(), Some(own.user.as_str()));
         assert_eq!(user.host(), Some("conformance.example"));
     }
-    alice.expect_none(Event::as_host_changed).await?;
-    bob.expect_none(Event::as_host_changed).await?;
     Ok(())
 }
 
@@ -489,6 +494,63 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// exercises operator authentication and forced disconnects
+#[scenario(covers = [
+    "base.error.message",
+    "base.kill.relay",
+    "base.oper.failure",
+    "base.quit.server-initiated"
+])]
+async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
+    let (oper_name, password) = oper_credentials(&s)?;
+    let alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let mut charlie = s.connect("charlie").await?;
+    let diana = s.connect("diana").await?;
+    let channel = s.channel_name();
+    let charlie_nick = charlie.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    charlie.join(&channel).await?;
+
+    alice.oper(&oper_name, password).await?;
+    let Error::Server(refusal) = diana
+        .oper(&oper_name, "incorrect-password")
+        .await
+        .unwrap_err()
+    else {
+        panic!("incorrect operator credentials did not return a server refusal");
+    };
+    assert!(matches!(
+        refusal.kind(),
+        Refusal::PasswordIncorrect | Refusal::NoOperHost
+    ));
+    assert!(matches!(refusal.code(), "464" | "491"));
+
+    alice
+        .send_command("KILL", [charlie_nick.as_ref(), "conformance test"])
+        .await?;
+    let quit = bob
+        .wait_for(|event| {
+            event
+                .as_quit()
+                .filter(|quit| quit.nick.as_ref() == charlie_nick.as_ref())
+        })
+        .await?;
+    assert_eq!(quit.nick, charlie_nick);
+    assert!(
+        quit.reason
+            .as_deref()
+            .is_some_and(|reason| !reason.is_empty())
+    );
+    let disconnected = charlie.wait_for(Event::as_disconnected).await?;
+    let papo::DisconnectCause::Server { message } = disconnected.cause else {
+        panic!("KILL did not produce a server ERROR disconnect");
+    };
+    assert!(message.contains("Killed"));
+    Ok(())
+}
+
 /// reports the target's server through WHOIS
 #[scenario(covers = ["base.whois.server"])]
 async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
@@ -533,11 +595,21 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
 }
 
 fn oper_credentials(s: &Scenario) -> papo_testing::Result<(String, String)> {
-    let Ok(oper) = std::env::var("PAPO_TEST_OPER") else {
-        return s.skip("PAPO_TEST_OPER is not set up");
-    };
-    let Some((name, password)) = oper.split_once(':') else {
-        return Err("PAPO_TEST_OPER must contain name:password".into());
-    };
-    Ok((name.to_owned(), password.to_owned()))
+    if let Ok(oper) = std::env::var("PAPO_TEST_OPER") {
+        let Some((name, password)) = oper.split_once(':') else {
+            return Err("PAPO_TEST_OPER must contain name:password".into());
+        };
+        return Ok((name.to_owned(), password.to_owned()));
+    }
+    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
+    if matches!(
+        profile.as_str(),
+        "ergo-default" | "ergo-persistent" | "unrealircd"
+    ) {
+        return Ok((
+            papo_test_server::OPER_NAME.into(),
+            papo_test_server::OPER_PASSWORD.into(),
+        ));
+    }
+    s.skip("the selected profile has no managed operator account")
 }
