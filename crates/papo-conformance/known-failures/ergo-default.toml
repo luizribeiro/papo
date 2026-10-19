@@ -1,5 +1,8 @@
 [kick_missing_member]
 reason = "Ergo returns 482 rather than 441 when an operator kicks a user outside the channel"
 
+[names_multiple_channels]
+reason = "Ergo returns NAMES for only the first channel in a comma-separated target list"
+
 [partially_invalid_join]
 reason = "Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476"

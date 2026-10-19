@@ -1,6 +1,9 @@
 [partially_invalid_join]
 reason = "UnrealIRCd accepts the valid JOIN target but reports the malformed target with 448 rather than 476"
 
+[names_multiple_channels]
+reason = "UnrealIRCd advertises and enforces a one-target limit for NAMES"
+
 [standard_replies]
 reason = "UnrealIRCd advertises standard-replies but does not reject this invalid real name with FAIL"
 

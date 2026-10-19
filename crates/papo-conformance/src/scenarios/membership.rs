@@ -97,6 +97,94 @@ async fn userhost_in_names(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// returns names and completion for every channel in one request
+#[scenario(covers = ["base.names.multiple-channels"])]
+async fn names_multiple_channels(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let first = context.channel_name();
+    let second = context.channel_name();
+    alice.join(&first).await?;
+    alice.join(&second).await?;
+
+    // NAMES numerics and their channel parameters are the behavior under test.
+    let targets = format!("{first},{second}");
+    let names = alice.request_command("NAMES", [&targets]).await?;
+    for channel in [&first, &second] {
+        assert!(
+            names.iter().any(|line| {
+                line.numeric() == Some(353) && line.param(2) == Some(channel.as_str())
+            }),
+            "missing names row for {channel}: {names:?}"
+        );
+        assert!(
+            names.iter().any(|line| {
+                line.numeric() == Some(366)
+                    && line
+                        .param(1)
+                        .is_some_and(|targets| targets.split(',').any(|target| target == channel))
+            }),
+            "missing names terminator for {channel}: {names:?}"
+        );
+    }
+    assert!(alice.state().channel(&first).is_some());
+    assert!(alice.state().channel(&second).is_some());
+    Ok(())
+}
+
+/// hides the names of a secret channel from clients outside it
+#[scenario(covers = ["base.names.secret-channel-visibility"])]
+async fn secret_names_visibility(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    alice.join(&channel).await?;
+    alice.mode(&channel).add('s').await?;
+
+    // The absence of a names row in this numeric response proves the visibility rule.
+    let hidden = bob.request_command("NAMES", [&channel]).await?;
+    assert!(
+        !hidden
+            .iter()
+            .any(|line| { line.numeric() == Some(353) && line.param(2) == Some(channel.as_str()) }),
+        "secret channel leaked through NAMES: {hidden:?}"
+    );
+    assert!(
+        hidden
+            .iter()
+            .any(|line| { line.numeric() == Some(366) && line.param(1) == Some(channel.as_str()) }),
+        "missing hidden-channel terminator: {hidden:?}"
+    );
+    assert!(alice.state().channel(&channel).is_some());
+    assert!(bob.state().channel(&channel).is_none());
+    Ok(())
+}
+
+/// synchronizes a join when the server suppresses its implicit names burst
+#[scenario(
+    requires(caps = ["no-implicit-names"]),
+    covers = ["ircv3.no-implicit-names"]
+)]
+async fn no_implicit_names(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    assert!(alice.state().has_cap("no-implicit-names"));
+
+    alice.join(&channel).await?;
+    let joined = alice.wait_for(Event::as_joined).await?;
+    let synced = alice.wait_for(Event::as_channel_synced).await?;
+    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.nick, alice_nick);
+    assert!(joined.is_self);
+    assert_eq!(synced.channel.as_ref(), channel);
+    let state = alice.state();
+    let joined_channel = state.channel(&channel).unwrap();
+    assert!(joined_channel.is_synced());
+    assert!(joined_channel.member(&alice_nick).is_some());
+    alice.expect_none(Event::as_channel_synced).await?;
+    Ok(())
+}
+
 /// joins several keyed channels and leaves all of them with JOIN zero
 #[scenario(covers = [
     "base.join.basic",
@@ -298,7 +386,11 @@ async fn whox(context: Scenario) -> papo_testing::Result<()> {
 /// preserves every membership prefix in the joined member list
 #[scenario(
     requires(caps = ["multi-prefix"]),
-    covers = ["base.isupport.prefix", "ircv3.multi-prefix"]
+    covers = [
+        "base.isupport.prefix",
+        "base.mode.channel.op-voice-prefix",
+        "ircv3.multi-prefix"
+    ]
 )]
 async fn multi_prefix(context: Scenario) -> papo_testing::Result<()> {
     let mut alice = context.connect("alice").await?;
@@ -359,6 +451,7 @@ async fn multi_prefix(context: Scenario) -> papo_testing::Result<()> {
     covers = [
         "base.invite.sender-ack",
         "base.invite.target-delivery",
+        "base.invite.observer-notify",
         "ircv3.invite-notify"
     ]
 )]
