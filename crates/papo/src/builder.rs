@@ -24,6 +24,7 @@ pub struct Builder {
     pub(crate) tls: TlsConfig,
     reconnect: Reconnect,
     sts_store: Box<dyn StsStore + Send>,
+    #[cfg(not(browser))]
     stream: Option<Box<dyn crate::io_compat::FutureStream>>,
     bot: bool,
     autojoin: Vec<Autojoin>,
@@ -35,15 +36,17 @@ pub struct Builder {
 
 impl fmt::Debug for Builder {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("Builder")
+        let mut debug = formatter.debug_struct("Builder");
+        debug
             .field("address", &self.address)
             .field("config", &self.config)
             .field("event_capacity", &self.event_capacity)
             .field("tls", &self.tls)
             .field("reconnect", &self.reconnect)
-            .field("sts_store", &"<STS store>")
-            .field("stream", &self.stream.as_ref().map(|_| "<stream>"))
+            .field("sts_store", &"<STS store>");
+        #[cfg(not(browser))]
+        debug.field("stream", &self.stream.as_ref().map(|_| "<stream>"));
+        debug
             .field("bot", &self.bot)
             .field("autojoin", &self.autojoin)
             .field("history_on_reconnect", &self.history_on_reconnect)
@@ -63,6 +66,7 @@ impl Builder {
             tls: TlsConfig::default(),
             reconnect: Reconnect::default(),
             sts_store: Box::new(MemoryStsStore::new()),
+            #[cfg(not(browser))]
             stream: None,
             bot: false,
             autojoin: Vec::new(),
@@ -344,6 +348,7 @@ impl Builder {
     /// Uses an already-connected asynchronous byte stream.
     ///
     /// Custom streams are driven once and do not reconnect or apply STS policies.
+    #[cfg(not(browser))]
     pub fn stream(
         mut self,
         stream: impl futures_io::AsyncRead + futures_io::AsyncWrite + Send + Unpin + 'static,
@@ -494,6 +499,7 @@ impl Builder {
         Ok((client, events))
     }
 
+    #[cfg(not(browser))]
     fn build_stream_with_registration(
         mut self,
         stream: Box<dyn crate::io_compat::FutureStream>,
@@ -536,6 +542,7 @@ impl Builder {
         mut self,
         registration: Option<crate::driver::RegistrationSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
+        #[cfg(not(browser))]
         if let Some(stream) = self.stream.take() {
             return self.build_stream_with_registration(stream, registration);
         }

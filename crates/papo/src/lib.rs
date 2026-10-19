@@ -28,6 +28,7 @@ mod event_impl;
 mod ext;
 pub mod fail;
 pub mod format;
+#[cfg(not(browser))]
 mod io_compat;
 pub mod isupport;
 pub mod metadata;
