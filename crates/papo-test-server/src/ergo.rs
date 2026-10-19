@@ -5,6 +5,7 @@ use serde_json::json;
 use crate::directory::TemporaryDirectory;
 
 const WEBIRC_PASSWORD_HASH: &str = "$2a$04$04hAlnfNNCBj4DZF1nKiRuX6Z.HVpSDJXEFV8gW9E/CbJ04v0M1OO";
+const OPER_PASSWORD_HASH: &str = "$2a$04$aSFvaLz6O6WDI7s6wA/YWugI4u1mOn47C6dxsW.TuuHhXrCfcVy/i";
 
 #[derive(Clone)]
 pub(crate) struct Configuration {
@@ -108,6 +109,17 @@ impl Configuration {
                 "ERGO__HISTORY__RETENTION__ALLOW_INDIVIDUAL_DELETE",
                 "true".into(),
             ),
+            (
+                "ERGO__OPERS",
+                json!({
+                    crate::OPER_NAME: {
+                        "class": "server-admin",
+                        "hidden": false,
+                        "password": OPER_PASSWORD_HASH
+                    }
+                })
+                .to_string(),
+            ),
         ];
         Self {
             plaintext,
@@ -143,7 +155,7 @@ mod tests {
 
     use crate::directory::TemporaryDirectory;
 
-    use super::Configuration;
+    use super::{Configuration, OPER_PASSWORD_HASH};
 
     fn configuration(directory: &TemporaryDirectory) -> Configuration {
         Configuration::at_addresses(
@@ -175,6 +187,14 @@ mod tests {
         assert!(config.overrides.iter().any(|(key, value)| {
             *key == "ERGO__HISTORY__RETENTION__ALLOW_INDIVIDUAL_DELETE" && value == "true"
         }));
+        assert!(
+            config
+                .overrides
+                .iter()
+                .any(|(key, value)| *key == "ERGO__OPERS"
+                    && value.contains(crate::OPER_NAME)
+                    && value.contains(OPER_PASSWORD_HASH))
+        );
     }
 
     #[test]
@@ -184,7 +204,7 @@ mod tests {
         config.enable_sts();
 
         assert_eq!(
-            &config.overrides[7..],
+            &config.overrides[8..],
             &[
                 ("ERGO__SERVER__STS__ENABLED", "true".into()),
                 ("ERGO__SERVER__STS__PORT", "7668".into()),
