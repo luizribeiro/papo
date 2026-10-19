@@ -9,7 +9,11 @@ use crate::Scenario;
 /// grants every status mode an operator may set and reports member prefixes in rank order
 #[scenario(
     requires(caps = ["multi-prefix"]),
-    covers = ["base.isupport.prefix", "base.isupport.prefix-rank-order"]
+    covers = [
+        "base.isupport.prefix",
+        "base.isupport.prefix-rank-order",
+        "ircv3.multi-prefix"
+    ]
 )]
 async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
@@ -28,6 +32,7 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice.state().isupport().prefix(), expected);
     let allowed = allowed_prefixes(&expected);
     let allowed_symbols: Vec<char> = allowed.iter().map(|prefix| prefix.symbol).collect();
+    let has_halfop = allowed.iter().any(|prefix| prefix.mode == 'h');
     let expected_symbols: &[char] = match DeploymentProfile::from_env()? {
         DeploymentProfile::ErgoDefault
         | DeploymentProfile::ErgoPersistent
@@ -51,6 +56,9 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
             allowed_symbols
         );
     }
+
+    assert_carol_view(&s, &channel, &alice_nick, &bob_nick).await?;
+    assert_dave_view(&s, &channel, &bob_nick, &allowed_symbols, has_halfop).await?;
 
     bob.expect_none(|event| {
         event
@@ -134,5 +142,47 @@ async fn grant_rank(
     assert_eq!(change.mode, prefix.mode);
     assert_eq!(change.kind, ModeKind::Prefix(prefix.rank));
     assert_eq!(change.arg.as_deref(), Some(bob_nick.as_ref()));
+    Ok(())
+}
+
+async fn assert_carol_view(
+    s: &Scenario,
+    channel: &str,
+    alice_nick: &Nick,
+    bob_nick: &Nick,
+) -> papo_testing::Result<()> {
+    let carol = s
+        .connect_with(
+            s.configure("carol")?
+                .without_caps([papo::cap::MULTI_PREFIX]),
+        )
+        .await?;
+    assert!(!carol.state().has_cap("multi-prefix"));
+    carol.join(channel).await?;
+    let carol_nick = carol.nick();
+    assert_eq!(member_prefixes(&carol.state(), channel, bob_nick), ['@']);
+    assert_eq!(member_prefixes(&carol.state(), channel, alice_nick), ['@']);
+    assert!(member_prefixes(&carol.state(), channel, &carol_nick).is_empty());
+    Ok(())
+}
+
+async fn assert_dave_view(
+    s: &Scenario,
+    channel: &str,
+    bob_nick: &Nick,
+    allowed_symbols: &[char],
+    has_halfop: bool,
+) -> papo_testing::Result<()> {
+    let dave = s.connect("dave").await?;
+    assert!(dave.state().has_cap("multi-prefix"));
+    dave.join(channel).await?;
+    let state = dave.state();
+    let member = state.channel(channel).unwrap().member(bob_nick).unwrap();
+    assert_eq!(member.prefixes(), allowed_symbols);
+    assert_eq!(member.highest_prefix(), Some('@'));
+    assert!(member.is_op());
+    assert!(member.is_voiced());
+    assert_eq!(member.is_halfop(), has_halfop);
+    assert_eq!(member.prefixes().contains(&'%'), has_halfop);
     Ok(())
 }
