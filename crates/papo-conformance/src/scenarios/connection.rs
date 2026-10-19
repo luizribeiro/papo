@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(not(target_family = "wasm"))]
 use papo::Client;
-use papo::{ConnectErrorKind, Endpoint, Event, WebIrc, isupport::Advertised};
+use papo::{ConnectErrorKind, Endpoint, Event, ListFilter, WebIrc, isupport::Advertised};
 use papo_conformance_macros::scenario;
 #[cfg(not(target_family = "wasm"))]
 use papo_core::{
@@ -202,6 +202,63 @@ async fn server_information(s: Scenario) -> papo_testing::Result<()> {
     assert!(codes.contains(&255));
     assert!(codes.contains(&265));
     assert!(codes.contains(&266));
+    Ok(())
+}
+
+/// lists public channels through the typed LIST request
+#[scenario(covers = ["base.list.basic"])]
+async fn channel_list(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    alice.set_topic(&channel, "release coordination").await?;
+
+    let listed = alice.list(ListFilter::default()).await?;
+    let entry = listed
+        .iter()
+        .find(|entry| entry.name.as_ref() == channel)
+        .expect("LIST includes the visible channel");
+    assert_eq!(entry.members_count, 1);
+    assert_eq!(entry.topic, "release coordination");
+    Ok(())
+}
+
+/// applies ELIST mask, user-count, creation-time, and topic-time filters
+#[scenario(requires(isupport = ["ELIST"]), covers = ["base.list.elist-filters"])]
+async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    alice
+        .set_topic(&channel, "fresh two-person channel")
+        .await?;
+
+    let state = alice.state();
+    let filters = state.isupport().get("ELIST");
+    let Advertised::Value(filters) = filters else {
+        return s.skip("ELIST does not advertise filter letters");
+    };
+    if !['C', 'M', 'N', 'T']
+        .iter()
+        .all(|filter| filters.contains(*filter))
+    {
+        return s.skip("ELIST does not support mask, count, creation, and topic filters");
+    }
+    let listed = alice
+        .list(ListFilter::default().channels([
+            channel.clone(),
+            ">1".into(),
+            "<3".into(),
+            "C<10".into(),
+            "T<10".into(),
+        ]))
+        .await?;
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].name.as_ref(), channel);
+    assert_eq!(listed[0].members_count, 2);
+    assert_eq!(listed[0].topic, "fresh two-person channel");
     Ok(())
 }
 

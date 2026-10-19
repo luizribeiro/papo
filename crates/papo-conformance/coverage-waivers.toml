@@ -15,8 +15,6 @@
 "base.error.message" = "The managed harness exposes no deterministic server action that emits ERROR before disconnecting one client."
 "base.kill.relay" = "KILL requires portable operator provisioning and observation of a server-forced target disconnect."
 "base.links.basic" = "The managed profiles run a single IRC server and do not provision a linked-server topology."
-"base.list.basic" = "LIST has no typed public request API and is deferred from the current scenario set."
-"base.list.elist-filters" = "ELIST has no typed public request API and differs across the managed server profiles."
 "base.message.line-too-long" = "papo bounds outbound lines before transmission, so a live scenario cannot elicit server numeric 417 with an oversized line."
 "base.oper.failure" = "The managed operator setup provisions only valid credentials; refusal variants remain outside the current scenario set."
 "base.privmsg.empty-text" = "papo rejects empty chat text locally before a server can return numeric 412."
