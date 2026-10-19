@@ -83,14 +83,21 @@ impl State {
                 return Some(Handled::No);
             };
             if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
-                let next = away.message.map_or(Away::Present, |message| Away::Away {
-                    message: Some(message.to_owned()),
-                });
+                let next = match away.message {
+                    None => Away::Present,
+                    Some("*") => Away::Away { message: None },
+                    Some(message) => Away::Away {
+                        message: Some(message.to_owned()),
+                    },
+                };
                 if user.away != next {
                     user.away = next;
                     outbox.event(Event::AwayChanged {
                         nick: nick.to_owned(),
-                        message: away.message.map(str::to_owned),
+                        message: away
+                            .message
+                            .filter(|message| *message != "*")
+                            .map(str::to_owned),
                     });
                 }
             }
@@ -277,10 +284,10 @@ impl State {
             .get_mut(&Folded::new(reply.nick, self.casemapping))
         {
             user.realname = reply.realname.map(str::to_owned);
-            user.away = match flags.presence {
-                Some(WhoxPresence::Gone) => Away::Away { message: None },
-                Some(WhoxPresence::Here) => Away::Present,
-                None => user.away.clone(),
+            user.away = match (&user.away, flags.presence) {
+                (Away::Present, Some(WhoxPresence::Gone)) => Away::Away { message: None },
+                (_, Some(WhoxPresence::Here)) => Away::Present,
+                (_, Some(WhoxPresence::Gone) | None) => user.away.clone(),
             };
             user.is_bot = flags.bot;
         }

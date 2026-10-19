@@ -245,6 +245,22 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
 }
 
 #[test]
+fn away_notify_star_records_an_unspecified_away_state() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
+        .server(":dan!~dan@cloak.example AWAY *")
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "dan" && message.is_none()))
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().away(),
+                &Away::Away { message: None }
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn away_notify_immediately_after_join_records_initial_state() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
@@ -1002,6 +1018,39 @@ fn who_here_flags_clear_a_previous_away_state() {
         .event(|event| matches!(event, Event::ChannelSynced { .. }))
         .server(":ergo.test 352 emily #papo ~dan cloak.example ergo.test dan H :0 Daniel Garcia")
         .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), &Away::Present))
+        .no_event();
+}
+
+#[test]
+fn who_gone_flags_preserve_a_known_away_message() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":dan!~dan@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
+        .event(|event| {
+            matches!(
+                event,
+                Event::AwayChanged {
+                    message: Some(_),
+                    ..
+                }
+            )
+        })
+        .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("MODE #papo")
+        .client("WHO #papo")
+        .event(|event| matches!(event, Event::ChannelSynced { .. }))
+        .server(":ergo.test 352 emily #papo ~dan cloak.example ergo.test dan G :0 Daniel Garcia")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().away(),
+                &Away::Away {
+                    message: Some("Gone to lunch".into())
+                }
+            );
+        })
         .no_event();
 }
 
