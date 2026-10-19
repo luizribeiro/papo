@@ -518,7 +518,10 @@ async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
         "echo-message",
         "labeled-response"
     ]),
-    covers = ["draft.message-redaction.redact"]
+    covers = [
+        "draft.message-redaction.redact",
+        "draft.message-redaction.errors"
+    ]
 )]
 async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
@@ -541,6 +544,17 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
         redacted.source.as_ref().and_then(Source::nick),
         Some(alice.nick().as_ref())
     );
+    bob.expect_none(Event::as_redacted).await?;
+
+    let Error::Server(refusal) = alice
+        .redact(&channel, "missing-message-id", "unknown message")
+        .await
+        .expect_err("an unknown message identifier must be refused")
+    else {
+        panic!("an unknown message identifier did not return a server refusal")
+    };
+    assert_eq!(refusal.kind(), Refusal::UnknownMessage);
+    assert_eq!(refusal.code(), "UNKNOWN_MSGID");
     bob.expect_none(Event::as_redacted).await?;
     Ok(())
 }
