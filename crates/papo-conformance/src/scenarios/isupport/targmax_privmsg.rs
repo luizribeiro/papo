@@ -1,8 +1,9 @@
-use papo::{Event, Nick, Source, isupport::Advertised};
+use papo::{Nick, Source, isupport::Advertised};
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
 use crate::Scenario;
+use crate::scenarios::support::message_text;
 
 const RECIPIENT_NAMES: [&str; 5] = ["bob", "carol", "dave", "erin", "frank"];
 
@@ -103,10 +104,6 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| message_text(event, over_limit_text))
         .await?;
     Ok(())
-}
-
-fn message_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo::Message> {
-    event.as_message().filter(|message| message.text() == text)
 }
 
 async fn expect_delivery(

@@ -3,6 +3,7 @@ use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 use papo_testing::Peer;
 
+use super::support::message_text;
 use crate::Scenario;
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
@@ -26,12 +27,6 @@ async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, S
         assert!(members.member(bob.nick()).is_some());
     }
     Ok((alice, bob, channel))
-}
-
-fn message_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo::Message> {
-    event
-        .as_message()
-        .filter(|message| message.raw_text() == text)
 }
 
 /// a channel PRIVMSG has one correlated echo and matching recipient metadata

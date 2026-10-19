@@ -1,8 +1,9 @@
 use papo::event::ModeChanged;
-use papo::{Error, Event, Message, ModeKind, Refusal, Source};
+use papo::{Error, ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
+use crate::scenarios::support::message_text;
 
 enum Dialect {
     ListMode,
@@ -153,8 +154,4 @@ fn assert_refusal(error: Error, expected: Refusal, code: &str) {
     };
     assert_eq!(refusal.kind(), expected);
     assert_eq!(refusal.code(), code);
-}
-
-fn message_text<'event>(event: &'event Event, text: &str) -> Option<&'event Message> {
-    event.as_message().filter(|message| message.text() == text)
 }

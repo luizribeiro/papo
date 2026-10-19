@@ -1,14 +1,9 @@
 use papo::event::ModeChanged;
-use papo::{Event, Message, Origin, Source};
+use papo::{Event, Origin, Source};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-
-fn message_text<'event>(event: &'event Event, text: &str) -> Option<&'event Message> {
-    event
-        .as_message()
-        .filter(|message| message.raw_text() == text)
-}
+use crate::scenarios::support::message_text;
 
 fn voice_change<'event>(event: &'event Event, channel: &str) -> Option<&'event ModeChanged> {
     event.as_mode_changed().filter(|changed| {
