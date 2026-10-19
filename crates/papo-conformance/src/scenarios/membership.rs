@@ -464,11 +464,11 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
         "ircv3.invite-notify"
     ]
 )]
-async fn invite_notify(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let mut carol = context.connect("carol").await?;
-    let channel = context.channel_name();
+async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let mut carol = s.connect("carol").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     let carol_nick = carol.nick();
@@ -533,11 +533,11 @@ async fn invite_notify(context: Scenario) -> papo_testing::Result<()> {
     "base.invite.err-already-on-channel",
     "base.invite.exempts-ban"
 ])]
-async fn invite_rules(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
-    let mut carol = context.connect("carol").await?;
-    let channel = context.channel_name();
+async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
+    let mut carol = s.connect("carol").await?;
+    let channel = s.channel_name();
     let bob_nick = bob.nick();
     let carol_nick = carol.nick();
     alice.join(&channel).await?;
@@ -591,10 +591,10 @@ async fn invite_rules(context: Scenario) -> papo_testing::Result<()> {
 
 /// removes a departing member from both peers with the same reason
 #[scenario(covers = ["base.part.basic"])]
-async fn part(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn part(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -629,11 +629,11 @@ async fn part(context: Scenario) -> papo_testing::Result<()> {
     "base.part.multiple-channels",
     "base.part.err-not-on-channel"
 ])]
-async fn part_multiple_and_refusal(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let first = context.channel_name();
-    let second = context.channel_name();
+async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let first = s.channel_name();
+    let second = s.channel_name();
     let alice_nick = alice.nick();
     for channel in [&first, &second] {
         alice.join(channel).await?;
@@ -685,10 +685,10 @@ async fn part_multiple_and_refusal(context: Scenario) -> papo_testing::Result<()
 
 /// disconnects cleanly and removes the user from every shared channel
 #[scenario(covers = ["base.quit.self", "base.quit.peer-broadcast"])]
-async fn quit(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn quit(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -718,10 +718,10 @@ async fn quit(context: Scenario) -> papo_testing::Result<()> {
 
 /// removes a kicked member from the channel state of the target and operator
 #[scenario(covers = ["base.kick.basic"])]
-async fn kick(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn kick(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
@@ -760,11 +760,11 @@ async fn kick(context: Scenario) -> papo_testing::Result<()> {
     "base.kick.err-not-privileged",
     "base.kick.default-comment"
 ])]
-async fn kick_rules(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let mut carol = context.connect("carol").await?;
-    let channel = context.channel_name();
+async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let mut carol = s.connect("carol").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     let carol_nick = carol.nick();
@@ -821,10 +821,10 @@ async fn kick_rules(context: Scenario) -> papo_testing::Result<()> {
 
 /// rejects an operator's attempt to kick a user outside the channel
 #[scenario(covers = ["base.kick.err-user-not-in-channel"])]
-async fn kick_missing_member(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn kick_missing_member(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
 
@@ -851,10 +851,10 @@ async fn kick_missing_member(context: Scenario) -> papo_testing::Result<()> {
 
 /// propagates a nickname change and rejects a later claim of the same nickname
 #[scenario(covers = ["base.nick.change", "base.nick.collision-in-use"])]
-async fn nick_change_and_collision(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let old_nick = alice.nick();
     let bob_nick = bob.nick();
     let new_nick = format!("r{old_nick}");
@@ -907,8 +907,8 @@ async fn nick_change_and_collision(context: Scenario) -> papo_testing::Result<()
 
 /// rejects empty and malformed nickname changes without changing local state
 #[scenario(covers = ["base.nick.empty", "base.nick.invalid-chars"])]
-async fn nick_errors(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
+async fn nick_errors(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
     let original = alice.nick();
 
     // Empty and malformed wire parameters are needed to observe 431 and 432.
@@ -929,9 +929,9 @@ async fn nick_errors(context: Scenario) -> papo_testing::Result<()> {
 
 /// races two connected clients for one unclaimed nickname
 #[scenario(covers = ["base.nick.collision-race"])]
-async fn nickname_collision_race(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
+async fn nickname_collision_race(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
     let claimed = format!("race-{}", alice.nick());
     let alice_client = papo::Client::clone(&alice);
     let bob_client = papo::Client::clone(&bob);
