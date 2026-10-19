@@ -2,6 +2,7 @@ use papo::{Error, Event, ModeKind, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
+use crate::scenarios::support::channel_mode;
 
 /// refuses a channel operator granting a status mode ranked above its own
 #[scenario(covers = [
@@ -60,27 +61,15 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
             &['@'][..]
         );
     }
-    bob.expect_none(|event| {
-        event
-            .as_mode_changed()
-            .filter(|changed| changed.target.as_ref() == channel)
-    })
-    .await?;
+    bob.expect_none(|event| channel_mode(event, &channel))
+        .await?;
     carol
-        .expect_none(|event| {
-            event
-                .as_mode_changed()
-                .filter(|changed| changed.target.as_ref() == channel)
-        })
+        .expect_none(|event| channel_mode(event, &channel))
         .await?;
 
     alice.mode(&channel).op(bob_nick.clone()).await?;
     let promoted = carol
-        .wait_for(|event| {
-            event
-                .as_mode_changed()
-                .filter(|changed| changed.target.as_ref() == channel)
-        })
+        .wait_for(|event| channel_mode(event, &channel))
         .await?;
     let change = promoted
         .changes

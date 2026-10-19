@@ -4,6 +4,7 @@ use papo::{Error, Event, InvalidInput, Isupport, ModeKind, isupport::Advertised}
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
+use crate::scenarios::support::channel_mode;
 
 /// rejects unadvertised mode letters and class-mismatched arguments before sending
 #[scenario(covers = ["base.isupport.chanmodes-local-validation"])]
@@ -32,18 +33,10 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     assert_invalid_message(&alice.mode(&channel).await);
     assert_invalid_message(&alice.mode(&channel).add('m').add(letter).await);
 
-    bob.expect_none(|event| {
-        event
-            .as_mode_changed()
-            .filter(|changed| changed.target.as_ref() == channel)
-    })
-    .await?;
+    bob.expect_none(|event| channel_mode(event, &channel))
+        .await?;
     alice
-        .expect_none(|event| {
-            event
-                .as_mode_changed()
-                .filter(|changed| changed.target.as_ref() == channel)
-        })
+        .expect_none(|event| channel_mode(event, &channel))
         .await?;
     assert_eq!(alice.state().channel(&channel).unwrap().mode('m'), None);
     assert_eq!(alice.state().channel(&channel).unwrap().mode(letter), None);

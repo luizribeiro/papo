@@ -4,6 +4,7 @@ use papo::isupport::Advertised;
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
+use crate::scenarios::support::channel_mode;
 
 /// splits a mode request into lines of at most MODES changes
 #[scenario(covers = ["base.isupport.modes"])]
@@ -54,33 +55,17 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
     };
 
     if let Some(max) = limit {
-        let first = wait_channel_mode_changed(&mut bob, &channel).await?;
+        let first = bob.wait_for(|event| channel_mode(event, &channel)).await?;
         assert_ban_changes(&first, &masks[..max]);
 
-        let second = wait_channel_mode_changed(&mut bob, &channel).await?;
+        let second = bob.wait_for(|event| channel_mode(event, &channel)).await?;
         assert_ban_changes(&second, &masks[max..]);
     } else {
-        let changed = wait_channel_mode_changed(&mut bob, &channel).await?;
+        let changed = bob.wait_for(|event| channel_mode(event, &channel)).await?;
         assert_ban_changes(&changed, &masks);
     }
 
-    bob.expect_none(|event| {
-        event
-            .as_mode_changed()
-            .filter(|changed| changed.target.as_ref() == channel)
-    })
-    .await?;
+    bob.expect_none(|event| channel_mode(event, &channel))
+        .await?;
     Ok(())
-}
-
-async fn wait_channel_mode_changed(
-    peer: &mut papo_testing::Peer,
-    channel: &str,
-) -> papo_testing::Result<ModeChanged> {
-    peer.wait_for(|event| {
-        event
-            .as_mode_changed()
-            .filter(|changed| changed.target.as_ref() == channel)
-    })
-    .await
 }

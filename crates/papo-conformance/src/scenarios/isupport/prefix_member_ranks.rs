@@ -5,6 +5,7 @@ use papo_test_server::DeploymentProfile;
 use papo_testing::Peer;
 
 use crate::Scenario;
+use crate::scenarios::support::{channel_mode, wait_channel_mode};
 
 /// grants every status mode an operator may set and reports member prefixes in rank order
 #[scenario(
@@ -62,12 +63,8 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     assert_carol_view(&s, &channel, &alice_nick, &bob_nick).await?;
     assert_dave_view(&s, &channel, &bob_nick, &allowed_symbols, has_halfop).await?;
 
-    bob.expect_none(|event| {
-        event
-            .as_mode_changed()
-            .filter(|changed| changed.target.as_ref() == channel)
-    })
-    .await?;
+    bob.expect_none(|event| channel_mode(event, &channel))
+        .await?;
     Ok(())
 }
 
@@ -126,17 +123,7 @@ async fn grant_rank(
         .mode(channel)
         .add_with(prefix.mode, bob_nick.to_string())
         .await?;
-    let changed = bob
-        .wait_for(|event| {
-            event.as_mode_changed().filter(|changed| {
-                changed.target.as_ref() == channel
-                    && changed
-                        .changes
-                        .iter()
-                        .any(|change| change.mode == prefix.mode)
-            })
-        })
-        .await?;
+    let changed = wait_channel_mode(bob, channel, prefix.mode).await?;
     assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
     assert_eq!(changed.changes.len(), 1);
     let change = &changed.changes[0];
