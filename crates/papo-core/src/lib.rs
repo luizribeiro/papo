@@ -3060,6 +3060,9 @@ impl Session {
         else {
             return false;
         };
+        if self.is_own_source(message) {
+            return true;
+        }
         let response = match query.command.to_ascii_uppercase().as_str() {
             "VERSION" => self.config.ctcp.version.as_deref(),
             "PING" if self.config.ctcp.ping => query.params,

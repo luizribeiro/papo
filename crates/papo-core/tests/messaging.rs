@@ -1,9 +1,12 @@
 //! Transcript coverage for incoming modern messaging commands.
 
+mod support;
+
 use std::time::Instant;
 
 use papo_core::{Config, CtcpReplies, Event, RateLimit, Session};
 use papo_proto::{Message, Reaction, Typing};
+use support::Transcript;
 
 fn tag_message(line: &str) -> papo_core::TagMessage {
     let mut session = Session::new(Config::default());
@@ -135,6 +138,21 @@ fn answers_supported_ctcp_queries_and_applies_safety_rules() {
         wire(&mut session).as_deref(),
         Some("NOTICE dave :\x01SOURCE https://example.invalid/papo\x01\r\n")
     );
+}
+
+#[test]
+fn does_not_answer_own_ctcp_queries() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":papo!~p@cloak PRIVMSG bob :\x01VERSION\x01")
+        .no_client()
+        .event(|event| matches!(event, Event::Message(_)))
+        .no_event();
+
+    Transcript::new(Config::default().nick("Papo[bot]"))
+        .server(":papo{bot}!~p@cloak PRIVMSG bob :\x01VERSION\x01")
+        .no_client()
+        .event(|event| matches!(event, Event::Message(_)))
+        .no_event();
 }
 
 #[test]
