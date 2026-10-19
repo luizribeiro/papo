@@ -7,6 +7,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ## Ergo default
 
 ### Server bugs
+- `client_batch_errors` (`2.19.1`) — Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo/unknown; BATCH -missing | S: FAIL BATCH INVALID_PARAMS for both requests`
 - `kick_missing_member` (`2.19.1`) — Ergo returns 482 rather than 441 when an operator kicks a user outside the channel ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
 - `names_multiple_channels` (`2.19.1`) — Ergo returns NAMES for only the first channel in a comma-separated target list ([spec](https://modern.ircdocs.horse/#names-message)). Evidence: `C: NAMES #first,#second | S: 353/366 for #first only`
 - `partially_invalid_join` (`2.19.1`) — Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476 ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 403 #invalid-control-G`
@@ -27,6 +28,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ## Ergo persistent
 
 ### Server bugs
+- `client_batch_errors` (`2.19.1`) — Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo/unknown; BATCH -missing | S: FAIL BATCH INVALID_PARAMS for both requests`
 - `kick_missing_member` (`2.19.1`) — Ergo returns 482 rather than 441 when an operator kicks a user outside the channel ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
 - `names_multiple_channels` (`2.19.1`) — Ergo returns NAMES for only the first channel in a comma-separated target list ([spec](https://modern.ircdocs.horse/#names-message)). Evidence: `C: NAMES #first,#second | S: 353/366 for #first only`
 - `partially_invalid_join` (`2.19.1`) — Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476 ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 403 #invalid-control-G`
@@ -74,6 +76,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `draft_chathistory` (`soju 0.11.1 / Ergo 2.19.1`) — soju's history layer does not expose the earlier upstream message ([spec](https://ircv3.net/specs/extensions/chathistory)). Evidence: `C: CHATHISTORY LATEST #review * 50 | S: batch omits the earlier upstream PRIVMSG`
 - `monitor` (`soju 0.11.1 / Ergo 2.19.1`) — soju reports a monitored user online but does not relay that user's upstream away change ([spec](https://ircv3.net/specs/extensions/extended-monitor)). Evidence: `S: 730 monitored-user | upstream S: AWAY :reviewing; downstream S: no AWAY`
 - `nick_change_and_collision` (`soju 0.11.1 / Ergo 2.19.1`) — soju rejects an upstream nickname collision without preserving the 433 refusal category ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK occupied | upstream S: 433 occupied; downstream S: generic failure`
+- `pre_away` (`soju 0.11.1 / Ergo 2.19.1`) — soju does not forward the downstream client's registration-time AWAY state to the upstream connection ([spec](https://ircv3.net/specs/extensions/pre-away)). Evidence: `downstream C: AWAY :reviewing during registration | upstream S: user remains available`
 - `who_and_whois` (`soju 0.11.1 / Ergo 2.19.1`) — soju omits a shared-channel upstream user from the downstream WHO result ([spec](https://modern.ircdocs.horse/#who-message)). Evidence: `C: WHO #review | S: 315 #review, with no 352 row for the upstream user`
 - `whois_server` (`soju 0.11.1 / Ergo 2.19.1`) — soju relays no server numeric 312 from its Ergo upstream ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS upstream-user | S: 311 upstream-user ...; 318 upstream-user, with no 312`
 
@@ -84,7 +87,8 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `channel_metadata` (`soju 0.11.1 / Ergo 2.19.1`) — soju advertises a one-byte metadata value limit, preventing this channel metadata value ([spec](https://ircv3.net/specs/extensions/metadata)). Evidence: `S: CAP LS draft/metadata-3=max-value-bytes=1 | C: METADATA #review SET ... :triage`
 - `quit` (`soju 0.11.1 / Ergo 2.19.1`) — soju disconnects the downstream client without quitting its persistent upstream connection ([spec](https://modern.ircdocs.horse/#quit-message)). Evidence: `downstream C: QUIT :conformance complete | upstream S: connection remains attached`
 - `sasl_plain` (`soju 0.11.1 / Ergo 2.19.1`) — bouncer authentication replaces the scenario's direct upstream SASL credentials ([spec](https://ircv3.net/specs/extensions/sasl-3.2)). Evidence: `C: PASS bouncer-credentials; AUTHENTICATE PLAIN targets the bouncer session`
-- `sasl_protocol_errors` (`soju 0.11.1 / Ergo 2.19.1`) — soju treats post-registration AUTHENTICATE as a fatal bouncer login failure ([spec](https://ircv3.net/specs/extensions/sasl-3.2)). Evidence: `C: AUTHENTICATE PLAIN after registration | S: downstream connection closes`
+- `sasl_protocol_errors` (`soju 0.11.1 / Ergo 2.19.1`) — soju treats a post-registration AUTHENTICATE abort as a fatal bouncer authentication failure ([spec](https://ircv3.net/specs/extensions/sasl-3.2)). Evidence: `C: AUTHENTICATE PLAIN after registration | S: downstream connection closes`
+- `server_queries` (`soju 0.11.1 / Ergo 2.19.1`) — soju keeps the upstream session attached after downstream QUIT, leaving no WHOWAS record to relay ([spec](https://modern.ircdocs.horse/#whowas-message)). Evidence: `downstream C: QUIT; WHOWAS alice | upstream connection remains attached; S: no 314 row`
 
 ### Fixture patches
 - `nix/soju-cap-lines.patch` — Splits downstream CAP LS replies into continuation lines with at most 400 capability bytes. Why: soju emits every proxied Ergo capability on one IRC line, exceeding the 512-byte wire limit. Evidence: `Before: one CAP * LS line exceeded 512 bytes; after: CAP * LS * continuations end with CAP * LS.` Server bug: **yes**.
@@ -110,9 +114,12 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Server bugs
 - `away_private_message` (`0-unstable-2026-09-13`) — Solanum's away numeric completes the direct message before papo captures echo metadata for Sent ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... PRIVMSG away-user :the review can wait | S: @label=... 301 away-user ...; unlabeled echo`
+- `channel_list` (`0-unstable-2026-09-13`) — Solanum does not label the LIST terminator, so the labelled request cannot complete ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... LIST | S: labeled 322 rows followed by an unlabeled 323 terminator`
 - `channel_mode_exceptions` (`0-unstable-2026-09-13`) — Solanum labels the first exception-list row but not its terminator, completing the request early ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `S: @label=... 348 #review mask; 349 #review without the label`
 - `channel_mode_lists` (`0-unstable-2026-09-13`) — Solanum labels the first ban-list row but not its terminator, completing the request early ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `S: @label=... 367 #review mask; 368 #review without the label`
 - `channel_mode_refusals` (`0-unstable-2026-09-13`) — Solanum acknowledges a nonnumeric channel limit without returning 696 ([spec](https://modern.ircdocs.horse/#mode-message)). Evidence: `C: MODE #review +l not-a-limit | S: ACK, with no 696`
+- `direct_messages` (`0-unstable-2026-09-13`) — Solanum drops the client-only channel-context tag while relaying a private message ([spec](https://ircv3.net/specs/extensions/message-tags)). Evidence: `C: @+channel-context=#review PRIVMSG bob :thread reply | S: PRIVMSG without +channel-context`
+- `elist_filters` (`0-unstable-2026-09-13`) — Solanum does not label the filtered LIST terminator, so the labelled request cannot complete ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... LIST #review,>1,<3,C<10,T<10 | S: unlabeled 323 terminator`
 - `kick_rules` (`0-unstable-2026-09-13`) — Solanum applies a multi-target KICK only to the first target and uses that target as the default comment ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review first,second | S: KICK #review first :first`
 - `names_multiple_channels` (`0-unstable-2026-09-13`) — Solanum returns NAMES for only the first channel in a comma-separated target list ([spec](https://modern.ircdocs.horse/#names-message)). Evidence: `C: NAMES #first,#second | S: 353/366 for #first only`
 - `partially_invalid_join` (`0-unstable-2026-09-13`) — Solanum accepts the valid JOIN target but reports the malformed target with 479 rather than 476 ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 479 #invalid-control-G`
@@ -137,6 +144,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `partially_invalid_join` (`6.2.7`) — UnrealIRCd accepts the valid JOIN target but reports the malformed target with 448 rather than 476 ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 448 #invalid-control-G`
 - `standard_replies` (`6.2.7`) — UnrealIRCd advertises standard-replies but does not reject this invalid real name with FAIL ([spec](https://ircv3.net/specs/extensions/setname)). Evidence: `C: SETNAME : | S: no FAIL SETNAME INVALID_REALNAME`
 - `status_message` (`6.2.7`) — UnrealIRCd advertises STATUSMSG but does not deliver a message addressed to voiced members ([spec](https://modern.ircdocs.horse/#statusmsg-parameter)). Evidence: `S: 005 STATUSMSG=@+ | C: PRIVMSG +#review :operators only | S: no delivery`
+- `client_batch_errors` (`6.2.7`) — UnrealIRCd reports MULTILINE_INVALID rather than INVALID_REFTAG when closing an unopened client batch ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH -missing | S: FAIL BATCH MULTILINE_INVALID`
 
 ### Unimplemented features (none recorded)
 
