@@ -4,6 +4,8 @@ use crate::MAX_INCOMING_LINE_LEN;
 pub(super) struct Framer {
     buffer: Vec<u8>,
     closed: bool,
+    #[cfg(test)]
+    bytes_inspected: usize,
 }
 
 pub(super) struct Frames {
@@ -23,7 +25,16 @@ impl Framer {
         let mut input_start = 0;
         let mut line_start = 0;
         let mut too_long = false;
-        while let Some(offset) = bytes[input_start..].iter().position(|&byte| byte == b'\n') {
+        loop {
+            let remaining = &bytes[input_start..];
+            let offset = remaining.iter().position(|&byte| byte == b'\n');
+            #[cfg(test)]
+            {
+                self.bytes_inspected += offset.map_or(remaining.len(), |offset| offset + 1);
+            }
+            let Some(offset) = offset else {
+                break;
+            };
             let input_end = input_start + offset;
             if self.would_overflow(line_start, &bytes[input_start..input_end]) {
                 too_long = true;
@@ -43,11 +54,16 @@ impl Framer {
         let mut lines = Vec::new();
         let mut cursor = 0;
         while cursor < line_start {
-            let end = cursor
-                + self.buffer[cursor..line_start]
-                    .iter()
-                    .position(|&byte| byte == b'\n')
-                    .expect("line boundary was recorded");
+            let remaining = &self.buffer[cursor..line_start];
+            let offset = remaining
+                .iter()
+                .position(|&byte| byte == b'\n')
+                .expect("line boundary was recorded");
+            #[cfg(test)]
+            {
+                self.bytes_inspected += offset + 1;
+            }
+            let end = cursor + offset;
             let line = self.buffer[cursor..end]
                 .strip_suffix(b"\r")
                 .unwrap_or(&self.buffer[cursor..end]);
@@ -66,6 +82,10 @@ impl Framer {
     pub(super) fn reset(&mut self) {
         self.buffer.clear();
         self.closed = false;
+        #[cfg(test)]
+        {
+            self.bytes_inspected = 0;
+        }
     }
 
     pub(super) fn close(&mut self) {
@@ -87,9 +107,6 @@ impl Framer {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-    use web_time::Instant;
-
     use super::Framer;
 
     #[test]
@@ -104,15 +121,11 @@ mod tests {
 
     #[test]
     fn frames_a_large_burst_without_quadratic_work() {
-        // Quadratic framing takes tens of seconds on this burst and linear framing well under one,
-        // so the bound tolerates heavily loaded machines without hiding a regression.
         let input = ":ergo.test NOTICE * :Scheduled maintenance\n".repeat(200_000);
         let mut framer = Framer::default();
-        let start = Instant::now();
         let output = framer.push(input.as_bytes());
-        let elapsed = start.elapsed();
 
-        assert!(elapsed < Duration::from_secs(5), "took {elapsed:?}");
+        assert_eq!(framer.bytes_inspected, input.len() * 2);
         assert_eq!(output.lines.len(), 200_000);
         assert!(!output.too_long);
     }

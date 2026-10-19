@@ -161,6 +161,19 @@ pub(crate) enum StateSnapshot {
     },
 }
 
+#[cfg(test)]
+impl StateSnapshot {
+    fn comparison_steps(&self) -> Option<usize> {
+        match self {
+            Self::Full(_) => None,
+            Self::Metadata { .. } => Some(1),
+            Self::Monitor(entries) => Some(entries.len()),
+            #[cfg(feature = "unstable")]
+            Self::Bouncer { .. } => Some(1),
+        }
+    }
+}
+
 fn metadata_update<'a>(
     message: &MessageRef<'a>,
 ) -> Option<(&'a str, &'a str, &'a str, Option<&'a str>)> {
@@ -1090,6 +1103,8 @@ fn parse_unix_seconds(value: &str) -> Option<SystemTime> {
 
 #[cfg(test)]
 mod metadata_tests {
+    use papo_proto::MessageRef;
+
     use super::State;
     use crate::{Config, Event, Outbox, StateLimit};
 
@@ -1116,5 +1131,29 @@ mod metadata_tests {
                 limit: StateLimit::MetadataTargets,
             })
         ));
+    }
+
+    #[test]
+    fn cache_updates_bound_comparisons_to_affected_targets() {
+        let state = State::new(&Config::default());
+
+        let monitor = MessageRef::parse(
+            ":ergo.test 730 papo :alice!alice@users.example,bob!bob@users.example",
+        )
+        .unwrap();
+        assert_eq!(state.snapshot_for(&monitor).comparison_steps(), Some(2));
+
+        let metadata =
+            MessageRef::parse(":soju.example METADATA #papo vendor.example/pinned * :1").unwrap();
+        assert_eq!(state.snapshot_for(&metadata).comparison_steps(), Some(1));
+
+        #[cfg(feature = "unstable")]
+        {
+            let network = MessageRef::parse(
+                "BOUNCER NETWORK network-42 host=irc.example.org;state=disconnected",
+            )
+            .unwrap();
+            assert_eq!(state.snapshot_for(&network).comparison_steps(), Some(1));
+        }
     }
 }
