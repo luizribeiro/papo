@@ -376,24 +376,15 @@ fn parse_known_failures<'a>(
                 .as_table()
                 .ok_or_else(|| format!("known failure {name:?} must be a table"))?;
             let reason = known_failure_field(entry, &name, "reason")?;
-            if let Some(kind) = entry.get("kind") {
-                let kind = kind
-                    .as_str()
-                    .filter(|kind| !kind.is_empty())
-                    .ok_or_else(|| {
-                        format!("known failure {name:?} has a non-string or empty kind")
-                    })?;
-                if !matches!(
-                    kind,
-                    "server-bug" | "not-implemented" | "spec-ambiguity" | "fixture-limit"
-                ) {
-                    return Err(format!("known failure {name:?} has unknown kind {kind:?}"));
-                }
+            let kind = known_failure_field(entry, &name, "kind")?;
+            if !matches!(
+                kind,
+                "server-bug" | "not-implemented" | "spec-ambiguity" | "fixture-limit"
+            ) {
+                return Err(format!("known failure {name:?} has unknown kind {kind:?}"));
             }
             for field in ["spec", "evidence", "server_version"] {
-                if entry.contains_key(field) {
-                    known_failure_field(entry, &name, field)?;
-                }
+                known_failure_field(entry, &name, field)?;
             }
             Ok((name, reason.to_owned()))
         })
@@ -783,6 +774,10 @@ mod tests {
             (
                 "[registration]\nreason = 'broken'\nkind = 'server-bug'\nspec = ''\n",
                 "missing \"spec\"",
+            ),
+            (
+                "[registration]\nreason = 'broken'\nkind = 'server-bug'\nspec = 'RFC 2812'\nevidence = '417'\n",
+                "missing \"server_version\"",
             ),
             ("[ghost]\nreason = 'stale'\n", "unknown scenario"),
             (
