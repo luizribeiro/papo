@@ -50,6 +50,7 @@ admin {{ "papo"; "papo@example.invalid"; }}
 class clients {{ pingfreq 90; maxclients 1000; sendq 1M; recvq 8000; }}
 class servers {{ pingfreq 60; connfreq 5; maxclients 10; sendq 20M; }}
 allow {{ mask 127.0.0.1; class clients; maxperip 100; }}
+oper papo {{ class clients; mask 127.0.0.1; password "papo-oper-password"; operclass netadmin; }}
 listen {{ ip 127.0.0.1; port {plain}; }}
 listen {{ ip 127.0.0.1; port {tls}; options {{ tls; }} tls-options {{ certificate "{cert}"; key "{key}"; }}; }}
 listen {{ ip 127.0.0.1; port {ws}; options {{ websocket {{ type text; }} }}; }}
@@ -262,6 +263,8 @@ mod tests {
         assert!(unreal.contains("/unreal/conf/modules.default.conf"));
         assert!(unreal.contains(&format!("port {};", config.tls.port())));
         assert!(unreal.contains("modes-on-join \"+ntH 100:1d\""));
+        assert!(unreal.contains("oper papo"));
+        assert!(unreal.contains("password \"papo-oper-password\""));
         assert!(!unreal.contains("sts-policy"));
     }
 
