@@ -625,6 +625,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut sts,
         &mut sts_store,
         6697,
+        false,
         Some(deadline),
     )
     .await
@@ -651,6 +652,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut sts,
         &mut sts_store,
         6697,
+        false,
         None,
     )
     .await
@@ -3775,6 +3777,33 @@ async fn full_event_channel_still_serves_quit_and_its_timer() {
     tokio::time::advance(Duration::from_secs(10)).await;
 
     assert!(matches!(within(quit).await.unwrap(), Err(Error::Timeout)));
+    assert!(within(driver).await.unwrap().is_ok());
+    assert_eq!(events.receiver.len(), 1);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn quit_reads_server_close_while_events_are_backed_up() {
+    let (mut server, client, events, driver) = scripted_with_capacity(config(), 1);
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :still queued\r\n",
+    )
+    .await;
+    while events.receiver.len() != 1 {
+        tokio::task::yield_now().await;
+    }
+
+    let quit = tokio::spawn(async move { client.quit("").await });
+    client_line(&mut server, b"QUIT\r\n").await;
+    server_line(
+        &mut server,
+        b"ERROR :Closing Link: papo-driver (Client Quit)\r\n",
+    )
+    .await;
+
+    assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
     assert_eq!(events.receiver.len(), 1);
 }

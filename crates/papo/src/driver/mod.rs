@@ -739,6 +739,7 @@ where
             &mut sts,
             &mut sts_store,
             sts_port,
+            quit.is_some(),
             write_deadline,
         )
         .await
@@ -761,7 +762,8 @@ where
             || !sync_waiters.is_empty()
             || !read_marker_waiters.is_empty()
             || !catchups.is_empty()
-            || registration.0.is_some();
+            || registration.0.is_some()
+            || quit.is_some();
         let deadline = [
             session.poll_timeout(),
             quit.as_ref().map(|quit: &Quit| quit.deadline),
@@ -1072,6 +1074,7 @@ async fn drain<S>(
     sts: &mut StsActions,
     sts_store: &mut Option<Box<dyn StsStore + Send>>,
     sts_port: u16,
+    quitting: bool,
     deadline: Option<Instant>,
 ) -> io::Result<Option<(papo_core::CloseKind, String)>>
 where
@@ -1085,7 +1088,8 @@ where
         || !sync_waiters.is_empty()
         || !read_marker_waiters.is_empty()
         || !catchups.is_empty()
-        || registration.0.is_some();
+        || registration.0.is_some()
+        || quitting;
     while (pending_events.is_empty() || read_ahead)
         && let Some(core_event) = session.poll_event()
     {
