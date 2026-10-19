@@ -110,12 +110,15 @@ async fn names_multiple_channels(context: Scenario) -> papo_testing::Result<()> 
     let targets = format!("{first},{second}");
     let names = alice.request_command("NAMES", [&targets]).await?;
     for channel in [&first, &second] {
-        assert!(
-            names.iter().any(|line| {
-                line.numeric() == Some(353) && line.param(2) == Some(channel.as_str())
-            }),
-            "missing names row for {channel}: {names:?}"
-        );
+        if !names
+            .iter()
+            .any(|line| line.numeric() == Some(353) && line.param(2) == Some(channel.as_str()))
+        {
+            return Err(std::io::Error::other(format!(
+                "missing names row for {channel}: {names:?}"
+            ))
+            .into());
+        }
         assert!(
             names.iter().any(|line| {
                 line.numeric() == Some(366)
@@ -317,10 +320,12 @@ async fn partially_invalid_join(context: Scenario) -> papo_testing::Result<()> {
             .is_some_and(papo::Channel::is_synced)
     );
     assert!(state.channel(&invalid).is_none());
-    assert!(
-        partial.iter().any(|line| line.numeric() == Some(476)),
-        "unexpected malformed JOIN response: {partial:?}"
-    );
+    if !partial.iter().any(|line| line.numeric() == Some(476)) {
+        return Err(std::io::Error::other(format!(
+            "unexpected malformed JOIN response: {partial:?}"
+        ))
+        .into());
+    }
     Ok(())
 }
 
@@ -825,15 +830,20 @@ async fn kick_missing_member(context: Scenario) -> papo_testing::Result<()> {
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
 
-    let Error::Server(refusal) = alice
+    let refusal = match alice
         .kick(&channel, bob_nick, "not a channel member")
         .await
         .unwrap_err()
-    else {
-        panic!("missing channel member did not return a server refusal");
+    {
+        Error::Server(refusal) => refusal,
+        other => return Err(other.into()),
     };
-    assert_eq!(refusal.kind(), Refusal::Other);
-    assert_eq!(refusal.code(), "441");
+    if refusal.kind() != Refusal::Other || refusal.code() != "441" {
+        return Err(std::io::Error::other(format!(
+            "unexpected missing-member refusal: {refusal:?}"
+        ))
+        .into());
+    }
     assert_eq!(alice.state().channels().count(), 1);
     assert_eq!(bob.state().channels().count(), 0);
     alice.expect_none(Event::as_kicked).await?;
@@ -942,12 +952,12 @@ async fn nickname_collision_race(context: Scenario) -> papo_testing::Result<()> 
         Error::Server(refusal) => refusal,
         other => panic!("nickname race did not return a server refusal: {other:?}"),
     };
-    assert_eq!(
-        refusal.kind(),
-        Refusal::NickCollision,
-        "unexpected nickname-race refusal: {refusal:?}"
-    );
-    assert_eq!(refusal.code(), "436");
+    if refusal.kind() != Refusal::NickCollision || refusal.code() != "436" {
+        return Err(std::io::Error::other(format!(
+            "unexpected nickname-race refusal: {refusal:?}"
+        ))
+        .into());
+    }
     assert!(
         alice
             .state()
@@ -1237,10 +1247,12 @@ async fn user_modes(context: Scenario) -> papo_testing::Result<()> {
         line.numeric() == Some(221) && line.params().iter().any(|param| param.contains('i'))
     }));
     let unknown = alice.request_command("MODE", [nick.as_ref(), "+?"]).await?;
-    assert!(
-        unknown.iter().any(|line| line.numeric() == Some(501)),
-        "unexpected unknown-user-mode response: {unknown:?}"
-    );
+    if !unknown.iter().any(|line| line.numeric() == Some(501)) {
+        return Err(std::io::Error::other(format!(
+            "unexpected unknown-user-mode response: {unknown:?}"
+        ))
+        .into());
+    }
     Ok(())
 }
 
