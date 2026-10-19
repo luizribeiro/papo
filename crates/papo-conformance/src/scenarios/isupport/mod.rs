@@ -1,5 +1,6 @@
 //! Scenarios whose behaviour depends on the ISUPPORT tokens a server advertises.
 
+mod casemapping_ascii;
 mod casemapping_rfc1459;
 mod chanmode_classes;
 mod channellen_limit;
@@ -14,6 +15,8 @@ mod statusmsg_ops;
 mod targmax_privmsg;
 mod unadvertised_mode_rejected;
 
+#[cfg(all(target_os = "wasi", not(target_env = "p1")))]
+pub(crate) use casemapping_ascii::__papo_scenario_spec_casemapping_ascii;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use casemapping_rfc1459::__papo_scenario_spec_casemapping_rfc1459;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
