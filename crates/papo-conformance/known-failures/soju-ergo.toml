@@ -133,6 +133,10 @@ server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [pre_away]
 reason = "soju does not forward the downstream client's registration-time AWAY state to the upstream connection"
+kind = "not-implemented"
+spec = "https://ircv3.net/specs/extensions/pre-away"
+evidence = "downstream C: AWAY :reviewing during registration | upstream S: user remains available"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [quit]
 reason = "soju disconnects the downstream client without quitting its persistent upstream connection"
@@ -164,6 +168,10 @@ server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [server_queries]
 reason = "soju keeps the upstream session attached after downstream QUIT, leaving no WHOWAS record to relay"
+kind = "fixture-limit"
+spec = "https://modern.ircdocs.horse/#whowas-message"
+evidence = "downstream C: QUIT; WHOWAS alice | upstream connection remains attached; S: no 314 row"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [who_and_whois]
 reason = "soju omits a shared-channel upstream user from the downstream WHO result"

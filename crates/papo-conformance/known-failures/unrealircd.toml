@@ -35,3 +35,7 @@ server_version = "6.2.7"
 
 [client_batch_errors]
 reason = "UnrealIRCd reports MULTILINE_INVALID rather than INVALID_REFTAG when closing an unopened client batch"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/client-batch"
+evidence = "C: BATCH -missing | S: FAIL BATCH MULTILINE_INVALID"
+server_version = "6.2.7"

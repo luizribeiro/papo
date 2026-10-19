@@ -1,5 +1,9 @@
 [client_batch_errors]
 reason = "Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/client-batch"
+evidence = "C: BATCH +papo/unknown; BATCH -missing | S: FAIL BATCH INVALID_PARAMS for both requests"
+server_version = "2.19.1"
 
 [draft_channel_rename]
 reason = "Ergo rejects renaming channels that have persistent history"
