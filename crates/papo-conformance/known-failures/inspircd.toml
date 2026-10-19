@@ -7,5 +7,8 @@ reason = "InspIRCd serializes simultaneous local nickname claims and returns 433
 [standard_replies]
 reason = "InspIRCd advertises standard-replies but does not reject this invalid real name with FAIL"
 
+[topic]
+reason = "InspIRCd applies topic-change flood protection and returns 437 to the immediate update"
+
 [whois_host_certificate]
 reason = "InspIRCd returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276"
