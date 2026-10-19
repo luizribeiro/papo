@@ -1376,7 +1376,7 @@ fn classifies_common_numeric_refusals() {
             "405 papo #staff :You have joined too many channels",
             Refusal::TooManyChannels,
         ),
-        ("412 papo :No text to send", Refusal::Other),
+        ("412 papo :No text to send", Refusal::NoTextToSend),
         (
             "417 papo PRIVMSG :Input line was too long",
             Refusal::InputTooLong,

@@ -14,6 +14,8 @@ pub enum Refusal {
     CannotSendToChannel,
     /// The session has joined too many channels (`405`).
     TooManyChannels,
+    /// A message command did not include text (`412`).
+    NoTextToSend,
     /// An input line exceeded the server limit (`417`).
     InputTooLong,
     /// The server does not recognize the command (`421`).
@@ -213,6 +215,7 @@ impl Refusal {
             403 => Self::NoSuchChannel,
             404 => Self::CannotSendToChannel,
             405 => Self::TooManyChannels,
+            412 => Self::NoTextToSend,
             417 => Self::InputTooLong,
             421 => Self::UnknownCommand,
             432 => Self::ErroneousNickname,
@@ -350,7 +353,8 @@ mod tests {
         }
         cases!(
             401 => NoSuchNick, 402 => NoSuchServer, 403 => NoSuchChannel,
-            404 => CannotSendToChannel, 405 => TooManyChannels, 417 => InputTooLong,
+            404 => CannotSendToChannel, 405 => TooManyChannels, 412 => NoTextToSend,
+            417 => InputTooLong,
             421 => UnknownCommand, 432 => ErroneousNickname, 433 => NicknameInUse,
             436 => NickCollision, 437 => TemporarilyUnavailable, 442 => NotOnChannel,
             443 => UserOnChannel, 464 => PasswordIncorrect, 471 => ChannelIsFull,
