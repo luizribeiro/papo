@@ -279,8 +279,12 @@ impl Message {
         let private = !isupport.is_channel(&target);
         let sender = message.source().map(Source::from_proto);
         let tags = Tags::from_message(&message);
-        let channel_context = tag_owned(&message, &["+channel-context", "+draft/channel-context"])
-            .map(ChannelName::from);
+        let channel_context = if private {
+            tag_owned(&message, &["+channel-context", "+draft/channel-context"])
+                .map(ChannelName::from)
+        } else {
+            None
+        };
         let msgid = tag_owned(&message, &["msgid"]).map(MessageId::from);
         let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
             .and_then(|value| time::parse(&value));
@@ -1181,6 +1185,27 @@ mod tests {
         );
         assert!(private.is_private());
         assert_eq!(private.reply_target(), "emily");
+    }
+
+    #[test]
+    fn ignores_channel_context_on_channel_messages() {
+        let tagged = |line| {
+            event(
+                MessageRef::parse(line).unwrap().to_owned(),
+                &Isupport::default(),
+                "papo",
+                UNIX_EPOCH,
+            )
+        };
+        let channel = tagged(
+            "@+channel-context=#other :emily!~emily@localhost PRIVMSG #papo :hello from Ergo",
+        );
+        assert_eq!(channel.channel_context, None);
+        assert_eq!(channel.tags.get("+channel-context"), Some("#other"));
+
+        let private =
+            tagged("@+channel-context=#papo :emily!~emily@localhost PRIVMSG papo :hello from Ergo");
+        assert_eq!(private.channel_context.as_deref(), Some("#papo"));
     }
 
     #[test]
