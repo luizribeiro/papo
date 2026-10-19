@@ -1282,9 +1282,7 @@ where
             event::CoreEvent::Unknown => {}
         }
     }
-    if !drain_transmit(stream, session, pending_write, deadline).await? {
-        return Ok(None);
-    }
+    drain_transmit(stream, session, pending_write, deadline).await?;
     Ok(None)
 }
 

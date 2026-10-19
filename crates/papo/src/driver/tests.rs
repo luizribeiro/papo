@@ -3830,6 +3830,42 @@ async fn only_pending_request_enables_read_ahead() {
     abort_task(driver).await;
 }
 
+#[test]
+fn registration_and_quit_independently_enable_read_ahead() {
+    let requests = std::collections::BTreeMap::new();
+    let sync_waiters = Vec::new();
+    let read_marker_waiters = Vec::new();
+    let catchups = std::collections::BTreeMap::new();
+    let registration = super::RegistrationWait::default();
+    assert!(!super::should_read_ahead(
+        &requests,
+        &sync_waiters,
+        &read_marker_waiters,
+        &catchups,
+        &registration,
+        false,
+    ));
+
+    let (registration, _result) = tokio::sync::oneshot::channel();
+    let registration = super::RegistrationWait(Some(registration));
+    assert!(super::should_read_ahead(
+        &requests,
+        &sync_waiters,
+        &read_marker_waiters,
+        &catchups,
+        &registration,
+        false,
+    ));
+    assert!(super::should_read_ahead(
+        &requests,
+        &sync_waiters,
+        &read_marker_waiters,
+        &catchups,
+        &super::RegistrationWait::default(),
+        true,
+    ));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn only_channel_sync_waiter_enables_read_ahead() {
     let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 2);
