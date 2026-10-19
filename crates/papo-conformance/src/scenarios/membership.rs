@@ -968,6 +968,100 @@ async fn protected_topic(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// reports channel modes and round-trips the ban list
+#[scenario(covers = ["base.mode.channel.query", "base.mode.channel.ban"])]
+async fn channel_mode_lists(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let channel = context.channel_name();
+    let mask = "troublesome!*@gateway.example";
+    alice.join(&channel).await?;
+    alice.mode(&channel).ban(mask).await?;
+
+    // MODE query numerics expose list entries that are not stored as channel flags.
+    let modes = alice.request_command("MODE", [&channel]).await?;
+    let current = modes
+        .iter()
+        .find(|line| line.numeric() == Some(324))
+        .expect("channel mode query must include 324");
+    assert_eq!(current.param(1), Some(channel.as_str()));
+    assert!(current.param(2).is_some_and(|value| value.starts_with('+')));
+
+    let bans = alice.request_command("MODE", [&channel, "b"]).await?;
+    assert!(bans.iter().any(|line| {
+        line.numeric() == Some(367)
+            && line.param(1) == Some(channel.as_str())
+            && line.param(2) == Some(mask)
+    }));
+    assert!(
+        bans.iter().any(|line| line.numeric() == Some(368)),
+        "missing ban-list terminator: {bans:?}"
+    );
+
+    alice.mode(&channel).unban(mask).await?;
+    let cleared = alice.request_command("MODE", [&channel, "b"]).await?;
+    assert!(!cleared.iter().any(|line| line.numeric() == Some(367)));
+    assert!(cleared.iter().any(|line| line.numeric() == Some(368)));
+    Ok(())
+}
+
+/// round-trips advertised ban and invitation exception lists
+#[scenario(
+    requires(isupport = ["EXCEPTS", "INVEX"]),
+    covers = [
+        "base.mode.channel.except",
+        "base.mode.channel.invite-exception"
+    ]
+)]
+async fn channel_mode_exceptions(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let channel = context.channel_name();
+    let mask = "reviewer!*@trusted.example";
+    alice.join(&channel).await?;
+    let support = alice.state().isupport().clone();
+    let except = support.excepts().unwrap();
+    let invex = support.invex().unwrap();
+    alice
+        .mode(&channel)
+        .add_with(except, mask)
+        .add_with(invex, mask)
+        .await?;
+
+    // List-mode numerics are the public evidence for stored exception masks.
+    let exceptions = alice
+        .request_command("MODE", [&channel, &except.to_string()])
+        .await?;
+    assert!(
+        exceptions
+            .iter()
+            .any(|line| { line.numeric() == Some(348) && line.param(2) == Some(mask) })
+    );
+    assert!(
+        exceptions.iter().any(|line| line.numeric() == Some(349)),
+        "missing exception-list terminator: {exceptions:?}"
+    );
+    let invitations = alice
+        .request_command("MODE", [&channel, &invex.to_string()])
+        .await?;
+    assert!(
+        invitations
+            .iter()
+            .any(|line| { line.numeric() == Some(346) && line.param(2) == Some(mask) })
+    );
+    assert!(invitations.iter().any(|line| line.numeric() == Some(347)));
+
+    alice
+        .mode(&channel)
+        .remove_with(except, mask)
+        .remove_with(invex, mask)
+        .await?;
+    let cleared = alice
+        .request_command("MODE", [&channel, &except.to_string()])
+        .await?;
+    assert!(!cleared.iter().any(|line| line.numeric() == Some(348)));
+    assert!(cleared.iter().any(|line| line.numeric() == Some(349)));
+    Ok(())
+}
+
 /// enforces channel admission and messaging modes with typed refusals
 #[scenario(covers = [
     "base.join.key-single",

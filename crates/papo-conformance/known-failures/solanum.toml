@@ -1,6 +1,12 @@
 [away_private_message]
 reason = "Solanum's away numeric completes the direct message before papo captures echo metadata for Sent"
 
+[channel_mode_exceptions]
+reason = "Solanum labels the first exception-list row but not its terminator, completing the request early"
+
+[channel_mode_lists]
+reason = "Solanum labels the first ban-list row but not its terminator, completing the request early"
+
 [invite_rules]
 reason = "Solanum keeps a channel ban effective after the banned user receives an invitation"
 
