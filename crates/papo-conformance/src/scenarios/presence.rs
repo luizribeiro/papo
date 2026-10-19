@@ -11,12 +11,12 @@ use crate::Scenario;
     requires(caps = ["account-tag", "account-notify"]),
     covers = ["ircv3.account-tag"]
 )]
-async fn account_tag(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect_as_account("alice").await?;
-    let mut bob = context.connect("bob").await?;
+async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect_as_account("alice").await?;
+    let mut bob = s.connect("bob").await?;
     let account = alice.state().account().unwrap().clone();
     let alice_nick = alice.nick();
-    let channel = context.channel_name();
+    let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
@@ -51,17 +51,16 @@ async fn account_tag(context: Scenario) -> papo_testing::Result<()> {
     requires(caps = ["account-notify", "draft/account-registration"]),
     covers = ["ircv3.account-notify"]
 )]
-async fn account_notify(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context
+async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s
         .connect_with(
-            context
-                .configure("alice")?
+            s.configure("alice")?
                 .request_caps(["draft/account-registration"]),
         )
         .await?;
-    let mut bob = context.connect("bob").await?;
+    let mut bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
-    let channel = context.channel_name();
+    let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     let account = AccountName::from(alice_nick.as_ref());
@@ -92,10 +91,10 @@ async fn account_notify(context: Scenario) -> papo_testing::Result<()> {
     requires(caps = ["away-notify"]),
     covers = ["base.away.self-ack", "ircv3.away-notify"]
 )]
-async fn away_notify(context: Scenario) -> papo_testing::Result<()> {
-    let mut bob = context.connect("bob").await?;
-    let alice = context.connect("alice").await?;
-    let channel = context.channel_name();
+async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
+    let mut bob = s.connect("bob").await?;
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     bob.join(&channel).await?;
     alice.join(&channel).await?;
@@ -131,9 +130,9 @@ async fn away_notify(context: Scenario) -> papo_testing::Result<()> {
 
 /// delivers a private message to an away user without changing away state
 #[scenario(covers = ["base.away.privmsg-to-away-user"])]
-async fn away_private_message(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
+async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     let away = "reviewing private-message delivery";
@@ -165,10 +164,10 @@ async fn away_private_message(context: Scenario) -> papo_testing::Result<()> {
 
 /// updates real-name state for the sender and every shared-channel peer
 #[scenario(requires(caps = ["setname"]), covers = ["ircv3.setname"])]
-async fn setname(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn setname(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -199,11 +198,11 @@ async fn setname(context: Scenario) -> papo_testing::Result<()> {
     requires(caps = ["chghost"]),
     covers = ["base.oper.success", "ircv3.chghost"]
 )]
-async fn chghost(context: Scenario) -> papo_testing::Result<()> {
-    let (oper_name, password) = oper_credentials(&context)?;
-    let mut alice = context.connect("alice").await?;
-    let mut bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn chghost(s: Scenario) -> papo_testing::Result<()> {
+    let (oper_name, password) = oper_credentials(&s)?;
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -247,9 +246,9 @@ async fn chghost(context: Scenario) -> papo_testing::Result<()> {
     "ircv3.monitor.online",
     "ircv3.monitor.offline"
 ])]
-async fn monitor(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
+async fn monitor(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
     let bob_nick = bob.nick();
     alice.monitor().add([bob_nick.clone()]).await?;
     let online = alice.wait_for(Event::as_monitor_online).await?;
@@ -302,13 +301,11 @@ async fn monitor(context: Scenario) -> papo_testing::Result<()> {
         "tag.bot"
     ]
 )]
-async fn bot_mode(context: Scenario) -> papo_testing::Result<()> {
-    let mut alice = context
-        .connect_with(context.configure("alice")?.bot())
-        .await?;
-    let mut bob = context.connect("bob").await?;
+async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect_with(s.configure("alice")?.bot()).await?;
+    let mut bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
-    let channel = context.channel_name();
+    let channel = s.channel_name();
     let changed = alice
         .wait_for(|event| {
             event.as_mode_changed().filter(|changed| {
@@ -366,10 +363,10 @@ async fn bot_mode(context: Scenario) -> papo_testing::Result<()> {
     "base.whois.channels",
     "base.whois.err-no-such-nick"
 ])]
-async fn who_and_whois(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -438,11 +435,11 @@ async fn who_and_whois(context: Scenario) -> papo_testing::Result<()> {
 
 /// exposes operator status in WHO and WHOIS replies
 #[scenario(covers = ["base.who.oper-flag", "base.whois.operator"])]
-async fn operator_visibility(context: Scenario) -> papo_testing::Result<()> {
-    let (oper_name, password) = oper_credentials(&context)?;
-    let alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
-    let channel = context.channel_name();
+async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
+    let (oper_name, password) = oper_credentials(&s)?;
+    let alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
+    let channel = s.channel_name();
     let alice_nick = alice.nick();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -472,9 +469,9 @@ async fn operator_visibility(context: Scenario) -> papo_testing::Result<()> {
 
 /// reports the target's server through WHOIS
 #[scenario(covers = ["base.whois.server"])]
-async fn whois_server(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
-    let bob = context.connect("bob").await?;
+async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
 
     let whois = bob.whois(alice_nick.clone()).await?;
@@ -488,8 +485,8 @@ async fn whois_server(context: Scenario) -> papo_testing::Result<()> {
 
 /// reports a client's visible host or certificate fingerprint through WHOIS
 #[scenario(covers = ["base.whois.host-cert"])]
-async fn whois_host_certificate(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
+async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
     let alice_nick = alice.nick();
 
     // The host and certificate numerics have no richer public result type.
@@ -513,9 +510,9 @@ async fn whois_host_certificate(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-fn oper_credentials(context: &Scenario) -> papo_testing::Result<(String, String)> {
+fn oper_credentials(s: &Scenario) -> papo_testing::Result<(String, String)> {
     let Ok(oper) = std::env::var("PAPO_TEST_OPER") else {
-        return context.skip("PAPO_TEST_OPER is not set up");
+        return s.skip("PAPO_TEST_OPER is not set up");
     };
     let Some((name, password)) = oper.split_once(':') else {
         return Err("PAPO_TEST_OPER must contain name:password".into());
