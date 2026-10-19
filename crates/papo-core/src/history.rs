@@ -202,8 +202,14 @@ impl HistoryQuery {
             Self::Targets { from, to, .. } => (
                 "TARGETS",
                 vec![
-                    time::format(from).ok_or(RequestError::InvalidMessageReference)?,
-                    time::format(to).ok_or(RequestError::InvalidMessageReference)?,
+                    format!(
+                        "timestamp={}",
+                        time::format(from).ok_or(RequestError::InvalidMessageReference)?
+                    ),
+                    format!(
+                        "timestamp={}",
+                        time::format(to).ok_or(RequestError::InvalidMessageReference)?
+                    ),
                 ],
             ),
         };
@@ -327,6 +333,26 @@ mod tests {
                 "LATEST",
                 "#papo",
                 "timestamp=2025-10-15T11:55:42.123Z",
+                "50"
+            ]
+        );
+    }
+
+    #[test]
+    fn encodes_target_bounds_as_timestamp_references() {
+        let params = HistoryQuery::Targets {
+            from: UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999),
+            to: UNIX_EPOCH + Duration::new(1_760_529_402, 987_999_999),
+            limit: 50,
+        }
+        .into_params(50, &["timestamp"])
+        .unwrap();
+        assert_eq!(
+            params,
+            [
+                "TARGETS",
+                "timestamp=2025-10-15T11:55:42.123Z",
+                "timestamp=2025-10-15T11:56:42.987Z",
                 "50"
             ]
         );

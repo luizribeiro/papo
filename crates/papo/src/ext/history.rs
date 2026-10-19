@@ -991,7 +991,7 @@ mod tests {
         });
         client_line(
             &mut server,
-            b"@label=0 CHATHISTORY TARGETS 1970-01-01T00:00:42.000Z 1970-01-01T00:01:24.000Z 100\r\n",
+            b"@label=0 CHATHISTORY TARGETS timestamp=1970-01-01T00:00:42.000Z timestamp=1970-01-01T00:01:24.000Z 100\r\n",
         )
         .await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply :ergo.test BATCH +targets draft/chathistory-targets\r\n@batch=targets :ergo.test CHATHISTORY TARGETS #papo 2026-10-15T12:00:00.000Z\r\n@batch=reply :ergo.test BATCH -targets\r\n:ergo.test BATCH -reply\r\n").await;

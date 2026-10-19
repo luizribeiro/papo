@@ -148,6 +148,34 @@ async fn chathistory_errors(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// lists recently active history targets with their newest timestamps
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory"]),
+    covers = ["draft.chathistory.targets"]
+)]
+async fn chathistory_targets(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect_as_account("alice").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    let sent = alice.privmsg(&channel, "target history checkpoint").await?;
+    let time = sent
+        .time
+        .expect("server-time accompanies the labelled echo");
+
+    let targets = alice
+        .history_targets(
+            time - Duration::from_secs(60),
+            time + Duration::from_secs(60),
+        )
+        .await?;
+    let target = targets
+        .iter()
+        .find(|target| target.target.as_ref() == channel)
+        .expect("the active channel is returned");
+    assert_eq!(target.latest, time);
+    Ok(())
+}
+
 /// includes typed channel activity when event playback is negotiated
 #[scenario(
     requires(caps = ["batch", "draft/chathistory", "draft/event-playback"]),

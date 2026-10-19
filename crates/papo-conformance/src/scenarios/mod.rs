@@ -11,7 +11,7 @@ mod presence;
 mod requests;
 mod support;
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, reason = "WASI requires an explicit registry")]
 pub(super) fn all() -> Vec<ScenarioSpec> {
     // WASI command linking does not guarantee that inventory constructors run.
     #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
@@ -43,6 +43,7 @@ pub(super) fn all() -> Vec<ScenarioSpec> {
         history::__papo_scenario_spec_draft_chathistory,
         history::__papo_scenario_spec_chathistory_paging,
         history::__papo_scenario_spec_chathistory_errors,
+        history::__papo_scenario_spec_chathistory_targets,
         history::__papo_scenario_spec_event_playback,
         history::__papo_scenario_spec_draft_read_marker,
         history::__papo_scenario_spec_read_marker_on_join,
@@ -168,6 +169,7 @@ mod tests {
                 "chantypes_detection",
                 "chathistory_errors",
                 "chathistory_paging",
+                "chathistory_targets",
                 "chghost",
                 "ctcp",
                 "direct_messages",
