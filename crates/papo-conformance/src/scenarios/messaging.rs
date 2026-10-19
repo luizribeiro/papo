@@ -37,7 +37,11 @@ fn message_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo
 /// a channel PRIVMSG has one correlated echo and matching recipient metadata
 #[scenario(
     requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
-    covers = ["base.privmsg.channel", "ircv3.echo-message"]
+    covers = [
+        "base.privmsg.channel",
+        "ircv3.echo-message",
+        "ircv3.message-tags.msgid"
+    ]
 )]
 async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
@@ -339,7 +343,12 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
 /// replies and reaction changes retain the referenced message identifier
 #[scenario(
     requires(caps = ["echo-message", "labeled-response", "message-tags"]),
-    covers = ["tag.reply", "tag.react"]
+    covers = [
+        "ircv3.labeled-response.ack-no-reply",
+        "ircv3.message-tags.clienttagdeny",
+        "tag.reply",
+        "tag.react"
+    ]
 )]
 async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
