@@ -1,83 +1,195 @@
 [account_tag]
 reason = "soju does not relay upstream account identity into shared-channel state and message tags"
+kind = "not-implemented"
+spec = "https://ircv3.net/specs/extensions/account-tag"
+evidence = "S: PRIVMSG #review :authenticated message, without an account tag"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [away_notify]
 reason = "soju does not relay upstream away-notify changes between attached clients"
+kind = "not-implemented"
+spec = "https://ircv3.net/specs/extensions/away-notify"
+evidence = "upstream S: AWAY :reviewing; downstream S: no AWAY notification"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [batch]
 reason = "soju's replay does not expose the upstream history batch expected by this scenario"
+kind = "not-implemented"
+spec = "https://ircv3.net/specs/extensions/chathistory"
+evidence = "C: CHATHISTORY LATEST #review * 50 | S: no upstream chathistory batch"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [channel_modes_and_join_refusals]
 reason = "soju does not relay a later upstream channel MODE change to the observing client"
+kind = "not-implemented"
+spec = "https://modern.ircdocs.horse/#mode-message"
+evidence = "upstream S: MODE #review +i | downstream S: no MODE notification"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [chathistory_errors]
 reason = "soju returns an empty page for an unavailable target instead of relaying INVALID_TARGET"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/chathistory"
+evidence = "C: CHATHISTORY LATEST #missing * 50 | S: empty batch, not FAIL CHATHISTORY INVALID_TARGET"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [chathistory_paging]
 reason = "soju echoes messages without server identifiers usable as history page references"
+kind = "not-implemented"
+spec = "https://ircv3.net/specs/extensions/message-ids"
+evidence = "S: echo PRIVMSG #review :paging marker, without a msgid tag"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [kick_missing_member]
 reason = "soju relays Ergo's 482 rather than 441 when an operator kicks a user outside the channel"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#kick-message"
+evidence = "C: KICK #review absent :not a channel member | S: 482 operator #review"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [draft_chathistory]
 reason = "soju's history layer does not expose the earlier upstream message"
+kind = "not-implemented"
+spec = "https://ircv3.net/specs/extensions/chathistory"
+evidence = "C: CHATHISTORY LATEST #review * 50 | S: batch omits the earlier upstream PRIVMSG"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [draft_metadata_2]
 reason = "soju advertises the upstream metadata limit but applies a smaller local limit"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/metadata"
+evidence = "S: CAP LS draft/metadata-3=max-value-bytes=... | C: METADATA * SET ... | S: FAIL METADATA VALUE_INVALID"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [metadata_subscriptions]
 reason = "soju advertises metadata subscriptions but rejects a valid vendor key as KEY_INVALID"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/metadata"
+evidence = "C: METADATA * SUB example.org/papo-topic-category | S: FAIL METADATA KEY_INVALID"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [channel_metadata]
 reason = "soju advertises a one-byte metadata value limit, preventing this channel metadata value"
+kind = "fixture-limit"
+spec = "https://ircv3.net/specs/extensions/metadata"
+evidence = "S: CAP LS draft/metadata-3=max-value-bytes=1 | C: METADATA #review SET ... :triage"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [extended_join]
 reason = "soju omits the upstream real name from relayed extended JOIN messages"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/extended-join"
+evidence = "upstream S: JOIN #review account :Alice Reviewer | downstream S: JOIN #review account :"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [monitor]
 reason = "soju reports a monitored user online but does not relay that user's upstream away change"
+kind = "not-implemented"
+spec = "https://ircv3.net/specs/extensions/extended-monitor"
+evidence = "S: 730 monitored-user | upstream S: AWAY :reviewing; downstream S: no AWAY"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [names_multiple_channels]
 reason = "soju does not complete the labelled response for a multi-channel NAMES request"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/labeled-response"
+evidence = "C: @label=... NAMES #first,#second | S: partial labeled response without completion"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [multiple_joins]
 reason = "soju treats JOIN zero as a channel name instead of forwarding the leave-all operation upstream"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#join-message"
+evidence = "C: JOIN 0 | S: attempts to join channel 0"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [nick_change_and_collision]
 reason = "soju rejects an upstream nickname collision without preserving the 433 refusal category"
+kind = "not-implemented"
+spec = "https://modern.ircdocs.horse/#nick-message"
+evidence = "C: NICK occupied | upstream S: 433 occupied; downstream S: generic failure"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [nick_errors]
 reason = "soju reports an empty nickname with 432 rather than 431"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#nick-message"
+evidence = "C: NICK : | S: 432"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [nickname_collision_race]
 reason = "soju reports a simultaneous nickname claim as generic numeric 400 rather than 436"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#nick-message"
+evidence = "C: NICK race-review from two clients | S: 400 for the rejected claim"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [partially_invalid_join]
 reason = "soju does not complete the labelled response for a mixed valid and malformed JOIN"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/labeled-response"
+evidence = "C: @label=... JOIN #valid,#invalid-control-G | S: partial response without labeled completion"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [quit]
 reason = "soju disconnects the downstream client without quitting its persistent upstream connection"
+kind = "fixture-limit"
+spec = "https://modern.ircdocs.horse/#quit-message"
+evidence = "downstream C: QUIT :conformance complete | upstream S: connection remains attached"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [sasl_plain]
 reason = "bouncer authentication replaces the scenario's direct upstream SASL credentials"
+kind = "fixture-limit"
+spec = "https://ircv3.net/specs/extensions/sasl-3.2"
+evidence = "C: PASS bouncer-credentials; AUTHENTICATE PLAIN targets the bouncer session"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [sasl_protocol_errors]
 reason = "soju treats post-registration AUTHENTICATE as a fatal bouncer login failure"
+kind = "fixture-limit"
+spec = "https://ircv3.net/specs/extensions/sasl-3.2"
+evidence = "C: AUTHENTICATE PLAIN after registration | S: downstream connection closes"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [setname]
 reason = "soju replaces the upstream real name with the nickname in relayed SETNAME state"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/setname"
+evidence = "upstream S: SETNAME :Alice Reviewer | downstream S: SETNAME :alice"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [who_and_whois]
 reason = "soju omits a shared-channel upstream user from the downstream WHO result"
+kind = "not-implemented"
+spec = "https://modern.ircdocs.horse/#who-message"
+evidence = "C: WHO #review | S: 315 #review, with no 352 row for the upstream user"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [whox]
 reason = "soju replaces the configured upstream real name with the nickname in WHOX replies"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/whox"
+evidence = "C: WHO #review %tcuhnfar,... | S: 354 ... alice :alice"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [user_modes]
 reason = "soju relays Ergo's 472 rather than 501 for an unknown user mode"
+kind = "server-bug"
+spec = "https://modern.ircdocs.horse/#mode-message"
+evidence = "C: MODE review +? | S: 472 review ?"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [whois_host_certificate]
 reason = "soju returns neither WHOIS host numeric 378 nor certificate numeric 276 for its downstream client"
+kind = "spec-ambiguity"
+spec = "https://modern.ircdocs.horse/#whois-message"
+evidence = "C: WHOIS review | S: 311 review ...; 318 review, with no 276 or 378"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [whois_server]
 reason = "soju relays no server numeric 312 from its Ergo upstream"
+kind = "not-implemented"
+spec = "https://modern.ircdocs.horse/#whois-message"
+evidence = "C: WHOIS upstream-user | S: 311 upstream-user ...; 318 upstream-user, with no 312"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
