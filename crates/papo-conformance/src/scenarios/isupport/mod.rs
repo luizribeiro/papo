@@ -2,6 +2,7 @@
 
 mod casemapping_rfc1459;
 mod chanmode_classes;
+mod channellen_limit;
 mod nicklen_limit;
 mod prefix_above_rank_refused;
 mod prefix_member_ranks;
@@ -12,6 +13,8 @@ mod unadvertised_mode_rejected;
 pub(crate) use casemapping_rfc1459::__papo_scenario_spec_casemapping_rfc1459;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use chanmode_classes::__papo_scenario_spec_chanmode_classes;
+#[cfg(all(target_os = "wasi", not(target_env = "p1")))]
+pub(crate) use channellen_limit::__papo_scenario_spec_channellen_limit;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use nicklen_limit::__papo_scenario_spec_nicklen_limit;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
