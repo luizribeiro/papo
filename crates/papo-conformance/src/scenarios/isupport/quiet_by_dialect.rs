@@ -1,9 +1,8 @@
-use papo::event::ModeChanged;
 use papo::{Error, ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::message_text;
+use crate::scenarios::support::{message_text, wait_channel_mode};
 
 enum Dialect {
     ListMode,
@@ -131,20 +130,6 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         Some(carol_nick.as_ref())
     );
     Ok(())
-}
-
-async fn wait_channel_mode(
-    peer: &mut papo_testing::Peer,
-    channel: &str,
-    mode_: char,
-) -> papo_testing::Result<ModeChanged> {
-    peer.wait_for(|event| {
-        event.as_mode_changed().filter(|changed| {
-            changed.target.as_ref() == channel
-                && changed.changes.iter().any(|change| change.mode == mode_)
-        })
-    })
-    .await
 }
 
 fn assert_refusal(error: Error, expected: Refusal, code: &str) {

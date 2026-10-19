@@ -1,8 +1,8 @@
-use papo::event::ModeChanged;
 use papo::{Account, DisconnectCause, Error, Event, ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
+use super::support::wait_channel_mode;
 use crate::Scenario;
 
 /// exposes the joining account and real name to every channel member
@@ -1366,20 +1366,6 @@ fn assert_refusal(error: Error, expected: Refusal, code: &str) {
     };
     assert_eq!(refusal.kind(), expected);
     assert_eq!(refusal.code(), code);
-}
-
-async fn wait_channel_mode(
-    peer: &mut papo_testing::Peer,
-    channel: &str,
-    mode_: char,
-) -> papo_testing::Result<ModeChanged> {
-    peer.wait_for(|event| {
-        event.as_mode_changed().filter(|changed| {
-            changed.target.as_ref() == channel
-                && changed.changes.iter().any(|change| change.mode == mode_)
-        })
-    })
-    .await
 }
 
 fn assert_actor_or_server(source: &Source, actor: &str) {

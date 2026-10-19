@@ -1,4 +1,6 @@
+use papo::event::ModeChanged;
 use papo::{Event, Message};
+use papo_testing::Peer;
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
@@ -7,4 +9,34 @@ pub(super) fn message_text<'event>(event: &'event Event, text: &str) -> Option<&
     event
         .as_message()
         .filter(|message| message.raw_text() == text)
+}
+
+/// Accepts any mode change on `channel`.
+pub(super) fn channel_mode<'event>(
+    event: &'event Event,
+    channel: &str,
+) -> Option<&'event ModeChanged> {
+    event
+        .as_mode_changed()
+        .filter(|changed| changed.target.as_ref() == channel)
+}
+
+/// Accepts a mode change on `channel` that includes the mode `letter`.
+pub(super) fn channel_mode_letter<'event>(
+    event: &'event Event,
+    channel: &str,
+    letter: char,
+) -> Option<&'event ModeChanged> {
+    channel_mode(event, channel)
+        .filter(|changed| changed.changes.iter().any(|change| change.mode == letter))
+}
+
+/// Waits for a mode change on `channel` that includes the mode `letter`.
+pub(super) async fn wait_channel_mode(
+    peer: &mut Peer,
+    channel: &str,
+    letter: char,
+) -> papo_testing::Result<ModeChanged> {
+    peer.wait_for(|event| channel_mode_letter(event, channel, letter))
+        .await
 }

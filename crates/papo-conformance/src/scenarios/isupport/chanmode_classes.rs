@@ -3,6 +3,7 @@ use papo::event::{ModeChange, ModeChanged};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
+use crate::scenarios::support::{channel_mode, wait_channel_mode};
 
 const MASK: &str = "flooder!*@spam.example";
 const KEY: &str = "review-key-2026";
@@ -106,12 +107,8 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(channel_state.mode('l'), None);
     }
 
-    bob.expect_none(|event| {
-        event
-            .as_mode_changed()
-            .filter(|changed| changed.target.as_ref() == channel)
-    })
-    .await?;
+    bob.expect_none(|event| channel_mode(event, &channel))
+        .await?;
     Ok(())
 }
 
@@ -121,18 +118,4 @@ fn find_change(changed: &ModeChanged, mode: char) -> &ModeChange {
         .iter()
         .find(|change| change.mode == mode)
         .unwrap_or_else(|| panic!("no change for mode {mode:?} in {changed:?}"))
-}
-
-async fn wait_channel_mode(
-    peer: &mut papo_testing::Peer,
-    channel: &str,
-    mode: char,
-) -> papo_testing::Result<ModeChanged> {
-    peer.wait_for(|event| {
-        event.as_mode_changed().filter(|changed| {
-            changed.target.as_ref() == channel
-                && changed.changes.iter().any(|change| change.mode == mode)
-        })
-    })
-    .await
 }
