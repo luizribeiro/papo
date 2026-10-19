@@ -94,6 +94,8 @@ pub(super) fn all() -> Vec<ScenarioSpec> {
         presence::__papo_scenario_spec_monitor,
         presence::__papo_scenario_spec_bot_mode,
         presence::__papo_scenario_spec_who_and_whois,
+        presence::__papo_scenario_spec_whois_host_certificate,
+        presence::__papo_scenario_spec_whois_server,
         requests::__papo_scenario_spec_labeled_response,
         requests::__papo_scenario_spec_batch,
         requests::__papo_scenario_spec_standard_replies,
@@ -202,6 +204,8 @@ mod tests {
                 "websocket",
                 "websocket_tls",
                 "who_and_whois",
+                "whois_host_certificate",
+                "whois_server",
                 "whox",
             ]
         );

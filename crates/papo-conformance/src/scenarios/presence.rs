@@ -440,3 +440,47 @@ async fn who_and_whois(context: Scenario) -> papo_testing::Result<()> {
     assert_eq!(refusal.code(), "401");
     Ok(())
 }
+
+/// reports the target's server through WHOIS
+#[scenario(covers = ["base.whois.server"])]
+async fn whois_server(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let alice_nick = alice.nick();
+
+    let whois = bob.whois(alice_nick.clone()).await?;
+
+    assert_eq!(whois.nick, alice_nick);
+    assert!(
+        whois
+            .server
+            .as_ref()
+            .is_some_and(|server| !server.is_empty())
+    );
+    Ok(())
+}
+
+/// reports a client's visible host or certificate fingerprint through WHOIS
+#[scenario(covers = ["base.whois.host-cert"])]
+async fn whois_host_certificate(context: Scenario) -> papo_testing::Result<()> {
+    let alice = context.connect("alice").await?;
+    let alice_nick = alice.nick();
+
+    // The host and certificate numerics have no richer public result type.
+    let lines = alice
+        .request_command("WHOIS", [alice_nick.as_ref()])
+        .await?;
+    let detail = lines
+        .iter()
+        .find(|line| matches!(line.numeric(), Some(276 | 378)))
+        .unwrap();
+
+    assert_eq!(detail.param(1), Some(alice_nick.as_ref()));
+    assert!(detail.param(2).is_some_and(|value| !value.is_empty()));
+    assert!(
+        lines.iter().any(|line| {
+            line.numeric() == Some(318) && line.param(1) == Some(alice_nick.as_ref())
+        })
+    );
+    Ok(())
+}

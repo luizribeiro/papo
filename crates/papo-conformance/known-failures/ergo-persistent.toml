@@ -21,3 +21,9 @@ reason = "Ergo's always-on account profile keeps persistence effective after acc
 
 [user_modes]
 reason = "Ergo reports an unknown user mode with channel-mode numeric 472 rather than 501"
+
+[whois_host_certificate]
+reason = "Ergo returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276"
+
+[whois_server]
+reason = "Ergo omits server numeric 312 from WHOIS replies"

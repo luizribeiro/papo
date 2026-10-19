@@ -75,3 +75,9 @@ reason = "soju replaces the configured upstream real name with the nickname in W
 
 [user_modes]
 reason = "soju relays Ergo's 472 rather than 501 for an unknown user mode"
+
+[whois_host_certificate]
+reason = "soju returns neither WHOIS host numeric 378 nor certificate numeric 276 for its downstream client"
+
+[whois_server]
+reason = "soju relays no server numeric 312 from its Ergo upstream"

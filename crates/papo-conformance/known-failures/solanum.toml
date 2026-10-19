@@ -24,3 +24,6 @@ reason = "Solanum serializes simultaneous local nickname claims and returns 433 
 
 [partially_invalid_join]
 reason = "Solanum accepts the valid JOIN target but reports the malformed target with 479 rather than 476"
+
+[whois_host_certificate]
+reason = "Solanum returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276"
