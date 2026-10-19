@@ -200,12 +200,7 @@ async fn setname(context: Scenario) -> papo_testing::Result<()> {
     covers = ["base.oper.success", "ircv3.chghost"]
 )]
 async fn chghost(context: Scenario) -> papo_testing::Result<()> {
-    let Ok(oper) = std::env::var("PAPO_TEST_OPER") else {
-        return context.skip("PAPO_TEST_OPER is not set up");
-    };
-    let Some((oper_name, password)) = oper.split_once(':') else {
-        return Err("PAPO_TEST_OPER must contain name:password".into());
-    };
+    let (oper_name, password) = oper_credentials(&context)?;
     let mut alice = context.connect("alice").await?;
     let mut bob = context.connect("bob").await?;
     let channel = context.channel_name();
@@ -441,6 +436,40 @@ async fn who_and_whois(context: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// exposes operator status in WHO and WHOIS replies
+#[scenario(covers = ["base.who.oper-flag", "base.whois.operator"])]
+async fn operator_visibility(context: Scenario) -> papo_testing::Result<()> {
+    let (oper_name, password) = oper_credentials(&context)?;
+    let alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    let alice_nick = alice.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+
+    alice.oper(oper_name, password).await?;
+    assert!(alice.state().user_modes().any(|mode_| mode_ == 'o'));
+
+    // The operator markers are encoded only in WHO flags and WHOIS numerics.
+    let who = bob.request_command("WHO", [alice_nick.as_ref()]).await?;
+    let row = who
+        .iter()
+        .find(|line| line.numeric() == Some(352) && line.param(5) == Some(alice_nick.as_ref()))
+        .unwrap();
+    assert!(row.param(6).is_some_and(|flags| flags.contains('*')));
+    assert!(who.iter().any(|line| line.numeric() == Some(315)));
+
+    let whois = bob.request_command("WHOIS", [alice_nick.as_ref()]).await?;
+    let operator = whois
+        .iter()
+        .find(|line| line.numeric() == Some(313))
+        .unwrap();
+    assert_eq!(operator.param(1), Some(alice_nick.as_ref()));
+    assert!(operator.param(2).is_some_and(|text| !text.is_empty()));
+    assert!(whois.iter().any(|line| line.numeric() == Some(318)));
+    Ok(())
+}
+
 /// reports the target's server through WHOIS
 #[scenario(covers = ["base.whois.server"])]
 async fn whois_server(context: Scenario) -> papo_testing::Result<()> {
@@ -483,4 +512,14 @@ async fn whois_host_certificate(context: Scenario) -> papo_testing::Result<()> {
         })
     );
     Ok(())
+}
+
+fn oper_credentials(context: &Scenario) -> papo_testing::Result<(String, String)> {
+    let Ok(oper) = std::env::var("PAPO_TEST_OPER") else {
+        return context.skip("PAPO_TEST_OPER is not set up");
+    };
+    let Some((name, password)) = oper.split_once(':') else {
+        return Err("PAPO_TEST_OPER must contain name:password".into());
+    };
+    Ok((name.to_owned(), password.to_owned()))
 }
