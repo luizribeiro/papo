@@ -1,0 +1,13 @@
+["soju-cap-lines.patch"]
+profile = "soju-ergo"
+what = "Splits downstream CAP LS replies into continuation lines with at most 400 capability bytes."
+why = "soju emits every proxied Ergo capability on one IRC line, exceeding the 512-byte wire limit."
+evidence = "Before: one CAP * LS line exceeded 512 bytes; after: CAP * LS * continuations end with CAP * LS."
+server_bug = true
+
+["solanum-numeric-dns-port.patch"]
+profile = "solanum"
+what = "Passes numeric port 53 to getaddrinfo when configuring the fallback DNS resolver."
+why = "Isolated Nix builds do not provide the service-name database entry for the name domain."
+evidence = "Before: getaddrinfo(address, domain) failed during fixture startup; after: getaddrinfo(address, 53) succeeds."
+server_bug = false
