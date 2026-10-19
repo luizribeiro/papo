@@ -1062,6 +1062,121 @@ async fn channel_mode_exceptions(context: Scenario) -> papo_testing::Result<()> 
     Ok(())
 }
 
+/// blocks external messages and reports malformed channel mode changes
+#[scenario(covers = [
+    "base.mode.channel.no-external-messages",
+    "base.mode.channel.err-unknown-mode",
+    "base.mode.channel.err-invalid-param"
+])]
+async fn channel_mode_refusals(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let bob = context.connect("bob").await?;
+    let channel = context.channel_name();
+    alice.join(&channel).await?;
+    alice.mode(&channel).add('n').await?;
+    assert_eq!(
+        alice.state().channel(&channel).unwrap().mode('n'),
+        Some(None)
+    );
+
+    let blocked = "this sender is outside the channel";
+    assert_refusal(
+        bob.privmsg(&channel, blocked).await.unwrap_err(),
+        Refusal::CannotSendToChannel,
+        "404",
+    );
+    alice
+        .expect_none(|event| {
+            event
+                .as_message()
+                .filter(|message| message.text() == blocked)
+        })
+        .await?;
+
+    // These server numerics are the behavior under test and need raw MODE parameters.
+    let unknown = alice.request_command("MODE", [&channel, "+?"]).await?;
+    assert!(
+        unknown.iter().any(|line| line.numeric() == Some(472)),
+        "unexpected unknown-mode response: {unknown:?}"
+    );
+    let invalid = alice
+        .request_command("MODE", [&channel, "+l", "not-a-limit"])
+        .await?;
+    assert!(
+        invalid.iter().any(|line| line.numeric() == Some(696)),
+        "unexpected invalid-mode response: {invalid:?}"
+    );
+    assert!(bob.state().channel(&channel).is_none());
+    Ok(())
+}
+
+/// queries and changes invisible user mode while rejecting an unknown flag
+#[scenario(covers = [
+    "base.mode.user.query",
+    "base.mode.user.invisible",
+    "base.mode.user.err-unknown-flag"
+])]
+async fn user_modes(context: Scenario) -> papo_testing::Result<()> {
+    let mut alice = context.connect("alice").await?;
+    let nick = alice.nick();
+
+    // User-mode query and error numerics have no richer public result type.
+    let initial = alice.request_command("MODE", [nick.as_ref()]).await?;
+    assert!(initial.iter().any(|line| line.numeric() == Some(221)));
+    if alice.state().user_modes().any(|mode| mode == 'i') {
+        alice.mode(nick.clone()).remove('i').await?;
+        let removed = alice
+            .wait_for(|event| {
+                event.as_mode_changed().filter(|changed| {
+                    changed.target.as_ref() == nick.as_ref()
+                        && changed
+                            .changes
+                            .iter()
+                            .any(|change| change.mode == 'i' && !change.set)
+                })
+            })
+            .await?;
+        assert!(
+            removed
+                .changes
+                .iter()
+                .any(|change| change.mode == 'i' && !change.set && change.arg.is_none())
+        );
+    }
+
+    alice.mode(nick.clone()).add('i').await?;
+    let added = alice
+        .wait_for(|event| {
+            event.as_mode_changed().filter(|changed| {
+                changed.target.as_ref() == nick.as_ref()
+                    && changed
+                        .changes
+                        .iter()
+                        .any(|change| change.mode == 'i' && change.set)
+            })
+        })
+        .await?;
+    assert_eq!(added.target.as_ref(), nick.as_ref());
+    assert!(
+        added
+            .changes
+            .iter()
+            .any(|change| { change.mode == 'i' && change.set && change.arg.is_none() })
+    );
+    assert!(alice.state().user_modes().any(|mode| mode == 'i'));
+
+    let current = alice.request_command("MODE", [nick.as_ref()]).await?;
+    assert!(current.iter().any(|line| {
+        line.numeric() == Some(221) && line.params().iter().any(|param| param.contains('i'))
+    }));
+    let unknown = alice.request_command("MODE", [nick.as_ref(), "+?"]).await?;
+    assert!(
+        unknown.iter().any(|line| line.numeric() == Some(501)),
+        "unexpected unknown-user-mode response: {unknown:?}"
+    );
+    Ok(())
+}
+
 /// enforces channel admission and messaging modes with typed refusals
 #[scenario(covers = [
     "base.join.key-single",

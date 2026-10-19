@@ -7,6 +7,9 @@ reason = "Solanum labels the first exception-list row but not its terminator, co
 [channel_mode_lists]
 reason = "Solanum labels the first ban-list row but not its terminator, completing the request early"
 
+[channel_mode_refusals]
+reason = "Solanum acknowledges a nonnumeric channel limit without returning 696"
+
 [invite_rules]
 reason = "Solanum keeps a channel ban effective after the banned user receives an invitation"
 

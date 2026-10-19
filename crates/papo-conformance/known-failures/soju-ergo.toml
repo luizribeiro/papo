@@ -66,3 +66,6 @@ reason = "soju omits a shared-channel upstream user from the downstream WHO resu
 
 [whox]
 reason = "soju replaces the configured upstream real name with the nickname in WHOX replies"
+
+[user_modes]
+reason = "soju relays Ergo's 472 rather than 501 for an unknown user mode"

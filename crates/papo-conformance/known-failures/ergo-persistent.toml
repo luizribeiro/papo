@@ -15,3 +15,6 @@ reason = "Ergo accepts the valid JOIN target but reports the malformed target wi
 
 [persistence]
 reason = "Ergo's always-on account profile keeps persistence effective after accepting an OFF preference"
+
+[user_modes]
+reason = "Ergo reports an unknown user mode with channel-mode numeric 472 rather than 501"

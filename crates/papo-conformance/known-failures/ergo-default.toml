@@ -6,3 +6,6 @@ reason = "Ergo returns NAMES for only the first channel in a comma-separated tar
 
 [partially_invalid_join]
 reason = "Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476"
+
+[user_modes]
+reason = "Ergo reports an unknown user mode with channel-mode numeric 472 rather than 501"
