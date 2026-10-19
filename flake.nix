@@ -94,8 +94,11 @@
             || pkgs.lib.hasInfix "/crates/papo-conformance/scripts/" path
             || pkgs.lib.hasSuffix "/docs/conformance-coverage.md" path
             || pkgs.lib.hasSuffix "/docs/conformance-matrix.md" path
+            || pkgs.lib.hasSuffix "/docs/server-notes.md" path
             || pkgs.lib.hasSuffix "/scripts/conformance-coverage" path
             || pkgs.lib.hasSuffix "/scripts/conformance-matrix" path
+            || pkgs.lib.hasSuffix "/scripts/server-notes" path
+            || pkgs.lib.hasSuffix "/scripts/test_server_notes.py" path
             || pkgs.lib.hasSuffix "/nix" path
             || pkgs.lib.hasInfix "/nix/" path;
         };
@@ -600,6 +603,20 @@
               buildPhaseCargoCommand = ''
                 python scripts/conformance-matrix --output generated-conformance-matrix.md
                 cmp docs/conformance-matrix.md generated-conformance-matrix.md
+              '';
+              installPhaseCommand = "mkdir -p $out";
+            }
+          );
+          server-notes = craneLib.mkCargoDerivation (
+            craneArgs
+            // {
+              inherit cargoArtifacts;
+              pname = "papo-server-notes";
+              nativeBuildInputs = [ pkgs.python3 ];
+              buildPhaseCargoCommand = ''
+                python scripts/test_server_notes.py
+                python scripts/server-notes --output generated-server-notes.md
+                cmp docs/server-notes.md generated-server-notes.md
               '';
               installPhaseCommand = "mkdir -p $out";
             }
