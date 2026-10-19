@@ -361,8 +361,15 @@
           };
           docs = cargoHook {
             name = "docs-hook";
+            runtimeInputs = [ pkgs.ripgrep ];
             text = ''
               RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
+              if rg --only-matching --multiline --multiline-dotall --glob '*.html' \
+                '<pre class="[^"]*rust-example-rendered[^"]*">.*?</pre>' target/doc/papo \
+                | rg --line-number 'papo_core::'; then
+                echo "papo rustdoc examples must use papo paths" >&2
+                exit 1
+              fi
             '';
             stages = [ "pre-push" ];
           };

@@ -144,7 +144,8 @@ impl Sasl {
     /// Allows registration to continue when every configured mechanism fails.
     ///
     /// ```
-    /// let sasl = papo_core::Sasl::any("alice", "secret").optional();
+    /// # use papo_core as papo;
+    /// let sasl = papo::Sasl::any("alice", "secret").optional();
     /// # _ = sasl;
     /// ```
     #[must_use]

@@ -156,7 +156,8 @@ impl StsPolicy {
     ///
     /// ```
     /// # use std::time::{Duration, SystemTime};
-    /// let policy = papo_core::sts::StsPolicy::new(
+    /// # use papo_core as papo;
+    /// let policy = papo::sts::StsPolicy::new(
     ///     "irc.example.net",
     ///     6697,
     ///     SystemTime::now() + Duration::from_secs(3600),
