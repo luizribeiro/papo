@@ -290,7 +290,9 @@ impl Builder {
         self
     }
 
-    /// Sets the automatic reply to private CTCP VERSION queries.
+    /// Sets the automatic reply to CTCP VERSION queries.
+    ///
+    /// Channel queries get a private reply.
     ///
     /// Passing `None` disables the automatic reply.
     ///
@@ -302,7 +304,9 @@ impl Builder {
         self
     }
 
-    /// Sets the automatic reply to private CTCP SOURCE queries.
+    /// Sets the automatic reply to CTCP SOURCE queries.
+    ///
+    /// Channel queries get a private reply.
     ///
     /// ```
     /// # _ = papo::Client::builder("irc.example.net")
