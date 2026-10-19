@@ -2,7 +2,7 @@ use papo::{ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{assert_refusal, message_text, wait_channel_mode};
+use crate::scenarios::support::{assert_refusal, join_seen_by, message_text, wait_channel_mode};
 
 enum Dialect {
     ListMode,
@@ -58,18 +58,8 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     let (letter, arg, echoed_arg) = dialect.mode(&mask);
 
     alice.join(&channel).await?;
-    bob.join(&channel).await?;
-    let joined = alice
-        .wait_for(|event| event.as_joined().filter(|joined| !joined.is_self))
-        .await?;
-    assert_eq!(joined.nick, bob_nick);
-    assert!(!joined.is_self);
-    carol.join(&channel).await?;
-    let joined = alice
-        .wait_for(|event| event.as_joined().filter(|joined| !joined.is_self))
-        .await?;
-    assert_eq!(joined.nick, carol_nick);
-    assert!(!joined.is_self);
+    join_seen_by(&bob, &mut alice, &channel).await?;
+    join_seen_by(&carol, &mut alice, &channel).await?;
 
     alice.mode(&channel).add_with(letter, arg.clone()).await?;
     let on_bob = wait_channel_mode(&mut bob, &channel, letter).await?;

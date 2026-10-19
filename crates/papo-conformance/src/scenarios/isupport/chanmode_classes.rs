@@ -3,7 +3,7 @@ use papo::event::{ModeChange, ModeChanged};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{channel_mode, wait_channel_mode};
+use crate::scenarios::support::{channel_mode, join_seen_by, wait_channel_mode};
 
 const MASK: &str = "flooder!*@spam.example";
 const KEY: &str = "review-key-2026";
@@ -19,15 +19,8 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
     let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
     alice.join(&channel).await?;
-    bob.join(&channel).await?;
-    let joined = alice
-        .wait_for(|event| event.as_joined().filter(|joined| !joined.is_self))
-        .await?;
-    assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.nick, bob_nick);
-    assert!(!joined.is_self);
+    join_seen_by(&bob, &mut alice, &channel).await?;
 
     let support = alice.state().isupport().clone();
     let groups = support.chanmodes().expect("CHANMODES has four groups");

@@ -5,7 +5,7 @@ use papo_test_server::DeploymentProfile;
 use papo_testing::Peer;
 
 use crate::Scenario;
-use crate::scenarios::support::{channel_mode, wait_channel_mode};
+use crate::scenarios::support::{channel_mode, join_seen_by, wait_channel_mode};
 
 /// grants every status mode an operator may set and reports member prefixes in rank order
 #[scenario(
@@ -22,13 +22,7 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     let (alice_nick, bob_nick) = (alice.nick(), bob.nick());
     let channel = s.channel_name();
     alice.join(&channel).await?;
-    bob.join(&channel).await?;
-    let joined = alice
-        .wait_for(|event| event.as_joined().filter(|joined| !joined.is_self))
-        .await?;
-    assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.nick, bob_nick);
-    assert!(!joined.is_self);
+    join_seen_by(&bob, &mut alice, &channel).await?;
 
     // Parsed by hand from the raw token, independently of `Isupport::prefix`'s own parser.
     let expected = parse_prefix_token(alice.state().isupport());

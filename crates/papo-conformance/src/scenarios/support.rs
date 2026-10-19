@@ -49,3 +49,24 @@ pub(super) fn assert_refusal(error: Error, expected: Refusal, code: &str) {
     assert_eq!(refusal.kind(), expected);
     assert_eq!(refusal.code(), code);
 }
+
+/// Joins `member` to `channel` and asserts that `observer` sees it as another member's join.
+pub(super) async fn join_seen_by(
+    member: &Peer,
+    observer: &mut Peer,
+    channel: &str,
+) -> papo_testing::Result<()> {
+    let member_nick = member.nick();
+    member.join(channel).await?;
+    let joined = observer
+        .wait_for(|event| {
+            event
+                .as_joined()
+                .filter(|joined| joined.nick == member_nick)
+        })
+        .await?;
+    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.nick, member_nick);
+    assert!(!joined.is_self);
+    Ok(())
+}

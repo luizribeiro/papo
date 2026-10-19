@@ -2,6 +2,7 @@ use papo::{Error, Event, InvalidIdentifier, InvalidInput, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
+use crate::scenarios::support::join_seen_by;
 
 /// accepts a nickname of exactly NICKLEN and rejects one character more before sending
 #[scenario(requires(isupport = ["NICKLEN"]), covers = ["base.isupport.nicklen"])]
@@ -11,13 +12,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     let original = bob.nick();
     alice.join(&channel).await?;
-    bob.join(&channel).await?;
-    let joined = alice
-        .wait_for(|event| event.as_joined().filter(|joined| joined.nick == original))
-        .await?;
-    assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.nick, original);
-    assert!(!joined.is_self);
+    join_seen_by(&bob, &mut alice, &channel).await?;
 
     let state = bob.state();
     let support = state.isupport();

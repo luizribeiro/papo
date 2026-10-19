@@ -1,8 +1,8 @@
-use papo::{Error, Event, ModeKind, Refusal};
+use papo::{Error, ModeKind, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::channel_mode;
+use crate::scenarios::support::{channel_mode, join_seen_by};
 
 /// refuses a channel operator granting a status mode ranked above its own
 #[scenario(covers = [
@@ -17,10 +17,8 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
-    bob.join(&channel).await?;
-    alice.wait_for(Event::as_joined).await?;
-    carol.join(&channel).await?;
-    alice.wait_for(Event::as_joined).await?;
+    join_seen_by(&bob, &mut alice, &channel).await?;
+    join_seen_by(&carol, &mut alice, &channel).await?;
 
     let prefixes = alice.state().isupport().prefix();
     let operator_rank = prefixes

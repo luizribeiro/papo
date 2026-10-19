@@ -4,7 +4,7 @@ use papo::{Error, Event, InvalidInput, Isupport, ModeKind, isupport::Advertised}
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::channel_mode;
+use crate::scenarios::support::{channel_mode, join_seen_by};
 
 /// rejects unadvertised mode letters and class-mismatched arguments before sending
 #[scenario(covers = ["base.isupport.chanmodes-local-validation"])]
@@ -12,14 +12,8 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let bob_nick = bob.nick();
     alice.join(&channel).await?;
-    bob.join(&channel).await?;
-    let joined = alice
-        .wait_for(|event| event.as_joined().filter(|joined| joined.nick == bob_nick))
-        .await?;
-    assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.nick, bob_nick);
+    join_seen_by(&bob, &mut alice, &channel).await?;
 
     let letter = unadvertised_mode_letter(alice.state().isupport())
         .expect("CHANMODES and PREFIX leave at least one Latin letter unadvertised");

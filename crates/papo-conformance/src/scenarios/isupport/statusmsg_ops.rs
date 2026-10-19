@@ -2,7 +2,7 @@ use papo::{Origin, Source};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{channel_mode_letter, message_text};
+use crate::scenarios::support::{channel_mode_letter, join_seen_by, message_text};
 
 /// an @-prefixed channel message reaches only channel operators
 #[scenario(
@@ -22,19 +22,10 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
     let carol_nick = carol.nick();
-    let dave_nick = dave.nick();
 
     alice.join(&channel).await?;
-    for (peer, nick) in [
-        (&mut bob, bob_nick.clone()),
-        (&mut carol, carol_nick.clone()),
-        (&mut dave, dave_nick),
-    ] {
-        peer.join(&channel).await?;
-        let joined = alice
-            .wait_for(|event| event.as_joined().filter(|joined| joined.nick == nick))
-            .await?;
-        assert_eq!(joined.channel.as_ref(), channel);
+    for peer in [&bob, &carol, &dave] {
+        join_seen_by(peer, &mut alice, &channel).await?;
     }
 
     assert!(
