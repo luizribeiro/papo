@@ -3,6 +3,7 @@ use super::ScenarioSpec;
 mod auth;
 mod connection;
 mod history;
+mod isupport;
 mod membership;
 mod messaging;
 mod metadata;
