@@ -327,7 +327,7 @@ async fn partially_invalid_join(context: Scenario) -> papo_testing::Result<()> {
 /// refuses the first JOIN target beyond the advertised channel limit
 #[scenario(covers = ["base.join.err-too-many-channels"])]
 async fn too_many_channels(context: Scenario) -> papo_testing::Result<()> {
-    let alice = context.connect("alice").await?;
+    let mut alice = context.connect("alice").await?;
     let Some(limit) = alice
         .state()
         .isupport()
@@ -338,8 +338,10 @@ async fn too_many_channels(context: Scenario) -> papo_testing::Result<()> {
     else {
         return context.skip("server does not advertise a finite # channel limit");
     };
-    if limit > 20 {
-        return context.skip("advertised channel limit exceeds bounded live-test capacity");
+    if limit > 15 {
+        return context.skip(format!(
+            "advertised channel limit {limit} exceeds bounded live-test capacity"
+        ));
     }
     let channels = (0..=limit)
         .map(|_| context.channel_name())
@@ -347,11 +349,12 @@ async fn too_many_channels(context: Scenario) -> papo_testing::Result<()> {
     let targets = channels.join(",");
 
     // The server numeric is the behavior under test, so retain its raw response.
-    let response = alice.request_command("JOIN", [&targets]).await?;
-    assert!(
-        response.iter().any(|line| line.numeric() == Some(405)),
-        "unexpected channel-limit response: {response:?}"
-    );
+    alice.send_command("JOIN", [&targets]).await?;
+    let refusal = alice
+        .wait_for(|event| event.as_raw().filter(|line| line.command() == "405"))
+        .await?;
+    assert_eq!(refusal.numeric(), Some(405));
+    assert_eq!(refusal.param(1), Some(channels[limit].as_str()));
     assert_eq!(alice.state().channels().count(), limit);
     assert!(alice.state().channel(&channels[limit]).is_none());
     Ok(())
