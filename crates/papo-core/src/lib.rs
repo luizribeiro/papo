@@ -2953,6 +2953,11 @@ impl Session {
             );
             self.outbox.event(Event::Message(received));
         }
+        if message.command() == Command::Nick
+            && self.registration.nick() != self.state.nick().as_ref()
+        {
+            self.registration.update_nick(self.state.nick());
+        }
         self.apply_close_request();
         self.report_feature_changes(before_features);
         if before != self.snapshot_values_for(message) {

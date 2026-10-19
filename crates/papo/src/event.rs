@@ -678,12 +678,16 @@ impl Event {
 
 impl Event {
     pub(crate) fn mark_self(&mut self, nick: &str, casemapping: papo_proto::Casemapping) {
+        if let Self::NickChanged(changed) = self {
+            changed.is_self =
+                casemapping.eq(&changed.old, nick) || casemapping.eq(&changed.new, nick);
+            return;
+        }
         let candidate = match self {
             Self::Joined(joined) => Some((joined.nick.as_ref(), &mut joined.is_self)),
             Self::Parted(parted) => Some((parted.nick.as_ref(), &mut parted.is_self)),
             Self::Kicked(kicked) => Some((kicked.nick.as_ref(), &mut kicked.is_self)),
             Self::Invited(invited) => Some((invited.nick.as_ref(), &mut invited.is_self)),
-            Self::NickChanged(changed) => Some((changed.old.as_ref(), &mut changed.is_self)),
             _ => None,
         };
         if let Some((candidate, is_self)) = candidate {
@@ -2034,6 +2038,9 @@ mod tests {
         assert!(events[3].as_invited().unwrap().is_self);
         assert!(events[4].as_nick_changed().unwrap().is_self);
         assert!(events[5].as_netjoin().unwrap().joins[0].is_self);
+
+        events[4].mark_self("PAPO-AWAY", papo_proto::Casemapping::Rfc1459);
+        assert!(events[4].as_nick_changed().unwrap().is_self);
 
         events[0].mark_self("someone-else", papo_proto::Casemapping::Rfc1459);
         assert!(!events[0].as_joined().unwrap().is_self);

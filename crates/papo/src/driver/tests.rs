@@ -2474,6 +2474,53 @@ async fn identity_and_away_actions_match_unlabelled_confirmations() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn own_join_after_a_nick_change_is_marked_as_self() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+    client.send_command("NICK", ["papo-renamed"]).await.unwrap();
+    client_line(&mut server, b"NICK papo-renamed\r\n").await;
+    server_line(
+        &mut server,
+        b":PAPO-DRIVER!papo@localhost NICK :papo-renamed\r\n",
+    )
+    .await;
+    let changed = events
+        .next()
+        .await
+        .unwrap()
+        .as_nick_changed()
+        .unwrap()
+        .clone();
+    assert_eq!(changed.new, "papo-renamed");
+    assert!(changed.is_self);
+
+    server_line(
+        &mut server,
+        b":papo-renamed!papo@localhost JOIN #papo-self * :Papo Client\r\n",
+    )
+    .await;
+    let joined = events.next().await.unwrap().as_joined().unwrap().clone();
+    assert_eq!(joined.nick, "papo-renamed");
+    assert_eq!(joined.channel, "#papo-self");
+    assert!(joined.is_self);
+    server_line(
+        &mut server,
+        b":ergo.test 353 papo-renamed = #papo-self :@papo-renamed\r\n:ergo.test 366 papo-renamed #papo-self :End of /NAMES list\r\n",
+    )
+    .await;
+    client_line(&mut server, b"MODE #papo-self\r\n").await;
+    client_line(&mut server, b"WHO #papo-self\r\n").await;
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn membership_actions_confirm_success_and_refusal() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));

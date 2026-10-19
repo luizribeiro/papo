@@ -31,6 +31,30 @@ fn welcome_adopts_the_server_assigned_nick_in_state() {
 }
 
 #[test]
+fn session_nick_tracks_own_and_server_forced_changes_with_casemapping() {
+    Transcript::new(Config::default().nick("emily[x]"))
+        .server(":irc.example 005 emily[x] CASEMAPPING=ascii :are supported")
+        .welcome(":irc.example 001 emily[x] :Welcome to the network")
+        .server(":EMILY[X]!em@localhost NICK :emily{ops}")
+        .event(|event| {
+            matches!(event, Event::NickChanged { old, new } if old == "EMILY[X]" && new == "emily{ops}")
+        })
+        .inspect(|session| {
+            assert_eq!(session.nick(), "emily{ops}");
+            assert_eq!(session.state().nick(), "emily{ops}");
+        })
+        .server(":EMILY{OPS}!em@localhost NICK :emily-forced")
+        .event(|event| {
+            matches!(event, Event::NickChanged { old, new } if old == "EMILY{OPS}" && new == "emily-forced")
+        })
+        .inspect(|session| {
+            assert_eq!(session.nick(), "emily-forced");
+            assert_eq!(session.state().nick(), "emily-forced");
+        })
+        .no_event();
+}
+
+#[test]
 fn silent_labelled_response_updates_state_without_a_state_event() {
     Transcript::new(Config::default().wanted_caps(["labeled-response"]))
         .connect_default()
