@@ -2,7 +2,7 @@ use papo::{Error, ModeKind, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{channel_mode, join_seen_by};
+use crate::scenarios::support::{channel_mode, join_seen_by, wait_channel_mode};
 
 /// refuses a channel operator granting a status mode ranked above its own
 #[scenario(covers = [
@@ -66,17 +66,20 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         .await?;
 
     alice.mode(&channel).op(bob_nick.clone()).await?;
-    let promoted = carol
-        .wait_for(|event| channel_mode(event, &channel))
-        .await?;
-    let change = promoted
-        .changes
-        .iter()
-        .find(|change| change.mode == 'o')
-        .unwrap();
-    assert!(change.set);
-    assert_eq!(change.kind, ModeKind::Prefix(operator_rank));
-    assert_eq!(change.arg.as_deref(), Some(bob_nick.as_ref()));
+    for peer in [&mut alice, &mut bob, &mut carol] {
+        let promoted = wait_channel_mode(peer, &channel, 'o').await?;
+        assert_eq!(promoted.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(promoted.changes.len(), 1);
+        let change = &promoted.changes[0];
+        assert!(change.set);
+        assert_eq!(change.kind, ModeKind::Prefix(operator_rank));
+        assert_eq!(change.arg.as_deref(), Some(bob_nick.as_ref()));
+    }
+    for peer in [&alice, &bob, &carol] {
+        let state = peer.state();
+        let member = state.channel(&channel).unwrap().member(&bob_nick).unwrap();
+        assert_eq!(member.prefixes(), &['@'][..]);
+    }
     Ok(())
 }
 
