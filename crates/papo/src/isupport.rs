@@ -158,6 +158,8 @@ impl Isupport {
     }
 
     /// Returns the server's Web Push VAPID public key.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[must_use]
     pub fn vapid(&self) -> Option<&str> {
         self.inner.vapid()
@@ -376,6 +378,7 @@ mod tests {
             support.icon_url(128).as_deref(),
             Some("https://cdn.example.net/ergo-128.png")
         );
+        #[cfg(feature = "unstable")]
         assert_eq!(support.vapid(), Some("BN2Zr6VZlaXr1w"));
         assert!(support.utf8only());
         assert!(support.account_required());

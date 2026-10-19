@@ -158,7 +158,10 @@ impl Builder {
         self
     }
 
-    /// Sets the Ergo multiclient device identifier.
+    /// Appends `@<device>` to the SASL username for PLAIN and SCRAM.
+    ///
+    /// Bouncers and servers can use the suffix to distinguish a user's clients. This setting has
+    /// no effect with EXTERNAL or OAUTHBEARER.
     pub fn device(mut self, device: impl Into<String>) -> Self {
         self.config.device = Some(device.into());
         self
