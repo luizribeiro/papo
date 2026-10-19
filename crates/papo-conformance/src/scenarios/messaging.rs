@@ -1,4 +1,6 @@
-use papo::{Error, Event, Fallback, Feature, MessageKind, Origin, Source, UnsupportedReason};
+use papo::{
+    Error, Event, Fallback, Feature, MessageKind, Origin, Refusal, Source, UnsupportedReason,
+};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 use papo_testing::Peer;
@@ -122,9 +124,11 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     covers = [
         "base.privmsg.user-dm",
         "base.notice.user",
+        "base.privmsg.nonexistent-target",
         "core.dm.privmsg",
         "core.dm.notice",
-        "core.dm.echo-self"
+        "core.dm.echo-self",
+        "tag.channel-context"
     ]
 )]
 async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
@@ -186,6 +190,32 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     }
     assert_eq!(alice.state().nick(), &alice.nick());
     assert_eq!(bob.state().nick(), &bob.nick());
+
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    let channel = papo::ChannelName::from(channel);
+    let sent = alice
+        .privmsg(bob.nick(), "private thread reply")
+        .channel_context(&channel)
+        .await?;
+    assert!(!sent.fallbacks.contains(&Fallback::ContextTagDropped));
+    let threaded = bob
+        .wait_for(|event| message_text(event, "private thread reply"))
+        .await?;
+    assert_eq!(threaded.channel_context.as_ref(), Some(&channel));
+    assert_eq!(threaded.id(), sent.id.as_ref());
+
+    let unavailable = papo_test_server::unique("missing-target");
+    let Error::Server(refusal) = alice
+        .privmsg(&unavailable, "this cannot be delivered")
+        .await
+        .expect_err("a nonexistent target must be refused")
+    else {
+        panic!("a nonexistent target did not return a server refusal")
+    };
+    assert_eq!(refusal.kind(), Refusal::NoSuchNick);
+    assert_eq!(refusal.code(), "401");
     alice
         .expect_none(|event| message_text(event, "note to self"))
         .await?;

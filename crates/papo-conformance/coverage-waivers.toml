@@ -20,7 +20,6 @@
 "base.message.line-too-long" = "papo bounds outbound lines before transmission, so a live scenario cannot elicit server numeric 417 with an oversized line."
 "base.oper.failure" = "The managed operator setup provisions only valid credentials; refusal variants remain outside the current scenario set."
 "base.privmsg.empty-text" = "papo rejects empty chat text locally before a server can return numeric 412."
-"base.privmsg.nonexistent-target" = "A portable typed refusal scenario for unavailable message targets is deferred."
 "base.time.basic" = "TIME has no typed public request API and is deferred from the current scenario set."
 "base.wallops.relay" = "papo has no public WALLOPS action and the behavior requires portable operator setup."
 "base.whowas.basic" = "WHOWAS has no typed public request API and is deferred from the current scenario set."
@@ -43,4 +42,3 @@
 "ergo.whoami" = "papo has no public action for Ergo's post-registration draft/whoami exchange."
 "ircv3.account-extban" = "The public mode API does not expose a typed account-extban mask constructor."
 "ircv3.message-tags.size-limit-417" = "papo bounds outbound tag sections before transmission, preventing a live server numeric 417 scenario."
-"tag.channel-context" = "papo has no public channel-context action for private messages."
