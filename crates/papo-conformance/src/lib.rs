@@ -372,15 +372,44 @@ fn parse_known_failures<'a>(
             if !scenarios.contains(name.as_str()) {
                 return Err(format!("known failure names unknown scenario {name:?}"));
             }
-            let reason = entry
+            let entry = entry
                 .as_table()
-                .and_then(|entry| entry.get("reason"))
-                .and_then(toml::Value::as_str)
-                .filter(|reason| !reason.is_empty())
-                .ok_or_else(|| format!("known failure {name:?} is missing a reason"))?;
+                .ok_or_else(|| format!("known failure {name:?} must be a table"))?;
+            let reason = known_failure_field(entry, &name, "reason")?;
+            if let Some(kind) = entry.get("kind") {
+                let kind = kind
+                    .as_str()
+                    .filter(|kind| !kind.is_empty())
+                    .ok_or_else(|| {
+                        format!("known failure {name:?} has a non-string or empty kind")
+                    })?;
+                if !matches!(
+                    kind,
+                    "server-bug" | "not-implemented" | "spec-ambiguity" | "fixture-limit"
+                ) {
+                    return Err(format!("known failure {name:?} has unknown kind {kind:?}"));
+                }
+            }
+            for field in ["spec", "evidence", "server_version"] {
+                if entry.contains_key(field) {
+                    known_failure_field(entry, &name, field)?;
+                }
+            }
             Ok((name, reason.to_owned()))
         })
         .collect()
+}
+
+fn known_failure_field<'a>(
+    entry: &'a toml::Table,
+    name: &str,
+    field: &str,
+) -> Result<&'a str, String> {
+    entry
+        .get(field)
+        .and_then(toml::Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| format!("known failure {name:?} is missing {field:?}"))
 }
 
 fn known_failure_verdict(
@@ -735,16 +764,26 @@ mod tests {
         assert!(load_known_failures_from(&directory.0, "", scenarios).is_err());
         assert!(load_known_failures_from(&directory.0, "../ergo", scenarios).is_err());
 
-        directory
-            .write("[registration]\nreason = 'server bug 417'\n[ping]\nreason = 'missing PONG'\n");
+        directory.write(
+            "[registration]\nreason = 'server bug 417'\nkind = 'server-bug'\nspec = 'RFC 2812 section 4.1'\nevidence = '417'\nserver_version = '1.0'\n\
+             [ping]\nreason = 'missing PONG'\nkind = 'not-implemented'\nspec = 'RFC 2812 section 3.7.2'\nevidence = 'PING received, no PONG'\nserver_version = '1.0'\n",
+        );
         let parsed = load_known_failures_from(&directory.0, "ergo", scenarios).unwrap();
         assert_eq!(parsed.len(), 2);
         assert_eq!(parsed["registration"], "server bug 417");
         assert_eq!(parsed["ping"], "missing PONG");
 
         for (input, expected) in [
-            ("[registration]\nnote = 'missing'\n", "missing a reason"),
-            ("[registration]\nreason = ''\n", "missing a reason"),
+            ("[registration]\nnote = 'missing'\n", "missing \"reason\""),
+            ("[registration]\nreason = ''\n", "missing \"reason\""),
+            (
+                "[registration]\nreason = 'broken'\nkind = 'implementation-bug'\nspec = 'RFC 2812'\nevidence = '417'\nserver_version = '1.0'\n",
+                "unknown kind",
+            ),
+            (
+                "[registration]\nreason = 'broken'\nkind = 'server-bug'\nspec = ''\n",
+                "missing \"spec\"",
+            ),
             ("[ghost]\nreason = 'stale'\n", "unknown scenario"),
             (
                 "[registration\nreason = 'broken'\n",
