@@ -422,6 +422,9 @@ async fn multi_prefix(context: Scenario) -> papo_testing::Result<()> {
     assert_eq!(voice.kind, ModeKind::Prefix(voice_rank));
     assert_eq!(voice.arg.as_deref(), Some(alice_nick.as_ref()));
     bob.join(&channel).await?;
+    let joined = alice.wait_for(Event::as_joined).await?;
+    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.nick, bob_nick);
     let prefixes = bob
         .state()
         .channel(&channel)
