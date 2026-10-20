@@ -55,7 +55,7 @@ impl Source {
     }
 
     pub(crate) fn from_prefix(prefix: String) -> Self {
-        let message = papo_proto::Message::new("NOTICE", ["*"]).with_source(prefix);
+        let message = papo_proto::Line::new("NOTICE", ["*"]).with_source(prefix);
         Self::from_proto(message.as_ref().source().expect("owned source is present"))
     }
 

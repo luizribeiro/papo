@@ -1,6 +1,6 @@
 use std::fmt;
 
-use papo_proto::Message;
+use papo_proto::Line;
 
 use super::{Source, Tags};
 
@@ -62,7 +62,7 @@ impl RawLine {
 }
 
 impl RawLine {
-    pub(crate) fn from_proto(message: &Message) -> Self {
+    pub(crate) fn from_proto(message: &Line) -> Self {
         let message = message.as_ref();
         Self {
             command: message.raw_command().to_owned(),

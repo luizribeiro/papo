@@ -32,7 +32,7 @@ use papo_core::{
     Connection, HistoryQuery, RequestError, RequestId, Response, ResponseMatcher, Session,
     TextKind, sts::StsStore,
 };
-use papo_proto::{Command as ProtoCommand, Message, Numeric, Typing};
+use papo_proto::{Command as ProtoCommand, Line, Numeric, Typing};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     sync::{mpsc, oneshot},
@@ -168,11 +168,11 @@ impl CoreRequest {
 
 pub(crate) enum Command {
     Send {
-        message: Message,
+        message: Line,
         result: oneshot::Sender<Result<(), Error>>,
     },
     Request {
-        message: Message,
+        message: Line,
         matcher: Option<ResponseMatcher>,
         result: oneshot::Sender<Result<Response, Error>>,
     },
@@ -838,7 +838,7 @@ where
                     };
                     match session.request_with_matcher(
                         now(),
-                        Message::new("JOIN", params),
+                        Line::new("JOIN", params),
                         ResponseMatcher::Join(channel.to_string()),
                     ) {
                         Ok(id) => {
@@ -924,7 +924,7 @@ where
                             Typing::Done => "done",
                         };
                         session
-                            .send(current, Message::tagmsg(target).with_tag("+typing", value))
+                            .send(current, Line::tagmsg(target).with_tag("+typing", value))
                             .map_err(Error::build)
                     } else {
                         Ok(())
@@ -1017,8 +1017,8 @@ fn request_quit(
         return;
     }
     let message = reason.map_or_else(
-        || Message::new("QUIT", Vec::<String>::new()),
-        |reason| Message::new("QUIT", [reason]),
+        || Line::new("QUIT", Vec::<String>::new()),
+        |reason| Line::new("QUIT", [reason]),
     );
     let current = now();
     match session.send(current, message) {
@@ -1494,7 +1494,7 @@ fn after_registration(
         session
             .send(
                 now(),
-                Message::new("MODE", [welcome.nick.clone(), format!("+{mode}")]),
+                Line::new("MODE", [welcome.nick.clone(), format!("+{mode}")]),
             )
             .map_err(io::Error::other)?;
     }
@@ -1510,7 +1510,7 @@ fn after_registration(
                 None => vec![channel.channel.clone()],
             };
             session
-                .send(now(), Message::new("JOIN", params))
+                .send(now(), Line::new("JOIN", params))
                 .map_err(io::Error::other)?;
         }
     }

@@ -2,7 +2,7 @@ use std::{fmt, time::Duration};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
 use papo_core::{AwayOnConnect, Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl, cap};
-use papo_proto::{Message, escape_tag_value};
+use papo_proto::{Line, escape_tag_value};
 use tokio::sync::oneshot;
 
 #[cfg(not(browser))]
@@ -597,15 +597,15 @@ fn apply_address(config: &mut Config, address: &ServerAddress) {
 }
 
 fn registration_input_error(config: &Config) -> Option<InvalidInput> {
-    let invalid = |message: Message| {
+    let invalid = |message: Line| {
         message
             .to_line()
             .err()
             .map(|error| InvalidInput::InvalidMessage(error.to_string()))
     };
-    if let Some(error) = invalid(Message::new("NICK", [&config.nick]))
+    if let Some(error) = invalid(Line::new("NICK", [&config.nick]))
         .or_else(|| {
-            invalid(Message::new(
+            invalid(Line::new(
                 "USER",
                 [&config.username, "0", "*", &config.realname],
             ))
@@ -614,17 +614,17 @@ fn registration_input_error(config: &Config) -> Option<InvalidInput> {
             config.password.as_ref().and_then(|password| {
                 password
                     .expose()
-                    .and_then(|password| invalid(Message::new("PASS", [password])))
+                    .and_then(|password| invalid(Line::new("PASS", [password])))
             })
         })
         .or_else(|| {
             config
                 .alt_nicks
                 .iter()
-                .find_map(|nick| invalid(Message::new("NICK", [nick])))
+                .find_map(|nick| invalid(Line::new("NICK", [nick])))
         })
         .or_else(|| match &config.away_on_connect {
-            Some(AwayOnConnect::Message(message)) => invalid(Message::new("AWAY", [message])),
+            Some(AwayOnConnect::Message(message)) => invalid(Line::new("AWAY", [message])),
             Some(_) | None => None,
         })
     {
@@ -651,7 +651,7 @@ fn registration_input_error(config: &Config) -> Option<InvalidInput> {
     if !options.is_empty() {
         params.push(&options);
     }
-    invalid(Message::new("WEBIRC", params))
+    invalid(Line::new("WEBIRC", params))
 }
 
 #[cfg(test)]

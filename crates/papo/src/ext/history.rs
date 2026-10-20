@@ -97,7 +97,7 @@ pub(crate) fn history_item(
     }
 }
 
-fn typed_or_raw<F>(raw: &papo_proto::Message, convert: F) -> HistoryItem
+fn typed_or_raw<F>(raw: &papo_proto::Line, convert: F) -> HistoryItem
 where
     F: FnOnce(&papo_proto::LineRef<'_>) -> Option<HistoryItem>,
 {

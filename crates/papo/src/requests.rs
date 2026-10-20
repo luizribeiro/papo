@@ -286,7 +286,7 @@ mod tests {
     use std::time::Instant;
 
     use papo_core::{Config, Event, ResponseMatcher, Session};
-    use papo_proto::{Isupport, Message};
+    use papo_proto::{Isupport, Line};
 
     use super::{ListFilter, empty, list_entries, plain_who, whois_channel};
     use crate::Error;
@@ -314,7 +314,7 @@ mod tests {
     #[test]
     fn plain_who_filters_placeholder_channels_and_non_prefix_flags() {
         let isupport = Isupport::default();
-        let hidden = Message::new(
+        let hidden = Line::new(
             "352",
             [
                 "papo",
@@ -327,7 +327,7 @@ mod tests {
                 "0 Alice Example",
             ],
         );
-        let visible = Message::new(
+        let visible = Line::new(
             "352",
             [
                 "papo",
@@ -357,7 +357,7 @@ mod tests {
         session
             .request_with_matcher(
                 now,
-                Message::new("MODE", ["#papo", "+t"]),
+                Line::new("MODE", ["#papo", "+t"]),
                 ResponseMatcher::Mode("#papo".into()),
             )
             .unwrap();
@@ -382,7 +382,7 @@ mod tests {
     #[test]
     fn list_retains_at_most_the_literal_entry_limit() {
         let lines = (0..10_001).map(|index| {
-            Message::new(
+            Line::new(
                 "322",
                 ["papo", &format!("#papo-{index}"), "42", "Ergonomic IRC"],
             )

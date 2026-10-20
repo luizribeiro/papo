@@ -1,7 +1,7 @@
 use std::future::IntoFuture;
 
 use papo_core::ResponseMatcher;
-use papo_proto::{Isupport, Mask, Message, ModeKind, Nick, Target};
+use papo_proto::{Isupport, Line, Mask, ModeKind, Nick, Target};
 
 use crate::{Client, Error, InvalidInput, RequestFuture};
 
@@ -183,7 +183,7 @@ pub(crate) fn encode(
     isupport: &Isupport,
     target: &Target,
     changes: &[Change],
-) -> Result<Vec<Message>, Error> {
+) -> Result<Vec<Line>, Error> {
     target
         .check(isupport)
         .map_err(|error| invalid(error.to_string()))?;
@@ -216,7 +216,7 @@ pub(crate) fn encode(
                 );
             }
             params.insert(1, mode_string);
-            Ok(Message::new("MODE", params))
+            Ok(Line::new("MODE", params))
         })
         .collect()
 }
