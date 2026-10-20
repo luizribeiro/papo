@@ -78,6 +78,24 @@ impl From<&str> for ServerName {
         }
     }
 }
+impl From<String> for ServerName {
+    fn from(value: String) -> Self {
+        Self {
+            folded: value.to_ascii_lowercase(),
+            original: value,
+        }
+    }
+}
+impl From<&String> for ServerName {
+    fn from(value: &String) -> Self {
+        Self::from(value.as_str())
+    }
+}
+impl From<&Self> for ServerName {
+    fn from(value: &Self) -> Self {
+        value.clone()
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeSet, HashSet};
@@ -94,5 +112,14 @@ mod tests {
         assert_eq!(original.to_string(), "irc.Example.NET");
         assert_eq!(HashSet::from([original.clone(), folded.clone()]).len(), 1);
         assert_eq!(BTreeSet::from([original, folded]).len(), 1);
+    }
+
+    #[test]
+    fn builds_from_owned_and_borrowed_text() {
+        let text = String::from("irc.example.net");
+        let owned = ServerName::from(text.clone());
+
+        assert_eq!(owned, ServerName::from(&text));
+        assert_eq!(owned, ServerName::from(&owned));
     }
 }

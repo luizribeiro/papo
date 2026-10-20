@@ -1381,8 +1381,14 @@ impl core::cmp::PartialOrd for papo_proto::ServerName
 pub fn papo_proto::ServerName::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::convert::AsRef<str> for papo_proto::ServerName
 pub fn papo_proto::ServerName::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::ServerName
+pub fn papo_proto::ServerName::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::ServerName> for papo_proto::ServerName
+pub fn papo_proto::ServerName::from(&Self) -> Self
 impl core::convert::From<&str> for papo_proto::ServerName
 pub fn papo_proto::ServerName::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::ServerName
+pub fn papo_proto::ServerName::from(alloc::string::String) -> Self
 impl core::fmt::Debug for papo_proto::ServerName
 pub fn papo_proto::ServerName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_proto::ServerName
