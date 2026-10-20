@@ -139,6 +139,8 @@ const MAX_CTCP_SOURCES: usize = 1024;
 pub struct SendTextResult {
     /// Correlation identifier when labeled responses are enabled.
     pub request: Option<RequestId>,
+    /// Write-completion identifier when no server response is expected.
+    pub transmit: Option<TransmitToken>,
     /// Whether the text was divided into multiple message lines.
     pub split: bool,
 }
@@ -1877,6 +1879,7 @@ enum Transmission {
     Batch {
         lines: VecDeque<Vec<u8>>,
         started: bool,
+        token: Option<TransmitToken>,
     },
 }
 
@@ -1915,12 +1918,15 @@ impl Outbox {
         }
     }
 
-    fn transmit_batch(&mut self, lines: Vec<Vec<u8>>) {
+    fn transmit_batch(&mut self, lines: Vec<Vec<u8>>, token: Option<TransmitToken>) {
         if !self.close_requested && !lines.is_empty() {
             self.transmits.push_back(Transmission::Batch {
                 lines: lines.into(),
                 started: false,
+                token,
             });
+        } else if let Some(token) = token {
+            self.event(Event::TransmitAborted { token });
         }
     }
 
@@ -1979,7 +1985,7 @@ impl Outbox {
                     .drain(..)
                     .filter_map(|transmit| match transmit {
                         Transmission::Line(line) => line.token,
-                        Transmission::Batch { .. } => None,
+                        Transmission::Batch { token, .. } => token,
                     }),
             )
             .collect::<Vec<_>>();
@@ -2381,17 +2387,35 @@ impl Session {
             let sent = self.caps.enabled().contains_key(cap::ECHO_MESSAGE);
             self.requests.insert(label, (id, now, sent, None, true));
         }
-        if batch_count == 0 {
-            for line in lines {
-                self.outbox.transmit_raw(line);
-            }
-        } else {
-            self.outbox.transmit_batch(lines);
-        }
+        let transmit = self.queue_text_lines(lines, batch_count > 0, !labelled);
         Ok(SendTextResult {
             request: labelled.then_some(id),
+            transmit,
             split: segments.len() > 1,
         })
+    }
+
+    fn queue_text_lines(
+        &mut self,
+        lines: Vec<Vec<u8>>,
+        batched: bool,
+        tracked: bool,
+    ) -> Option<TransmitToken> {
+        let token = tracked.then(|| {
+            let token = TransmitToken(self.next_transmit_token);
+            self.next_transmit_token = self.next_transmit_token.wrapping_add(1);
+            token
+        });
+        if batched {
+            self.outbox.transmit_batch(lines, token);
+        } else {
+            let last = lines.len() - 1;
+            for (index, line) in lines.into_iter().enumerate() {
+                self.outbox
+                    .transmit_tagged(line, (index == last).then_some(token).flatten());
+            }
+        }
+        token
     }
 
     /// Queues a message and assigns an identifier for its eventual response.
@@ -2592,15 +2616,22 @@ impl Session {
                 line: line.line,
                 token: line.token,
             }),
-            Transmission::Batch { mut lines, .. } => {
+            Transmission::Batch {
+                mut lines, token, ..
+            } => {
                 let line = lines.pop_front();
+                let last = lines.is_empty();
                 if !lines.is_empty() {
                     self.outbox.transmits.push_front(Transmission::Batch {
                         lines,
                         started: true,
+                        token,
                     });
                 }
-                line.map(|line| Transmit { line, token: None })
+                line.map(|line| Transmit {
+                    line,
+                    token: last.then_some(token).flatten(),
+                })
             }
         }
     }
@@ -3482,11 +3513,14 @@ mod tests {
     #[test]
     fn batch_queue_rejects_empty_and_closed_transmissions() {
         let mut outbox = Outbox::default();
-        outbox.transmit_batch(Vec::new());
+        outbox.transmit_batch(Vec::new(), None);
         assert!(outbox.transmits.is_empty());
 
         outbox.close_requested = true;
-        outbox.transmit_batch(vec![b"BATCH +papo draft/multiline #papo\r\n".to_vec()]);
+        outbox.transmit_batch(
+            vec![b"BATCH +papo draft/multiline #papo\r\n".to_vec()],
+            None,
+        );
         assert!(outbox.transmits.is_empty());
     }
 

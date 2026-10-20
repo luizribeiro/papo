@@ -85,6 +85,45 @@ fn detailed_send_reports_only_actual_text_splitting() {
 }
 
 #[test]
+fn unlabelled_text_tags_only_its_last_line_for_write_completion() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let sent = session
+        .send_text_detailed(
+            now,
+            TextKind::Privmsg,
+            "#papo",
+            &"deployment update ".repeat(40),
+            &[],
+        )
+        .unwrap();
+    let token = sent.transmit.unwrap();
+    assert!(sent.request.is_none());
+    assert!(sent.split);
+
+    let first = session.poll_transmit_tracked().unwrap().into_parts();
+    let second = session.poll_transmit_tracked().unwrap().into_parts();
+    assert_eq!(first.1, None);
+    assert_eq!(second.1, Some(token));
+    assert_eq!(session.poll_transmit_tracked(), None);
+
+    let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", false);
+    let sent = session
+        .send_text_detailed(
+            now,
+            TextKind::Privmsg,
+            "#papo",
+            &"deployment update ".repeat(40),
+            &[],
+        )
+        .unwrap();
+    let tokens = std::iter::from_fn(|| session.poll_transmit_tracked())
+        .map(|transmit| transmit.into_parts().1)
+        .collect::<Vec<_>>();
+    assert_eq!(tokens, [None, None, None, Some(sent.transmit.unwrap())]);
+}
+
+#[test]
 fn closing_aborts_queued_and_later_user_transmissions() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
