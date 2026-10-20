@@ -1245,6 +1245,40 @@ fn request_deadline_starts_when_its_rate_limited_line_is_transmitted() {
 }
 
 #[test]
+fn unlabelled_request_deadlines_start_one_transmission_at_a_time() {
+    let now = Instant::now();
+    let rate = RateLimit::new(1, std::time::Duration::from_secs(60))
+        .unwrap()
+        .strict();
+    let mut session = Session::new(Config::default().rate_limit(rate));
+    let alice = session
+        .request_with_matcher(
+            now,
+            Line::new("WHOIS", ["alice"]),
+            ResponseMatcher::Whois("alice".into()),
+        )
+        .unwrap();
+    let bob = session
+        .request_with_matcher(
+            now,
+            Line::new("WHOIS", ["bob"]),
+            ResponseMatcher::Whois("bob".into()),
+        )
+        .unwrap();
+
+    assert_eq!(session.poll_transmit().unwrap(), b"WHOIS alice\r\n");
+    assert_eq!(session.poll_transmit(), None);
+    session.handle_timeout(now + std::time::Duration::from_secs(30));
+    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id }) if id == alice));
+    assert_eq!(session.poll_event(), None);
+
+    session.handle_timeout(now + std::time::Duration::from_secs(60));
+    assert_eq!(session.poll_transmit().unwrap(), b"WHOIS bob\r\n");
+    session.handle_timeout(now + std::time::Duration::from_secs(90));
+    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id }) if id == bob));
+}
+
+#[test]
 fn pending_non_history_batch_dispatches_protocol_state() {
     let now = Instant::now();
     let mut session = labelled_session(now);
