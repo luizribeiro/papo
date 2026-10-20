@@ -2179,7 +2179,8 @@ impl Session {
         self.casemapping_change_emitted = false;
         self.isupport.handle_connected();
         self.sasl.handle_connected();
-        self.state.reset(&self.config, Casemapping::default());
+        self.state
+            .reset(&self.config, Casemapping::default(), self.isupport.value());
         self.state_generation = self.state_generation.wrapping_add(1);
         self.keepalive
             .handle_connected(now, self.config.ping_interval, self.config.ping_timeout);
@@ -2342,7 +2343,8 @@ impl Session {
         self.metadata_subscriptions_sent = false;
         let casemapping = self.state.casemapping();
         self.remembered_casemapping = casemapping;
-        self.state.reset(&self.config, casemapping);
+        self.state
+            .reset(&self.config, casemapping, self.isupport.value());
         self.state_generation = self.state_generation.wrapping_add(1);
     }
 

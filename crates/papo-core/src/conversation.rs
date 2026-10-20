@@ -1,4 +1,4 @@
-use papo_proto::{InvalidIdentifier, Isupport, LineRef, Source};
+use papo_proto::{Casemapping, InvalidIdentifier, Isupport, LineRef, Source};
 
 use crate::{Conversation, names_equal};
 
@@ -11,6 +11,7 @@ pub(crate) fn classify_line(
         line.param(0).unwrap_or(""),
         line.source(),
         own_nick,
+        isupport.casemapping(),
         isupport,
     )
 }
@@ -19,6 +20,7 @@ pub(crate) fn classify_target(
     target: &str,
     source: Option<Source<'_>>,
     own_nick: &str,
+    mapping: Casemapping,
     isupport: &Isupport,
 ) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
     let status_len = target
@@ -32,8 +34,6 @@ pub(crate) fn classify_target(
         .sum();
     let (status, target) = target.split_at(status_len);
     let status = (!status.is_empty()).then(|| status.chars().collect());
-    let mapping = isupport.casemapping();
-
     let conversation = if isupport.is_channel(target) {
         let channel = mapping.channel(target);
         channel.check(isupport)?;

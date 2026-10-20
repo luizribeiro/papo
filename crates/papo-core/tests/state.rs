@@ -85,6 +85,11 @@ fn seeded_rules_apply_offline_then_the_connection_uses_the_protocol_default() {
     .inspect(|session| {
         assert_eq!(session.state().casemapping(), Casemapping::Ascii);
         assert_ne!(session.state().nick(), "emily{bot}");
+        let Ok((None, Conversation::Private(nick))) = session.state().parse_target("Alice[x]")
+        else {
+            panic!("expected a private conversation")
+        };
+        assert_eq!(nick.casemapping(), Casemapping::Ascii);
     })
     .connect()
     .inspect(|session| {
@@ -97,12 +102,17 @@ fn seeded_rules_apply_offline_then_the_connection_uses_the_protocol_default() {
 #[test]
 fn disconnect_retains_the_last_advertised_rules() {
     Transcript::new(Config::default().nick("emily[bot]"))
-        .server(":irc.example 005 emily CASEMAPPING=ascii :are supported")
+        .server(":irc.example 005 emily CASEMAPPING=ascii CHANTYPES=! STATUSMSG=@ :are supported")
         .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .disconnect()
         .inspect(|session| {
             assert_eq!(session.state().casemapping(), Casemapping::Ascii);
             assert_ne!(session.state().nick(), "emily{bot}");
+            assert!(matches!(
+                session.state().parse_target("@!ops"),
+                Ok((Some(status), Conversation::Channel(channel)))
+                    if status == ['@'] && channel == "!ops"
+            ));
         })
         .no_event();
 }

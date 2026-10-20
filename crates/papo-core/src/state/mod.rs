@@ -273,10 +273,11 @@ impl State {
         }
     }
 
-    pub(crate) fn reset(&mut self, config: &Config, casemapping: Casemapping) {
+    pub(crate) fn reset(&mut self, config: &Config, casemapping: Casemapping, isupport: &Isupport) {
         let last_seen = std::mem::take(&mut self.last_seen);
         let last_seen_order = std::mem::take(&mut self.last_seen_order);
         *self = Self::with_casemapping(config, casemapping);
+        self.isupport.clone_from(isupport);
         self.last_seen = last_seen
             .into_values()
             .map(|seen| (NameKey::new(&seen.target, self.casemapping), seen))
@@ -747,7 +748,13 @@ impl State {
         &self,
         target: impl AsRef<str>,
     ) -> Result<(Option<Vec<char>>, Conversation), papo_proto::InvalidIdentifier> {
-        classify_target(target.as_ref(), None, &self.nick, &self.isupport)
+        classify_target(
+            target.as_ref(),
+            None,
+            &self.nick,
+            self.casemapping,
+            &self.isupport,
+        )
     }
 
     /// Returns the rules attached to names in this state.
