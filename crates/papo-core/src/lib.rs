@@ -980,7 +980,7 @@ pub struct Response {
     /// A typed history page nested in this response, when present.
     pub history: Option<HistoryPage>,
     /// Targets nested in a completed `CHATHISTORY TARGETS` response.
-    pub history_targets: Option<Vec<(String, std::time::SystemTime)>>,
+    pub history_targets: Option<Vec<(Conversation, std::time::SystemTime)>>,
     /// Channels parsed from `RPL_WHOISCHANNELS` using the current `PREFIX` token.
     pub whois_channels: Vec<WhoisChannel>,
     sent: Option<SentInfo>,
@@ -1550,7 +1550,7 @@ pub enum Event {
         end: bool,
     },
     /// Targets that received messages during a requested time range.
-    HistoryTargets(Vec<(String, std::time::SystemTime)>),
+    HistoryTargets(Vec<(Conversation, std::time::SystemTime)>),
     /// A conversation's read marker advanced or was first reported.
     ReadMarker(ReadMarker),
     /// Users departed because connectivity between two servers was lost.
@@ -3388,7 +3388,8 @@ impl Session {
                 }
             }
             BatchEvent::HistoryTargets(targets) => {
-                self.outbox.event(Event::HistoryTargets(targets));
+                self.outbox
+                    .event(Event::HistoryTargets(self.history_targets(targets)));
             }
             BatchEvent::Netsplit { servers, quits } => {
                 // History can describe stale membership, while netsplit and netjoin batches
@@ -3456,6 +3457,16 @@ impl Session {
                 Conversation::Channel(_) | Conversation::Private(_)
             ))
         .then_some(conversation)
+    }
+
+    fn history_targets(
+        &self,
+        targets: Vec<(String, std::time::SystemTime)>,
+    ) -> Vec<(Conversation, std::time::SystemTime)> {
+        targets
+            .into_iter()
+            .filter_map(|(target, latest)| Some((self.history_conversation(&target)?, latest)))
+            .collect()
     }
 
     fn remember_casemapping(&mut self) {
@@ -3546,7 +3557,7 @@ impl Session {
                         end,
                     })
                 }),
-                history_targets,
+                history_targets: history_targets.map(|targets| self.history_targets(targets)),
                 whois_channels,
             }));
             for message in echoed.into_iter().flatten() {

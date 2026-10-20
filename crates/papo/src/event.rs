@@ -2090,7 +2090,10 @@ mod tests {
 
     #[test]
     fn keeps_history_targets_internal() {
-        let targets = vec![("#papo".into(), UNIX_EPOCH + Duration::from_secs(42))];
+        let targets = vec![(
+            Conversation::Channel(Casemapping::Rfc1459.channel("#papo")),
+            UNIX_EPOCH + Duration::from_secs(42),
+        )];
         assert!(matches!(
             from_core(papo_core::Event::HistoryTargets(targets)),
             CoreEvent::Unknown

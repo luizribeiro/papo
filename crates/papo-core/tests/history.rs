@@ -393,6 +393,8 @@ fn reports_targets_with_parsed_server_times() {
         "@batch=reply :ergo.test BATCH +targets draft/chathistory-targets",
         "@batch=targets :ergo.test CHATHISTORY TARGETS #papo 2025-10-15T11:55:42.123Z",
         "@batch=targets :ergo.test CHATHISTORY TARGETS Alice 2025-10-15T11:55:43.000Z",
+        "@batch=targets :ergo.test CHATHISTORY TARGETS $opers 2025-10-15T11:55:44.000Z",
+        "@batch=targets :ergo.test CHATHISTORY TARGETS * 2025-10-15T11:55:45.000Z",
         "@batch=reply :ergo.test BATCH -targets",
         ":ergo.test BATCH -reply",
     ] {
@@ -402,11 +404,12 @@ fn reports_targets_with_parsed_server_times() {
         panic!("expected history targets")
     };
     assert_eq!(targets.len(), 2);
-    assert_eq!(targets[0].0, "#papo");
+    assert!(matches!(&targets[0].0, Conversation::Channel(channel) if channel == "#papo"));
     assert_eq!(
         targets[0].1,
         UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
     );
+    assert!(matches!(&targets[1].0, Conversation::Private(nick) if nick == "Alice"));
     let Some(Event::Response(response)) = session.poll_event() else {
         panic!("expected targets response")
     };

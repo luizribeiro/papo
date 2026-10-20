@@ -416,7 +416,7 @@ pub papo_core::Event::History
 pub papo_core::Event::History::conversation: papo::Conversation
 pub papo_core::Event::History::end: bool
 pub papo_core::Event::History::items: alloc::vec::Vec<papo_core::HistoryItem>
-pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>)
+pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(papo::Conversation, std::time::SystemTime)>)
 pub papo_core::Event::HostChanged
 pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
@@ -1383,7 +1383,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::RequestId
 impl core::panic::unwind_safe::UnwindSafe for papo_core::RequestId
 pub struct papo_core::Response
 pub papo_core::Response::history: core::option::Option<papo_core::HistoryPage>
-pub papo_core::Response::history_targets: core::option::Option<alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>>
+pub papo_core::Response::history_targets: core::option::Option<alloc::vec::Vec<(papo::Conversation, std::time::SystemTime)>>
 pub papo_core::Response::id: papo_core::RequestId
 pub papo_core::Response::lines: alloc::vec::Vec<papo::Line>
 pub papo_core::Response::whois_channels: alloc::vec::Vec<papo_core::WhoisChannel>

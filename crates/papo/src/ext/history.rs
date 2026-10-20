@@ -558,7 +558,14 @@ impl Client {
                 .map(|targets| {
                     targets
                         .into_iter()
-                        .map(|(target, latest)| HistoryTarget { target, latest })
+                        .filter_map(|(conversation, latest)| {
+                            let target = match conversation {
+                                crate::Conversation::Channel(name) => name.to_string(),
+                                crate::Conversation::Private(name) => name.to_string(),
+                                _ => return None,
+                            };
+                            Some(HistoryTarget { target, latest })
+                        })
                         .collect()
                 })
         })
