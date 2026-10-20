@@ -90,7 +90,8 @@ pub use papo_core::Refusal;
 pub use papo_core::Secret;
 #[doc(inline)]
 pub use papo_core::{
-    Account, Away, Capabilities, Channel, Conversation, Feature, Member, Typer, User,
+    Account, Away, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
+    Typer, User,
 };
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -139,6 +140,7 @@ pub mod event {
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub use crate::event_impl::{BouncerNetworkChanged, PersistenceSetting};
+    pub use crate::{ModeAction, ModeArg};
 }
 
 /// Strict Transport Security policy stores.

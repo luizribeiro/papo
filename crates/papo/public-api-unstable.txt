@@ -17,6 +17,8 @@ pub use papo::Member
 pub use papo::MessageId
 pub use papo::MetadataKey
 pub use papo::MetadataValue
+pub use papo::ModeAction
+pub use papo::ModeArg
 pub use papo::NetworkConfig
 pub use papo::NetworkId
 pub use papo::NetworkState
@@ -148,6 +150,8 @@ pub const papo::cap::WEBPUSH: &str
 pub const papo::cap::WHOAMI: &str
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
+pub use papo::event::ModeAction
+pub use papo::event::ModeArg
 pub use papo::event::PersistenceSetting
 pub use papo::event::PersistenceStatus
 pub use papo::event::Source
