@@ -1,4 +1,7 @@
-//! IRC message parsing, formatting, casemapping, and typed protocol data.
+//! IRC line parsing, formatting, casemapping, and typed protocol data.
+//!
+//! The IRC specifications call each line a message; this crate uses "line" so
+//! "message" can consistently mean a chat message in the wider API.
 //! This crate performs no I/O and has minimal dependencies.
 
 mod casemapping;
@@ -8,7 +11,7 @@ mod ctcp;
 mod formatting;
 mod id;
 mod isupport;
-mod message;
+mod line;
 mod modes;
 mod names;
 mod numeric;
@@ -29,10 +32,17 @@ pub use id::{
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, Extban, Isupport, Limit, LimitValue, Prefix,
 };
-pub use message::{
-    BuildError, MAX_CLIENT_TAG_DATA_LEN, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message, MessageRef,
-    Params, ParseError, Tags, escape_tag_value,
+pub use line::{
+    BuildError, Line, LineRef, MAX_CLIENT_TAG_DATA_LEN, MAX_LINE_LEN, MAX_TAG_SECTION_LEN, Params,
+    ParseError, Tags, escape_tag_value,
 };
+
+#[doc(hidden)]
+pub type Message = Line;
+#[doc(hidden)]
+pub type MessageRef<'a> = LineRef<'a>;
+#[doc(hidden)]
+pub const MAX_MESSAGE_LEN: usize = MAX_LINE_LEN;
 pub use modes::{ModeChange, ModeChanges, ModeKind};
 pub use names::{NAME_ALIASES, NameKind, NamesEntry, canonical, parse_353};
 pub use numeric::Numeric;

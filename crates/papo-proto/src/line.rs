@@ -7,7 +7,7 @@ use crate::{Command, Source};
 /// This limit is defined by the [Modern IRC client protocol].
 ///
 /// [Modern IRC client protocol]: https://modern.ircdocs.horse/#message-format
-pub const MAX_MESSAGE_LEN: usize = 512;
+pub const MAX_LINE_LEN: usize = 512;
 
 /// Maximum byte length of a received IRC tag section, including `@` and its trailing space.
 ///
@@ -107,7 +107,7 @@ impl Error for BuildError {}
 
 /// A zero-copy view of one IRC message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct MessageRef<'a> {
+pub struct LineRef<'a> {
     tags: TagStorage<'a>,
     source: Option<&'a str>,
     command: &'a str,
@@ -126,7 +126,7 @@ enum ParamStorage<'a> {
     Owned(&'a [String]),
 }
 
-impl<'a> MessageRef<'a> {
+impl<'a> LineRef<'a> {
     /// Parses one UTF-8 IRC line, with or without a trailing line ending.
     ///
     /// Both CRLF and a bare LF are accepted as line endings.
@@ -264,8 +264,8 @@ impl<'a> MessageRef<'a> {
 
     /// Copies this borrowed view into an owned message without re-parsing it.
     #[must_use]
-    pub fn to_owned(&self) -> Message {
-        let mut message = Message::new(self.command, self.params());
+    pub fn to_owned(&self) -> Line {
+        let mut message = Line::new(self.command, self.params());
         message.source = self.source.map(str::to_owned);
         for (key, value) in self.tags() {
             message.insert_tag(key.to_owned(), value.map(Cow::into_owned));
@@ -276,14 +276,14 @@ impl<'a> MessageRef<'a> {
 
 /// An owned IRC message that can be validated and serialized for the wire.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Message {
+pub struct Line {
     tags: Vec<(String, Option<String>)>,
     source: Option<String>,
     command: String,
     params: Vec<String>,
 }
 
-impl Message {
+impl Line {
     /// Creates a message from a command and its parameters.
     pub fn new<C, P, S>(command: C, params: P) -> Self
     where
@@ -347,10 +347,10 @@ impl Message {
         self
     }
 
-    /// Borrows this message as a [`MessageRef`] without re-parsing it.
+    /// Borrows this message as a [`LineRef`] without re-parsing it.
     #[must_use]
-    pub fn as_ref(&self) -> MessageRef<'_> {
-        MessageRef {
+    pub fn as_ref(&self) -> LineRef<'_> {
+        LineRef {
             tags: TagStorage::Owned(&self.tags),
             source: self.source.as_deref(),
             command: &self.command,
@@ -403,7 +403,7 @@ impl Message {
             line.push_str(param);
         }
         line.push_str("\r\n");
-        if line.len() - body_start > MAX_MESSAGE_LEN {
+        if line.len() - body_start > MAX_LINE_LEN {
             return Err(BuildError::MessageTooLong);
         }
         Ok(line)
@@ -542,7 +542,7 @@ fn check_wire_lengths(line: &str) -> Result<(), ParseError> {
     });
     // Every accepted terminator occupies the protocol's canonical CRLF budget.
     let message_len = line.len() - tag_section_len + 2;
-    if tag_section_len > MAX_TAG_SECTION_LEN || message_len > MAX_MESSAGE_LEN {
+    if tag_section_len > MAX_TAG_SECTION_LEN || message_len > MAX_LINE_LEN {
         return Err(ParseError::TooLong);
     }
     Ok(())
