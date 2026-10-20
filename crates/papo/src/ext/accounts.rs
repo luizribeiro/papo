@@ -46,10 +46,10 @@ impl NewAccount {
 /// Outcome of an account registration request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum AccountRegistration {
+pub enum AccountCreation {
     /// The account was created and authenticated.
-    Registered {
-        /// Registered account name.
+    Created {
+        /// Created account name.
         account: crate::AccountName,
     },
     /// The server requires an out-of-band verification code.
@@ -60,6 +60,9 @@ pub enum AccountRegistration {
         message: String,
     },
 }
+
+/// Account creation outcome.
+pub type AccountRegistration = AccountCreation;
 
 impl Client {
     /// Creates an account through `draft/account-registration`.
@@ -140,7 +143,7 @@ fn account_registration_result(
             .ok_or_else(|| Error::unexpected_reply(command))?,
     );
     match message.param(0) {
-        Some("SUCCESS") => Ok(AccountRegistration::Registered { account }),
+        Some("SUCCESS") => Ok(AccountRegistration::Created { account }),
         Some("VERIFICATION_REQUIRED") => Ok(AccountRegistration::VerificationRequired {
             account,
             message: message.param(2).unwrap_or_default().to_owned(),
@@ -218,7 +221,7 @@ mod tests {
         )
         .await;
         assert!(
-            matches!(within(verify).await.unwrap().unwrap(), super::AccountRegistration::Registered { account } if account == "alice")
+            matches!(within(verify).await.unwrap().unwrap(), super::AccountRegistration::Created { account } if account == "alice")
         );
 
         let verify = tokio::spawn({

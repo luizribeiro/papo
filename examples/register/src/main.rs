@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 io::stdin().read_line(&mut code)?;
                 client.verify_account(&account, code.trim()).await?;
             }
-            Event::AccountRegistration(AccountRegistration::Registered { account }) => {
+            Event::AccountRegistration(AccountRegistration::Created { account }) => {
                 logged_in = Some(account);
             }
             Event::Connected(_) => connected = true,

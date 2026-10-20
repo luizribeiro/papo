@@ -825,7 +825,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             description: reply.description,
         }),
         papo_core::Event::AccountCreated { account, .. } => {
-            Event::AccountRegistration(crate::AccountRegistration::Registered { account })
+            Event::AccountRegistration(crate::AccountRegistration::Created { account })
         }
         papo_core::Event::VerificationRequired { account, message } => {
             Event::AccountRegistration(crate::AccountRegistration::VerificationRequired {
@@ -1604,13 +1604,13 @@ mod tests {
     }
 
     #[test]
-    fn maps_account_registration_results() {
+    fn maps_account_creation_results() {
         assert!(matches!(
             forwarded(papo_core::Event::AccountCreated {
                 account: Casemapping::default().account("alice"),
                 logged_in: true,
             }),
-            Event::AccountRegistration(crate::AccountRegistration::Registered { account })
+            Event::AccountRegistration(crate::AccountRegistration::Created { account })
                 if account == "alice"
         ));
         assert!(matches!(

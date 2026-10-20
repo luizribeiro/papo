@@ -639,10 +639,10 @@ mod tests {
     fn expect_skips_non_matching_events() {
         let mut events = ScriptedEvents {
             events: [
-                Event::AccountRegistration(papo::AccountRegistration::Registered {
+                Event::AccountRegistration(papo::AccountRegistration::Created {
                     account: papo::Casemapping::default().account("first"),
                 }),
-                Event::AccountRegistration(papo::AccountRegistration::Registered {
+                Event::AccountRegistration(papo::AccountRegistration::Created {
                     account: papo::Casemapping::default().account("second"),
                 }),
             ]
@@ -651,12 +651,12 @@ mod tests {
         let event = runtime()
             .block_on(expect_event(
                 &mut events,
-                |event| matches!(event, Event::AccountRegistration(papo::AccountRegistration::Registered { account }) if account == "second"),
+                |event| matches!(event, Event::AccountRegistration(papo::AccountRegistration::Created { account }) if account == "second"),
                 Duration::from_secs(1),
             ))
             .unwrap();
         assert!(
-            matches!(event, Event::AccountRegistration(papo::AccountRegistration::Registered { account }) if account == "second")
+            matches!(event, Event::AccountRegistration(papo::AccountRegistration::Created { account }) if account == "second")
         );
     }
 

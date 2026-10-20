@@ -1252,27 +1252,27 @@ pub const papo::tags::keys::REPLY: &str
 pub const papo::tags::keys::TYPING: &str
 pub mod papo::time
 pub use papo::time::format
-#[non_exhaustive] pub enum papo::AccountRegistration
-pub papo::AccountRegistration::Registered
-pub papo::AccountRegistration::Registered::account: papo::AccountName
-pub papo::AccountRegistration::VerificationRequired
-pub papo::AccountRegistration::VerificationRequired::account: papo::AccountName
-pub papo::AccountRegistration::VerificationRequired::message: alloc::string::String
-impl core::clone::Clone for papo::AccountRegistration
-pub fn papo::AccountRegistration::clone(&self) -> Self
-impl core::cmp::Eq for papo::AccountRegistration
-impl core::cmp::PartialEq for papo::AccountRegistration
-pub fn papo::AccountRegistration::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::AccountRegistration
-pub fn papo::AccountRegistration::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::AccountRegistration
-impl core::marker::Freeze for papo::AccountRegistration
-impl core::marker::Send for papo::AccountRegistration
-impl core::marker::Sync for papo::AccountRegistration
-impl core::marker::Unpin for papo::AccountRegistration
-impl core::marker::UnsafeUnpin for papo::AccountRegistration
-impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountRegistration
-impl core::panic::unwind_safe::UnwindSafe for papo::AccountRegistration
+#[non_exhaustive] pub enum papo::AccountCreation
+pub papo::AccountCreation::Created
+pub papo::AccountCreation::Created::account: papo::AccountName
+pub papo::AccountCreation::VerificationRequired
+pub papo::AccountCreation::VerificationRequired::account: papo::AccountName
+pub papo::AccountCreation::VerificationRequired::message: alloc::string::String
+impl core::clone::Clone for papo::AccountCreation
+pub fn papo::AccountCreation::clone(&self) -> Self
+impl core::cmp::Eq for papo::AccountCreation
+impl core::cmp::PartialEq for papo::AccountCreation
+pub fn papo::AccountCreation::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::AccountCreation
+pub fn papo::AccountCreation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::AccountCreation
+impl core::marker::Freeze for papo::AccountCreation
+impl core::marker::Send for papo::AccountCreation
+impl core::marker::Sync for papo::AccountCreation
+impl core::marker::Unpin for papo::AccountCreation
+impl core::marker::UnsafeUnpin for papo::AccountCreation
+impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountCreation
+impl core::panic::unwind_safe::UnwindSafe for papo::AccountCreation
 #[non_exhaustive] pub enum papo::ConnectErrorKind
 pub papo::ConnectErrorKind::AccountRequired
 pub papo::ConnectErrorKind::Banned
@@ -2646,3 +2646,4 @@ pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String
 impl papo::IntoEndpoint for papo::Endpoint
+pub type papo::AccountRegistration = papo::AccountCreation
