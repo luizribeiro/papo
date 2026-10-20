@@ -167,7 +167,7 @@ impl Scenario {
             .map(|bouncer| bouncer.provision_network(&name))
             .transpose()?;
         let builder = Client::builder(endpoint)
-            .nick(name)
+            .nick(papo::Casemapping::default().nick(name))
             .realname("papo test peer");
         #[cfg(not(target_family = "wasm"))]
         let builder = match bouncer_login {

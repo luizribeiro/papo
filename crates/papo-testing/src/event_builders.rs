@@ -98,18 +98,21 @@ mod tests {
 
     #[test]
     fn builds_common_event_payloads() {
-        let registered = RegisteredBuilder::new("alice")
+        let mapping = papo::Casemapping::default();
+        let registered = RegisteredBuilder::new(mapping.nick("alice"))
             .text("Welcome to Ergo")
             .reconnected(true)
             .build();
         assert_eq!(registered.text, "Welcome to Ergo");
         assert!(registered.reconnected);
 
-        let joined = JoinedBuilder::new("#papo", "alice").own(true).build();
+        let joined = JoinedBuilder::new(mapping.channel("#papo"), mapping.nick("alice"))
+            .own(true)
+            .build();
         assert_eq!(joined.channel.as_ref(), "#papo");
         assert!(joined.is_self);
 
-        let away = AwayChangedBuilder::new("alice")
+        let away = AwayChangedBuilder::new(mapping.nick("alice"))
             .message(Some("reviewing IRCv3"))
             .build();
         assert_eq!(away.message.as_deref(), Some("reviewing IRCv3"));

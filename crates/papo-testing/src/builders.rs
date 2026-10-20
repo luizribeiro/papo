@@ -104,10 +104,14 @@ mod tests {
     #[test]
     fn builds_private_message_details_and_ordered_tags() {
         let message = MessageBuilder::new("bob", "formatted hello")
-            .sender("alice", Some("a".into()), Some("cloak.example".into()))
+            .sender(
+                papo::Casemapping::default().nick("alice"),
+                Some("a".into()),
+                Some("cloak.example".into()),
+            )
             .kind(MessageKind::Notice)
             .origin(Origin::Replay)
-            .account("alice")
+            .account(papo::Casemapping::default().account("alice"))
             .message_id("ergo-42")
             .raw_text("\u{2}formatted hello\u{2}")
             .tag("time", Some("2026-10-18T12:00:00.000Z".into()))
