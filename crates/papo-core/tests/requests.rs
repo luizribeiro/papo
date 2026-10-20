@@ -6,7 +6,7 @@ use papo_core::{
     Config, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher, ServerError,
     Session,
 };
-use papo_proto::{Line, LineRef, Message, Numeric};
+use papo_proto::{Line, LineRef, Numeric};
 
 fn labelled_session(now: Instant) -> Session {
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -755,12 +755,12 @@ fn list_replies_use_fifo_without_swallowing_unrelated_errors() {
     let first = session
         .request_with_matcher(
             now,
-            Message::new("LIST", Vec::<String>::new()),
+            Line::new("LIST", Vec::<String>::new()),
             ResponseMatcher::List,
         )
         .unwrap();
     let second = session
-        .request_with_matcher(now, Message::new("LIST", ["#rust"]), ResponseMatcher::List)
+        .request_with_matcher(now, Line::new("LIST", ["#rust"]), ResponseMatcher::List)
         .unwrap();
     for line in [
         ":ergo.test 401 papo alice :No such nick/channel",
@@ -785,37 +785,37 @@ fn standard_failures_require_fail_kind_and_matching_command() {
     let cases = [
         (
             "WHOIS",
-            Message::new("WHOIS", ["alice"]),
+            Line::new("WHOIS", ["alice"]),
             ResponseMatcher::Whois("alice".into()),
         ),
         (
             "WHO",
-            Message::new("WHO", ["#papo"]),
+            Line::new("WHO", ["#papo"]),
             ResponseMatcher::Who("#papo".into()),
         ),
         (
             "JOIN",
-            Message::join("#papo"),
+            Line::join("#papo"),
             ResponseMatcher::Join("#papo".into()),
         ),
         (
             "PART",
-            Message::new("PART", ["#papo"]),
+            Line::new("PART", ["#papo"]),
             ResponseMatcher::Part("#papo".into()),
         ),
         (
             "MODE",
-            Message::new("MODE", ["#papo", "+t"]),
+            Line::new("MODE", ["#papo", "+t"]),
             ResponseMatcher::Mode("#papo".into()),
         ),
         (
             "TOPIC",
-            Message::new("TOPIC", ["#papo"]),
+            Line::new("TOPIC", ["#papo"]),
             ResponseMatcher::Topic("#papo".into()),
         ),
         (
             "KICK",
-            Message::new("KICK", ["#papo", "spambot"]),
+            Line::new("KICK", ["#papo", "spambot"]),
             ResponseMatcher::Kick {
                 channel: "#papo".into(),
                 nick: "spambot".into(),
@@ -823,7 +823,7 @@ fn standard_failures_require_fail_kind_and_matching_command() {
         ),
         (
             "INVITE",
-            Message::new("INVITE", ["carol", "#papo"]),
+            Line::new("INVITE", ["carol", "#papo"]),
             ResponseMatcher::Invite {
                 channel: "#papo".into(),
                 nick: "carol".into(),
@@ -831,32 +831,32 @@ fn standard_failures_require_fail_kind_and_matching_command() {
         ),
         (
             "NICK",
-            Message::new("NICK", ["papo-away"]),
+            Line::new("NICK", ["papo-away"]),
             ResponseMatcher::Nick("papo-away".into()),
         ),
         (
             "AWAY",
-            Message::new("AWAY", ["reviewing patches"]),
+            Line::new("AWAY", ["reviewing patches"]),
             ResponseMatcher::Away(true),
         ),
         (
             "SETNAME",
-            Message::new("SETNAME", ["Papo Test Client"]),
+            Line::new("SETNAME", ["Papo Test Client"]),
             ResponseMatcher::SetName("Papo Test Client".into()),
         ),
         (
             "OPER",
-            Message::new("OPER", ["papo", "correct horse battery staple"]),
+            Line::new("OPER", ["papo", "correct horse battery staple"]),
             ResponseMatcher::Oper,
         ),
         (
             "PING",
-            Message::new("PING", ["papo-lag-42"]),
+            Line::new("PING", ["papo-lag-42"]),
             ResponseMatcher::Ping("papo-lag-42".into()),
         ),
         (
             "LIST",
-            Message::new("LIST", Vec::<String>::new()),
+            Line::new("LIST", Vec::<String>::new()),
             ResponseMatcher::List,
         ),
     ];
@@ -896,7 +896,7 @@ fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
     let first = session
         .request_with_matcher(
             now,
-            Message::new("WHOIS", ["alice"]),
+            Line::new("WHOIS", ["alice"]),
             ResponseMatcher::Whois("alice".into()),
         )
         .unwrap();
@@ -911,7 +911,7 @@ fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
         session
             .request_with_matcher(
                 now,
-                Message::new("WHOIS", [format!("user{index}")]),
+                Line::new("WHOIS", [format!("user{index}")]),
                 ResponseMatcher::Whois(format!("user{index}")),
             )
             .unwrap();
@@ -919,7 +919,7 @@ fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
     assert_eq!(
         session.request_with_matcher(
             now,
-            Message::new("WHOIS", ["overflow"]),
+            Line::new("WHOIS", ["overflow"]),
             ResponseMatcher::Whois("overflow".into())
         ),
         Err(RequestError::PendingLimit)
@@ -937,12 +937,8 @@ fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
 fn resolves_a_labelled_echo_and_an_ack() {
     let now = Instant::now();
     let mut session = labelled_session(now);
-    let echo = request(
-        &mut session,
-        now,
-        Message::privmsg("#papo", "hello from papo"),
-    );
-    let mode = request(&mut session, now, Message::new("MODE", ["#papo", "+i"]));
+    let echo = request(&mut session, now, Line::privmsg("#papo", "hello from papo"));
+    let mode = request(&mut session, now, Line::new("MODE", ["#papo", "+i"]));
     session.handle_line(
         now,
         b"@label=0;msgid=RKi9Cw :papo!~papo@localhost PRIVMSG #papo :hello from papo",
@@ -974,11 +970,7 @@ fn exposes_the_msgid_and_time_of_a_labelled_echo() {
     session.handle_line(now, b"CAP * LS :echo-message labeled-response");
     session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
     while session.poll_transmit().is_some() {}
-    let id = request(
-        &mut session,
-        now,
-        Message::privmsg("#papo", "hello from papo"),
-    );
+    let id = request(&mut session, now, Line::privmsg("#papo", "hello from papo"));
     session.handle_line(
         now,
         b"@label=0;msgid=RKi9Cw;time=2026-10-15T12:00:01.000Z :papo!~papo@localhost PRIVMSG #papo :hello from papo",
@@ -1006,7 +998,7 @@ fn does_not_report_sent_info_for_a_non_message_request() {
     session.handle_line(now, b"CAP * LS :echo-message labeled-response");
     session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
     while session.poll_transmit().is_some() {}
-    request(&mut session, now, Message::new("WHOIS", ["alice"]));
+    request(&mut session, now, Line::new("WHOIS", ["alice"]));
     session.handle_line(
         now,
         b"@label=0;msgid=RKi9Cw :ergo.test 318 papo alice :End of /WHOIS list",
@@ -1025,7 +1017,7 @@ fn labelled_join_waits_for_state_sync_before_resolving() {
     let id = session
         .request_with_matcher(
             now,
-            Message::join("#papo"),
+            Line::join("#papo"),
             ResponseMatcher::Join("#papo".into()),
         )
         .unwrap();
@@ -1059,7 +1051,7 @@ fn labelled_join_times_out_once_when_sync_never_finishes() {
     let id = session
         .request_with_matcher(
             now,
-            Message::join("#papo"),
+            Line::join("#papo"),
             ResponseMatcher::Join("#papo".into()),
         )
         .unwrap();
@@ -1085,7 +1077,7 @@ fn labelled_join_without_an_echo_times_out_once() {
     let id = session
         .request_with_matcher(
             now,
-            Message::join("#papo"),
+            Line::join("#papo"),
             ResponseMatcher::Join("#papo".into()),
         )
         .unwrap();
@@ -1110,7 +1102,7 @@ fn own_part_or_kick_ends_a_labelled_join_during_sync() {
         let id = session
             .request_with_matcher(
                 now,
-                Message::join("#papo"),
+                Line::join("#papo"),
                 ResponseMatcher::Join("#papo".into()),
             )
             .unwrap();
@@ -1141,7 +1133,7 @@ fn other_join_departures_do_not_end_a_labelled_join() {
         let id = session
             .request_with_matcher(
                 now,
-                Message::join("#papo"),
+                Line::join("#papo"),
                 ResponseMatcher::Join("#papo".into()),
             )
             .unwrap();
@@ -1169,7 +1161,7 @@ fn other_join_departures_do_not_end_a_labelled_join() {
 fn resolves_a_recorded_ergo_whois_batch_once() {
     let now = Instant::now();
     let mut session = labelled_session(now);
-    let id = request(&mut session, now, Message::new("WHOIS", ["alice"]));
+    let id = request(&mut session, now, Line::new("WHOIS", ["alice"]));
     session.handle_line(now, b"@label=0 :ergo.test BATCH +whois-42 labeled-response");
     for line in [
         "@batch=whois-42 :ergo.test 311 papo alice ~alice localhost * :Alice Example",
@@ -1195,7 +1187,7 @@ fn resolves_a_recorded_ergo_whois_batch_once() {
 fn pending_non_history_batch_dispatches_protocol_state() {
     let now = Instant::now();
     let mut session = labelled_session(now);
-    let id = request(&mut session, now, Message::join("#papo"));
+    let id = request(&mut session, now, Line::join("#papo"));
     session.handle_line(now, b"@label=0 :ergo.test BATCH +join-42 labeled-response");
     session.handle_line(
         now,
@@ -1221,7 +1213,7 @@ fn links_nested_chathistory_to_its_response() {
     let id = request(
         &mut session,
         now,
-        Message::new("CHATHISTORY", ["LATEST", "#papo", "*", "50"]),
+        Line::new("CHATHISTORY", ["LATEST", "#papo", "*", "50"]),
     );
     session.handle_line(now, b"@label=0 :ergo.test BATCH +reply labeled-response");
     session.handle_line(
@@ -1320,9 +1312,9 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
     request(
         &mut session,
         now,
-        Message::new("CHATHISTORY", ["LATEST", "#papo", "bad", "50"]),
+        Line::new("CHATHISTORY", ["LATEST", "#papo", "bad", "50"]),
     );
-    request(&mut session, now, Message::new("WHOIS", ["missing"]));
+    request(&mut session, now, Line::new("WHOIS", ["missing"]));
     session.handle_line(now, b"@label=0 :ergo.test BATCH +failure labeled-response");
     session.handle_line(
         now,
@@ -1419,7 +1411,7 @@ fn classifies_common_numeric_refusals() {
 
     for (line, expected) in cases {
         let mut session = labelled_session(now);
-        request(&mut session, now, Message::new("RAW", ["probe"]));
+        request(&mut session, now, Line::new("RAW", ["probe"]));
         session.handle_line(now, format!("@label=0 :ergo.test {line}").as_bytes());
         let Some(Event::Response(response)) = session.poll_event() else {
             panic!("expected refusal response for {line}")
@@ -1432,7 +1424,7 @@ fn classifies_common_numeric_refusals() {
 fn times_out_and_releases_a_label_for_late_delivery() {
     let now = Instant::now();
     let mut session = labelled_session(now);
-    let id = request(&mut session, now, Message::new("WHOIS", ["alice"]));
+    let id = request(&mut session, now, Line::new("WHOIS", ["alice"]));
     assert_eq!(
         session.poll_timeout(),
         Some(now + std::time::Duration::from_secs(30))
@@ -1456,7 +1448,7 @@ fn times_out_and_releases_a_label_for_late_delivery() {
 fn aborts_pending_requests_on_disconnect() {
     let now = Instant::now();
     let mut session = labelled_session(now);
-    let id = request(&mut session, now, Message::new("WHOIS", ["alice"]));
+    let id = request(&mut session, now, Line::new("WHOIS", ["alice"]));
     session.handle_disconnected(now);
     assert!(
         matches!(session.poll_event(), Some(Event::RequestAborted { id: aborted }) if aborted == id)
@@ -1469,11 +1461,11 @@ fn bounds_pending_requests_at_the_literal_limit() {
     let mut session = labelled_session(now);
     for nick in 0..256 {
         session
-            .request(now, Message::new("WHOIS", [format!("user{nick}")]))
+            .request(now, Line::new("WHOIS", [format!("user{nick}")]))
             .unwrap();
     }
     assert_eq!(
-        session.request(now, Message::new("WHOIS", ["overflow"])),
+        session.request(now, Line::new("WHOIS", ["overflow"])),
         Err(RequestError::PendingLimit)
     );
 }
@@ -1485,7 +1477,7 @@ fn labelled_join_fallbacks_obey_the_literal_pending_limit() {
     for channel in 0..256 {
         let channel = format!("#project-{channel}");
         session
-            .request_with_matcher(now, Message::join(&channel), ResponseMatcher::Join(channel))
+            .request_with_matcher(now, Line::join(&channel), ResponseMatcher::Join(channel))
             .unwrap();
         let line = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
         let label = LineRef::parse(&line)
@@ -1499,7 +1491,7 @@ fn labelled_join_fallbacks_obey_the_literal_pending_limit() {
     assert_eq!(
         session.request_with_matcher(
             now,
-            Message::join("#overflow"),
+            Line::join("#overflow"),
             ResponseMatcher::Join("#overflow".into()),
         ),
         Err(RequestError::PendingLimit)
@@ -1521,7 +1513,7 @@ fn generates_one_thousand_distinct_short_alphanumeric_labels() {
     let mut labels = std::collections::BTreeSet::new();
     for nick in 0..1_000 {
         session
-            .request(now, Message::new("WHOIS", [format!("user{nick}")]))
+            .request(now, Line::new("WHOIS", [format!("user{nick}")]))
             .unwrap();
         let line = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
         let message = LineRef::parse(&line).unwrap();
