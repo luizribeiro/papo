@@ -1274,13 +1274,23 @@ impl core::marker::UnsafeUnpin for papo::AccountRegistration
 impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountRegistration
 impl core::panic::unwind_safe::UnwindSafe for papo::AccountRegistration
 #[non_exhaustive] pub enum papo::ConnectErrorKind
+pub papo::ConnectErrorKind::AccountRequired
+pub papo::ConnectErrorKind::Banned
 pub papo::ConnectErrorKind::CertificateRejected
 pub papo::ConnectErrorKind::HandshakeFailed
 pub papo::ConnectErrorKind::HostNotFound
 pub papo::ConnectErrorKind::Other
+pub papo::ConnectErrorKind::PasswordIncorrect
 pub papo::ConnectErrorKind::Refused
+pub papo::ConnectErrorKind::Sasl
+pub papo::ConnectErrorKind::SaslUnavailable
+pub papo::ConnectErrorKind::Server
+pub papo::ConnectErrorKind::StsUpgradeLoop
+pub papo::ConnectErrorKind::TimedOut
 pub papo::ConnectErrorKind::Unavailable
 pub papo::ConnectErrorKind::Unreachable
+pub papo::ConnectErrorKind::WebIrcRejected
+pub papo::ConnectErrorKind::WelcomeTimedOut
 impl core::clone::Clone for papo::ConnectErrorKind
 pub fn papo::ConnectErrorKind::clone(&self) -> Self
 impl core::cmp::Eq for papo::ConnectErrorKind

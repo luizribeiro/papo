@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{InvalidInput, Refusal, Unsupported};
 
-/// Broad classification of a connection-opening failure.
+/// Broad classification of a connection or login failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ConnectErrorKind {
@@ -14,17 +14,37 @@ pub enum ConnectErrorKind {
     Refused,
     /// The remote endpoint could not be reached.
     Unreachable,
+    /// Opening the network or TLS connection timed out.
+    TimedOut,
     /// The server certificate was rejected.
     CertificateRejected,
     /// TLS or WebSocket negotiation failed.
     HandshakeFailed,
     /// This build or target cannot open the requested endpoint.
     Unavailable,
-    /// Another connection-opening failure occurred.
+    /// Required SASL authentication failed.
+    Sasl,
+    /// The server does not offer a usable SASL mechanism.
+    SaslUnavailable,
+    /// The server requires an authenticated account.
+    AccountRequired,
+    /// The server rejected the connection password.
+    PasswordIncorrect,
+    /// The server banned this connection.
+    Banned,
+    /// The server rejected the gateway's `WEBIRC` command.
+    WebIrcRejected,
+    /// A server requested consecutive STS upgrades without completing login.
+    StsUpgradeLoop,
+    /// The server rejected login for another reason.
+    Server,
+    /// The server did not welcome the client before the login deadline.
+    WelcomeTimedOut,
+    /// Another connection or login failure occurred.
     Other,
 }
 
-/// An opaque, cloneable error from opening a network connection.
+/// An opaque, cloneable error from opening a network connection or logging in.
 ///
 /// Equality compares the stable [`ConnectErrorKind`] and the text of the
 /// underlying error.
@@ -70,6 +90,11 @@ impl ConnectError {
             {
                 ConnectErrorKind::Refused
             }
+            crate::transport::ConnectError::Tcp(error)
+                if error.kind() == io::ErrorKind::TimedOut =>
+            {
+                ConnectErrorKind::TimedOut
+            }
             crate::transport::ConnectError::Tcp(_) => ConnectErrorKind::Unreachable,
             #[cfg(tls)]
             crate::transport::ConnectError::Tls(rustls::Error::InvalidCertificate(_)) => {
@@ -106,10 +131,20 @@ impl fmt::Display for ConnectError {
             ConnectErrorKind::HostNotFound => "the server host could not be found",
             ConnectErrorKind::Refused => "the server refused the connection",
             ConnectErrorKind::Unreachable => "the server could not be reached",
+            ConnectErrorKind::TimedOut => "the connection attempt timed out",
             ConnectErrorKind::CertificateRejected => "the server certificate was rejected",
             ConnectErrorKind::HandshakeFailed => "the connection handshake failed",
             ConnectErrorKind::Unavailable => "the requested connection transport is unavailable",
-            ConnectErrorKind::Other => "the connection could not be opened",
+            ConnectErrorKind::Sasl => "SASL authentication failed",
+            ConnectErrorKind::SaslUnavailable => "SASL authentication is unavailable",
+            ConnectErrorKind::AccountRequired => "the server requires an authenticated account",
+            ConnectErrorKind::PasswordIncorrect => "the server rejected the connection password",
+            ConnectErrorKind::Banned => "the server banned this connection",
+            ConnectErrorKind::WebIrcRejected => "the server rejected the WEBIRC gateway",
+            ConnectErrorKind::StsUpgradeLoop => "the server repeatedly requested an STS upgrade",
+            ConnectErrorKind::Server => "the server rejected the connection",
+            ConnectErrorKind::WelcomeTimedOut => "IRC login timed out",
+            ConnectErrorKind::Other => "the connection could not be completed",
         };
         formatter.write_str(message)
     }
@@ -628,6 +663,12 @@ mod tests {
             "peer reset",
         )));
         assert_eq!(unreachable.kind(), ConnectErrorKind::Unreachable);
+
+        let timed_out = ConnectError::from(crate::transport::ConnectError::Tcp(io::Error::new(
+            io::ErrorKind::TimedOut,
+            "connection attempt expired",
+        )));
+        assert_eq!(timed_out.kind(), ConnectErrorKind::TimedOut);
     }
 
     #[test]
@@ -764,9 +805,19 @@ mod tests {
             ConnectErrorKind::HostNotFound,
             ConnectErrorKind::Refused,
             ConnectErrorKind::Unreachable,
+            ConnectErrorKind::TimedOut,
             ConnectErrorKind::CertificateRejected,
             ConnectErrorKind::HandshakeFailed,
             ConnectErrorKind::Unavailable,
+            ConnectErrorKind::Sasl,
+            ConnectErrorKind::SaslUnavailable,
+            ConnectErrorKind::AccountRequired,
+            ConnectErrorKind::PasswordIncorrect,
+            ConnectErrorKind::Banned,
+            ConnectErrorKind::WebIrcRejected,
+            ConnectErrorKind::StsUpgradeLoop,
+            ConnectErrorKind::Server,
+            ConnectErrorKind::WelcomeTimedOut,
             ConnectErrorKind::Other,
         ] {
             let error = ConnectError::new(kind, io::Error::other("recorded cause"));
