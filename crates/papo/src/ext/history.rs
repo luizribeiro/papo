@@ -41,7 +41,14 @@ pub enum HistoryItem {
     ///
     /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
     /// and logging; a future version may type it.
-    Other(Line),
+    Other {
+        /// The untyped wire line.
+        line: Line,
+        /// The server-assigned identifier, when supplied.
+        msgid: Option<crate::MessageId>,
+        /// Valid server time, or the local receipt time when none was supplied.
+        time: SystemTime,
+    },
 }
 
 impl HistoryItem {
@@ -58,12 +65,24 @@ impl HistoryItem {
     #[must_use]
     pub const fn as_other(&self) -> Option<&Line> {
         match self {
-            Self::Other(line) => Some(line),
+            Self::Other { line, .. } => Some(line),
             _ => None,
         }
     }
 }
 
+fn other(line: Line, received_at: SystemTime) -> HistoryItem {
+    let parsed = line.as_ref();
+    let msgid = parsed.tag("msgid").map(|value| value.as_ref().into());
+    let time = parsed
+        .tag("time")
+        .or_else(|| parsed.tag("znc.in/server-time-iso"))
+        .and_then(|value| papo_proto::time::parse(&value))
+        .unwrap_or(received_at);
+    HistoryItem::Other { line, msgid, time }
+}
+
+#[allow(clippy::too_many_lines)]
 pub(crate) fn history_item(
     item: papo_core::HistoryItem,
     history_conversation: Option<&crate::Conversation>,
@@ -82,9 +101,9 @@ pub(crate) fn history_item(
                 }
                 _ => ChatMessage::from_replay(item.line, authorship, client, received_at),
             };
-            message.map_or_else(HistoryItem::Other, HistoryItem::Message)
+            message.map_or_else(|line| other(line, received_at), HistoryItem::Message)
         }
-        papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, |message| {
+        papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, received_at, |message| {
             reaction(
                 message,
                 crate::Authorship::from_core(item.authorship),
@@ -94,17 +113,19 @@ pub(crate) fn history_item(
                 received_at,
             )
         }),
-        papo_core::HistoryItem::Redacted(item) => typed_or_raw(&item.line, |message| {
-            redaction(
-                message,
-                crate::Authorship::from_core(item.authorship),
-                mapping,
-                state.nick(),
-                state.isupport().inner(),
-                received_at,
-            )
-        }),
-        papo_core::HistoryItem::Joined(item) => typed_or_raw(&item.line, |message| {
+        papo_core::HistoryItem::Redacted(item) => {
+            typed_or_raw(&item.line, received_at, |message| {
+                redaction(
+                    message,
+                    crate::Authorship::from_core(item.authorship),
+                    mapping,
+                    state.nick(),
+                    state.isupport().inner(),
+                    received_at,
+                )
+            })
+        }
+        papo_core::HistoryItem::Joined(item) => typed_or_raw(&item.line, received_at, |message| {
             joined(
                 message,
                 crate::Authorship::from_core(item.authorship),
@@ -112,7 +133,7 @@ pub(crate) fn history_item(
                 received_at,
             )
         }),
-        papo_core::HistoryItem::Parted(item) => typed_or_raw(&item.line, |message| {
+        papo_core::HistoryItem::Parted(item) => typed_or_raw(&item.line, received_at, |message| {
             parted(
                 message,
                 crate::Authorship::from_core(item.authorship),
@@ -120,7 +141,7 @@ pub(crate) fn history_item(
                 received_at,
             )
         }),
-        papo_core::HistoryItem::Quit(item) => typed_or_raw(&item.line, |message| {
+        papo_core::HistoryItem::Quit(item) => typed_or_raw(&item.line, received_at, |message| {
             quit(
                 message,
                 crate::Authorship::from_core(item.authorship),
@@ -129,7 +150,7 @@ pub(crate) fn history_item(
                 received_at,
             )
         }),
-        papo_core::HistoryItem::Kicked(item) => typed_or_raw(&item.line, |message| {
+        papo_core::HistoryItem::Kicked(item) => typed_or_raw(&item.line, received_at, |message| {
             kicked(
                 message,
                 crate::Authorship::from_core(item.authorship),
@@ -138,43 +159,49 @@ pub(crate) fn history_item(
                 received_at,
             )
         }),
-        papo_core::HistoryItem::NickChanged(item) => typed_or_raw(&item.line, |message| {
-            nick_changed(
-                message,
-                crate::Authorship::from_core(item.authorship),
-                client,
-                received_at,
-            )
-        }),
-        papo_core::HistoryItem::TopicChanged(item) => typed_or_raw(&item.line, |message| {
-            topic_changed(
-                message,
-                crate::Authorship::from_core(item.authorship),
-                mapping,
-                received_at,
-            )
-        }),
-        papo_core::HistoryItem::ModeChanged(item) => typed_or_raw(&item.line, |message| {
-            mode_changed(
-                message,
-                crate::Authorship::from_core(item.authorship),
-                crate::Authorship::from_core(item.subject_authorship),
-                client,
-                received_at,
-            )
-        }),
+        papo_core::HistoryItem::NickChanged(item) => {
+            typed_or_raw(&item.line, received_at, |message| {
+                nick_changed(
+                    message,
+                    crate::Authorship::from_core(item.authorship),
+                    client,
+                    received_at,
+                )
+            })
+        }
+        papo_core::HistoryItem::TopicChanged(item) => {
+            typed_or_raw(&item.line, received_at, |message| {
+                topic_changed(
+                    message,
+                    crate::Authorship::from_core(item.authorship),
+                    mapping,
+                    received_at,
+                )
+            })
+        }
+        papo_core::HistoryItem::ModeChanged(item) => {
+            typed_or_raw(&item.line, received_at, |message| {
+                mode_changed(
+                    message,
+                    crate::Authorship::from_core(item.authorship),
+                    crate::Authorship::from_core(item.subject_authorship),
+                    client,
+                    received_at,
+                )
+            })
+        }
         item => {
             let raw = item.into_line().line;
-            HistoryItem::Other(raw)
+            other(raw, received_at)
         }
     }
 }
 
-fn typed_or_raw<F>(raw: &papo_proto::Line, convert: F) -> HistoryItem
+fn typed_or_raw<F>(raw: &papo_proto::Line, received_at: SystemTime, convert: F) -> HistoryItem
 where
     F: FnOnce(&papo_proto::LineRef<'_>) -> Option<HistoryItem>,
 {
-    convert(&raw.as_ref()).unwrap_or_else(|| HistoryItem::Other(raw.clone()))
+    convert(&raw.as_ref()).unwrap_or_else(|| other(raw.clone(), received_at))
 }
 
 fn reaction(
@@ -1080,7 +1107,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
-        assert!(matches!(item, HistoryItem::Other(line) if line.command() == "REDACT"));
+        assert!(matches!(item, HistoryItem::Other { line, .. } if line.command() == "REDACT"));
     }
 
     #[test]

@@ -1462,7 +1462,10 @@ pub papo::HistoryItem::Kicked(papo::event::Kicked)
 pub papo::HistoryItem::Message(papo::Message)
 pub papo::HistoryItem::ModeChanged(papo::event::ModeChanged)
 pub papo::HistoryItem::NickChanged(papo::event::NickChanged)
-pub papo::HistoryItem::Other(papo::Line)
+pub papo::HistoryItem::Other
+pub papo::HistoryItem::Other::line: papo::Line
+pub papo::HistoryItem::Other::msgid: core::option::Option<papo::MessageId>
+pub papo::HistoryItem::Other::time: std::time::SystemTime
 pub papo::HistoryItem::Parted(papo::event::Parted)
 pub papo::HistoryItem::Quit(papo::event::Quit)
 pub papo::HistoryItem::Reacted(papo::event::Reacted)
