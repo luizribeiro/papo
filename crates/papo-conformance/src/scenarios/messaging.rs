@@ -20,7 +20,7 @@ async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, S
         .await?;
     assert_eq!(joined.channel.as_ref(), channel);
     assert_eq!(joined.nick, bob_nick);
-    assert!(!joined.is_self);
+    assert_eq!(joined.authorship, papo::Authorship::Other);
     for peer in [&alice, &bob] {
         let state = peer.state();
         let members = state.channel(&channel).expect("joined channel is in state");

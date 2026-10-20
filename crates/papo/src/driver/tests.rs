@@ -619,7 +619,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel("#papo"),
             nick: test_nick("papo-driver"),
             authorship: crate::Authorship::Own,
-            is_self: true,
         }),
     );
     super::update_rejoin_channels(
@@ -629,7 +628,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel("#visitors"),
             nick: test_nick("alice"),
             authorship: crate::Authorship::Other,
-            is_self: false,
         }),
     );
     assert_eq!(defaults.channels.len(), 2);
@@ -642,7 +640,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             nick: test_nick("alice"),
             reason: Some("lunch".into()),
             authorship: crate::Authorship::Other,
-            is_self: false,
         }),
     );
     super::update_rejoin_channels(
@@ -670,7 +667,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             nick: test_nick("papo-driver"),
             reason: None,
             authorship: crate::Authorship::Own,
-            is_self: true,
         }),
     );
     assert_eq!(defaults.parted_while_disconnected, ["#rust"]);
@@ -3298,7 +3294,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
     let joined = events.next().await.unwrap().as_joined().unwrap().clone();
     assert_eq!(joined.nick, "papo-renamed");
     assert_eq!(joined.channel, "#papo-self");
-    assert!(joined.is_self);
+    assert_eq!(joined.authorship, crate::Authorship::Own);
     server_line(
         &mut server,
         b":ergo.test 353 papo-renamed = #papo-self :@papo-renamed\r\n:ergo.test 366 papo-renamed #papo-self :End of /NAMES list\r\n",

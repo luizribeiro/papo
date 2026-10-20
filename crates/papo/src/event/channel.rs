@@ -43,8 +43,6 @@ pub struct Joined {
     pub nick: Nick,
     /// Whether the joining user is this client's user.
     pub authorship: Authorship,
-    /// Whether the joining user is this client.
-    pub is_self: bool,
 }
 
 /// Initial channel membership synchronization completed.
@@ -67,8 +65,6 @@ pub struct Parted {
     pub reason: Option<String>,
     /// Whether the departing user is this client's user.
     pub authorship: Authorship,
-    /// Whether the departing user is this client.
-    pub is_self: bool,
 }
 
 /// A user was removed from a shared channel with `KICK`.

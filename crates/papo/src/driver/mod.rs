@@ -1536,7 +1536,7 @@ where
 
 fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event: &Event) {
     match event {
-        Event::Joined(joined) if joined.is_self => {
+        Event::Joined(joined) if joined.authorship == crate::Authorship::Own => {
             if !defaults
                 .channels
                 .iter()
@@ -1547,7 +1547,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
                     .push(Autojoin::new(joined.channel.as_ref(), None));
             }
         }
-        Event::Parted(parted) if parted.is_self => {
+        Event::Parted(parted) if parted.authorship == crate::Authorship::Own => {
             defaults
                 .channels
                 .retain(|entry| parted.channel != entry.channel.as_str());
@@ -1572,7 +1572,7 @@ fn part_restored_channel(
     let Event::Joined(joined) = event else {
         return Ok(false);
     };
-    if !joined.is_self
+    if joined.authorship != crate::Authorship::Own
         || !defaults
             .parted_while_disconnected
             .iter()

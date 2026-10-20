@@ -90,7 +90,6 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, is_self: b
         } else {
             Authorship::Other
         },
-        is_self,
     }
 }
 
@@ -131,7 +130,7 @@ mod tests {
             true,
         );
         assert_eq!(joined.channel.as_ref(), "#papo");
-        assert!(joined.is_self);
+        assert_eq!(joined.authorship, crate::Authorship::Own);
 
         let connected = connected(crate::Casemapping::default().nick("bob"));
         assert_eq!(connected.nick, "bob");

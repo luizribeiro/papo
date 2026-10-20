@@ -758,16 +758,9 @@ impl Event {
             return;
         }
         match self {
-            Self::Joined(joined) => joined.is_self = joined.nick == nick,
-            Self::Parted(parted) => parted.is_self = parted.nick == nick,
             Self::Kicked(kicked) => kicked.is_self = kicked.nick == nick,
             Self::Invited(invited) => invited.is_self = invited.nick == nick,
             _ => {}
-        }
-        if let Self::Netjoin(netjoin) = self {
-            for joined in &mut netjoin.joins {
-                joined.is_self = joined.nick == nick;
-            }
         }
     }
 }
@@ -991,7 +984,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                         channel: casemapping.channel(message.param(0)?),
                         nick: casemapping.nick(nick),
                         authorship: Authorship::from_core(authorship),
-                        is_self: false,
                     })
                 })
                 .collect(),
@@ -1035,7 +1027,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             channel,
             nick,
             authorship: Authorship::from_core(authorship),
-            is_self: false,
         }),
         papo_core::Event::ChannelSynced { channel } => {
             Event::ChannelSynced(ChannelSynced { channel })
@@ -1050,7 +1041,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             nick,
             reason,
             authorship: Authorship::from_core(authorship),
-            is_self: false,
         }),
         papo_core::Event::Kicked {
             channel,
@@ -2308,14 +2298,12 @@ mod tests {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 authorship: crate::Authorship::Own,
-                is_self: false,
             }),
             Event::Parted(super::Parted {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 reason: None,
                 authorship: crate::Authorship::Own,
-                is_self: false,
             }),
             Event::Kicked(super::Kicked {
                 channel: mapping.channel("#papo"),
@@ -2344,7 +2332,6 @@ mod tests {
                     channel: mapping.channel("#papo"),
                     nick: mapping.nick("Papo[Bot]"),
                     authorship: crate::Authorship::Own,
-                    is_self: false,
                 }],
             }),
         ];
@@ -2352,18 +2339,29 @@ mod tests {
         for event in &mut events {
             event.mark_self("papo{bot}");
         }
-        assert!(events[0].as_joined().unwrap().is_self);
-        assert!(events[1].as_parted().unwrap().is_self);
+        assert_eq!(
+            events[0].as_joined().unwrap().authorship,
+            crate::Authorship::Own
+        );
+        assert_eq!(
+            events[1].as_parted().unwrap().authorship,
+            crate::Authorship::Own
+        );
         assert!(events[2].as_kicked().unwrap().is_self);
         assert!(events[3].as_invited().unwrap().is_self);
         assert!(events[4].as_nick_changed().unwrap().is_self);
-        assert!(events[5].as_netjoin().unwrap().joins[0].is_self);
+        assert_eq!(
+            events[5].as_netjoin().unwrap().joins[0].authorship,
+            crate::Authorship::Own
+        );
 
         events[4].mark_self("PAPO-AWAY");
         assert!(events[4].as_nick_changed().unwrap().is_self);
 
-        events[0].mark_self("someone-else");
-        assert!(!events[0].as_joined().unwrap().is_self);
+        assert_eq!(
+            events[0].as_joined().unwrap().authorship,
+            crate::Authorship::Own
+        );
     }
 
     #[test]

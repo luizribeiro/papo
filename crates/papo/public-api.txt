@@ -504,7 +504,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Invited
 #[non_exhaustive] pub struct papo::event::Joined
 pub papo::event::Joined::authorship: papo::Authorship
 pub papo::event::Joined::channel: papo::ChannelName
-pub papo::event::Joined::is_self: bool
 pub papo::event::Joined::nick: papo::Nick
 impl core::clone::Clone for papo::event::Joined
 pub fn papo::event::Joined::clone(&self) -> Self
@@ -712,7 +711,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
 #[non_exhaustive] pub struct papo::event::Parted
 pub papo::event::Parted::authorship: papo::Authorship
 pub papo::event::Parted::channel: papo::ChannelName
-pub papo::event::Parted::is_self: bool
 pub papo::event::Parted::nick: papo::Nick
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::event::Parted

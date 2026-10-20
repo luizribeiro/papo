@@ -84,6 +84,6 @@ pub(super) async fn join_seen_by(
         .await?;
     assert_eq!(joined.channel.as_ref(), channel);
     assert_eq!(joined.nick, member_nick);
-    assert!(!joined.is_self);
+    assert_eq!(joined.authorship, papo::Authorship::Other);
     Ok(())
 }

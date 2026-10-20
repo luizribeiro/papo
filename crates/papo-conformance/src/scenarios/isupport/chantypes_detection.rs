@@ -40,7 +40,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
             .await?;
         assert_eq!(joined.channel.as_ref(), name);
         assert_eq!(joined.nick, bob_nick);
-        assert!(!joined.is_self);
+        assert_eq!(joined.authorship, papo::Authorship::Other);
 
         let text = format!("hello {c} channel");
         bob.privmsg(&name, text.clone()).await?;

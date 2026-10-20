@@ -187,7 +187,6 @@ fn joined(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryI
     Some(HistoryItem::Joined(Joined {
         channel: mapping.channel(message.param(0)?),
         authorship: crate::Authorship::Unknown,
-        is_self: is_self(client, &nick),
         nick: mapping.nick(nick),
     }))
 }
@@ -198,7 +197,6 @@ fn parted(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryI
     Some(HistoryItem::Parted(Parted {
         channel: mapping.channel(message.param(0)?),
         authorship: crate::Authorship::Unknown,
-        is_self: is_self(client, &nick),
         nick: mapping.nick(nick),
         reason: message.param(1).map(str::to_owned),
     }))
@@ -899,7 +897,8 @@ mod tests {
         assert!(matches!(
             joined,
             HistoryItem::Joined(event)
-                if event.channel == "#papo" && event.nick == "emily" && !event.is_self
+                if event.channel == "#papo" && event.nick == "emily"
+                    && event.authorship == crate::Authorship::Unknown
         ));
 
         let joined = history_item(
@@ -910,7 +909,8 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::Replay,
         );
-        assert!(matches!(joined, HistoryItem::Joined(event) if event.is_self));
+        assert!(matches!(joined, HistoryItem::Joined(event)
+            if event.authorship == crate::Authorship::Unknown));
     }
 
     #[test]
@@ -925,7 +925,8 @@ mod tests {
             parted,
             HistoryItem::Parted(event)
                 if event.channel == "#papo" && event.nick == "emily"
-                    && event.reason.as_deref() == Some("Leaving for lunch") && !event.is_self
+                    && event.reason.as_deref() == Some("Leaving for lunch")
+                    && event.authorship == crate::Authorship::Unknown
         ));
 
         let quit = map(papo_core::HistoryItem::Quit(core_item(
