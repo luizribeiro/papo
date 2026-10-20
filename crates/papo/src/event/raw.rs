@@ -127,13 +127,13 @@ fn escape_tag(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::MessageRef;
+    use papo_proto::LineRef;
 
     use super::{RawLine, Source};
 
     #[test]
     fn owns_and_formats_every_wire_component() {
-        let message = MessageRef::parse(
+        let message = LineRef::parse(
             "@account=alice;example.org/note=one\\stwo\\:three :alice!~a@cloak.example NOTICE #papo :maintenance soon",
         )
         .unwrap()
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn preserves_bare_tags_and_empty_trailing_parameters() {
-        let message = MessageRef::parse("@bot :ergo.test 372 papo :")
+        let message = LineRef::parse("@bot :ergo.test 372 papo :")
             .unwrap()
             .to_owned();
         let line = RawLine::from_proto(&message);
@@ -178,7 +178,7 @@ mod tests {
         assert_eq!(line.source().unwrap().to_string(), "ergo.test");
         assert_eq!(line.to_string(), "@bot= :ergo.test 372 papo :");
 
-        let mode = MessageRef::parse(":papo-driver!papo@localhost MODE #papo +o alice")
+        let mode = LineRef::parse(":papo-driver!papo@localhost MODE #papo +o alice")
             .unwrap()
             .to_owned();
         assert_eq!(

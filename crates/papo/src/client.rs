@@ -8,7 +8,7 @@ use std::{
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
-use papo_proto::{Ctcp, Message, MessageRef, Typing, time};
+use papo_proto::{Ctcp, LineRef, Message, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
@@ -1195,7 +1195,7 @@ fn parse_raw(line: &str) -> Result<Message, Error> {
             InvalidInput::InvalidMessage("raw IRC line contains CR, LF, or NUL".into()).into(),
         );
     }
-    MessageRef::parse(line)
+    LineRef::parse(line)
         .map(|message| message.to_owned())
         .map_err(|_| InvalidInput::InvalidMessage("malformed raw IRC line".into()).into())
 }

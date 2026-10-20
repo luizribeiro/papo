@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use papo_proto::MessageRef;
+use papo_proto::LineRef;
 use proptest::{prelude::*, strategy::ValueTree, test_runner::TestRunner};
 use tokio::io::AsyncReadExt;
 
@@ -45,7 +45,7 @@ async fn read_line(server: &mut DuplexStream) -> Vec<u8> {
     }
 }
 
-fn validate_line(line: &[u8]) -> papo_proto::MessageRef<'_> {
+fn validate_line(line: &[u8]) -> papo_proto::LineRef<'_> {
     assert!(line.ends_with(b"\r\n"));
     let content = &line[..line.len() - 2];
     assert!(!content.contains(&b'\r'));
@@ -58,7 +58,7 @@ fn validate_line(line: &[u8]) -> papo_proto::MessageRef<'_> {
     let body_start = usize::from(tag_len != 0) * (tag_len + 2);
     assert!(line.len() - body_start <= 512);
     assert!(tag_len <= 4094);
-    MessageRef::parse_bytes(line).unwrap()
+    LineRef::parse_bytes(line).unwrap()
 }
 
 type Action = Pin<Box<dyn Future<Output = Result<(), Error>>>>;

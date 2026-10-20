@@ -4,8 +4,8 @@ use std::time::SystemTime;
 #[cfg(feature = "unstable")]
 use papo_proto::Nick;
 use papo_proto::{
-    AccountName, ChannelName, Ctcp as ProtoCtcp, Isupport, Message as ProtoMessage, MessageId,
-    MessageRef, Target, strip_formatting, time,
+    AccountName, ChannelName, Ctcp as ProtoCtcp, Isupport, LineRef, Message as ProtoMessage,
+    MessageId, Target, strip_formatting, time,
 };
 
 use crate::Client;
@@ -492,7 +492,7 @@ pub(crate) fn allowed_alias<'a>(
         .or_else(|| (!denied.denies(fallback)).then_some(fallback))
 }
 
-fn tag_owned(message: &MessageRef<'_>, keys: &[&str]) -> Option<String> {
+fn tag_owned(message: &LineRef<'_>, keys: &[&str]) -> Option<String> {
     keys.iter()
         .find_map(|key| message.tag(key).map(std::borrow::Cow::into_owned))
 }
@@ -1078,7 +1078,7 @@ mod tests {
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
-    use papo_proto::{Isupport, Message, MessageRef, ModeKind as ProtoModeKind, Typing};
+    use papo_proto::{Isupport, LineRef, Message, ModeKind as ProtoModeKind, Typing};
 
     fn event(
         message: Message,
@@ -1191,7 +1191,7 @@ mod tests {
     fn ignores_channel_context_on_channel_messages() {
         let tagged = |line| {
             event(
-                MessageRef::parse(line).unwrap().to_owned(),
+                LineRef::parse(line).unwrap().to_owned(),
                 &Isupport::default(),
                 "papo",
                 UNIX_EPOCH,
@@ -1271,7 +1271,7 @@ mod tests {
     fn exposes_oper_tags_with_optional_names() {
         let tagged = |line| {
             event(
-                MessageRef::parse(line).unwrap().to_owned(),
+                LineRef::parse(line).unwrap().to_owned(),
                 &Isupport::default(),
                 "papo",
                 UNIX_EPOCH,

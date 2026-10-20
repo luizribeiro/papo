@@ -1387,7 +1387,7 @@ fn remember_rejoin(session: &Session, defaults: &mut PostRegistration, entry: Au
 fn drop_bad_rejoin_key(
     session: &Session,
     defaults: &mut PostRegistration,
-    message: &papo_proto::MessageRef<'_>,
+    message: &papo_proto::LineRef<'_>,
 ) {
     if message.command() != ProtoCommand::Numeric(Numeric::ERR_BADCHANNELKEY) {
         return;

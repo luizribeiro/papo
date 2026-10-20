@@ -99,12 +99,12 @@ pub(crate) fn history_item(
 
 fn typed_or_raw<F>(raw: &papo_proto::Message, convert: F) -> HistoryItem
 where
-    F: FnOnce(&papo_proto::MessageRef<'_>) -> Option<HistoryItem>,
+    F: FnOnce(&papo_proto::LineRef<'_>) -> Option<HistoryItem>,
 {
     convert(&raw.as_ref()).unwrap_or_else(|| HistoryItem::Other(RawLine::from_proto(raw)))
 }
 
-fn reaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
+fn reaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
     let reaction = Reaction::parse(message)?;
     let target = message.param(0)?.to_owned();
     let reply_to = reaction.reply_to.clone();
@@ -121,7 +121,7 @@ fn reaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
     }))
 }
 
-fn redaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
+fn redaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
     Some(HistoryItem::Redacted(Redacted {
         source: message.source().map(Source::from_proto),
         target: message.param(0)?.into(),
@@ -133,7 +133,7 @@ fn redaction(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
     }))
 }
 
-fn joined(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn joined(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
     Some(HistoryItem::Joined(Joined {
         channel: message.param(0)?.into(),
@@ -142,7 +142,7 @@ fn joined(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<Histo
     }))
 }
 
-fn parted(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn parted(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
     Some(HistoryItem::Parted(Parted {
         channel: message.param(0)?.into(),
@@ -152,7 +152,7 @@ fn parted(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<Histo
     }))
 }
 
-fn quit(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
+fn quit(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
     Some(HistoryItem::Quit(Quit {
         nick: source_nick(message)?.into(),
         reason: message.param(0).map(str::to_owned),
@@ -160,7 +160,7 @@ fn quit(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
     }))
 }
 
-fn kicked(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn kicked(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let nick = message.param(1)?.to_owned();
     Some(HistoryItem::Kicked(Kicked {
         channel: message.param(0)?.into(),
@@ -171,7 +171,7 @@ fn kicked(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<Histo
     }))
 }
 
-fn nick_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn nick_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let old = source_nick(message)?;
     Some(HistoryItem::NickChanged(NickChanged {
         is_self: is_self(client, &old),
@@ -180,7 +180,7 @@ fn nick_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option
     }))
 }
 
-fn topic_changed(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
+fn topic_changed(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
     Some(HistoryItem::TopicChanged(TopicChanged {
         channel: message.param(0)?.into(),
         topic: message
@@ -191,7 +191,7 @@ fn topic_changed(message: &papo_proto::MessageRef<'_>) -> Option<HistoryItem> {
     }))
 }
 
-fn mode_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn mode_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let state = client.state();
     let changes = ModeChanges::parse(
         message.param(1)?,
@@ -212,7 +212,7 @@ fn mode_changed(message: &papo_proto::MessageRef<'_>, client: &Client) -> Option
     }))
 }
 
-fn source_nick(message: &papo_proto::MessageRef<'_>) -> Option<String> {
+fn source_nick(message: &papo_proto::LineRef<'_>) -> Option<String> {
     match message.source()? {
         papo_proto::Source::User { nick, .. } => Some(nick.to_owned()),
         papo_proto::Source::Server(_) => None,
@@ -597,13 +597,13 @@ mod tests {
     use std::time::{Duration, UNIX_EPOCH};
 
     use papo_core::{HistoryMessage, HistoryQuery, MsgRef};
-    use papo_proto::{Message, MessageRef};
+    use papo_proto::{LineRef, Message};
 
     use super::{HistoryItem, HistoryReference, history_item};
 
     fn core_item(message: &str) -> HistoryMessage {
         HistoryMessage {
-            message: MessageRef::parse(message).unwrap().to_owned(),
+            message: LineRef::parse(message).unwrap().to_owned(),
             context: false,
         }
     }

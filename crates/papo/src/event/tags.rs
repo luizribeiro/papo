@@ -1,6 +1,6 @@
 use std::fmt;
 
-use papo_proto::MessageRef;
+use papo_proto::LineRef;
 
 /// Owned IRC message tags.
 ///
@@ -45,7 +45,7 @@ impl Tags {
         self.0.is_empty()
     }
 
-    pub(crate) fn from_message(message: &MessageRef<'_>) -> Self {
+    pub(crate) fn from_message(message: &LineRef<'_>) -> Self {
         Self(
             message
                 .tags()
@@ -81,12 +81,12 @@ impl Eq for Tags {}
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::MessageRef;
+    use papo_proto::LineRef;
 
     use super::Tags;
 
     fn tags(line: &str) -> Tags {
-        Tags::from_message(&MessageRef::parse(line).unwrap())
+        Tags::from_message(&LineRef::parse(line).unwrap())
     }
 
     #[test]

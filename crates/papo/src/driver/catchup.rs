@@ -201,13 +201,13 @@ mod tests {
     use std::{collections::BTreeMap, time::SystemTime};
 
     use papo_core::{Config, HistoryItem, HistoryMessage, MsgRef, RateLimit, Session};
-    use papo_proto::MessageRef;
+    use papo_proto::LineRef;
 
     #[test]
     fn activity_without_a_msgid_advances_the_timestamp_cursor() {
         let time = papo_proto::time::parse("2026-10-15T12:01:00.000Z").unwrap();
         let item = HistoryItem::Joined(HistoryMessage {
-            message: MessageRef::parse(
+            message: LineRef::parse(
                 "@time=2026-10-15T12:01:00.000Z :papo!papo@localhost JOIN #papo",
             )
             .unwrap()

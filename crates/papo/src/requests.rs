@@ -226,7 +226,7 @@ pub(crate) fn who(
         .collect())
 }
 
-fn plain_who(message: &papo_proto::MessageRef<'_>, isupport: &Isupport) -> Option<WhoEntry> {
+fn plain_who(message: &papo_proto::LineRef<'_>, isupport: &Isupport) -> Option<WhoEntry> {
     (message.command() == Command::Numeric(Numeric::RPL_WHOREPLY)).then_some(())?;
     let flags = message.param(6)?;
     let prefixes = isupport.prefix();

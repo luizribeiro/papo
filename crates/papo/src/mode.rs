@@ -270,14 +270,14 @@ fn invalid(message: impl Into<String>) -> Error {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::{Isupport, MessageRef, Target};
+    use papo_proto::{Isupport, LineRef, Target};
 
     use super::{Argument, Change, Selector, encode};
 
     fn isupport() -> Isupport {
         let mut support = Isupport::default();
         support.apply(
-            &MessageRef::parse(":ergo.test 005 papo PREFIX=(qaohv)~&@%+ CHANMODES=beI,k,l,imnst MODES=2 :supported")
+            &LineRef::parse(":ergo.test 005 papo PREFIX=(qaohv)~&@%+ CHANMODES=beI,k,l,imnst MODES=2 :supported")
                 .unwrap(),
         );
         support

@@ -275,7 +275,7 @@ impl Isupport {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::MessageRef;
+    use papo_proto::LineRef;
 
     #[test]
     fn exposes_read_only_protocol_views() {
@@ -330,7 +330,7 @@ mod tests {
             ":ergo.test 005 papo-fixture KICKLEN=390 MAXLIST=beI:100 MAXTARGETS=4 MODES=4 MONITOR=100 MSGREFTYPES=msgid,timestamp NETWORK=ErgoTest NICKLEN=32 PREFIX=(qaohv)~&@%+ SAFELIST SAFERATE STATUSMSG=~&@%+ TARGMAX=NAMES:1,LIST:1,KICK:,WHOIS:1,USERHOST:10,PRIVMSG:4,TAGMSG:4,NOTICE:4,MONITOR:100 :are supported by this server",
             ":ergo.test 005 papo-fixture TOPICLEN=390 NAMELEN=150 UTF8ONLY WHOX draft/ACCOUNTREQUIRED ACCOUNTEXTBAN=$a,~a draft/ICON=https://cdn.example.net/ergo-{size}.png VAPID=BN2Zr6VZlaXr1w :are supported by this server",
         ] {
-            inner.apply(&MessageRef::parse(line).unwrap());
+            inner.apply(&LineRef::parse(line).unwrap());
         }
         let support = super::Isupport::from_proto(inner);
 
