@@ -497,9 +497,7 @@ fn plan_with_stored_sts(base: &ConnectionPlan, store: &mut dyn StsStore) -> Conn
 
 #[cfg_attr(not(any(browser, tls)), allow(unused_variables))]
 pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {
-    #[cfg(browser)]
-    if matches!(error, Error::Connect(error) if error.kind() == crate::ConnectErrorKind::Unavailable)
-    {
+    if matches!(error, Error::Connect(error) if error.is_configuration_failure()) {
         return true;
     }
     if matches!(

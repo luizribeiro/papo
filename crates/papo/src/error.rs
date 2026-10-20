@@ -80,6 +80,25 @@ impl ConnectError {
         self.kind
     }
 
+    pub(crate) fn is_configuration_failure(&self) -> bool {
+        if self.kind == ConnectErrorKind::Unavailable {
+            return true;
+        }
+        #[cfg(tls)]
+        return self
+            .source
+            .downcast_ref::<crate::transport::ConnectError>()
+            .is_some_and(|error| {
+                matches!(
+                    error,
+                    crate::transport::ConnectError::InvalidServerName(_)
+                        | crate::transport::ConnectError::InvalidTlsConfiguration(_)
+                )
+            });
+        #[cfg(not(tls))]
+        false
+    }
+
     fn classify(error: &crate::transport::ConnectError) -> ConnectErrorKind {
         match error {
             crate::transport::ConnectError::Unavailable(_)
