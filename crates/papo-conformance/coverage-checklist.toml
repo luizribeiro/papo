@@ -3,7 +3,7 @@ ids = [
   "base.nick.change", "base.nick.collision-in-use", "base.nick.collision-race", "base.nick.invalid-chars",
   "base.nick.empty", "base.quit.self", "base.quit.peer-broadcast", "base.quit.server-initiated",
   "base.error.message", "base.ping.client-initiated", "base.ping.server-initiated", "base.privmsg.channel",
-  "base.privmsg.user-dm", "base.privmsg.empty-text", "base.privmsg.nonexistent-target", "base.privmsg.statusmsg",
+  "base.privmsg.user-dm", "base.privmsg.empty-text", "base.privmsg.nonexistent-target", "base.privmsg.statusmsg", "base.privmsg.statusmsg-or-higher",
   "base.privmsg.statusmsg-ops", "base.privmsg.err-too-many-targets",
   "base.notice.channel", "base.notice.user", "base.ctcp.action", "base.ctcp.version-query-reply",
   "base.ctcp.ping-roundtrip", "base.ctcp.channel-query-private-reply", "base.ctcp.no-ctcp-mode", "base.message.line-too-long",

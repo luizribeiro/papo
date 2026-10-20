@@ -319,6 +319,56 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// a voice-targeted message reaches operators as higher-ranked members
+#[scenario(
+    requires(
+        caps = ["echo-message", "labeled-response"],
+        isupport = ["STATUSMSG"]
+    ),
+    covers = ["base.privmsg.statusmsg-or-higher"]
+)]
+async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let mut carol = s.connect("carol").await?;
+    let mut dave = s.connect("dave").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    carol.join(&channel).await?;
+    dave.join(&channel).await?;
+
+    alice.mode(&channel).op(bob.nick()).await?;
+    alice.mode(&channel).voice(carol.nick()).await?;
+    let sent = carol
+        .privmsg(format!("+{channel}"), "voiced members only")
+        .await?;
+    let echo = carol
+        .wait_for(|event| message_text(event, "voiced members only"))
+        .await?;
+    let received_by_bob = bob
+        .wait_for(|event| message_text(event, "voiced members only"))
+        .await?;
+    let received_by_alice = alice
+        .wait_for(|event| message_text(event, "voiced members only"))
+        .await?;
+    for message in [&echo, &received_by_bob, &received_by_alice] {
+        assert_eq!(message.target(), channel);
+        assert_eq!(message.status.as_deref(), Some(['+'].as_slice()));
+        assert_eq!(message.raw_text(), "voiced members only");
+        assert_eq!(message.id(), sent.id.as_ref());
+    }
+    assert_eq!(echo.origin(), Origin::Echo);
+    assert_eq!(received_by_bob.origin(), Origin::Live);
+    assert_eq!(received_by_alice.origin(), Origin::Live);
+    dave.expect_none(|event| message_text(event, "voiced members only"))
+        .await?;
+    carol
+        .expect_none(|event| message_text(event, "voiced members only"))
+        .await?;
+    Ok(())
+}
+
 /// CTCP actions and automatic private query replies retain their typed forms
 #[scenario(
     requires(caps = ["echo-message", "labeled-response"]),
