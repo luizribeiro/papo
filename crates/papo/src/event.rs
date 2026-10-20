@@ -283,18 +283,20 @@ impl Message {
         let tags = Tags::from_message(&message);
         let channel_context = if private {
             tag_owned(&message, &["+channel-context", "+draft/channel-context"])
-                .map(ChannelName::from)
+                .map(|channel| isupport.casemapping().channel(channel))
         } else {
             None
         };
         let msgid = tag_owned(&message, &["msgid"]).map(MessageId::from);
         let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
             .and_then(|value| time::parse(&value));
-        let account = tag_owned(&message, &["account"]).map(AccountName::from);
+        let account = tag_owned(&message, &["account"])
+            .map(|account| isupport.casemapping().account(account));
         let is_bot = tags.contains("bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]).map(MessageId::from);
         #[cfg(feature = "unstable")]
-        let relayed_by = tag_owned(&message, &[crate::cap::RELAYMSG]).map(Nick::from);
+        let relayed_by = tag_owned(&message, &[crate::cap::RELAYMSG])
+            .map(|nick| isupport.casemapping().nick(nick));
         let oper_tag = message.tags().find(|(key, _)| *key == "draft/oper");
         let is_oper = oper_tag.is_some();
         let oper = oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned));
@@ -1288,6 +1290,41 @@ mod tests {
                 received
             );
         }
+    }
+
+    #[test]
+    fn message_names_capture_the_active_casemapping() {
+        let mut isupport = Isupport::default();
+        isupport.apply_tokens(["CASEMAPPING=ascii"]);
+        let message = event(
+            Line::privmsg("papo", "hello")
+                .with_source("Alice[bot]!alice@cloak.example")
+                .with_tag("account", "Alice[bot]")
+                .with_tag("+channel-context", "#Papo[dev]")
+                .with_tag("draft/relaymsg", "Bridge[bot]"),
+            &isupport,
+            "papo",
+            UNIX_EPOCH,
+        );
+
+        let Source::User { nick, .. } = message.sender.as_ref().unwrap() else {
+            panic!("message should have a user source");
+        };
+        assert_eq!(nick.casemapping(), Casemapping::Ascii);
+        assert_eq!(
+            message.account.as_ref().unwrap().casemapping(),
+            Casemapping::Ascii
+        );
+        assert_eq!(
+            message.channel_context.as_ref().unwrap().casemapping(),
+            Casemapping::Ascii
+        );
+        assert_ne!(nick, "alice{bot}");
+        #[cfg(feature = "unstable")]
+        assert_eq!(
+            message.relayed_by.as_ref().unwrap().casemapping(),
+            Casemapping::Ascii
+        );
     }
 
     #[test]
