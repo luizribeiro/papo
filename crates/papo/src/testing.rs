@@ -6,7 +6,7 @@ use papo_core::{Config, Session};
 
 use crate::{
     Capabilities, ChannelName, Message, MessageKind, Nick, Origin, Source, State, Tags, Target,
-    event::{AwayChanged, Joined, Registered},
+    event::{AwayChanged, Connected, Joined, Registered},
 };
 
 /// Constructs a user event source.
@@ -69,6 +69,17 @@ pub fn registered(nick: impl Into<Nick>) -> Registered {
     }
 }
 
+/// Constructs a connected event payload.
+#[must_use]
+pub fn connected(nick: impl Into<Nick>) -> Connected {
+    Connected {
+        nick: nick.into(),
+        welcome: String::new(),
+        caps: Capabilities::default(),
+        reconnected: false,
+    }
+}
+
 /// Constructs a channel-join event payload.
 #[must_use]
 pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, is_self: bool) -> Joined {
@@ -97,7 +108,7 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use super::{joined, message, state, user_source};
+    use super::{connected, joined, message, state, user_source};
 
     #[test]
     fn constructs_payloads_and_state_without_network_io() {
@@ -117,6 +128,11 @@ mod tests {
         );
         assert_eq!(joined.channel.as_ref(), "#papo");
         assert!(joined.is_self);
+
+        let connected = connected(crate::Casemapping::default().nick("bob"));
+        assert_eq!(connected.nick, "bob");
+        assert!(connected.welcome.is_empty());
+        assert!(!connected.reconnected);
 
         let snapshot = state("bob", true);
         assert_eq!(snapshot.nick().as_ref(), "bob");

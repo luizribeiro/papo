@@ -426,6 +426,26 @@ impl core::marker::Unpin for papo::event::ChannelSynced
 impl core::marker::UnsafeUnpin for papo::event::ChannelSynced
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ChannelSynced
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ChannelSynced
+#[non_exhaustive] pub struct papo::event::Connected
+pub papo::event::Connected::caps: papo::Capabilities
+pub papo::event::Connected::nick: papo::Nick
+pub papo::event::Connected::reconnected: bool
+pub papo::event::Connected::welcome: alloc::string::String
+impl core::clone::Clone for papo::event::Connected
+pub fn papo::event::Connected::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Connected
+impl core::cmp::PartialEq for papo::event::Connected
+pub fn papo::event::Connected::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Connected
+pub fn papo::event::Connected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Connected
+impl core::marker::Freeze for papo::event::Connected
+impl core::marker::Send for papo::event::Connected
+impl core::marker::Sync for papo::event::Connected
+impl core::marker::Unpin for papo::event::Connected
+impl core::marker::UnsafeUnpin for papo::event::Connected
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Connected
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Connected
 #[non_exhaustive] pub struct papo::event::Departed
 pub papo::event::Departed::nick: papo::Nick
 pub papo::event::Departed::reason: core::option::Option<alloc::string::String>
@@ -1389,6 +1409,7 @@ pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::CasemappingChanged(papo::event::CasemappingChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
 pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
+pub papo::Event::Connected(papo::event::Connected)
 pub papo::Event::Disconnected(papo::Disconnected)
 pub papo::Event::FeaturesChanged(papo::event::FeaturesChanged)
 pub papo::Event::History(alloc::boxed::Box<papo::HistoryPage>)
@@ -1435,6 +1456,8 @@ impl papo::Event
 pub const fn papo::Event::as_channel_renamed(&self) -> core::option::Option<&papo::event::ChannelRenamed>
 impl papo::Event
 pub const fn papo::Event::as_channel_synced(&self) -> core::option::Option<&papo::event::ChannelSynced>
+impl papo::Event
+pub const fn papo::Event::as_connected(&self) -> core::option::Option<&papo::event::Connected>
 impl papo::Event
 pub const fn papo::Event::as_disconnected(&self) -> core::option::Option<&papo::Disconnected>
 impl papo::Event

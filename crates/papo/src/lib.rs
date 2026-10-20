@@ -116,10 +116,10 @@ pub use webirc::WebIrc;
 pub mod event {
     pub use crate::event_impl::{
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
-        ChannelRenamed, ChannelSynced, Departed, Disconnected, FeaturesChanged, HostChanged,
-        Invited, Joined, Kicked, MetadataChanged, ModeChange, ModeChanged, MonitorOffline,
-        MonitorOnline, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted, ReadMarker,
-        RealnameChanged, Redacted, Registered, Source, SplitServers, StandardReply,
+        ChannelRenamed, ChannelSynced, Connected, Departed, Disconnected, FeaturesChanged,
+        HostChanged, Invited, Joined, Kicked, MetadataChanged, ModeChange, ModeChanged,
+        MonitorOffline, MonitorOnline, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
+        ReadMarker, RealnameChanged, Redacted, Registered, Source, SplitServers, StandardReply,
         StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, Visibility, Warning,
     };
     #[cfg(feature = "unstable")]

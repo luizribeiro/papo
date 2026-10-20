@@ -16,6 +16,20 @@ pub struct Registered {
     pub reconnected: bool,
 }
 
+/// An IRC connection ready for use.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Connected {
+    /// The nickname assigned by the server.
+    pub nick: Nick,
+    /// The human-readable welcome text from the server.
+    pub welcome: String,
+    /// The capabilities enabled on the connection.
+    pub caps: Capabilities,
+    /// Whether this connection replaced a previous connection.
+    pub reconnected: bool,
+}
+
 /// The capabilities enabled on an established connection changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

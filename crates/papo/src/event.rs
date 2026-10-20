@@ -29,7 +29,9 @@ pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChange, ModeChanged, ModeKind,
     Parted, TopicChanged,
 };
-pub use connection::{CapsChanged, CasemappingChanged, Disconnected, FeaturesChanged, Registered};
+pub use connection::{
+    CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged, Registered,
+};
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
@@ -502,6 +504,8 @@ fn tag_owned(message: &LineRef<'_>, keys: &[&str]) -> Option<String> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Event {
+    /// The IRC connection is ready for use.
+    Connected(Connected),
     /// Connection registration completed.
     Registered(Registered),
     /// An incoming `PRIVMSG` or `NOTICE`.
@@ -624,6 +628,7 @@ macro_rules! event_accessors {
 event_accessors! {
     (boxed Message, as_message, Message),
     (boxed History, as_history, crate::HistoryPage),
+    (Connected, as_connected, Connected),
     (Registered, as_registered, Registered),
     (Disconnected, as_disconnected, Disconnected),
     (CapsChanged, as_caps_changed, CapsChanged),
