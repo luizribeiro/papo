@@ -852,6 +852,13 @@ pub(crate) fn from_core(
             return CoreEvent::Line(message);
         }
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Other(message.message),
+        papo_core::Event::TypingChanged(change) => Event::TypingChanged(TypingChanged {
+            actor: source::from_prefix(change.actor, casemapping),
+            authorship: Authorship::from_core(change.authorship),
+            conversation: change.conversation,
+            status: change.status,
+            state: change.state,
+        }),
         papo_core::Event::TagMessage(message) => {
             let envelope = core_envelope(&message.envelope, casemapping, received_at);
             let tag = TagMsg {
@@ -1809,6 +1816,20 @@ mod tests {
         assert!(
             matches!(forwarded(papo_core::Event::TagMessage(tag)), Event::TypingChanged(typing) if typing.state == Typing::Active)
         );
+    }
+
+    #[test]
+    fn forwards_core_typing_transitions() {
+        let now = Instant::now();
+        let mut session = papo_core::Session::new(papo_core::Config::default());
+        session.handle_line(now, b"@+typing=active :alice!~a@cloak TAGMSG #papo");
+        let event = session.poll_event().unwrap();
+        assert!(matches!(
+            forwarded(event),
+            Event::TypingChanged(change)
+                if change.state == Typing::Active
+                    && matches!(change.actor, Source::User { ref nick, .. } if nick == "alice")
+        ));
     }
 
     #[test]
