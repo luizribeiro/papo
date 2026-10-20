@@ -83,12 +83,13 @@ async fn same_account_sessions_distinguish_echoes() {
         })
         .await;
         let other = wait_message(&mut events_b, |message| {
-            message.text() == "from this device" && message.origin() == Origin::OtherSession
+            message.text() == "from this device" && message.origin() == Origin::Live
         })
         .await;
         assert_eq!(echo.origin(), Origin::Echo);
-        assert_eq!(other.origin(), Origin::OtherSession);
-        assert!(!other.is_live());
+        assert_eq!(other.origin(), Origin::Live);
+        assert!(other.is_live());
+        assert_eq!(other.authorship, papo::Authorship::Own);
 
         client_b.quit("multiclient test complete").await.unwrap();
         client_a.quit("multiclient test complete").await.unwrap();

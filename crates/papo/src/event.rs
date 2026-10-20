@@ -104,6 +104,16 @@ pub enum Authorship {
     Unknown,
 }
 
+impl Authorship {
+    pub(crate) const fn from_core(value: papo_core::Authorship) -> Self {
+        match value {
+            papo_core::Authorship::Own => Self::Own,
+            papo_core::Authorship::Other => Self::Other,
+            _ => Self::Unknown,
+        }
+    }
+}
+
 /// How an incoming message relates to the current session.
 ///
 /// Replay detection is refined when typed batches and labeled requests are available.
@@ -117,8 +127,6 @@ pub enum Origin {
     /// Without labelled responses, messages from our nickname use this origin because the
     /// originating session cannot be identified.
     Echo,
-    /// A message sent by another session of this account.
-    OtherSession,
     /// A message associated with a server batch.
     Replay,
     /// A message returned by an explicit history request.
@@ -131,6 +139,8 @@ pub enum Origin {
 pub struct Message {
     /// The user or server that sent the message.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
     /// The IRC conversation to which the message belongs.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
@@ -176,13 +186,18 @@ impl Message {
         caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
-        let echo = raw.as_ref().source().is_some_and(|source| {
+        let own_source = raw.as_ref().source().is_some_and(|source| {
             let papo_proto::Source::User { nick: source, .. } = source else {
                 return false;
             };
             isupport.casemapping().nick(source) == nick
         });
-        let other_session = echo && caps.contains_key(crate::cap::LABELED_RESPONSE);
+        let confirmed_echo = own_source && !caps.contains_key(crate::cap::LABELED_RESPONSE);
+        let authorship = if own_source {
+            Authorship::Own
+        } else {
+            Authorship::Other
+        };
         let Ok((status, conversation)) =
             papo_core::classify_conversation(&raw.as_ref(), nick, isupport)
         else {
@@ -191,8 +206,8 @@ impl Message {
         Self::new_with_context(
             raw,
             None,
-            echo && !other_session,
-            other_session,
+            confirmed_echo,
+            authorship,
             conversation,
             status,
             isupport,
@@ -209,12 +224,13 @@ impl Message {
             return Err(received.into_line());
         };
         let status = received.status().map(<[char]>::to_vec);
-        let (raw, batch_type, echo, other_session) = received.into_context_parts();
+        let authorship = Authorship::from_core(received.authorship());
+        let (raw, batch_type, echo) = received.into_parts();
         Self::new_with_context(
             raw,
             batch_type.as_deref(),
             echo,
-            other_session,
+            authorship,
             conversation,
             status,
             isupport,
@@ -227,7 +243,13 @@ impl Message {
         client: &Client,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
-        Self::from_historical(message, client, received_at, Origin::History)
+        Self::from_historical(
+            message,
+            client,
+            received_at,
+            Origin::History,
+            Authorship::Unknown,
+        )
     }
 
     pub(crate) fn from_replay(
@@ -235,7 +257,13 @@ impl Message {
         client: &Client,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
-        Self::from_historical(message, client, received_at, Origin::Replay)
+        Self::from_historical(
+            message,
+            client,
+            received_at,
+            Origin::Replay,
+            Authorship::Unknown,
+        )
     }
 
     fn from_historical(
@@ -243,6 +271,7 @@ impl Message {
         client: &Client,
         received_at: SystemTime,
         origin: Origin,
+        authorship: Authorship,
     ) -> Result<Self, ProtoLine> {
         let snapshot = client.state();
         let Ok((status, conversation)) = papo_core::classify_conversation(
@@ -256,7 +285,7 @@ impl Message {
             message,
             None,
             false,
-            false,
+            authorship,
             conversation,
             status,
             snapshot.isupport().inner(),
@@ -271,7 +300,7 @@ impl Message {
         raw: ProtoLine,
         batch_type: Option<&str>,
         echo: bool,
-        other_session: bool,
+        authorship: Authorship,
         conversation: Conversation,
         status: Option<Vec<char>>,
         isupport: &Isupport,
@@ -330,8 +359,6 @@ impl Message {
         let replay = batch_type.is_some_and(|kind| !matches!(kind, "netsplit" | "netjoin"));
         let origin = if echo {
             Origin::Echo
-        } else if other_session {
-            Origin::OtherSession
         } else if replay {
             Origin::Replay
         } else {
@@ -339,6 +366,7 @@ impl Message {
         };
         Ok(Self {
             actor,
+            authorship,
             conversation,
             status,
             text,
@@ -500,7 +528,7 @@ impl Message {
     /// Reports whether this is an echo of a message sent by this client.
     #[must_use]
     pub fn is_own(&self) -> bool {
-        self.origin == Origin::Echo
+        self.authorship == Authorship::Own
     }
 
     /// Parses the raw text as CTCP when it contains a CTCP command.

@@ -1619,7 +1619,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ModeKind
 pub papo::Origin::Echo
 pub papo::Origin::History
 pub papo::Origin::Live
-pub papo::Origin::OtherSession
 pub papo::Origin::Replay
 impl core::clone::Clone for papo::Origin
 pub fn papo::Origin::clone(&self) -> Self
@@ -2096,6 +2095,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ListFilter
 #[non_exhaustive] pub struct papo::Message
 pub papo::Message::account: core::option::Option<papo::AccountName>
 pub papo::Message::actor: papo::Source
+pub papo::Message::authorship: papo::Authorship
 pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
 pub papo::Message::conversation: papo::Conversation
 pub papo::Message::is_bot: bool

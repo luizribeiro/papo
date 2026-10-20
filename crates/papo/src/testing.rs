@@ -5,8 +5,8 @@ use std::time::SystemTime;
 use papo_core::{Config, Session};
 
 use crate::{
-    Capabilities, ChannelName, Conversation, Message, MessageKind, Nick, Origin, Source, State,
-    Tags,
+    Authorship, Capabilities, ChannelName, Conversation, Message, MessageKind, Nick, Origin,
+    Source, State, Tags,
     event::{AwayChanged, Connected, Joined},
 };
 
@@ -46,6 +46,7 @@ pub fn message(
         actor: actor.unwrap_or_else(|| Source::Server {
             name: "irc.example".into(),
         }),
+        authorship: Authorship::Other,
         conversation,
         status: None,
         raw_text: text.clone(),

@@ -4300,7 +4300,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn labels_distinguish_our_echo_from_another_session() {
+async fn labels_distinguish_a_confirmed_echo_from_an_own_live_line() {
     let caps = ["echo-message", "labeled-response"];
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
     let task = tokio::spawn(driver);
@@ -4343,8 +4343,9 @@ async fn labels_distinguish_our_echo_from_another_session() {
     )
     .await;
     let other = next_message(&mut events).await;
-    assert_eq!(other.origin(), Origin::OtherSession);
-    assert!(!other.is_live());
+    assert_eq!(other.origin(), Origin::Live);
+    assert!(other.is_live());
+    assert_eq!(other.authorship, crate::Authorship::Own);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));

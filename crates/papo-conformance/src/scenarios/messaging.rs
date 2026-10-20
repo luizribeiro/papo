@@ -195,8 +195,10 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(matches!(
         (first.origin(), second.origin()),
-        (Origin::Echo, Origin::OtherSession) | (Origin::OtherSession, Origin::Echo)
+        (Origin::Echo, Origin::Live) | (Origin::Live, Origin::Echo)
     ));
+    assert_eq!(first.authorship, papo::Authorship::Own);
+    assert_eq!(second.authorship, papo::Authorship::Own);
     for received in [&first, &second] {
         assert_eq!(
             conversation_name(&received.conversation),
@@ -277,8 +279,9 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
     let other = phone
         .wait_for(|event| event.as_message().filter(|message| message.text() == text))
         .await?;
-    assert_eq!(other.origin(), Origin::OtherSession);
-    assert!(!other.is_live());
+    assert_eq!(other.origin(), Origin::Live);
+    assert!(other.is_live());
+    assert_eq!(other.authorship, papo::Authorship::Own);
     let echo = desktop
         .wait_for(|event| event.as_message().filter(|message| message.text() == text))
         .await?;
