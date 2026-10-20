@@ -47,11 +47,7 @@ impl ReadState {
     }
 
     pub(super) fn close(&mut self, code: u16, reason: &str) {
-        if matches!(code, 1000 | 1001) {
-            self.eof = true;
-            self.wake();
-            return;
-        }
+        self.eof = true;
         let end = reason.floor_char_boundary(reason.len().min(MAX_CLOSE_REASON_BYTES));
         let suffix = if end == 0 { "" } else { ": " };
         self.fail(io::Error::new(
@@ -215,14 +211,15 @@ mod tests {
 
     #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
     #[cfg_attr(not(browser), test)]
-    fn maps_normal_close_codes_to_eof_and_bounds_error_reasons() {
-        for code in [1000, 1001] {
-            let mut state = ReadState::default();
-            state.close(code, "server restart");
-            assert!(read(&mut state, 1).unwrap().is_empty());
-            state.push(b":ergo.test NOTICE * :late".to_vec());
-            assert!(read(&mut state, 1).unwrap().is_empty());
-        }
+    fn preserves_close_codes_and_bounds_error_reasons() {
+        let mut state = ReadState::default();
+        state.close(1000, "server restart");
+        assert_eq!(
+            read(&mut state, 1).unwrap_err().to_string(),
+            "WebSocket closed with code 1000: server restart"
+        );
+        state.push(b":ergo.test NOTICE * :late".to_vec());
+        assert_eq!(read(&mut state, 1).unwrap(), b"");
 
         let mut state = ReadState::default();
         state.close(4007, "");

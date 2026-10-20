@@ -15,6 +15,7 @@ use tokio_tungstenite::{
         Message,
         handshake::server::{ErrorResponse, Request, Response},
         http::{HeaderValue, StatusCode, header::SEC_WEBSOCKET_PROTOCOL},
+        protocol::{CloseFrame, frame::coding::CloseCode},
     },
 };
 
@@ -427,12 +428,12 @@ async fn bounds_outgoing_complete_and_partial_lines_body() {
 
 #[tokio::test(flavor = "current_thread")]
 #[allow(clippy::result_large_err)]
-async fn text_subprotocol_uses_text_messages_and_close_is_eof() {
-    within(text_subprotocol_uses_text_messages_and_close_is_eof_body()).await;
+async fn text_subprotocol_preserves_close_code_and_reason() {
+    within(text_subprotocol_preserves_close_code_and_reason_body()).await;
 }
 
 #[allow(clippy::result_large_err)]
-async fn text_subprotocol_uses_text_messages_and_close_is_eof_body() {
+async fn text_subprotocol_preserves_close_code_and_reason_body() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -461,7 +462,13 @@ async fn text_subprotocol_uses_text_messages_and_close_is_eof_body() {
             .send(Message::text(":text.example PONG :utf8-✓"))
             .await
             .unwrap();
-        socket.send(Message::Close(None)).await.unwrap();
+        socket
+            .send(Message::Close(Some(CloseFrame {
+                code: CloseCode::Away,
+                reason: "server restart".into(),
+            })))
+            .await
+            .unwrap();
         tokio::time::sleep(Duration::from_millis(250)).await;
     });
 
@@ -477,7 +484,10 @@ async fn text_subprotocol_uses_text_messages_and_close_is_eof_body() {
         read_line(&mut stream).await.unwrap(),
         ":text.example PONG :utf8-✓\r\n"
     );
-    assert_eq!(stream.read(&mut [0; 1]).await.unwrap(), 0);
+    assert_eq!(
+        stream.read(&mut [0; 1]).await.unwrap_err().to_string(),
+        "WebSocket closed with code 1001: server restart"
+    );
     assert_eq!(
         timeout(Duration::from_millis(100), stream.read(&mut [0; 1]))
             .await

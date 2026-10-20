@@ -195,9 +195,27 @@ impl AsyncRead for WebSocket {
             }
             match Pin::new(&mut self.stream).poll_next(context) {
                 Poll::Pending => return Poll::Pending,
-                Poll::Ready(None | Some(Ok(Message::Close(_)))) => {
+                Poll::Ready(None) => {
                     self.eof = true;
                     return Poll::Ready(Ok(()));
+                }
+                Poll::Ready(Some(Ok(Message::Close(frame)))) => {
+                    self.eof = true;
+                    let message = frame.map_or_else(
+                        || "WebSocket closed without a close frame".to_owned(),
+                        |frame| {
+                            let code = u16::from(frame.code);
+                            if frame.reason.is_empty() {
+                                format!("WebSocket closed with code {code}")
+                            } else {
+                                format!("WebSocket closed with code {code}: {}", frame.reason)
+                            }
+                        },
+                    );
+                    return Poll::Ready(Err(io::Error::new(
+                        io::ErrorKind::ConnectionAborted,
+                        message,
+                    )));
                 }
                 Poll::Ready(Some(Ok(Message::Text(text)))) => {
                     self.read_buffer.extend_from_slice(text.as_bytes());
