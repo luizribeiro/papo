@@ -10,7 +10,7 @@ use papo_proto::{
     MessageId, strip_formatting, time,
 };
 
-use crate::{Client, Target};
+use crate::Client;
 
 #[path = "event/channel.rs"]
 mod channel;
@@ -117,8 +117,6 @@ pub enum Origin {
 pub struct Message {
     /// The user or server that sent the message, when supplied.
     pub sender: Option<Source>,
-    /// The channel or nickname addressed by the message.
-    pub target: Target,
     /// The IRC conversation to which the message belongs.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
@@ -266,7 +264,7 @@ impl Message {
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
-        let Some((raw_target, raw_text)) = message.param(0).zip(message.param(1)) else {
+        let Some(raw_text) = message.param(1) else {
             return Err(raw);
         };
         let plain = if message.command_is("PRIVMSG") {
@@ -288,8 +286,6 @@ impl Message {
         };
         let text = strip_formatting(displayed).into_owned();
         let raw_text = raw_text.to_owned();
-        let status_len = status.iter().flatten().copied().map(char::len_utf8).sum();
-        let target = Target::from(&raw_target[status_len..]);
         let sender = message
             .source()
             .map(|source| Source::from_proto(source, isupport.casemapping()));
@@ -325,7 +321,6 @@ impl Message {
         };
         Ok(Self {
             sender,
-            target,
             conversation,
             status,
             text,
@@ -388,28 +383,10 @@ impl Message {
         self.sender.clone()
     }
 
-    /// Returns the message target.
-    #[must_use]
-    pub fn target(&self) -> &str {
-        &self.target
-    }
-
     /// Reports whether this message belongs to a private conversation.
     #[must_use]
     pub fn is_private(&self) -> bool {
         matches!(self.conversation, Conversation::Private(_))
-    }
-
-    /// Returns the channel target, or the sender for a private message.
-    #[must_use]
-    pub fn reply_target(&self) -> &str {
-        if self.is_private()
-            && let Some(Source::User { nick, .. }) = &self.sender
-        {
-            nick
-        } else {
-            self.target()
-        }
     }
 
     /// Returns the plain-text IRC address that reaches the same recipients.
@@ -792,7 +769,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 source: message
                     .source
                     .map(|source| Source::from_prefix(source, casemapping)),
-                target: message.target.into(),
                 conversation: message.conversation,
                 status: message.status,
                 tags: Tags::from_pairs(message.tags),
@@ -813,7 +789,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
                     source: tag.source,
-                    target: tag.target,
                     conversation: tag.conversation,
                     status: tag.status,
                     message: msgid.into(),
@@ -828,7 +803,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             }) {
                 Event::TypingChanged(TypingChanged {
                     source: tag.source,
-                    target: tag.target,
                     conversation: tag.conversation,
                     status: tag.status,
                     state,
@@ -841,7 +815,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             source: redacted
                 .source
                 .map(|source| Source::from_prefix(source, casemapping)),
-            target: redacted.target.into(),
             conversation: redacted.conversation,
             status: redacted.status,
             message: redacted.msgid.into(),
@@ -1529,7 +1502,6 @@ mod tests {
     fn maps_tag_messages_with_typed_accessors() {
         let tag = papo_core::TagMessage {
             source: Some("alice!~a@cloak".into()),
-            target: "#papo".into(),
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             tags: vec![
@@ -1556,7 +1528,6 @@ mod tests {
         let typing = |value: &str| {
             let tag = papo_core::TagMessage {
                 source: None,
-                target: "#papo".into(),
                 conversation: papo_core::Conversation::Channel(
                     Casemapping::default().channel("#papo"),
                 ),
@@ -1575,7 +1546,6 @@ mod tests {
 
         let tag = papo_core::TagMessage {
             source: Some("alice!~a@cloak".into()),
-            target: "#papo".into(),
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             tags: vec![("+typing".into(), Some("active".into()))],
@@ -1589,7 +1559,6 @@ mod tests {
     fn maps_redactions() {
         let redacted = papo_core::Redacted {
             source: Some("alice!~a@cloak".into()),
-            target: "#papo".into(),
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             msgid: "RKi9Cw".into(),

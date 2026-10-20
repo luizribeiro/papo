@@ -3,7 +3,7 @@
 fn inspect_event(event: papo::Event) {
     match event {
         papo::Event::Message(message) => {
-            let _: &papo::Target = &message.target;
+            let _: &papo::Conversation = &message.conversation;
             let _: Option<&papo::MessageId> = message.msgid.as_ref();
             let _: Option<&papo::ChannelName> = message.channel_context.as_ref();
         }

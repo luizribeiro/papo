@@ -801,7 +801,6 @@ pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::source: core::option::Option<papo::Source>
 pub papo::event::Reacted::status: core::option::Option<alloc::vec::Vec<char>>
-pub papo::event::Reacted::target: papo::Address
 impl core::clone::Clone for papo::event::Reacted
 pub fn papo::event::Reacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Reacted
@@ -859,7 +858,6 @@ pub papo::event::Redacted::message: papo::MessageId
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::source: core::option::Option<papo::Source>
 pub papo::event::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
-pub papo::event::Redacted::target: papo::Address
 impl core::clone::Clone for papo::event::Redacted
 pub fn papo::event::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Redacted
@@ -921,7 +919,6 @@ pub papo::event::TagMsg::conversation: papo::Conversation
 pub papo::event::TagMsg::source: core::option::Option<papo::Source>
 pub papo::event::TagMsg::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::TagMsg::tags: papo::Tags
-pub papo::event::TagMsg::target: papo::Address
 impl core::clone::Clone for papo::event::TagMsg
 pub fn papo::event::TagMsg::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TagMsg
@@ -961,7 +958,6 @@ pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::source: core::option::Option<papo::Source>
 pub papo::event::TypingChanged::state: papo::Typing
 pub papo::event::TypingChanged::status: core::option::Option<alloc::vec::Vec<char>>
-pub papo::event::TypingChanged::target: papo::Address
 impl core::clone::Clone for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TypingChanged
@@ -2204,7 +2200,6 @@ pub papo::Message::sender: core::option::Option<papo::Source>
 pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Message::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::Message::tags: papo::Tags
-pub papo::Message::target: papo::Address
 pub papo::Message::text: alloc::string::String
 impl papo::Message
 pub fn papo::Message::account(&self) -> core::option::Option<&str>
@@ -2221,12 +2216,10 @@ pub fn papo::Message::oper(&self) -> core::option::Option<&str>
 pub fn papo::Message::origin(&self) -> papo::Origin
 pub fn papo::Message::raw_text(&self) -> &str
 pub fn papo::Message::relayed_by(&self) -> core::option::Option<&str>
-pub fn papo::Message::reply_target(&self) -> &str
 pub fn papo::Message::reply_to(&self) -> core::option::Option<&str>
 pub fn papo::Message::return_address(&self) -> alloc::string::String
 pub fn papo::Message::source(&self) -> core::option::Option<papo::Source>
 pub const fn papo::Message::tags(&self) -> &papo::Tags
-pub fn papo::Message::target(&self) -> &str
 pub fn papo::Message::text(&self) -> &str
 pub fn papo::Message::time(&self) -> std::time::SystemTime
 impl core::clone::Clone for papo::Message
@@ -2420,7 +2413,6 @@ pub papo::Sent::conversation: papo::Conversation
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
 pub papo::Sent::id: core::option::Option<papo::MessageId>
 pub papo::Sent::status: core::option::Option<alloc::vec::Vec<char>>
-pub papo::Sent::target: papo::Address
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::Sent
 pub fn papo::Sent::clone(&self) -> Self

@@ -238,7 +238,6 @@ pub(crate) enum Command {
 enum PendingRequest {
     Response(oneshot::Sender<Result<Response, Error>>),
     Text {
-        target: String,
         conversation: crate::Conversation,
         status: Option<Vec<char>>,
         fallbacks: Vec<crate::Fallback>,
@@ -258,7 +257,6 @@ impl PendingRequest {
         match self {
             Self::Response(result) => _ = result.send(Ok(response)),
             Self::Text {
-                target,
                 conversation,
                 status,
                 fallbacks,
@@ -268,7 +266,6 @@ impl PendingRequest {
                     || {
                         Ok(Sent::from_response(
                             &response,
-                            &target,
                             conversation,
                             status,
                             fallbacks,
@@ -292,7 +289,6 @@ impl PendingRequest {
 enum PendingTransmit {
     Empty(oneshot::Sender<Result<(), Error>>),
     Text {
-        target: String,
         conversation: crate::Conversation,
         status: Option<Vec<char>>,
         fallbacks: Vec<crate::Fallback>,
@@ -305,18 +301,12 @@ impl PendingTransmit {
         match self {
             Self::Empty(result) => _ = result.send(Ok(())),
             Self::Text {
-                target,
                 conversation,
                 status,
                 fallbacks,
                 result,
             } => {
-                _ = result.send(Ok(Sent::without_echo(
-                    &target,
-                    conversation,
-                    status,
-                    fallbacks,
-                )));
+                _ = result.send(Ok(Sent::without_echo(conversation, status, fallbacks)));
             }
         }
     }
@@ -961,9 +951,9 @@ where
                                 fallbacks.push(crate::Fallback::SplitIntoLines);
                             }
                             if let Some(id) = sent.request {
-                                requests.insert(id, PendingRequest::Text { target, conversation, status, fallbacks, result });
+                                requests.insert(id, PendingRequest::Text { conversation, status, fallbacks, result });
                             } else if let Some(token) = sent.transmit {
-                                transmits.insert(token, PendingTransmit::Text { target, conversation, status, fallbacks, result });
+                                transmits.insert(token, PendingTransmit::Text { conversation, status, fallbacks, result });
                             }
                         }
                         Err(error) => {

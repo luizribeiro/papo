@@ -39,8 +39,6 @@ pub struct Client {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Sent {
-    /// Target to which the message was sent.
-    pub target: crate::Target,
     /// IRC conversation to which the message was sent.
     pub conversation: crate::Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
@@ -189,13 +187,11 @@ impl IntoFuture for SendMessage {
 
 impl Sent {
     pub(crate) fn without_echo(
-        target: &str,
         conversation: crate::Conversation,
         status: Option<Vec<char>>,
         fallbacks: Vec<Fallback>,
     ) -> Self {
         Self {
-            target: target.into(),
             conversation,
             status,
             id: None,
@@ -206,21 +202,19 @@ impl Sent {
 
     pub(crate) fn from_response(
         response: &Response,
-        target: &str,
         conversation: crate::Conversation,
         status: Option<Vec<char>>,
         fallbacks: Vec<Fallback>,
     ) -> Self {
         match response.sent() {
             Some(sent) => Self {
-                target: target.into(),
                 conversation,
                 status,
                 id: Some(sent.msgid.into()),
                 time: sent.time.and_then(|value| time::parse(&value)),
                 fallbacks,
             },
-            None => Self::without_echo(target, conversation, status, fallbacks),
+            None => Self::without_echo(conversation, status, fallbacks),
         }
     }
 }
@@ -695,7 +689,7 @@ impl Client {
                 message = message.with_tag(key, value);
             }
             self.send_message(message).await?;
-            return Ok(Sent::without_echo(target, conversation, status, fallbacks));
+            return Ok(Sent::without_echo(conversation, status, fallbacks));
         }
         let (result, receiver) = oneshot::channel();
         self.commands

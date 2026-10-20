@@ -139,7 +139,6 @@ fn reaction(
         source: message
             .source()
             .map(|source| Source::from_proto(source, mapping)),
-        target: message.param(0)?.into(),
         conversation,
         status,
         message: reply_to.into(),
@@ -160,7 +159,6 @@ fn redaction(
         source: message
             .source()
             .map(|source| Source::from_proto(source, mapping)),
-        target: message.param(0)?.into(),
         conversation,
         status,
         message: message.param(1)?.into(),

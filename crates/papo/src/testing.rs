@@ -44,7 +44,6 @@ pub fn message(
     };
     Message {
         sender,
-        target: target.into(),
         conversation,
         status: None,
         raw_text: text.clone(),

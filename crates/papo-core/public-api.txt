@@ -1345,7 +1345,6 @@ pub papo_core::Redacted::msgid: alloc::string::String
 pub papo_core::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo_core::Redacted::source: core::option::Option<alloc::string::String>
 pub papo_core::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
-pub papo_core::Redacted::target: alloc::string::String
 impl core::clone::Clone for papo_core::Redacted
 pub fn papo_core::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Redacted
@@ -1589,7 +1588,6 @@ pub papo_core::TagMessage::conversation: papo::Conversation
 pub papo_core::TagMessage::source: core::option::Option<alloc::string::String>
 pub papo_core::TagMessage::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo_core::TagMessage::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
-pub papo_core::TagMessage::target: alloc::string::String
 impl core::clone::Clone for papo_core::TagMessage
 pub fn papo_core::TagMessage::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::TagMessage

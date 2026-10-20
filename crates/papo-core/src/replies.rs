@@ -14,10 +14,6 @@ impl Session {
         };
         self.outbox.event(Event::TagMessage(TagMessage {
             source: message.raw_source().map(str::to_owned),
-            target: message
-                .param(0)
-                .expect("classified line has a target")
-                .to_owned(),
             conversation,
             status,
             tags: message
@@ -38,10 +34,6 @@ impl Session {
         };
         self.outbox.event(Event::Redacted(Redacted {
             source: message.raw_source().map(str::to_owned),
-            target: message
-                .param(0)
-                .expect("classified line has a target")
-                .to_owned(),
             conversation,
             status,
             msgid: msgid.to_owned(),

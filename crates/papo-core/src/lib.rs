@@ -1264,8 +1264,6 @@ pub struct MultilineMessage {
 pub struct TagMessage {
     /// Source prefix without its leading colon.
     pub source: Option<String>,
-    /// Message target.
-    pub target: String,
     /// IRC conversation addressed by the message.
     pub conversation: Conversation,
     /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
@@ -1279,8 +1277,6 @@ pub struct TagMessage {
 pub struct Redacted {
     /// Source prefix without its leading colon.
     pub source: Option<String>,
-    /// History target containing the message.
-    pub target: String,
     /// IRC conversation containing the message.
     pub conversation: Conversation,
     /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
