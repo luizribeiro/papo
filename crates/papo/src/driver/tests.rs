@@ -1467,13 +1467,18 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn connector_failure_under_stored_sts_is_terminal() {
+async fn transport_failure_under_stored_sts_retries() {
     let calls = Arc::new(AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
         let calls = Arc::clone(&calls);
         move |_| {
             calls.fetch_add(1, Ordering::Relaxed);
-            Box::pin(async { Err(unavailable("scripted TLS failure")) })
+            Box::pin(async {
+                Err(Error::Connect(crate::ConnectError::new(
+                    crate::ConnectErrorKind::Refused,
+                    io::Error::new(io::ErrorKind::ConnectionRefused, "TLS endpoint refused"),
+                )))
+            })
         }
     });
     let mut store = papo_core::sts::MemoryStsStore::new();
@@ -1486,7 +1491,7 @@ async fn connector_failure_under_stored_sts_is_terminal() {
             Duration::from_secs(3600),
         ),
     );
-    let (_client, mut events, driver) = Driver::with_connector(
+    let (_client, mut events, driver) = Driver::with_connector_and_entropy(
         Ok(ConnectionPlan {
             address: "irc://irc.example.net".parse().unwrap(),
             tls: TlsConfig::default(),
@@ -1495,17 +1500,31 @@ async fn connector_failure_under_stored_sts_is_terminal() {
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
         super::PostConnect::default(),
-        Reconnect::exponential(),
+        Reconnect::exponential().max_attempts(2),
         Box::new(store),
         connector,
+        Box::new(|| 0),
     );
+    let driver = tokio::spawn(driver);
 
-    assert!(matches!(within(driver).await, Err(Error::Connect(_))));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Connect(error),
+            retry_in: Some(retry_in),
+        })) if error.kind() == crate::ConnectErrorKind::Refused
+            && retry_in == Duration::from_millis(800)
+    ));
+    tokio::time::advance(Duration::from_millis(800)).await;
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Connect(_))
+    ));
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
     ));
-    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    assert_eq!(calls.load(Ordering::Relaxed), 2);
 }
 
 #[tokio::test(flavor = "current_thread")]

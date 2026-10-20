@@ -359,7 +359,21 @@ async fn connect_or_wait(
         Ok(stream) => return ConnectionAttempt::Connected(stream),
         Err(error) => error,
     };
-    if fail_fast || sts_required || is_fatal_failure(&error, None) || !reconnect.permits(attempts) {
+    let sts_tls_failure = sts_required
+        && matches!(
+            error,
+            Error::Connect(ref error)
+                if matches!(
+                    error.kind(),
+                    crate::ConnectErrorKind::CertificateRejected
+                        | crate::ConnectErrorKind::HandshakeFailed
+                )
+        );
+    if fail_fast
+        || sts_tls_failure
+        || is_fatal_failure(&error, None)
+        || !reconnect.permits(attempts)
+    {
         return ConnectionAttempt::Failed(error);
     }
     let retry_in = retry_delay(reconnect, attempts, entropy);
