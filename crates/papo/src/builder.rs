@@ -1269,6 +1269,28 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn connect_classifies_a_peer_close_before_welcome() {
+        let (stream, server) = tokio::io::duplex(4096);
+        drop(server);
+        let error = within(
+            Builder::new("irc://custom.example")
+                .stream(crate::io_compat::TokioIo(stream))
+                .connect(),
+        )
+        .await
+        .err()
+        .expect("an early peer close must fail connect");
+        let Error::Connect(error) = error else {
+            panic!("early close was not a connect error: {error:?}")
+        };
+        assert_eq!(error.kind(), ConnectErrorKind::Other);
+        assert_eq!(
+            std::error::Error::source(&error).map(ToString::to_string),
+            Some("broken pipe".into())
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn custom_stream_registers_once_without_reconnecting() {
         let (stream, mut server) = tokio::io::duplex(4096);
         let lifecycle = Arc::new(AtomicUsize::new(0));

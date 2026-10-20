@@ -454,7 +454,7 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn registration_disconnect_does_not_enter_reconnect_backoff() {
+async fn registration_connection_loss_is_a_connect_error() {
     let (stream, mut server) = tokio::io::duplex(4096);
     let stream = Arc::new(Mutex::new(Some(Box::new(stream) as super::BoxConnection)));
     let calls = Arc::new(AtomicUsize::new(0));
@@ -486,19 +486,19 @@ async fn registration_disconnect_does_not_enter_reconnect_backoff() {
 
     assert!(matches!(
         within(waiting).await.unwrap(),
-        Err(Error::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost { .. },
-            ..
-        }))
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Other
     ));
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost { .. },
+            cause: crate::DisconnectCause::Connect(error),
             retry_in: None,
-        }))
+        })) if error.kind() == crate::ConnectErrorKind::Other
     ));
-    assert!(within(driver).await.unwrap().is_err());
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Other
+    ));
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
 

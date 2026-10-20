@@ -148,7 +148,8 @@ pub(super) async fn run_plan(
         ) {
             ControlFlow::Break((mut end, login_failed)) => {
                 if login_failed {
-                    let error = end.login_error();
+                    let awaiting_registration = registration.0.is_some();
+                    let error = end.login_error(awaiting_registration);
                     registration.failed(error.clone());
                     end.error = error;
                 }

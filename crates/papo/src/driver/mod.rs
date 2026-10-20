@@ -725,7 +725,7 @@ where
     )
     .await;
     if registration.0.is_some() {
-        let error = end.login_error();
+        let error = end.login_error(true);
         registration.failed(error.clone());
         end.error = error;
     }
@@ -758,7 +758,7 @@ struct PendingWrite {
 }
 
 impl ConnectionEnd {
-    fn login_error(&self) -> Error {
+    fn login_error(&self, awaiting_registration: bool) -> Error {
         match &self.error {
             Error::Disconnected(crate::Disconnected {
                 cause: crate::DisconnectCause::Server { .. },
@@ -767,6 +767,9 @@ impl ConnectionEnd {
                 crate::ConnectErrorKind::Server,
                 self.reason.clone(),
             )),
+            Error::Disconnected(_) if awaiting_registration => Error::Connect(
+                crate::ConnectError::login(crate::ConnectErrorKind::Other, self.reason.clone()),
+            ),
             error => error.clone(),
         }
     }
