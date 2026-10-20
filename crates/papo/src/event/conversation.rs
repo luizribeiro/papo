@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{Conversation, MessageId, Target, Typing};
+use crate::{Conversation, MessageId, Typing};
 
 use super::{Source, Tags};
 
@@ -81,7 +81,7 @@ pub struct TagMsg {
 #[non_exhaustive]
 pub struct ReadMarker {
     /// The channel or nickname to which the marker applies.
-    pub target: Target,
+    pub target: String,
     /// The marker time, or `None` when the server reports `*`.
     pub time: Option<SystemTime>,
 }

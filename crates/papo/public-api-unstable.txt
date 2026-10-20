@@ -818,7 +818,7 @@ impl core::marker::UnsafeUnpin for papo::event::Reacted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Reacted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Reacted
 #[non_exhaustive] pub struct papo::event::ReadMarker
-pub papo::event::ReadMarker::target: papo::Address
+pub papo::event::ReadMarker::target: alloc::string::String
 pub papo::event::ReadMarker::time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::event::ReadMarker
 pub fn papo::event::ReadMarker::clone(&self) -> Self
@@ -2005,7 +2005,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::History
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::end: bool
 pub papo::HistoryPage::items: alloc::vec::Vec<papo::HistoryItem>
-pub papo::HistoryPage::target: papo::Address
+pub papo::HistoryPage::target: alloc::string::String
 impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
 impl core::clone::Clone for papo::HistoryPage
@@ -2057,7 +2057,7 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::HistoryRequest
 impl !core::panic::unwind_safe::UnwindSafe for papo::HistoryRequest
 #[non_exhaustive] pub struct papo::HistoryTarget
 pub papo::HistoryTarget::latest: std::time::SystemTime
-pub papo::HistoryTarget::target: papo::Address
+pub papo::HistoryTarget::target: alloc::string::String
 impl core::clone::Clone for papo::HistoryTarget
 pub fn papo::HistoryTarget::clone(&self) -> Self
 impl core::cmp::Eq for papo::HistoryTarget

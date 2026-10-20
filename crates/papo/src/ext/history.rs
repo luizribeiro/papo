@@ -275,7 +275,7 @@ fn is_self(client: &Client, nick: &str) -> bool {
 #[non_exhaustive]
 pub struct HistoryPage {
     /// Target whose history was requested.
-    pub target: crate::Target,
+    pub target: String,
     /// Replayed entries in server delivery order.
     pub items: Vec<HistoryItem>,
     /// Whether this page was empty or the server reported that no further page exists.
@@ -289,7 +289,7 @@ pub struct HistoryPage {
 #[non_exhaustive]
 pub struct HistoryTarget {
     /// Target with available history.
-    pub target: crate::Target,
+    pub target: String,
     /// Timestamp of the newest available entry.
     pub latest: SystemTime,
 }
@@ -501,8 +501,8 @@ impl Client {
             HistoryQuery::Targets { .. } | _ => String::new(),
         };
         if !target.is_empty() {
-            crate::Target::from(target.clone())
-                .check(self.state().isupport().inner())
+            self.state()
+                .parse_target(&target)
                 .map_err(|reason| crate::InvalidInput::invalid_name(target.clone(), reason))?;
         }
         let response = self.history_response(query).await?;
@@ -513,7 +513,7 @@ impl Client {
             .map(|item| history_item(item, self, crate::rt::now_wall(), Origin::History))
             .collect();
         Ok(crate::HistoryPage {
-            target: target.into(),
+            target,
             items,
             end: page.end,
         })
@@ -560,10 +560,7 @@ impl Client {
                 .map(|targets| {
                     targets
                         .into_iter()
-                        .map(|(target, latest)| HistoryTarget {
-                            target: target.into(),
-                            latest,
-                        })
+                        .map(|(target, latest)| HistoryTarget { target, latest })
                         .collect()
                 })
         })
@@ -585,16 +582,17 @@ impl Client {
         time: SystemTime,
     ) -> crate::RequestFuture<Option<SystemTime>> {
         let client = self.clone();
-        let target = crate::Target::from(target.as_ref());
+        let target = target.as_ref().to_owned();
         crate::RequestFuture::new(async move {
-            target
-                .check(client.state().isupport().inner())
+            client
+                .state()
+                .parse_target(&target)
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
                 .send(Command::MarkRead {
-                    target: target.to_string(),
+                    target: target.clone(),
                     time,
                     result,
                 })
@@ -621,16 +619,17 @@ impl Client {
         target: impl AsRef<str>,
     ) -> crate::RequestFuture<Option<SystemTime>> {
         let client = self.clone();
-        let target = crate::Target::from(target.as_ref());
+        let target = target.as_ref().to_owned();
         crate::RequestFuture::new(async move {
-            target
-                .check(client.state().isupport().inner())
+            client
+                .state()
+                .parse_target(&target)
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
                 .send(Command::ReadMarker {
-                    target: target.to_string(),
+                    target: target.clone(),
                     result,
                 })
                 .await
@@ -693,7 +692,8 @@ mod tests {
             reacted,
             HistoryItem::Reacted(event)
                 if event.source.as_ref().and_then(crate::Source::nick) == Some("emily")
-                    && event.target == "#papo"
+                    && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
+                    && event.status.is_none()
                     && event.message == "RfcBTzyxY120004"
                     && event.reaction == "👍"
                     && !event.removed
@@ -710,7 +710,8 @@ mod tests {
         assert!(matches!(
             removal,
             HistoryItem::Redacted(event)
-                if event.target == "#papo"
+                if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
+                    && event.status.is_none()
                     && event.message == "RfcBTzyxY120004"
                     && event.reason.is_none()
         ));

@@ -913,7 +913,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             return CoreEvent::History { target, items, end };
         }
         papo_core::Event::ReadMarker(marker) => Event::ReadMarker(ReadMarker {
-            target: marker.target.into(),
+            target: marker.target,
             time: marker.time,
         }),
         papo_core::Event::Netsplit { servers, quits } => Event::Netsplit(Netsplit {
@@ -1311,7 +1311,7 @@ mod tests {
             tagged.time(),
             UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
         );
-        assert_eq!(tagged.target(), "#papo");
+        assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(tagged.id().unwrap(), "RfcBTzyxY120004");
         assert_eq!(tagged.account(), Some("emily"));
         assert!(tagged.is_bot());
@@ -1542,7 +1542,10 @@ mod tests {
             panic!("expected reaction")
         };
         assert!(matches!(reaction.source, Some(Source::User { ref nick, .. }) if nick == "alice"));
-        assert_eq!(reaction.target, "#papo");
+        assert!(
+            matches!(&reaction.conversation, Conversation::Channel(channel) if channel == "#papo")
+        );
+        assert_eq!(reaction.status, None);
         assert_eq!(reaction.reaction, "👍");
         assert_eq!(reaction.message, "RKi9Cw");
         assert!(!reaction.removed);
@@ -1596,7 +1599,8 @@ mod tests {
             forwarded(papo_core::Event::Redacted(redacted.clone())),
             Event::Redacted(mapped)
                 if matches!(mapped.source, Some(Source::User { ref nick, .. }) if nick == "alice")
-                    && mapped.target.as_ref() == redacted.target
+                    && mapped.conversation == redacted.conversation
+                    && mapped.status == redacted.status
                     && mapped.message.as_ref() == redacted.msgid
                     && mapped.reason.is_none()
         ));
@@ -2119,7 +2123,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::ReadMarker(marker.clone())),
             Event::ReadMarker(mapped)
-                if mapped.target.as_ref() == marker.target && mapped.time == marker.time
+                if mapped.target == marker.target && mapped.time == marker.time
         ));
     }
 
