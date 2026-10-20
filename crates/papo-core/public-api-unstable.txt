@@ -1025,6 +1025,32 @@ impl core::marker::Unpin for papo_core::ServerError
 impl core::marker::UnsafeUnpin for papo_core::ServerError
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ServerError
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ServerError
+#[non_exhaustive] pub enum papo_core::Source
+#[non_exhaustive] pub papo_core::Source::Server
+pub papo_core::Source::Server::name: papo_proto::server_name::ServerName
+#[non_exhaustive] pub papo_core::Source::User
+pub papo_core::Source::User::host: core::option::Option<alloc::string::String>
+pub papo_core::Source::User::nick: papo::Nick
+pub papo_core::Source::User::username: core::option::Option<alloc::string::String>
+impl papo_core::Source
+pub const fn papo_core::Source::nick(&self) -> core::option::Option<&papo::Nick>
+impl core::clone::Clone for papo_core::Source
+pub fn papo_core::Source::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::Source
+impl core::cmp::PartialEq for papo_core::Source
+pub fn papo_core::Source::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::Source
+pub fn papo_core::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_core::Source
+pub fn papo_core::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::Source
+impl core::marker::Freeze for papo_core::Source
+impl core::marker::Send for papo_core::Source
+impl core::marker::Sync for papo_core::Source
+impl core::marker::Unpin for papo_core::Source
+impl core::marker::UnsafeUnpin for papo_core::Source
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Source
+impl core::panic::unwind_safe::UnwindSafe for papo_core::Source
 #[non_exhaustive] pub enum papo_core::StateLimit
 pub papo_core::StateLimit::BouncerNetworks
 pub papo_core::StateLimit::Channels

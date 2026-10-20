@@ -79,6 +79,7 @@ mod relaymsg;
 mod replies;
 mod sasl;
 mod secret;
+mod source;
 mod state;
 pub mod sts;
 #[cfg(feature = "unstable")]
@@ -86,6 +87,7 @@ mod webpush;
 mod welcome;
 
 pub use secret::Secret;
+pub use source::Source;
 
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -95,7 +97,7 @@ use web_time::Instant;
 
 use papo_proto::{
     AccountName, BuildError, Casemapping, ChannelName, Command, Ctcp, Line, LineRef, MAX_LINE_LEN,
-    MAX_TAG_SECTION_LEN, Mask, ModeChange, ModeKind, Nick, Numeric, Source,
+    MAX_TAG_SECTION_LEN, Mask, ModeChange, ModeKind, Nick, Numeric, Source as ProtoSource,
     StandardReply as StandardReplyView, StandardReplyKind,
 };
 
@@ -822,8 +824,8 @@ impl ResponseMatcher {
             Command::Numeric(numeric) => Some(numeric),
             _ => None,
         };
-        let own_source = matches!(message.source(), Some(Source::User { nick, .. }) if names_equal(mapping, nick, own_nick));
-        let current_own_source = matches!(message.source(), Some(Source::User { nick, .. }) if names_equal(mapping, nick, state.nick()));
+        let own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, own_nick));
+        let current_own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, state.nick()));
         match self {
             Self::Whois(nick) => {
                 if Self::standard_failure(message, "WHOIS") {
@@ -3514,14 +3516,15 @@ impl Session {
         {
             return false;
         }
-        if let Some(Source::User { nick, .. }) = message.source() {
+        if let Some(ProtoSource::User { nick, .. }) = message.source() {
             self.welcome_state.update_nick(nick);
         }
         true
     }
 
     fn handle_ctcp(&mut self, now: Instant, message: &LineRef<'_>) -> bool {
-        let (Some(Source::User { nick, .. }), Some(text)) = (message.source(), message.param(1))
+        let (Some(ProtoSource::User { nick, .. }), Some(text)) =
+            (message.source(), message.param(1))
         else {
             return false;
         };
