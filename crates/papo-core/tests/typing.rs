@@ -81,6 +81,32 @@ fn paused_typing_expires_after_thirty_seconds() {
 }
 
 #[test]
+fn chat_messages_stop_typing_before_the_message_event() {
+    for command in ["PRIVMSG", "NOTICE"] {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        session.handle_line(now, b"@+typing=active :alice!~a@cloak TAGMSG #papo");
+        _ = session.poll_event();
+        session.handle_line(
+            now,
+            format!(":alice!~a@cloak {command} #papo :hello from Alice").as_bytes(),
+        );
+
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::TypingChanged(change))
+                if change.reason == papo_core::TypingReason::Messaged
+        ));
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::Line(line)) if line.as_ref().command_is(command)
+        ));
+        let conversation = conversation(&session, "#papo");
+        assert_eq!(session.state().typing(&conversation).count(), 0);
+    }
+}
+
+#[test]
 fn own_and_history_typing_are_not_stored() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));

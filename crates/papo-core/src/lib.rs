@@ -3345,6 +3345,7 @@ impl Session {
         let whoami = self.handle_whoami(message);
         let own_away_message = self.confirmed_away_message(message).map(str::to_owned);
         let typing_handled = self.report_typing(now, message, context.batch_type().is_some());
+        self.stop_typing_for_message(message);
         let state_handled = whoami
             || self.state.handle_message(
                 message,

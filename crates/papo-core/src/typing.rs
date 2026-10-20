@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
-use papo_proto::{LineRef, Nick, Source, Typing};
+use papo_proto::{Command, LineRef, Nick, Source, Typing};
 use web_time::Instant;
 
 use crate::{Authorship, Conversation, Event, Session, conversation::classify_line};
@@ -150,15 +150,24 @@ impl TypingTable {
         }
         expired
             .into_iter()
-            .map(|deadline| TypingChanged {
-                actor: deadline.actor,
-                authorship: Authorship::Other,
-                conversation: deadline.conversation,
-                status: deadline.status,
-                state: Typing::Done,
-                reason: TypingReason::TimedOut,
-            })
+            .map(|deadline| stopped(deadline, TypingReason::TimedOut))
             .collect()
+    }
+
+    fn stop_sender(
+        table: &mut Arc<Self>,
+        conversation: &Conversation,
+        nick: &Nick,
+    ) -> Option<Deadline> {
+        let table = Arc::make_mut(table);
+        table
+            .entries
+            .retain(|(candidate, typer)| candidate != conversation || &typer.nick != nick);
+        let position = table
+            .deadlines
+            .iter()
+            .position(|item| &item.conversation == conversation && &item.nick == nick)?;
+        table.deadlines.remove(position)
     }
 }
 
@@ -226,6 +235,39 @@ impl Session {
         if before != self.state.typing {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
+    }
+
+    pub(crate) fn stop_typing_for_message(&mut self, message: &LineRef<'_>) {
+        if !matches!(message.command(), Command::Privmsg | Command::Notice) {
+            return;
+        }
+        let Some(Source::User { nick, .. }) = message.source() else {
+            return;
+        };
+        let Ok((_, conversation)) = classify_line(message, self.nick(), self.isupport.value())
+        else {
+            return;
+        };
+        let nick = self.isupport.value().casemapping().nick(nick);
+        if let Some(deadline) =
+            TypingTable::stop_sender(&mut self.state.typing, &conversation, &nick)
+        {
+            self.outbox.event(Event::TypingChanged(stopped(
+                deadline,
+                TypingReason::Messaged,
+            )));
+        }
+    }
+}
+
+fn stopped(deadline: Deadline, reason: TypingReason) -> TypingChanged {
+    TypingChanged {
+        actor: deadline.actor,
+        authorship: Authorship::Other,
+        conversation: deadline.conversation,
+        status: deadline.status,
+        state: Typing::Done,
+        reason,
     }
 }
 
