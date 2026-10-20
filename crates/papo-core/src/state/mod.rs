@@ -237,15 +237,19 @@ impl State {
     }
 
     pub(crate) fn new(config: &Config) -> Self {
+        Self::with_casemapping(config, config.casemapping)
+    }
+
+    fn with_casemapping(config: &Config, casemapping: Casemapping) -> Self {
         Self {
-            nick: Casemapping::default().nick(&config.nick),
+            nick: casemapping.nick(&config.nick),
             user: config.username.clone(),
             host: None,
             realname: config.realname.clone(),
             away: false,
             away_message: None,
             user_modes: HashSet::new(),
-            casemapping: Casemapping::default(),
+            casemapping,
             channels: HashMap::new(),
             users: HashMap::new(),
             who_sweeps: HashSet::new(),
@@ -266,10 +270,10 @@ impl State {
         }
     }
 
-    pub(crate) fn reset(&mut self, config: &Config) {
+    pub(crate) fn reset(&mut self, config: &Config, casemapping: Casemapping) {
         let last_seen = std::mem::take(&mut self.last_seen);
         let last_seen_order = std::mem::take(&mut self.last_seen_order);
-        *self = Self::new(config);
+        *self = Self::with_casemapping(config, casemapping);
         self.last_seen = last_seen
             .into_values()
             .map(|seen| (Folded::new(&seen.target, self.casemapping), seen))
@@ -720,6 +724,12 @@ impl State {
     #[must_use]
     pub fn nick(&self) -> &Nick {
         &self.nick
+    }
+
+    /// Returns the rules attached to names in this state.
+    #[must_use]
+    pub const fn casemapping(&self) -> Casemapping {
+        self.casemapping
     }
 
     /// Returns the session's username.

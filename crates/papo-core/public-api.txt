@@ -966,6 +966,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::Channel
 pub papo_core::Config::alt_nicks: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Config::away_on_connect: core::option::Option<papo_core::AwayOnConnect>
 pub papo_core::Config::batch_timeout: core::time::Duration
+pub papo_core::Config::casemapping: papo::Casemapping
 pub papo_core::Config::connection_security: papo::sts::ConnectionSecurity
 pub papo_core::Config::ctcp: papo_core::CtcpReplies
 pub papo_core::Config::decoding: papo_core::Decoding
@@ -993,6 +994,7 @@ impl papo_core::Config
 pub fn papo_core::Config::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_core::Config::away_on_connect(self, core::option::Option<papo_core::AwayOnConnect>) -> Self
 pub const fn papo_core::Config::batch_timeout(self, core::time::Duration) -> Self
+pub const fn papo_core::Config::casemapping(self, papo::Casemapping) -> Self
 pub const fn papo_core::Config::connection_security(self, papo::sts::ConnectionSecurity) -> Self
 pub fn papo_core::Config::ctcp(self, papo_core::CtcpReplies) -> Self
 pub const fn papo_core::Config::decoding(self, papo_core::Decoding) -> Self
@@ -1519,6 +1521,7 @@ pub struct papo_core::State
 impl papo_core::State
 pub const fn papo_core::State::away(&self) -> bool
 pub fn papo_core::State::away_message(&self) -> core::option::Option<&str>
+pub const fn papo_core::State::casemapping(&self) -> papo::Casemapping
 pub fn papo_core::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::Channel>
 pub fn papo_core::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Channel>
 pub fn papo_core::State::host(&self) -> core::option::Option<&str>

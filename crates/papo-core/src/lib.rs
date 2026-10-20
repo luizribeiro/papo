@@ -261,6 +261,8 @@ pub struct WebIrc {
 pub struct Config {
     /// The policy used to decode incoming lines.
     pub decoding: Decoding,
+    /// Name casemapping remembered before a server advertises its rules.
+    pub casemapping: Casemapping,
     /// The nickname requested during registration.
     pub nick: String,
     /// The username sent during registration.
@@ -323,6 +325,7 @@ impl std::fmt::Debug for Config {
         let mut debug = formatter.debug_struct("Config");
         debug
             .field("decoding", &self.decoding)
+            .field("casemapping", &self.casemapping)
             .field("nick", &self.nick)
             .field("username", &self.username)
             .field("realname", &self.realname)
@@ -369,6 +372,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             decoding: Decoding::default(),
+            casemapping: Casemapping::default(),
             nick: "papo".to_owned(),
             username: "papo".to_owned(),
             realname: "papo".to_owned(),
@@ -409,6 +413,13 @@ impl Config {
     #[must_use]
     pub const fn decoding(mut self, decoding: Decoding) -> Self {
         self.decoding = decoding;
+        self
+    }
+
+    /// Seeds the last-known server casemapping while disconnected.
+    #[must_use]
+    pub const fn casemapping(mut self, casemapping: Casemapping) -> Self {
+        self.casemapping = casemapping;
         self
     }
 
@@ -2107,7 +2118,7 @@ impl Session {
         self.caps.handle_connected(now);
         self.isupport.handle_connected();
         self.sasl.handle_connected();
-        self.state.reset(&self.config);
+        self.state.reset(&self.config, Casemapping::default());
         self.state_generation = self.state_generation.wrapping_add(1);
         self.keepalive
             .handle_connected(now, self.config.ping_interval, self.config.ping_timeout);
@@ -2268,7 +2279,8 @@ impl Session {
         self.keepalive.handle_disconnected();
         self.monitor.handle_disconnected();
         self.metadata_subscriptions_sent = false;
-        self.state.reset(&self.config);
+        let casemapping = self.state.casemapping();
+        self.state.reset(&self.config, casemapping);
         self.state_generation = self.state_generation.wrapping_add(1);
     }
 

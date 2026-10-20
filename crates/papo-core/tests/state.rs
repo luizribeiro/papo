@@ -24,6 +24,37 @@ fn starts_with_configured_identity_and_empty_shared_state() {
 }
 
 #[test]
+fn seeded_rules_apply_offline_then_the_connection_uses_the_protocol_default() {
+    Transcript::new(
+        Config::default()
+            .nick("emily[bot]")
+            .casemapping(Casemapping::Ascii),
+    )
+    .inspect(|session| {
+        assert_eq!(session.state().casemapping(), Casemapping::Ascii);
+        assert_ne!(session.state().nick(), "emily{bot}");
+    })
+    .connect()
+    .inspect(|session| {
+        assert_eq!(session.state().casemapping(), Casemapping::Rfc1459);
+        assert_eq!(session.state().nick(), "emily{bot}");
+    })
+    .ignore_rest();
+}
+
+#[test]
+fn disconnect_retains_the_last_advertised_rules() {
+    Transcript::new(Config::default().nick("emily[bot]"))
+        .server(":irc.example 005 emily CASEMAPPING=ascii :are supported")
+        .disconnect()
+        .inspect(|session| {
+            assert_eq!(session.state().casemapping(), Casemapping::Ascii);
+            assert_ne!(session.state().nick(), "emily{bot}");
+        })
+        .no_event();
+}
+
+#[test]
 fn welcome_adopts_the_server_assigned_nick_in_state() {
     Transcript::new(Config::default().nick("oldnick"))
         .welcome(":irc.example 001 account :Welcome to the network")
@@ -146,6 +177,36 @@ fn wire_names_capture_the_advertised_ascii_casemapping() {
             assert_eq!(account.casemapping(), Casemapping::Ascii);
         })
         .ignore_rest();
+}
+
+#[cfg(feature = "precis")]
+#[test]
+fn utf8mapping_builds_names_with_precis_rules() {
+    Transcript::new(Config::default().nick("émilie"))
+        .server(":ergo.test 005 émilie CASEMAPPING=ascii UTF8MAPPING=rfc8265 :are supported")
+        .server(":ÉMILIE!em@127.0.0.1 JOIN #Papo ÉMILIE :Émilie Example")
+        .inspect(|session| {
+            let user = session.state().user("émilie").unwrap();
+            assert_eq!(session.state().casemapping(), Casemapping::Precis);
+            assert_eq!(user.nick().casemapping(), Casemapping::Precis);
+            assert_eq!(user.nick(), "émilie");
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn names_received_before_isupport_are_refolded_under_announced_rules() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #Papo[dev]")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .inspect(|session| assert!(session.state().channel("#papo{dev}").is_some()))
+        .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo[dev]").unwrap();
+            assert_eq!(channel.name().casemapping(), Casemapping::Ascii);
+            assert!(session.state().channel("#papo{dev}").is_none());
+        })
+        .no_event();
 }
 
 #[test]

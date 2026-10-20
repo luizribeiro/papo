@@ -10,6 +10,7 @@ publish.workspace = true
 [features]
 default = ["tls-ring"]
 bot = []
+precis = ["papo-core/precis", "papo-proto/precis"]
 sts-file = ["dep:serde", "dep:serde_json"]
 websocket = ["dep:futures-util", "dep:tokio-tungstenite"]
 tls-aws-lc = [
