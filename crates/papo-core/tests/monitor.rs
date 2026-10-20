@@ -545,6 +545,7 @@ fn rekeys_monitor_presence_when_casemapping_changes() {
         .server(":ergo.test 730 papo :[alice!user@users.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "[alice"))
         .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .server(":ergo.test 730 papo :[alice!user@users.example")
         .no_event();
 }

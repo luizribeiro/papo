@@ -162,6 +162,7 @@ fn requests_and_applies_extended_isupport_before_welcome() {
     .inspect(|session| assert_eq!(session.isupport().nicklen(), None))
     .server("@batch=isupport :ergo.test 005 * NETWORK=ErgoTest :are supported")
     .server(":ergo.test BATCH -isupport")
+    .event(|event| matches!(event, Event::CasemappingChanged { .. }))
     .inspect(|session| {
         assert_eq!(session.isupport().nicklen(), Some(12));
         assert_eq!(session.isupport().network(), Some("ErgoTest"));
@@ -252,6 +253,7 @@ fn completes_after_motd_with_capabilities_and_isupport() {
     .client("CAP END")
     .welcome(":ergo.test 001 account :Welcome to Ergo")
     .server(":ergo.test 005 account CASEMAPPING=ascii NICKLEN=32 :are supported by this server")
+    .event(|event| matches!(event, Event::CasemappingChanged { .. }))
     .server(":ergo.test 005 account NETWORK=Ergo UTF8ONLY :are supported by this server")
     .server(":ergo.test 376 account :End of MOTD")
     .inspect(|session| assert!(session.is_registered()))

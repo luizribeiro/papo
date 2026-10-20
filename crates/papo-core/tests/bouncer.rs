@@ -157,6 +157,7 @@ fn refolds_cached_network_nicknames_when_casemapping_changes() {
         .server("BOUNCER NETWORK 42 nickname=Alice[bot]")
         .event(|event| matches!(event, Event::BouncerNetwork { .. }))
         .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .inspect(|session| {
             let nick = session
                 .state()

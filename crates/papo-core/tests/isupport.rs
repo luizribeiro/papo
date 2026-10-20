@@ -11,6 +11,7 @@ fn applies_multiple_005_lines_and_enforces_utf8only() {
     Transcript::new(Config::default())
         .connect_default()
         .server(":ergo.test 005 papo CASEMAPPING=ascii NICKLEN=32 :are supported by this server")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .server(":ergo.test 005 papo NETWORK=Ergo UTF8ONLY :are supported by this server")
         .inspect(|session| {
             assert_eq!(session.isupport().nicklen(), Some(32));

@@ -378,6 +378,9 @@ pub papo_core::Event::BouncerNetwork::network: core::option::Option<papo_core::B
 pub papo_core::Event::CapsChanged
 pub papo_core::Event::CapsChanged::added: papo::Capabilities
 pub papo_core::Event::CapsChanged::removed: papo::Capabilities
+pub papo_core::Event::CasemappingChanged
+pub papo_core::Event::CasemappingChanged::new: papo::Casemapping
+pub papo_core::Event::CasemappingChanged::old: papo::Casemapping
 pub papo_core::Event::ChannelRenamed
 pub papo_core::Event::ChannelRenamed::new: alloc::string::String
 pub papo_core::Event::ChannelRenamed::old: alloc::string::String

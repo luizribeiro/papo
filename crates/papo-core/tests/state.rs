@@ -46,12 +46,42 @@ fn seeded_rules_apply_offline_then_the_connection_uses_the_protocol_default() {
 fn disconnect_retains_the_last_advertised_rules() {
     Transcript::new(Config::default().nick("emily[bot]"))
         .server(":irc.example 005 emily CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .disconnect()
         .inspect(|session| {
             assert_eq!(session.state().casemapping(), Casemapping::Ascii);
             assert_ne!(session.state().nick(), "emily{bot}");
         })
         .no_event();
+}
+
+#[test]
+fn reports_one_rules_change_against_the_remembered_connection() {
+    Transcript::new(
+        Config::default()
+            .nick("emily")
+            .casemapping(Casemapping::Ascii),
+    )
+    .connect()
+    .server(":irc.example 005 emily CASEMAPPING=ascii :are supported")
+    .no_event()
+    .disconnect()
+    .connect()
+    .server(":irc.example 005 emily CASEMAPPING=rfc1459-strict :are supported")
+    .event(|event| {
+        matches!(
+            event,
+            Event::CasemappingChanged {
+                old: Casemapping::Ascii,
+                new: Casemapping::Rfc1459Strict,
+            }
+        )
+    })
+    .server(":irc.example 005 emily CASEMAPPING=rfc1459 :are supported")
+    .no_event()
+    .disconnect()
+    .inspect(|session| assert_eq!(session.state().casemapping(), Casemapping::Rfc1459))
+    .ignore_rest();
 }
 
 #[test]
@@ -66,6 +96,7 @@ fn welcome_adopts_the_server_assigned_nick_in_state() {
 fn session_nick_tracks_own_and_server_forced_changes_with_casemapping() {
     Transcript::new(Config::default().nick("emily[x]"))
         .server(":irc.example 005 emily[x] CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .welcome(":irc.example 001 emily[x] :Welcome to the network")
         .server(":EMILY[X]!em@localhost NICK :emily{ops}")
         .event(|event| {
@@ -201,6 +232,7 @@ fn names_received_before_isupport_are_refolded_under_announced_rules() {
         .event(|event| matches!(event, Event::Joined { .. }))
         .inspect(|session| assert!(session.state().channel("#papo{dev}").is_some()))
         .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .inspect(|session| {
             let channel = session.state().channel("#papo[dev]").unwrap();
             assert_eq!(channel.name().casemapping(), Casemapping::Ascii);

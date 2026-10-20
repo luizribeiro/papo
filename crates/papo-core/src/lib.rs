@@ -1574,6 +1574,13 @@ pub enum Event {
         /// Behaviors that became unavailable.
         removed: Vec<Feature>,
     },
+    /// A connection advertised name rules different from the remembered rules.
+    CasemappingChanged {
+        /// Rules retained from the previous connection or offline seed.
+        old: Casemapping,
+        /// Rules advertised by the current connection.
+        new: Casemapping,
+    },
     /// A plaintext connection must be replaced with TLS on `port`.
     StsUpgrade {
         /// The advertised TLS port.
@@ -1828,6 +1835,8 @@ pub struct Session {
     config: Config,
     connection: Connection,
     caps: Caps,
+    casemapping_baseline: Casemapping,
+    casemapping_change_emitted: bool,
     ctcp_sources: VecDeque<(String, Instant)>,
     framer: Framer,
     isupport: IsupportState,
@@ -1835,6 +1844,7 @@ pub struct Session {
     monitor: Monitor,
     metadata_subscriptions_sent: bool,
     rate_limit: RateLimiter,
+    remembered_casemapping: Casemapping,
     requests: PendingRequests,
     unlabelled_requests: VecDeque<UnlabelledRequest>,
     next_request_id: u64,
@@ -1857,6 +1867,11 @@ impl std::fmt::Debug for Session {
             .field("config", &self.config)
             .field("connection", &self.connection)
             .field("caps", &self.caps)
+            .field("casemapping_baseline", &self.casemapping_baseline)
+            .field(
+                "casemapping_change_emitted",
+                &self.casemapping_change_emitted,
+            )
             .field("ctcp_sources", &self.ctcp_sources)
             .field("framer", &self.framer)
             .field("isupport", &self.isupport)
@@ -1867,6 +1882,7 @@ impl std::fmt::Debug for Session {
                 &self.metadata_subscriptions_sent,
             )
             .field("rate_limit", &self.rate_limit)
+            .field("remembered_casemapping", &self.remembered_casemapping)
             .field("requests", &self.requests)
             .field("unlabelled_requests", &self.unlabelled_requests)
             .field("next_request_id", &self.next_request_id)
@@ -2052,6 +2068,7 @@ impl Session {
     }
 
     fn from_config(config: Config, entropy: Option<Box<dyn Entropy + Send>>) -> Self {
+        let remembered_casemapping = config.casemapping;
         let connection = Connection {
             host: config.host.clone(),
             security: config.connection_security,
@@ -2070,6 +2087,8 @@ impl Session {
             config,
             connection,
             caps: Caps::default(),
+            casemapping_baseline: remembered_casemapping,
+            casemapping_change_emitted: false,
             ctcp_sources: VecDeque::new(),
             framer: Framer::default(),
             isupport,
@@ -2077,6 +2096,7 @@ impl Session {
             monitor: Monitor::default(),
             metadata_subscriptions_sent: false,
             rate_limit,
+            remembered_casemapping,
             requests: BTreeMap::new(),
             unlabelled_requests: VecDeque::new(),
             next_request_id: 0,
@@ -2116,6 +2136,8 @@ impl Session {
         self.away_on_connect_sent = false;
         self.metadata_subscriptions_sent = false;
         self.caps.handle_connected(now);
+        self.casemapping_baseline = self.remembered_casemapping;
+        self.casemapping_change_emitted = false;
         self.isupport.handle_connected();
         self.sasl.handle_connected();
         self.state.reset(&self.config, Casemapping::default());
@@ -2280,6 +2302,7 @@ impl Session {
         self.monitor.handle_disconnected();
         self.metadata_subscriptions_sent = false;
         let casemapping = self.state.casemapping();
+        self.remembered_casemapping = casemapping;
         self.state.reset(&self.config, casemapping);
         self.state_generation = self.state_generation.wrapping_add(1);
     }
@@ -3057,6 +3080,9 @@ impl Session {
             == Handled::Yes;
         self.maybe_send_away_on_connect();
         let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
+        if isupport_handled {
+            self.remember_casemapping();
+        }
         let registration_finished = !was_registered && self.registration.is_registered();
         if registration_finished {
             self.monitor
@@ -3351,12 +3377,25 @@ impl Session {
             BatchEvent::Isupport(messages) => {
                 let before = self.snapshot_values();
                 self.isupport.handle_batch(&messages);
+                self.remember_casemapping();
                 self.sync_monitored_state();
                 if before != self.snapshot_values() {
                     self.state_generation = self.state_generation.wrapping_add(1);
                 }
             }
         }
+    }
+
+    fn remember_casemapping(&mut self) {
+        let new = self.isupport.value().casemapping();
+        if !self.casemapping_change_emitted && new != self.casemapping_baseline {
+            self.outbox.event(Event::CasemappingChanged {
+                old: self.casemapping_baseline,
+                new,
+            });
+            self.casemapping_change_emitted = true;
+        }
+        self.remembered_casemapping = new;
     }
 
     fn dispatch_response_batch(&mut self, now: Instant, response: BatchEvent) {
