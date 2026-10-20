@@ -2,7 +2,7 @@
 
 This example creates an Ergo account during connection setup and prints the authenticated account.
 If the server requires email verification, it prints the server's instructions and reads the
-verification code from standard input before registration continues.
+verification code from standard input before the connection completes.
 
 Configuration comes from the environment:
 

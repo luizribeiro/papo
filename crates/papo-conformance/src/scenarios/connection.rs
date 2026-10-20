@@ -44,9 +44,9 @@ impl StsStore for RecordingStsStore {
 
 /// registers with the requested nickname
 #[scenario(covers = ["base.connreg.nick-user", "base.connreg.welcome-order"])]
-async fn registration(s: Scenario) -> papo_testing::Result<()> {
+async fn connect(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    assert_registered(&alice, "alice");
+    assert_connected(&alice, "alice");
     let connected = alice.wait_for(Event::as_connected).await?;
     assert_eq!(connected.nick, alice.state().nick().as_ref());
     for (name, value) in &connected.caps {
@@ -577,12 +577,12 @@ async fn register_over(
         builder = builder.tls_ca_pem(ca);
     }
     let mut alice = s.connect_with(builder).await?;
-    assert_registered(&alice, "alice");
+    assert_connected(&alice, "alice");
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
 }
 
-fn assert_registered(alice: &papo_testing::Peer, label: &str) {
+fn assert_connected(alice: &papo_testing::Peer, label: &str) {
     let state = alice.state();
     assert!(state.is_connected());
     assert!(state.nick().starts_with(label));

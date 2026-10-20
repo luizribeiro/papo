@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (client, mut events, driver) = builder.build();
     tokio::spawn(driver);
 
-    let mut registered = false;
+    let mut connected = false;
     let mut logged_in = None;
     while let Some(event) = events.next().await {
         match event {
@@ -40,19 +40,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Event::AccountRegistration(AccountRegistration::Registered { account }) => {
                 logged_in = Some(account);
             }
-            Event::Connected(_) => registered = true,
+            Event::Connected(_) => connected = true,
             Event::Disconnected(disconnected) => {
                 return Err(disconnected.to_string().into());
             }
             _ => {}
         }
-        if registered && let Some(account) = &logged_in {
+        if connected && let Some(account) = &logged_in {
             println!("logged in as {account}");
             client.quit("account registration complete").await?;
             return Ok(());
         }
     }
-    Err("driver stopped before registration completed".into())
+    Err("driver stopped before connection completed".into())
 }
 
 fn new_account(account: &str, email: Option<&str>, password: &str) -> NewAccount {
