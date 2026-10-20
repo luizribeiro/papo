@@ -17,6 +17,12 @@ struct Measurement {
     command: String,
 }
 
+impl Measurement {
+    fn fits_wire_limits(&self) -> bool {
+        self.tags <= MAX_TAG_SECTION_LEN && self.line <= MAX_LINE_LEN
+    }
+}
+
 /// keeps every server line within its wire limits while connecting
 #[scenario(covers = ["base.connreg.server-line-length"])]
 #[allow(
@@ -36,7 +42,7 @@ async fn connect_line_lengths(s: Scenario) -> papo_testing::Result<()> {
         let measured = measure(&bytes)?;
         saw_cap |= measured.command == "CAP";
         saw_connect_end |= matches!(measured.command.as_str(), "376" | "422");
-        if measured.tags > MAX_TAG_SECTION_LEN || measured.line > MAX_LINE_LEN {
+        if !measured.fits_wire_limits() {
             oversized.get_or_insert_with(|| format_measurement(&measured));
         }
         if longest
@@ -134,4 +140,50 @@ fn format_measurement(measured: &Measurement) -> String {
         "{} bytes {} ({} tag section + {} line)",
         measured.total, measured.command, measured.tags, measured.line
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{BufReader, Cursor};
+
+    use super::{measure, read_bounded_line};
+
+    fn padded_line(prefix: &str, length: usize) -> String {
+        format!("{prefix}{}\r\n", "x".repeat(length - 2 - prefix.len()))
+    }
+
+    #[test]
+    fn accepts_both_literal_wire_boundaries() {
+        let tag_prefix = "@time=2026-10-20T19:30:00.000Z;example.test/padding=";
+        let tags = format!("{tag_prefix}{} ", "x".repeat(8191 - 1 - tag_prefix.len()));
+        let body = padded_line(":soju.papo.test CAP papo-fixture LS :sasl=PLAIN", 512);
+        let measured = measure(format!("{tags}{body}").as_bytes()).unwrap();
+
+        assert_eq!(measured.total, 8191 + 512);
+        assert_eq!(measured.tags, 8191);
+        assert_eq!(measured.line, 512);
+        assert_eq!(measured.command, "CAP");
+        assert!(measured.fits_wire_limits());
+    }
+
+    #[test]
+    fn rejects_each_literal_wire_boundary_plus_one() {
+        let plain =
+            measure(padded_line(":ergo.test 005 papo NETWORK=ErgoTest", 513).as_bytes()).unwrap();
+        assert!(!plain.fits_wire_limits());
+
+        let tag_prefix = "@time=2026-10-20T19:30:00.000Z;example.test/padding=";
+        let tags = format!("{tag_prefix}{} ", "x".repeat(8192 - 1 - tag_prefix.len()));
+        let tagged =
+            measure(format!("{tags}:soju.papo.test CAP * LS :sasl\r\n").as_bytes()).unwrap();
+        assert_eq!(tagged.tags, 8192);
+        assert!(!tagged.fits_wire_limits());
+    }
+
+    #[test]
+    fn bounds_a_server_line_that_never_ends() {
+        let input = vec![b'x'; 8191 + 512 + 1];
+        let mut reader = BufReader::new(Cursor::new(input));
+        assert!(read_bounded_line(&mut reader).is_err());
+    }
 }
