@@ -111,7 +111,7 @@ use keepalive::Keepalive;
 use labels::encode_label;
 pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue};
 use monitor::Monitor;
-pub(crate) use name::NameKey;
+pub(crate) use name::{NameKey, names_equal};
 pub use outgoing::TextKind;
 use ratelimit::RateLimiter;
 pub use ratelimit::{InvalidRateLimit, RateLimit};
@@ -723,7 +723,7 @@ impl ResponseMatcher {
     fn target_is(message: &LineRef<'_>, index: usize, target: &str, mapping: Casemapping) -> bool {
         message
             .param(index)
-            .is_some_and(|value| mapping.eq(value, target))
+            .is_some_and(|value| names_equal(mapping, value, target))
     }
 
     fn numeric_names_command(message: &LineRef<'_>, numeric: Numeric, command: &str) -> bool {
@@ -747,7 +747,7 @@ impl ResponseMatcher {
                 && Self::target_is(message, 0, channel, mapping)
                 && message
                     .param(1)
-                    .is_some_and(|nick| mapping.eq(nick, own_nick)))
+                    .is_some_and(|nick| names_equal(mapping, nick, own_nick)))
     }
 
     #[allow(clippy::too_many_lines)]
@@ -762,8 +762,8 @@ impl ResponseMatcher {
             Command::Numeric(numeric) => Some(numeric),
             _ => None,
         };
-        let own_source = matches!(message.source(), Some(Source::User { nick, .. }) if mapping.eq(nick, own_nick));
-        let current_own_source = matches!(message.source(), Some(Source::User { nick, .. }) if mapping.eq(nick, state.nick()));
+        let own_source = matches!(message.source(), Some(Source::User { nick, .. }) if names_equal(mapping, nick, own_nick));
+        let current_own_source = matches!(message.source(), Some(Source::User { nick, .. }) if names_equal(mapping, nick, state.nick()));
         match self {
             Self::Whois(nick) => {
                 if Self::standard_failure(message, "WHOIS") {
@@ -2889,7 +2889,7 @@ impl Session {
         }
         if account.is_some_and(|account| {
             !policy.custom_account_name
-                && !self.isupport.value().casemapping().eq(account, self.nick())
+                && !names_equal(self.isupport.value().casemapping(), account, self.nick())
         }) {
             return Err(RequestError::CustomAccountNameUnsupported);
         }

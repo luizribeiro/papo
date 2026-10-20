@@ -86,7 +86,9 @@ impl Session {
                     &request.matcher,
                     ResponseMatcher::Join(channel)
                         if message.command() == Command::Join
-                            && message.param(0).is_some_and(|target| mapping.eq(target, channel))
+                            && message
+                                .param(0)
+                                .is_some_and(|target| crate::names_equal(mapping, target, channel))
                             && self.is_own_source(message)
                 );
                 let fence = request.fence.as_ref().and_then(|token| {

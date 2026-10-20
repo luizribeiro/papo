@@ -8,7 +8,7 @@ impl State {
         let Some(Source::User { nick, .. }) = message.source() else {
             return Handled::No;
         };
-        let ours = self.casemapping.eq(nick, &self.nick);
+        let ours = crate::names_equal(self.casemapping, nick, &self.nick);
         let channels = if ours {
             self.channels
                 .values()
@@ -50,7 +50,7 @@ impl State {
             channel: self.casemapping.channel(join.channel),
             nick: self.casemapping.nick(nick),
         });
-        let ours = self.casemapping.eq(nick, &self.nick);
+        let ours = crate::names_equal(self.casemapping, nick, &self.nick);
         if ours {
             self.nick = self.casemapping.nick(nick);
             if let Some(user) = user {

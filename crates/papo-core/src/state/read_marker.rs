@@ -57,7 +57,7 @@ impl State {
         ) else {
             return;
         };
-        if self.casemapping.eq(target, own_nick) {
+        if crate::names_equal(self.casemapping, target, own_nick) {
             let Some(Source::User { nick, .. }) = message.source() else {
                 return;
             };
@@ -72,7 +72,7 @@ impl State {
             return;
         }
         self.last_seen_order
-            .retain(|stored| !self.casemapping.eq(stored, target));
+            .retain(|stored| !crate::names_equal(self.casemapping, stored, target));
         if !self.last_seen.contains_key(&key)
             && self.last_seen.len() == MAX_LAST_SEEN_TARGETS
             && let Some(oldest) = self.last_seen_order.pop_front()

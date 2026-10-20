@@ -160,7 +160,7 @@ impl Monitor {
             if let Some(index) = self
                 .desired
                 .iter()
-                .position(|known| mapping.eq(known, nick))
+                .position(|known| crate::names_equal(mapping, known, nick))
             {
                 self.desired.remove(index);
                 self.presence.remove(&mapping.nick(nick));
@@ -170,12 +170,12 @@ impl Monitor {
             let new: Vec<_> = self.desired.iter().take(limit).cloned().collect();
             let removed: Vec<_> = old
                 .iter()
-                .filter(|nick| !new.iter().any(|new| mapping.eq(nick, new)))
+                .filter(|nick| !new.iter().any(|new| crate::names_equal(mapping, nick, new)))
                 .cloned()
                 .collect();
             let added: Vec<_> = new
                 .iter()
-                .filter(|nick| !old.iter().any(|old| mapping.eq(nick, old)))
+                .filter(|nick| !old.iter().any(|old| crate::names_equal(mapping, nick, old)))
                 .cloned()
                 .collect();
             transmit_chunks("-", &removed, outbox);

@@ -21,10 +21,11 @@ impl Session {
             let papo_proto::Source::User { nick, .. } = source else {
                 return false;
             };
-            self.isupport
-                .value()
-                .casemapping()
-                .eq(nick, self.registration.nick())
+            crate::names_equal(
+                self.isupport.value().casemapping(),
+                nick,
+                self.registration.nick(),
+            )
         })
     }
 

@@ -101,14 +101,14 @@ fn unlabelled_join_waits_for_channel_sync() {
     let id = session
         .request_with_matcher(
             now,
-            Line::join("#papo"),
-            ResponseMatcher::Join("#papo".into()),
+            Line::join("#Papo["),
+            ResponseMatcher::Join("#Papo[".into()),
         )
         .unwrap();
     for line in [
-        ":papo!papo@localhost JOIN #papo * :Papo Client",
-        ":ergo.test 353 papo = #papo :@papo alice",
-        ":ergo.test 366 papo #papo :End of /NAMES list",
+        ":papo!papo@localhost JOIN #papo{ * :Papo Client",
+        ":ergo.test 353 papo = #papo{ :@papo alice",
+        ":ergo.test 366 papo #papo{ :End of /NAMES list",
     ] {
         session.handle_line(now, line.as_bytes());
     }
@@ -1044,31 +1044,31 @@ fn labelled_join_waits_for_state_sync_before_resolving() {
     let id = session
         .request_with_matcher(
             now,
-            Line::join("#papo"),
-            ResponseMatcher::Join("#papo".into()),
+            Line::join("#Papo["),
+            ResponseMatcher::Join("#Papo[".into()),
         )
         .unwrap();
     session.handle_line(
         now,
-        b"@label=0 :papo!~papo@localhost JOIN #papo papo :Papo Bot",
+        b"@label=0 :papo!~papo@localhost JOIN #papo{ papo :Papo Bot",
     );
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Joined { channel, nick }) if channel == "#papo" && nick == "papo"
+        Some(Event::Joined { channel, nick }) if channel == "#Papo[" && nick == "papo"
     ));
     assert_eq!(session.poll_event(), None);
-    session.handle_line(now, b":ergo.test 353 papo = #papo :@papo alice");
-    session.handle_line(now, b":ergo.test 366 papo #papo :End of /NAMES list");
+    session.handle_line(now, b":ergo.test 353 papo = #papo{ :@papo alice");
+    session.handle_line(now, b":ergo.test 366 papo #papo{ :End of /NAMES list");
     assert!(matches!(
         session.poll_event(),
-        Some(Event::ChannelSynced { channel }) if channel == "#papo"
+        Some(Event::ChannelSynced { channel }) if channel == "#Papo["
     ));
     assert!(matches!(
         session.poll_event(),
         Some(Event::Response(response)) if response.id == id && response.lines.len() == 2
     ));
-    assert!(session.state().channel("#papo").unwrap().is_synced());
+    assert!(session.state().channel("#Papo[").unwrap().is_synced());
 }
 
 #[test]
@@ -1078,14 +1078,14 @@ fn labelled_join_times_out_once_when_sync_never_finishes() {
     let id = session
         .request_with_matcher(
             now,
-            Line::join("#papo"),
-            ResponseMatcher::Join("#papo".into()),
+            Line::join("#Papo["),
+            ResponseMatcher::Join("#Papo[".into()),
         )
         .unwrap();
     _ = session.poll_transmit();
     session.handle_line(
         now + std::time::Duration::from_secs(29),
-        b"@label=0 :papo!~papo@localhost JOIN #papo * :Papo Bot",
+        b"@label=0 :papo!~papo@localhost JOIN #papo{ * :Papo Bot",
     );
     while session.poll_event().is_some() {}
 

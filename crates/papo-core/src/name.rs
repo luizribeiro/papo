@@ -5,6 +5,10 @@ use std::{
 
 use papo_proto::Casemapping;
 
+pub(crate) fn names_equal(casemapping: Casemapping, left: &str, right: &str) -> bool {
+    casemapping.fold(left) == casemapping.fold(right)
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct NameKey<T> {
     original: T,

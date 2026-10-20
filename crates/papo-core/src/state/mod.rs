@@ -370,7 +370,7 @@ impl State {
                     nick: mapping.nick(nick),
                     reason: message.param(1).map(str::to_owned),
                 });
-                if mapping.eq(nick, &self.nick) {
+                if crate::names_equal(mapping, nick, &self.nick) {
                     self.remove_channel(channel);
                 } else {
                     self.remove_member(channel, nick);
@@ -394,7 +394,7 @@ impl State {
                 by: by.to_owned(),
                 reason: message.param(2).map(str::to_owned),
             });
-            if mapping.eq(nick, &self.nick) {
+            if crate::names_equal(mapping, nick, &self.nick) {
                 self.remove_channel(channel);
             } else {
                 self.remove_member(channel, nick);
@@ -411,7 +411,7 @@ impl State {
                 return Handled::No;
             };
             self.rename_user(nick, new_nick);
-            if mapping.eq(nick, &self.nick) {
+            if crate::names_equal(mapping, nick, &self.nick) {
                 self.nick = mapping.nick(new_nick);
             }
             outbox.event(Event::NickChanged {
@@ -477,7 +477,7 @@ impl State {
             return false;
         };
         self.update_casemapping(isupport.casemapping());
-        if !self.casemapping.eq(nick, own_nick) {
+        if !crate::names_equal(self.casemapping, nick, own_nick) {
             return false;
         }
         let realname_changed = self.realname != change.realname;
@@ -595,7 +595,7 @@ impl State {
             Command::Mode
                 if message
                     .param(0)
-                    .is_some_and(|nick| self.casemapping.eq(nick, &self.nick)) =>
+                    .is_some_and(|nick| crate::names_equal(self.casemapping, nick, &self.nick)) =>
             {
                 message.param(1)
             }

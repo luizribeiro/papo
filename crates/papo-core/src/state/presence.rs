@@ -171,7 +171,7 @@ impl State {
         let (Some(nick), Some(host)) = (message.param(0), message.param(1)) else {
             return Some(Handled::No);
         };
-        if !self.casemapping.eq(nick, &self.nick) {
+        if !crate::names_equal(self.casemapping, nick, &self.nick) {
             return Some(Handled::No);
         }
         self.host = Some(host.to_owned());
@@ -195,7 +195,7 @@ impl State {
             if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
                 user.update_userhost(Some(change.user), Some(change.host));
             }
-            if self.casemapping.eq(nick, &self.nick) {
+            if crate::names_equal(self.casemapping, nick, &self.nick) {
                 change.user.clone_into(&mut self.user);
                 self.host = Some(change.host.to_owned());
             }
@@ -210,7 +210,7 @@ impl State {
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
             user.realname = Some(change.realname.to_owned());
         }
-        if self.casemapping.eq(nick, &self.nick) {
+        if crate::names_equal(self.casemapping, nick, &self.nick) {
             change.realname.clone_into(&mut self.realname);
         }
         outbox.event(Event::RealnameChanged {
