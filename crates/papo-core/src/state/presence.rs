@@ -177,7 +177,7 @@ impl State {
         self.host = Some(host.to_owned());
         outbox.event(Event::HostChanged {
             nick: self.nick.clone(),
-            user: self.user.clone(),
+            username: self.user.clone(),
             host: host.to_owned(),
         });
         Some(Handled::Yes)
@@ -201,7 +201,7 @@ impl State {
             }
             outbox.event(Event::HostChanged {
                 nick: self.casemapping.nick(nick),
-                user: change.user.to_owned(),
+                username: change.user.to_owned(),
                 host: change.host.to_owned(),
             });
             return Some(Handled::Yes);

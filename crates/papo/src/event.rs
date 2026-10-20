@@ -1164,9 +1164,11 @@ pub(crate) fn from_core(
         papo_core::Event::AwayChanged { nick, message } => {
             Event::AwayChanged(AwayChanged { nick, message })
         }
-        papo_core::Event::HostChanged { nick, user, host } => {
-            Event::HostChanged(HostChanged { nick, user, host })
-        }
+        papo_core::Event::HostChanged {
+            nick,
+            username: user,
+            host,
+        } => Event::HostChanged(HostChanged { nick, user, host }),
         papo_core::Event::RealnameChanged { nick, realname } => {
             Event::RealnameChanged(RealnameChanged { nick, realname })
         }
@@ -1224,9 +1226,11 @@ pub(crate) fn from_core(
         papo_core::Event::StateLimitReached { limit } => {
             Event::Warning(Warning::StateLimitReached { limit })
         }
-        papo_core::Event::MonitorOnline { nick, user, host } => {
-            Event::MonitorOnline(MonitorOnline { nick, user, host })
-        }
+        papo_core::Event::MonitorOnline {
+            nick,
+            username: user,
+            host,
+        } => Event::MonitorOnline(MonitorOnline { nick, user, host }),
         papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline { nick }),
         papo_core::Event::MonitorListFull { limit, nicks } => {
             Event::Warning(Warning::MonitorListFull { limit, nicks })
@@ -2148,7 +2152,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::HostChanged {
                 nick: Casemapping::default().nick("emily"),
-                user: "~em".into(),
+                username: "~em".into(),
                 host: "users/emily".into(),
             }),
             Event::HostChanged(changed)
@@ -2241,7 +2245,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::MonitorOnline {
                 nick: Casemapping::default().nick("alice"),
-                user: Some("~alice".into()),
+                username: Some("~alice".into()),
                 host: Some("cloak.example".into()),
             }),
             Event::MonitorOnline(online)
@@ -2251,7 +2255,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::MonitorOnline {
                 nick: Casemapping::default().nick("bob"),
-                user: None,
+                username: None,
                 host: None,
             }),
             Event::MonitorOnline(online)

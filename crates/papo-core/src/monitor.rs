@@ -246,13 +246,13 @@ impl Monitor {
                         if !was_online && changed {
                             outbox.event(Event::MonitorOnline {
                                 nick: isupport.casemapping().nick(nick),
-                                user: user.map(str::to_owned),
+                                username: user.map(str::to_owned),
                                 host: host.map(str::to_owned),
                             });
                         } else if userhost_changed && let (Some(user), Some(host)) = (user, host) {
                             outbox.event(Event::HostChanged {
                                 nick: isupport.casemapping().nick(nick),
-                                user: user.to_owned(),
+                                username: user.to_owned(),
                                 host: host.to_owned(),
                             });
                         }

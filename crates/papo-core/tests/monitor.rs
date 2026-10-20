@@ -245,9 +245,9 @@ fn tracks_online_offline_and_list_full_replies() {
         .update(|session| session.monitor_add(["alice", "bob", "carol"]))
         .client("MONITOR + alice,bob,carol")
         .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob,carol!carol@staff.example")
-        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "alice" && nick.casemapping() == Casemapping::Ascii && user.as_deref() == Some("~alice") && host.as_deref() == Some("cloak.example")))
-        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "bob" && user.is_none() && host.is_none()))
-        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "carol" && user.as_deref() == Some("carol") && host.as_deref() == Some("staff.example")))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, username, host } if nick == "alice" && nick.casemapping() == Casemapping::Ascii && username.as_deref() == Some("~alice") && host.as_deref() == Some("cloak.example")))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, username, host } if nick == "bob" && username.is_none() && host.is_none()))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, username, host } if nick == "carol" && username.as_deref() == Some("carol") && host.as_deref() == Some("staff.example")))
         .inspect(|session| {
             let mut online: Vec<_> = session
                 .state()
@@ -267,7 +267,7 @@ fn tracks_online_offline_and_list_full_replies() {
         .server(":ergo.test 730 papo :bob")
         .no_event()
         .server(":ergo.test 730 papo :bob!bob@users.example")
-        .event(|event| matches!(event, Event::HostChanged { nick, user, host } if nick == "bob" && user == "bob" && host == "users.example"))
+        .event(|event| matches!(event, Event::HostChanged { nick, username, host } if nick == "bob" && username == "bob" && host == "users.example"))
         .server(":ergo.test 730 papo :ALICE!~alice@cloak.example")
         .no_event()
         .server(":ergo.test 731 papo :alice")

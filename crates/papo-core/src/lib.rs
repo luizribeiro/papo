@@ -1737,8 +1737,8 @@ pub enum Event {
     MonitorOnline {
         /// The monitored nickname.
         nick: Nick,
-        /// The user's current username, when supplied by the server.
-        user: Option<String>,
+        /// The username from `nick!user@host`, when supplied by the server.
+        username: Option<String>,
         /// The user's current hostname, when supplied by the server.
         host: Option<String>,
     },
@@ -1870,8 +1870,8 @@ pub enum Event {
     HostChanged {
         /// The affected user's nickname.
         nick: Nick,
-        /// The user's new username.
-        user: String,
+        /// The new username from `nick!user@host`.
+        username: String,
         /// The user's new hostname.
         host: String,
     },

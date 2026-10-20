@@ -587,9 +587,9 @@ fn chghost_updates_shared_and_own_userhosts() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":dan!~dan@cloak.example CHGHOST dan account/dan")
-        .event_until(|event| matches!(event, Event::HostChanged { nick, user, host } if nick == "dan" && user == "dan" && host == "account/dan"))
+        .event_until(|event| matches!(event, Event::HostChanged { nick, username, host } if nick == "dan" && username == "dan" && host == "account/dan"))
         .server(":emily!em@127.0.0.1 CHGHOST ~em users/emily")
-        .event(|event| matches!(event, Event::HostChanged { nick, user, host } if nick == "emily" && user == "~em" && host == "users/emily"))
+        .event(|event| matches!(event, Event::HostChanged { nick, username, host } if nick == "emily" && username == "~em" && host == "users/emily"))
         .inspect(|session| {
             let dan = session.state().user("dan").unwrap();
             assert_eq!(dan.username(), Some("dan"));
@@ -604,7 +604,7 @@ fn chghost_updates_shared_and_own_userhosts() {
 fn visible_host_numeric_updates_our_host() {
     Transcript::new(Config::default().nick("emily").username("~em"))
         .server(":ergo.test 396 emily gateway/tor-sasl :is now your displayed host")
-        .event(|event| matches!(event, Event::HostChanged { nick, user, host } if nick == "emily" && user == "~em" && host == "gateway/tor-sasl"))
+        .event(|event| matches!(event, Event::HostChanged { nick, username, host } if nick == "emily" && username == "~em" && host == "gateway/tor-sasl"))
         .inspect(|session| assert_eq!(session.state().host(), Some("gateway/tor-sasl")))
         .no_event();
 }

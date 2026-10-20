@@ -457,7 +457,7 @@ pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(papo::Conversation, std::t
 pub papo_core::Event::HostChanged
 pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
-pub papo_core::Event::HostChanged::user: alloc::string::String
+pub papo_core::Event::HostChanged::username: alloc::string::String
 pub papo_core::Event::Invited
 pub papo_core::Event::Invited::actor: alloc::string::String
 pub papo_core::Event::Invited::authorship: papo_core::Authorship
@@ -503,7 +503,7 @@ pub papo_core::Event::MonitorOffline::nick: papo::Nick
 pub papo_core::Event::MonitorOnline
 pub papo_core::Event::MonitorOnline::host: core::option::Option<alloc::string::String>
 pub papo_core::Event::MonitorOnline::nick: papo::Nick
-pub papo_core::Event::MonitorOnline::user: core::option::Option<alloc::string::String>
+pub papo_core::Event::MonitorOnline::username: core::option::Option<alloc::string::String>
 pub papo_core::Event::MonitorUnsupported
 pub papo_core::Event::Motd
 pub papo_core::Event::Motd::lines: alloc::vec::Vec<alloc::string::String>
