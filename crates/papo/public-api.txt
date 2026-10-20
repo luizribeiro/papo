@@ -2345,6 +2345,7 @@ pub fn papo::State::mask(&self, impl core::convert::AsRef<str>) -> papo::Mask
 pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> &[papo::MetadataKey]
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
+pub fn papo::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>
 pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::nickname(&self, impl core::convert::AsRef<str>) -> papo::Nick
 pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::time::SystemTime>

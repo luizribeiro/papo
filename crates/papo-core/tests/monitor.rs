@@ -5,7 +5,7 @@ mod support;
 use std::{cell::Cell, time::Instant};
 
 use papo_core::{Account, Away, Config, Event};
-use papo_proto::{Casemapping, Line};
+use papo_proto::{Casemapping, Line, Nick};
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -39,6 +39,35 @@ fn adds_removes_and_clears_monitored_nicks() {
         .client("MONITOR - bob")
         .update(papo_core::Session::monitor_clear)
         .client("MONITOR C")
+        .no_client();
+}
+
+#[test]
+fn desired_nicks_keep_insertion_order_after_add_and_remove() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo MONITOR=2 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .update(|session| session.monitor_add(["alice", "bob", "carol"]))
+        .client("MONITOR + alice,bob")
+        .event(|event| matches!(event, Event::MonitorListFull { nicks, .. } if nicks == &["carol"]))
+        .update(|session| session.monitor_remove(["BOB"]))
+        .client("MONITOR - bob")
+        .client("MONITOR + carol")
+        .update(|session| session.monitor_add(["dave"]))
+        .event(|event| matches!(event, Event::MonitorListFull { nicks, .. } if nicks == &["dave"]))
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .monitored()
+                    .map(Nick::as_ref)
+                    .collect::<Vec<_>>(),
+                ["alice", "carol", "dave"]
+            );
+        })
         .no_client();
 }
 

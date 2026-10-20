@@ -52,6 +52,7 @@ pub struct State {
     isupport: Isupport,
     channels: HashMap<ChannelName, Channel>,
     users: HashMap<Nick, User>,
+    monitored: Vec<Nick>,
     who_sweeps: HashSet<ChannelName>,
     read_markers: HashMap<NameKey<String>, ReadMarker>,
     last_seen: HashMap<NameKey<String>, LastSeen>,
@@ -255,6 +256,7 @@ impl State {
             isupport: Isupport::default(),
             channels: HashMap::new(),
             users: HashMap::new(),
+            monitored: Vec::new(),
             who_sweeps: HashSet::new(),
             read_markers: HashMap::new(),
             last_seen: HashMap::new(),
@@ -287,6 +289,10 @@ impl State {
 
     pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, isupport: &Isupport) {
         self.update_casemapping(isupport.casemapping());
+        self.monitored = monitor
+            .desired()
+            .map(|nick| self.casemapping.nick(nick))
+            .collect();
         for user in self.users.values_mut() {
             user.monitored = false;
         }
@@ -883,6 +889,14 @@ impl State {
     /// Presence from `730` replies is included without requiring `extended-monitor`.
     pub fn monitor_online(&self) -> impl Iterator<Item = &User> {
         self.users.values().filter(|user| user.monitored)
+    }
+
+    /// Iterates over desired monitored nicknames in insertion order.
+    ///
+    /// The iterator includes nicknames that the server rejected because its
+    /// monitor list was full.
+    pub fn monitored(&self) -> impl Iterator<Item = &Nick> {
+        self.monitored.iter()
     }
 }
 

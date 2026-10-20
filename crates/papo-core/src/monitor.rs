@@ -27,6 +27,10 @@ enum Presence {
 }
 
 impl Monitor {
+    pub(super) fn desired(&self) -> impl Iterator<Item = &str> {
+        self.desired.iter().map(String::as_str)
+    }
+
     pub(super) fn online(&self) -> impl Iterator<Item = (&str, Option<&str>, Option<&str>)> {
         self.presence
             .values()

@@ -2366,6 +2366,7 @@ impl Session {
         self.remembered_casemapping = casemapping;
         self.state
             .reset(&self.config, casemapping, self.isupport.value());
+        self.sync_monitored_state();
         self.state_generation = self.state_generation.wrapping_add(1);
     }
 
@@ -2690,12 +2691,17 @@ impl Session {
         I: IntoIterator<Item = S>,
         S: Into<String>,
     {
+        let before = self.state.clone();
         self.monitor.add(
             nicks,
             self.isupport.value(),
             self.welcome_state.is_connected(),
             &mut self.outbox,
         );
+        self.sync_monitored_state();
+        if before != self.state {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
     }
 
     /// Removes nicknames from the desired server-side monitor list.

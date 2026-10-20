@@ -133,6 +133,14 @@ mod tests {
         });
         client_line(&mut server, b"MONITOR + alice,bob\r\n").await;
         assert!(within(add).await.unwrap().is_ok());
+        assert_eq!(
+            client
+                .state()
+                .monitored()
+                .map(crate::Nick::as_ref)
+                .collect::<Vec<_>>(),
+            ["alice", "bob"]
+        );
 
         let remove = tokio::spawn({
             let client = client.clone();
@@ -143,6 +151,14 @@ mod tests {
         });
         client_line(&mut server, b"MONITOR - bob\r\n").await;
         assert!(within(remove).await.unwrap().is_ok());
+        assert_eq!(
+            client
+                .state()
+                .monitored()
+                .map(crate::Nick::as_ref)
+                .collect::<Vec<_>>(),
+            ["alice"]
+        );
 
         let clear = tokio::spawn(async move { client.monitor().clear().await });
         client_line(&mut server, b"MONITOR C\r\n").await;
