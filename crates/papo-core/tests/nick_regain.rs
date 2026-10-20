@@ -23,6 +23,14 @@ fn registered_after_collision(config: Config, monitor: bool) -> Transcript {
         .event(|event| matches!(event, Event::Connected(_)))
 }
 
+fn ison_config() -> Config {
+    let mut config = Config::default()
+        .ping_interval(Duration::from_secs(300))
+        .ping_timeout(Duration::from_secs(600));
+    config.regain_nick = true;
+    config
+}
+
 #[test]
 fn reclaims_the_primary_nick_when_ergo_reports_it_offline() {
     let mut config = Config::default();
@@ -126,12 +134,102 @@ fn nickname_regain_is_disabled_by_default() {
 }
 
 #[test]
+fn ison_polling_starts_at_the_literal_sixty_second_boundary() {
+    registered_after_collision(ison_config(), false)
+        .deadline(Some(Duration::from_secs(60)))
+        .advance(Duration::from_secs(59))
+        .deadline(Some(Duration::from_secs(1)))
+        .no_client()
+        .advance(Duration::from_secs(1))
+        .client("ISON papo")
+        .no_client();
+}
+
+#[test]
+fn an_online_ison_reply_reschedules_at_the_literal_boundary() {
+    registered_after_collision(ison_config(), false)
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .server(":irc.solanum.example 303 papo_ :papo")
+        .deadline(Some(Duration::from_secs(60)))
+        .advance(Duration::from_secs(59))
+        .deadline(Some(Duration::from_secs(1)))
+        .no_client()
+        .advance(Duration::from_secs(1))
+        .client("ISON papo")
+        .no_client();
+}
+
+#[test]
+fn only_ison_replies_answer_an_outstanding_poll() {
+    registered_after_collision(ison_config(), false)
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .server(":irc.solanum.example 433 papo_ alice :Nickname is already in use")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("433")))
+        .no_client();
+}
+
+#[test]
+fn unrelated_lines_do_not_complete_an_ison_claim() {
+    registered_after_collision(ison_config(), false)
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .server(":irc.solanum.example 303 papo_ :")
+        .client("NICK papo")
+        .server(":irc.solanum.example NOTICE papo_ :Nickname change is pending")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("NOTICE")))
+        .server(":irc.solanum.example 303 papo_ :")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("303")))
+        .advance(Duration::from_secs(60))
+        .no_client();
+}
+
+#[test]
+fn a_collision_for_another_nick_does_not_restart_ison_polling() {
+    registered_after_collision(ison_config(), false)
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .server(":irc.solanum.example 303 papo_ :")
+        .client("NICK papo")
+        .server(":irc.solanum.example 433 papo_ alice :Nickname is already in use")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("433")))
+        .advance(Duration::from_secs(60))
+        .no_client();
+}
+
+#[test]
+fn an_unsolicited_collision_does_not_schedule_ison_polling() {
+    registered_after_collision(ison_config(), false)
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .server(":irc.solanum.example 433 papo_ papo :Nickname is already in use")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("433")))
+        .advance(Duration::from_secs(60))
+        .no_client();
+}
+
+#[test]
+fn a_failed_ison_claim_retries_at_the_literal_boundary() {
+    registered_after_collision(ison_config(), false)
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .server(":irc.solanum.example 303 papo_ :")
+        .client("NICK papo")
+        .server(":irc.solanum.example 433 papo_ papo :Nickname is already in use")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("433")))
+        .deadline(Some(Duration::from_secs(60)))
+        .advance(Duration::from_secs(59))
+        .deadline(Some(Duration::from_secs(1)))
+        .no_client()
+        .advance(Duration::from_secs(1))
+        .client("ISON papo")
+        .no_client();
+}
+
+#[test]
 fn ison_replies_drive_bounded_polling_and_reclaim() {
-    let mut config = Config::default()
-        .ping_interval(Duration::from_secs(300))
-        .ping_timeout(Duration::from_secs(600));
-    config.regain_nick = true;
-    registered_after_collision(config, false)
+    registered_after_collision(ison_config(), false)
         .advance(Duration::from_secs(60))
         .client("ISON papo")
         .advance(Duration::from_secs(60))
