@@ -213,6 +213,37 @@ fn answers_supported_ctcp_queries_and_applies_safety_rules() {
 }
 
 #[test]
+fn reports_ctcp_queries_replies_and_actions_while_auto_answering() {
+    let replies = CtcpReplies {
+        version: Some("papo test build".into()),
+        ping: true,
+        time: None,
+        source: None,
+    };
+    Transcript::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited())
+            .ctcp(replies),
+    )
+    .server("@time=2026-10-20T12:34:56.000Z :alice!~a@cloak PRIVMSG papo :\x01VERSION\x01")
+    .client("NOTICE alice :\x01VERSION papo test build\x01")
+    .event(|event| matches!(event, Event::Line(line) if line.as_ref().param(1) == Some("\x01VERSION\x01")))
+    .server(":bob!~b@cloak PRIVMSG papo :\x01PING 1731513600\x01")
+    .client("NOTICE bob :\x01PING 1731513600\x01")
+    .event(|event| matches!(event, Event::Line(line) if line.as_ref().param(1) == Some("\x01PING 1731513600\x01")))
+    .server(":carol!~c@cloak PRIVMSG #papo :\x01ACTION reviews the patch\x01")
+    .no_client()
+    .event(|event| matches!(event, Event::Line(line) if line.as_ref().param(1) == Some("\x01ACTION reviews the patch\x01")))
+    .server(":dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message")
+    .no_client()
+    .event(|event| matches!(event, Event::Line(line) if line.as_ref().param(1) == Some("\x01ACTION tests a split message")))
+    .server(":soju.example NOTICE papo :\x01VERSION soju 0.8.2\x01")
+    .no_client()
+    .event(|event| matches!(event, Event::Line(line) if line.as_ref().param(1) == Some("\x01VERSION soju 0.8.2\x01")));
+}
+
+#[test]
 fn does_not_answer_own_ctcp_queries() {
     Transcript::new(Config::default().nick("papo"))
         .server(":papo!~p@cloak PRIVMSG bob :\x01VERSION\x01")
