@@ -108,12 +108,18 @@ async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
 
     // NAMES numerics and their channel parameters are the behavior under test.
     let targets = format!("{first},{second}");
-    let names = alice.request_command("NAMES", [&targets]).await?;
+    let mapping = alice.state().casemapping();
+    let names = alice
+        .request_raw(papo::Line::new("NAMES", [&targets]))
+        .await?;
     for channel in [&first, &second] {
-        if !names
-            .iter()
-            .any(|line| line.numeric() == Some(353) && line.param(2) == Some(channel.as_str()))
-        {
+        let channel_name = mapping.channel(channel);
+        if !names.iter().any(|line| {
+            line.numeric() == Some(353)
+                && line
+                    .param(2)
+                    .is_some_and(|name| mapping.channel(name) == channel_name)
+        }) {
             return Err(std::io::Error::other(format!(
                 "missing names row for {channel}: {names:?}"
             ))
@@ -122,9 +128,11 @@ async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
         assert!(
             names.iter().any(|line| {
                 line.numeric() == Some(366)
-                    && line
-                        .param(1)
-                        .is_some_and(|targets| targets.split(',').any(|target| target == channel))
+                    && line.param(1).is_some_and(|targets| {
+                        targets
+                            .split(',')
+                            .any(|target| mapping.channel(target) == channel_name)
+                    })
             }),
             "missing names terminator for {channel}: {names:?}"
         );
@@ -140,21 +148,31 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
+    let mapping = bob.state().casemapping();
+    let channel_name = mapping.channel(&channel);
     alice.join(&channel).await?;
     alice.mode(&channel).add('s').await?;
 
     // The absence of a names row in this numeric response proves the visibility rule.
-    let hidden = bob.request_command("NAMES", [&channel]).await?;
+    let hidden = bob
+        .request_raw(papo::Line::new("NAMES", [&channel]))
+        .await?;
     assert!(
-        !hidden
-            .iter()
-            .any(|line| { line.numeric() == Some(353) && line.param(2) == Some(channel.as_str()) }),
+        !hidden.iter().any(|line| {
+            line.numeric() == Some(353)
+                && line
+                    .param(2)
+                    .is_some_and(|name| mapping.channel(name) == channel_name)
+        }),
         "secret channel leaked through NAMES: {hidden:?}"
     );
     assert!(
-        hidden
-            .iter()
-            .any(|line| { line.numeric() == Some(366) && line.param(1) == Some(channel.as_str()) }),
+        hidden.iter().any(|line| {
+            line.numeric() == Some(366)
+                && line
+                    .param(1)
+                    .is_some_and(|name| mapping.channel(name) == channel_name)
+        }),
         "missing hidden-channel terminator: {hidden:?}"
     );
     assert!(alice.state().channel(&channel).is_some());
@@ -214,7 +232,8 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
         .add_with('k', "second-channel-key")
         .await?;
 
-    bob.send_command("JOIN", [&channels, keys]).await?;
+    bob.send_raw(papo::Line::new("JOIN", [&channels, keys]))
+        .await?;
     for channel in [&first, &second] {
         let synced = bob
             .wait_for(|event| {
@@ -243,7 +262,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
         );
     }
 
-    bob.send_command("JOIN", ["0"]).await?;
+    bob.send_raw(papo::Line::new("JOIN", ["0"])).await?;
     if matches!(
         DeploymentProfile::from_env()?,
         DeploymentProfile::ErgoDefault | DeploymentProfile::ErgoPersistent
@@ -258,7 +277,8 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
             })
             .await?;
         let confirmation = warning.text().split_ascii_whitespace().last().unwrap();
-        bob.send_command("JOIN", ["0", confirmation]).await?;
+        bob.send_raw(papo::Line::new("JOIN", ["0", confirmation]))
+            .await?;
     }
     let mut own = [
         bob.wait_for(Event::as_parted).await?,
@@ -304,7 +324,9 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
 
     // A single JOIN command must still apply its valid target before reporting the bad one.
     let targets = format!("{channel},{invalid}");
-    let partial = alice.request_command("JOIN", [&targets]).await?;
+    let partial = alice
+        .request_raw(papo::Line::new("JOIN", [&targets]))
+        .await?;
     let synced = alice
         .wait_for(|event| {
             event
@@ -350,14 +372,18 @@ async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
     }
     let channels = (0..=limit).map(|_| s.channel_name()).collect::<Vec<_>>();
     let targets = channels.join(",");
+    let mapping = alice.state().casemapping();
 
     // The server numeric is the behavior under test, so retain its raw response.
-    alice.send_command("JOIN", [&targets]).await?;
+    alice.send_raw(papo::Line::new("JOIN", [&targets])).await?;
     let refusal = alice
         .wait_for(|event| event.as_other().filter(|line| line.command() == "405"))
         .await?;
     assert_eq!(refusal.numeric(), Some(405));
-    assert_eq!(refusal.param(1), Some(channels[limit].as_str()));
+    assert_eq!(
+        mapping.channel(refusal.param(1).expect("405 includes the refused channel")),
+        channels[limit].as_str()
+    );
     assert_eq!(alice.state().channels().count(), limit);
     assert!(alice.state().channel(&channels[limit]).is_none());
     Ok(())
@@ -647,7 +673,9 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
 
     let channels = format!("{first},{second}");
     let reason = "leaving both review channels";
-    alice.send_command("PART", [&channels, reason]).await?;
+    alice
+        .send_raw(papo::Line::new("PART", [&channels, reason]))
+        .await?;
     let mut own = [
         alice.wait_for(Event::as_parted).await?,
         alice.wait_for(Event::as_parted).await?,
@@ -790,7 +818,9 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
         "482",
     );
     let targets = format!("{bob_nick},{carol_nick}");
-    alice.send_command("KICK", [&channel, &targets]).await?;
+    alice
+        .send_raw(papo::Line::new("KICK", [&channel, &targets]))
+        .await?;
     let mut observed = [
         alice.wait_for(Event::as_kicked).await?,
         alice.wait_for(Event::as_kicked).await?,
@@ -922,12 +952,14 @@ async fn nick_errors(s: Scenario) -> papo_testing::Result<()> {
     let original = alice.nick();
 
     // Empty and malformed wire parameters are needed to observe 431 and 432.
-    let empty = alice.request_command("NICK", [""]).await?;
+    let empty = alice.request_raw(papo::Line::new("NICK", [""])).await?;
     assert!(
         empty.iter().any(|line| line.numeric() == Some(431)),
         "unexpected empty-nickname response: {empty:?}"
     );
-    let malformed = alice.request_command("NICK", ["review#nick"]).await?;
+    let malformed = alice
+        .request_raw(papo::Line::new("NICK", ["review#nick"]))
+        .await?;
     assert!(
         malformed.iter().any(|line| line.numeric() == Some(432)),
         "unexpected malformed-nickname response: {malformed:?}"
@@ -1057,38 +1089,47 @@ async fn protected_topic(s: Scenario) -> papo_testing::Result<()> {
 async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let channel = s.channel_name();
-    let mask = "troublesome!*@gateway.example";
+    let mapping = alice.state().casemapping();
+    let channel_name = mapping.channel(&channel);
+    let mask = mapping.mask("troublesome!*@gateway.example");
     alice.join(&channel).await?;
-    alice
-        .mode(&channel)
-        .ban(alice.state().casemapping().mask(mask))
-        .await?;
+    alice.mode(&channel).ban(&mask).await?;
 
     // MODE query numerics expose list entries that are not stored as channel flags.
-    let modes = alice.request_command("MODE", [&channel]).await?;
+    let modes = alice
+        .request_raw(papo::Line::new("MODE", [&channel]))
+        .await?;
     let current = modes
         .iter()
         .find(|line| line.numeric() == Some(324))
         .expect("channel mode query must include 324");
-    assert_eq!(current.param(1), Some(channel.as_str()));
+    assert_eq!(
+        mapping.channel(current.param(1).expect("324 includes the channel")),
+        channel_name
+    );
     assert!(current.param(2).is_some_and(|value| value.starts_with('+')));
 
-    let bans = alice.request_command("MODE", [&channel, "b"]).await?;
+    let bans = alice
+        .request_raw(papo::Line::new("MODE", [&channel, "b"]))
+        .await?;
     assert!(bans.iter().any(|line| {
         line.numeric() == Some(367)
-            && line.param(1) == Some(channel.as_str())
-            && line.param(2) == Some(mask)
+            && line
+                .param(1)
+                .is_some_and(|name| mapping.channel(name) == channel_name)
+            && line
+                .param(2)
+                .is_some_and(|value| mapping.mask(value) == mask)
     }));
     assert!(
         bans.iter().any(|line| line.numeric() == Some(368)),
         "missing ban-list terminator: {bans:?}"
     );
 
-    alice
-        .mode(&channel)
-        .unban(alice.state().casemapping().mask(mask))
+    alice.mode(&channel).unban(&mask).await?;
+    let cleared = alice
+        .request_raw(papo::Line::new("MODE", [&channel, "b"]))
         .await?;
-    let cleared = alice.request_command("MODE", [&channel, "b"]).await?;
     assert!(!cleared.iter().any(|line| line.numeric() == Some(367)));
     assert!(cleared.iter().any(|line| line.numeric() == Some(368)));
     Ok(())
@@ -1105,47 +1146,50 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
 async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let channel = s.channel_name();
-    let mask = "reviewer!*@trusted.example";
+    let mapping = alice.state().casemapping();
+    let mask = mapping.mask("reviewer!*@trusted.example");
     alice.join(&channel).await?;
     let support = alice.state().isupport().clone();
     let except = support.excepts().unwrap();
     let invex = support.invex().unwrap();
     alice
         .mode(&channel)
-        .add_with(except, mask)
-        .add_with(invex, mask)
+        .add_with(except, mask.as_ref())
+        .add_with(invex, mask.as_ref())
         .await?;
 
     // List-mode numerics are the public evidence for stored exception masks.
     let exceptions = alice
-        .request_command("MODE", [&channel, &except.to_string()])
+        .request_raw(papo::Line::new("MODE", [&channel, &except.to_string()]))
         .await?;
-    assert!(
-        exceptions
-            .iter()
-            .any(|line| { line.numeric() == Some(348) && line.param(2) == Some(mask) })
-    );
+    assert!(exceptions.iter().any(|line| {
+        line.numeric() == Some(348)
+            && line
+                .param(2)
+                .is_some_and(|value| mapping.mask(value) == mask)
+    }));
     assert!(
         exceptions.iter().any(|line| line.numeric() == Some(349)),
         "missing exception-list terminator: {exceptions:?}"
     );
     let invitations = alice
-        .request_command("MODE", [&channel, &invex.to_string()])
+        .request_raw(papo::Line::new("MODE", [&channel, &invex.to_string()]))
         .await?;
-    assert!(
-        invitations
-            .iter()
-            .any(|line| { line.numeric() == Some(346) && line.param(2) == Some(mask) })
-    );
+    assert!(invitations.iter().any(|line| {
+        line.numeric() == Some(346)
+            && line
+                .param(2)
+                .is_some_and(|value| mapping.mask(value) == mask)
+    }));
     assert!(invitations.iter().any(|line| line.numeric() == Some(347)));
 
     alice
         .mode(&channel)
-        .remove_with(except, mask)
-        .remove_with(invex, mask)
+        .remove_with(except, mask.as_ref())
+        .remove_with(invex, mask.as_ref())
         .await?;
     let cleared = alice
-        .request_command("MODE", [&channel, &except.to_string()])
+        .request_raw(papo::Line::new("MODE", [&channel, &except.to_string()]))
         .await?;
     assert!(!cleared.iter().any(|line| line.numeric() == Some(348)));
     assert!(cleared.iter().any(|line| line.numeric() == Some(349)));
@@ -1209,13 +1253,15 @@ async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
         .await?;
 
     // These server numerics are the behavior under test and need raw MODE parameters.
-    let unknown = alice.request_command("MODE", [&channel, "+?"]).await?;
+    let unknown = alice
+        .request_raw(papo::Line::new("MODE", [&channel, "+?"]))
+        .await?;
     assert!(
         unknown.iter().any(|line| line.numeric() == Some(472)),
         "unexpected unknown-mode response: {unknown:?}"
     );
     let invalid = alice
-        .request_command("MODE", [&channel, "+l", "not-a-limit"])
+        .request_raw(papo::Line::new("MODE", [&channel, "+l", "not-a-limit"]))
         .await?;
     assert!(
         invalid.iter().any(|line| line.numeric() == Some(696)),
@@ -1234,16 +1280,19 @@ async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
 async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let nick = alice.nick();
+    let mapping = alice.state().casemapping();
 
     // User-mode query and error numerics have no richer public result type.
-    let initial = alice.request_command("MODE", [nick.as_ref()]).await?;
+    let initial = alice
+        .request_raw(papo::Line::new("MODE", [nick.as_ref()]))
+        .await?;
     assert!(initial.iter().any(|line| line.numeric() == Some(221)));
     if alice.state().user_modes().any(|mode| mode == 'i') {
         alice.mode(nick.clone()).remove('i').await?;
         let removed = alice
             .wait_for(|event| {
                 event.as_mode_changed().filter(|changed| {
-                    changed.target.as_ref() == nick.as_ref()
+                    mapping.nick(changed.target.as_ref()) == nick
                         && changed
                             .changes
                             .iter()
@@ -1263,7 +1312,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
     let added = alice
         .wait_for(|event| {
             event.as_mode_changed().filter(|changed| {
-                changed.target.as_ref() == nick.as_ref()
+                mapping.nick(changed.target.as_ref()) == nick
                     && changed
                         .changes
                         .iter()
@@ -1271,7 +1320,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert_eq!(added.target.as_ref(), nick.as_ref());
+    assert_eq!(mapping.nick(added.target.as_ref()), nick);
     assert!(
         added
             .changes
@@ -1280,11 +1329,15 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(alice.state().user_modes().any(|mode| mode == 'i'));
 
-    let current = alice.request_command("MODE", [nick.as_ref()]).await?;
+    let current = alice
+        .request_raw(papo::Line::new("MODE", [nick.as_ref()]))
+        .await?;
     assert!(current.iter().any(|line| {
         line.numeric() == Some(221) && line.params().iter().any(|param| param.contains('i'))
     }));
-    let unknown = alice.request_command("MODE", [nick.as_ref(), "+?"]).await?;
+    let unknown = alice
+        .request_raw(papo::Line::new("MODE", [nick.as_ref(), "+?"]))
+        .await?;
     if !unknown.iter().any(|line| line.numeric() == Some(501)) {
         return Err(std::io::Error::other(format!(
             "unexpected unknown-user-mode response: {unknown:?}"
