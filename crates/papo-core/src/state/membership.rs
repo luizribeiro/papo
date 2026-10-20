@@ -48,14 +48,25 @@ impl State {
     ) -> Handled {
         let Some(Source::User {
             nick,
-            username: user,
+            username,
             host,
         }) = message.source()
         else {
             return Handled::No;
         };
+        let account = if join.realname.is_some() {
+            Account::from_notify(join.account, self.casemapping)
+        } else {
+            Account::Unknown
+        };
         outbox.event(Event::Joined {
             envelope: crate::LineEnvelope::from_line(message),
+            actor: message
+                .raw_source()
+                .expect("user source is present")
+                .to_owned(),
+            account,
+            realname: join.realname.map(str::to_owned),
             channel: self.casemapping.channel(join.channel),
             nick: self.casemapping.nick(nick),
             authorship: self.nick_authorship(nick),
@@ -63,8 +74,8 @@ impl State {
         let ours = crate::names_equal(self.casemapping, nick, &self.nick);
         if ours {
             self.nick = self.casemapping.nick(nick);
-            if let Some(user) = user {
-                user.clone_into(&mut self.user);
+            if let Some(username) = username {
+                username.clone_into(&mut self.user);
             }
             if let Some(host) = host {
                 self.host = Some(host.to_owned());
@@ -82,7 +93,7 @@ impl State {
                 Channel::new(join.channel, self.casemapping, isupport, false),
             );
         }
-        self.add_member(join.channel, nick, user, host, Vec::new(), outbox);
+        self.add_member(join.channel, nick, username, host, Vec::new(), outbox);
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick))
             && join.realname.is_some()
         {

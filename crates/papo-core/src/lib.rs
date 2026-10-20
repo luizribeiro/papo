@@ -1760,6 +1760,12 @@ pub enum Event {
     Joined {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
+        /// The joining user's prefix.
+        actor: String,
+        /// The joining user's known account state.
+        account: Account,
+        /// The joining user's real name, when supplied by the server.
+        realname: Option<String>,
         /// The channel that was joined.
         channel: ChannelName,
         /// The joining user's nickname.

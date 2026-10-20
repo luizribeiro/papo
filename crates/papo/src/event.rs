@@ -1036,6 +1036,7 @@ pub(crate) fn from_core(
             channel,
             nick,
             authorship,
+            ..
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::Joined(Joined {
@@ -1614,6 +1615,9 @@ mod tests {
             papo_core::Event::Joined {
                 envelope: papo_core::LineEnvelope::default(),
                 channel: Casemapping::Ascii.channel("#Papo[dev]"),
+                actor: "Alice[bot]!~a@cloak.example".to_owned(),
+                account: Account::Unknown,
+                realname: None,
                 nick: Casemapping::Ascii.nick("Alice[bot]"),
                 authorship: papo_core::Authorship::Other,
             },
@@ -2015,8 +2019,11 @@ mod tests {
             forwarded(papo_core::Event::Joined {
                 envelope: papo_core::LineEnvelope::default(),
                 channel: Casemapping::default().channel("#papo"),
-                nick: Casemapping::default().nick("emily")
-                ,authorship: papo_core::Authorship::Other
+                nick: Casemapping::default().nick("emily"),
+                actor: "emily!~e@host".to_owned(),
+                account: Account::Unknown,
+                realname: None,
+                authorship: papo_core::Authorship::Other,
             }),
             Event::Joined(joined) if joined.channel == "#papo" && joined.nick == "emily"
         ));

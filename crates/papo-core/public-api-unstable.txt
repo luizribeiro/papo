@@ -465,10 +465,13 @@ pub papo_core::Event::Invited::channel: papo::ChannelName
 pub papo_core::Event::Invited::nick: papo::Nick
 pub papo_core::Event::Invited::subject_authorship: papo_core::Authorship
 pub papo_core::Event::Joined
+pub papo_core::Event::Joined::account: papo_core::Account
+pub papo_core::Event::Joined::actor: alloc::string::String
 pub papo_core::Event::Joined::authorship: papo_core::Authorship
 pub papo_core::Event::Joined::channel: papo::ChannelName
 pub papo_core::Event::Joined::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Joined::nick: papo::Nick
+pub papo_core::Event::Joined::realname: core::option::Option<alloc::string::String>
 pub papo_core::Event::Kicked
 pub papo_core::Event::Kicked::actor: alloc::string::String
 pub papo_core::Event::Kicked::authorship: papo_core::Authorship
