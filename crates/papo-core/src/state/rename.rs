@@ -14,10 +14,10 @@ impl State {
         else {
             return false;
         };
-        let old_key = Folded::new(old, self.casemapping);
-        let new_key = Folded::new(new, self.casemapping);
+        let old_key = self.casemapping.channel(old);
+        let new_key = self.casemapping.channel(new);
         if let Some(mut channel) = self.channels.remove(&old_key) {
-            channel.name = new.into();
+            channel.name = self.casemapping.channel(new);
             self.channels.insert(new_key.clone(), channel);
         }
         for user in self.users.values_mut() {

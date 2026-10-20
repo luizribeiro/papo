@@ -1,7 +1,7 @@
 use super::{
-    Account, AccountNotify, Away, AwayNotify, Casemapping, Chghost, Command, Event, Folded,
-    Handled, Isupport, LineRef, Numeric, Outbox, Setname, Source, State, WHOX_FIELDS, WHOX_TOKEN,
-    WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
+    Account, AccountNotify, Away, AwayNotify, Casemapping, Chghost, Command, Event, Handled,
+    Isupport, LineRef, Numeric, Outbox, Setname, Source, State, WHOX_FIELDS, WHOX_TOKEN, WhoUser,
+    WhoxFlags, WhoxPresence, WhoxReply,
 };
 
 impl State {
@@ -9,7 +9,7 @@ impl State {
         let Some(Source::User { nick, .. }) = message.source() else {
             return;
         };
-        if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
+        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
             for (key, value) in message.tags() {
                 match (key, value) {
                     ("account", Some(account)) => {
@@ -60,7 +60,7 @@ impl State {
             return Some(Handled::No);
         };
         let account = Account::from_notify(account.account, self.casemapping);
-        if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping))
+        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick))
             && user.account != account
         {
             user.account = account.clone();
@@ -82,7 +82,7 @@ impl State {
             let Source::User { nick, .. } = message.source()? else {
                 return Some(Handled::No);
             };
-            if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
+            if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
                 let next = match away.message {
                     None => Away::Present,
                     Some("*") => Away::Away { message: None },
@@ -108,7 +108,7 @@ impl State {
                 let (Some(nick), Some(away)) = (message.param(1), message.param(2)) else {
                     return Some(Handled::No);
                 };
-                if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
+                if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
                     let message = away.to_owned();
                     let next = Away::Away {
                         message: Some(message.clone()),
@@ -192,7 +192,7 @@ impl State {
             return None;
         };
         if let Some(change) = Chghost::parse(message) {
-            if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
+            if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
                 user.update_userhost(Some(change.user), Some(change.host));
             }
             if self.casemapping.eq(nick, &self.nick) {
@@ -207,7 +207,7 @@ impl State {
             return Some(Handled::Yes);
         }
         let change = Setname::parse(message)?;
-        if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
+        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
             user.realname = Some(change.realname.to_owned());
         }
         if self.casemapping.eq(nick, &self.nick) {
@@ -227,7 +227,7 @@ impl State {
         outbox: &mut Outbox,
     ) -> Option<Handled> {
         if message.command() == Command::Numeric(Numeric::RPL_ENDOFWHO) {
-            let channel = Folded::new(message.param(1)?, self.casemapping);
+            let channel = self.casemapping.channel(message.param(1)?);
             return self.who_sweeps.remove(&channel).then_some(Handled::Yes);
         }
         if let Some(reply) = WhoxReply::parse(message, WHOX_FIELDS) {
@@ -246,9 +246,7 @@ impl State {
             return Some(Handled::No);
         };
         if reply.token != Some(WHOX_TOKEN)
-            || !self
-                .who_sweeps
-                .contains(&Folded::new(channel, self.casemapping))
+            || !self.who_sweeps.contains(&self.casemapping.channel(channel))
         {
             return None;
         }
@@ -264,7 +262,7 @@ impl State {
             flags,
             outbox,
         );
-        if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
+        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
             user.account = Account::from_notify(reply.account, self.casemapping);
         }
         Some(Handled::Yes)
@@ -279,10 +277,7 @@ impl State {
             flags.prefixes,
             outbox,
         );
-        if let Some(user) = self
-            .users
-            .get_mut(&Folded::new(reply.nick, self.casemapping))
-        {
+        if let Some(user) = self.users.get_mut(&self.casemapping.nick(reply.nick)) {
             user.realname = reply.realname.map(str::to_owned);
             user.away = match (&user.away, flags.presence) {
                 (Away::Present, Some(WhoxPresence::Gone)) => Away::Away { message: None },
@@ -310,10 +305,7 @@ impl State {
             message.param(6)?,
             message.param(7)?,
         );
-        if !self
-            .who_sweeps
-            .contains(&Folded::new(channel, self.casemapping))
-        {
+        if !self.who_sweeps.contains(&self.casemapping.channel(channel)) {
             return None;
         }
         let realname = hopcount_realname.split_once(' ')?.1;
@@ -349,7 +341,7 @@ impl State {
     }
 
     pub(super) fn start_who(&mut self, channel: &str, isupport: &Isupport, outbox: &mut Outbox) {
-        let key = Folded::new(channel, self.casemapping);
+        let key = self.casemapping.channel(channel);
         if !self.who_sweeps.insert(key) {
             return;
         }

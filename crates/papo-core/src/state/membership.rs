@@ -1,6 +1,6 @@
 use super::{
-    Account, Arc, Channel, Command, Event, Folded, Handled, Isupport, Join, LineRef, Member,
-    Numeric, Outbox, Source, State, StateLimit, User,
+    Account, Arc, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, Numeric,
+    Outbox, Source, State, StateLimit, User,
 };
 
 impl State {
@@ -16,11 +16,11 @@ impl State {
                 .collect()
         } else {
             self.users
-                .get(&Folded::new(nick, self.casemapping))
+                .get(&self.casemapping.nick(nick))
                 .map(|user| {
                     user.channels
                         .iter()
-                        .map(|key| key.original().to_owned())
+                        .map(|key| key.as_ref().to_owned())
                         .collect()
                 })
                 .unwrap_or_default()
@@ -67,7 +67,7 @@ impl State {
             if let Some(realname) = join.realname {
                 realname.clone_into(&mut self.realname);
             }
-            let key = Folded::new(join.channel, self.casemapping);
+            let key = self.casemapping.channel(join.channel);
             if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
                 self.warn_limit(StateLimit::Channels, outbox);
                 return Handled::Yes;
@@ -78,7 +78,7 @@ impl State {
             );
         }
         self.add_member(join.channel, nick, user, host, Vec::new(), outbox);
-        if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping))
+        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick))
             && join.realname.is_some()
         {
             user.account = Account::from_notify(join.account, self.casemapping);
@@ -102,7 +102,7 @@ impl State {
         }
         let name = message.param(1);
         let Some(channel) =
-            name.and_then(|name| self.channels.get_mut(&Folded::new(name, self.casemapping)))
+            name.and_then(|name| self.channels.get_mut(&self.casemapping.channel(name)))
         else {
             return false;
         };
@@ -130,8 +130,8 @@ impl State {
         outbox: &mut Outbox,
     ) {
         let mapping = self.casemapping;
-        let channel_key = Folded::new(channel_name, mapping);
-        let nick_key = Folded::new(nick, mapping);
+        let channel_key = mapping.channel(channel_name);
+        let nick_key = mapping.nick(nick);
         let full = self.channels.get(&channel_key).is_some_and(|channel| {
             !channel.members.contains_key(&nick_key)
                 && channel.members.len() >= self.max_members_per_channel
@@ -153,10 +153,10 @@ impl State {
             );
             let shared = self
                 .users
-                .entry(Folded::new(nick, mapping))
+                .entry(mapping.nick(nick))
                 .or_insert_with(|| User::new(nick, user, host, mapping));
             shared.update_userhost(user, host);
-            shared.channels.insert(Folded::new(channel_name, mapping));
+            shared.channels.insert(mapping.channel(channel_name));
         }
     }
 
@@ -176,7 +176,7 @@ impl State {
     }
 
     pub(super) fn remove_channel(&mut self, name: &str) {
-        let key = Folded::new(name, self.casemapping);
+        let key = self.casemapping.channel(name);
         self.who_sweeps.remove(&key);
         let Some(channel) = self.channels.remove(&key) else {
             return;
@@ -191,8 +191,8 @@ impl State {
     }
 
     pub(super) fn remove_member(&mut self, channel: &str, nick: &str) {
-        let channel = Folded::new(channel, self.casemapping);
-        let nick = Folded::new(nick, self.casemapping);
+        let channel = self.casemapping.channel(channel);
+        let nick = self.casemapping.nick(nick);
         if let Some(joined) = self.channels.get_mut(&channel) {
             joined.members.remove(&nick);
         }
@@ -205,7 +205,7 @@ impl State {
     }
 
     pub(super) fn remove_user(&mut self, nick: &str) {
-        let key = Folded::new(nick, self.casemapping);
+        let key = self.casemapping.nick(nick);
         let Some(user) = self.users.remove(&key) else {
             return;
         };
@@ -217,8 +217,8 @@ impl State {
     }
 
     pub(super) fn rename_user(&mut self, old_nick: &str, new_nick: &str) {
-        let old_key = Folded::new(old_nick, self.casemapping);
-        let new_key = Folded::new(new_nick, self.casemapping);
+        let old_key = self.casemapping.nick(old_nick);
+        let new_key = self.casemapping.nick(new_nick);
         let Some(mut user) = self.users.remove(&old_key) else {
             return;
         };

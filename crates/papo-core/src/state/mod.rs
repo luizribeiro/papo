@@ -48,9 +48,9 @@ pub struct State {
     away_message: Option<String>,
     user_modes: HashSet<char>,
     casemapping: Casemapping,
-    channels: HashMap<Folded<ChannelName>, Channel>,
-    users: HashMap<Folded<Nick>, User>,
-    who_sweeps: HashSet<Folded<ChannelName>>,
+    channels: HashMap<ChannelName, Channel>,
+    users: HashMap<Nick, User>,
+    who_sweeps: HashSet<ChannelName>,
     read_markers: HashMap<Folded<Target>, ReadMarker>,
     last_seen: HashMap<Folded<Target>, LastSeen>,
     last_seen_order: VecDeque<String>,
@@ -72,7 +72,7 @@ pub struct State {
 pub struct Channel {
     name: ChannelName,
     casemapping: Casemapping,
-    members: HashMap<Folded<Nick>, Member>,
+    members: HashMap<Nick, Member>,
     modes: HashMap<char, Option<String>>,
     created_at: Option<SystemTime>,
     topic: Option<String>,
@@ -102,7 +102,7 @@ pub struct User {
     realname: Option<String>,
     is_bot: bool,
     monitored: bool,
-    channels: HashSet<Folded<ChannelName>>,
+    channels: HashSet<ChannelName>,
 }
 
 /// A user's known account state.
@@ -153,7 +153,7 @@ pub(crate) enum StateSnapshot {
         key: String,
         value: Option<MetadataValue>,
     },
-    Monitor(Vec<(Folded<Nick>, Option<User>)>),
+    Monitor(Vec<(Nick, Option<User>)>),
     #[cfg(feature = "unstable")]
     Bouncer {
         id: NetworkId,
@@ -218,7 +218,7 @@ impl State {
                 nicks
                     .into_iter()
                     .map(|nick| {
-                        let key = Folded::new(nick, self.casemapping);
+                        let key = self.casemapping.nick(nick);
                         let user = self.users.get(&key).cloned();
                         (key, user)
                     })
@@ -285,7 +285,7 @@ impl State {
         for (nick, username, host) in monitor.online() {
             let user = self
                 .users
-                .entry(Folded::new(nick, self.casemapping))
+                .entry(self.casemapping.nick(nick))
                 .or_insert_with(|| User::new(nick, username, host, self.casemapping));
             user.monitored = true;
         }
@@ -300,7 +300,7 @@ impl State {
         nick: &str,
     ) {
         self.update_casemapping(isupport.casemapping());
-        let key = Folded::new(nick, self.casemapping);
+        let key = self.casemapping.nick(nick);
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
             self.users
                 .entry(key)
@@ -429,10 +429,7 @@ impl State {
             return Handled::Yes;
         }
         if let Some((_, channel, entries)) = parse_353(message) {
-            let Some(state) = self
-                .channels
-                .get_mut(&Folded::new(channel, self.casemapping))
-            else {
+            let Some(state) = self.channels.get_mut(&self.casemapping.channel(channel)) else {
                 return Handled::No;
             };
             state.names_reply_seen = true;
@@ -532,9 +529,7 @@ impl State {
             return false;
         };
         if let Some(modestring) = message.param(1)
-            && let Some(channel) = self
-                .channels
-                .get_mut(&Folded::new(target, self.casemapping))
+            && let Some(channel) = self.channels.get_mut(&self.casemapping.channel(target))
         {
             channel.apply_modes(modestring, message.params().skip(2), isupport, false);
         }
@@ -577,7 +572,7 @@ impl State {
         }
         let Some(channel) = message
             .param(1)
-            .and_then(|name| self.channels.get_mut(&Folded::new(name, self.casemapping)))
+            .and_then(|name| self.channels.get_mut(&self.casemapping.channel(name)))
         else {
             return false;
         };
@@ -625,7 +620,7 @@ impl State {
             Command::Numeric(Numeric::RPL_TOPICWHOTIME) => {
                 let Some(channel) = message
                     .param(1)
-                    .and_then(|name| self.channels.get_mut(&Folded::new(name, self.casemapping)))
+                    .and_then(|name| self.channels.get_mut(&self.casemapping.channel(name)))
                 else {
                     return false;
                 };
@@ -642,8 +637,8 @@ impl State {
                 by: by.to_owned(),
             });
         }
-        let Some(channel) = channel_name
-            .and_then(|name| self.channels.get_mut(&Folded::new(name, self.casemapping)))
+        let Some(channel) =
+            channel_name.and_then(|name| self.channels.get_mut(&self.casemapping.channel(name)))
         else {
             return false;
         };
@@ -675,10 +670,10 @@ impl State {
                     .into_values()
                     .map(|mut member| {
                         member.nick = mapping.nick(member.nick.as_ref());
-                        (Folded::new(&member.nick, mapping), member)
+                        (member.nick.clone(), member)
                     })
                     .collect();
-                (Folded::new(&channel.name, mapping), channel)
+                (channel.name.clone(), channel)
             })
             .collect();
         self.users = std::mem::take(&mut self.users)
@@ -691,14 +686,14 @@ impl State {
                 user.channels = user
                     .channels
                     .into_iter()
-                    .map(|channel| Folded::new(mapping.channel(channel.original()), mapping))
+                    .map(|channel| mapping.channel(channel.as_ref()))
                     .collect();
-                (Folded::new(&user.nick, mapping), user)
+                (user.nick.clone(), user)
             })
             .collect();
         self.who_sweeps = std::mem::take(&mut self.who_sweeps)
             .into_iter()
-            .map(|channel| Folded::new(mapping.channel(channel.original()), mapping))
+            .map(|channel| mapping.channel(channel.as_ref()))
             .collect();
         self.read_markers = std::mem::take(&mut self.read_markers)
             .into_values()
@@ -763,8 +758,7 @@ impl State {
     /// Returns a joined channel using the server's current casemapping.
     #[must_use]
     pub fn channel(&self, name: impl AsRef<str>) -> Option<&Channel> {
-        let name = self.casemapping.fold(name.as_ref());
-        self.channels.get(name.as_ref())
+        self.channels.get(&self.casemapping.channel(name.as_ref()))
     }
 
     /// Iterates over joined channels in unspecified order.
@@ -787,8 +781,7 @@ impl State {
     /// Returns a shared user using the server's current casemapping.
     #[must_use]
     pub fn user(&self, nick: impl AsRef<str>) -> Option<&User> {
-        let nick = self.casemapping.fold(nick.as_ref());
-        self.users.get(nick.as_ref())
+        self.users.get(&self.casemapping.nick(nick.as_ref()))
     }
 
     /// Returns cached metadata using the server's current casemapping.
@@ -881,8 +874,7 @@ impl Channel {
                     let (Some(nick), Some(prefix)) = (change.arg, prefixes.get(rank)) else {
                         continue;
                     };
-                    let Some(member) = self.members.get_mut(&Folded::new(nick, self.casemapping))
-                    else {
+                    let Some(member) = self.members.get_mut(&self.casemapping.nick(nick)) else {
                         continue;
                     };
                     if change.set && !member.prefixes.contains(&prefix.symbol) {
@@ -968,8 +960,7 @@ impl Channel {
     /// Returns a member using the server's current casemapping.
     #[must_use]
     pub fn member(&self, nick: impl AsRef<str>) -> Option<&Member> {
-        let nick = self.casemapping.fold(nick.as_ref());
-        self.members.get(nick.as_ref())
+        self.members.get(&self.casemapping.nick(nick.as_ref()))
     }
 }
 
@@ -1095,7 +1086,7 @@ impl User {
 
     /// Iterates over shared channel names in unspecified order.
     pub fn channels(&self) -> impl Iterator<Item = &ChannelName> {
-        self.channels.iter().map(Folded::value)
+        self.channels.iter()
     }
 }
 
