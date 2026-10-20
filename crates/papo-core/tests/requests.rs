@@ -6,7 +6,7 @@ use papo_core::{
     Config, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher, ServerError,
     Session,
 };
-use papo_proto::{LineRef, Message, Numeric};
+use papo_proto::{Line, LineRef, Message, Numeric};
 
 fn labelled_session(now: Instant) -> Session {
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -17,7 +17,7 @@ fn labelled_session(now: Instant) -> Session {
     session
 }
 
-fn request(session: &mut Session, now: Instant, message: Message) -> RequestId {
+fn request(session: &mut Session, now: Instant, message: Line) -> RequestId {
     session.request(now, message).unwrap()
 }
 
@@ -28,7 +28,7 @@ fn matches_an_unlabelled_whois_through_its_end_numeric() {
     let id = session
         .request_with_matcher(
             now,
-            Message::new("WHOIS", ["Alice["]),
+            Line::new("WHOIS", ["Alice["]),
             ResponseMatcher::Whois("Alice[".into()),
         )
         .unwrap();
@@ -55,7 +55,7 @@ fn parses_whois_channels_with_advertised_membership_prefixes() {
     session
         .request_with_matcher(
             now,
-            Message::new("WHOIS", ["alice"]),
+            Line::new("WHOIS", ["alice"]),
             ResponseMatcher::Whois("alice".into()),
         )
         .unwrap();
@@ -101,7 +101,7 @@ fn unlabelled_join_waits_for_channel_sync() {
     let id = session
         .request_with_matcher(
             now,
-            Message::join("#papo"),
+            Line::join("#papo"),
             ResponseMatcher::Join("#papo".into()),
         )
         .unwrap();
@@ -125,7 +125,7 @@ fn unlabelled_mode_waits_for_its_matching_ping_fence() {
     let id = session
         .request_with_matcher(
             now,
-            Message::new("MODE", ["#papo", "+t"]),
+            Line::new("MODE", ["#papo", "+t"]),
             ResponseMatcher::Mode("#papo".into()),
         )
         .unwrap();
@@ -152,7 +152,7 @@ fn unlabelled_mode_waits_for_its_matching_ping_fence() {
 
 fn assert_unlabelled(
     session: &mut Session,
-    message: Message,
+    message: Line,
     matcher: ResponseMatcher,
     lines: &[&str],
 ) {
@@ -183,7 +183,7 @@ fn assert_no_response(session: &mut Session) {
     );
 }
 
-fn response_lines(session: &mut Session) -> (BTreeMap<RequestId, Vec<Message>>, Vec<Message>) {
+fn response_lines(session: &mut Session) -> (BTreeMap<RequestId, Vec<Line>>, Vec<Line>) {
     let mut responses = BTreeMap::new();
     let mut messages = Vec::new();
     while let Some(event) = session.poll_event() {
@@ -202,7 +202,7 @@ fn unlabelled_whois(session: &mut Session, now: Instant, nick: &str) -> RequestI
     session
         .request_with_matcher(
             now,
-            Message::new("WHOIS", [nick]),
+            Line::new("WHOIS", [nick]),
             ResponseMatcher::Whois(nick.into()),
         )
         .unwrap()
@@ -213,7 +213,7 @@ fn matches_other_unlabelled_request_boundaries() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(
         &mut session,
-        Message::new("WHO", ["#papo"]),
+        Line::new("WHO", ["#papo"]),
         ResponseMatcher::Who("#papo".into()),
         &[
             ":ergo.test 352 papo #papo ~alice host ergo.test alice H@ :0 Alice Example",
@@ -222,7 +222,7 @@ fn matches_other_unlabelled_request_boundaries() {
     );
     assert_unlabelled(
         &mut session,
-        Message::new("LIST", Vec::<String>::new()),
+        Line::new("LIST", Vec::<String>::new()),
         ResponseMatcher::List,
         &[
             ":ergo.test 321 papo Channel :Users Name",
@@ -232,13 +232,13 @@ fn matches_other_unlabelled_request_boundaries() {
     );
     assert_unlabelled(
         &mut session,
-        Message::new("PART", ["#papo"]),
+        Line::new("PART", ["#papo"]),
         ResponseMatcher::Part("#papo".into()),
         &[":papo!papo@localhost PART #papo :Leaving"],
     );
     assert_unlabelled(
         &mut session,
-        Message::new("MODE", ["#papo", "+t"]),
+        Line::new("MODE", ["#papo", "+t"]),
         ResponseMatcher::Mode("#papo".into()),
         &[
             ":ergo.test 482 papo #papo :You're not a channel operator",
@@ -247,19 +247,19 @@ fn matches_other_unlabelled_request_boundaries() {
     );
     assert_unlabelled(
         &mut session,
-        Message::new("TOPIC", ["#papo"]),
+        Line::new("TOPIC", ["#papo"]),
         ResponseMatcher::Topic("#papo".into()),
         &[":ergo.test 332 papo #papo :Requests in Rust"],
     );
     assert_unlabelled(
         &mut session,
-        Message::new("WHO", ["#missing"]),
+        Line::new("WHO", ["#missing"]),
         ResponseMatcher::Who("#missing".into()),
         &["FAIL WHO INVALID_PARAMS #missing :Invalid mask"],
     );
     assert_unlabelled(
         &mut session,
-        Message::new("LIST", Vec::<String>::new()),
+        Line::new("LIST", Vec::<String>::new()),
         ResponseMatcher::List,
         &[":ergo.test 461 papo LIST :Not enough parameters"],
     );
@@ -270,7 +270,7 @@ fn matches_unlabelled_membership_and_nick_actions() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(
         &mut session,
-        Message::new("KICK", ["#papo", "spambot", "flooding"]),
+        Line::new("KICK", ["#papo", "spambot", "flooding"]),
         ResponseMatcher::Kick {
             channel: "#papo".into(),
             nick: "spambot".into(),
@@ -279,7 +279,7 @@ fn matches_unlabelled_membership_and_nick_actions() {
     );
     assert_unlabelled(
         &mut session,
-        Message::new("INVITE", ["carol", "#papo"]),
+        Line::new("INVITE", ["carol", "#papo"]),
         ResponseMatcher::Invite {
             channel: "#papo".into(),
             nick: "carol".into(),
@@ -288,7 +288,7 @@ fn matches_unlabelled_membership_and_nick_actions() {
     );
     assert_unlabelled(
         &mut session,
-        Message::new("NICK", ["papo-away"]),
+        Line::new("NICK", ["papo-away"]),
         ResponseMatcher::Nick("papo-away".into()),
         &[":papo!papo@localhost NICK :papo-away"],
     );
@@ -299,31 +299,31 @@ fn matches_unlabelled_own_user_actions() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(
         &mut session,
-        Message::new("AWAY", ["reviewing patches"]),
+        Line::new("AWAY", ["reviewing patches"]),
         ResponseMatcher::Away(true),
         &[":ergo.test 306 papo :You have been marked as being away"],
     );
     assert_unlabelled(
         &mut session,
-        Message::new("AWAY", Vec::<String>::new()),
+        Line::new("AWAY", Vec::<String>::new()),
         ResponseMatcher::Away(false),
         &[":ergo.test 305 papo :You are no longer marked as being away"],
     );
     assert_unlabelled(
         &mut session,
-        Message::new("SETNAME", ["Papo Test Client"]),
+        Line::new("SETNAME", ["Papo Test Client"]),
         ResponseMatcher::SetName("Papo Test Client".into()),
         &[":papo!papo@localhost SETNAME :Papo Test Client"],
     );
     assert_unlabelled(
         &mut session,
-        Message::new("OPER", ["papo", "correct horse battery staple"]),
+        Line::new("OPER", ["papo", "correct horse battery staple"]),
         ResponseMatcher::Oper,
         &[":ergo.test 381 papo :You are now an IRC operator"],
     );
     assert_unlabelled(
         &mut session,
-        Message::new("PING", ["papo-lag-42"]),
+        Line::new("PING", ["papo-lag-42"]),
         ResponseMatcher::Ping("papo-lag-42".into()),
         &[":ergo.test PONG ergo.test :papo-lag-42"],
     );
@@ -336,7 +336,7 @@ fn own_user_matchers_require_their_exact_success() {
     let id = session
         .request_with_matcher(
             now,
-            Message::new("PING", ["papo-lag-42"]),
+            Line::new("PING", ["papo-lag-42"]),
             ResponseMatcher::Ping("papo-lag-42".into()),
         )
         .unwrap();
@@ -356,7 +356,7 @@ fn setname_matches_after_a_nickname_change() {
     let nick = session
         .request_with_matcher(
             now,
-            Message::new("NICK", ["paporev"]),
+            Line::new("NICK", ["paporev"]),
             ResponseMatcher::Nick("paporev".into()),
         )
         .unwrap();
@@ -366,7 +366,7 @@ fn setname_matches_after_a_nickname_change() {
     let realname = session
         .request_with_matcher(
             now,
-            Message::new("SETNAME", ["Papo Review Client"]),
+            Line::new("SETNAME", ["Papo Review Client"]),
             ResponseMatcher::SetName("Papo Review Client".into()),
         )
         .unwrap();
@@ -381,7 +381,7 @@ fn membership_matchers_ignore_unrelated_successes_and_capture_errors() {
     let id = session
         .request_with_matcher(
             now,
-            Message::new("INVITE", ["carol", "#papo"]),
+            Line::new("INVITE", ["carol", "#papo"]),
             ResponseMatcher::Invite {
                 channel: "#papo".into(),
                 nick: "carol".into(),
@@ -405,7 +405,7 @@ fn action_matchers_require_every_identity_field() {
     let kick_id = kick
         .request_with_matcher(
             now,
-            Message::new("KICK", ["#papo", "spambot"]),
+            Line::new("KICK", ["#papo", "spambot"]),
             ResponseMatcher::Kick {
                 channel: "#papo".into(),
                 nick: "spambot".into(),
@@ -427,7 +427,7 @@ fn action_matchers_require_every_identity_field() {
     let invite_id = invite
         .request_with_matcher(
             now,
-            Message::new("INVITE", ["carol", "#papo"]),
+            Line::new("INVITE", ["carol", "#papo"]),
             ResponseMatcher::Invite {
                 channel: "#papo".into(),
                 nick: "carol".into(),
@@ -448,7 +448,7 @@ fn action_matchers_require_every_identity_field() {
     let nick_id = nick
         .request_with_matcher(
             now,
-            Message::new("NICK", ["papo-away"]),
+            Line::new("NICK", ["papo-away"]),
             ResponseMatcher::Nick("papo-away".into()),
         )
         .unwrap();
@@ -470,7 +470,7 @@ fn action_matchers_require_every_identity_field() {
     let setname_id = setname
         .request_with_matcher(
             now,
-            Message::new("SETNAME", ["Papo Test Client"]),
+            Line::new("SETNAME", ["Papo Test Client"]),
             ResponseMatcher::SetName("Papo Test Client".into()),
         )
         .unwrap();
@@ -554,14 +554,14 @@ fn who_rows_attach_only_to_the_named_concurrent_mask() {
     let alice = session
         .request_with_matcher(
             now,
-            Message::new("WHO", ["Alice["]),
+            Line::new("WHO", ["Alice["]),
             ResponseMatcher::Who("Alice[".into()),
         )
         .unwrap();
     let rust = session
         .request_with_matcher(
             now,
-            Message::new("WHO", ["#rust"]),
+            Line::new("WHO", ["#rust"]),
             ResponseMatcher::Who("#rust".into()),
         )
         .unwrap();
@@ -594,14 +594,14 @@ fn join_sync_and_errors_use_the_named_concurrent_channel() {
     let papo = session
         .request_with_matcher(
             now,
-            Message::join("#Papo["),
+            Line::join("#Papo["),
             ResponseMatcher::Join("#Papo[".into()),
         )
         .unwrap();
     let invite = session
         .request_with_matcher(
             now,
-            Message::join("#invite"),
+            Line::join("#invite"),
             ResponseMatcher::Join("#invite".into()),
         )
         .unwrap();
@@ -636,14 +636,14 @@ fn part_echoes_require_our_source_and_the_named_concurrent_channel() {
     let papo = session
         .request_with_matcher(
             now,
-            Message::new("PART", ["#Papo["]),
+            Line::new("PART", ["#Papo["]),
             ResponseMatcher::Part("#Papo[".into()),
         )
         .unwrap();
     let rust = session
         .request_with_matcher(
             now,
-            Message::new("PART", ["#rust"]),
+            Line::new("PART", ["#rust"]),
             ResponseMatcher::Part("#rust".into()),
         )
         .unwrap();
@@ -679,14 +679,14 @@ fn mode_echoes_and_errors_use_the_named_concurrent_target() {
     let papo = session
         .request_with_matcher(
             now,
-            Message::new("MODE", ["#Papo[", "+t"]),
+            Line::new("MODE", ["#Papo[", "+t"]),
             ResponseMatcher::Mode("#Papo[".into()),
         )
         .unwrap();
     let rust = session
         .request_with_matcher(
             now,
-            Message::new("MODE", ["#rust", "+m"]),
+            Line::new("MODE", ["#rust", "+m"]),
             ResponseMatcher::Mode("#rust".into()),
         )
         .unwrap();
@@ -718,14 +718,14 @@ fn topic_replies_use_the_named_concurrent_channel() {
     let papo = session
         .request_with_matcher(
             now,
-            Message::new("TOPIC", ["#Papo["]),
+            Line::new("TOPIC", ["#Papo["]),
             ResponseMatcher::Topic("#Papo[".into()),
         )
         .unwrap();
     let rust = session
         .request_with_matcher(
             now,
-            Message::new("TOPIC", ["#rust"]),
+            Line::new("TOPIC", ["#rust"]),
             ResponseMatcher::Topic("#rust".into()),
         )
         .unwrap();
