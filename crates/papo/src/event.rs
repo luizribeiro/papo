@@ -30,7 +30,7 @@ mod user;
 pub use crate::metadata::Visibility;
 pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, LegacyModeAction, LegacyModeArg,
-    ModeArg, ModeChange, ModeChanged, ModeKind, Parted, TopicChanged,
+    ModeChange, ModeChanged, ModeKind, Parted, TopicChanged,
 };
 pub use connection::{
     CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged, Motd,

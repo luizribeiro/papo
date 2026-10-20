@@ -16,7 +16,7 @@ pub enum LegacyModeAction {
 /// A mode argument classified using the server's advertised rules.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum ModeArg {
+pub enum LegacyModeArg {
     /// A nickname for a channel-membership mode advertised in `PREFIX`.
     Nick(Nick),
     /// A mask for a list mode advertised in the first `CHANMODES` group.
@@ -24,10 +24,6 @@ pub enum ModeArg {
     /// A value for any other mode that takes an argument.
     Value(String),
 }
-
-/// Compatibility name used while mode events adopt the shared argument type.
-#[doc(hidden)]
-pub type LegacyModeArg = ModeArg;
 
 /// The parameter behavior of a channel mode.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -183,7 +179,7 @@ pub struct ModeChange {
     /// Whether the mode was added or removed.
     pub action: LegacyModeAction,
     /// The argument classified using the server's advertised rules.
-    pub typed_arg: Option<ModeArg>,
+    pub typed_arg: Option<LegacyModeArg>,
     /// The mode letter.
     pub mode: char,
 }
