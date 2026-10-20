@@ -2,7 +2,7 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use papo::{Client, Endpoint, Event, Events, Message, Sasl};
+use papo::{Client, Endpoint, Event, Events, Message, ModeAction, ModeArg, Sasl};
 use papo_test_server::ServerInfo;
 use tokio::time::{sleep, timeout};
 
@@ -116,7 +116,9 @@ pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
             Some(Event::ModeChanged(changed))
                 if matches!(&changed.subject, papo::Subject::Channel(name) if name == channel)
                     && changed.changes.iter().any(|change| {
-                        change.set && change.mode == 'o' && change.arg.as_deref() == Some(nick)
+                        change.action == ModeAction::Add
+                            && change.mode == 'o'
+                            && matches!(&change.typed_arg, Some(ModeArg::Nick(value)) if value == nick)
                     }) =>
             {
                 return;

@@ -5,7 +5,7 @@ mod support;
 
 use std::time::Duration;
 
-use papo::{Client, Endpoint, Event};
+use papo::{Client, Endpoint, Event, ModeAction};
 use papo_test_server::{create_account, from_env, unique};
 use support::{Lurker, PASSWORD};
 use tokio::time::timeout;
@@ -129,5 +129,5 @@ fn joined(event: &Event, nick: &str) -> bool {
 }
 
 fn mode(event: &Event, mode: char) -> bool {
-    matches!(event, Event::ModeChanged(changed) if changed.changes.iter().any(|change| change.set && change.mode == mode))
+    matches!(event, Event::ModeChanged(changed) if changed.changes.iter().any(|change| change.action == ModeAction::Add && change.mode == mode))
 }

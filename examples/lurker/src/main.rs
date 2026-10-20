@@ -2,7 +2,7 @@
 
 use std::{collections::BTreeSet, env, error::Error, io, io::Write as _};
 
-use papo::{Account, Client, Endpoint, Event, Sasl};
+use papo::{Account, Client, Endpoint, Event, ModeAction, ModeArg, Sasl};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -57,8 +57,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .changes
                     .into_iter()
                     .map(|change| {
-                        let sign = if change.set { '+' } else { '-' };
-                        format!("{sign}{}={}", change.mode, change.arg.unwrap_or_default())
+                        let sign = match change.action {
+                            ModeAction::Add => '+',
+                            ModeAction::Remove => '-',
+                        };
+                        let arg = match change.typed_arg {
+                            Some(ModeArg::Nick(value)) => value.into_string(),
+                            Some(ModeArg::Mask(value)) => value.into_string(),
+                            Some(ModeArg::Value(value)) => value,
+                            _ => String::new(),
+                        };
+                        format!("{sign}{}={arg}", change.mode)
                     })
                     .collect::<Vec<_>>()
                     .join(" ");
