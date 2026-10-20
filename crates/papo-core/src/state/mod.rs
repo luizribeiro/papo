@@ -516,7 +516,7 @@ impl State {
             .bouncer_networks
             .entry(update.id.clone())
             .or_insert_with(|| BouncerNetwork::empty(update.id.clone()));
-        network.apply(update.attributes);
+        network.apply(update.attributes, self.casemapping);
         outbox.event(Event::BouncerNetwork {
             id: update.id,
             network: Some(network.clone()),

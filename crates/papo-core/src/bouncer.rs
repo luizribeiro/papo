@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use papo_proto::escape_tag_value;
-use papo_proto::{Line, LineRef, Nick};
+use papo_proto::{Casemapping, Line, LineRef, Nick};
 use web_time::Instant;
 
 use crate::{Feature, RequestError, RequestId, Secret, Session};
@@ -120,7 +120,11 @@ impl BouncerNetwork {
         }
     }
 
-    pub(crate) fn apply(&mut self, attributes: BTreeMap<String, Option<String>>) {
+    pub(crate) fn apply(
+        &mut self,
+        attributes: BTreeMap<String, Option<String>>,
+        casemapping: Casemapping,
+    ) {
         for (key, value) in attributes {
             match key.as_str() {
                 "name" => self.name = value,
@@ -134,7 +138,7 @@ impl BouncerNetwork {
                         _ => None,
                     });
                 }
-                "nickname" => self.nickname = value.map(Nick::from),
+                "nickname" => self.nickname = value.map(|value| casemapping.nick(value)),
                 "username" => self.username = value,
                 "realname" => self.realname = value,
                 "error" => self.error = value,
@@ -342,7 +346,7 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::LineRef;
+    use papo_proto::{Casemapping, LineRef};
 
     use super::{BouncerNetwork, NetworkConfig, NetworkState, NetworkUpdate};
 
@@ -376,14 +380,17 @@ mod tests {
         .unwrap();
         let update = NetworkUpdate::parse(&message).unwrap();
         let mut network = BouncerNetwork::empty(update.id);
-        network.apply(update.attributes);
+        network.apply(update.attributes, Casemapping::default());
         assert_eq!(network.name.as_deref(), Some("My Network"));
         assert_eq!(network.state, Some(NetworkState::Connected));
         assert_eq!((network.port, network.tls), (Some(6697), Some(true)));
         assert_eq!(network.other["vendor.example/color"], "blue");
 
         let removal = LineRef::parse("BOUNCER NETWORK 42 name;vendor.example/color").unwrap();
-        network.apply(NetworkUpdate::parse(&removal).unwrap().attributes);
+        network.apply(
+            NetworkUpdate::parse(&removal).unwrap().attributes,
+            Casemapping::default(),
+        );
         assert_eq!(network.name, None);
         assert!(network.other.is_empty());
     }
