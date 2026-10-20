@@ -1566,6 +1566,27 @@ mod tests {
         assert_ne!(joined.nick, "alice{bot}");
     }
 
+    #[test]
+    fn queued_event_keeps_authorship_across_a_nick_change() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, b":papo!papo@localhost JOIN #papo");
+        session.handle_line(now, b":papo!papo@localhost NICK papo-away");
+
+        let CoreEvent::Forward(Event::Joined(joined)) =
+            from_core_with_mapping(session.poll_event().unwrap(), Casemapping::Rfc1459)
+        else {
+            panic!("expected queued join");
+        };
+        let CoreEvent::Forward(Event::NickChanged(changed)) =
+            from_core_with_mapping(session.poll_event().unwrap(), Casemapping::Rfc1459)
+        else {
+            panic!("expected queued nick change");
+        };
+        assert_eq!(joined.authorship, Authorship::Own);
+        assert_eq!(changed.authorship, Authorship::Own);
+    }
+
     fn mapped_message(event: papo_core::Event) -> ChatMessage {
         let CoreEvent::Line(message) = from_core(event) else {
             panic!("message was not mapped")
