@@ -1,10 +1,10 @@
-use super::{Event, MessageRef, Outbox, PersistenceSetting, PersistenceStatus, State};
+use super::{Event, LineRef, Outbox, PersistenceSetting, PersistenceStatus, State};
 
 impl State {
     #[cfg(feature = "unstable")]
     pub(super) fn handle_persistence(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> bool {
         if !message.command_is("PERSISTENCE") || message.param(0) != Some("STATUS") {

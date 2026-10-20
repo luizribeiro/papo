@@ -1,11 +1,11 @@
 use super::{
     Account, AccountNotify, Away, AwayNotify, Casemapping, Chghost, Command, Event, Folded,
-    Handled, Isupport, MessageRef, Numeric, Outbox, Setname, Source, State, WHOX_FIELDS,
-    WHOX_TOKEN, WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
+    Handled, Isupport, LineRef, Numeric, Outbox, Setname, Source, State, WHOX_FIELDS, WHOX_TOKEN,
+    WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
 };
 
 impl State {
-    fn apply_user_tags(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) {
+    fn apply_user_tags(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) {
         let Some(Source::User { nick, .. }) = message.source() else {
             return;
         };
@@ -31,7 +31,7 @@ impl State {
 
     fn apply_message_metadata(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         own_nick: &str,
         outbox: &mut Outbox,
     ) {
@@ -43,7 +43,7 @@ impl State {
 
     pub(super) fn prepare_message(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         own_nick: &str,
         isupport: &Isupport,
         outbox: &mut Outbox,
@@ -54,7 +54,7 @@ impl State {
         mapping
     }
 
-    fn handle_account(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> Option<Handled> {
+    fn handle_account(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Option<Handled> {
         let account = AccountNotify::parse(message)?;
         let Some(Source::User { nick, .. }) = message.source() else {
             return Some(Handled::No);
@@ -74,7 +74,7 @@ impl State {
 
     fn handle_away(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         own_away_message: Option<&str>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
@@ -148,7 +148,7 @@ impl State {
 
     pub(super) fn handle_user_update(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         isupport: &Isupport,
         own_away_message: Option<&str>,
         outbox: &mut Outbox,
@@ -162,7 +162,7 @@ impl State {
 
     fn handle_visible_host(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
         if message.command() != Command::Numeric(Numeric::RPL_VISIBLEHOST) {
@@ -185,7 +185,7 @@ impl State {
 
     fn handle_identity_change(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
         let Source::User { nick, .. } = message.source()? else {
@@ -222,7 +222,7 @@ impl State {
 
     fn handle_who(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
@@ -295,7 +295,7 @@ impl State {
 
     fn handle_plain_who(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Option<Handled> {

@@ -1,10 +1,10 @@
 use super::{
-    Account, Arc, Channel, Command, Event, Folded, Handled, Isupport, Join, Member, MessageRef,
+    Account, Arc, Channel, Command, Event, Folded, Handled, Isupport, Join, LineRef, Member,
     Numeric, Outbox, Source, State, StateLimit, User,
 };
 
 impl State {
-    pub(super) fn handle_quit(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> Handled {
+    pub(super) fn handle_quit(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Handled {
         let Some(Source::User { nick, .. }) = message.source() else {
             return Handled::No;
         };
@@ -42,7 +42,7 @@ impl State {
 
     pub(super) fn handle_join(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         join: Join<'_>,
         isupport: &Isupport,
         no_implicit_names: bool,
@@ -92,7 +92,7 @@ impl State {
 
     pub(super) fn finish_names(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         isupport: &Isupport,
         no_implicit_names: bool,
         outbox: &mut Outbox,

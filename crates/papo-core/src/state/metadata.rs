@@ -1,12 +1,12 @@
 use super::{
-    Command, Event, Folded, HashMap, MAX_METADATA_TARGETS, MessageRef, MetadataValue, Numeric,
-    Outbox, State, StateLimit, metadata_update,
+    Command, Event, Folded, HashMap, LineRef, MAX_METADATA_TARGETS, MetadataValue, Numeric, Outbox,
+    State, StateLimit, metadata_update,
 };
 
 impl State {
     pub(super) fn handle_metadata(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         max_keys: usize,
         metadata_subs_batch: bool,
         outbox: &mut Outbox,

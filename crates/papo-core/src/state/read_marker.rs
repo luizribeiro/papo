@@ -1,12 +1,12 @@
 use super::{
-    Command, Event, Folded, LastSeen, MAX_LAST_SEEN_TARGETS, MessageRef, Outbox, ReadMarker,
-    Source, State, time,
+    Command, Event, Folded, LastSeen, LineRef, MAX_LAST_SEEN_TARGETS, Outbox, ReadMarker, Source,
+    State, time,
 };
 
 impl State {
     pub(super) fn handle_read_marker(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> bool {
         let (Some(target), Some(value)) = (
@@ -46,7 +46,7 @@ impl State {
         true
     }
 
-    pub(super) fn remember_last_seen(&mut self, message: &MessageRef<'_>, own_nick: &str) {
+    pub(super) fn remember_last_seen(&mut self, message: &LineRef<'_>, own_nick: &str) {
         if !matches!(message.command(), Command::Privmsg | Command::Notice) {
             return;
         }

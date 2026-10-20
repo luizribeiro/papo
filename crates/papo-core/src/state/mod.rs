@@ -16,7 +16,7 @@ use std::{
 
 use papo_proto::{
     Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
-    Command, Folded, Isupport, Join, MessageRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric,
+    Command, Folded, Isupport, Join, LineRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric,
     Setname, Source, Target, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
@@ -175,7 +175,7 @@ impl StateSnapshot {
 }
 
 fn metadata_update<'a>(
-    message: &MessageRef<'a>,
+    message: &LineRef<'a>,
 ) -> Option<(&'a str, &'a str, &'a str, Option<&'a str>)> {
     match message.command() {
         Command::Numeric(Numeric::RPL_KEYVALUE) => Some((
@@ -198,7 +198,7 @@ fn metadata_update<'a>(
 }
 
 impl State {
-    pub(crate) fn snapshot_for(&self, message: &MessageRef<'_>) -> StateSnapshot {
+    pub(crate) fn snapshot_for(&self, message: &LineRef<'_>) -> StateSnapshot {
         if let Some((target, key, _, _)) = metadata_update(message) {
             let target = Folded::new(target, self.casemapping);
             let value = self
@@ -317,7 +317,7 @@ impl State {
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
     pub(crate) fn handle_message(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         own_nick: &str,
         isupport: &Isupport,
         no_implicit_names: bool,
@@ -459,7 +459,7 @@ impl State {
 
     pub(crate) fn handle_whoami(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         own_nick: &str,
         isupport: &Isupport,
         outbox: &mut Outbox,
@@ -494,7 +494,7 @@ impl State {
     }
 
     #[cfg(feature = "unstable")]
-    fn handle_bouncer(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
+    fn handle_bouncer(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> bool {
         let Some(update) = NetworkUpdate::parse(message) else {
             return false;
         };
@@ -524,7 +524,7 @@ impl State {
         true
     }
 
-    fn handle_channel_mode(&mut self, message: &MessageRef<'_>, isupport: &Isupport) -> bool {
+    fn handle_channel_mode(&mut self, message: &LineRef<'_>, isupport: &Isupport) -> bool {
         let Some(target) = message
             .param(0)
             .filter(|target| message.command() == Command::Mode && isupport.is_channel(target))
@@ -541,11 +541,7 @@ impl State {
         true
     }
 
-    fn report_mode_change(
-        message: &MessageRef<'_>,
-        isupport: &Isupport,
-        outbox: &mut Outbox,
-    ) -> bool {
+    fn report_mode_change(message: &LineRef<'_>, isupport: &Isupport, outbox: &mut Outbox) -> bool {
         let (Some(target), Some(modestring), Some(by)) = (
             message
                 .param(0)
@@ -572,7 +568,7 @@ impl State {
         true
     }
 
-    fn handle_channel_metadata(&mut self, message: &MessageRef<'_>, isupport: &Isupport) -> bool {
+    fn handle_channel_metadata(&mut self, message: &LineRef<'_>, isupport: &Isupport) -> bool {
         if !matches!(
             message.command(),
             Command::Numeric(Numeric::RPL_CHANNELMODEIS | Numeric::RPL_CREATIONTIME)
@@ -595,7 +591,7 @@ impl State {
         true
     }
 
-    fn handle_user_modes(&mut self, message: &MessageRef<'_>) -> bool {
+    fn handle_user_modes(&mut self, message: &LineRef<'_>) -> bool {
         let modestring = match message.command() {
             Command::Mode
                 if message
@@ -622,7 +618,7 @@ impl State {
         true
     }
 
-    fn handle_topic(&mut self, message: &MessageRef<'_>, outbox: &mut Outbox) -> bool {
+    fn handle_topic(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> bool {
         let (channel_name, topic, live) = match message.command() {
             Command::Numeric(Numeric::RPL_TOPIC) => (message.param(1), message.param(2), false),
             Command::Topic => (message.param(0), message.param(1), true),
@@ -825,7 +821,7 @@ impl State {
     }
 }
 
-fn source_name<'a>(message: &'a MessageRef<'_>) -> Option<&'a str> {
+fn source_name<'a>(message: &'a LineRef<'_>) -> Option<&'a str> {
     Some(match message.source()? {
         Source::Server(name) => name,
         Source::User { nick, .. } => nick,
@@ -1103,7 +1099,7 @@ fn parse_unix_seconds(value: &str) -> Option<SystemTime> {
 
 #[cfg(test)]
 mod metadata_tests {
-    use papo_proto::MessageRef;
+    use papo_proto::LineRef;
 
     use super::State;
     use crate::{Config, Event, Outbox, StateLimit};
@@ -1137,19 +1133,18 @@ mod metadata_tests {
     fn cache_updates_bound_comparisons_to_affected_targets() {
         let state = State::new(&Config::default());
 
-        let monitor = MessageRef::parse(
-            ":ergo.test 730 papo :alice!alice@users.example,bob!bob@users.example",
-        )
-        .unwrap();
+        let monitor =
+            LineRef::parse(":ergo.test 730 papo :alice!alice@users.example,bob!bob@users.example")
+                .unwrap();
         assert_eq!(state.snapshot_for(&monitor).comparison_steps(), Some(2));
 
         let metadata =
-            MessageRef::parse(":soju.example METADATA #papo vendor.example/pinned * :1").unwrap();
+            LineRef::parse(":soju.example METADATA #papo vendor.example/pinned * :1").unwrap();
         assert_eq!(state.snapshot_for(&metadata).comparison_steps(), Some(1));
 
         #[cfg(feature = "unstable")]
         {
-            let network = MessageRef::parse(
+            let network = LineRef::parse(
                 "BOUNCER NETWORK network-42 host=irc.example.org;state=disconnected",
             )
             .unwrap();

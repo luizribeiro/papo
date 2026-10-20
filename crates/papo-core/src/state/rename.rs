@@ -1,9 +1,9 @@
-use super::{Command, Event, Folded, MessageRef, Outbox, State};
+use super::{Command, Event, Folded, LineRef, Outbox, State};
 
 impl State {
     pub(super) fn handle_channel_rename(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> bool {
         if message.command() != Command::Rename || message.len() != 3 {
