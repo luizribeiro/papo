@@ -4,6 +4,7 @@ mod support;
 
 use papo_core::{
     Config, Event, MetadataCommand, MetadataLimits, Refusal, RequestError, StateLimit, Subject,
+    Visibility,
 };
 use std::time::Duration;
 use support::Transcript;
@@ -26,6 +27,17 @@ fn registered(value: &str) -> Transcript {
         .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
         .event(|event| matches!(event, Event::Connected(_)))
+}
+
+fn assert_cached_visibility(session: &papo_core::Session) {
+    let metadata = session.state().metadata("alice").unwrap();
+    assert_eq!(metadata["avatar"].value, "https://cdn.example.net/a.png");
+    assert_eq!(metadata["avatar"].visibility, Visibility::Public);
+    assert_eq!(metadata["pronouns"].value, "they/them");
+    assert_eq!(
+        metadata["pronouns"].visibility,
+        Visibility::Restricted("channel".to_owned())
+    );
 }
 
 #[test]
@@ -95,24 +107,23 @@ fn prefers_metadata_3_and_reads_known_limits() {
     .server("@label=0 :ergo.test 761 alice ALICE avatar * :https://cdn.example.net/a.png")
     .event(|event| matches!(event, Event::MetadataChanged { subject, key, value: Some(value), visibility }
         if subject_name(subject) == "ALICE" && key == "avatar"
-            && value == "https://cdn.example.net/a.png" && visibility == "*"))
+            && value == "https://cdn.example.net/a.png" && visibility == &Visibility::Public))
     .event(|event| matches!(event, Event::Response(_)))
-    .server("@label=1 :ergo.test 761 alice ALICE pronouns * :they/them")
-    .event(|event| matches!(event, Event::MetadataChanged { key, .. } if key == "pronouns"))
+    .server("@label=1 :ergo.test 761 alice ALICE pronouns channel :they/them")
+    .event(|event| matches!(event, Event::MetadataChanged {
+        key,
+        visibility: Visibility::Restricted(policy),
+        ..
+    } if key == "pronouns" && policy == "channel"))
     .event(|event| matches!(event, Event::Response(_)))
     .server("@label=2 :ergo.test BATCH +reply labeled-response")
     .server("@batch=reply :ergo.test 761 alice ALICE avatar * :https://cdn.example.net/a.png")
-    .server("@batch=reply :ergo.test 761 alice ALICE pronouns * :they/them")
+    .server("@batch=reply :ergo.test 761 alice ALICE pronouns channel :they/them")
     .server(":ergo.test BATCH -reply")
     .event(|event| matches!(event, Event::MetadataChanged { key, .. } if key == "avatar"))
     .event(|event| matches!(event, Event::MetadataChanged { key, .. } if key == "pronouns"))
     .event(|event| matches!(event, Event::Response(_)))
-    .inspect(|session| {
-        let metadata = session.state().metadata("alice").unwrap();
-        assert_eq!(metadata["avatar"].value, "https://cdn.example.net/a.png");
-        assert_eq!(metadata["avatar"].visibility, "*");
-        assert_eq!(metadata["pronouns"].value, "they/them");
-    })
+    .inspect(assert_cached_visibility)
     .server(":ergo.test 766 alice ALICE avatar :key is not set")
     .event(|event| matches!(event, Event::MetadataChanged { key, value: None, .. }
         if key == "avatar"))

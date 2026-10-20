@@ -2,6 +2,7 @@ use super::{
     Command, Event, HashMap, LineRef, MAX_METADATA_TARGETS, MetadataValue, NameKey, Numeric,
     Outbox, State, StateLimit, Subject, metadata_update,
 };
+use crate::Visibility;
 
 impl State {
     pub(super) fn handle_metadata(
@@ -73,6 +74,7 @@ impl State {
         max_keys: usize,
         outbox: &mut Outbox,
     ) {
+        let visibility = Visibility::from_wire(visibility);
         let target_key = NameKey::new(target, self.casemapping);
         if let Some(value) = value {
             if !self.metadata.contains_key(&target_key)
@@ -92,7 +94,7 @@ impl State {
                 key.to_owned(),
                 MetadataValue {
                     value: value.to_owned(),
-                    visibility: visibility.to_owned(),
+                    visibility: visibility.clone(),
                 },
             );
         } else if let Some(values) = self.metadata.get_mut(&target_key) {
@@ -109,7 +111,7 @@ impl State {
             },
             key: key.to_owned(),
             value: value.map(str::to_owned),
-            visibility: visibility.to_owned(),
+            visibility,
         });
     }
 }

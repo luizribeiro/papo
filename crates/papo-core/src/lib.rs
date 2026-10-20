@@ -111,7 +111,7 @@ pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 use isupport::IsupportState;
 use keepalive::Keepalive;
 use labels::encode_label;
-pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue};
+pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue, Visibility};
 use monitor::Monitor;
 pub(crate) use name::{NameKey, names_equal};
 use nick_regain::NickRegain;
@@ -1591,7 +1591,7 @@ pub enum Event {
         /// New server-returned value, or `None` when cleared.
         value: Option<String>,
         /// Visibility policy reported by the server.
-        visibility: String,
+        visibility: Visibility,
     },
     /// The server deferred metadata synchronization for a target.
     MetadataSyncLater {

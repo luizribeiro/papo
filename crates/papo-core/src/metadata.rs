@@ -6,11 +6,32 @@ use crate::{Capabilities, Feature, RequestError, RequestId, Session, cap};
 
 /// One server-returned metadata value.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct MetadataValue {
     /// Server-returned value.
     pub value: String,
     /// Visibility policy reported with the value.
-    pub visibility: String,
+    pub visibility: Visibility,
+}
+
+/// Visibility of a metadata value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Visibility {
+    /// The value is public.
+    Public,
+    /// The server restricts the value according to the named policy.
+    Restricted(String),
+}
+
+impl Visibility {
+    pub(crate) fn from_wire(value: &str) -> Self {
+        if value == "*" {
+            Self::Public
+        } else {
+            Self::Restricted(value.to_owned())
+        }
+    }
 }
 
 /// A `METADATA` operation.

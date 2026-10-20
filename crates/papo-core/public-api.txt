@@ -474,7 +474,7 @@ pub papo_core::Event::MetadataChanged
 pub papo_core::Event::MetadataChanged::key: alloc::string::String
 pub papo_core::Event::MetadataChanged::subject: papo_core::Subject
 pub papo_core::Event::MetadataChanged::value: core::option::Option<alloc::string::String>
-pub papo_core::Event::MetadataChanged::visibility: alloc::string::String
+pub papo_core::Event::MetadataChanged::visibility: papo_core::Visibility
 pub papo_core::Event::MetadataSyncLater
 pub papo_core::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
 pub papo_core::Event::MetadataSyncLater::target: alloc::string::String
@@ -1031,6 +1031,24 @@ impl core::marker::Unpin for papo_core::UnsupportedReason
 impl core::marker::UnsafeUnpin for papo_core::UnsupportedReason
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::UnsupportedReason
 impl core::panic::unwind_safe::UnwindSafe for papo_core::UnsupportedReason
+#[non_exhaustive] pub enum papo_core::Visibility
+pub papo_core::Visibility::Public
+pub papo_core::Visibility::Restricted(alloc::string::String)
+impl core::clone::Clone for papo_core::Visibility
+pub fn papo_core::Visibility::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::Visibility
+impl core::cmp::PartialEq for papo_core::Visibility
+pub fn papo_core::Visibility::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::Visibility
+pub fn papo_core::Visibility::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::Visibility
+impl core::marker::Freeze for papo_core::Visibility
+impl core::marker::Send for papo_core::Visibility
+impl core::marker::Sync for papo_core::Visibility
+impl core::marker::Unpin for papo_core::Visibility
+impl core::marker::UnsafeUnpin for papo_core::Visibility
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Visibility
+impl core::panic::unwind_safe::UnwindSafe for papo_core::Visibility
 pub struct papo_core::Channel
 impl papo_core::Channel
 pub const fn papo_core::Channel::created_at(&self) -> core::option::Option<std::time::SystemTime>
@@ -1283,9 +1301,9 @@ impl core::marker::Unpin for papo_core::MetadataLimits
 impl core::marker::UnsafeUnpin for papo_core::MetadataLimits
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MetadataLimits
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MetadataLimits
-pub struct papo_core::MetadataValue
+#[non_exhaustive] pub struct papo_core::MetadataValue
 pub papo_core::MetadataValue::value: alloc::string::String
-pub papo_core::MetadataValue::visibility: alloc::string::String
+pub papo_core::MetadataValue::visibility: papo_core::Visibility
 impl core::clone::Clone for papo_core::MetadataValue
 pub fn papo_core::MetadataValue::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::MetadataValue

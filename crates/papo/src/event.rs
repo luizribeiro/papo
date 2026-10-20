@@ -903,10 +903,10 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             },
             key: key.into(),
             value,
-            visibility: if visibility == "*" {
-                Visibility::Public
-            } else {
-                Visibility::Restricted(visibility)
+            visibility: match visibility {
+                papo_core::Visibility::Public => Visibility::Public,
+                papo_core::Visibility::Restricted(policy) => Visibility::Restricted(policy),
+                _ => return CoreEvent::Unknown,
             },
         }),
         papo_core::Event::History {
@@ -1875,7 +1875,7 @@ mod tests {
                 subject: papo_core::Subject::Channel(Casemapping::default().channel("#papo")),
                 key: "pronouns".into(),
                 value: Some("they/them".into()),
-                visibility: "members".into(),
+                visibility: papo_core::Visibility::Restricted("members".into()),
             }),
             Event::MetadataChanged(changed)
                 if matches!(changed.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
@@ -1888,7 +1888,7 @@ mod tests {
                 subject: papo_core::Subject::User(Casemapping::default().nick("alice")),
                 key: "avatar".into(),
                 value: None,
-                visibility: "*".into(),
+                visibility: papo_core::Visibility::Public,
             }),
             Event::MetadataChanged(MetadataChanged {
                 visibility: Visibility::Public,

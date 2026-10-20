@@ -16,7 +16,11 @@ impl MetadataValue {
     pub(crate) fn from_core(value: &papo_core::MetadataValue) -> Self {
         Self {
             value: value.value.clone(),
-            visibility: value.visibility.clone(),
+            visibility: match &value.visibility {
+                papo_core::Visibility::Public => "*".to_owned(),
+                papo_core::Visibility::Restricted(policy) => policy.clone(),
+                _ => String::new(),
+            },
         }
     }
 }
