@@ -1471,7 +1471,7 @@ pub enum Event {
     /// Users departed because connectivity between two servers was lost.
     ///
     /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
-    /// separate [`Event::Message`] values.
+    /// separate [`Event::Line`] values.
     Netsplit {
         /// The servers on either side of the lost link.
         servers: [String; 2],
@@ -1481,7 +1481,7 @@ pub enum Event {
     /// Users returned after connectivity between two servers was restored.
     ///
     /// This event is emitted for an empty batch. Non-`JOIN` lines are delivered as
-    /// separate [`Event::Message`] values.
+    /// separate [`Event::Line`] values.
     Netjoin {
         /// The servers on either side of the restored link.
         servers: [String; 2],
@@ -2950,7 +2950,7 @@ impl Session {
                 context.batch_type().map(str::to_owned),
                 false,
             );
-            self.outbox.event(Event::Message(received));
+            self.outbox.event(Event::Line(received));
         }
         if message.command() == Command::Nick
             && self.registration.nick() != self.state.nick().as_ref()
@@ -3127,7 +3127,7 @@ impl Session {
                 batch_type,
             } => {
                 let received = self.received_message(message, batch_type, false);
-                self.outbox.event(Event::Message(received));
+                self.outbox.event(Event::Line(received));
             }
             BatchEvent::Multiline(message) => self
                 .outbox
@@ -3233,7 +3233,7 @@ impl Session {
             }));
             for message in echoed.into_iter().flatten() {
                 let received = self.received_message(message, None, true);
-                self.outbox.event(Event::Message(received));
+                self.outbox.event(Event::Line(received));
             }
         }
     }

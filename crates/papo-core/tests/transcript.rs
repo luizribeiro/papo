@@ -100,7 +100,7 @@ fn drop_reports_unexamined_output() {
     .expect_err("unexamined output must fail");
     let text = panic_text(panic.as_ref());
     assert!(text.contains("next client line: NICK tester"));
-    assert!(text.contains("next event: Some(Message"));
+    assert!(text.contains("next event: Some(Line"));
 }
 
 #[test]

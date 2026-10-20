@@ -9,7 +9,7 @@ impl Session {
             .expect("a resolved request queued its response");
         debug_assert!(matches!(response, Event::Response(_)));
         let received = self.received_message(message.to_owned(), None, true);
-        self.outbox.event(Event::Message(received));
+        self.outbox.event(Event::Line(received));
         // Consumers must observe the confirming event before the action completes.
         self.outbox.event(response);
     }

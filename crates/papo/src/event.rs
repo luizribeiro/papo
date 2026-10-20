@@ -710,7 +710,7 @@ impl Event {
 pub(crate) enum CoreEvent {
     Forward(Event),
     Registered(Welcome),
-    Message(papo_core::ReceivedLine),
+    Line(papo_core::ReceivedLine),
     Raw(ProtoLine),
     Response(Response),
     RequestUntracked(RequestId),
@@ -743,7 +743,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             if message.as_ref().command_is("001") {
                 return CoreEvent::Unknown;
             }
-            return CoreEvent::Message(message);
+            return CoreEvent::Line(message);
         }
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Raw(message.message),
         papo_core::Event::TagMessage(message) => {
@@ -1348,7 +1348,7 @@ mod tests {
     }
 
     fn mapped_message(event: papo_core::Event) -> ChatMessage {
-        let CoreEvent::Message(message) = from_core(event) else {
+        let CoreEvent::Line(message) = from_core(event) else {
             panic!("message was not mapped")
         };
         ChatMessage::from_core(message, &Isupport::default(), UNIX_EPOCH).unwrap()

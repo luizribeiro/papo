@@ -1145,7 +1145,7 @@ where
                     )));
                 }
             }
-            event::CoreEvent::Message(message) => {
+            event::CoreEvent::Line(message) => {
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
                 let event =
                     crate::Message::from_core(message, session.isupport(), crate::rt::now_wall())
