@@ -779,6 +779,32 @@ fn list_replies_use_fifo_without_swallowing_unrelated_errors() {
 }
 
 #[test]
+fn read_marker_replies_require_the_command_and_matching_target() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("MARKREAD", ["#Papo"]),
+            ResponseMatcher::ReadMarker("#Papo".into()),
+        )
+        .unwrap();
+
+    session.handle_line(now, b":ergo.test NOTICE #Papo :Scheduled maintenance");
+    session.handle_line(
+        now,
+        b":ergo.test MARKREAD #rust timestamp=2026-10-20T12:00:00.000Z",
+    );
+    assert_no_response(&mut session);
+
+    session.handle_line(
+        now,
+        b":ergo.test MARKREAD #papo timestamp=2026-10-20T12:00:01.000Z",
+    );
+    assert_eq!(response_id(&mut session), id);
+}
+
+#[test]
 #[allow(clippy::too_many_lines)]
 fn standard_failures_require_fail_kind_and_matching_command() {
     let now = Instant::now();
