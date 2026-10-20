@@ -1,5 +1,5 @@
 use papo::isupport::{Advertised, Prefix};
-use papo::{ModeKind, Nick, State};
+use papo::{ModeAction, ModeArg, Nick, State};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 use papo_testing::Peer;
@@ -124,10 +124,9 @@ async fn grant_rank(
     );
     assert_eq!(changed.changes.len(), 1);
     let change = &changed.changes[0];
-    assert!(change.set);
+    assert_eq!(change.action, ModeAction::Add);
     assert_eq!(change.mode, prefix.mode);
-    assert_eq!(change.kind, ModeKind::Prefix(prefix.rank));
-    assert_eq!(change.arg.as_deref(), Some(bob_nick.as_ref()));
+    assert!(matches!(&change.typed_arg, Some(ModeArg::Nick(nick)) if nick == bob_nick));
     Ok(())
 }
 

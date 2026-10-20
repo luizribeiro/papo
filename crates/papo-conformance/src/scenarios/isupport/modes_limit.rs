@@ -1,6 +1,6 @@
-use papo::ModeKind;
 use papo::event::ModeChanged;
 use papo::isupport::Advertised;
+use papo::{ModeAction, ModeArg};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -42,9 +42,8 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(changed.changes.len(), expected.len());
         for (change, mask) in changed.changes.iter().zip(expected) {
             assert_eq!(change.mode, 'b');
-            assert!(change.set);
-            assert_eq!(change.kind, ModeKind::List);
-            assert_eq!(change.arg.as_deref(), Some(mask.as_ref()));
+            assert_eq!(change.action, ModeAction::Add);
+            assert!(matches!(&change.typed_arg, Some(ModeArg::Mask(value)) if value == mask));
         }
     };
 

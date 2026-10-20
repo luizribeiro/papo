@@ -1,5 +1,5 @@
-use papo::ModeKind;
 use papo::event::{ModeChange, ModeChanged};
+use papo::{ModeAction, ModeArg};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -47,20 +47,16 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     // Servers reorder the applied mode string on the wire (UnrealIRCd turns an
     // input of +bklm-n into +m-n+bkl), so changes are matched by letter, never index.
     let ban = find_change(&changed, 'b');
-    assert!(ban.set);
-    assert_eq!(ban.kind, ModeKind::List);
-    assert_eq!(ban.arg.as_deref(), Some(MASK));
+    assert_eq!(ban.action, ModeAction::Add);
+    assert!(matches!(&ban.typed_arg, Some(ModeArg::Mask(mask)) if mask == MASK));
     let key = find_change(&changed, 'k');
-    assert!(key.set);
-    assert_eq!(key.kind, ModeKind::AlwaysArg);
-    assert_eq!(key.arg.as_deref(), Some(KEY));
+    assert_eq!(key.action, ModeAction::Add);
+    assert!(matches!(&key.typed_arg, Some(ModeArg::Value(value)) if value == KEY));
     let limit = find_change(&changed, 'l');
-    assert!(limit.set);
-    assert_eq!(limit.kind, ModeKind::ArgWhenSet);
-    assert_eq!(limit.arg.as_deref(), Some(LIMIT));
+    assert_eq!(limit.action, ModeAction::Add);
+    assert!(matches!(&limit.typed_arg, Some(ModeArg::Value(value)) if value == LIMIT));
     let no_external = find_change(&changed, 'n');
-    assert!(!no_external.set);
-    assert_eq!(no_external.kind, ModeKind::NoArg);
+    assert_eq!(no_external.action, ModeAction::Remove);
     assert_eq!(no_external.arg, None);
 
     for peer in [&alice, &bob] {
@@ -82,18 +78,15 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(removed.changes.len(), 3);
 
     let ban = find_change(&removed, 'b');
-    assert!(!ban.set);
-    assert_eq!(ban.kind, ModeKind::List);
-    assert_eq!(ban.arg.as_deref(), Some(MASK));
+    assert_eq!(ban.action, ModeAction::Remove);
+    assert!(matches!(&ban.typed_arg, Some(ModeArg::Mask(mask)) if mask == MASK));
     let key = find_change(&removed, 'k');
-    assert!(!key.set);
-    assert_eq!(key.kind, ModeKind::AlwaysArg);
+    assert_eq!(key.action, ModeAction::Remove);
     // The echoed key varies by server: Ergo, soju, and Solanum send "*" rather than
     // the real key, so only its presence is checked here, never its value.
-    assert!(key.arg.as_deref().is_some_and(|value| !value.is_empty()));
+    assert!(matches!(&key.typed_arg, Some(ModeArg::Value(value)) if !value.is_empty()));
     let limit = find_change(&removed, 'l');
-    assert!(!limit.set);
-    assert_eq!(limit.kind, ModeKind::ArgWhenSet);
+    assert_eq!(limit.action, ModeAction::Remove);
     assert_eq!(limit.arg, None);
 
     for peer in [&alice, &bob] {

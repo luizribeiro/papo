@@ -1,4 +1,4 @@
-use papo::{Account, DisconnectCause, Error, Event, ModeKind, Refusal, Source};
+use papo::{Account, DisconnectCause, Error, Event, ModeAction, ModeArg, Refusal, Source};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
@@ -442,17 +442,8 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
         .iter()
         .find(|change| change.mode == 'v')
         .unwrap();
-    assert!(voice.set);
-    let voice_rank = alice
-        .state()
-        .isupport()
-        .prefix()
-        .iter()
-        .find(|prefix| prefix.mode == 'v')
-        .unwrap()
-        .rank;
-    assert_eq!(voice.kind, ModeKind::Prefix(voice_rank));
-    assert_eq!(voice.arg.as_deref(), Some(alice_nick.as_ref()));
+    assert_eq!(voice.action, ModeAction::Add);
+    assert!(matches!(&voice.typed_arg, Some(ModeArg::Nick(nick)) if nick == &alice_nick));
     bob.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.as_ref(), channel);
@@ -511,8 +502,8 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
         .iter()
         .find(|change| change.mode == 'o')
         .unwrap();
-    assert!(operator.set);
-    assert_eq!(operator.arg.as_deref(), Some(bob_nick.as_ref()));
+    assert_eq!(operator.action, ModeAction::Add);
+    assert!(matches!(&operator.typed_arg, Some(ModeArg::Nick(nick)) if nick == &bob_nick));
     assert!(
         bob.state()
             .channel(&channel)
@@ -1305,16 +1296,13 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
                         && changed
                             .changes
                             .iter()
-                            .any(|change| change.mode == 'i' && !change.set)
+                            .any(|change| change.mode == 'i' && change.action == ModeAction::Remove)
                 })
             })
             .await?;
-        assert!(
-            removed
-                .changes
-                .iter()
-                .any(|change| change.mode == 'i' && !change.set && change.arg.is_none())
-        );
+        assert!(removed.changes.iter().any(|change| {
+            change.mode == 'i' && change.action == ModeAction::Remove && change.arg.is_none()
+        }));
     }
 
     alice.mode(nick.clone()).add('i').await?;
@@ -1325,17 +1313,14 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
                     && changed
                         .changes
                         .iter()
-                        .any(|change| change.mode == 'i' && change.set)
+                        .any(|change| change.mode == 'i' && change.action == ModeAction::Add)
             })
         })
         .await?;
     assert_eq!(subject_name(&added.subject), nick.as_ref());
-    assert!(
-        added
-            .changes
-            .iter()
-            .any(|change| { change.mode == 'i' && change.set && change.arg.is_none() })
-    );
+    assert!(added.changes.iter().any(|change| {
+        change.mode == 'i' && change.action == ModeAction::Add && change.arg.is_none()
+    }));
     assert!(alice.state().user_modes().any(|mode| mode == 'i'));
 
     let current = alice
@@ -1391,14 +1376,14 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         .iter()
         .find(|change| change.mode == 'k')
         .unwrap();
-    assert!(key_change.set);
-    assert_eq!(key_change.arg.as_deref(), Some(key));
+    assert_eq!(key_change.action, ModeAction::Add);
+    assert!(matches!(&key_change.typed_arg, Some(ModeArg::Value(value)) if value == key));
     let secret_change = modes
         .changes
         .iter()
         .find(|change| change.mode == 's')
         .unwrap();
-    assert!(secret_change.set);
+    assert_eq!(secret_change.action, ModeAction::Add);
     assert_eq!(secret_change.arg, None);
     for peer in [&alice, &bob] {
         let state = peer.state();

@@ -1,4 +1,4 @@
-use papo::Origin;
+use papo::{ModeAction, ModeArg, Origin};
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
@@ -54,8 +54,8 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
                 .iter()
                 .find(|change| change.mode == letter)
                 .unwrap();
-            assert!(change.set);
-            assert_eq!(change.arg.as_deref(), Some(nick.as_ref()));
+            assert_eq!(change.action, ModeAction::Add);
+            assert!(matches!(&change.typed_arg, Some(ModeArg::Nick(value)) if value == nick));
         }
     }
     for peer in [&alice, &bob, &carol, &dave] {

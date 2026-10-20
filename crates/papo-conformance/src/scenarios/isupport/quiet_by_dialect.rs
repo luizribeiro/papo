@@ -1,4 +1,4 @@
-use papo::{ModeKind, Refusal};
+use papo::{ModeAction, ModeArg, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -72,9 +72,10 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(changed.changes.len(), 1);
         let change = &changed.changes[0];
         assert_eq!(change.mode, letter);
-        assert!(change.set);
-        assert_eq!(change.kind, ModeKind::List);
-        assert_eq!(change.arg.as_deref(), Some(echoed_arg.as_str()));
+        assert_eq!(change.action, ModeAction::Add);
+        assert!(
+            matches!(&change.typed_arg, Some(ModeArg::Mask(mask)) if mask == echoed_arg.as_str())
+        );
     }
 
     let blocked = "muted members cannot speak";
@@ -117,9 +118,10 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(removed.changes.len(), 1);
         let change = &removed.changes[0];
         assert_eq!(change.mode, letter);
-        assert!(!change.set);
-        assert_eq!(change.kind, ModeKind::List);
-        assert_eq!(change.arg.as_deref(), Some(echoed_arg.as_str()));
+        assert_eq!(change.action, ModeAction::Remove);
+        assert!(
+            matches!(&change.typed_arg, Some(ModeArg::Mask(mask)) if mask == echoed_arg.as_str())
+        );
     }
 
     let again = "unmuted again";

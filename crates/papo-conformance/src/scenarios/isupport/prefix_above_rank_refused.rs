@@ -1,4 +1,4 @@
-use papo::{Error, ModeKind, Refusal};
+use papo::{Error, ModeAction, ModeArg, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -74,9 +74,8 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         );
         assert_eq!(promoted.changes.len(), 1);
         let change = &promoted.changes[0];
-        assert!(change.set);
-        assert_eq!(change.kind, ModeKind::Prefix(operator_rank));
-        assert_eq!(change.arg.as_deref(), Some(bob_nick.as_ref()));
+        assert_eq!(change.action, ModeAction::Add);
+        assert!(matches!(&change.typed_arg, Some(ModeArg::Nick(nick)) if nick == &bob_nick));
     }
     for peer in [&alice, &bob, &carol] {
         let state = peer.state();
