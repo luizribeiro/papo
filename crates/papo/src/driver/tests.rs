@@ -1691,12 +1691,19 @@ async fn required_sasl_failure_does_not_reconnect() {
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
     server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
 
+    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+        panic!("expected registration disconnect")
+    };
     assert!(matches!(
-        events.next().await,
-        Some(Event::Disconnected(crate::Disconnected {
+        &disconnected,
+        crate::Disconnected {
             cause: crate::DisconnectCause::Registration(crate::RegistrationError::Sasl { .. }),
             retry_in: None,
-        }))
+        }
+    ));
+    assert!(matches!(
+        std::error::Error::source(&disconnected),
+        Some(source) if source.to_string().contains("SASL")
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
