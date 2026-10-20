@@ -1,14 +1,14 @@
 //! WHOX reply parsing behavior.
 
-use papo_proto::{Isupport, MessageRef, WhoxFlags, WhoxPresence, WhoxReply};
+use papo_proto::{Isupport, LineRef, WhoxFlags, WhoxPresence, WhoxReply};
 
 #[test]
 fn parses_real_ergo_state_query_reply() {
-    let message = MessageRef::parse(
+    let line = LineRef::parse(
         ":irc.ergo.test 354 tester 42 #papo ~alice user/alice alice H@ alice :Alice Example",
     )
     .unwrap();
-    let reply = WhoxReply::parse(&message, "%tcuhnfar,42").unwrap();
+    let reply = WhoxReply::parse(&line, "%tcuhnfar,42").unwrap();
 
     assert_eq!(reply.token, Some("42"));
     assert_eq!(reply.channel, Some("#papo"));
@@ -34,11 +34,11 @@ fn parses_real_ergo_state_query_reply() {
 
 #[test]
 fn maps_fixed_field_order_and_normalizes_placeholders() {
-    let message = MessageRef::parse(
+    let line = LineRef::parse(
         ":irc.ergo.test 354 tester 7 * ~guest 255.255.255.255 hidden.example irc.ergo.test guest G*B+ 1 20 0 0 :Guest User",
     )
     .unwrap();
-    let reply = WhoxReply::parse(&message, "%ronaldfshicut,7").unwrap();
+    let reply = WhoxReply::parse(&line, "%ronaldfshicut,7").unwrap();
 
     assert_eq!(reply.channel, None);
     assert_eq!(reply.ip, None);
@@ -63,15 +63,15 @@ fn maps_fixed_field_order_and_normalizes_placeholders() {
 
 #[test]
 fn accepts_custom_bot_mode_and_absent_flags() {
-    let message = MessageRef::parse(":irc.ergo.test 354 tester bot Hb%").unwrap();
-    let reply = WhoxReply::parse(&message, "%fn").unwrap();
+    let line = LineRef::parse(":irc.ergo.test 354 tester bot Hb%").unwrap();
+    let reply = WhoxReply::parse(&line, "%fn").unwrap();
     let mut support = Isupport::default();
     support.apply_tokens(["PREFIX=(ohv)@%+", "BOT=b"]);
     assert_eq!(reply.nick, Some("bot"));
     assert!(reply.flags(&support).unwrap().bot);
     assert_eq!(reply.flags(&support).unwrap().prefixes, vec!['%']);
 
-    let no_flags = MessageRef::parse(":irc.ergo.test 354 tester alice").unwrap();
+    let no_flags = LineRef::parse(":irc.ergo.test 354 tester alice").unwrap();
     assert_eq!(
         WhoxReply::parse(&no_flags, "n").unwrap().flags(&support),
         None
@@ -97,14 +97,14 @@ fn rejects_wrong_commands_selectors_and_field_counts() {
         (":irc.ergo.test 354 tester alice", "%nn"),
         (":irc.ergo.test 354 tester alice", "%x"),
     ] {
-        let message = MessageRef::parse(line).unwrap();
-        assert!(WhoxReply::parse(&message, fields).is_none());
+        let line = LineRef::parse(line).unwrap();
+        assert!(WhoxReply::parse(&line, fields).is_none());
     }
 }
 
 #[test]
 fn rejects_invalid_selectors_before_reading_reply_fields() {
-    let target_only = MessageRef::parse(":irc.ergo.test 354 tester").unwrap();
+    let target_only = LineRef::parse(":irc.ergo.test 354 tester").unwrap();
     assert!(WhoxReply::parse(&target_only, "").is_none());
     assert!(WhoxReply::parse(&target_only, "%x").is_none());
 }

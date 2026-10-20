@@ -95,11 +95,11 @@ fn strips_only_advertised_prefix_characters() {
 
 #[test]
 fn parses_realistic_names_reply_and_rejects_wrong_shapes() {
-    let message = papo_proto::MessageRef::parse(
+    let line = papo_proto::LineRef::parse(
         ":irc.example 353 tester = #papo :@+alice!~alice@user/alice bob!~bob@192.0.2.4",
     )
     .unwrap();
-    let (channel_type, channel, entries) = parse_353(&message).unwrap();
+    let (channel_type, channel, entries) = parse_353(&line).unwrap();
     assert_eq!(channel_type, "=");
     assert_eq!(channel, "#papo");
     assert_eq!(
@@ -112,7 +112,7 @@ fn parses_realistic_names_reply_and_rejects_wrong_shapes() {
         ":irc.example 353 tester = #papo",
         ":irc.example 353 tester = #papo alice extra",
     ] {
-        assert!(parse_353(&papo_proto::MessageRef::parse(line).unwrap()).is_none());
+        assert!(parse_353(&papo_proto::LineRef::parse(line).unwrap()).is_none());
     }
 }
 

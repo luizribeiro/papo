@@ -1,13 +1,13 @@
 //! Raw ISUPPORT token accumulation behavior.
 
 use papo_proto::{
-    Advertised, Casemapping, ChanModes, Extban, Isupport, Limit, LimitValue, MessageRef, Numeric,
+    Advertised, Casemapping, ChanModes, Extban, Isupport, Limit, LimitValue, LineRef, Numeric,
     Prefix,
 };
 
 #[test]
 fn accumulates_local_tokens_and_ignores_remote_isupport() {
-    let local = MessageRef::parse(
+    let local = LineRef::parse(
         ":ergo.test 005 tester CASEMAPPING=ascii WHOX NETWORK=ErgoTest :are supported by this server",
     )
     .unwrap();
@@ -15,7 +15,7 @@ fn accumulates_local_tokens_and_ignores_remote_isupport() {
         ":irc.remote.example {} tester CASEMAPPING=rfc1459 NETWORK=Remote :are supported by this server",
         Numeric::RPL_REMOTEISUPPORT
     );
-    let remote = MessageRef::parse(&remote_line).unwrap();
+    let remote = LineRef::parse(&remote_line).unwrap();
     let mut support = Isupport::default();
     support.apply(&local);
     support.apply(&remote);

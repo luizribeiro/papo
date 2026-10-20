@@ -1,12 +1,12 @@
-//! Typed state-notification message views.
+//! Typed state-notification line views.
 
 use papo_proto::{
-    Account, Away, Chghost, Join, MessageRef, Setname, StandardReply, StandardReplyKind,
+    Account, Away, Chghost, Join, LineRef, Setname, StandardReply, StandardReplyKind,
 };
 
 #[test]
 fn parses_standard_replies_with_context() {
-    let fail = MessageRef::parse(
+    let fail = LineRef::parse(
         ":ergo.test FAIL CHATHISTORY INVALID_PARAMS #papo timestamp :Invalid parameters",
     )
     .unwrap();
@@ -31,8 +31,8 @@ fn parses_standard_replies_with_context() {
             StandardReplyKind::Note,
         ),
     ] {
-        let message = MessageRef::parse(line).unwrap();
-        let reply = StandardReply::parse(&message).unwrap();
+        let line = LineRef::parse(line).unwrap();
+        let reply = StandardReply::parse(&line).unwrap();
         assert_eq!(reply.kind, kind);
         assert!(reply.context.is_empty());
     }
@@ -46,13 +46,13 @@ fn rejects_malformed_standard_replies() {
         ":ergo.test FAIL WHOIS",
         ":ergo.test FAIL WHOIS NO_SUCH_NICK",
     ] {
-        assert!(StandardReply::parse(&MessageRef::parse(line).unwrap()).is_none());
+        assert!(StandardReply::parse(&LineRef::parse(line).unwrap()).is_none());
     }
 }
 
 #[test]
-fn parses_plain_and_extended_join_messages() {
-    let plain = MessageRef::parse(":alice!~alice@user/alice JOIN #papo").unwrap();
+fn parses_plain_and_extended_join_lines() {
+    let plain = LineRef::parse(":alice!~alice@user/alice JOIN #papo").unwrap();
     assert_eq!(
         Join::parse(&plain),
         Some(Join {
@@ -63,7 +63,7 @@ fn parses_plain_and_extended_join_messages() {
     );
 
     let extended =
-        MessageRef::parse(":alice!~alice@user/alice JOIN #papo alice :Alice Example").unwrap();
+        LineRef::parse(":alice!~alice@user/alice JOIN #papo alice :Alice Example").unwrap();
     assert_eq!(
         Join::parse(&extended),
         Some(Join {
@@ -73,7 +73,7 @@ fn parses_plain_and_extended_join_messages() {
         })
     );
 
-    let logged_out = MessageRef::parse(":guest!~guest@192.0.2.4 JOIN #papo * :Guest User").unwrap();
+    let logged_out = LineRef::parse(":guest!~guest@192.0.2.4 JOIN #papo * :Guest User").unwrap();
     assert_eq!(Join::parse(&logged_out).unwrap().account, None);
 }
 
@@ -85,14 +85,14 @@ fn rejects_join_wrong_commands_and_arities() {
         ":alice!~alice@user/alice JOIN #papo alice",
         ":alice!~alice@user/alice JOIN #papo alice extra :Alice Example",
     ] {
-        assert!(Join::parse(&MessageRef::parse(line).unwrap()).is_none());
+        assert!(Join::parse(&LineRef::parse(line).unwrap()).is_none());
     }
 }
 
 #[test]
 fn parses_account_login_and_logout() {
-    let login = MessageRef::parse(":alice!~alice@user/alice ACCOUNT alice").unwrap();
-    let logout = MessageRef::parse(":alice!~alice@user/alice ACCOUNT *").unwrap();
+    let login = LineRef::parse(":alice!~alice@user/alice ACCOUNT alice").unwrap();
+    let logout = LineRef::parse(":alice!~alice@user/alice ACCOUNT *").unwrap();
     assert_eq!(
         Account::parse(&login),
         Some(Account {
@@ -104,9 +104,9 @@ fn parses_account_login_and_logout() {
 
 #[test]
 fn parses_away_and_back_notifications() {
-    let away = MessageRef::parse(":alice!~alice@user/alice AWAY :out for lunch").unwrap();
-    let empty = MessageRef::parse(":alice!~alice@user/alice AWAY :").unwrap();
-    let back = MessageRef::parse(":alice!~alice@user/alice AWAY").unwrap();
+    let away = LineRef::parse(":alice!~alice@user/alice AWAY :out for lunch").unwrap();
+    let empty = LineRef::parse(":alice!~alice@user/alice AWAY :").unwrap();
+    let back = LineRef::parse(":alice!~alice@user/alice AWAY").unwrap();
     assert_eq!(
         Away::parse(&away),
         Some(Away {
@@ -124,19 +124,19 @@ fn rejects_account_and_away_wrong_commands_and_arities() {
         ":alice!~alice@user/alice ACCOUNT",
         ":alice!~alice@user/alice ACCOUNT alice extra",
     ] {
-        assert!(Account::parse(&MessageRef::parse(line).unwrap()).is_none());
+        assert!(Account::parse(&LineRef::parse(line).unwrap()).is_none());
     }
     for line in [
         ":alice!~alice@user/alice PART #papo",
         ":alice!~alice@user/alice AWAY lunch extra",
     ] {
-        assert!(Away::parse(&MessageRef::parse(line).unwrap()).is_none());
+        assert!(Away::parse(&LineRef::parse(line).unwrap()).is_none());
     }
 }
 
 #[test]
 fn parses_host_and_realname_changes() {
-    let chghost = MessageRef::parse(":alice!ident@old.example CHGHOST ~alice user/alice").unwrap();
+    let chghost = LineRef::parse(":alice!ident@old.example CHGHOST ~alice user/alice").unwrap();
     assert_eq!(
         Chghost::parse(&chghost),
         Some(Chghost {
@@ -145,7 +145,7 @@ fn parses_host_and_realname_changes() {
         })
     );
 
-    let setname = MessageRef::parse(":alice!~alice@user/alice SETNAME :Alice Liddell").unwrap();
+    let setname = LineRef::parse(":alice!~alice@user/alice SETNAME :Alice Liddell").unwrap();
     assert_eq!(
         Setname::parse(&setname),
         Some(Setname {
@@ -161,13 +161,13 @@ fn rejects_chghost_and_setname_wrong_commands_and_arities() {
         ":alice!ident@old.example CHGHOST ~alice",
         ":alice!ident@old.example CHGHOST ~alice user/alice extra",
     ] {
-        assert!(Chghost::parse(&MessageRef::parse(line).unwrap()).is_none());
+        assert!(Chghost::parse(&LineRef::parse(line).unwrap()).is_none());
     }
     for line in [
         ":alice!~alice@user/alice PART #papo",
         ":alice!~alice@user/alice SETNAME",
         ":alice!~alice@user/alice SETNAME Alice extra",
     ] {
-        assert!(Setname::parse(&MessageRef::parse(line).unwrap()).is_none());
+        assert!(Setname::parse(&LineRef::parse(line).unwrap()).is_none());
     }
 }

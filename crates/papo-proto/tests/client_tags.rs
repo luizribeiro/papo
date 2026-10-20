@@ -1,6 +1,6 @@
 //! Client-only message-tag parsing coverage.
 
-use papo_proto::{MessageRef, Reaction, Typing};
+use papo_proto::{LineRef, Reaction, Typing};
 
 #[test]
 fn parses_all_typing_states() {
@@ -11,11 +11,11 @@ fn parses_all_typing_states() {
     ] {
         let line = format!("@+typing={value} :alice!~a@cloak TAGMSG #papo");
         assert_eq!(
-            Typing::parse(&MessageRef::parse(&line).unwrap()),
+            Typing::parse(&LineRef::parse(&line).unwrap()),
             Some(expected)
         );
     }
-    let unknown = MessageRef::parse("@+typing=idle :alice TAGMSG #papo").unwrap();
+    let unknown = LineRef::parse("@+typing=idle :alice TAGMSG #papo").unwrap();
     assert_eq!(Typing::parse(&unknown), None);
 }
 
@@ -35,8 +35,8 @@ fn parses_react_and_unreact_with_reply_aliases() {
             "8sKY2A",
         ),
     ] {
-        let message = MessageRef::parse(line).unwrap();
-        let reaction = Reaction::parse(&message).unwrap();
+        let line = LineRef::parse(line).unwrap();
+        let reaction = Reaction::parse(&line).unwrap();
         assert_eq!(reaction.react.as_deref(), react);
         assert_eq!(reaction.unreact.as_deref(), unreact);
         assert_eq!(reaction.reply_to, reply);
@@ -45,6 +45,6 @@ fn parses_react_and_unreact_with_reply_aliases() {
 
 #[test]
 fn rejects_reactions_without_a_reply() {
-    let message = MessageRef::parse("@+draft/react=👍 TAGMSG #papo").unwrap();
-    assert_eq!(Reaction::parse(&message), None);
+    let line = LineRef::parse("@+draft/react=👍 TAGMSG #papo").unwrap();
+    assert_eq!(Reaction::parse(&line), None);
 }
