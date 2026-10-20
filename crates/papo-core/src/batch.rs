@@ -6,7 +6,7 @@ use web_time::Instant;
 
 use papo_proto::{Command, Line, LineRef, Reaction, time};
 
-use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, HistoryPage, cap};
+use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, cap};
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -61,7 +61,7 @@ pub(crate) enum BatchEvent {
         echo: Option<Line>,
         messages: Vec<Line>,
         batch_type: String,
-        history: Option<HistoryPage>,
+        history: Option<(String, Vec<HistoryItem>, bool)>,
         history_targets: Option<Vec<(String, std::time::SystemTime)>>,
     },
     History {
@@ -574,15 +574,11 @@ fn multiline(batch: &mut OpenBatch) -> Option<Line> {
     Some(message)
 }
 
-fn history_from_event(event: &BatchEvent) -> Option<HistoryPage> {
+fn history_from_event(event: &BatchEvent) -> Option<(String, Vec<HistoryItem>, bool)> {
     let BatchEvent::History { target, items, end } = event else {
         return None;
     };
-    Some(HistoryPage {
-        target: target.clone(),
-        items: items.clone(),
-        end: *end,
-    })
+    Some((target.clone(), items.clone(), *end))
 }
 
 fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {

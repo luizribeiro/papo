@@ -413,6 +413,7 @@ pub papo_core::Event::FeaturesChanged
 pub papo_core::Event::FeaturesChanged::added: alloc::vec::Vec<papo_core::Feature>
 pub papo_core::Event::FeaturesChanged::removed: alloc::vec::Vec<papo_core::Feature>
 pub papo_core::Event::History
+pub papo_core::Event::History::conversation: papo::Conversation
 pub papo_core::Event::History::end: bool
 pub papo_core::Event::History::items: alloc::vec::Vec<papo_core::HistoryItem>
 pub papo_core::Event::History::target: alloc::string::String
@@ -1126,6 +1127,7 @@ impl core::marker::UnsafeUnpin for papo_core::HistoryLine
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::HistoryLine
 impl core::panic::unwind_safe::UnwindSafe for papo_core::HistoryLine
 pub struct papo_core::HistoryPage
+pub papo_core::HistoryPage::conversation: papo::Conversation
 pub papo_core::HistoryPage::end: bool
 pub papo_core::HistoryPage::items: alloc::vec::Vec<papo_core::HistoryItem>
 pub papo_core::HistoryPage::target: alloc::string::String

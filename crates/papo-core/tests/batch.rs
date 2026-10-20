@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{BatchAbandonReason, Config, Event, HistoryItem, RateLimit, Session};
+use papo_core::{BatchAbandonReason, Config, Conversation, Event, HistoryItem, RateLimit, Session};
 #[cfg(feature = "unstable")]
 use papo_proto::Line;
 
@@ -326,10 +326,16 @@ fn recorded_ergo_latest_batch_becomes_history() {
     assert_eq!(session.poll_event(), None);
     session.handle_line(now, b":ergo.test BATCH -c");
 
-    let Some(Event::History { target, items, end }) = session.poll_event() else {
+    let Some(Event::History {
+        conversation,
+        items,
+        end,
+        ..
+    }) = session.poll_event()
+    else {
         panic!("expected history")
     };
-    assert_eq!(target, "#papo");
+    assert!(matches!(conversation, Conversation::Channel(channel) if channel == "#papo"));
     assert!(end);
     assert_eq!(items.len(), 3);
     assert_eq!(
@@ -427,8 +433,8 @@ fn empty_and_draft_history_types_complete() {
         session.handle_line(now, b"BATCH -h");
         assert!(matches!(
             session.poll_event(),
-            Some(Event::History { target, items, end: true })
-                if target == "#papo" && items.is_empty()
+            Some(Event::History { conversation: Conversation::Channel(channel), items, end: true, .. })
+                if channel == "#papo" && items.is_empty()
         ));
     }
 }
@@ -518,8 +524,12 @@ fn interleaved_histories_complete_independently() {
     session.handle_line(now, b"@batch=b :bob PRIVMSG #b :two");
     session.handle_line(now, b"BATCH -b");
     session.handle_line(now, b"BATCH -a");
-    assert!(matches!(session.poll_event(), Some(Event::History { target, .. }) if target == "#b"));
-    assert!(matches!(session.poll_event(), Some(Event::History { target, .. }) if target == "#a"));
+    assert!(
+        matches!(session.poll_event(), Some(Event::History { conversation: Conversation::Channel(channel), .. }) if channel == "#b")
+    );
+    assert!(
+        matches!(session.poll_event(), Some(Event::History { conversation: Conversation::Channel(channel), .. }) if channel == "#a")
+    );
 }
 
 #[test]

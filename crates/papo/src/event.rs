@@ -882,7 +882,9 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 Visibility::Restricted(visibility)
             },
         }),
-        papo_core::Event::History { target, items, end } => {
+        papo_core::Event::History {
+            target, items, end, ..
+        } => {
             return CoreEvent::History { target, items, end };
         }
         papo_core::Event::ReadMarker(marker) => Event::ReadMarker(ReadMarker {
@@ -2049,6 +2051,7 @@ mod tests {
         let message = Line::privmsg("#papo", "earlier");
         let CoreEvent::History { target, items, end } = from_core(papo_core::Event::History {
             target: "#papo".into(),
+            conversation: Conversation::Channel(Casemapping::Rfc1459.channel("#papo")),
             items: vec![
                 papo_core::HistoryItem::Message(papo_core::HistoryLine {
                     line: message.clone(),

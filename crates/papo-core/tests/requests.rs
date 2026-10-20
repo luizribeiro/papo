@@ -3,8 +3,8 @@
 use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
-    Config, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher, ServerError,
-    Session, TextKind,
+    Config, Conversation, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher,
+    ServerError, Session, TextKind,
 };
 use papo_proto::{Line, LineRef, Numeric};
 
@@ -1324,8 +1324,8 @@ fn links_nested_chathistory_to_its_response() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::History { target, items, end })
-            if target == "#papo" && items.len() == 1 && end
+        Some(Event::History { conversation: Conversation::Channel(channel), items, end, .. })
+            if channel == "#papo" && items.len() == 1 && end
     ));
     let Some(Event::Response(response)) = session.poll_event() else {
         panic!("expected correlated history response")
@@ -1333,7 +1333,7 @@ fn links_nested_chathistory_to_its_response() {
     assert_eq!(response.id, id);
     assert_eq!(response.lines.len(), 1);
     let history = response.history.expect("history reference");
-    assert_eq!(history.target, "#papo");
+    assert!(matches!(history.conversation, Conversation::Channel(channel) if channel == "#papo"));
     assert_eq!(history.items.len(), 1);
     assert!(history.end);
 }
@@ -1359,7 +1359,7 @@ fn unclaimed_history_response_releases_its_messages() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::History { target, items, .. }) if target == "#papo" && items.len() == 1
+        Some(Event::History { conversation: Conversation::Channel(channel), items, .. }) if channel == "#papo" && items.len() == 1
     ));
     assert!(matches!(
         session.poll_event(),

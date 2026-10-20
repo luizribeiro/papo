@@ -294,7 +294,7 @@ fn assembles_deduplicated_context_aware_pages() {
         panic!("expected history response")
     };
     let page = response.history.unwrap();
-    assert_eq!(page.target, "#papo");
+    assert!(matches!(&page.conversation, Conversation::Channel(channel) if channel == "#papo"));
     assert!(page.end);
     assert_eq!(
         page.items[0].message().unwrap().as_ref().param(1),

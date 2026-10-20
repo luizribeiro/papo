@@ -1234,6 +1234,8 @@ impl HistoryItem {
 pub struct HistoryPage {
     /// History target named by the batch.
     pub target: String,
+    /// Conversation named by the history batch.
+    pub conversation: Conversation,
     /// Replayed items in server delivery order.
     pub items: Vec<HistoryItem>,
     /// Whether the server reported that no further page exists.
@@ -1544,6 +1546,8 @@ pub enum Event {
     History {
         /// The history target named by the batch.
         target: String,
+        /// The conversation named by the batch.
+        conversation: Conversation,
         /// Replayed items in server delivery order.
         items: Vec<HistoryItem>,
         /// Whether the server reported that no further page exists.
@@ -3379,7 +3383,14 @@ impl Session {
         match event {
             event @ BatchEvent::Response { .. } => self.dispatch_response_batch(now, event),
             BatchEvent::History { target, items, end } => {
-                self.outbox.event(Event::History { target, items, end });
+                if let Some(conversation) = self.history_conversation(&target) {
+                    self.outbox.event(Event::History {
+                        target,
+                        conversation,
+                        items,
+                        end,
+                    });
+                }
             }
             BatchEvent::HistoryTargets(targets) => {
                 self.outbox.event(Event::HistoryTargets(targets));
@@ -3440,6 +3451,16 @@ impl Session {
                 }
             }
         }
+    }
+
+    fn history_conversation(&self, target: &str) -> Option<Conversation> {
+        let (status, conversation) = self.state.parse_target(target).ok()?;
+        (status.is_none()
+            && matches!(
+                conversation,
+                Conversation::Channel(_) | Conversation::Private(_)
+            ))
+        .then_some(conversation)
     }
 
     fn remember_casemapping(&mut self) {
@@ -3523,7 +3544,14 @@ impl Session {
                     None
                 },
                 lines: messages,
-                history,
+                history: history.and_then(|(target, items, end)| {
+                    Some(HistoryPage {
+                        conversation: self.history_conversation(&target)?,
+                        target,
+                        items,
+                        end,
+                    })
+                }),
                 history_targets,
                 whois_channels,
             }));
