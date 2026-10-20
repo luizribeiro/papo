@@ -97,10 +97,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         UNIX_EPOCH + Duration::from_secs(4_000_000_000),
         Duration::from_hours(4_320),
     ));
+    store.put(StsPolicy::new(
+        "irc.libera.chat",
+        6697,
+        UNIX_EPOCH + Duration::from_secs(4_100_000_000),
+        Duration::from_hours(4_320),
+    ));
+    store.remove("irc.libera.chat");
     let reopened = FileStore::open(path)?;
     let policy = reopened
         .get("irc.example.net")
         .ok_or("policy was not saved")?;
     println!("{} requires TLS on port {}", policy.host, policy.port);
+    if reopened.get("irc.libera.chat").is_some() {
+        return Err("policy was not removed".into());
+    }
+    println!("irc.libera.chat policy removed");
     Ok(())
 }
