@@ -102,3 +102,79 @@ fn history_authorship_requires_an_account_tag() {
                     && changed.authorship == Authorship::Own)
         });
 }
+
+#[test]
+fn history_mode_authorship_distinguishes_actor_and_subject() {
+    Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AHBhcG8AY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
+        .server(":ergo.test 900 papo papo!~papo@localhost papo :You are now logged in as papo")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .client("CAP END")
+        .server(":ergo.test BATCH +history chathistory #papo")
+        .server("@batch=history;account=papo :papo-old!~papo@localhost MODE #papo +m")
+        .server("@batch=history;account=emily :emily!~emily@localhost MODE papo +i")
+        .server("@batch=history :papo!~papo@localhost MODE #papo -m")
+        .server(":ergo.test BATCH -history")
+        .event(|event| {
+            let Event::History { items, .. } = event else {
+                return false;
+            };
+            matches!(&items[..],
+                [HistoryItem::ModeChanged(own_channel), HistoryItem::ModeChanged(other_user), HistoryItem::ModeChanged(unknown_channel)]
+                if own_channel.authorship == Authorship::Own
+                    && own_channel.subject_authorship == Authorship::Other
+                    && other_user.authorship == Authorship::Other
+                    && other_user.subject_authorship == Authorship::Unknown
+                    && unknown_channel.authorship == Authorship::Unknown
+                    && unknown_channel.subject_authorship == Authorship::Other)
+        });
+}
+
+#[test]
+fn live_mode_and_nick_authorship_distinguish_own_identity() {
+    Transcript::new(Config::default())
+        .server(":papo!~papo@localhost MODE papo +i")
+        .event(|event| {
+            matches!(
+                event,
+                Event::ModeChanged {
+                    subject: Subject::User(nick),
+                    authorship: Authorship::Own,
+                    subject_authorship: Authorship::Own,
+                    ..
+                } if nick == "papo"
+            )
+        })
+        // A server may define a nonstandard channel prefix. When that prefix makes a
+        // channel name equal our nick, the target namespace still decides authorship.
+        .server(":ergo.test 005 papo CHANTYPES=p :are supported by this server")
+        .server(":papo!~papo@localhost MODE papo +m")
+        .event(|event| {
+            matches!(
+                event,
+                Event::ModeChanged {
+                    subject: Subject::Channel(channel),
+                    authorship: Authorship::Own,
+                    subject_authorship: Authorship::Other,
+                    ..
+                } if channel == "papo"
+            )
+        })
+        .server(":papo-old!~papo@localhost NICK papo")
+        .event(|event| {
+            matches!(
+                event,
+                Event::NickChanged {
+                    old,
+                    new,
+                    authorship: Authorship::Own,
+                } if old == "papo-old" && new == "papo"
+            )
+        });
+}
