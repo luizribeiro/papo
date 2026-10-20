@@ -1337,7 +1337,7 @@ where
             event::CoreEvent::Close {
                 kind: papo_core::CloseKind::PingTimeout,
                 ..
-            } if after_timeout && !pending_events.is_empty() => {
+            } if after_timeout => {
                 return Ok(Some((
                     papo_core::CloseKind::Other,
                     SLOW_CONSUMER_REASON.to_owned(),
