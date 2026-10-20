@@ -28,7 +28,6 @@ pub use ctcp::Ctcp;
 pub use formatting::{Color, FormatBuilder, Formatted, Span, Style, strip_formatting};
 pub use id::{
     AccountName, Address, ChannelName, InvalidIdentifier, Mask, MessageId, MetadataKey, Nick,
-    Target,
 };
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, Extban, Isupport, Limit, LimitValue, Prefix,

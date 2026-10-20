@@ -444,8 +444,6 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::AccountName
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::AccountName
 pub struct papo_proto::Address(_)
 impl papo_proto::Address
-pub fn papo_proto::Address::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
-impl papo_proto::Address
 pub fn papo_proto::Address::into_string(self) -> alloc::string::String
 impl core::borrow::Borrow<str> for papo_proto::Address
 pub fn papo_proto::Address::borrow(&self) -> &str
@@ -562,12 +560,8 @@ impl core::convert::From<&papo_proto::ChannelName> for papo_proto::Address
 pub fn papo_proto::Address::from(&papo_proto::ChannelName) -> Self
 impl core::convert::From<&papo_proto::ChannelName> for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::from(&Self) -> Self
-impl core::convert::From<&papo_proto::ChannelName> for papo_proto::Target
-pub fn papo_proto::Target::from(&papo_proto::ChannelName) -> Self
 impl core::convert::From<papo_proto::ChannelName> for papo_proto::Address
 pub fn papo_proto::Address::from(papo_proto::ChannelName) -> Self
-impl core::convert::From<papo_proto::ChannelName> for papo_proto::Target
-pub fn papo_proto::Target::from(papo_proto::ChannelName) -> Self
 impl core::fmt::Debug for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_proto::ChannelName
@@ -1101,12 +1095,8 @@ impl core::convert::From<&papo_proto::Nick> for papo_proto::Address
 pub fn papo_proto::Address::from(&papo_proto::Nick) -> Self
 impl core::convert::From<&papo_proto::Nick> for papo_proto::Nick
 pub fn papo_proto::Nick::from(&Self) -> Self
-impl core::convert::From<&papo_proto::Nick> for papo_proto::Target
-pub fn papo_proto::Target::from(&papo_proto::Nick) -> Self
 impl core::convert::From<papo_proto::Nick> for papo_proto::Address
 pub fn papo_proto::Address::from(papo_proto::Nick) -> Self
-impl core::convert::From<papo_proto::Nick> for papo_proto::Target
-pub fn papo_proto::Target::from(papo_proto::Nick) -> Self
 impl core::fmt::Debug for papo_proto::Nick
 pub fn papo_proto::Nick::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_proto::Nick
@@ -1478,61 +1468,6 @@ impl<'a> core::marker::Unpin for papo_proto::Tags<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Tags<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Tags<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Tags<'a>
-pub struct papo_proto::Target(_)
-impl papo_proto::Target
-pub fn papo_proto::Target::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
-impl papo_proto::Target
-pub fn papo_proto::Target::into_string(self) -> alloc::string::String
-impl core::borrow::Borrow<str> for papo_proto::Target
-pub fn papo_proto::Target::borrow(&self) -> &str
-impl core::clone::Clone for papo_proto::Target
-pub fn papo_proto::Target::clone(&self) -> Self
-impl core::cmp::Eq for papo_proto::Target
-impl core::cmp::Ord for papo_proto::Target
-pub fn papo_proto::Target::cmp(&self, &Self) -> core::cmp::Ordering
-impl core::cmp::PartialEq for papo_proto::Target
-pub fn papo_proto::Target::eq(&self, &Self) -> bool
-impl core::cmp::PartialEq<&str> for papo_proto::Target
-pub fn papo_proto::Target::eq(&self, &&str) -> bool
-impl core::cmp::PartialEq<str> for papo_proto::Target
-pub fn papo_proto::Target::eq(&self, &str) -> bool
-impl core::cmp::PartialOrd for papo_proto::Target
-pub fn papo_proto::Target::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl core::convert::AsRef<str> for papo_proto::Target
-pub fn papo_proto::Target::as_ref(&self) -> &str
-impl core::convert::From<&alloc::string::String> for papo_proto::Target
-pub fn papo_proto::Target::from(&alloc::string::String) -> Self
-impl core::convert::From<&papo_proto::ChannelName> for papo_proto::Target
-pub fn papo_proto::Target::from(&papo_proto::ChannelName) -> Self
-impl core::convert::From<&papo_proto::Nick> for papo_proto::Target
-pub fn papo_proto::Target::from(&papo_proto::Nick) -> Self
-impl core::convert::From<&papo_proto::Target> for papo_proto::Target
-pub fn papo_proto::Target::from(&Self) -> Self
-impl core::convert::From<&str> for papo_proto::Target
-pub fn papo_proto::Target::from(&str) -> Self
-impl core::convert::From<alloc::string::String> for papo_proto::Target
-pub fn papo_proto::Target::from(alloc::string::String) -> Self
-impl core::convert::From<papo_proto::ChannelName> for papo_proto::Target
-pub fn papo_proto::Target::from(papo_proto::ChannelName) -> Self
-impl core::convert::From<papo_proto::Nick> for papo_proto::Target
-pub fn papo_proto::Target::from(papo_proto::Nick) -> Self
-impl core::fmt::Debug for papo_proto::Target
-pub fn papo_proto::Target::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo_proto::Target
-pub fn papo_proto::Target::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo_proto::Target
-pub fn papo_proto::Target::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo_proto::Target
-impl core::ops::deref::Deref for papo_proto::Target
-pub type papo_proto::Target::Target = str
-pub fn papo_proto::Target::deref(&self) -> &Self::Target
-impl core::marker::Freeze for papo_proto::Target
-impl core::marker::Send for papo_proto::Target
-impl core::marker::Sync for papo_proto::Target
-impl core::marker::Unpin for papo_proto::Target
-impl core::marker::UnsafeUnpin for papo_proto::Target
-impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Target
-impl core::panic::unwind_safe::UnwindSafe for papo_proto::Target
 pub struct papo_proto::WhoxFlags
 pub papo_proto::WhoxFlags::bot: bool
 pub papo_proto::WhoxFlags::oper: bool

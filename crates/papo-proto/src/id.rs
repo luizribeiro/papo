@@ -220,7 +220,6 @@ name_identifier!(Nick, "An IRC nickname.");
 name_identifier!(ChannelName, "An IRC channel name.");
 name_identifier!(AccountName, "An IRC account name.");
 identifier!(Address, "An IRC wire address chosen by the caller.");
-identifier!(Target, "An IRC message target chosen by the caller.");
 name_identifier!(Mask, "An IRC user or channel mask.");
 identifier!(MetadataKey, "An IRC metadata key.");
 identifier!(
@@ -284,17 +283,7 @@ impl Address {
     /// # Errors
     ///
     /// Returns an error when the address is invalid under the server's ISUPPORT state.
-    pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
-        check_address(self, isupport)
-    }
-}
-
-impl Target {
-    /// Validates this nickname, channel, status target, or server mask.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the target is invalid under the server's ISUPPORT state.
+    #[doc(hidden)]
     pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
         check_address(self, isupport)
     }
@@ -426,7 +415,6 @@ macro_rules! name_address_conversions {
 }
 
 name_address_conversions!(Address);
-name_address_conversions!(Target);
 
 #[cfg(test)]
 mod tests {
@@ -442,7 +430,7 @@ mod tests {
 
     use crate::{Casemapping, Isupport, LineRef};
 
-    use super::{Address, InvalidIdentifier, MessageId, MetadataKey, Nick, Target};
+    use super::{Address, InvalidIdentifier, MessageId, MetadataKey, Nick};
 
     fn assert_contract<T>()
     where
@@ -467,7 +455,6 @@ mod tests {
     #[test]
     fn every_exact_identifier_has_the_owned_string_contract() {
         assert_contract::<Address>();
-        assert_contract::<Target>();
         assert_contract::<MetadataKey>();
         assert_contract::<MessageId>();
     }
@@ -771,17 +758,17 @@ mod tests {
     }
 
     #[test]
-    fn validates_each_supported_target_shape() {
+    fn validates_each_supported_address_shape() {
         let support = libera_isupport();
         for target in ["Alice", "#papo", "@#papo", "$*.example", "*"] {
-            assert_eq!(Target::from(target).check(&support), Ok(()));
+            assert_eq!(Address::from(target).check(&support), Ok(()));
         }
         assert_eq!(
-            Target::from("@Alice").check(&support),
+            Address::from("@Alice").check(&support),
             Err(InvalidIdentifier::InvalidPrefix('@'))
         );
         assert_eq!(
-            Target::from("#papo,dev").check(&support),
+            Address::from("#papo,dev").check(&support),
             Err(InvalidIdentifier::InvalidCharacter(','))
         );
     }
