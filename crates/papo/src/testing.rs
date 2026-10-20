@@ -85,13 +85,15 @@ pub fn connected(nick: impl Into<Nick>) -> Connected {
 /// Constructs a channel-join event payload.
 #[must_use]
 pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool) -> Joined {
+    let nick = nick.into();
     Joined {
         msgid: None,
         time: SystemTime::UNIX_EPOCH,
         account: crate::Account::Unknown,
         realname: None,
         channel: channel.into(),
-        nick: nick.into(),
+        actor: user_source(nick.clone(), None, None),
+        nick,
         authorship: if own {
             Authorship::Own
         } else {

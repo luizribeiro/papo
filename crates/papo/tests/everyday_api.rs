@@ -9,6 +9,7 @@ fn inspect_event(event: papo::Event) {
         }
         papo::Event::Joined(joined) => {
             let _: &papo::ChannelName = &joined.channel;
+            let _: &papo::event::Source = &joined.actor;
             let _: &papo::Nick = &joined.nick;
             let _: &papo::Account = &joined.account;
         }

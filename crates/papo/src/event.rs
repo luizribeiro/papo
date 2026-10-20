@@ -555,10 +555,10 @@ pub(crate) fn joined_from_line(
     received_at: SystemTime,
 ) -> Option<Joined> {
     let join = papo_proto::Join::parse(line)?;
-    let nick = match line.source()? {
-        papo_proto::Source::User { nick, .. } => casemapping.nick(nick),
-        papo_proto::Source::Server(_) => return None,
+    let source @ papo_proto::Source::User { nick, .. } = line.source()? else {
+        return None;
     };
+    let nick = casemapping.nick(nick);
     let envelope = line_envelope(line, casemapping, received_at);
     let account = match (join.realname, join.account) {
         (None, _) => Account::Unknown,
@@ -571,6 +571,7 @@ pub(crate) fn joined_from_line(
         account,
         realname: join.realname.map(str::to_owned),
         channel: casemapping.channel(join.channel),
+        actor: Source::from_proto(source, casemapping),
         nick,
         authorship,
     })
@@ -1053,20 +1054,22 @@ pub(crate) fn from_core(
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined {
             envelope,
+            actor,
             account,
             realname,
             channel,
             nick,
             authorship,
-            ..
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
+            let actor = Source::from_prefix(actor, channel.casemapping());
             Event::Joined(Joined {
                 msgid: envelope.msgid,
                 time: envelope.time,
                 account,
                 realname,
                 channel,
+                actor,
                 nick,
                 authorship: Authorship::from_core(authorship),
             })
@@ -1659,6 +1662,10 @@ mod tests {
         };
 
         assert_eq!(joined.channel.casemapping(), Casemapping::Ascii);
+        let Source::User { nick: actor, .. } = &joined.actor else {
+            panic!("join actor should be a user");
+        };
+        assert_eq!(actor.casemapping(), Casemapping::Ascii);
         assert_eq!(joined.nick.casemapping(), Casemapping::Ascii);
         assert_ne!(joined.channel, "#papo{dev}");
         assert_ne!(joined.nick, "alice{bot}");
@@ -2057,6 +2064,7 @@ mod tests {
         });
         let joined = event.as_joined().unwrap();
         assert_eq!(joined.channel, "#papo");
+        assert_eq!(joined.actor.nick(), Some("alice"));
         assert_eq!(joined.nick, "alice");
         assert_eq!(joined.realname.as_deref(), Some("Alice Liddell"));
         assert!(matches!(&joined.account, Account::LoggedIn(account) if account == "alice"));
@@ -2438,6 +2446,7 @@ mod tests {
         assert_eq!(netjoin.servers.second, "irc.remote");
         assert_eq!(netjoin.joins.len(), 1);
         assert_eq!(netjoin.joins[0].channel, "#papo");
+        assert_eq!(netjoin.joins[0].actor.nick(), Some("bob"));
         assert_eq!(netjoin.joins[0].nick, "bob");
         assert_eq!(netjoin.joins[0].account, Account::LoggedOut);
         assert_eq!(netjoin.joins[0].realname.as_deref(), Some("Bob"));
@@ -2456,6 +2465,11 @@ mod tests {
                 account: Account::Unknown,
                 realname: None,
                 channel: mapping.channel("#papo"),
+                actor: Source::User {
+                    nick: mapping.nick("Papo[Bot]"),
+                    username: None,
+                    host: None,
+                },
                 nick: mapping.nick("Papo[Bot]"),
                 authorship: Authorship::Own,
             }),
@@ -2505,6 +2519,11 @@ mod tests {
                     account: Account::Unknown,
                     realname: None,
                     channel: mapping.channel("#papo"),
+                    actor: Source::User {
+                        nick: mapping.nick("Papo[Bot]"),
+                        username: None,
+                        host: None,
+                    },
                     nick: mapping.nick("Papo[Bot]"),
                     authorship: Authorship::Own,
                 }],

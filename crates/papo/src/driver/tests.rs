@@ -622,6 +622,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             account: crate::Account::Unknown,
             realname: None,
             channel: test_channel("#papo"),
+            actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
             nick: test_nick("papo-driver"),
             authorship: crate::Authorship::Own,
         }),
@@ -635,6 +636,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             account: crate::Account::Unknown,
             realname: None,
             channel: test_channel("#visitors"),
+            actor: crate::__testing::user_source(test_nick("alice"), None, None),
             nick: test_nick("alice"),
             authorship: crate::Authorship::Other,
         }),
@@ -3323,6 +3325,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
     )
     .await;
     let joined = events.next().await.unwrap().as_joined().unwrap().clone();
+    assert_eq!(joined.actor.nick(), Some("papo-renamed"));
     assert_eq!(joined.nick, "papo-renamed");
     assert_eq!(joined.channel, "#papo-self");
     assert_eq!(joined.authorship, crate::Authorship::Own);

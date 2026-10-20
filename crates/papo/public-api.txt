@@ -451,6 +451,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Invited
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Invited
 #[non_exhaustive] pub struct papo::event::Joined
 pub papo::event::Joined::account: papo::Account
+pub papo::event::Joined::actor: papo::Source
 pub papo::event::Joined::authorship: papo::Authorship
 pub papo::event::Joined::channel: papo::ChannelName
 pub papo::event::Joined::msgid: core::option::Option<papo::MessageId>

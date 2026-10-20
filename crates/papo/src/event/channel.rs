@@ -49,6 +49,8 @@ pub struct Joined {
     pub realname: Option<String>,
     /// The joined channel.
     pub channel: ChannelName,
+    /// The joining user.
+    pub actor: Source,
     /// The joining user's nickname.
     pub nick: Nick,
     /// Whether the joining user is this client's user.
