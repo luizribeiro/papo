@@ -461,10 +461,10 @@ impl IntoFuture for HistoryRequest {
 impl Client {
     /// Starts a chat history request for `target`.
     #[must_use]
-    pub fn history(&self, target: impl Into<crate::Target>) -> crate::History {
+    pub fn history(&self, target: impl AsRef<str>) -> crate::History {
         crate::History {
             client: self.clone(),
-            target: target.into().into_string(),
+            target: target.as_ref().to_owned(),
         }
     }
 
@@ -561,11 +561,11 @@ impl Client {
     /// or [`Error::Disconnected`].
     pub fn mark_read(
         &self,
-        target: impl Into<crate::Target>,
+        target: impl AsRef<str>,
         time: SystemTime,
     ) -> crate::RequestFuture<Option<SystemTime>> {
         let client = self.clone();
-        let target = target.into();
+        let target = crate::Target::from(target.as_ref());
         crate::RequestFuture::new(async move {
             target
                 .check(client.state().isupport().inner())
@@ -598,10 +598,10 @@ impl Client {
     /// [`crate::Refusal`].
     pub fn fetch_read_marker(
         &self,
-        target: impl Into<crate::Target>,
+        target: impl AsRef<str>,
     ) -> crate::RequestFuture<Option<SystemTime>> {
         let client = self.clone();
-        let target = target.into();
+        let target = crate::Target::from(target.as_ref());
         crate::RequestFuture::new(async move {
             target
                 .check(client.state().isupport().inner())

@@ -52,7 +52,7 @@ impl Metadata {
     /// [`Error`] variants.
     pub fn get<I, S>(
         &self,
-        target: impl Into<crate::Target>,
+        target: impl AsRef<str>,
         keys: I,
     ) -> crate::RequestFuture<HashMap<crate::MetadataKey, MetadataValue>>
     where
@@ -62,7 +62,7 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let target = target.into();
+        let target = crate::Target::from(target.as_ref());
         let keys = keys.into_iter().map(Into::into).collect::<Vec<_>>();
         crate::RequestFuture::new(async move {
             let state = metadata.client.state();
@@ -101,12 +101,12 @@ impl Metadata {
     /// [`Error`] variants.
     pub fn list(
         &self,
-        target: impl Into<crate::Target>,
+        target: impl AsRef<str>,
     ) -> crate::RequestFuture<HashMap<crate::MetadataKey, MetadataValue>> {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let target = target.into();
+        let target = crate::Target::from(target.as_ref());
         crate::RequestFuture::new(async move {
             target
                 .check(metadata.client.state().isupport().inner())
@@ -161,12 +161,12 @@ impl Metadata {
     /// [`Error`] variants.
     pub fn set_on(
         &self,
-        target: impl Into<crate::Target>,
+        target: impl AsRef<str>,
         key: impl Into<crate::MetadataKey>,
         value: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         self.action(MetadataCommand::Set {
-            target: target.into().into_string(),
+            target: target.as_ref().to_owned(),
             key: key.into().into_string(),
             value: Some(value.into()),
         })
@@ -175,11 +175,11 @@ impl Metadata {
     /// Removes one metadata key from `target`.
     pub fn remove_on(
         &self,
-        target: impl Into<crate::Target>,
+        target: impl AsRef<str>,
         key: impl Into<crate::MetadataKey>,
     ) -> crate::RequestFuture<()> {
         self.action(MetadataCommand::Set {
-            target: target.into().into_string(),
+            target: target.as_ref().to_owned(),
             key: key.into().into_string(),
             value: None,
         })
@@ -199,9 +199,9 @@ impl Metadata {
     }
 
     /// Clears all metadata on `target`.
-    pub fn clear_on(&self, target: impl Into<crate::Target>) -> crate::RequestFuture<()> {
+    pub fn clear_on(&self, target: impl AsRef<str>) -> crate::RequestFuture<()> {
         self.action(MetadataCommand::Clear {
-            target: target.into().into_string(),
+            target: target.as_ref().to_owned(),
         })
     }
 
@@ -262,11 +262,11 @@ impl Metadata {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub fn sync(&self, target: impl Into<crate::Target>) -> crate::RequestFuture<()> {
+    pub fn sync(&self, target: impl AsRef<str>) -> crate::RequestFuture<()> {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let target = target.into();
+        let target = crate::Target::from(target.as_ref());
         crate::RequestFuture::new(async move {
             target
                 .check(metadata.client.state().isupport().inner())
