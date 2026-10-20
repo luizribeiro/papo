@@ -60,6 +60,7 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
 
 #[test]
 fn request_futures_are_send() {
+    let mapping = papo::Casemapping::default();
     assert_send_static(Client::builder("irc.example.net").connect());
     let (client, mut events, driver) = Client::builder("irc.example.net").build();
     assert_send_value(events.next());
@@ -80,24 +81,38 @@ fn request_futures_are_send() {
         MessageId::from("RfcBTzyxY120004"),
         "",
     ));
-    assert_send_static(client.whois("emily"));
-    assert_send_static(client.who("#papo"));
-    assert_send_static(client.join("#papo").into_future());
-    assert_send_static(client.part("#papo", "tests complete"));
-    assert_send_static(client.kick("#papo", "spambot", "flooding"));
-    assert_send_static(client.invite("#papo", "carol"));
-    assert_send_static(client.set_nick("papo-away"));
+    assert_send_static(client.whois(mapping.nick("emily")));
+    assert_send_static(client.who(mapping.mask("#papo")));
+    assert_send_static(client.join(mapping.channel("#papo")).into_future());
+    assert_send_static(client.part(mapping.channel("#papo"), "tests complete"));
+    assert_send_static(client.kick(
+        mapping.channel("#papo"),
+        mapping.nick("spambot"),
+        "flooding",
+    ));
+    assert_send_static(client.invite(mapping.channel("#papo"), mapping.nick("carol")));
+    assert_send_static(client.set_nick(mapping.nick("papo-away")));
     assert_send_static(client.set_away("reviewing patches"));
     assert_send_static(client.clear_away());
     assert_send_static(client.set_realname("Papo Test Client"));
     assert_send_static(client.oper("papo", "correct horse battery staple"));
     assert_send_static(client.ping());
     assert_send_static(client.mode("#papo").add('t').into_future());
-    assert_send_static(client.set_topic("#papo", "Ergonomic IRC"));
-    assert_send_static(client.clear_topic("#papo"));
+    assert_send_static(client.set_topic(mapping.channel("#papo"), "Ergonomic IRC"));
+    assert_send_static(client.clear_topic(mapping.channel("#papo")));
     assert_send_static(client.list(ListFilter::default()));
     assert_send_static(client.quit("trait check complete"));
 
+    assert_extension_futures_are_send(&client, mapping);
+
+    #[cfg(not(browser))]
+    assert_send_static(driver);
+    #[cfg(browser)]
+    drop(driver);
+    _ = assert_message_request_futures;
+}
+
+fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping) {
     assert_send_static(client.history("#papo").latest(10).into_future());
     assert_send_static(client.history_targets(SystemTime::UNIX_EPOCH, SystemTime::now()));
     assert_send_static(client.mark_read("#papo", SystemTime::UNIX_EPOCH));
@@ -105,11 +120,11 @@ fn request_futures_are_send() {
     assert_send_static(
         client.register_account(
             NewAccount::new("correct horse battery staple")
-                .account("alice")
+                .account(mapping.account("alice"))
                 .email("alice@example.org"),
         ),
     );
-    assert_send_static(client.verify_account("alice", "392814"));
+    assert_send_static(client.verify_account(mapping.account("alice"), "392814"));
     #[cfg(feature = "unstable")]
     {
         assert_send_static(client.persistence().get());
@@ -123,9 +138,6 @@ fn request_futures_are_send() {
                 .change(&network, NetworkConfig::new("irc.libera.chat")),
         );
         assert_send_static(client.bouncer().remove(&network));
-    }
-    #[cfg(feature = "unstable")]
-    {
         assert_send_static(client.webpush().register(
             "https://push.example.net/message/ErgoTest/alice",
             PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
@@ -151,16 +163,22 @@ fn request_futures_are_send() {
     assert_send_static(client.metadata().subscribe(["avatar", "pronouns"]));
     assert_send_static(client.metadata().unsubscribe(["pronouns"]));
     assert_send_static(client.metadata().sync("alice"));
-    assert_send_static(client.monitor().add(["alice", "bob"]));
-    assert_send_static(client.monitor().remove(["bob"]));
+    assert_send_static(
+        client
+            .monitor()
+            .add([mapping.nick("alice"), mapping.nick("bob")]),
+    );
+    assert_send_static(client.monitor().remove([mapping.nick("bob")]));
     assert_send_static(client.monitor().clear());
-    assert_send_static(client.rename_channel("#rust", "#rust-lang", "Project renamed"));
+    assert_send_static(client.rename_channel(
+        mapping.channel("#rust"),
+        mapping.channel("#rust-lang"),
+        "Project renamed",
+    ));
     #[cfg(feature = "unstable")]
-    assert_send_static(client.relay("#bridged", "matrix|alice", "Hello from Matrix"));
-
-    #[cfg(not(browser))]
-    assert_send_static(driver);
-    #[cfg(browser)]
-    drop(driver);
-    _ = assert_message_request_futures;
+    assert_send_static(client.relay(
+        mapping.channel("#bridged"),
+        mapping.nick("matrix|alice"),
+        "Hello from Matrix",
+    ));
 }
