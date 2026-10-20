@@ -436,7 +436,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     let changed = wait_channel_mode(&mut alice, &channel, 'v').await?;
 
     assert_eq!(changed.target.as_str(), channel);
-    assert_actor_or_server(&changed.by, alice_nick.as_ref());
+    assert_actor_or_server(&changed.actor, alice_nick.as_ref());
     let voice = changed
         .changes
         .iter()
@@ -505,7 +505,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     let promoted = wait_channel_mode(&mut bob, &channel, 'o').await?;
 
     assert_eq!(promoted.target.as_str(), channel);
-    assert_actor_or_server(&promoted.by, alice_nick.as_ref());
+    assert_actor_or_server(&promoted.actor, alice_nick.as_ref());
     let operator = promoted
         .changes
         .iter()
@@ -528,11 +528,11 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(target.channel.as_ref(), channel);
     assert_eq!(target.nick.as_ref(), carol_nick.as_ref());
-    assert_eq!(target.by.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(target.actor.nick(), Some(alice_nick.as_ref()));
     assert!(target.is_self);
     assert_eq!(observer.channel.as_ref(), channel);
     assert_eq!(observer.nick.as_ref(), carol_nick.as_ref());
-    assert_eq!(observer.by.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(observer.actor.nick(), Some(alice_nick.as_ref()));
     assert!(!observer.is_self);
     assert!(
         alice
@@ -773,7 +773,7 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
     for kicked in [&observed, &own] {
         assert_eq!(kicked.channel.as_ref(), channel);
         assert_eq!(kicked.nick, bob_nick);
-        assert_eq!(kicked.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(kicked.actor.nick(), Some(alice_nick.as_ref()));
         assert_eq!(kicked.reason.as_deref(), Some(reason));
     }
     assert!(!observed.is_self);
@@ -839,8 +839,8 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
     for ((observed, own), nick) in observed.iter().zip(&own).zip(expected) {
         assert_eq!(&observed.nick, nick);
         assert_eq!(&own.nick, nick);
-        assert_eq!(observed.by.nick(), Some(alice_nick.as_ref()));
-        assert_eq!(own.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(observed.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(own.actor.nick(), Some(alice_nick.as_ref()));
         assert_eq!(observed.reason.as_deref(), Some(alice_nick.as_ref()));
         assert_eq!(own.reason, observed.reason);
         assert!(!observed.is_self);
@@ -1029,7 +1029,7 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     for changed in [&own, &observed] {
         assert_eq!(changed.channel.as_ref(), channel);
         assert_eq!(changed.topic.as_deref(), Some(text));
-        assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(changed.actor.nick(), Some(alice_nick.as_ref()));
     }
     for peer in [&alice, &bob] {
         assert_eq!(peer.state().channel(&channel).unwrap().topic(), Some(text));
@@ -1054,7 +1054,7 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
         let changed = peer.wait_for(Event::as_topic_changed).await?;
         assert_eq!(changed.channel.as_ref(), channel);
         assert_eq!(changed.topic, None);
-        assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(changed.actor.nick(), Some(alice_nick.as_ref()));
         assert_eq!(peer.state().channel(&channel).unwrap().topic(), None);
         peer.expect_none(Event::as_topic_changed).await?;
     }
@@ -1374,7 +1374,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     alice.mode(&channel).add_with('k', key).add('s').await?;
     let modes = wait_channel_mode(&mut bob, &channel, 'k').await?;
     assert_eq!(modes.target.as_str(), channel);
-    assert_actor_or_server(&modes.by, alice_nick.as_ref());
+    assert_actor_or_server(&modes.actor, alice_nick.as_ref());
     assert_eq!(modes.changes.len(), 2);
     let key_change = modes
         .changes

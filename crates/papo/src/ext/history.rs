@@ -201,7 +201,7 @@ fn kicked(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryI
         channel: mapping.channel(message.param(0)?),
         is_self: is_self(client, &nick),
         nick: mapping.nick(nick),
-        by: Source::from_proto(message.source()?, mapping),
+        actor: Source::from_proto(message.source()?, mapping),
         reason: message.param(2).map(str::to_owned),
     }))
 }
@@ -226,7 +226,7 @@ fn topic_changed(
             .param(1)
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
-        by: Source::from_proto(message.source()?, mapping),
+        actor: Source::from_proto(message.source()?, mapping),
     }))
 }
 
@@ -247,7 +247,7 @@ fn mode_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<Hi
     .collect();
     Some(HistoryItem::ModeChanged(ModeChanged {
         target: message.param(0)?.into(),
-        by: Source::from_proto(message.source()?, mapping),
+        actor: Source::from_proto(message.source()?, mapping),
         changes,
     }))
 }
@@ -922,7 +922,7 @@ mod tests {
             HistoryItem::Kicked(event)
                 if event.channel == "#papo" && event.nick == "emily"
                     && event.reason.as_deref() == Some("Requested by alice")
-                    && matches!(event.by, crate::Source::Server { ref name } if name == "irc.example")
+                    && matches!(event.actor, crate::Source::Server { ref name } if name == "irc.example")
                     && !event.is_self
         ));
 
@@ -949,7 +949,7 @@ mod tests {
             HistoryItem::TopicChanged(event)
                 if event.channel == "#papo"
                     && event.topic.as_deref() == Some("Rust 1.90 is out")
-                    && event.by.nick() == Some("emily")
+                    && event.actor.nick() == Some("emily")
         ));
 
         let mode = map(papo_core::HistoryItem::ModeChanged(core_item(
@@ -958,7 +958,7 @@ mod tests {
         assert!(matches!(
             mode,
             HistoryItem::ModeChanged(event)
-                if event.target == "#papo" && event.by.nick() == Some("emily")
+                if event.target == "#papo" && event.actor.nick() == Some("emily")
                     && event.changes.len() == 2
                     && event.changes.iter().all(|change| change.set)
                     && event.changes[0].mode == 'i' && event.changes[1].mode == 'm'

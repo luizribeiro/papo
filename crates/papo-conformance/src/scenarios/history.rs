@@ -339,7 +339,7 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
         .expect("history contains the topic change");
     assert_eq!(topic.channel.as_ref(), channel);
     assert_eq!(topic.topic.as_deref(), Some("incident response completed"));
-    assert_eq!(topic.by.nick(), Some(writer.nick().as_ref()));
+    assert_eq!(topic.actor.nick(), Some(writer.nick().as_ref()));
     Ok(())
 }
 

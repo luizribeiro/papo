@@ -76,7 +76,7 @@ pub struct Kicked {
     /// The removed user's nickname.
     pub nick: Nick,
     /// The user or server that issued the kick.
-    pub by: Source,
+    pub actor: Source,
     /// The optional kick reason.
     pub reason: Option<String>,
     /// Whether the removed user is this client.
@@ -92,7 +92,7 @@ pub struct Invited {
     /// The invited user's nickname.
     pub nick: Nick,
     /// The user or server that sent the invitation.
-    pub by: Source,
+    pub actor: Source,
     /// Whether the invited user is this client.
     pub is_self: bool,
 }
@@ -106,7 +106,7 @@ pub struct TopicChanged {
     /// The new topic, or `None` when it was cleared.
     pub topic: Option<String>,
     /// The user or server that changed the topic.
-    pub by: Source,
+    pub actor: Source,
 }
 
 /// An owned operation from an IRC mode string.
@@ -130,7 +130,7 @@ pub struct ModeChanged {
     /// The mode target.
     pub target: String,
     /// The user or server that changed the modes.
-    pub by: Source,
+    pub actor: Source,
     /// Parsed mode operations in wire order.
     pub changes: Vec<ModeChange>,
 }

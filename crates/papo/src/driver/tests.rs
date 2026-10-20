@@ -648,7 +648,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Kicked(crate::event::Kicked {
             channel: test_channel("#staff"),
             nick: test_nick("alice"),
-            by: crate::Source::User {
+            actor: crate::Source::User {
                 nick: test_nick("chanserv"),
                 user: None,
                 host: None,
@@ -676,7 +676,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Kicked(crate::event::Kicked {
             channel: test_channel("#staff"),
             nick: test_nick("papo-driver"),
-            by: crate::Source::User {
+            actor: crate::Source::User {
                 nick: test_nick("chanserv"),
                 user: None,
                 host: None,

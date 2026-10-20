@@ -65,7 +65,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     let on_bob = wait_channel_mode(&mut bob, &channel, letter).await?;
     let on_carol = wait_channel_mode(&mut carol, &channel, letter).await?;
     for changed in [&on_bob, &on_carol] {
-        assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(changed.actor.nick(), Some(alice_nick.as_ref()));
         assert_eq!(changed.changes.len(), 1);
         let change = &changed.changes[0];
         assert_eq!(change.mode, letter);
@@ -107,7 +107,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     alice.mode(&channel).remove_with(letter, arg).await?;
     for peer in [&mut bob, &mut carol] {
         let removed = wait_channel_mode(peer, &channel, letter).await?;
-        assert_eq!(removed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(removed.actor.nick(), Some(alice_nick.as_ref()));
         assert_eq!(removed.changes.len(), 1);
         let change = &removed.changes[0];
         assert_eq!(change.mode, letter);

@@ -57,11 +57,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     })
                     .collect::<Vec<_>>()
                     .join(" ");
-                println!("mode {} by {}: {changes}", event.target, event.by);
+                println!("mode {} by {}: {changes}", event.target, event.actor);
             }
             Event::TopicChanged(event) => {
                 let topic = event.topic.as_deref().unwrap_or("-");
-                println!("topic {} by {}: {topic}", event.channel, event.by);
+                println!("topic {} by {}: {topic}", event.channel, event.actor);
             }
             Event::AccountChanged(event) => {
                 println!(

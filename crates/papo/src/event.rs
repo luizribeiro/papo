@@ -999,7 +999,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         } => Event::Kicked(Kicked {
             channel,
             nick,
-            by: Source::from_name(actor, casemapping),
+            actor: Source::from_name(actor, casemapping),
             reason,
             is_self: false,
         }),
@@ -1010,7 +1010,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         } => Event::Invited(Invited {
             channel,
             nick,
-            by: Source::from_prefix(actor, casemapping),
+            actor: Source::from_prefix(actor, casemapping),
             is_self: false,
         }),
         papo_core::Event::Quit {
@@ -1054,7 +1054,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             changes,
         } => Event::ModeChanged(ModeChanged {
             target,
-            by: Source::from_name(actor, casemapping),
+            actor: Source::from_name(actor, casemapping),
             changes: changes
                 .into_iter()
                 .map(|change| ModeChange {
@@ -1072,7 +1072,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         } => Event::TopicChanged(TopicChanged {
             channel,
             topic,
-            by: Source::from_name(actor, casemapping),
+            actor: Source::from_name(actor, casemapping),
         }),
         papo_core::Event::StateLimitReached { limit } => {
             Event::Warning(Warning::StateLimitReached {
@@ -1460,7 +1460,7 @@ mod tests {
         assert_eq!(invited.channel, "#papo");
         assert_eq!(invited.nick, "papo");
         assert!(matches!(
-            &invited.by,
+            &invited.actor,
             Source::User { nick, user: Some(user), host: Some(host) }
                 if nick == "emily" && user == "~emily" && host == "localhost"
         ));
@@ -1879,7 +1879,7 @@ mod tests {
             Event::Kicked(kicked)
                 if kicked.channel == "#papo"
                     && kicked.nick == "emily"
-                    && kicked.by.nick() == Some("alice")
+                    && kicked.actor.nick() == Some("alice")
                     && kicked.reason.as_deref() == Some("Flooding")
         ));
     }
@@ -1977,7 +1977,7 @@ mod tests {
             }),
             Event::ModeChanged(mode)
                 if mode.target == "#papo"
-                    && mode.by.nick() == Some("alice")
+                    && mode.actor.nick() == Some("alice")
                     && mode.changes.len() == 1
                     && mode.changes[0].set
                     && mode.changes[0].mode == 'o'
@@ -1997,7 +1997,7 @@ mod tests {
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")
-                    && changed.by.nick() == Some("alice")
+                    && changed.actor.nick() == Some("alice")
         ));
     }
 
@@ -2181,7 +2181,7 @@ mod tests {
 
     #[test]
     fn identifies_self_membership_and_nick_events_with_server_casemapping() {
-        let by = Source::Server {
+        let actor = Source::Server {
             name: "ergo.test".to_owned(),
         };
         let mapping = Casemapping::Rfc1459;
@@ -2200,14 +2200,14 @@ mod tests {
             Event::Kicked(super::Kicked {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
-                by: by.clone(),
+                actor: actor.clone(),
                 reason: None,
                 is_self: false,
             }),
             Event::Invited(super::Invited {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
-                by,
+                actor,
                 is_self: false,
             }),
             Event::NickChanged(super::NickChanged {

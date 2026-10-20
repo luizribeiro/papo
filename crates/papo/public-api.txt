@@ -481,7 +481,7 @@ impl core::marker::UnsafeUnpin for papo::event::HostChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::HostChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::HostChanged
 #[non_exhaustive] pub struct papo::event::Invited
-pub papo::event::Invited::by: papo::Source
+pub papo::event::Invited::actor: papo::Source
 pub papo::event::Invited::channel: papo::ChannelName
 pub papo::event::Invited::is_self: bool
 pub papo::event::Invited::nick: papo::Nick
@@ -520,7 +520,7 @@ impl core::marker::UnsafeUnpin for papo::event::Joined
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Joined
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Joined
 #[non_exhaustive] pub struct papo::event::Kicked
-pub papo::event::Kicked::by: papo::Source
+pub papo::event::Kicked::actor: papo::Source
 pub papo::event::Kicked::channel: papo::ChannelName
 pub papo::event::Kicked::is_self: bool
 pub papo::event::Kicked::nick: papo::Nick
@@ -581,7 +581,7 @@ impl core::marker::UnsafeUnpin for papo::event::ModeChange
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ModeChange
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ModeChange
 #[non_exhaustive] pub struct papo::event::ModeChanged
-pub papo::event::ModeChanged::by: papo::Source
+pub papo::event::ModeChanged::actor: papo::Source
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
 pub papo::event::ModeChanged::target: alloc::string::String
 impl core::clone::Clone for papo::event::ModeChanged
@@ -887,7 +887,7 @@ impl core::marker::UnsafeUnpin for papo::event::TagMsg
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TagMsg
 impl core::panic::unwind_safe::UnwindSafe for papo::event::TagMsg
 #[non_exhaustive] pub struct papo::event::TopicChanged
-pub papo::event::TopicChanged::by: papo::Source
+pub papo::event::TopicChanged::actor: papo::Source
 pub papo::event::TopicChanged::channel: papo::ChannelName
 pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::event::TopicChanged

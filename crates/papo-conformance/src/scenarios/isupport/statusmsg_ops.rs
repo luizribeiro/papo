@@ -43,7 +43,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
         .await?;
     for peer in [&mut alice, &mut bob, &mut carol, &mut dave] {
         let changed = wait_channel_mode(peer, &channel, 'v').await?;
-        assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(changed.actor.nick(), Some(alice_nick.as_ref()));
         assert_eq!(changed.changes.len(), 2);
         for (letter, nick) in [('o', &bob_nick), ('v', &carol_nick)] {
             let change = changed
