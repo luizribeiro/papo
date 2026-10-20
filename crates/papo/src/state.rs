@@ -290,7 +290,7 @@ const FEATURES: &[Feature] = &[
     Feature::Monitor,
     Feature::SetName,
     Feature::BotMode,
-    Feature::AccountRegistration,
+    Feature::AccountCreation,
     #[cfg(feature = "unstable")]
     Feature::Bouncer,
     #[cfg(feature = "unstable")]

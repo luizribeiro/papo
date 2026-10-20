@@ -45,7 +45,7 @@ fn recognizes_every_capability_backed_feature() {
         Feature::ReadMarkers,
         Feature::Metadata,
         Feature::SetName,
-        Feature::AccountRegistration,
+        Feature::AccountCreation,
         Feature::Bouncer,
         Feature::Persistence,
         Feature::WebPush,
@@ -118,7 +118,7 @@ fn distinguishes_client_disabled_and_server_absent_features() {
         Feature::ReadMarkers,
         Feature::Metadata,
         Feature::SetName,
-        Feature::AccountRegistration,
+        Feature::AccountCreation,
         Feature::Bouncer,
         Feature::Persistence,
         Feature::WebPush,
@@ -407,11 +407,11 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
         );
         assert_eq!(
             session.create_account(now, Some("alice"), None, "account-password"),
-            Err(expected(Feature::AccountRegistration))
+            Err(expected(Feature::AccountCreation))
         );
         assert_eq!(
             session.verify(now, "alice", "39gvcdg4myvnmdcfhvd6exsv4n"),
-            Err(expected(Feature::AccountRegistration))
+            Err(expected(Feature::AccountCreation))
         );
         assert_eq!(
             session.persistence_set(now, PersistenceSetting::On),

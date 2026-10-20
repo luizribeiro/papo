@@ -2878,11 +2878,11 @@ impl Session {
                 .map(Option::as_deref)
         };
         let Some(value) = value else {
-            return self.require_feature(Feature::AccountRegistration);
+            return self.require_feature(Feature::AccountCreation);
         };
         let policy = RegistrationPolicy::parse(value);
         if !registered && !policy.before_connect {
-            return self.require_feature(Feature::AccountRegistration);
+            return self.require_feature(Feature::AccountCreation);
         }
         if email.is_none() && policy.email_required {
             return Err(RequestError::EmailRequired);
@@ -2896,7 +2896,7 @@ impl Session {
         let password = password.into();
         if !registered {
             if !self.caps.is_pending(cap::ACCOUNT_REGISTRATION) {
-                return self.require_feature(Feature::AccountRegistration);
+                return self.require_feature(Feature::AccountCreation);
             }
             self.account_registration.begin(PendingRegistration {
                 account: account.map(str::to_owned),
@@ -2925,7 +2925,7 @@ impl Session {
                     password.expose().ok_or(RequestError::InvalidSecret)?,
                 ],
             ),
-            Feature::AccountRegistration,
+            Feature::AccountCreation,
         )?;
         self.account_registration.request_started();
         Ok(())
@@ -2938,7 +2938,7 @@ impl Session {
     /// Returns [`RequestError::Unsupported`] when the capability was not negotiated. Other
     /// failures are the same as [`Session::request`].
     pub fn verify(&mut self, now: Instant, account: &str, code: &str) -> Result<(), RequestError> {
-        self.require_feature(Feature::AccountRegistration)?;
+        self.require_feature(Feature::AccountCreation)?;
         if !self.welcome_state.is_connected()
             && !RegistrationPolicy::parse(
                 self.caps
@@ -2948,12 +2948,12 @@ impl Session {
             )
             .before_connect
         {
-            return Err(RequestError::unsupported(Feature::AccountRegistration));
+            return Err(RequestError::unsupported(Feature::AccountCreation));
         }
         self.request_for_feature(
             now,
             Line::new("VERIFY", [account, code]),
-            Feature::AccountRegistration,
+            Feature::AccountCreation,
         )?;
         self.account_registration.request_started();
         Ok(())

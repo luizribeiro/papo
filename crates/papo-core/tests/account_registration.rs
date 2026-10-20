@@ -337,7 +337,7 @@ fn rejects_early_registration_without_before_connect() {
                     Some("alice@example.org"),
                     "hunter2",
                 ),
-                Err(unsupported_error(Feature::AccountRegistration))
+                Err(unsupported_error(Feature::AccountCreation))
             );
         })
         .server("CAP * ACK :draft/account-registration")
@@ -345,7 +345,7 @@ fn rejects_early_registration_without_before_connect() {
         .update(|session| {
             assert_eq!(
                 session.verify(std::time::Instant::now(), "alice", "pending-code"),
-                Err(unsupported_error(Feature::AccountRegistration))
+                Err(unsupported_error(Feature::AccountCreation))
             );
         })
         .no_client();

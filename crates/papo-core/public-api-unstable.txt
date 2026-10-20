@@ -507,7 +507,7 @@ impl core::marker::UnsafeUnpin for papo_core::Event
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Event
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Event
 #[non_exhaustive] pub enum papo_core::Feature
-pub papo_core::Feature::AccountRegistration
+pub papo_core::Feature::AccountCreation
 pub papo_core::Feature::AccountTracking
 pub papo_core::Feature::AwayTracking
 pub papo_core::Feature::BotMode

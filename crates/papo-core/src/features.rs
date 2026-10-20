@@ -34,7 +34,7 @@ pub enum Feature {
     /// Ratified `IRCv3` bot mode, advertised through the `BOT` ISUPPORT token.
     BotMode,
     /// `IRCv3` draft account registration, requiring `draft/account-registration`.
-    AccountRegistration,
+    AccountCreation,
     /// Upstream network management on an IRC bouncer.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -78,7 +78,7 @@ impl Feature {
         Self::Monitor,
         Self::SetName,
         Self::BotMode,
-        Self::AccountRegistration,
+        Self::AccountCreation,
         #[cfg(feature = "unstable")]
         Self::Bouncer,
         #[cfg(feature = "unstable")]
@@ -109,7 +109,7 @@ impl Feature {
             Self::Monitor => "monitoring",
             Self::SetName => "real-name changes",
             Self::BotMode => "bot mode",
-            Self::AccountRegistration => cap::alias(cap::ACCOUNT_REGISTRATION, 0),
+            Self::AccountCreation => cap::alias(cap::ACCOUNT_REGISTRATION, 0),
             #[cfg(feature = "unstable")]
             Self::Bouncer => "bouncer networks",
             #[cfg(feature = "unstable")]
@@ -135,7 +135,7 @@ impl Feature {
             Self::ReadMarkers => &[cap::READ_MARKER],
             Self::Metadata => &[cap::METADATA],
             Self::SetName => &[cap::SETNAME],
-            Self::AccountRegistration => &[cap::ACCOUNT_REGISTRATION],
+            Self::AccountCreation => &[cap::ACCOUNT_REGISTRATION],
             #[cfg(feature = "unstable")]
             Self::Bouncer => &[cap::BOUNCER_NETWORKS],
             #[cfg(feature = "unstable")]

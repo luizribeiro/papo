@@ -66,7 +66,7 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] for [`crate::Feature::AccountRegistration`] with reason
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::AccountCreation`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid account or email policy returns
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
@@ -93,7 +93,7 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] for [`crate::Feature::AccountRegistration`] with reason
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::AccountCreation`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
