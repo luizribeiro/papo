@@ -5,7 +5,7 @@ use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 use papo_testing::Peer;
 
-use super::support::message_text;
+use super::support::{conversation_name, message_text};
 use crate::Scenario;
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
@@ -50,7 +50,10 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "hello from alice"))
         .await?;
     assert_eq!(echo.kind(), MessageKind::Privmsg);
-    assert_eq!(echo.target(), channel);
+    assert_eq!(
+        conversation_name(&echo.conversation),
+        Some(channel.as_str())
+    );
     assert_eq!(echo.raw_text(), "hello from alice");
     assert_eq!(echo.id(), sent.id.as_ref());
     assert_eq!(echo.server_time, sent.time);
@@ -60,7 +63,10 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
         message.source().as_ref().and_then(Source::nick),
         Some(alice.nick().as_ref())
     );
-    assert_eq!(message.target(), channel);
+    assert_eq!(
+        conversation_name(&message.conversation),
+        Some(channel.as_str())
+    );
     assert_eq!(message.raw_text(), "hello from alice");
     assert_eq!(message.text(), "hello from alice");
     assert_eq!(message.id(), sent.id.as_ref());
@@ -101,7 +107,10 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
         message.source().as_ref().and_then(Source::nick),
         Some(alice.nick().as_ref())
     );
-    assert_eq!(message.target(), channel);
+    assert_eq!(
+        conversation_name(&message.conversation),
+        Some(channel.as_str())
+    );
     assert_eq!(message.raw_text(), "maintenance at midnight");
     assert_eq!(message.id(), sent.id.as_ref());
     assert_eq!(message.server_time, sent.time);
@@ -145,8 +154,11 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(echo.origin(), Origin::Echo);
     assert_eq!(received.origin(), Origin::Live);
     assert_eq!(received.kind(), MessageKind::Privmsg);
-    assert_eq!(received.target(), bob.nick().as_ref());
-    assert_eq!(received.reply_target(), alice.nick().as_ref());
+    assert_eq!(
+        conversation_name(&received.conversation),
+        Some(alice.nick().as_ref())
+    );
+    assert_eq!(received.return_address(), alice.nick().as_ref());
     assert_eq!(received.raw_text(), "private hello");
     assert!(received.is_private());
     assert_eq!(received.id(), sent.id.as_ref());
@@ -163,8 +175,11 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(echo.origin(), Origin::Echo);
     assert_eq!(received.origin(), Origin::Live);
     assert_eq!(received.kind(), MessageKind::Notice);
-    assert_eq!(received.target(), alice.nick().as_ref());
-    assert_eq!(received.reply_target(), bob.nick().as_ref());
+    assert_eq!(
+        conversation_name(&received.conversation),
+        Some(bob.nick().as_ref())
+    );
+    assert_eq!(received.return_address(), bob.nick().as_ref());
     assert_eq!(received.raw_text(), "private notice");
     assert!(received.is_private());
     assert_eq!(received.id(), sent.id.as_ref());
@@ -183,7 +198,10 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         (Origin::Echo, Origin::OtherSession) | (Origin::OtherSession, Origin::Echo)
     ));
     for received in [&first, &second] {
-        assert_eq!(received.target(), alice.nick().as_ref());
+        assert_eq!(
+            conversation_name(&received.conversation),
+            Some(alice.nick().as_ref())
+        );
         assert_eq!(received.raw_text(), "note to self");
         assert_eq!(received.id(), sent.id.as_ref());
         assert!(received.is_private());
@@ -300,7 +318,10 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "voiced members only"))
         .await?;
     for message in [&echo, &received] {
-        assert_eq!(message.target(), channel);
+        assert_eq!(
+            conversation_name(&message.conversation),
+            Some(channel.as_str())
+        );
         assert_eq!(message.status.as_deref(), Some(['+'].as_slice()));
         assert_eq!(message.raw_text(), "voiced members only");
         assert_eq!(message.id(), sent.id.as_ref());
@@ -353,7 +374,10 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "voiced members only"))
         .await?;
     for message in [&echo, &received_by_bob, &received_by_alice] {
-        assert_eq!(message.target(), channel.as_ref());
+        assert_eq!(
+            conversation_name(&message.conversation),
+            Some(channel.as_ref())
+        );
         assert_eq!(message.status.as_deref(), Some(['+'].as_slice()));
         assert_eq!(message.raw_text(), "voiced members only");
         assert_eq!(message.id(), sent.id.as_ref());
@@ -380,7 +404,6 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
-    let channel_name = alice.state().channel_name(&channel);
 
     alice.action(&channel, "waves hello").await?;
     let echo = alice
@@ -391,7 +414,10 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     for message in [&echo, &action] {
         assert_eq!(message.kind(), MessageKind::Action);
-        assert_eq!(channel_name, message.target());
+        assert_eq!(
+            conversation_name(&message.conversation),
+            Some(channel.as_str())
+        );
         assert_eq!(message.raw_text(), "\u{1}ACTION waves hello\u{1}");
         let ctcp = message.ctcp().expect("ACTION has a CTCP representation");
         assert_eq!(ctcp.command(), "ACTION");
@@ -471,16 +497,14 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("the selected profile blocks channel CTCP by default");
     }
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
-    let alice_nick = alice.nick();
     let bob_nick = bob.nick();
-    let channel_name = alice.state().channel_name(&channel);
     alice
         .send_raw(papo::Line::new("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"]))
         .await?;
     let query = bob
         .wait_for(|event| {
             event.as_message().filter(|message| {
-                channel_name == message.target()
+                conversation_name(&message.conversation) == Some(channel.as_str())
                     && message.ctcp().map(|ctcp| ctcp.command()) == Some("VERSION")
             })
         })
@@ -490,7 +514,7 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event.as_message().filter(|message| {
                 message.kind() == MessageKind::CtcpReply
-                    && alice_nick == message.target()
+                    && conversation_name(&message.conversation) == Some(bob_nick.as_ref())
                     && message.source().as_ref().and_then(Source::nick) == Some(bob_nick.as_ref())
             })
         })
@@ -507,14 +531,13 @@ async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("the selected profile has no managed no-CTCP channel mode");
     }
     let (mut alice, bob, channel) = fixture_pair(&s).await?;
-    let channel_name = alice.state().channel_name(&channel);
     alice.mode(&channel).add('C').await?;
     bob.send_raw(papo::Line::new("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"]))
         .await?;
     alice
         .expect_none(|event| {
             event.as_message().filter(|message| {
-                channel_name == message.target()
+                conversation_name(&message.conversation) == Some(channel.as_str())
                     && message.ctcp().map(|ctcp| ctcp.command()) == Some("VERSION")
             })
         })
@@ -554,7 +577,10 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(reply.raw_text(), "acknowledged");
     assert_eq!(reply.reply_to(), Some(original_id.as_ref()));
-    assert_eq!(reply.target(), channel);
+    assert_eq!(
+        conversation_name(&reply.conversation),
+        Some(channel.as_str())
+    );
 
     match bob.react_to(&original, "👍").await {
         Ok(()) => {}
@@ -567,7 +593,11 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
         Err(error) => return Err(error.into()),
     }
     let added = alice.wait_for(Event::as_reacted).await?;
-    assert_eq!(added.target.as_ref(), channel);
+    assert_eq!(
+        conversation_name(&added.conversation),
+        Some(channel.as_str())
+    );
+    assert_eq!(added.status, None);
     assert_eq!(added.message, original_id);
     assert_eq!(added.reaction, "👍");
     assert!(!added.removed);
@@ -578,7 +608,11 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
 
     bob.unreact(&channel, original_id.clone(), "👍").await?;
     let removed = alice.wait_for(Event::as_reacted).await?;
-    assert_eq!(removed.target.as_ref(), channel);
+    assert_eq!(
+        conversation_name(&removed.conversation),
+        Some(channel.as_str())
+    );
+    assert_eq!(removed.status, None);
     assert_eq!(removed.message, original_id);
     assert_eq!(removed.reaction, "👍");
     assert!(removed.removed);
@@ -603,7 +637,11 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
         typing.source.as_ref().and_then(Source::nick),
         Some(alice_nick.as_ref())
     );
-    assert_eq!(typing.target.as_ref(), bob_nick.as_ref());
+    assert_eq!(
+        conversation_name(&typing.conversation),
+        Some(alice_nick.as_ref())
+    );
+    assert_eq!(typing.status, None);
     assert_eq!(typing.state, Typing::Active);
 
     alice.typing(bob_nick.clone(), Typing::Active).await?;
@@ -645,7 +683,11 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
         typing.source.as_ref().and_then(Source::nick),
         Some(alice.nick().as_ref())
     );
-    assert_eq!(typing.target.as_ref(), target);
+    assert_eq!(
+        conversation_name(&typing.conversation),
+        Some(channel.as_ref())
+    );
+    assert_eq!(typing.status, Some(vec!['@']));
     assert_eq!(typing.state, Typing::Active);
     carol.expect_none(Event::as_typing_changed).await?;
     dave.expect_none(Event::as_typing_changed).await?;
@@ -669,7 +711,10 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     let sent = alice.privmsg(&channel, text).await?;
     let received = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(received.kind(), MessageKind::Privmsg);
-    assert_eq!(received.target(), channel);
+    assert_eq!(
+        conversation_name(&received.conversation),
+        Some(channel.as_str())
+    );
     assert_eq!(received.raw_text(), text);
     assert_eq!(received.text(), text);
     assert_eq!(received.id(), sent.id.as_ref());
@@ -725,7 +770,11 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
 
     alice.redact(&channel, id.clone(), "superseded").await?;
     let redacted = bob.wait_for(Event::as_redacted).await?;
-    assert_eq!(redacted.target.as_ref(), channel);
+    assert_eq!(
+        conversation_name(&redacted.conversation),
+        Some(channel.as_str())
+    );
+    assert_eq!(redacted.status, None);
     assert_eq!(redacted.message, id);
     assert_eq!(redacted.reason.as_deref(), Some("superseded"));
     assert_eq!(
