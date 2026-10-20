@@ -159,15 +159,30 @@ impl TypingTable {
         conversation: &Conversation,
         nick: &Nick,
     ) -> Option<Deadline> {
+        Self::stop_where(table, |candidate, typer| {
+            candidate == conversation && typer == nick
+        })
+        .pop()
+    }
+
+    fn stop_where(
+        table: &mut Arc<Self>,
+        predicate: impl Fn(&Conversation, &Nick) -> bool,
+    ) -> Vec<Deadline> {
         let table = Arc::make_mut(table);
         table
             .entries
-            .retain(|(candidate, typer)| candidate != conversation || &typer.nick != nick);
-        let position = table
-            .deadlines
-            .iter()
-            .position(|item| &item.conversation == conversation && &item.nick == nick)?;
-        table.deadlines.remove(position)
+            .retain(|(conversation, typer)| !predicate(conversation, &typer.nick));
+        let mut removed = Vec::new();
+        table.deadlines.retain(|deadline| {
+            if predicate(&deadline.conversation, &deadline.nick) {
+                removed.push(deadline.clone());
+                false
+            } else {
+                true
+            }
+        });
+        removed
     }
 }
 
@@ -256,6 +271,74 @@ impl Session {
                 deadline,
                 TypingReason::Messaged,
             )));
+        }
+    }
+
+    pub(crate) fn stop_typing_for_departure(&mut self, message: &LineRef<'_>) {
+        let mapping = self.isupport.value().casemapping();
+        let (removed, silent) = match message.command() {
+            Command::Part => {
+                let (Some(Source::User { nick, .. }), Some(channels)) =
+                    (message.source(), message.param(0))
+                else {
+                    return;
+                };
+                let own = self.authorship(message) == Authorship::Own;
+                let nick = mapping.nick(nick);
+                let mut removed = Vec::new();
+                for channel in channels.split(',') {
+                    let conversation = Conversation::Channel(mapping.channel(channel));
+                    if own {
+                        removed.extend(TypingTable::stop_where(
+                            &mut self.state.typing,
+                            |candidate, _| candidate == &conversation,
+                        ));
+                    } else {
+                        removed.extend(TypingTable::stop_sender(
+                            &mut self.state.typing,
+                            &conversation,
+                            &nick,
+                        ));
+                    }
+                }
+                (removed, own)
+            }
+            Command::Kick => {
+                let (Some(channel), Some(nick)) = (message.param(0), message.param(1)) else {
+                    return;
+                };
+                let conversation = Conversation::Channel(mapping.channel(channel));
+                let own = crate::names_equal(mapping, nick, self.nick());
+                let nick = mapping.nick(nick);
+                (
+                    TypingTable::stop_where(&mut self.state.typing, |candidate, typer| {
+                        candidate == &conversation && (own || typer == &nick)
+                    }),
+                    own,
+                )
+            }
+            Command::Quit => {
+                let Some(Source::User { nick, .. }) = message.source() else {
+                    return;
+                };
+                let own = self.authorship(message) == Authorship::Own;
+                let nick = mapping.nick(nick);
+                (
+                    TypingTable::stop_where(&mut self.state.typing, |_, typer| {
+                        own || typer == &nick
+                    }),
+                    own,
+                )
+            }
+            _ => return,
+        };
+        if !silent {
+            for deadline in removed {
+                self.outbox.event(Event::TypingChanged(stopped(
+                    deadline,
+                    TypingReason::Departed,
+                )));
+            }
         }
     }
 }

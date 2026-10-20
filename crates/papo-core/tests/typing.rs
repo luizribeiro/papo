@@ -107,6 +107,29 @@ fn chat_messages_stop_typing_before_the_message_event() {
 }
 
 #[test]
+fn part_and_kick_emit_departed_typing_before_departure() {
+    for line in [
+        ":alice!~a@cloak PART #papo :Leaving",
+        ":ChanServ!service@services KICK #papo alice :Requested",
+    ] {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        session.handle_line(now, b"@+typing=active :alice!~a@cloak TAGMSG #papo");
+        _ = session.poll_event();
+        session.handle_line(now, line.as_bytes());
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::TypingChanged(change))
+                if change.reason == papo_core::TypingReason::Departed
+        ));
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::Parted { .. } | Event::Kicked { .. })
+        ));
+    }
+}
+
+#[test]
 fn own_and_history_typing_are_not_stored() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
