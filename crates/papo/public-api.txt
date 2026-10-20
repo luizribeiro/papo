@@ -450,9 +450,12 @@ impl core::marker::UnsafeUnpin for papo::event::Invited
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Invited
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Invited
 #[non_exhaustive] pub struct papo::event::Joined
+pub papo::event::Joined::account: core::option::Option<papo::AccountName>
 pub papo::event::Joined::authorship: papo::Authorship
 pub papo::event::Joined::channel: papo::ChannelName
+pub papo::event::Joined::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Joined::nick: papo::Nick
+pub papo::event::Joined::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Joined
 pub fn papo::event::Joined::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Joined
@@ -660,10 +663,13 @@ impl core::marker::UnsafeUnpin for papo::event::NickChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NickChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
 #[non_exhaustive] pub struct papo::event::Parted
+pub papo::event::Parted::account: core::option::Option<papo::AccountName>
 pub papo::event::Parted::authorship: papo::Authorship
 pub papo::event::Parted::channel: papo::ChannelName
+pub papo::event::Parted::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Parted::nick: papo::Nick
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
+pub papo::event::Parted::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Parted
 pub fn papo::event::Parted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Parted

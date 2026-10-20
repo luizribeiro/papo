@@ -1,4 +1,6 @@
-use crate::{Authorship, ChannelName, Nick, Subject};
+use std::time::SystemTime;
+
+use crate::{AccountName, Authorship, ChannelName, MessageId, Nick, Subject};
 
 use super::Source;
 
@@ -37,6 +39,12 @@ impl ModeKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Joined {
+    /// The server-assigned identifier of the join line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
     /// The joined channel.
     pub channel: ChannelName,
     /// The joining user's nickname.
@@ -57,6 +65,12 @@ pub struct ChannelSynced {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Parted {
+    /// The server-assigned identifier of the part line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
     /// The departed channel.
     pub channel: ChannelName,
     /// The departing user's nickname.

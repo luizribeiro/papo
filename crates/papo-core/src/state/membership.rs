@@ -49,6 +49,7 @@ impl State {
             return Handled::No;
         };
         outbox.event(Event::Joined {
+            envelope: crate::LineEnvelope::from_line(message),
             channel: self.casemapping.channel(join.channel),
             nick: self.casemapping.nick(nick),
             authorship: self.nick_authorship(nick),

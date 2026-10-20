@@ -109,6 +109,7 @@ pub(crate) fn history_item(
                 message,
                 crate::Authorship::from_core(item.authorship),
                 client,
+                received_at,
             )
         }),
         papo_core::HistoryItem::Parted(item) => typed_or_raw(&item.line, |message| {
@@ -116,6 +117,7 @@ pub(crate) fn history_item(
                 message,
                 crate::Authorship::from_core(item.authorship),
                 client,
+                received_at,
             )
         }),
         papo_core::HistoryItem::Quit(item) => typed_or_raw(&item.line, |message| {
@@ -232,10 +234,15 @@ fn joined(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     client: &Client,
+    received_at: SystemTime,
 ) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
     let mapping = client.state().casemapping();
+    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(HistoryItem::Joined(Joined {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
         channel: mapping.channel(message.param(0)?),
         authorship,
         nick: mapping.nick(nick),
@@ -246,10 +253,15 @@ fn parted(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     client: &Client,
+    received_at: SystemTime,
 ) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
     let mapping = client.state().casemapping();
+    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(HistoryItem::Parted(Parted {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
         channel: mapping.channel(message.param(0)?),
         authorship,
         nick: mapping.nick(nick),

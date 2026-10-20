@@ -82,6 +82,9 @@ pub fn connected(nick: impl Into<Nick>) -> Connected {
 #[must_use]
 pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool) -> Joined {
     Joined {
+        msgid: None,
+        time: SystemTime::UNIX_EPOCH,
+        account: None,
         channel: channel.into(),
         nick: nick.into(),
         authorship: if own {

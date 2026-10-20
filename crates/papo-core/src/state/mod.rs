@@ -397,6 +397,7 @@ impl State {
             for channel in channels.split(',') {
                 let authorship = self.nick_authorship(nick);
                 outbox.event(Event::Parted {
+                    envelope: crate::LineEnvelope::from_line(message),
                     channel: mapping.channel(channel),
                     nick: mapping.nick(nick),
                     reason: message.param(1).map(str::to_owned),

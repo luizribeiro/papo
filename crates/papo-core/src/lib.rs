@@ -1758,6 +1758,8 @@ pub enum Event {
     MonitorUnsupported,
     /// A user joined a channel shared with the session.
     Joined {
+        /// Identity, time, and account tags from the line.
+        envelope: LineEnvelope,
         /// The channel that was joined.
         channel: ChannelName,
         /// The joining user's nickname.
@@ -1772,6 +1774,8 @@ pub enum Event {
     },
     /// A user left a shared channel with `PART`.
     Parted {
+        /// Identity, time, and account tags from the line.
+        envelope: LineEnvelope,
         /// The departed channel.
         channel: ChannelName,
         /// The departing user's nickname.

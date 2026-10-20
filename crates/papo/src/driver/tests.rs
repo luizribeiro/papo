@@ -616,6 +616,9 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
+            msgid: None,
+            time: std::time::SystemTime::UNIX_EPOCH,
+            account: None,
             channel: test_channel("#papo"),
             nick: test_nick("papo-driver"),
             authorship: crate::Authorship::Own,
@@ -625,6 +628,9 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
+            msgid: None,
+            time: std::time::SystemTime::UNIX_EPOCH,
+            account: None,
             channel: test_channel("#visitors"),
             nick: test_nick("alice"),
             authorship: crate::Authorship::Other,
@@ -636,6 +642,9 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
+            msgid: None,
+            time: std::time::SystemTime::UNIX_EPOCH,
+            account: None,
             channel: test_channel("#staff"),
             nick: test_nick("alice"),
             reason: Some("lunch".into()),
@@ -664,6 +673,9 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
+            msgid: None,
+            time: std::time::SystemTime::UNIX_EPOCH,
+            account: None,
             channel: test_channel("#Papo"),
             nick: test_nick("papo-driver"),
             reason: None,

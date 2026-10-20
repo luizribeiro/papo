@@ -990,11 +990,15 @@ pub(crate) fn from_core(
                 .zip(authorship)
                 .filter_map(|(message, authorship)| {
                     let message = message.as_ref();
+                    let envelope = line_envelope(&message, casemapping, received_at);
                     let nick = match message.source()? {
                         papo_proto::Source::User { nick, .. } => nick.to_owned(),
                         papo_proto::Source::Server(_) => return None,
                     };
                     Some(Joined {
+                        msgid: envelope.msgid,
+                        time: envelope.time,
+                        account: envelope.account,
                         channel: casemapping.channel(message.param(0)?),
                         nick: casemapping.nick(nick),
                         authorship: Authorship::from_core(authorship),
@@ -1028,28 +1032,42 @@ pub(crate) fn from_core(
         papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined {
+            envelope,
             channel,
             nick,
             authorship,
-        } => Event::Joined(Joined {
-            channel,
-            nick,
-            authorship: Authorship::from_core(authorship),
-        }),
+        } => {
+            let envelope = core_envelope(&envelope, casemapping, received_at);
+            Event::Joined(Joined {
+                msgid: envelope.msgid,
+                time: envelope.time,
+                account: envelope.account,
+                channel,
+                nick,
+                authorship: Authorship::from_core(authorship),
+            })
+        }
         papo_core::Event::ChannelSynced { channel } => {
             Event::ChannelSynced(ChannelSynced { channel })
         }
         papo_core::Event::Parted {
+            envelope,
             channel,
             nick,
             reason,
             authorship,
-        } => Event::Parted(Parted {
-            channel,
-            nick,
-            reason,
-            authorship: Authorship::from_core(authorship),
-        }),
+        } => {
+            let envelope = core_envelope(&envelope, casemapping, received_at);
+            Event::Parted(Parted {
+                msgid: envelope.msgid,
+                time: envelope.time,
+                account: envelope.account,
+                channel,
+                nick,
+                reason,
+                authorship: Authorship::from_core(authorship),
+            })
+        }
         papo_core::Event::Kicked {
             channel,
             nick,
@@ -1555,6 +1573,7 @@ mod tests {
     fn forwarded_names_keep_the_core_casemapping() {
         let CoreEvent::Forward(Event::Joined(joined)) = from_core_with_mapping(
             papo_core::Event::Joined {
+                envelope: papo_core::LineEnvelope::default(),
                 channel: Casemapping::Ascii.channel("#Papo[dev]"),
                 nick: Casemapping::Ascii.nick("Alice[bot]"),
                 authorship: papo_core::Authorship::Other,
@@ -1955,12 +1974,35 @@ mod tests {
     fn maps_joined() {
         assert!(matches!(
             forwarded(papo_core::Event::Joined {
+                envelope: papo_core::LineEnvelope::default(),
                 channel: Casemapping::default().channel("#papo"),
                 nick: Casemapping::default().nick("emily")
                 ,authorship: papo_core::Authorship::Other
             }),
             Event::Joined(joined) if joined.channel == "#papo" && joined.nick == "emily"
         ));
+    }
+
+    #[test]
+    fn live_activity_uses_receipt_time_without_server_time() {
+        let now = Instant::now();
+        let received_at = UNIX_EPOCH + Duration::from_secs(1_792_520_531);
+        let mut session = Session::new(Config::default());
+        session.handle_line(
+            now,
+            b"@account=emily;msgid=RfcBTzyxY120012 :emily!~e@cloak.example JOIN #papo",
+        );
+        let mapped = from_core_with_mapping(
+            session.poll_event().expect("join event"),
+            Casemapping::default(),
+            received_at,
+        );
+        let CoreEvent::Forward(Event::Joined(joined)) = mapped else {
+            panic!("expected mapped join");
+        };
+        assert_eq!(joined.msgid.as_deref(), Some("RfcBTzyxY120012"));
+        assert_eq!(joined.time, received_at);
+        assert_eq!(joined.account.as_deref(), Some("emily"));
     }
 
     #[test]
@@ -1977,6 +2019,7 @@ mod tests {
     fn maps_parted() {
         assert!(matches!(
             forwarded(papo_core::Event::Parted {
+                envelope: papo_core::LineEnvelope::default(),
                 channel: Casemapping::default().channel("#papo"),
                 nick: Casemapping::default().nick("emily"),
                 reason: Some("Leaving for lunch".into()),
@@ -2322,11 +2365,17 @@ mod tests {
         let mapping = Casemapping::Rfc1459;
         let events = [
             Event::Joined(super::Joined {
+                msgid: None,
+                time: UNIX_EPOCH,
+                account: None,
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 authorship: Authorship::Own,
             }),
             Event::Parted(super::Parted {
+                msgid: None,
+                time: UNIX_EPOCH,
+                account: None,
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 reason: None,
@@ -2358,6 +2407,9 @@ mod tests {
                     second: "irc.remote".to_owned(),
                 },
                 joins: vec![super::Joined {
+                    msgid: None,
+                    time: UNIX_EPOCH,
+                    account: None,
                     channel: mapping.channel("#papo"),
                     nick: mapping.nick("Papo[Bot]"),
                     authorship: Authorship::Own,
