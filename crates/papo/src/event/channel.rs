@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{AccountName, Authorship, ChannelName, MessageId, Nick, Subject};
+use crate::{Account, AccountName, Authorship, ChannelName, MessageId, Nick, Subject};
 
 use super::Source;
 
@@ -43,8 +43,10 @@ pub struct Joined {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
+    /// The joining user's known account state.
+    pub account: Account,
+    /// The joining user's real name, when supplied by the server.
+    pub realname: Option<String>,
     /// The joined channel.
     pub channel: ChannelName,
     /// The joining user's nickname.

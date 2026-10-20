@@ -548,6 +548,34 @@ pub(crate) fn line_envelope(
     }
 }
 
+pub(crate) fn joined_from_line(
+    line: &LineRef<'_>,
+    authorship: Authorship,
+    casemapping: Casemapping,
+    received_at: SystemTime,
+) -> Option<Joined> {
+    let join = papo_proto::Join::parse(line)?;
+    let nick = match line.source()? {
+        papo_proto::Source::User { nick, .. } => casemapping.nick(nick),
+        papo_proto::Source::Server(_) => return None,
+    };
+    let envelope = line_envelope(line, casemapping, received_at);
+    let account = match (join.realname, join.account) {
+        (None, _) => Account::Unknown,
+        (Some(_), None) => Account::LoggedOut,
+        (Some(_), Some(account)) => Account::LoggedIn(casemapping.account(account)),
+    };
+    Some(Joined {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account,
+        realname: join.realname.map(str::to_owned),
+        channel: casemapping.channel(join.channel),
+        nick,
+        authorship,
+    })
+}
+
 fn core_envelope(
     envelope: &papo_core::LineEnvelope,
     casemapping: Casemapping,
@@ -989,20 +1017,12 @@ pub(crate) fn from_core(
                 .into_iter()
                 .zip(authorship)
                 .filter_map(|(message, authorship)| {
-                    let message = message.as_ref();
-                    let envelope = line_envelope(&message, casemapping, received_at);
-                    let nick = match message.source()? {
-                        papo_proto::Source::User { nick, .. } => nick.to_owned(),
-                        papo_proto::Source::Server(_) => return None,
-                    };
-                    Some(Joined {
-                        msgid: envelope.msgid,
-                        time: envelope.time,
-                        account: envelope.account,
-                        channel: casemapping.channel(message.param(0)?),
-                        nick: casemapping.nick(nick),
-                        authorship: Authorship::from_core(authorship),
-                    })
+                    joined_from_line(
+                        &message.as_ref(),
+                        Authorship::from_core(authorship),
+                        casemapping,
+                        received_at,
+                    )
                 })
                 .collect(),
         }),
@@ -1033,6 +1053,8 @@ pub(crate) fn from_core(
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined {
             envelope,
+            account,
+            realname,
             channel,
             nick,
             authorship,
@@ -1042,7 +1064,8 @@ pub(crate) fn from_core(
             Event::Joined(Joined {
                 msgid: envelope.msgid,
                 time: envelope.time,
-                account: envelope.account,
+                account,
+                realname,
                 channel,
                 nick,
                 authorship: Authorship::from_core(authorship),
@@ -2023,18 +2046,20 @@ mod tests {
 
     #[test]
     fn maps_joined() {
-        assert!(matches!(
-            forwarded(papo_core::Event::Joined {
-                envelope: papo_core::LineEnvelope::default(),
-                channel: Casemapping::default().channel("#papo"),
-                nick: Casemapping::default().nick("emily"),
-                actor: "emily!~e@host".to_owned(),
-                account: Account::Unknown,
-                realname: None,
-                authorship: papo_core::Authorship::Other,
-            }),
-            Event::Joined(joined) if joined.channel == "#papo" && joined.nick == "emily"
-        ));
+        let event = forwarded(papo_core::Event::Joined {
+            envelope: papo_core::LineEnvelope::default(),
+            channel: Casemapping::default().channel("#papo"),
+            nick: Casemapping::default().nick("alice"),
+            actor: "alice!~a@host".to_owned(),
+            account: Account::LoggedIn(Casemapping::default().account("alice")),
+            realname: Some("Alice Liddell".to_owned()),
+            authorship: papo_core::Authorship::Other,
+        });
+        let joined = event.as_joined().unwrap();
+        assert_eq!(joined.channel, "#papo");
+        assert_eq!(joined.nick, "alice");
+        assert_eq!(joined.realname.as_deref(), Some("Alice Liddell"));
+        assert!(matches!(&joined.account, Account::LoggedIn(account) if account == "alice"));
     }
 
     #[test]
@@ -2056,7 +2081,7 @@ mod tests {
         };
         assert_eq!(joined.msgid.as_deref(), Some("RfcBTzyxY120012"));
         assert_eq!(joined.time, received_at);
-        assert_eq!(joined.account.as_deref(), Some("emily"));
+        assert_eq!(joined.account, Account::Unknown);
     }
 
     #[test]
@@ -2401,7 +2426,7 @@ mod tests {
 
     #[test]
     fn maps_netjoin() {
-        let join = Line::join("#papo").with_source("alice!~a@remote.example");
+        let join = Line::new("JOIN", ["#papo", "*", "Bob"]).with_source("bob!~b@remote.example");
         let Event::Netjoin(netjoin) = forwarded(papo_core::Event::Netjoin {
             servers: ["irc.example".into(), "irc.remote".into()],
             joins: vec![join],
@@ -2413,7 +2438,9 @@ mod tests {
         assert_eq!(netjoin.servers.second, "irc.remote");
         assert_eq!(netjoin.joins.len(), 1);
         assert_eq!(netjoin.joins[0].channel, "#papo");
-        assert_eq!(netjoin.joins[0].nick, "alice");
+        assert_eq!(netjoin.joins[0].nick, "bob");
+        assert_eq!(netjoin.joins[0].account, Account::LoggedOut);
+        assert_eq!(netjoin.joins[0].realname.as_deref(), Some("Bob"));
     }
 
     #[test]
@@ -2426,7 +2453,8 @@ mod tests {
             Event::Joined(super::Joined {
                 msgid: None,
                 time: UNIX_EPOCH,
-                account: None,
+                account: Account::Unknown,
+                realname: None,
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 authorship: Authorship::Own,
@@ -2474,7 +2502,8 @@ mod tests {
                 joins: vec![super::Joined {
                     msgid: None,
                     time: UNIX_EPOCH,
-                    account: None,
+                    account: Account::Unknown,
+                    realname: None,
                     channel: mapping.channel("#papo"),
                     nick: mapping.nick("Papo[Bot]"),
                     authorship: Authorship::Own,

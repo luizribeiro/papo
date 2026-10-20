@@ -313,17 +313,9 @@ fn joined(
     client: &Client,
     received_at: SystemTime,
 ) -> Option<HistoryItem> {
-    let nick = source_nick(message)?;
     let mapping = client.state().casemapping();
-    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
-    Some(HistoryItem::Joined(Joined {
-        msgid: envelope.msgid,
-        time: envelope.time,
-        account: envelope.account,
-        channel: mapping.channel(message.param(0)?),
-        authorship,
-        nick: mapping.nick(nick),
-    }))
+    crate::event_impl::joined_from_line(message, authorship, mapping, received_at)
+        .map(HistoryItem::Joined)
 }
 
 fn parted(
@@ -1214,21 +1206,31 @@ mod tests {
             joined,
             HistoryItem::Joined(event)
                 if event.channel == "#papo" && event.nick == "emily"
+                    && matches!(&event.account, crate::Account::LoggedIn(account) if account == "emily")
+                    && event.realname.as_deref() == Some("Emily Smith")
                     && event.authorship == crate::Authorship::Unknown
         ));
 
         let joined = history_item(
-            papo_core::HistoryItem::Joined(core_item(
-                ":PAPO!papo@localhost JOIN #papo papo :Papo client",
-            )),
+            papo_core::HistoryItem::Joined(core_item(":bob!~b@host JOIN #papo * :Bob")),
             None,
             &client,
             UNIX_EPOCH,
             crate::Origin::Replay,
         );
-        assert!(
-            matches!(joined, HistoryItem::Joined(event) if event.authorship == crate::Authorship::Unknown)
+        assert!(matches!(joined, HistoryItem::Joined(event)
+            if event.account == crate::Account::LoggedOut
+                && event.realname.as_deref() == Some("Bob")));
+
+        let joined = history_item(
+            papo_core::HistoryItem::Joined(core_item(":carol!~c@host JOIN #papo")),
+            None,
+            &client,
+            UNIX_EPOCH,
+            crate::Origin::Replay,
         );
+        assert!(matches!(joined, HistoryItem::Joined(event)
+            if event.account == crate::Account::Unknown && event.realname.is_none()));
     }
 
     #[test]

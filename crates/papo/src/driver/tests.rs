@@ -619,7 +619,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Joined(crate::event::Joined {
             msgid: None,
             time: SystemTime::UNIX_EPOCH,
-            account: None,
+            account: crate::Account::Unknown,
+            realname: None,
             channel: test_channel("#papo"),
             nick: test_nick("papo-driver"),
             authorship: crate::Authorship::Own,
@@ -631,7 +632,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Joined(crate::event::Joined {
             msgid: None,
             time: SystemTime::UNIX_EPOCH,
-            account: None,
+            account: crate::Account::Unknown,
+            realname: None,
             channel: test_channel("#visitors"),
             nick: test_nick("alice"),
             authorship: crate::Authorship::Other,
