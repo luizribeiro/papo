@@ -13,7 +13,7 @@ impl State {
             for (key, value) in message.tags() {
                 match (key, value) {
                     ("account", Some(account)) => {
-                        let account = Account::LoggedIn(account.as_ref().into());
+                        let account = Account::LoggedIn(self.casemapping.account(account.as_ref()));
                         if user.account != account {
                             user.account = account.clone();
                             outbox.event(Event::AccountChanged {
@@ -36,7 +36,7 @@ impl State {
         outbox: &mut Outbox,
     ) {
         if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
-            self.nick = own_nick.into();
+            self.nick = self.casemapping.nick(own_nick);
         }
         self.apply_user_tags(message, outbox);
     }
@@ -59,7 +59,7 @@ impl State {
         let Some(Source::User { nick, .. }) = message.source() else {
             return Some(Handled::No);
         };
-        let account = Account::from_notify(account.account);
+        let account = Account::from_notify(account.account, self.casemapping);
         if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping))
             && user.account != account
         {
@@ -265,7 +265,7 @@ impl State {
             outbox,
         );
         if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping)) {
-            user.account = Account::from_notify(reply.account);
+            user.account = Account::from_notify(reply.account, self.casemapping);
         }
         Some(Handled::Yes)
     }

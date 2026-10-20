@@ -7,7 +7,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 use papo_core::{
     Account, Away, Config, Event, OwnedModeChange, RateLimit, ResponseMatcher, StateLimit,
 };
-use papo_proto::{AccountName, ChannelName, Line, ModeKind, Nick};
+use papo_proto::{AccountName, Casemapping, ChannelName, Line, ModeKind, Nick};
 use support::Transcript;
 
 #[test]
@@ -16,6 +16,7 @@ fn starts_with_configured_identity_and_empty_shared_state() {
         .inspect(|session| {
             let state = session.state();
             assert_eq!(state.nick(), "emily");
+            assert_eq!(state.nick().casemapping(), Casemapping::Rfc1459);
             assert_eq!(state.username(), "em");
             assert_eq!(state.host(), None);
         })
@@ -119,6 +120,30 @@ fn read_models_expose_typed_identifiers() {
             assert_eq!(user_nick, "dan");
             assert_eq!(shared_channel, "#papo");
             assert_eq!(account, "dan");
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn wire_names_capture_the_advertised_ascii_casemapping() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
+        .server(":Emily!em@127.0.0.1 JOIN #Papo[dev] Emily :Emily Example")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo[dev]").unwrap();
+            let user = session.state().user("EMILY").unwrap();
+            let Account::LoggedIn(account) = user.account() else {
+                panic!("extended join should report the account");
+            };
+
+            assert_eq!(channel.name().as_ref(), "#Papo[dev]");
+            assert_eq!(channel.name().casemapping(), Casemapping::Ascii);
+            assert_eq!(
+                channel.member("emily").unwrap().nick().casemapping(),
+                Casemapping::Ascii
+            );
+            assert_eq!(user.nick().casemapping(), Casemapping::Ascii);
+            assert_eq!(account.casemapping(), Casemapping::Ascii);
         })
         .ignore_rest();
 }

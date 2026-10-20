@@ -57,7 +57,7 @@ impl State {
         });
         let ours = self.casemapping.eq(nick, &self.nick);
         if ours {
-            self.nick = nick.into();
+            self.nick = self.casemapping.nick(nick);
             if let Some(user) = user {
                 user.clone_into(&mut self.user);
             }
@@ -81,7 +81,7 @@ impl State {
         if let Some(user) = self.users.get_mut(&Folded::new(nick, self.casemapping))
             && join.realname.is_some()
         {
-            user.account = Account::from_notify(join.account);
+            user.account = Account::from_notify(join.account, self.casemapping);
             user.realname = join.realname.map(str::to_owned);
         }
         if ours && no_implicit_names {
@@ -146,7 +146,7 @@ impl State {
             channel.members.insert(
                 nick_key,
                 Member {
-                    nick: nick.into(),
+                    nick: mapping.nick(nick),
                     prefixes,
                     prefix_order: Arc::clone(&channel.prefix_order),
                 },
@@ -154,7 +154,7 @@ impl State {
             let shared = self
                 .users
                 .entry(Folded::new(nick, mapping))
-                .or_insert_with(|| User::new(nick, user, host));
+                .or_insert_with(|| User::new(nick, user, host, mapping));
             shared.update_userhost(user, host);
             shared.channels.insert(Folded::new(channel_name, mapping));
         }
@@ -222,12 +222,12 @@ impl State {
         let Some(mut user) = self.users.remove(&old_key) else {
             return;
         };
-        user.nick = new_nick.into();
+        user.nick = self.casemapping.nick(new_nick);
         for channel_key in &user.channels {
             if let Some(channel) = self.channels.get_mut(channel_key)
                 && let Some(mut member) = channel.members.remove(&old_key)
             {
-                member.nick = new_nick.into();
+                member.nick = self.casemapping.nick(new_nick);
                 channel.members.insert(new_key.clone(), member);
             }
         }

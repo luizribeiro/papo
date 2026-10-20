@@ -238,7 +238,7 @@ impl State {
 
     pub(crate) fn new(config: &Config) -> Self {
         Self {
-            nick: Nick::from(&config.nick),
+            nick: Casemapping::default().nick(&config.nick),
             user: config.username.clone(),
             host: None,
             realname: config.realname.clone(),
@@ -286,7 +286,7 @@ impl State {
             let user = self
                 .users
                 .entry(Folded::new(nick, self.casemapping))
-                .or_insert_with(|| User::new(nick, username, host));
+                .or_insert_with(|| User::new(nick, username, host, self.casemapping));
             user.monitored = true;
         }
         self.users
@@ -304,7 +304,7 @@ impl State {
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
             self.users
                 .entry(key)
-                .or_insert_with(|| User::new(nick, username, host))
+                .or_insert_with(|| User::new(nick, username, host, self.casemapping))
                 .monitored = true;
         } else if let Some(user) = self.users.get_mut(&key) {
             user.monitored = false;
@@ -408,7 +408,7 @@ impl State {
             };
             self.rename_user(nick, new_nick);
             if mapping.eq(nick, &self.nick) {
-                self.nick = new_nick.into();
+                self.nick = mapping.nick(new_nick);
             }
             outbox.event(Event::NickChanged {
                 old: nick.to_owned(),
@@ -480,7 +480,7 @@ impl State {
             return false;
         }
         let realname_changed = self.realname != change.realname;
-        self.nick = nick.into();
+        self.nick = self.casemapping.nick(nick);
         user.clone_into(&mut self.user);
         self.host = Some(host.to_owned());
         change.realname.clone_into(&mut self.realname);
@@ -831,7 +831,7 @@ fn source_name<'a>(message: &'a LineRef<'_>) -> Option<&'a str> {
 impl Channel {
     fn new(name: &str, casemapping: Casemapping, isupport: &Isupport, synced: bool) -> Self {
         Self {
-            name: name.into(),
+            name: casemapping.channel(name),
             casemapping,
             members: HashMap::new(),
             modes: HashMap::new(),
@@ -1013,9 +1013,9 @@ impl Member {
 }
 
 impl User {
-    fn new(nick: &str, user: Option<&str>, host: Option<&str>) -> Self {
+    fn new(nick: &str, user: Option<&str>, host: Option<&str>, casemapping: Casemapping) -> Self {
         Self {
-            nick: nick.into(),
+            nick: casemapping.nick(nick),
             username: user.map(str::to_owned),
             host: host.map(str::to_owned),
             account: Account::Unknown,
@@ -1085,8 +1085,10 @@ impl User {
 }
 
 impl Account {
-    fn from_notify(account: Option<&str>) -> Self {
-        account.map_or(Self::LoggedOut, |account| Self::LoggedIn(account.into()))
+    fn from_notify(account: Option<&str>, casemapping: Casemapping) -> Self {
+        account.map_or(Self::LoggedOut, |account| {
+            Self::LoggedIn(casemapping.account(account))
+        })
     }
 }
 
