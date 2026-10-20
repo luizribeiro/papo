@@ -541,8 +541,8 @@ fn check_wire_lengths(line: &str) -> Result<(), ParseError> {
         tagged.find(' ').map_or(0, |separator| separator + 2)
     });
     // Every accepted terminator occupies the protocol's canonical CRLF budget.
-    let message_len = line.len() - tag_section_len + 2;
-    if tag_section_len > MAX_TAG_SECTION_LEN || message_len > MAX_LINE_LEN {
+    let line_len = line.len() - tag_section_len + 2;
+    if tag_section_len > MAX_TAG_SECTION_LEN || line_len > MAX_LINE_LEN {
         return Err(ParseError::TooLong);
     }
     Ok(())

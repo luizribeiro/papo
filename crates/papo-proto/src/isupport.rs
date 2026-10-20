@@ -319,7 +319,7 @@ impl Isupport {
     }
 
     flag_accessors! {
-        /// Reports whether the server accepts only UTF-8 messages.
+        /// Reports whether the server accepts only UTF-8 lines.
         utf8only => "UTF8ONLY",
         /// Reports whether extended `WHO` syntax is available.
         whox => "WHOX",
