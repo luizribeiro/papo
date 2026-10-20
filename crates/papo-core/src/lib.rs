@@ -3117,11 +3117,8 @@ impl Session {
                 batch_type,
                 reason,
             }),
-            BatchEvent::Message {
-                message,
-                batch_type,
-            } => {
-                let received = self.received_line(message, batch_type, false);
+            BatchEvent::Line { line, batch_type } => {
+                let received = self.received_line(line, batch_type, false);
                 self.outbox.event(Event::Line(received));
             }
             BatchEvent::Multiline(message) => self

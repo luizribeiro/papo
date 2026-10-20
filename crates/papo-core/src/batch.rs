@@ -83,8 +83,8 @@ pub(crate) enum BatchEvent {
         batch_type: String,
         reason: BatchAbandonReason,
     },
-    Message {
-        message: Line,
+    Line {
+        line: Line,
         batch_type: Option<String>,
     },
     Multiline(Line),
@@ -272,8 +272,8 @@ impl Batches {
             };
             let mut events = self.abandon(&reference, reason);
             if aggregates.is_empty() {
-                let fallback = BatchEvent::Message {
-                    message: message.to_owned(),
+                let fallback = BatchEvent::Line {
+                    line: message.to_owned(),
                     batch_type: context.batch_type,
                 };
                 events.insert(events.len() - 1, fallback);
@@ -367,13 +367,13 @@ impl Batches {
         }
         let mut events: Vec<_> = messages
             .into_iter()
-            .map(|message| BatchEvent::Message {
-                batch_type: message
+            .map(|line| BatchEvent::Line {
+                batch_type: line
                     .as_ref()
                     .tag("batch")
                     .and_then(|reference| types.get(reference.as_ref()))
                     .cloned(),
-                message,
+                line,
             })
             .collect();
         events.push(BatchEvent::Abandoned {
@@ -524,8 +524,8 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         }
     };
     std::iter::once(aggregate)
-        .chain(others.into_iter().map(|message| BatchEvent::Message {
-            message,
+        .chain(others.into_iter().map(|line| BatchEvent::Line {
+            line,
             batch_type: Some(batch.kind.clone()),
         }))
         .collect()
@@ -605,8 +605,8 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {
         }
         BatchEvent::Netsplit { quits, .. } => messages.extend(quits),
         BatchEvent::Netjoin { joins, .. } => messages.extend(joins),
-        BatchEvent::Message { message, .. } | BatchEvent::Multiline(message) => {
-            messages.push(message);
+        BatchEvent::Line { line, .. } | BatchEvent::Multiline(line) => {
+            messages.push(line);
         }
         BatchEvent::HistoryTargets(_) | BatchEvent::Abandoned { .. } => {}
     }
