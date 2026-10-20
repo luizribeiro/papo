@@ -2429,6 +2429,7 @@ impl Session {
         for event in self.batches.handle_timeout(now) {
             self.dispatch_batch_event(now, event);
         }
+        self.handle_typing_timeout(now);
         let expired: Vec<_> = self
             .requests
             .iter()
@@ -2990,6 +2991,7 @@ impl Session {
                 self.isupport.value().saferate(),
             ),
             self.batches.next_deadline(),
+            self.state.typing.next_deadline(),
             self.nick_regain.next_deadline(),
             self.requests
                 .values()
@@ -3342,7 +3344,7 @@ impl Session {
         }
         let whoami = self.handle_whoami(message);
         let own_away_message = self.confirmed_away_message(message).map(str::to_owned);
-        let typing_handled = self.report_typing(message, context.batch_type().is_some());
+        let typing_handled = self.report_typing(now, message, context.batch_type().is_some());
         let state_handled = whoami
             || self.state.handle_message(
                 message,

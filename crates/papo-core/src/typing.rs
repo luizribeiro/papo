@@ -1,6 +1,7 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{collections::VecDeque, sync::Arc, time::Duration};
 
 use papo_proto::{LineRef, Nick, Source, Typing};
+use web_time::Instant;
 
 use crate::{Authorship, Conversation, Event, Session, conversation::classify_line};
 
@@ -47,15 +48,26 @@ pub struct Typer {
     pub status: Option<Vec<char>>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub(crate) struct TypingTable {
     entries: VecDeque<(Conversation, Typer)>,
+    deadlines: VecDeque<Deadline>,
+}
+
+#[derive(Clone, Debug)]
+struct Deadline {
+    conversation: Conversation,
+    nick: Nick,
+    actor: String,
+    status: Option<Vec<char>>,
+    at: Instant,
 }
 
 impl TypingTable {
     pub(crate) fn new() -> Arc<Self> {
         Arc::new(Self {
             entries: VecDeque::new(),
+            deadlines: VecDeque::new(),
         })
     }
 
@@ -71,38 +83,100 @@ impl TypingTable {
 
     fn notify(
         table: &mut Arc<Self>,
+        now: Instant,
         conversation: Conversation,
         nick: Nick,
+        actor: String,
         status: Option<Vec<char>>,
         state: Typing,
     ) {
         let table = Arc::make_mut(table);
-        let position = table
+        let entry = table
             .entries
             .iter()
             .position(|(candidate, typer)| candidate == &conversation && typer.nick == nick);
+        let deadline = table
+            .deadlines
+            .iter()
+            .position(|item| item.conversation == conversation && item.nick == nick);
         if state == Typing::Done {
-            if let Some(position) = position {
-                table.entries.remove(position);
-            }
-        } else if let Some(position) = position {
-            table.entries[position].1.state = state;
-            table.entries[position].1.status = status;
+            entry.and_then(|position| table.entries.remove(position));
+            deadline.and_then(|position| table.deadlines.remove(position));
         } else {
-            table.entries.push_back((
+            let typer = Typer {
+                nick: nick.clone(),
+                state,
+                status: status.clone(),
+            };
+            if let Some(position) = entry {
+                table.entries[position].1 = typer;
+            } else {
+                table.entries.push_back((conversation.clone(), typer));
+            }
+            let value = Deadline {
                 conversation,
-                Typer {
-                    nick,
-                    state,
-                    status,
-                },
-            ));
+                nick,
+                actor,
+                status,
+                at: now + Duration::from_secs(if state == Typing::Active { 6 } else { 30 }),
+            };
+            if let Some(position) = deadline {
+                table.deadlines[position] = value;
+            } else {
+                table.deadlines.push_back(value);
+            }
         }
+    }
+
+    pub(crate) fn next_deadline(&self) -> Option<Instant> {
+        self.deadlines.iter().map(|deadline| deadline.at).min()
+    }
+
+    fn expire(table: &mut Arc<Self>, now: Instant) -> Vec<TypingChanged> {
+        let table = Arc::make_mut(table);
+        let mut expired = Vec::new();
+        table.deadlines.retain(|deadline| {
+            if now >= deadline.at {
+                expired.push(deadline.clone());
+                false
+            } else {
+                true
+            }
+        });
+        for deadline in &expired {
+            table.entries.retain(|(conversation, typer)| {
+                conversation != &deadline.conversation || typer.nick != deadline.nick
+            });
+        }
+        expired
+            .into_iter()
+            .map(|deadline| TypingChanged {
+                actor: deadline.actor,
+                authorship: Authorship::Other,
+                conversation: deadline.conversation,
+                status: deadline.status,
+                state: Typing::Done,
+                reason: TypingReason::TimedOut,
+            })
+            .collect()
     }
 }
 
+impl PartialEq for TypingTable {
+    fn eq(&self, other: &Self) -> bool {
+        self.entries == other.entries
+    }
+}
+
+impl Eq for TypingTable {}
+
 impl Session {
-    pub(crate) fn report_typing(&mut self, message: &LineRef<'_>, is_batched: bool) -> bool {
+    pub(crate) fn report_typing(
+        &mut self,
+        now: Instant,
+        message: &LineRef<'_>,
+        is_batched: bool,
+    ) -> bool {
         if is_batched || !message.command_is("TAGMSG") {
             return false;
         }
@@ -125,8 +199,10 @@ impl Session {
         if authorship == Authorship::Other {
             TypingTable::notify(
                 &mut self.state.typing,
+                now,
                 conversation.clone(),
                 self.isupport.value().casemapping().nick(nick),
+                actor.to_owned(),
                 status.clone(),
                 state,
             );
@@ -140,6 +216,16 @@ impl Session {
             reason: TypingReason::Notified,
         }));
         true
+    }
+
+    pub(crate) fn handle_typing_timeout(&mut self, now: Instant) {
+        let before = Arc::clone(&self.state.typing);
+        for change in TypingTable::expire(&mut self.state.typing, now) {
+            self.outbox.event(Event::TypingChanged(change));
+        }
+        if before != self.state.typing {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
     }
 }
 
