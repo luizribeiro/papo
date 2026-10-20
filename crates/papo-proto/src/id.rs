@@ -130,11 +130,17 @@ macro_rules! identifier {
     };
 }
 
-identifier!(Nick, "An IRC nickname.");
-identifier!(ChannelName, "An IRC channel name.");
-identifier!(AccountName, "An IRC account name.");
+macro_rules! name_identifier {
+    ($name:ident, $description:literal) => {
+        identifier!($name, $description);
+    };
+}
+
+name_identifier!(Nick, "An IRC nickname.");
+name_identifier!(ChannelName, "An IRC channel name.");
+name_identifier!(AccountName, "An IRC account name.");
 identifier!(Target, "An IRC message target chosen by the caller.");
-identifier!(Mask, "An IRC user or channel mask.");
+name_identifier!(Mask, "An IRC user or channel mask.");
 identifier!(MetadataKey, "An IRC metadata key.");
 identifier!(
     MessageId,
