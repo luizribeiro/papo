@@ -309,13 +309,14 @@ async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
     {
         return s.skip("ELIST does not support mask, count, creation, and topic filters");
     }
+    let mapping = alice.state().casemapping();
     let listed = alice
         .list(ListFilter::default().channels([
-            channel.clone(),
-            ">1".into(),
-            "<3".into(),
-            "C<10".into(),
-            "T<10".into(),
+            mapping.mask(&channel),
+            mapping.mask(">1"),
+            mapping.mask("<3"),
+            mapping.mask("C<10"),
+            mapping.mask("T<10"),
         ]))
         .await?;
     let entry = listed
@@ -351,7 +352,7 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
                     address.ip().to_string(),
                     address.port(),
                 ))
-                .nick(network_nick)
+                .nick(papo::Casemapping::default().nick(network_nick))
                 .username(login.username())
                 .realname("papo bouncer control")
                 .password(login.password())
@@ -375,7 +376,12 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
             .port(upstream.port())
             .tls(false)
             .name(name.clone())
-            .nickname(papo_test_server::unique("upstream-alice"));
+            .nickname(
+                alice
+                    .state()
+                    .casemapping()
+                    .nick(papo_test_server::unique("upstream-alice")),
+            );
         let id = alice.bouncer().add(config).await?;
         let added = alice.bouncer().networks().await?;
         let network = added
@@ -392,7 +398,12 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
             .port(upstream.port())
             .tls(false)
             .name(changed_name.clone())
-            .nickname(papo_test_server::unique("upstream-bob"));
+            .nickname(
+                alice
+                    .state()
+                    .casemapping()
+                    .nick(papo_test_server::unique("upstream-bob")),
+            );
         alice.bouncer().change(&id, changed).await?;
         let changed = alice.bouncer().networks().await?;
         assert_eq!(
@@ -488,7 +499,7 @@ async fn sts(s: Scenario) -> papo_testing::Result<()> {
                     "localhost",
                     server.plaintext_addr().port(),
                 ))
-                .nick(&nick)
+                .nick(papo::Casemapping::default().nick(&nick))
                 .request_caps(["sts"])
                 .tls_ca_pem(fs::read(server.ca_pem_path())?)
                 .sts_store(store.clone()),

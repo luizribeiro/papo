@@ -27,8 +27,9 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
     // Short enough that a chunk at InspIRCd's MODES=20, the largest among the
     // tested servers, still fits a 512-byte line alongside a full-length
     // generated channel name.
+    let mapping = alice.state().casemapping();
     let masks = (1..=count)
-        .map(|i| format!("flood{i}!*@{i}"))
+        .map(|i| mapping.mask(format!("flood{i}!*@{i}")))
         .collect::<Vec<_>>();
     let request = masks
         .iter()
@@ -36,14 +37,14 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
         .fold(alice.mode(&channel), papo::SetModes::ban);
     request.await?;
 
-    let assert_ban_changes = |changed: &ModeChanged, expected: &[String]| {
+    let assert_ban_changes = |changed: &ModeChanged, expected: &[papo::Mask]| {
         assert_eq!(changed.target.as_ref(), channel);
         assert_eq!(changed.changes.len(), expected.len());
         for (change, mask) in changed.changes.iter().zip(expected) {
             assert_eq!(change.mode, 'b');
             assert!(change.set);
             assert_eq!(change.kind, ModeKind::List);
-            assert_eq!(change.arg.as_deref(), Some(mask.as_str()));
+            assert_eq!(change.arg.as_deref(), Some(mask.as_ref()));
         }
     };
 

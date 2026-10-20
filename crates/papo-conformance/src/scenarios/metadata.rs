@@ -273,7 +273,14 @@ async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
 
     let text = "Hello from the bridged network";
-    alice.relay(&channel, "matrix/alice", text).await?;
+    let mapping = alice.state().casemapping();
+    alice
+        .relay(
+            mapping.channel(&channel),
+            mapping.nick("matrix/alice"),
+            text,
+        )
+        .await?;
     let message = bob
         .wait_for(|event| event.as_message().filter(|message| message.text() == text))
         .await?;

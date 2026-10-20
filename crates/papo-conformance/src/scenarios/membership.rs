@@ -544,7 +544,12 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     alice
         .mode(&channel)
-        .ban(format!("{carol_nick}!*@*"))
+        .ban(
+            alice
+                .state()
+                .casemapping()
+                .mask(format!("{carol_nick}!*@*")),
+        )
         .add('i')
         .await?;
 
@@ -940,11 +945,14 @@ async fn nickname_collision_race(s: Scenario) -> papo_testing::Result<()> {
     let claimed = format!("race-{}", alice.nick());
     let alice_client = papo::Client::clone(&alice);
     let bob_client = papo::Client::clone(&bob);
+    let mapping = alice.state().casemapping();
     let alice_claim = claimed.clone();
     let bob_claim = claimed.clone();
 
-    let alice_result = tokio::task::spawn(async move { alice_client.set_nick(alice_claim).await });
-    let bob_result = tokio::task::spawn(async move { bob_client.set_nick(bob_claim).await });
+    let alice_result =
+        tokio::task::spawn(async move { alice_client.set_nick(mapping.nick(alice_claim)).await });
+    let bob_result =
+        tokio::task::spawn(async move { bob_client.set_nick(mapping.nick(bob_claim)).await });
     let results = [alice_result.await?, bob_result.await?];
     assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
     let error = results
@@ -1013,7 +1021,9 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(synchronized.topic_set_at().is_some());
 
-    alice.clear_topic(&channel).await?;
+    alice
+        .clear_topic(alice.state().casemapping().channel(&channel))
+        .await?;
     for peer in [&mut alice, &mut bob, &mut carol] {
         let changed = peer.wait_for(Event::as_topic_changed).await?;
         assert_eq!(changed.channel.as_ref(), channel);
@@ -1055,7 +1065,10 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     let mask = "troublesome!*@gateway.example";
     alice.join(&channel).await?;
-    alice.mode(&channel).ban(mask).await?;
+    alice
+        .mode(&channel)
+        .ban(alice.state().casemapping().mask(mask))
+        .await?;
 
     // MODE query numerics expose list entries that are not stored as channel flags.
     let modes = alice.request_command("MODE", [&channel]).await?;
@@ -1077,7 +1090,10 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
         "missing ban-list terminator: {bans:?}"
     );
 
-    alice.mode(&channel).unban(mask).await?;
+    alice
+        .mode(&channel)
+        .unban(alice.state().casemapping().mask(mask))
+        .await?;
     let cleared = alice.request_command("MODE", [&channel, "b"]).await?;
     assert!(!cleared.iter().any(|line| line.numeric() == Some(367)));
     assert!(cleared.iter().any(|line| line.numeric() == Some(368)));
@@ -1351,7 +1367,10 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     alice.mode(&channel).remove('l').await?;
     wait_channel_mode(&mut bob, &channel, 'l').await?;
     let mask = format!("{carol_nick}!*@*");
-    alice.mode(&channel).ban(mask.clone()).await?;
+    alice
+        .mode(&channel)
+        .ban(alice.state().casemapping().mask(&mask))
+        .await?;
     wait_channel_mode(&mut bob, &channel, 'b').await?;
     assert_refusal(
         carol.join(&channel).key(key).await.unwrap_err(),
@@ -1359,7 +1378,11 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         "474",
     );
 
-    alice.mode(&channel).unban(mask).add('i').await?;
+    alice
+        .mode(&channel)
+        .unban(alice.state().casemapping().mask(mask))
+        .add('i')
+        .await?;
     wait_channel_mode(&mut bob, &channel, 'i').await?;
     assert_refusal(
         carol.join(&channel).key(key).await.unwrap_err(),
