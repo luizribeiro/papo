@@ -335,32 +335,32 @@ impl core::marker::Unpin for papo_core::CloseKind
 impl core::marker::UnsafeUnpin for papo_core::CloseKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::CloseKind
 impl core::panic::unwind_safe::UnwindSafe for papo_core::CloseKind
-#[non_exhaustive] pub enum papo_core::Conversation
-pub papo_core::Conversation::Broadcast(papo::Mask)
-pub papo_core::Conversation::Channel(papo::ChannelName)
-pub papo_core::Conversation::Private(papo::Nick)
-pub papo_core::Conversation::Server
-impl core::clone::Clone for papo_core::Conversation
-pub fn papo_core::Conversation::clone(&self) -> Self
-impl core::cmp::Eq for papo_core::Conversation
-impl core::cmp::Ord for papo_core::Conversation
-pub fn papo_core::Conversation::cmp(&self, &Self) -> core::cmp::Ordering
-impl core::cmp::PartialEq for papo_core::Conversation
-pub fn papo_core::Conversation::eq(&self, &Self) -> bool
-impl core::cmp::PartialOrd for papo_core::Conversation
-pub fn papo_core::Conversation::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for papo_core::Conversation
-pub fn papo_core::Conversation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo_core::Conversation
-pub fn papo_core::Conversation::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo_core::Conversation
-impl core::marker::Freeze for papo_core::Conversation
-impl core::marker::Send for papo_core::Conversation
-impl core::marker::Sync for papo_core::Conversation
-impl core::marker::Unpin for papo_core::Conversation
-impl core::marker::UnsafeUnpin for papo_core::Conversation
-impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Conversation
-impl core::panic::unwind_safe::UnwindSafe for papo_core::Conversation
+#[non_exhaustive] pub enum papo::Conversation
+pub papo::Conversation::Broadcast(papo::Mask)
+pub papo::Conversation::Channel(papo::ChannelName)
+pub papo::Conversation::Private(papo::Nick)
+pub papo::Conversation::Server
+impl core::clone::Clone for papo::Conversation
+pub fn papo::Conversation::clone(&self) -> Self
+impl core::cmp::Eq for papo::Conversation
+impl core::cmp::Ord for papo::Conversation
+pub fn papo::Conversation::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo::Conversation
+pub fn papo::Conversation::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo::Conversation
+pub fn papo::Conversation::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo::Conversation
+pub fn papo::Conversation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::Conversation
+pub fn papo::Conversation::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::Conversation
+impl core::marker::Freeze for papo::Conversation
+impl core::marker::Send for papo::Conversation
+impl core::marker::Sync for papo::Conversation
+impl core::marker::Unpin for papo::Conversation
+impl core::marker::UnsafeUnpin for papo::Conversation
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Conversation
+impl core::panic::unwind_safe::UnwindSafe for papo::Conversation
 #[non_exhaustive] pub enum papo_core::Decoding
 pub papo_core::Decoding::Utf8
 pub papo_core::Decoding::Utf8OrLatin1
@@ -1487,7 +1487,7 @@ pub struct papo_core::ReceivedLine
 impl papo_core::ReceivedLine
 pub fn papo_core::ReceivedLine::as_ref(&self) -> papo::LineRef<'_>
 pub fn papo_core::ReceivedLine::batch_type(&self) -> core::option::Option<&str>
-pub const fn papo_core::ReceivedLine::conversation(&self) -> core::option::Option<&papo_core::Conversation>
+pub const fn papo_core::ReceivedLine::conversation(&self) -> core::option::Option<&papo::Conversation>
 pub fn papo_core::ReceivedLine::into_context_parts(self) -> (papo::Line, core::option::Option<alloc::string::String>, bool, bool)
 pub fn papo_core::ReceivedLine::into_line(self) -> papo::Line
 pub fn papo_core::ReceivedLine::into_parts(self) -> (papo::Line, core::option::Option<alloc::string::String>, bool)
@@ -1513,7 +1513,7 @@ impl core::marker::UnsafeUnpin for papo_core::ReceivedLine
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ReceivedLine
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ReceivedLine
 pub struct papo_core::Redacted
-pub papo_core::Redacted::conversation: papo_core::Conversation
+pub papo_core::Redacted::conversation: papo::Conversation
 pub papo_core::Redacted::msgid: alloc::string::String
 pub papo_core::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo_core::Redacted::source: core::option::Option<alloc::string::String>
@@ -1751,7 +1751,7 @@ pub fn papo_core::State::metadata_subscriptions(&self) -> &[alloc::string::Strin
 pub fn papo_core::State::metadata_target_count(&self) -> usize
 pub fn papo_core::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::User>
 pub fn papo_core::State::nick(&self) -> &papo::Nick
-pub fn papo_core::State::parse_target(&self, impl core::convert::AsRef<str>) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo_core::Conversation), papo::InvalidIdentifier>
+pub fn papo_core::State::parse_target(&self, impl core::convert::AsRef<str>) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo::Conversation), papo::InvalidIdentifier>
 pub fn papo_core::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::ReadMarker>
 pub fn papo_core::State::realname(&self) -> &str
 pub fn papo_core::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::User>
@@ -1775,7 +1775,7 @@ impl core::marker::UnsafeUnpin for papo_core::State
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::State
 impl core::panic::unwind_safe::UnwindSafe for papo_core::State
 pub struct papo_core::TagMessage
-pub papo_core::TagMessage::conversation: papo_core::Conversation
+pub papo_core::TagMessage::conversation: papo::Conversation
 pub papo_core::TagMessage::source: core::option::Option<alloc::string::String>
 pub papo_core::TagMessage::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo_core::TagMessage::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
