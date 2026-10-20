@@ -1371,8 +1371,10 @@ impl From<ModeChange<'_>> for OwnedModeChange {
 pub enum Event {
     /// Connection registration completed.
     Registered(Welcome),
-    /// A parsed message not consumed by session protocol behavior.
+    /// A parsed protocol message not consumed by session protocol behavior.
     Message(ReceivedLine),
+    /// A parsed protocol line not consumed by session protocol behavior.
+    Line(ReceivedLine),
     /// A completed `draft/multiline` batch.
     MultilineMessage(MultilineMessage),
     /// A received tag-only message.
