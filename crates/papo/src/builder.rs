@@ -22,6 +22,7 @@ pub struct Builder {
     pub(crate) config: Config,
     pub(crate) event_capacity: usize,
     pub(crate) tls: TlsConfig,
+    connect_timeout: Duration,
     reconnect: Reconnect,
     sts_store: Box<dyn StsStore + Send>,
     #[cfg(not(browser))]
@@ -42,6 +43,7 @@ impl fmt::Debug for Builder {
             .field("config", &self.config)
             .field("event_capacity", &self.event_capacity)
             .field("tls", &self.tls)
+            .field("connect_timeout", &self.connect_timeout)
             .field("reconnect", &self.reconnect)
             .field("sts_store", &"<STS store>");
         #[cfg(not(browser))]
@@ -64,6 +66,7 @@ impl Builder {
             config,
             event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
             tls: TlsConfig::default(),
+            connect_timeout: Duration::from_secs(30),
             reconnect: Reconnect::default(),
             sts_store: Box::new(MemoryStsStore::new()),
             #[cfg(not(browser))]
@@ -360,6 +363,15 @@ impl Builder {
         self
     }
 
+    /// Sets the deadline for opening each TCP, TLS, or WebSocket connection.
+    ///
+    /// The default is 30 seconds. The deadline applies to every attempt,
+    /// including the first attempt made by [`Builder::connect`].
+    pub const fn connect_timeout(mut self, timeout: Duration) -> Self {
+        self.connect_timeout = timeout;
+        self
+    }
+
     /// Sets the store used for IRC Strict Transport Security policies.
     #[cfg(not(browser))]
     pub fn sts_store(mut self, store: impl StsStore + Send + 'static) -> Self {
@@ -603,6 +615,7 @@ impl Builder {
             registration,
             defaults,
             self.reconnect,
+            self.connect_timeout,
             self.sts_store,
         )
     }
@@ -690,12 +703,38 @@ mod tests {
 
     use papo_core::{DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, sts::ConnectionSecurity};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
 
     use super::{Builder, apply_address, connect_input_error};
     use crate::{
-        Error, InvalidInput, NewAccount, address::Protocol, driver::test_support::within,
-        transport::TlsRoots,
+        ConnectErrorKind, Error, InvalidInput, NewAccount, address::Protocol,
+        driver::test_support::within, transport::TlsRoots,
     };
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn connect_timeout_covers_a_silent_tls_peer() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let peer = tokio::spawn(async move {
+            let (_stream, _) = listener.accept().await.unwrap();
+            std::future::pending::<()>().await;
+        });
+        let connection = tokio::spawn(
+            Builder::new(&format!("ircs://{address}"))
+                .connect_timeout(Duration::from_secs(17))
+                .connect(),
+        );
+
+        tokio::task::yield_now().await;
+        tokio::time::advance(Duration::from_secs(16)).await;
+        assert!(!connection.is_finished());
+        tokio::time::advance(Duration::from_secs(1)).await;
+        assert!(matches!(
+            connection.await.unwrap(),
+            Err(Error::Connect(error)) if error.kind() == ConnectErrorKind::TimedOut
+        ));
+        peer.abort();
+    }
 
     macro_rules! disconnected {
         () => {

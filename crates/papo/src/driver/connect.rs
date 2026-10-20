@@ -70,6 +70,7 @@ pub(super) async fn run_plan(
     mut registration: ConnectWait,
     mut defaults: PostConnect,
     reconnect: Reconnect,
+    connect_timeout: Duration,
     mut sts_store: Box<dyn StsStore + Send>,
     connector: Connector,
     mut entropy: BackoffEntropy,
@@ -94,6 +95,7 @@ pub(super) async fn run_plan(
             &mut pending_events,
             registration.0.is_some(),
             sts_required,
+            connect_timeout,
             reconnect,
             attempts,
             entropy.as_mut(),
@@ -335,6 +337,7 @@ async fn connect_or_wait(
     pending_events: &mut VecDeque<Event>,
     fail_fast: bool,
     sts_required: bool,
+    connect_timeout: Duration,
     reconnect: Reconnect,
     attempts: usize,
     entropy: &mut (dyn FnMut() -> u64 + Send),
@@ -346,6 +349,7 @@ async fn connect_or_wait(
         &events.regular,
         pending_events,
         last_disconnect.as_ref(),
+        connect_timeout,
     )
     .await
     else {
@@ -510,6 +514,7 @@ async fn connect_while_disconnected(
     events: &mpsc::Sender<Event>,
     pending_events: &mut VecDeque<Event>,
     last_cause: Option<&crate::DisconnectCause>,
+    timeout: Duration,
 ) -> Option<Result<BoxConnection, Error>> {
     let disconnected = crate::Disconnected::new(
         last_cause
@@ -517,9 +522,17 @@ async fn connect_while_disconnected(
             .unwrap_or(crate::DisconnectCause::ConnectionLost),
         None,
     );
+    let timeout = crate::rt::sleep_until(now() + timeout);
+    tokio::pin!(timeout);
     loop {
         tokio::select! {
             result = &mut connection => return Some(result),
+            () = &mut timeout => {
+                return Some(Err(Error::Connect(crate::ConnectError::login(
+                    crate::ConnectErrorKind::TimedOut,
+                    "connection attempt timed out",
+                ))));
+            }
             permit = events.reserve(), if !pending_events.is_empty() => match permit {
                 Ok(permit) => permit.send(pending_events.pop_front().expect("pending event is present")),
                 Err(_) => pending_events.clear(),

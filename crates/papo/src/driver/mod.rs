@@ -540,15 +540,17 @@ impl Driver {
         registration: Option<ConnectSender>,
         defaults: PostConnect,
         reconnect: Reconnect,
+        connect_timeout: Duration,
         sts_store: Box<dyn StsStore + Send>,
     ) -> (Client, Events, Self) {
-        Self::with_connector(
+        Self::with_connector_and_timeout(
             plan,
             session,
             capacity,
             registration,
             defaults,
             reconnect,
+            connect_timeout,
             sts_store,
             Arc::new(|plan| {
                 Box::pin(async move {
@@ -557,10 +559,12 @@ impl Driver {
                         .map(|stream| Box::new(stream) as BoxConnection)
                 })
             }),
+            Box::new(crate::entropy::OsEntropy::next_u64),
         )
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[cfg(all(test, not(browser)))]
     pub(crate) fn with_connector(
         plan: Result<ConnectionPlan, InvalidInput>,
         session: Session,
@@ -585,6 +589,7 @@ impl Driver {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[cfg(all(test, not(browser)))]
     fn with_connector_and_entropy(
         plan: Result<ConnectionPlan, InvalidInput>,
         session: Session,
@@ -592,6 +597,33 @@ impl Driver {
         registration: Option<ConnectSender>,
         defaults: PostConnect,
         reconnect: Reconnect,
+        sts_store: Box<dyn StsStore + Send>,
+        connector: Connector,
+        entropy: BackoffEntropy,
+    ) -> (Client, Events, Self) {
+        Self::with_connector_and_timeout(
+            plan,
+            session,
+            capacity,
+            registration,
+            defaults,
+            reconnect,
+            Duration::from_secs(30),
+            sts_store,
+            connector,
+            entropy,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn with_connector_and_timeout(
+        plan: Result<ConnectionPlan, InvalidInput>,
+        session: Session,
+        capacity: usize,
+        registration: Option<ConnectSender>,
+        defaults: PostConnect,
+        reconnect: Reconnect,
+        connect_timeout: Duration,
         sts_store: Box<dyn StsStore + Send>,
         connector: Connector,
         entropy: BackoffEntropy,
@@ -605,6 +637,7 @@ impl Driver {
             ConnectWait(registration),
             defaults,
             reconnect,
+            connect_timeout,
             sts_store,
             connector,
             entropy,

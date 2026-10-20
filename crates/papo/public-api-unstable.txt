@@ -1780,6 +1780,7 @@ pub fn papo::Builder::bouncer_network(self, papo::NetworkId) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
 pub const fn papo::Builder::casemapping(self, papo::Casemapping) -> Self
 pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>
+pub const fn papo::Builder::connect_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::create_account(self, papo::NewAccount) -> Self
 pub fn papo::Builder::ctcp_source(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::ctcp_version(self, core::option::Option<&str>) -> Self

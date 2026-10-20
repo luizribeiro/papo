@@ -91,6 +91,7 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, a, _b, _c => builder.ctcp_source(a));
         probe!(builder, a, _b, _c => builder.event_capacity(a.len()));
         probe!(builder, _a, _b, _c => builder.reconnect(crate::Reconnect::never()));
+        probe!(builder, a, _b, _c => builder.connect_timeout(Duration::from_secs(a.len() as u64)));
         probe!(builder, _a, _b, _c => builder.sts_store(papo_core::sts::MemoryStsStore::new()));
         probe!(builder, a, _b, _c => builder.tls_ca_pem(a.into_bytes()));
         probe!(builder, a, _b, _c => builder.tls_extra_ca_pem(a.into_bytes()));
