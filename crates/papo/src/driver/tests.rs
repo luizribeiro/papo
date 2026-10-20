@@ -10,6 +10,22 @@ fn unavailable(message: &'static str) -> Error {
     Error::connect_unavailable(message)
 }
 
+fn test_nick(value: &str) -> crate::Nick {
+    crate::Casemapping::default().nick(value)
+}
+
+fn test_channel(value: &str) -> crate::ChannelName {
+    crate::Casemapping::default().channel(value)
+}
+
+fn test_mask(value: &str) -> crate::Mask {
+    crate::Casemapping::default().mask(value)
+}
+
+fn test_account(value: &str) -> crate::AccountName {
+    crate::Casemapping::default().account(value)
+}
+
 struct NeverWrite;
 
 impl AsyncWrite for NeverWrite {
@@ -408,7 +424,12 @@ async fn eof_reconnects_and_emits_reconnected() {
     complete_registration(&mut first_server, &mut events).await;
     let join = tokio::spawn({
         let client = client.clone();
-        async move { client.join("#papo").key("persistent-channel-key").await }
+        async move {
+            client
+                .join(test_channel("#papo"))
+                .key("persistent-channel-key")
+                .await
+        }
     });
     client_line(&mut first_server, b"JOIN #papo persistent-channel-key\r\n").await;
     server_line(&mut first_server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver emily\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
@@ -490,8 +511,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
-            channel: "#papo".into(),
-            nick: "papo-driver".into(),
+            channel: test_channel("#papo"),
+            nick: test_nick("papo-driver"),
             is_self: true,
         }),
     );
@@ -499,8 +520,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
-            channel: "#visitors".into(),
-            nick: "alice".into(),
+            channel: test_channel("#visitors"),
+            nick: test_nick("alice"),
             is_self: false,
         }),
     );
@@ -510,8 +531,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
-            channel: "#staff".into(),
-            nick: "alice".into(),
+            channel: test_channel("#staff"),
+            nick: test_nick("alice"),
             reason: Some("lunch".into()),
             is_self: false,
         }),
@@ -520,10 +541,10 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
-            channel: "#staff".into(),
-            nick: "alice".into(),
+            channel: test_channel("#staff"),
+            nick: test_nick("alice"),
             by: crate::Source::User {
-                nick: "chanserv".into(),
+                nick: test_nick("chanserv"),
                 user: None,
                 host: None,
             },
@@ -537,8 +558,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
-            channel: "#Papo".into(),
-            nick: "papo-driver".into(),
+            channel: test_channel("#Papo"),
+            nick: test_nick("papo-driver"),
             reason: None,
             is_self: true,
         }),
@@ -547,10 +568,10 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
-            channel: "#staff".into(),
-            nick: "papo-driver".into(),
+            channel: test_channel("#staff"),
+            nick: test_nick("papo-driver"),
             by: crate::Source::User {
-                nick: "chanserv".into(),
+                nick: test_nick("chanserv"),
                 user: None,
                 host: None,
             },
@@ -1061,7 +1082,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
         Err(disconnected!())
     ));
     assert!(matches!(
-        within(client.whois("emily")).await,
+        within(client.whois(test_nick("emily"))).await,
         Err(disconnected!())
     ));
 
@@ -2424,7 +2445,7 @@ async fn command_builder_quotes_real_commands() {
 async fn join_rejects_an_invalid_channel_name_before_queueing() {
     let client = crate::Client::disconnected_for_test();
     assert!(matches!(
-        client.join("rust").await,
+        client.join(test_channel("rust")).await,
         Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
             name,
             reason: crate::InvalidIdentifier::InvalidPrefix('r'),
@@ -2501,7 +2522,7 @@ async fn structured_requests_resolve_fail_time_out_and_abort() {
 
     let whois = tokio::spawn({
         let client = client.clone();
-        async move { client.whois("alice").await }
+        async move { client.whois(test_nick("alice")).await }
     });
     client_line(&mut server, b"@label=0 WHOIS alice\r\n").await;
     server_line(&mut server, b"@label=0 :ergo.test BATCH +whois-42 labeled-response\r\n@batch=whois-42 :ergo.test 311 papo-driver alice ~alice client.example * :Alice Example\r\n@batch=whois-42 :ergo.test 312 papo-driver alice ergo.test :Ergo Test Network\r\n@batch=whois-42 :ergo.test 317 papo-driver alice 42 1760544000 :seconds idle, signon time\r\n@batch=whois-42 :ergo.test 319 papo-driver alice :@#papo +#rust\r\n@batch=whois-42 :ergo.test 330 papo-driver alice alice :is logged in as\r\n@batch=whois-42 :ergo.test 301 papo-driver alice :away from keyboard\r\n@batch=whois-42 :ergo.test 335 papo-driver alice :is a bot\r\n@batch=whois-42 :ergo.test 671 papo-driver alice :is using a secure connection\r\n@batch=whois-42 :ergo.test 318 papo-driver alice :End of /WHOIS list\r\n:ergo.test BATCH -whois-42\r\n").await;
@@ -2533,7 +2554,7 @@ async fn structured_requests_resolve_fail_time_out_and_abort() {
     .await;
     let who = tokio::spawn({
         let client = client.clone();
-        async move { client.who("#papo").await }
+        async move { client.who(test_mask("#papo")).await }
     });
     client_line(&mut server, b"@label=1 WHO #papo %tcuhnfar\r\n").await;
     server_line(&mut server, b"@label=1 :ergo.test BATCH +who-42 labeled-response\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~alice client.example alice H@B alice :Alice Example\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~dan user.example dan G+* 0 :Dan Away\r\n@batch=who-42 :ergo.test 315 papo-driver #papo :End of WHO list\r\n:ergo.test BATCH -who-42\r\n").await;
@@ -2557,7 +2578,7 @@ async fn structured_requests_resolve_fail_time_out_and_abort() {
 
     let request = tokio::spawn({
         let client = client.clone();
-        async move { client.whois("ghost").await }
+        async move { client.whois(test_nick("ghost")).await }
     });
     client_line(&mut server, b"@label=7 WHOIS ghost\r\n").await;
     server_line(
@@ -2639,7 +2660,7 @@ async fn identity_and_away_actions_match_unlabelled_confirmations() {
 
     let rename = tokio::spawn({
         let client = client.clone();
-        async move { client.set_nick("paporev").await }
+        async move { client.set_nick(test_nick("paporev")).await }
     });
     client_line(&mut server, b"NICK paporev\r\n").await;
     server_line(
@@ -2759,7 +2780,11 @@ async fn membership_actions_confirm_success_and_refusal() {
 
     let invite = tokio::spawn({
         let client = client.clone();
-        async move { client.invite("#papo", "carol").await }
+        async move {
+            client
+                .invite(test_channel("#papo"), test_nick("carol"))
+                .await
+        }
     });
     client_line(&mut server, b"@label=0 INVITE carol #papo\r\n").await;
     server_line(
@@ -2771,7 +2796,11 @@ async fn membership_actions_confirm_success_and_refusal() {
 
     let kick = tokio::spawn({
         let client = client.clone();
-        async move { client.kick("#papo", "spambot", "").await }
+        async move {
+            client
+                .kick(test_channel("#papo"), test_nick("spambot"), "")
+                .await
+        }
     });
     client_line(&mut server, b"@label=1 KICK #papo spambot\r\n").await;
     server_line(
@@ -2785,7 +2814,9 @@ async fn membership_actions_confirm_success_and_refusal() {
     ));
 
     assert!(matches!(
-        client.invite("not-a-channel", "bad,nick").await,
+        client
+            .invite(test_channel("not-a-channel"), test_nick("bad,nick"))
+            .await,
         Err(Error::InvalidInput(_))
     ));
     assert!(
@@ -2818,9 +2849,9 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
         async move {
             client
                 .mode("#papo")
-                .op("alice")
-                .voice("carol")
-                .ban("*!*@spam.example")
+                .op(test_nick("alice"))
+                .voice(test_nick("carol"))
+                .ban(test_mask("*!*@spam.example"))
                 .await
         }
     });
@@ -2841,7 +2872,7 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
 
     let refused = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo").deop("alice").await }
+        async move { client.mode("#papo").deop(test_nick("alice")).await }
     });
     client_line(&mut server, b"@label=2 MODE #papo -o alice\r\n").await;
     server_line(
@@ -2876,7 +2907,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let whois = tokio::spawn({
         let client = client.clone();
-        async move { client.whois("alice").await }
+        async move { client.whois(test_nick("alice")).await }
     });
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(&mut server, b":ergo.test 311 papo-driver alice ~alice host * :Alice Example\r\n:ergo.test 318 papo-driver alice :End of /WHOIS list\r\n").await;
@@ -2884,7 +2915,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let who = tokio::spawn({
         let client = client.clone();
-        async move { client.who("#papo").await }
+        async move { client.who(test_mask("#papo")).await }
     });
     client_line(&mut server, b"WHO #papo\r\n").await;
     server_line(&mut server, b":ergo.test 352 papo-driver #papo ~alice host ergo.test alice H@ :0 Alice Example\r\n:ergo.test 315 papo-driver #papo :End of WHO list\r\n").await;
@@ -2892,7 +2923,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let join = tokio::spawn({
         let client = client.clone();
-        async move { client.join("#papo").await }
+        async move { client.join(test_channel("#papo")).await }
     });
     client_line(&mut server, b"JOIN #papo\r\n").await;
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
@@ -2922,7 +2953,11 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let topic = tokio::spawn({
         let client = client.clone();
-        async move { client.set_topic("#papo", "Ergonomic IRC").await }
+        async move {
+            client
+                .set_topic(test_channel("#papo"), "Ergonomic IRC")
+                .await
+        }
     });
     client_line(&mut server, b"TOPIC #papo :Ergonomic IRC\r\n").await;
     server_line(
@@ -2934,7 +2969,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let part = tokio::spawn({
         let client = client.clone();
-        async move { client.part("#papo", "").await }
+        async move { client.part(test_channel("#papo"), "").await }
     });
     client_line(&mut server, b"PART #papo\r\n").await;
     server_line(
@@ -2946,7 +2981,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let denied = tokio::spawn({
         let client = client.clone();
-        async move { client.join("#invite-only").await }
+        async move { client.join(test_channel("#invite-only")).await }
     });
     client_line(&mut server, b"JOIN #invite-only\r\n").await;
     server_line(
@@ -3062,7 +3097,7 @@ async fn keyed_join_redacts_the_key_and_waits_for_channel_sync() {
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
     let join = client
-        .join("#ergo-ops")
+        .join(test_channel("#ergo-ops"))
         .key("unique-dynamic-channel-key-4862");
     let debug = format!("{join:?}");
     assert!(debug.contains("[REDACTED]"));
@@ -3093,7 +3128,7 @@ async fn text_only_commands_reject_byte_secrets() {
 
     assert!(matches!(
         client
-            .join("#ergo-ops")
+            .join(test_channel("#ergo-ops"))
             .key(crate::Secret::from_bytes([0xff]))
             .await,
         Err(Error::InvalidInput(crate::InvalidInput::BinarySecret))
@@ -3156,7 +3191,7 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
 
     let stalled = tokio::spawn({
         let client = client.clone();
-        async move { client.join("#stalled").await }
+        async move { client.join(test_channel("#stalled")).await }
     });
     client_line(&mut server, b"@label=0 JOIN #stalled\r\n").await;
     server_line(
@@ -3172,7 +3207,7 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
 
     let kicked = tokio::spawn({
         let client = client.clone();
-        async move { client.join("#limited").await }
+        async move { client.join(test_channel("#limited")).await }
     });
     client_line(&mut server, b"@label=1 JOIN #limited\r\n").await;
     server_line(&mut server, b"@label=1 :papo-driver!papo@localhost JOIN #limited * :papo driver test\r\n:ergo.test KICK #limited papo-driver :Channel is full\r\n").await;
@@ -3183,7 +3218,7 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
 
     let parted = tokio::spawn({
         let client = client.clone();
-        async move { client.join("#registered").await }
+        async move { client.join(test_channel("#registered")).await }
     });
     client_line(&mut server, b"@label=2 JOIN #registered\r\n").await;
     server_line(&mut server, b"@label=2 :papo-driver!papo@localhost JOIN #registered * :papo driver test\r\n:papo-driver!papo@localhost PART #registered :Registration required\r\n").await;
@@ -3989,7 +4024,7 @@ async fn only_pending_request_enables_read_ahead() {
     complete_registration(&mut server, &mut events).await;
     saturate_events(&mut server, &events).await;
 
-    let whois = tokio::spawn(async move { client.whois("alice").await });
+    let whois = tokio::spawn(async move { client.whois(test_nick("alice")).await });
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(
         &mut server,
@@ -4154,7 +4189,7 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
     let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
     complete_registration(&mut server, &mut events).await;
-    let whois = tokio::spawn(async move { client.whois("alice").await });
+    let whois = tokio::spawn(async move { client.whois(test_nick("alice")).await });
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(
         &mut server,
@@ -4192,7 +4227,7 @@ async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
     let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
     complete_registration(&mut server, &mut events).await;
-    let whois = tokio::spawn(async move { client.whois("alice").await });
+    let whois = tokio::spawn(async move { client.whois(test_nick("alice")).await });
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(
         &mut server,
@@ -4538,7 +4573,7 @@ async fn every_state_change_replaces_the_snapshot() {
     previous = changed_snapshot(&client, &previous, "ACCOUNT");
     assert_eq!(
         previous.user("papo-driver").unwrap().account(),
-        &papo_core::Account::LoggedIn("emily".into())
+        &papo_core::Account::LoggedIn(test_account("emily"))
     );
 
     server_line(
