@@ -424,6 +424,7 @@ impl State {
             let authorship = self.source_authorship(message);
             let subject_authorship = self.nick_authorship(nick);
             outbox.event(Event::Kicked {
+                envelope: crate::LineEnvelope::from_line(message),
                 channel: mapping.channel(channel),
                 nick: mapping.nick(nick),
                 actor: actor.to_owned(),

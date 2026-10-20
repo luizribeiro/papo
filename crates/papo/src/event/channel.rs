@@ -85,6 +85,12 @@ pub struct Parted {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Kicked {
+    /// The server-assigned identifier of the kick line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
     /// The affected channel.
     pub channel: ChannelName,
     /// The removed user's nickname.

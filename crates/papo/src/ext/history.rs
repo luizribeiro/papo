@@ -135,6 +135,7 @@ pub(crate) fn history_item(
                 crate::Authorship::from_core(item.authorship),
                 crate::Authorship::from_core(item.subject_authorship),
                 client,
+                received_at,
             )
         }),
         papo_core::HistoryItem::NickChanged(item) => typed_or_raw(&item.line, |message| {
@@ -298,10 +299,15 @@ fn kicked(
     authorship: crate::Authorship,
     subject_authorship: crate::Authorship,
     client: &Client,
+    received_at: SystemTime,
 ) -> Option<HistoryItem> {
     let nick = message.param(1)?.to_owned();
     let mapping = client.state().casemapping();
+    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(HistoryItem::Kicked(Kicked {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
         channel: mapping.channel(message.param(0)?),
         authorship,
         subject_authorship,

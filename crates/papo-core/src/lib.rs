@@ -1787,6 +1787,8 @@ pub enum Event {
     },
     /// A user was removed from a shared channel with `KICK`.
     Kicked {
+        /// Identity, time, and account tags from the line.
+        envelope: LineEnvelope,
         /// The affected channel.
         channel: ChannelName,
         /// The removed user's nickname.

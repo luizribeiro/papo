@@ -1069,6 +1069,7 @@ pub(crate) fn from_core(
             })
         }
         papo_core::Event::Kicked {
+            envelope,
             channel,
             nick,
             actor,
@@ -1076,14 +1077,20 @@ pub(crate) fn from_core(
             subject_authorship,
             reason,
             ..
-        } => Event::Kicked(Kicked {
-            channel,
-            nick,
-            actor: Source::from_name(actor, casemapping),
-            authorship: Authorship::from_core(authorship),
-            subject_authorship: Authorship::from_core(subject_authorship),
-            reason,
-        }),
+        } => {
+            let envelope = core_envelope(&envelope, casemapping, received_at);
+            Event::Kicked(Kicked {
+                msgid: envelope.msgid,
+                time: envelope.time,
+                account: envelope.account,
+                channel,
+                nick,
+                actor: Source::from_name(actor, casemapping),
+                authorship: Authorship::from_core(authorship),
+                subject_authorship: Authorship::from_core(subject_authorship),
+                reason,
+            })
+        }
         papo_core::Event::Invited {
             channel,
             nick,
@@ -2050,6 +2057,7 @@ mod tests {
     fn maps_kicked() {
         assert!(matches!(
             forwarded(papo_core::Event::Kicked {
+                envelope: papo_core::LineEnvelope::default(),
                 channel: Casemapping::default().channel("#papo"),
                 nick: Casemapping::default().nick("emily"),
                 actor: "alice".into(),
@@ -2398,6 +2406,9 @@ mod tests {
                 authorship: Authorship::Own,
             }),
             Event::Kicked(super::Kicked {
+                msgid: None,
+                time: UNIX_EPOCH,
+                account: None,
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 actor: actor.clone(),

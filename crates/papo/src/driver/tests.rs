@@ -599,6 +599,7 @@ async fn eof_reconnects_and_emits_reconnected() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn rejoin_set_tracks_our_joins_parts_and_kicks() {
     let session = Session::new(config());
     let mut defaults = super::PostConnect {
@@ -617,7 +618,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Joined(crate::event::Joined {
             msgid: None,
-            time: std::time::SystemTime::UNIX_EPOCH,
+            time: SystemTime::UNIX_EPOCH,
             account: None,
             channel: test_channel("#papo"),
             nick: test_nick("papo-driver"),
@@ -629,7 +630,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Joined(crate::event::Joined {
             msgid: None,
-            time: std::time::SystemTime::UNIX_EPOCH,
+            time: SystemTime::UNIX_EPOCH,
             account: None,
             channel: test_channel("#visitors"),
             nick: test_nick("alice"),
@@ -643,7 +644,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Parted(crate::event::Parted {
             msgid: None,
-            time: std::time::SystemTime::UNIX_EPOCH,
+            time: SystemTime::UNIX_EPOCH,
             account: None,
             channel: test_channel("#staff"),
             nick: test_nick("alice"),
@@ -655,6 +656,9 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
+            msgid: None,
+            time: SystemTime::UNIX_EPOCH,
+            account: None,
             channel: test_channel("#staff"),
             nick: test_nick("alice"),
             actor: crate::Source::User {
@@ -674,7 +678,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Parted(crate::event::Parted {
             msgid: None,
-            time: std::time::SystemTime::UNIX_EPOCH,
+            time: SystemTime::UNIX_EPOCH,
             account: None,
             channel: test_channel("#Papo"),
             nick: test_nick("papo-driver"),
@@ -687,6 +691,9 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
+            msgid: None,
+            time: SystemTime::UNIX_EPOCH,
+            account: None,
             channel: test_channel("#staff"),
             nick: test_nick("papo-driver"),
             actor: crate::Source::User {
