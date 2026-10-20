@@ -1718,6 +1718,46 @@ async fn terminal_numerics_have_specific_connect_errors() {
     }
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn server_error_before_welcome_is_a_connection_failure() {
+    let (client_stream, mut server) = tokio::io::duplex(4096);
+    let (registration, waiter) = tokio::sync::oneshot::channel();
+    let (_client, mut events, driver) = Driver::with_stream_and_connect(
+        client_stream,
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        Some(registration),
+        super::PostConnect::default(),
+    );
+    let driver = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b"ERROR :Closing Link: papo-driver (Server maintenance)\r\n",
+    )
+    .await;
+
+    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+        panic!("expected connection failure")
+    };
+    assert!(matches!(
+        &disconnected.cause,
+        crate::DisconnectCause::Connect(error)
+            if error.kind() == crate::ConnectErrorKind::Server
+                && std::error::Error::source(error).is_some_and(|source| {
+                    source.to_string() == "Closing Link: papo-driver (Server maintenance)"
+                })
+    ));
+    assert!(matches!(
+        within(waiter).await.unwrap(),
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Server
+    ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Server
+    ));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn nickname_collision_can_end_at_the_welcome_deadline() {
     let settings = config().welcome_timeout(Duration::from_secs(23));

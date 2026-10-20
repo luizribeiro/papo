@@ -648,7 +648,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let mut registered = false;
-    let end = run_connection(
+    let mut end = run_connection(
         stream,
         &mut session,
         &mut commands,
@@ -664,7 +664,11 @@ where
         false,
     )
     .await;
-    registration.failed(end.registration_error());
+    if registration.0.is_some() {
+        let error = end.login_error();
+        registration.failed(error.clone());
+        end.error = error;
+    }
     finish(events, end, false)
 }
 
@@ -694,7 +698,7 @@ struct PendingWrite {
 }
 
 impl ConnectionEnd {
-    fn registration_error(&self) -> Error {
+    fn login_error(&self) -> Error {
         match &self.error {
             Error::Disconnected(crate::Disconnected {
                 cause: crate::DisconnectCause::Server { .. },

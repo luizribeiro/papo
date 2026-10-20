@@ -143,9 +143,11 @@ pub(super) async fn run_plan(
             &mut attempts,
             &mut last_sts_upgrade,
         ) {
-            ControlFlow::Break((end, registration_failed)) => {
-                if registration_failed {
-                    registration.failed(end.registration_error());
+            ControlFlow::Break((mut end, login_failed)) => {
+                if login_failed {
+                    let error = end.login_error();
+                    registration.failed(error.clone());
+                    end.error = error;
                 }
                 return finish(events, end, false);
             }
