@@ -1066,20 +1066,20 @@ impl StandardReply {
     }
 }
 
-/// One message in a history page.
+/// One line in a history page.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct HistoryMessage {
-    /// The replayed IRC message.
-    pub message: Line,
+pub struct HistoryLine {
+    /// The replayed IRC line.
+    pub line: Line,
     /// Whether the server supplied it as context outside the requested limit.
     pub context: bool,
 }
 
-impl std::ops::Deref for HistoryMessage {
+impl std::ops::Deref for HistoryLine {
     type Target = Line;
 
     fn deref(&self) -> &Self::Target {
-        &self.message
+        &self.line
     }
 }
 
@@ -1088,37 +1088,37 @@ impl std::ops::Deref for HistoryMessage {
 #[non_exhaustive]
 pub enum HistoryItem {
     /// A `PRIVMSG` or `NOTICE`.
-    Message(HistoryMessage),
+    Message(HistoryLine),
     /// A reaction or unreaction carried by `TAGMSG`.
-    Reacted(HistoryMessage),
+    Reacted(HistoryLine),
     /// A `REDACT` command.
-    Redacted(HistoryMessage),
+    Redacted(HistoryLine),
     /// A `TAGMSG` without reaction metadata.
-    TagMsg(HistoryMessage),
+    TagMsg(HistoryLine),
     /// A `JOIN` command.
-    Joined(HistoryMessage),
+    Joined(HistoryLine),
     /// A `PART` command.
-    Parted(HistoryMessage),
+    Parted(HistoryLine),
     /// A `QUIT` command.
-    Quit(HistoryMessage),
+    Quit(HistoryLine),
     /// A `KICK` command.
-    Kicked(HistoryMessage),
+    Kicked(HistoryLine),
     /// A `NICK` command.
-    NickChanged(HistoryMessage),
+    NickChanged(HistoryLine),
     /// A `TOPIC` command.
-    TopicChanged(HistoryMessage),
+    TopicChanged(HistoryLine),
     /// A `MODE` command.
-    ModeChanged(HistoryMessage),
+    ModeChanged(HistoryLine),
     /// A replayed command without a more specific classification.
     ///
     /// A later minor release may refine a command currently classified here.
-    Other(HistoryMessage),
+    Other(HistoryLine),
 }
 
 impl HistoryItem {
     /// Returns this item as a chat message.
     #[must_use]
-    pub const fn message(&self) -> Option<&HistoryMessage> {
+    pub const fn message(&self) -> Option<&HistoryLine> {
         match self {
             Self::Message(message) => Some(message),
             _ => None,
@@ -1127,16 +1127,16 @@ impl HistoryItem {
 
     /// Returns the chat message, or `None` for a replayed activity item.
     #[must_use]
-    pub fn into_message(self) -> Option<HistoryMessage> {
+    pub fn into_message(self) -> Option<HistoryLine> {
         match self {
             Self::Message(message) => Some(message),
             _ => None,
         }
     }
 
-    /// Returns the replayed wire message and its history context flag.
+    /// Returns the replayed wire line and its history context flag.
     #[must_use]
-    pub fn into_raw(self) -> HistoryMessage {
+    pub fn into_line(self) -> HistoryLine {
         match self {
             Self::Message(message)
             | Self::Reacted(message)
@@ -1169,7 +1169,7 @@ pub struct HistoryPage {
 
 impl HistoryPage {
     /// Iterates over chat messages, excluding replayed activity items.
-    pub fn messages(&self) -> impl Iterator<Item = &HistoryMessage> {
+    pub fn messages(&self) -> impl Iterator<Item = &HistoryLine> {
         self.items.iter().filter_map(HistoryItem::message)
     }
 }

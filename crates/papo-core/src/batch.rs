@@ -6,7 +6,7 @@ use web_time::Instant;
 
 use papo_proto::{Command, Line, LineRef, Reaction, time};
 
-use crate::{BatchAbandonReason, Config, HistoryItem, HistoryMessage, HistoryPage, cap};
+use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, HistoryPage, cap};
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -599,8 +599,8 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {
             messages.extend(
                 batch
                     .into_iter()
-                    .map(HistoryItem::into_raw)
-                    .map(|item| item.message),
+                    .map(HistoryItem::into_line)
+                    .map(|item| item.line),
             );
         }
         BatchEvent::Netsplit { quits, .. } => messages.extend(quits),
@@ -622,15 +622,18 @@ fn history_items(messages: Vec<Line>) -> Vec<HistoryItem> {
             let context = parsed
                 .tags()
                 .any(|(key, _)| key == "draft/chathistory-context");
-            msgid
-                .is_none_or(|msgid| msgids.insert(msgid))
-                .then(|| classify_history_item(HistoryMessage { message, context }))
+            msgid.is_none_or(|msgid| msgids.insert(msgid)).then(|| {
+                classify_history_item(HistoryLine {
+                    line: message,
+                    context,
+                })
+            })
         })
         .collect()
 }
 
-fn classify_history_item(item: HistoryMessage) -> HistoryItem {
-    match item.message.as_ref().command() {
+fn classify_history_item(item: HistoryLine) -> HistoryItem {
+    match item.line.as_ref().command() {
         Command::Privmsg | Command::Notice => return HistoryItem::Message(item),
         Command::Join => return HistoryItem::Joined(item),
         Command::Part => return HistoryItem::Parted(item),
@@ -641,14 +644,14 @@ fn classify_history_item(item: HistoryMessage) -> HistoryItem {
         Command::Mode => return HistoryItem::ModeChanged(item),
         _ => {}
     }
-    if item.message.as_ref().command_is("TAGMSG") {
-        return if Reaction::parse(&item.message.as_ref()).is_some() {
+    if item.line.as_ref().command_is("TAGMSG") {
+        return if Reaction::parse(&item.line.as_ref()).is_some() {
             HistoryItem::Reacted(item)
         } else {
             HistoryItem::TagMsg(item)
         };
     }
-    if item.message.as_ref().command_is("REDACT") {
+    if item.line.as_ref().command_is("REDACT") {
         return HistoryItem::Redacted(item);
     }
     HistoryItem::Other(item)

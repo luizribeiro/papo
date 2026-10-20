@@ -99,8 +99,8 @@ pub(super) fn extend_catchup(
     for item in items {
         let msgid = item
             .clone()
-            .into_raw()
-            .message
+            .into_line()
+            .line
             .as_ref()
             .tag("msgid")
             .map(std::borrow::Cow::into_owned);
@@ -122,7 +122,7 @@ fn newest_cursor(items: &[papo_core::HistoryItem]) -> Option<CatchupCursor> {
     items
         .iter()
         .filter_map(|item| {
-            let raw = item.clone().into_raw().message;
+            let raw = item.clone().into_line().line;
             let message = raw.as_ref();
             let time = message
                 .tag("time")
@@ -200,18 +200,16 @@ pub(super) fn should_fetch_history(session: &Session) -> bool {
 mod tests {
     use std::{collections::BTreeMap, time::SystemTime};
 
-    use papo_core::{Config, HistoryItem, HistoryMessage, MsgRef, RateLimit, Session};
+    use papo_core::{Config, HistoryItem, HistoryLine, MsgRef, RateLimit, Session};
     use papo_proto::LineRef;
 
     #[test]
     fn activity_without_a_msgid_advances_the_timestamp_cursor() {
         let time = papo_proto::time::parse("2026-10-15T12:01:00.000Z").unwrap();
-        let item = HistoryItem::Joined(HistoryMessage {
-            message: LineRef::parse(
-                "@time=2026-10-15T12:01:00.000Z :papo!papo@localhost JOIN #papo",
-            )
-            .unwrap()
-            .to_owned(),
+        let item = HistoryItem::Joined(HistoryLine {
+            line: LineRef::parse("@time=2026-10-15T12:01:00.000Z :papo!papo@localhost JOIN #papo")
+                .unwrap()
+                .to_owned(),
             context: false,
         });
         let cursor = super::newest_cursor(&[item]).unwrap();

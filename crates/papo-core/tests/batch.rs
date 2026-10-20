@@ -391,7 +391,7 @@ fn classifies_event_playback_items_in_wire_order() {
             HistoryItem::Other(_)
         ]
     ));
-    assert!(items[1].clone().into_raw().context);
+    assert!(items[1].clone().into_line().context);
     assert_eq!(items.iter().filter_map(HistoryItem::message).count(), 2);
     let message = items[0].clone().into_message().unwrap();
     assert_eq!(message.as_ref().param(1), Some("hello"));

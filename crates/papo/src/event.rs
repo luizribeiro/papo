@@ -1918,12 +1918,12 @@ mod tests {
         let CoreEvent::History { target, items, end } = from_core(papo_core::Event::History {
             target: "#papo".into(),
             items: vec![
-                papo_core::HistoryItem::Message(papo_core::HistoryMessage {
-                    message: message.clone(),
+                papo_core::HistoryItem::Message(papo_core::HistoryLine {
+                    line: message.clone(),
                     context: false,
                 }),
-                papo_core::HistoryItem::Other(papo_core::HistoryMessage {
-                    message: Line::new("WALLOPS", ["Network maintenance begins soon"]),
+                papo_core::HistoryItem::Other(papo_core::HistoryLine {
+                    line: Line::new("WALLOPS", ["Network maintenance begins soon"]),
                     context: false,
                 }),
             ],
@@ -1936,7 +1936,7 @@ mod tests {
         assert!(matches!(
             &items[0],
             papo_core::HistoryItem::Message(item)
-                if item.message == message && !item.context
+                if item.line == message && !item.context
         ));
         assert!(matches!(items[1], papo_core::HistoryItem::Other(_)));
         assert!(end);

@@ -969,8 +969,8 @@ fn reconnect_history_stops_at_the_literal_per_target_limit() {
         let next = super::extend_catchup(
             &mut catchup,
             (0..count).map(|index| {
-                papo_core::HistoryItem::Message(papo_core::HistoryMessage {
-                    message: Line::privmsg("#papo", format!("backlog message {index}"))
+                papo_core::HistoryItem::Message(papo_core::HistoryLine {
+                    line: Line::privmsg("#papo", format!("backlog message {index}"))
                         .with_tag("msgid", format!("RfcBTzyxY12{index:04}")),
                     context: false,
                 })

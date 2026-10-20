@@ -301,7 +301,7 @@ fn assembles_deduplicated_context_aware_pages() {
     );
     assert!(!page.items[0].message().unwrap().context);
     assert!(matches!(page.items[1], HistoryItem::TagMsg(_)));
-    assert!(page.items[1].clone().into_raw().context);
+    assert!(page.items[1].clone().into_line().context);
     assert_eq!(page.messages().count(), 1);
 }
 

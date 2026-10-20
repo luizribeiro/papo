@@ -63,35 +63,35 @@ pub(crate) fn history_item(
     match item {
         papo_core::HistoryItem::Message(item) => {
             let message = match origin {
-                Origin::History => ChatMessage::from_history(item.message, client, received_at),
-                _ => ChatMessage::from_replay(item.message, client, received_at),
+                Origin::History => ChatMessage::from_history(item.line, client, received_at),
+                _ => ChatMessage::from_replay(item.line, client, received_at),
             };
             message.map_or_else(
                 |raw| HistoryItem::Other(RawLine::from_proto(&raw)),
                 HistoryItem::Message,
             )
         }
-        papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.message, reaction),
-        papo_core::HistoryItem::Redacted(item) => typed_or_raw(&item.message, redaction),
+        papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, reaction),
+        papo_core::HistoryItem::Redacted(item) => typed_or_raw(&item.line, redaction),
         papo_core::HistoryItem::Joined(item) => {
-            typed_or_raw(&item.message, |message| joined(message, client))
+            typed_or_raw(&item.line, |message| joined(message, client))
         }
         papo_core::HistoryItem::Parted(item) => {
-            typed_or_raw(&item.message, |message| parted(message, client))
+            typed_or_raw(&item.line, |message| parted(message, client))
         }
-        papo_core::HistoryItem::Quit(item) => typed_or_raw(&item.message, quit),
+        papo_core::HistoryItem::Quit(item) => typed_or_raw(&item.line, quit),
         papo_core::HistoryItem::Kicked(item) => {
-            typed_or_raw(&item.message, |message| kicked(message, client))
+            typed_or_raw(&item.line, |message| kicked(message, client))
         }
         papo_core::HistoryItem::NickChanged(item) => {
-            typed_or_raw(&item.message, |message| nick_changed(message, client))
+            typed_or_raw(&item.line, |message| nick_changed(message, client))
         }
-        papo_core::HistoryItem::TopicChanged(item) => typed_or_raw(&item.message, topic_changed),
+        papo_core::HistoryItem::TopicChanged(item) => typed_or_raw(&item.line, topic_changed),
         papo_core::HistoryItem::ModeChanged(item) => {
-            typed_or_raw(&item.message, |message| mode_changed(message, client))
+            typed_or_raw(&item.line, |message| mode_changed(message, client))
         }
         item => {
-            let raw = item.into_raw().message;
+            let raw = item.into_line().line;
             HistoryItem::Other(RawLine::from_proto(&raw))
         }
     }
@@ -596,14 +596,14 @@ mod tests {
     use crate::driver::test_support::*;
     use std::time::{Duration, UNIX_EPOCH};
 
-    use papo_core::{HistoryMessage, HistoryQuery, MsgRef};
+    use papo_core::{HistoryLine, HistoryQuery, MsgRef};
     use papo_proto::{Line, LineRef};
 
     use super::{HistoryItem, HistoryReference, history_item};
 
-    fn core_item(message: &str) -> HistoryMessage {
-        HistoryMessage {
-            message: LineRef::parse(message).unwrap().to_owned(),
+    fn core_item(message: &str) -> HistoryLine {
+        HistoryLine {
+            line: LineRef::parse(message).unwrap().to_owned(),
             context: false,
         }
     }
