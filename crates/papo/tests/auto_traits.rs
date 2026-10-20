@@ -4,7 +4,7 @@ use std::{future::IntoFuture, time::SystemTime};
 
 use futures_core::Stream;
 use papo::{
-    Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel,
+    Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel, Line,
     ListFilter, Message as ChatMessage, MessageId, NewAccount, RequestFuture, SendMessage,
     SetModes, State, Target,
 };
@@ -65,8 +65,8 @@ fn request_futures_are_send() {
     let (client, mut events, driver) = Client::builder("irc.example.net").build();
     assert_send_value(events.next());
 
-    assert_send_static(client.send_command("KILL", ["alice", "connection reset"]));
-    assert_send_static(client.request_command("MOTD", std::iter::empty::<&str>()));
+    assert_send_static(client.send_raw(Line::new("KILL", ["alice", "connection reset"])));
+    assert_send_static(client.request_raw(Line::new("MOTD", Vec::<String>::new())));
     assert_send_static(client.reconnect());
     assert_send_static(
         client

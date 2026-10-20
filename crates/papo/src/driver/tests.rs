@@ -1102,7 +1102,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     ));
 
     assert!(matches!(
-        within(client.send_command("KILL", ["emily", "connection reset"])).await,
+        within(client.send_raw(crate::Line::new("KILL", ["emily", "connection reset"],))).await,
         Err(disconnected!())
     ));
     assert!(matches!(
@@ -2455,7 +2455,7 @@ async fn queued_raw_send_preserves_the_server_disconnect_cause() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn command_builder_quotes_real_commands() {
+async fn raw_line_builder_quotes_real_commands() {
     let (mut server, client, _events, driver) = scripted(
         config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500)).unwrap()),
     );
@@ -2463,20 +2463,23 @@ async fn command_builder_quotes_real_commands() {
     registration_burst(&mut server).await;
 
     client
-        .send_command("KILL", ["alice", "policy violation"])
+        .send_raw(crate::Line::new("KILL", ["alice", "policy violation"]))
         .await
         .unwrap();
     client
-        .send_command("WALLOPS", ["maintenance now"])
+        .send_raw(crate::Line::new("WALLOPS", ["maintenance now"]))
         .await
         .unwrap();
     client_line(&mut server, b"KILL alice :policy violation\r\n").await;
     client_line(&mut server, b"WALLOPS :maintenance now\r\n").await;
 
-    client.send_command("WHOWAS", ["emily", "2"]).await.unwrap();
+    client
+        .send_raw(crate::Line::new("WHOWAS", ["emily", "2"]))
+        .await
+        .unwrap();
     client_line(&mut server, b"WHOWAS emily 2\r\n").await;
     client
-        .send_command("MOTD", std::iter::empty::<&str>())
+        .send_raw(crate::Line::new("MOTD", Vec::<String>::new()))
         .await
         .unwrap();
     client_line(&mut server, b"MOTD\r\n").await;
@@ -2494,30 +2497,6 @@ async fn join_rejects_an_invalid_channel_name_before_queueing() {
             name,
             reason: crate::InvalidIdentifier::InvalidPrefix('r'),
         })) if name == "rust"
-    ));
-}
-
-#[tokio::test(flavor = "current_thread")]
-async fn structured_commands_reject_parameter_injection() {
-    let client = crate::Client::disconnected_for_test();
-    for params in [
-        &["alice evil", "reason"][..],
-        &[":x", "reason"][..],
-        &["", "reason"][..],
-        &["alice\r\nWALLOPS :injected", "reason"][..],
-        &["alice", "reason\nQUIT"][..],
-        &["alice", "reason\0QUIT"][..],
-    ] {
-        assert!(matches!(
-            client.send_command("KILL", params).await,
-            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
-        ));
-    }
-    assert!(matches!(
-        client
-            .request_command("MOTD\r\nQUIT", std::iter::empty::<&str>())
-            .await,
-        Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
     ));
 }
 
@@ -2578,7 +2557,7 @@ async fn raw_request_returns_no_lines_for_an_ack() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn structured_requests_resolve_fail_time_out_and_abort() {
+async fn structured_requests_resolve_fail_and_abort() {
     let (mut server, client, mut events, driver) = scripted(
         config()
             .wanted_caps(["labeled-response"])
@@ -2657,19 +2636,12 @@ async fn structured_requests_resolve_fail_time_out_and_abort() {
         within(request).await.unwrap(),
         Err(Error::Server(error)) if error.code() == "401"
     ));
-    let timed_out = tokio::spawn({
-        let client = client.clone();
-        async move { client.request_command("WHOIS", ["alice"]).await }
+    let aborted = tokio::spawn(async move {
+        client
+            .request_raw(crate::Line::new("WHOIS", ["emily"]))
+            .await
     });
-    client_line(&mut server, b"@label=8 WHOIS alice\r\n").await;
-    tokio::time::advance(Duration::from_secs(1)).await;
-    assert!(matches!(
-        within(timed_out).await.unwrap(),
-        Err(Error::Timeout)
-    ));
-
-    let aborted = tokio::spawn(async move { client.request_command("WHOIS", ["emily"]).await });
-    client_line(&mut server, b"@label=9 WHOIS emily\r\n").await;
+    client_line(&mut server, b"@label=8 WHOIS emily\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(aborted).await.unwrap(),
@@ -2684,8 +2656,39 @@ async fn structured_requests_resolve_fail_time_out_and_abort() {
     ));
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn raw_request_times_out_after_it_is_written() {
+    let (mut server, client, mut events, driver) = scripted(
+        config()
+            .wanted_caps(["labeled-response"])
+            .request_timeout(Duration::from_secs(1)),
+    );
+    let driver = tokio::spawn(driver);
+    complete_labelled_registration(&mut server, &mut events).await;
+
+    let timed_out = tokio::spawn({
+        let client = client.clone();
+        async move {
+            client
+                .request_raw(crate::Line::new("WHOIS", ["alice"]))
+                .await
+        }
+    });
+    client_line(&mut server, b"@label=0 WHOIS alice\r\n").await;
+    tokio::time::advance(Duration::from_secs(1)).await;
+    assert!(matches!(
+        within(timed_out).await.unwrap(),
+        Err(Error::Timeout)
+    ));
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
 #[tokio::test(flavor = "current_thread")]
-async fn structured_request_returns_state_changing_lines_without_an_event() {
+async fn raw_request_returns_state_changing_lines_without_an_event() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
     let driver = tokio::spawn(driver);
@@ -2693,7 +2696,11 @@ async fn structured_request_returns_state_changing_lines_without_an_event() {
 
     let renamed = tokio::spawn({
         let client = client.clone();
-        async move { client.request_command("NICK", ["papo-renamed"]).await }
+        async move {
+            client
+                .request_raw(crate::Line::new("NICK", ["papo-renamed"]))
+                .await
+        }
     });
     client_line(&mut server, b"@label=0 NICK papo-renamed\r\n").await;
     server_line(
@@ -2797,7 +2804,10 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
         scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
     let driver = tokio::spawn(driver);
     complete_registration(&mut server, &mut events).await;
-    client.send_command("NICK", ["papo-renamed"]).await.unwrap();
+    client
+        .send_raw(crate::Line::new("NICK", ["papo-renamed"]))
+        .await
+        .unwrap();
     client_line(&mut server, b"NICK papo-renamed\r\n").await;
     server_line(
         &mut server,
@@ -3063,7 +3073,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     assert!(matches!(
         client
-            .request_command("VERSION", std::iter::empty::<&str>())
+            .request_raw(crate::Line::new("VERSION", Vec::<String>::new()))
             .await,
         Err(Error::Unsupported(crate::Unsupported {
             feature: crate::Feature::LabeledResponse,
@@ -3103,7 +3113,7 @@ async fn capability_loss_fails_a_pending_request_immediately() {
 
     let request = tokio::spawn(async move {
         client
-            .request_command("VERSION", std::iter::empty::<&str>())
+            .request_raw(crate::Line::new("VERSION", Vec::<String>::new()))
             .await
     });
     client_line(&mut server, b"@label=0 VERSION\r\n").await;
@@ -3894,6 +3904,11 @@ async fn client_send_raw_rejects_invalid_lines() {
         crate::Line::new("WHOIS", ["emily\r\n"]),
         crate::Line::new("WHOIS", ["emily\nPRIVMSG #papo :injected"]),
         crate::Line::new("PING", ["\0token"]),
+        crate::Line::new("KILL", ["alice evil", "reason"]),
+        crate::Line::new("KILL", [":x", "reason"]),
+        crate::Line::new("KILL", ["", "reason"]),
+        crate::Line::new("KILL", ["alice", "reason\nQUIT"]),
+        crate::Line::new("KILL", ["alice", "reason\0QUIT"]),
     ] {
         assert!(matches!(
             client.send_raw(line).await,
