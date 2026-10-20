@@ -8,7 +8,7 @@ use std::{
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
-use papo_proto::{Ctcp, LineRef, Message, Typing, time};
+use papo_proto::{Ctcp, Line, LineRef, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
@@ -376,7 +376,7 @@ impl Client {
         })
     }
 
-    async fn send_message(&self, message: Message) -> Result<(), Error> {
+    async fn send_message(&self, message: Line) -> Result<(), Error> {
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::Send { message, result })
@@ -387,7 +387,7 @@ impl Client {
 
     pub(crate) async fn correlated(
         &self,
-        message: Message,
+        message: Line,
         matcher: Option<ResponseMatcher>,
     ) -> Result<Response, Error> {
         let (result, receiver) = oneshot::channel();
@@ -629,7 +629,7 @@ impl Client {
                     UnsupportedReason::TagDenied,
                 )));
             }
-            let message = Message::tagmsg(target.as_ref())
+            let message = Line::tagmsg(target.as_ref())
                 .with_tag(reply_tag, message.as_ref())
                 .with_tag(reaction_tag, emoji);
             if state.supports(Feature::LabeledResponse) {
@@ -708,9 +708,7 @@ impl Client {
             if !reason.is_empty() {
                 params.push(reason);
             }
-            let response = client
-                .correlated(Message::new("REDACT", params), None)
-                .await?;
+            let response = client.correlated(Line::new("REDACT", params), None).await?;
             crate::requests::empty(&response)
         })
     }
@@ -725,8 +723,8 @@ impl Client {
     ) -> Result<Sent, Error> {
         if !self.state().is_connected() {
             let mut message = match kind {
-                TextKind::Privmsg => Message::privmsg(target, text),
-                TextKind::Notice => Message::notice(target, text),
+                TextKind::Privmsg => Line::privmsg(target, text),
+                TextKind::Notice => Line::notice(target, text),
             };
             for (key, value) in tags {
                 message = message.with_tag(key, value);
@@ -765,7 +763,7 @@ impl Client {
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
-                    Message::new("WHOIS", [nick.to_string()]),
+                    Line::new("WHOIS", [nick.to_string()]),
                     Some(ResponseMatcher::Whois(nick.to_string())),
                 )
                 .await?;
@@ -789,9 +787,9 @@ impl Client {
             let state = client.state();
             let extended = state.isupport().whox();
             let message = if extended {
-                Message::new("WHO", [mask.to_string(), "%tcuhnfar".into()])
+                Line::new("WHO", [mask.to_string(), "%tcuhnfar".into()])
             } else {
-                Message::new("WHO", [mask.to_string()])
+                Line::new("WHO", [mask.to_string()])
             };
             let response = client
                 .correlated(message, Some(ResponseMatcher::Who(mask.to_string())))
@@ -888,7 +886,7 @@ impl Client {
             }
             let response = client
                 .correlated(
-                    Message::new("PART", params),
+                    Line::new("PART", params),
                     Some(ResponseMatcher::Part(channel.to_string())),
                 )
                 .await?;
@@ -923,7 +921,7 @@ impl Client {
             }
             let response = client
                 .correlated(
-                    Message::new("KICK", params),
+                    Line::new("KICK", params),
                     Some(ResponseMatcher::Kick {
                         channel: channel.to_string(),
                         nick: nick.to_string(),
@@ -955,7 +953,7 @@ impl Client {
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
-                    Message::new("INVITE", [nick.to_string(), channel.to_string()]),
+                    Line::new("INVITE", [nick.to_string(), channel.to_string()]),
                     Some(ResponseMatcher::Invite {
                         channel: channel.to_string(),
                         nick: nick.to_string(),
@@ -979,7 +977,7 @@ impl Client {
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
-                    Message::new("NICK", [nick.to_string()]),
+                    Line::new("NICK", [nick.to_string()]),
                     Some(ResponseMatcher::Nick(nick.to_string())),
                 )
                 .await?;
@@ -1001,10 +999,7 @@ impl Client {
                 return Err(InvalidInput::EmptyText.into());
             }
             let response = client
-                .correlated(
-                    Message::new("AWAY", [text]),
-                    Some(ResponseMatcher::Away(true)),
-                )
+                .correlated(Line::new("AWAY", [text]), Some(ResponseMatcher::Away(true)))
                 .await?;
             crate::requests::empty(&response)
         })
@@ -1020,7 +1015,7 @@ impl Client {
         crate::RequestFuture::new(async move {
             let response = client
                 .correlated(
-                    Message::new("AWAY", Vec::<String>::new()),
+                    Line::new("AWAY", Vec::<String>::new()),
                     Some(ResponseMatcher::Away(false)),
                 )
                 .await?;
@@ -1041,7 +1036,7 @@ impl Client {
             Self::require_feature(&client.state(), Feature::SetName)?;
             let response = client
                 .correlated(
-                    Message::new("SETNAME", [realname.clone()]),
+                    Line::new("SETNAME", [realname.clone()]),
                     Some(ResponseMatcher::SetName(realname)),
                 )
                 .await?;
@@ -1066,7 +1061,7 @@ impl Client {
             let password = password.expose().ok_or(InvalidInput::BinarySecret)?;
             let response = client
                 .correlated(
-                    Message::new("OPER", [name, password.to_owned()]),
+                    Line::new("OPER", [name, password.to_owned()]),
                     Some(ResponseMatcher::Oper),
                 )
                 .await?;
@@ -1086,7 +1081,7 @@ impl Client {
             let started = crate::rt::now_mono();
             let response = client
                 .correlated(
-                    Message::new("PING", [token.clone()]),
+                    Line::new("PING", [token.clone()]),
                     Some(ResponseMatcher::Ping(token)),
                 )
                 .await?;
@@ -1131,7 +1126,7 @@ impl Client {
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
-                    Message::new("TOPIC", [channel.to_string(), topic]),
+                    Line::new("TOPIC", [channel.to_string(), topic]),
                     Some(ResponseMatcher::Topic(channel.to_string())),
                 )
                 .await?;
@@ -1152,8 +1147,8 @@ impl Client {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let message = match filter.parameter() {
-                Some(parameter) => Message::new("LIST", [parameter]),
-                None => Message::new("LIST", Vec::<String>::new()),
+                Some(parameter) => Line::new("LIST", [parameter]),
+                None => Line::new("LIST", Vec::<String>::new()),
             };
             let response = client
                 .correlated(message, Some(ResponseMatcher::List))
@@ -1189,7 +1184,7 @@ impl Client {
     }
 }
 
-fn parse_raw(line: &str) -> Result<Message, Error> {
+fn parse_raw(line: &str) -> Result<Line, Error> {
     if line.contains(['\r', '\n', '\0']) {
         return Err(
             InvalidInput::InvalidMessage("raw IRC line contains CR, LF, or NUL".into()).into(),
@@ -1200,12 +1195,12 @@ fn parse_raw(line: &str) -> Result<Message, Error> {
         .map_err(|_| InvalidInput::InvalidMessage("malformed raw IRC line".into()).into())
 }
 
-fn build_command<I, S>(command: &str, params: I) -> Result<Message, Error>
+fn build_command<I, S>(command: &str, params: I) -> Result<Line, Error>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
-    let message = Message::new(
+    let message = Line::new(
         command,
         params.into_iter().map(|param| param.as_ref().to_owned()),
     );
