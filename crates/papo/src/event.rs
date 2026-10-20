@@ -1112,7 +1112,7 @@ pub(crate) fn from_core(
                 account: envelope.account,
                 channel,
                 nick,
-                actor: source::from_name(actor, casemapping),
+                actor: source::from_name(&actor, casemapping),
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
                 reason,
@@ -1222,7 +1222,7 @@ pub(crate) fn from_core(
                     papo_core::Subject::User(nick) => crate::Subject::User(nick),
                     _ => return CoreEvent::Unknown,
                 },
-                actor: source::from_name(actor, casemapping),
+                actor: source::from_name(&actor, casemapping),
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
                 changes: changes
@@ -1250,7 +1250,7 @@ pub(crate) fn from_core(
                 account: envelope.account,
                 channel,
                 topic,
-                actor: source::from_name(actor, casemapping),
+                actor: source::from_name(&actor, casemapping),
                 authorship: Authorship::from_core(authorship),
             })
         }
@@ -2067,7 +2067,7 @@ mod tests {
         });
         let joined = event.as_joined().unwrap();
         assert_eq!(joined.channel, "#papo");
-        assert_eq!(joined.actor.nick(), Some("alice"));
+        assert_eq!(joined.actor.nick().map(AsRef::as_ref), Some("alice"));
         assert_eq!(joined.nick, "alice");
         assert_eq!(joined.realname.as_deref(), Some("Alice Liddell"));
         assert!(matches!(&joined.account, Account::LoggedIn(account) if account == "alice"));
@@ -2449,7 +2449,10 @@ mod tests {
         assert_eq!(netjoin.servers.second, "irc.remote");
         assert_eq!(netjoin.joins.len(), 1);
         assert_eq!(netjoin.joins[0].channel, "#papo");
-        assert_eq!(netjoin.joins[0].actor.nick(), Some("bob"));
+        assert_eq!(
+            netjoin.joins[0].actor.nick().map(AsRef::as_ref),
+            Some("bob")
+        );
         assert_eq!(netjoin.joins[0].nick, "bob");
         assert_eq!(netjoin.joins[0].account, Account::LoggedOut);
         assert_eq!(netjoin.joins[0].realname.as_deref(), Some("Bob"));

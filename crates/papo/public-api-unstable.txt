@@ -28,6 +28,7 @@ pub use papo::Refusal
 pub use papo::Sasl
 pub use papo::Secret
 pub use papo::ServerName
+pub use papo::Source
 pub use papo::Typing
 pub use papo::Unsupported
 pub use papo::UnsupportedReason
@@ -148,34 +149,9 @@ pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::PersistenceSetting
 pub use papo::event::PersistenceStatus
+pub use papo::event::Source
 pub use papo::event::StateLimit
 pub use papo::event::Visibility
-#[non_exhaustive] pub enum papo::event::Source
-#[non_exhaustive] pub papo::event::Source::Server
-pub papo::event::Source::Server::name: alloc::string::String
-#[non_exhaustive] pub papo::event::Source::User
-pub papo::event::Source::User::host: core::option::Option<alloc::string::String>
-pub papo::event::Source::User::nick: papo::Nick
-pub papo::event::Source::User::username: core::option::Option<alloc::string::String>
-impl papo::Source
-pub fn papo::Source::nick(&self) -> core::option::Option<&str>
-impl core::clone::Clone for papo::Source
-pub fn papo::Source::clone(&self) -> Self
-impl core::cmp::Eq for papo::Source
-impl core::cmp::PartialEq for papo::Source
-pub fn papo::Source::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Source
-pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::Source
-pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Source
-impl core::marker::Freeze for papo::Source
-impl core::marker::Send for papo::Source
-impl core::marker::Sync for papo::Source
-impl core::marker::Unpin for papo::Source
-impl core::marker::UnsafeUnpin for papo::Source
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Source
-impl core::panic::unwind_safe::UnwindSafe for papo::Source
 #[non_exhaustive] pub enum papo::event::StandardReplyKind
 pub papo::event::StandardReplyKind::Fail
 pub papo::event::StandardReplyKind::Note
@@ -1666,32 +1642,6 @@ impl core::marker::Unpin for papo::Origin
 impl core::marker::UnsafeUnpin for papo::Origin
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Origin
 impl core::panic::unwind_safe::UnwindSafe for papo::Origin
-#[non_exhaustive] pub enum papo::Source
-#[non_exhaustive] pub papo::Source::Server
-pub papo::Source::Server::name: alloc::string::String
-#[non_exhaustive] pub papo::Source::User
-pub papo::Source::User::host: core::option::Option<alloc::string::String>
-pub papo::Source::User::nick: papo::Nick
-pub papo::Source::User::username: core::option::Option<alloc::string::String>
-impl papo::Source
-pub fn papo::Source::nick(&self) -> core::option::Option<&str>
-impl core::clone::Clone for papo::Source
-pub fn papo::Source::clone(&self) -> Self
-impl core::cmp::Eq for papo::Source
-impl core::cmp::PartialEq for papo::Source
-pub fn papo::Source::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Source
-pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::Source
-pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Source
-impl core::marker::Freeze for papo::Source
-impl core::marker::Send for papo::Source
-impl core::marker::Sync for papo::Source
-impl core::marker::Unpin for papo::Source
-impl core::marker::UnsafeUnpin for papo::Source
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Source
-impl core::panic::unwind_safe::UnwindSafe for papo::Source
 #[non_exhaustive] pub enum papo::Subject
 pub papo::Subject::Channel(papo::ChannelName)
 pub papo::Subject::User(papo::Nick)

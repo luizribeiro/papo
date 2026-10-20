@@ -3331,7 +3331,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
     )
     .await;
     let joined = events.next().await.unwrap().as_joined().unwrap().clone();
-    assert_eq!(joined.actor.nick(), Some("papo-renamed"));
+    assert_eq!(joined.actor.nick().map(AsRef::as_ref), Some("papo-renamed"));
     assert_eq!(joined.nick, "papo-renamed");
     assert_eq!(joined.channel, "#papo-self");
     assert_eq!(joined.authorship, crate::Authorship::Own);

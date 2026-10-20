@@ -116,7 +116,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
                         (renamed.new, renamed.actor.nick(), renamed.reason.as_deref()),
                         (
                             support::channel(&new_channel),
-                            Some(operator_nick.as_str()),
+                            Some(&support::nick(&operator_nick)),
                             Some("Project renamed")
                         )
                     );
