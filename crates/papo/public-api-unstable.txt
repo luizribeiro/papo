@@ -147,6 +147,7 @@ pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::PersistenceSetting
 pub use papo::event::PersistenceStatus
+pub use papo::event::StateLimit
 pub use papo::event::Visibility
 #[non_exhaustive] pub enum papo::event::Source
 #[non_exhaustive] pub papo::event::Source::Server
@@ -194,28 +195,6 @@ impl core::marker::Unpin for papo::event::StandardReplyKind
 impl core::marker::UnsafeUnpin for papo::event::StandardReplyKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::StandardReplyKind
 impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReplyKind
-#[non_exhaustive] pub enum papo::event::StateLimit
-pub papo::event::StateLimit::BouncerNetworks
-pub papo::event::StateLimit::Channels
-pub papo::event::StateLimit::Members
-pub papo::event::StateLimit::MetadataKeys
-pub papo::event::StateLimit::MetadataTargets
-impl core::clone::Clone for papo::event::StateLimit
-pub fn papo::event::StateLimit::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::StateLimit
-impl core::cmp::PartialEq for papo::event::StateLimit
-pub fn papo::event::StateLimit::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::StateLimit
-pub fn papo::event::StateLimit::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::event::StateLimit
-impl core::marker::StructuralPartialEq for papo::event::StateLimit
-impl core::marker::Freeze for papo::event::StateLimit
-impl core::marker::Send for papo::event::StateLimit
-impl core::marker::Sync for papo::event::StateLimit
-impl core::marker::Unpin for papo::event::StateLimit
-impl core::marker::UnsafeUnpin for papo::event::StateLimit
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::StateLimit
-impl core::panic::unwind_safe::UnwindSafe for papo::event::StateLimit
 #[non_exhaustive] pub enum papo::event::Warning
 #[non_exhaustive] pub papo::event::Warning::AuthenticationFailed
 pub papo::event::Warning::AuthenticationFailed::reason: alloc::string::String
@@ -230,7 +209,7 @@ pub papo::event::Warning::MonitorListFull::limit: usize
 pub papo::event::Warning::MonitorListFull::nicks: alloc::vec::Vec<papo::Nick>
 pub papo::event::Warning::MonitorUnsupported
 #[non_exhaustive] pub papo::event::Warning::StateLimitReached
-pub papo::event::Warning::StateLimitReached::limit: papo::event::StateLimit
+pub papo::event::Warning::StateLimitReached::limit: papo::StateLimit
 impl core::clone::Clone for papo::event::Warning
 pub fn papo::event::Warning::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Warning

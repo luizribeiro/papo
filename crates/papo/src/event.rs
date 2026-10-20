@@ -38,14 +38,14 @@ pub use connection::{
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
-pub use papo_core::BatchAbandonReason;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::PersistenceSetting;
+pub use papo_core::{BatchAbandonReason, StateLimit};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use server::BouncerNetworkChanged;
-pub use server::{MetadataChanged, StateLimit, Warning};
+pub use server::{MetadataChanged, Warning};
 pub use source::Source;
 pub use tags::Tags;
 pub use user::{
@@ -1128,17 +1128,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             authorship: Authorship::from_core(authorship),
         }),
         papo_core::Event::StateLimitReached { limit } => {
-            Event::Warning(Warning::StateLimitReached {
-                limit: match limit {
-                    papo_core::StateLimit::Channels => StateLimit::Channels,
-                    papo_core::StateLimit::Members => StateLimit::Members,
-                    papo_core::StateLimit::MetadataTargets => StateLimit::MetadataTargets,
-                    papo_core::StateLimit::MetadataKeys => StateLimit::MetadataKeys,
-                    #[cfg(feature = "unstable")]
-                    papo_core::StateLimit::BouncerNetworks => StateLimit::BouncerNetworks,
-                    _ => return CoreEvent::Unknown,
-                },
-            })
+            Event::Warning(Warning::StateLimitReached { limit })
         }
         papo_core::Event::MonitorOnline { nick, user, host } => {
             Event::MonitorOnline(MonitorOnline { nick, user, host })

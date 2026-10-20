@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{MetadataKey, Nick, Subject, Visibility};
-use papo_core::BatchAbandonReason;
+use papo_core::{BatchAbandonReason, StateLimit};
 
 /// An upstream bouncer network was added, updated, or removed.
 #[cfg(feature = "unstable")]
@@ -27,23 +27,6 @@ pub struct MetadataChanged {
     pub value: Option<String>,
     /// Visibility policy reported by the server.
     pub visibility: Visibility,
-}
-
-/// A bounded server-controlled state collection.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum StateLimit {
-    /// Joined channels.
-    Channels,
-    /// Members retained for one channel.
-    Members,
-    /// Targets retained in the metadata cache.
-    MetadataTargets,
-    /// Metadata keys retained for one target.
-    MetadataKeys,
-    /// Upstream bouncer networks.
-    #[cfg(feature = "unstable")]
-    BouncerNetworks,
 }
 
 /// A recoverable protocol or configuration warning.
@@ -123,9 +106,7 @@ impl fmt::Display for Warning {
 #[cfg(all(test, not(browser)))]
 mod tests {
     use super::Warning;
-    use papo_core::BatchAbandonReason;
-
-    use super::StateLimit;
+    use papo_core::{BatchAbandonReason, StateLimit};
 
     #[test]
     fn warnings_have_human_readable_diagnostics() {
