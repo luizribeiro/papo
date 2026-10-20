@@ -685,15 +685,12 @@ impl Client {
     /// [`crate::Refusal`].
     pub fn fetch_read_marker(
         &self,
-        target: impl AsRef<str>,
+        target: impl Into<ConversationInput>,
     ) -> crate::RequestFuture<Option<SystemTime>> {
         let client = self.clone();
-        let target = target.as_ref().to_owned();
+        let target = target.into();
         crate::RequestFuture::new(async move {
-            client
-                .state()
-                .parse_target(&target)
-                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let target = target.target(&client.state())?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
@@ -1204,9 +1201,26 @@ mod tests {
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
         complete_connect_read_marker(&mut server, &mut events).await;
+        assert!(matches!(
+            client.fetch_read_marker("@#papo").await,
+            Err(Error::InvalidInput(_))
+        ));
+        assert!(matches!(
+            client.fetch_read_marker(crate::Conversation::Server).await,
+            Err(Error::InvalidInput(_))
+        ));
+        assert!(matches!(
+            client
+                .fetch_read_marker(crate::Conversation::Broadcast(
+                    client.state().mask("$opers")
+                ))
+                .await,
+            Err(Error::InvalidInput(_))
+        ));
+        let channel = crate::Conversation::Channel(client.state().channel_name("#papo"));
         let request = tokio::spawn({
             let client = client.clone();
-            async move { client.fetch_read_marker("#papo").await }
+            async move { client.fetch_read_marker(channel).await }
         });
         client_line(&mut server, b"@label=0 MARKREAD #papo\r\n").await;
         server_line(
