@@ -1,6 +1,6 @@
 //! Channel and user mode parsing behavior.
 
-use papo_proto::{Isupport, ModeChange, ModeChanges, ModeKind};
+use papo_proto::{Isupport, ModeAction, ModeChange, ModeChanges, ModeKind};
 
 fn support(tokens: &[&str]) -> Isupport {
     let mut support = Isupport::default();
@@ -21,12 +21,17 @@ fn applies_every_chanmodes_argument_rule() {
     assert_eq!(
         changes,
         [
-            change(true, 'b', Some("*!*@example.test"), ModeKind::List),
-            change(true, 'k', Some("swordfish"), ModeKind::AlwaysArg),
-            change(true, 'l', Some("10"), ModeKind::ArgWhenSet),
-            change(false, 'k', Some("*"), ModeKind::AlwaysArg),
-            change(false, 'l', None, ModeKind::ArgWhenSet),
-            change(false, 'm', None, ModeKind::NoArg),
+            change(
+                ModeAction::Add,
+                'b',
+                Some("*!*@example.test"),
+                ModeKind::List
+            ),
+            change(ModeAction::Add, 'k', Some("swordfish"), ModeKind::AlwaysArg),
+            change(ModeAction::Add, 'l', Some("10"), ModeKind::ArgWhenSet),
+            change(ModeAction::Remove, 'k', Some("*"), ModeKind::AlwaysArg),
+            change(ModeAction::Remove, 'l', None, ModeKind::ArgWhenSet),
+            change(ModeAction::Remove, 'm', None, ModeKind::NoArg),
         ]
     );
 }
@@ -39,9 +44,14 @@ fn handles_solanum_no_arg_and_unknown_modes() {
     assert_eq!(
         changes,
         [
-            change(true, 'z', None, ModeKind::NoArg),
-            change(true, 'x', None, ModeKind::Unknown),
-            change(true, 'k', Some("channel-key"), ModeKind::AlwaysArg),
+            change(ModeAction::Add, 'z', None, ModeKind::NoArg),
+            change(ModeAction::Add, 'x', None, ModeKind::Unknown),
+            change(
+                ModeAction::Add,
+                'k',
+                Some("channel-key"),
+                ModeKind::AlwaysArg
+            ),
         ]
     );
 }
@@ -52,23 +62,45 @@ fn parses_user_modes_without_argument_semantics() {
     assert_eq!(
         ModeChanges::parse("+io-w", ["unused"], &support).collect::<Vec<_>>(),
         [
-            change(true, 'i', None, ModeKind::Unknown),
-            change(true, 'o', None, ModeKind::Unknown),
-            change(false, 'w', None, ModeKind::Unknown),
+            change(ModeAction::Add, 'i', None, ModeKind::Unknown),
+            change(ModeAction::Add, 'o', None, ModeKind::Unknown),
+            change(ModeAction::Remove, 'w', None, ModeKind::Unknown),
         ]
     );
 }
 
 #[test]
-fn ranks_ergo_prefix_modes_and_preserves_toggles() {
+fn parses_mixed_ergo_prefix_and_list_modes() {
     let support = support(&["CHANMODES=Ibe,k,fl,CEMRUimnstu", "PREFIX=(qaohv)~&@%+"]);
     assert_eq!(
-        ModeChanges::parse("+ov-b", ["alice", "bob", "*!*@example.test"], &support)
+        ModeChanges::parse("+ob-v", ["alice", "*!*@spam.example", "bob"], &support)
             .collect::<Vec<_>>(),
         [
-            change(true, 'o', Some("alice"), ModeKind::Prefix(2)),
-            change(true, 'v', Some("bob"), ModeKind::Prefix(4)),
-            change(false, 'b', Some("*!*@example.test"), ModeKind::List),
+            change(ModeAction::Add, 'o', Some("alice"), ModeKind::Prefix(2)),
+            change(
+                ModeAction::Add,
+                'b',
+                Some("*!*@spam.example"),
+                ModeKind::List
+            ),
+            change(ModeAction::Remove, 'v', Some("bob"), ModeKind::Prefix(4)),
+        ]
+    );
+}
+
+#[test]
+fn parses_key_and_limit_values() {
+    let support = support(&["CHANMODES=Ibe,k,fl,CEMRUimnstu"]);
+    assert_eq!(
+        ModeChanges::parse("+kl", ["review-key-2026", "50"], &support).collect::<Vec<_>>(),
+        [
+            change(
+                ModeAction::Add,
+                'k',
+                Some("review-key-2026"),
+                ModeKind::AlwaysArg,
+            ),
+            change(ModeAction::Add, 'l', Some("50"), ModeKind::ArgWhenSet),
         ]
     );
 }
@@ -79,8 +111,8 @@ fn represents_missing_required_arguments_without_panicking() {
     assert_eq!(
         ModeChanges::parse("+ob", ["dan"], &support).collect::<Vec<_>>(),
         [
-            change(true, 'o', Some("dan"), ModeKind::Prefix(0)),
-            change(true, 'b', None, ModeKind::List),
+            change(ModeAction::Add, 'o', Some("dan"), ModeKind::Prefix(0)),
+            change(ModeAction::Add, 'b', None, ModeKind::List),
         ]
     );
 }
@@ -98,13 +130,19 @@ fn iterates_a_fifty_mode_change_without_truncation() {
 
     assert_eq!(changes.len(), 50);
     assert!(changes.iter().all(|parsed| {
-        *parsed == change(true, 'b', Some("*!*@gateway/tor-sasl"), ModeKind::List)
+        *parsed
+            == change(
+                ModeAction::Add,
+                'b',
+                Some("*!*@gateway/tor-sasl"),
+                ModeKind::List,
+            )
     }));
 }
 
-fn change(set: bool, mode: char, arg: Option<&str>, kind: ModeKind) -> ModeChange<'_> {
+fn change(action: ModeAction, mode: char, arg: Option<&str>, kind: ModeKind) -> ModeChange<'_> {
     ModeChange {
-        set,
+        action,
         mode,
         arg,
         kind,

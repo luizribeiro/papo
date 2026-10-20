@@ -38,7 +38,7 @@ pub use line::{
     ParseError, Tags, escape_tag_value,
 };
 
-pub use modes::{ModeChange, ModeChanges, ModeKind};
+pub use modes::{ModeAction, ModeChange, ModeChanges, ModeKind};
 pub use names::{NAME_ALIASES, NameKind, NamesEntry, canonical, parse_353};
 pub use numeric::Numeric;
 pub use server_name::ServerName;

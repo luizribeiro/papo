@@ -23,14 +23,23 @@ pub enum ModeKind {
 /// One operation from an IRC mode string.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ModeChange<'a> {
-    /// Whether the mode is being set rather than removed.
-    pub set: bool,
+    /// Whether the mode is being added or removed.
+    pub action: ModeAction,
     /// The mode letter.
     pub mode: char,
     /// The mode argument, when one was required and supplied.
     pub arg: Option<&'a str>,
     /// The mode's advertised parameter behavior.
     pub kind: ModeKind,
+}
+
+/// The operation applied to an IRC mode.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ModeAction {
+    /// Add or enable the mode.
+    Add,
+    /// Remove or disable the mode.
+    Remove,
 }
 
 /// Parser for the operations in an IRC mode string.
@@ -56,23 +65,24 @@ impl ModeChanges {
         let mut args = args.into_iter();
         let chanmodes = isupport.chanmodes();
         let prefixes = chanmodes.map_or_else(Vec::new, |_| isupport.prefix());
-        let mut set = true;
+        let mut action = ModeAction::Add;
 
         std::iter::from_fn(move || {
             loop {
                 let mode = modes.next()?;
                 match mode {
-                    '+' => set = true,
-                    '-' => set = false,
+                    '+' => action = ModeAction::Add,
+                    '-' => action = ModeAction::Remove,
                     _ => {
                         let kind = classify(mode, chanmodes.as_ref(), &prefixes);
                         let needs_arg = matches!(
                             kind,
                             ModeKind::List | ModeKind::AlwaysArg | ModeKind::Prefix(_)
-                        ) || kind == ModeKind::ArgWhenSet && set;
+                        ) || kind == ModeKind::ArgWhenSet
+                            && action == ModeAction::Add;
                         let arg = if needs_arg { args.next() } else { None };
                         return Some(ModeChange {
-                            set,
+                            action,
                             mode,
                             arg,
                             kind,

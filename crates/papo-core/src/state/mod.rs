@@ -1009,22 +1009,26 @@ impl Channel {
                     let Some(member) = self.members.get_mut(&self.casemapping.nick(nick)) else {
                         continue;
                     };
-                    if change.set && !member.prefixes.contains(&prefix.symbol) {
+                    if change.action == papo_proto::ModeAction::Add
+                        && !member.prefixes.contains(&prefix.symbol)
+                    {
                         member.prefixes.push(prefix.symbol);
                         member.prefixes.sort_by_key(|symbol| {
                             member.prefix_order.iter().position(|item| item == symbol)
                         });
-                    } else if !change.set {
+                    } else if change.action == papo_proto::ModeAction::Remove {
                         member.prefixes.retain(|symbol| *symbol != prefix.symbol);
                     }
                 }
                 ModeKind::AlwaysArg | ModeKind::ArgWhenSet | ModeKind::NoArg => {
-                    if change.set && (change.arg.is_some() || change.kind == ModeKind::NoArg) {
+                    if change.action == papo_proto::ModeAction::Add
+                        && (change.arg.is_some() || change.kind == ModeKind::NoArg)
+                    {
                         if self.modes.len() < 64 || self.modes.contains_key(&change.mode) {
                             self.modes
                                 .insert(change.mode, change.arg.map(str::to_owned));
                         }
-                    } else if !change.set {
+                    } else if change.action == papo_proto::ModeAction::Remove {
                         self.modes.remove(&change.mode);
                     }
                 }

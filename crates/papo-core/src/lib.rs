@@ -1537,7 +1537,7 @@ impl RequestError {
 impl From<ModeChange<'_>> for OwnedModeChange {
     fn from(change: ModeChange<'_>) -> Self {
         Self {
-            set: change.set,
+            set: change.action == papo_proto::ModeAction::Add,
             mode: change.mode,
             arg: change.arg.map(str::to_owned),
             kind: change.kind,

@@ -439,7 +439,7 @@ fn mode_changed(
         state.isupport().inner(),
     )
     .map(|change| crate::event::ModeChange {
-        set: change.set,
+        set: change.action == papo_proto::ModeAction::Add,
         mode: change.mode,
         kind: crate::ModeKind::from_proto(change.kind),
         arg: change.arg.map(str::to_owned),

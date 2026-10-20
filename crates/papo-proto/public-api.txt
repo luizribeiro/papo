@@ -229,6 +229,25 @@ impl core::marker::Unpin for papo_proto::LimitValue
 impl core::marker::UnsafeUnpin for papo_proto::LimitValue
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::LimitValue
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::LimitValue
+pub enum papo_proto::ModeAction
+pub papo_proto::ModeAction::Add
+pub papo_proto::ModeAction::Remove
+impl core::clone::Clone for papo_proto::ModeAction
+pub fn papo_proto::ModeAction::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::ModeAction
+impl core::cmp::PartialEq for papo_proto::ModeAction
+pub fn papo_proto::ModeAction::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::ModeAction
+pub fn papo_proto::ModeAction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::ModeAction
+impl core::marker::StructuralPartialEq for papo_proto::ModeAction
+impl core::marker::Freeze for papo_proto::ModeAction
+impl core::marker::Send for papo_proto::ModeAction
+impl core::marker::Sync for papo_proto::ModeAction
+impl core::marker::Unpin for papo_proto::ModeAction
+impl core::marker::UnsafeUnpin for papo_proto::ModeAction
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ModeAction
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::ModeAction
 pub enum papo_proto::ModeKind
 pub papo_proto::ModeKind::AlwaysArg
 pub papo_proto::ModeKind::ArgWhenSet
@@ -1019,10 +1038,10 @@ impl core::marker::UnsafeUnpin for papo_proto::MetadataKey
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::MetadataKey
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::MetadataKey
 pub struct papo_proto::ModeChange<'a>
+pub papo_proto::ModeChange::action: papo_proto::ModeAction
 pub papo_proto::ModeChange::arg: core::option::Option<&'a str>
 pub papo_proto::ModeChange::kind: papo_proto::ModeKind
 pub papo_proto::ModeChange::mode: char
-pub papo_proto::ModeChange::set: bool
 impl<'a> core::clone::Clone for papo_proto::ModeChange<'a>
 pub fn papo_proto::ModeChange<'a>::clone(&self) -> Self
 impl<'a> core::cmp::Eq for papo_proto::ModeChange<'a>
