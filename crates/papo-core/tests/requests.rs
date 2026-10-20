@@ -1481,8 +1481,16 @@ fn classifies_common_numeric_refusals() {
             Refusal::TemporarilyUnavailable,
         ),
         (
+            "451 papo :You have not registered",
+            Refusal::NotConnectedYet,
+        ),
+        (
             "476 papo #bad:mask :Bad Channel Mask",
             Refusal::BadChannelMask,
+        ),
+        (
+            "477 papo #registered :Cannot join channel (+r) - you need to be identified with services",
+            Refusal::AccountRequired,
         ),
         (
             "489 papo #secure :Cannot join channel (+z)",
