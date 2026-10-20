@@ -129,9 +129,9 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
         Sasl::plain(&account, PASSWORD)
     };
     let mut alice = s.connect_with(s.configure("alice")?.sasl(sasl)).await?;
-    let registered = alice.wait_for(Event::as_registered).await?;
-    assert_eq!(&registered.nick, alice.state().nick());
-    assert!(registered.caps.contains_key("sasl"));
+    let connected = alice.wait_for(Event::as_connected).await?;
+    assert_eq!(&connected.nick, alice.state().nick());
+    assert!(connected.caps.contains_key("sasl"));
     assert_eq!(
         alice.state().account().map(AsRef::as_ref),
         Some(account.as_str())

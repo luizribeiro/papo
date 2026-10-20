@@ -1,23 +1,23 @@
 use papo::{
     Capabilities,
-    event::{AwayChanged, Joined, Registered},
+    event::{AwayChanged, Connected, Joined},
 };
 
-/// Builds a registration event payload.
+/// Builds a connected event payload.
 #[derive(Debug)]
-pub struct RegisteredBuilder(Registered);
+pub struct ConnectedBuilder(Connected);
 
-impl RegisteredBuilder {
-    /// Starts a registration payload for `nick`.
+impl ConnectedBuilder {
+    /// Starts a connected payload for `nick`.
     #[must_use]
     pub fn new(nick: impl Into<papo::Nick>) -> Self {
-        Self(papo::__testing::registered(nick))
+        Self(papo::__testing::connected(nick))
     }
 
     /// Sets the server's welcome text.
     #[must_use]
-    pub fn text(mut self, text: impl Into<String>) -> Self {
-        self.0.text = text.into();
+    pub fn welcome(mut self, welcome: impl Into<String>) -> Self {
+        self.0.welcome = welcome.into();
         self
     }
 
@@ -28,7 +28,7 @@ impl RegisteredBuilder {
         self
     }
 
-    /// Marks registration as a reconnect.
+    /// Marks the connection as a reconnect.
     #[must_use]
     pub const fn reconnected(mut self, reconnected: bool) -> Self {
         self.0.reconnected = reconnected;
@@ -37,7 +37,7 @@ impl RegisteredBuilder {
 
     /// Finishes the payload.
     #[must_use]
-    pub fn build(self) -> Registered {
+    pub fn build(self) -> Connected {
         self.0
     }
 }
@@ -94,17 +94,17 @@ impl AwayChangedBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::{AwayChangedBuilder, JoinedBuilder, RegisteredBuilder};
+    use super::{AwayChangedBuilder, ConnectedBuilder, JoinedBuilder};
 
     #[test]
     fn builds_common_event_payloads() {
         let mapping = papo::Casemapping::default();
-        let registered = RegisteredBuilder::new(mapping.nick("alice"))
-            .text("Welcome to Ergo")
+        let connected = ConnectedBuilder::new(mapping.nick("alice"))
+            .welcome("Welcome to Ergo")
             .reconnected(true)
             .build();
-        assert_eq!(registered.text, "Welcome to Ergo");
-        assert!(registered.reconnected);
+        assert_eq!(connected.welcome, "Welcome to Ergo");
+        assert!(connected.reconnected);
 
         let joined = JoinedBuilder::new(mapping.channel("#papo"), mapping.nick("alice"))
             .own(true)

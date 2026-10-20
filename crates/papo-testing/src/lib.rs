@@ -12,7 +12,7 @@ mod value_builders;
 
 pub use builders::MessageBuilder;
 pub use error::{Error, FixtureError, Result, skip_reason, skipped};
-pub use event_builders::{AwayChangedBuilder, JoinedBuilder, RegisteredBuilder};
+pub use event_builders::{AwayChangedBuilder, ConnectedBuilder, JoinedBuilder};
 pub use peer::Peer;
 pub use scenario::Scenario;
 pub use value_builders::{ErrorBuilder, StateBuilder};

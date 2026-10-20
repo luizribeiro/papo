@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Event::AccountRegistration(AccountRegistration::Registered { account }) => {
                 logged_in = Some(account);
             }
-            Event::Registered(_) => registered = true,
+            Event::Connected(_) => registered = true,
             Event::Disconnected(disconnected) => {
                 return Err(disconnected.to_string().into());
             }

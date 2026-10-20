@@ -71,10 +71,10 @@ async fn run(client: Client, mut events: papo::Events) -> Result<(), papo::Error
 
 async fn handle(client: &Client, event: Event) -> Result<(), papo::Error> {
     match event {
-        Event::Registered(registered) if registered.reconnected => {
-            eprintln!("reconnected as {}", registered.nick);
+        Event::Connected(connected) if connected.reconnected => {
+            eprintln!("reconnected as {}", connected.nick);
         }
-        Event::Registered(registered) => eprintln!("connected as {}", registered.nick),
+        Event::Connected(connected) => eprintln!("connected as {}", connected.nick),
         Event::Disconnected(disconnected) => {
             eprintln!(
                 "disconnected: {disconnected}; reconnecting: {}",

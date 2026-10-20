@@ -6,7 +6,7 @@ use papo_core::{Config, Session};
 
 use crate::{
     Capabilities, ChannelName, Message, MessageKind, Nick, Origin, Source, State, Tags, Target,
-    event::{AwayChanged, Connected, Joined, Registered},
+    event::{AwayChanged, Connected, Joined},
 };
 
 /// Constructs a user event source.
@@ -55,17 +55,6 @@ pub fn message(
         origin: Origin::Live,
         tags: Tags::default(),
         private,
-    }
-}
-
-/// Constructs a registration event payload.
-#[must_use]
-pub fn registered(nick: impl Into<Nick>) -> Registered {
-    Registered {
-        nick: nick.into(),
-        text: String::new(),
-        caps: Capabilities::default(),
-        reconnected: false,
     }
 }
 

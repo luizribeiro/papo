@@ -47,9 +47,9 @@ impl StsStore for RecordingStsStore {
 async fn registration(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     assert_registered(&alice, "alice");
-    let registered = alice.wait_for(Event::as_registered).await?;
-    assert_eq!(registered.nick, alice.state().nick().as_ref());
-    for (name, value) in &registered.caps {
+    let connected = alice.wait_for(Event::as_connected).await?;
+    assert_eq!(connected.nick, alice.state().nick().as_ref());
+    for (name, value) in &connected.caps {
         assert_eq!(alice.state().caps().get(name), Some(value));
     }
     alice.expect_none(Event::as_disconnected).await?;
@@ -63,7 +63,7 @@ async fn registration(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn cap_notify_new(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let registered = alice.wait_for(Event::as_registered).await?;
+    let connected = alice.wait_for(Event::as_connected).await?;
     let changed = alice
         .wait_for(|event| {
             event
@@ -76,7 +76,7 @@ async fn cap_notify_new(s: Scenario) -> papo_testing::Result<()> {
         changed
             .added
             .keys()
-            .any(|name| !registered.caps.contains_key(name))
+            .any(|name| !connected.caps.contains_key(name))
     );
     for (name, value) in &changed.added {
         assert_eq!(alice.state().caps().get(name), Some(value));

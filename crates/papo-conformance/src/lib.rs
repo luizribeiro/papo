@@ -547,9 +547,9 @@ async fn wait_for_registration(client: &Client, events: &mut Events) -> Result<W
     timeout(TIMEOUT, async {
         loop {
             match events.next().await {
-                Some(Event::Registered(registered)) => {
+                Some(Event::Connected(connected)) => {
                     return Ok(Welcome {
-                        caps: registered.caps,
+                        caps: connected.caps,
                         isupport: client.state().isupport().clone(),
                     });
                 }

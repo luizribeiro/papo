@@ -806,26 +806,6 @@ impl core::marker::Unpin for papo::event::Redacted
 impl core::marker::UnsafeUnpin for papo::event::Redacted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Redacted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Redacted
-#[non_exhaustive] pub struct papo::event::Registered
-pub papo::event::Registered::caps: papo::Capabilities
-pub papo::event::Registered::nick: papo::Nick
-pub papo::event::Registered::reconnected: bool
-pub papo::event::Registered::text: alloc::string::String
-impl core::clone::Clone for papo::event::Registered
-pub fn papo::event::Registered::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::Registered
-impl core::cmp::PartialEq for papo::event::Registered
-pub fn papo::event::Registered::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::Registered
-pub fn papo::event::Registered::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::Registered
-impl core::marker::Freeze for papo::event::Registered
-impl core::marker::Send for papo::event::Registered
-impl core::marker::Sync for papo::event::Registered
-impl core::marker::Unpin for papo::event::Registered
-impl core::marker::UnsafeUnpin for papo::event::Registered
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Registered
-impl core::panic::unwind_safe::UnwindSafe for papo::event::Registered
 #[non_exhaustive] pub struct papo::event::SplitServers
 pub papo::event::SplitServers::first: alloc::string::String
 pub papo::event::SplitServers::second: alloc::string::String
@@ -1351,7 +1331,6 @@ pub papo::Event::Reacted(papo::event::Reacted)
 pub papo::Event::ReadMarker(papo::event::ReadMarker)
 pub papo::Event::RealnameChanged(papo::event::RealnameChanged)
 pub papo::Event::Redacted(papo::event::Redacted)
-pub papo::Event::Registered(papo::event::Registered)
 pub papo::Event::StandardReply(papo::event::StandardReply)
 pub papo::Event::TagMsg(papo::event::TagMsg)
 pub papo::Event::TopicChanged(papo::event::TopicChanged)
@@ -1417,8 +1396,6 @@ impl papo::Event
 pub const fn papo::Event::as_realname_changed(&self) -> core::option::Option<&papo::event::RealnameChanged>
 impl papo::Event
 pub const fn papo::Event::as_redacted(&self) -> core::option::Option<&papo::event::Redacted>
-impl papo::Event
-pub const fn papo::Event::as_registered(&self) -> core::option::Option<&papo::event::Registered>
 impl papo::Event
 pub const fn papo::Event::as_standard_reply(&self) -> core::option::Option<&papo::event::StandardReply>
 impl papo::Event

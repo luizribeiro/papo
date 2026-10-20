@@ -119,7 +119,7 @@ pub mod event {
         ChannelRenamed, ChannelSynced, Connected, Departed, Disconnected, FeaturesChanged,
         HostChanged, Invited, Joined, Kicked, MetadataChanged, ModeChange, ModeChanged,
         MonitorOffline, MonitorOnline, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
-        ReadMarker, RealnameChanged, Redacted, Registered, Source, SplitServers, StandardReply,
+        ReadMarker, RealnameChanged, Redacted, Source, SplitServers, StandardReply,
         StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, Visibility, Warning,
     };
     #[cfg(feature = "unstable")]
