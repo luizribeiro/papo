@@ -1241,7 +1241,9 @@ where
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);
                 }
-                update_rejoin_channels(session, defaults, &event);
+                if !part_restored_channel(session, defaults, &event)? {
+                    update_rejoin_channels(session, defaults, &event);
+                }
                 if matches!(
                     event,
                     Event::AccountCreation(crate::AccountCreation::VerificationRequired { .. })
@@ -1536,6 +1538,28 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
         }
         _ => {}
     }
+}
+
+fn part_restored_channel(
+    session: &mut Session,
+    defaults: &PostConnect,
+    event: &Event,
+) -> io::Result<bool> {
+    let Event::Joined(joined) = event else {
+        return Ok(false);
+    };
+    if !joined.is_self
+        || !defaults
+            .parted_while_disconnected
+            .iter()
+            .any(|channel| joined.channel == channel.as_ref())
+    {
+        return Ok(false);
+    }
+    session
+        .send(now(), Line::part(joined.channel.to_string()))
+        .map_err(io::Error::other)?;
+    Ok(true)
 }
 
 fn remember_rejoin(session: &Session, defaults: &mut PostConnect, entry: Autojoin) {

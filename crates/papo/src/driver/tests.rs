@@ -1214,6 +1214,19 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     )
     .await;
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n",
+    )
+    .await;
+    client_line(&mut server, b"PART #papo\r\n").await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost PART #papo :Leaving\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Parted(_))));
     let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
     within(server.shutdown()).await.unwrap();

@@ -824,7 +824,8 @@ impl Client {
     /// Leaves a channel, omitting an empty `reason` from the wire.
     ///
     /// While disconnected, this removes the channel from the automatic rejoin set and returns
-    /// [`Error::Disconnected`] without writing a `PART`.
+    /// [`Error::Disconnected`] without writing a `PART`. If a bouncer restores the channel after
+    /// reconnection, papo sends `PART` then.
     ///
     /// # Errors
     ///
