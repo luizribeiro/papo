@@ -187,7 +187,13 @@ impl StsPolicy {
     }
 }
 
-/// Persistent storage for per-host STS policies.
+/// Storage for per-host STS policies.
+///
+/// The in-memory store forgets TLS-only networks when the app restarts.
+/// Applications that need protection across restarts can persist policies in
+/// platform-appropriate storage. The repository's
+/// [file-backed example](https://github.com/luizribeiro/papo/tree/main/examples/sts-store)
+/// shows one way for an app to own that persistence.
 pub trait StsStore {
     /// Returns the stored policy for `host`, if one exists.
     fn get(&self, host: &str) -> Option<StsPolicy>;
