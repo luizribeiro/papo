@@ -23,6 +23,9 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Fixture limits (none recorded)
 
+### Observations
+- **Chat history end** (`2.19.1`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`
+
 ### Fixture patches (none)
 
 ## Ergo persistent
@@ -46,6 +49,9 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ### Fixture limits
 - `draft_channel_rename` (`2.19.1`) — Ergo rejects renaming channels that have persistent history ([spec](https://ircv3.net/specs/extensions/channel-rename)). Evidence: `C: RENAME #old #new :the project moved | S: FAIL RENAME CANNOT_RENAME :Persistent channels cannot be renamed`
 - `persistence` (`2.19.1`) — Ergo's always-on account profile keeps persistence effective after accepting an OFF preference ([spec](https://ircv3.net/specs/extensions/persistence)). Evidence: `C: PERSISTENCE SET OFF | S: PERSISTENCE STATUS OFF ON`
+
+### Observations
+- **Chat history end** (`2.19.1`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`
 
 ### Fixture patches (none)
 
@@ -73,6 +79,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `batch` (`soju 0.11.1 / Ergo 2.19.1`) — soju's replay does not expose the upstream history batch expected by this scenario ([spec](https://ircv3.net/specs/extensions/chathistory)). Evidence: `C: CHATHISTORY LATEST #review * 50 | S: no upstream chathistory batch`
 - `channel_modes_and_join_refusals` (`soju 0.11.1 / Ergo 2.19.1`) — soju does not relay a later upstream channel MODE change to the observing client ([spec](https://modern.ircdocs.horse/#mode-message)). Evidence: `upstream S: MODE #review +i | downstream S: no MODE notification`
 - `chathistory_paging` (`soju 0.11.1 / Ergo 2.19.1`) — soju echoes messages without server identifiers usable as history page references ([spec](https://ircv3.net/specs/extensions/message-ids)). Evidence: `S: echo PRIVMSG #review :paging marker, without a msgid tag`
+- `terminal_history_page` (`soju 0.11.1 / Ergo 2.19.1`) — soju omits message IDs from history while advertising only msgid references, preventing backward pagination ([spec](https://ircv3.net/specs/extensions/chathistory)). Evidence: `S: 005 MSGREFTYPES=msgid | C: CHATHISTORY LATEST #review * 10 | S: history PRIVMSG lines without msgid`
 - `draft_chathistory` (`soju 0.11.1 / Ergo 2.19.1`) — soju's history layer does not expose the earlier upstream message ([spec](https://ircv3.net/specs/extensions/chathistory)). Evidence: `C: CHATHISTORY LATEST #review * 50 | S: batch omits the earlier upstream PRIVMSG`
 - `monitor` (`soju 0.11.1 / Ergo 2.19.1`) — soju reports a monitored user online but does not relay that user's upstream away change ([spec](https://ircv3.net/specs/extensions/extended-monitor)). Evidence: `S: 730 monitored-user | upstream S: AWAY :reviewing; downstream S: no AWAY`
 - `nick_change_and_collision` (`soju 0.11.1 / Ergo 2.19.1`) — soju rejects an upstream nickname collision without preserving the 433 refusal category ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK occupied | upstream S: 433 occupied; downstream S: generic failure`
@@ -89,6 +96,9 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `sasl_plain` (`soju 0.11.1 / Ergo 2.19.1`) — bouncer authentication replaces the scenario's direct upstream SASL credentials ([spec](https://ircv3.net/specs/extensions/sasl-3.2)). Evidence: `C: PASS bouncer-credentials; AUTHENTICATE PLAIN targets the bouncer session`
 - `sasl_protocol_errors` (`soju 0.11.1 / Ergo 2.19.1`) — soju treats a post-registration AUTHENTICATE abort as a fatal bouncer authentication failure ([spec](https://ircv3.net/specs/extensions/sasl-3.2)). Evidence: `C: AUTHENTICATE PLAIN after registration | S: downstream connection closes`
 - `server_queries` (`soju 0.11.1 / Ergo 2.19.1`) — soju keeps the upstream session attached after downstream QUIT, leaving no WHOWAS record to relay ([spec](https://modern.ircdocs.horse/#whowas-message)). Evidence: `downstream C: QUIT; WHOWAS alice | upstream connection remains attached; S: no 314 row`
+
+### Observations
+- **Chat history end** (`soju 0.11.1 / Ergo 2.19.1`) — The terminal signal is not observable because returned messages lack the advertised msgid reference needed for the next page. Evidence: `S: 005 MSGREFTYPES=msgid | S: history PRIVMSG lines without msgid`
 
 ### Fixture patches
 - `nix/soju-cap-lines.patch` — Splits downstream CAP LS replies into continuation lines with at most 400 capability bytes. Why: soju emits every proxied Ergo capability on one IRC line, exceeding the 512-byte wire limit. Evidence: `Before: one CAP * LS line exceeded 512 bytes; after: CAP * LS * continuations end with CAP * LS.` Server bug: **yes**.
@@ -107,6 +117,9 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Fixture limits
 - `topic` (`4.12.1`) — InspIRCd applies topic-change flood protection and returns 437 to the immediate update ([spec](https://modern.ircdocs.horse/#topic-message)). Evidence: `C: TOPIC #review :Reviewing IRC topic synchronization | S: 437 #review`
+
+### Observations
+- **Chat history end** (`4.12.1`) — The fixture does not advertise chat history, so no end signal is available. Evidence: `S: CAP LS omits chathistory and draft/chathistory`
 
 ### Fixture patches (none)
 
@@ -135,6 +148,9 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Fixture limits (none recorded)
 
+### Observations
+- **Chat history end** (`2026-09-13`) — The fixture does not advertise chat history, so no end signal is available. Evidence: `S: CAP LS omits chathistory and draft/chathistory`
+
 ### Fixture patches
 - `nix/solanum-numeric-dns-port.patch` — Passes numeric port 53 to getaddrinfo when configuring the fallback DNS resolver. Why: Isolated Nix builds do not provide the service-name database entry for the name domain. Evidence: `Before: getaddrinfo(address, domain) failed during fixture startup; after: getaddrinfo(address, 53) succeeds.` Server bug: **no**.
 
@@ -153,5 +169,8 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Fixture limits
 - `names_multiple_channels` (`6.2.7`) — UnrealIRCd advertises and enforces a one-target limit for NAMES ([spec](https://modern.ircdocs.horse/#rplisupport-parameter)). Evidence: `S: 005 TARGMAX=NAMES:1 | C: NAMES #first,#second | S: one target only`
+
+### Observations
+- **Chat history end** (`6.2.7`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`
 
 ### Fixture patches (none)

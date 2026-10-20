@@ -91,6 +91,7 @@
             || pkgs.lib.hasInfix "/known-failures/" path
             || pkgs.lib.hasSuffix "/crates/papo-conformance/coverage-checklist.toml" path
             || pkgs.lib.hasSuffix "/crates/papo-conformance/coverage-waivers.toml" path
+            || pkgs.lib.hasSuffix "/crates/papo-conformance/server-observations.toml" path
             || pkgs.lib.hasInfix "/crates/papo-conformance/scripts/" path
             || pkgs.lib.hasSuffix "/docs/conformance-coverage.md" path
             || pkgs.lib.hasSuffix "/docs/conformance-matrix.md" path

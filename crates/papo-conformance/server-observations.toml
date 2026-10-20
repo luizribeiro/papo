@@ -1,0 +1,29 @@
+[ergo-default.history-end]
+finding = "The final nonempty five-message page carries draft/chathistory-end."
+evidence = "S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review"
+server_version = "2.19.1"
+
+[ergo-persistent.history-end]
+finding = "The final nonempty five-message page carries draft/chathistory-end."
+evidence = "S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review"
+server_version = "2.19.1"
+
+[soju-ergo.history-end]
+finding = "The terminal signal is not observable because returned messages lack the advertised msgid reference needed for the next page."
+evidence = "S: 005 MSGREFTYPES=msgid | S: history PRIVMSG lines without msgid"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
+[inspircd.history-end]
+finding = "The fixture does not advertise chat history, so no end signal is available."
+evidence = "S: CAP LS omits chathistory and draft/chathistory"
+server_version = "4.12.1"
+
+[solanum.history-end]
+finding = "The fixture does not advertise chat history, so no end signal is available."
+evidence = "S: CAP LS omits chathistory and draft/chathistory"
+server_version = "2026-09-13"
+
+[unrealircd.history-end]
+finding = "The final nonempty five-message page carries draft/chathistory-end."
+evidence = "S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review"
+server_version = "6.2.7"

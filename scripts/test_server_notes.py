@@ -49,15 +49,22 @@ class ServerNotesTests(unittest.TestCase):
             "evidence": "Before: 600 bytes; after: 400 bytes.",
             "server_bug": True,
         }
+        observation = {
+            "finding": "The final page carries an end tag.",
+            "evidence": "S: @draft/chathistory-end BATCH +history",
+            "server_version": "1.0",
+        }
         output = MODULE["render"](
             {"ergo-default": {"registration": entry}},
             {"wire.patch": patch},
+            {"ergo-default": {"history-end": observation}},
         )
         self.assertIn("### Server bugs", output)
         self.assertIn("`registration` (`1.0`)", output)
         self.assertIn("### Unimplemented features (none recorded)", output)
         self.assertIn("`nix/wire.patch`", output)
         self.assertIn("Server bug: **yes**", output)
+        self.assertIn("**Chat history end** (`1.0`)", output)
 
 
 if __name__ == "__main__":

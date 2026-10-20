@@ -9,6 +9,7 @@ import tomllib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FAILURES = ROOT / "crates/papo-conformance/known-failures"
 PATCH_INDEX = ROOT / "nix/fixture-patches.toml"
+OBSERVATIONS = ROOT / "crates/papo-conformance/server-observations.toml"
 PROFILE_LABELS = {
     "ergo-default": "Ergo default",
     "ergo-persistent": "Ergo persistent",
@@ -24,6 +25,7 @@ KINDS = {
     "spec-ambiguity": "Specification ambiguities",
     "fixture-limit": "Fixture limits",
 }
+OBSERVATION_LABELS = {"history-end": "Chat history end"}
 
 
 def require_fields(name, record, fields):
@@ -80,7 +82,21 @@ def load_patches(index=PATCH_INDEX, directory=None):
     return patches
 
 
-def render(profiles, patches):
+def load_observations(path=OBSERVATIONS):
+    """Load versioned wire observations for every deployment profile."""
+    observations = tomllib.loads(path.read_text())
+    if set(observations) != set(PROFILES):
+        raise ValueError("observations must describe every profile")
+    for profile, topics in observations.items():
+        unknown = set(topics) - set(OBSERVATION_LABELS)
+        if unknown:
+            raise ValueError(f"{profile} has unknown observations: {sorted(unknown)}")
+        for topic, entry in topics.items():
+            require_fields(f"{profile}:{topic}", entry, ("finding", "evidence", "server_version"))
+    return observations
+
+
+def render(profiles, patches, observations):
     """Render stable Markdown grouped by profile and exception kind."""
     lines = [
         "# IRC server notes\n",
@@ -103,6 +119,12 @@ def render(profiles, patches):
                     f"{entry['reason']} ([spec]({entry['spec']})). "
                     f"Evidence: `{entry['evidence']}`"
                 )
+        lines.append("\n### Observations")
+        for topic, entry in observations[profile].items():
+            lines.append(
+                f"- **{OBSERVATION_LABELS[topic]}** (`{entry['server_version']}`) — "
+                f"{entry['finding']} Evidence: `{entry['evidence']}`"
+            )
         matching = [
             (filename, entry)
             for filename, entry in patches.items()
@@ -124,7 +146,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=pathlib.Path, default=ROOT / "docs/server-notes.md")
     arguments = parser.parse_args()
-    arguments.output.write_text(render(load_failures(), load_patches()))
+    arguments.output.write_text(render(load_failures(), load_patches(), load_observations()))
 
 
 if __name__ == "__main__":
