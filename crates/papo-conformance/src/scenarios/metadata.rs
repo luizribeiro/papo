@@ -32,7 +32,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
         .expect("the requested metadata key is cached");
     assert_eq!(stored.value, value);
     assert_eq!(stored.visibility, Visibility::Public);
-    assert_eq!(alice.state().metadata(&nick), Some(values));
+    assert_eq!(alice.state().metadata(&nick), Some(&values));
 
     alice.metadata().remove(key).await?;
     let removed = alice
@@ -72,7 +72,6 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     assert!(
         bob.state()
             .metadata_subscriptions()
-            .iter()
             .any(|subscribed| subscribed.as_ref() == key)
     );
 
@@ -95,14 +94,14 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice_change, bob_change);
     assert_eq!(bob_change.value.as_deref(), Some("available"));
     assert_eq!(bob_change.visibility, Visibility::Public);
-    let cached = bob
-        .state()
+    let bob_state = bob.state();
+    let cached = bob_state
         .metadata(&alice_nick)
         .expect("subscriber caches the visible metadata");
     assert_eq!(cached[key].value, "available");
 
     bob.metadata().unsubscribe([key]).await?;
-    assert!(bob.state().metadata_subscriptions().is_empty());
+    assert!(bob.state().metadata_subscriptions().next().is_none());
     alice.metadata().set(key, "busy").await?;
     bob.expect_none(Event::as_metadata_changed).await?;
     assert_eq!(bob.state().metadata(&alice_nick), Some(cached));
@@ -149,8 +148,8 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(charlie_change, bob_change);
     for peer in [&alice, &bob, &charlie] {
-        let values = peer
-            .state()
+        let state = peer.state();
+        let values = state
             .metadata(&channel)
             .expect("channel metadata is synchronized");
         assert_eq!(values[key].value, value);

@@ -86,6 +86,7 @@ impl Metadata {
                 .client
                 .state()
                 .metadata(&target)
+                .cloned()
                 .unwrap_or_default())
         })
     }
@@ -122,6 +123,7 @@ impl Metadata {
                 .client
                 .state()
                 .metadata(&target)
+                .cloned()
                 .unwrap_or_default())
         })
     }
@@ -402,13 +404,12 @@ mod tests {
         )
         .await;
         assert!(within(subscribe).await.unwrap().is_ok());
-        assert_eq!(
-            client.state().metadata_subscriptions(),
-            ["avatar", "pronouns"]
-        );
-        assert_eq!(
-            client.state().metadata_subscriptions(),
-            ["avatar", "pronouns"]
+        assert!(
+            client
+                .state()
+                .metadata_subscriptions()
+                .map(AsRef::as_ref)
+                .eq(["avatar", "pronouns"])
         );
 
         let unsubscribe = tokio::spawn({
@@ -422,7 +423,13 @@ mod tests {
         )
         .await;
         assert!(within(unsubscribe).await.unwrap().is_ok());
-        assert_eq!(client.state().metadata_subscriptions(), ["avatar"]);
+        assert!(
+            client
+                .state()
+                .metadata_subscriptions()
+                .map(AsRef::as_ref)
+                .eq(["avatar"])
+        );
 
         let sync = tokio::spawn({
             let client = client.clone();

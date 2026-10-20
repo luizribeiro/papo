@@ -16,7 +16,6 @@ pub struct State {
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     account: Option<AccountName>,
-    metadata_subscriptions: Vec<crate::MetadataKey>,
     #[cfg(feature = "unstable")]
     bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
@@ -73,11 +72,6 @@ impl State {
             account: session
                 .account()
                 .map(|account| session.state().casemapping().account(account)),
-            metadata_subscriptions: session
-                .state()
-                .metadata_subscriptions()
-                .map(crate::MetadataKey::from)
-                .collect(),
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
                 papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::new(id)),
@@ -227,14 +221,13 @@ impl State {
     pub fn metadata(
         &self,
         target: impl AsRef<str>,
-    ) -> Option<HashMap<crate::MetadataKey, crate::MetadataValue>> {
-        self.core.metadata(target).cloned()
+    ) -> Option<&HashMap<crate::MetadataKey, crate::MetadataValue>> {
+        self.core.metadata(target)
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.
-    #[must_use]
-    pub fn metadata_subscriptions(&self) -> &[crate::MetadataKey] {
-        &self.metadata_subscriptions
+    pub fn metadata_subscriptions(&self) -> impl Iterator<Item = &crate::MetadataKey> {
+        self.core.metadata_subscriptions()
     }
 
     /// Returns a known user using the server's casemapping.
