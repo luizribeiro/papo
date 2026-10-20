@@ -72,15 +72,21 @@ pub(crate) fn history_item(
                 HistoryItem::Message,
             )
         }
-        papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, mapping, reaction),
-        papo_core::HistoryItem::Redacted(item) => typed_or_raw(&item.line, mapping, redaction),
+        papo_core::HistoryItem::Reacted(item) => {
+            typed_or_raw(&item.line, mapping, |message| reaction(message, mapping))
+        }
+        papo_core::HistoryItem::Redacted(item) => {
+            typed_or_raw(&item.line, mapping, |message| redaction(message, mapping))
+        }
         papo_core::HistoryItem::Joined(item) => {
             typed_or_raw(&item.line, mapping, |message| joined(message, client))
         }
         papo_core::HistoryItem::Parted(item) => {
             typed_or_raw(&item.line, mapping, |message| parted(message, client))
         }
-        papo_core::HistoryItem::Quit(item) => typed_or_raw(&item.line, mapping, quit),
+        papo_core::HistoryItem::Quit(item) => {
+            typed_or_raw(&item.line, mapping, |message| quit(message, mapping))
+        }
         papo_core::HistoryItem::Kicked(item) => {
             typed_or_raw(&item.line, mapping, |message| kicked(message, client))
         }
@@ -88,7 +94,9 @@ pub(crate) fn history_item(
             typed_or_raw(&item.line, mapping, |message| nick_changed(message, client))
         }
         papo_core::HistoryItem::TopicChanged(item) => {
-            typed_or_raw(&item.line, mapping, topic_changed)
+            typed_or_raw(&item.line, mapping, |message| {
+                topic_changed(message, mapping)
+            })
         }
         papo_core::HistoryItem::ModeChanged(item) => {
             typed_or_raw(&item.line, mapping, |message| mode_changed(message, client))
@@ -107,7 +115,7 @@ where
     convert(&raw.as_ref()).unwrap_or_else(|| HistoryItem::Other(RawLine::from_proto(raw, mapping)))
 }
 
-fn reaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
+fn reaction(message: &papo_proto::LineRef<'_>, mapping: crate::Casemapping) -> Option<HistoryItem> {
     let reaction = Reaction::parse(message)?;
     let target = message.param(0)?.to_owned();
     let reply_to = reaction.reply_to.clone();
@@ -118,7 +126,7 @@ fn reaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
     Some(HistoryItem::Reacted(Reacted {
         source: message
             .source()
-            .map(|source| Source::from_proto(source, crate::Casemapping::default())),
+            .map(|source| Source::from_proto(source, mapping)),
         target: target.into(),
         message: reply_to.into(),
         reaction,
@@ -126,11 +134,14 @@ fn reaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
     }))
 }
 
-fn redaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
+fn redaction(
+    message: &papo_proto::LineRef<'_>,
+    mapping: crate::Casemapping,
+) -> Option<HistoryItem> {
     Some(HistoryItem::Redacted(Redacted {
         source: message
             .source()
-            .map(|source| Source::from_proto(source, crate::Casemapping::default())),
+            .map(|source| Source::from_proto(source, mapping)),
         target: message.param(0)?.into(),
         message: message.param(1)?.into(),
         reason: message
@@ -142,26 +153,28 @@ fn redaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
 
 fn joined(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
+    let mapping = client.state().casemapping();
     Some(HistoryItem::Joined(Joined {
-        channel: message.param(0)?.into(),
+        channel: mapping.channel(message.param(0)?),
         is_self: is_self(client, &nick),
-        nick: nick.into(),
+        nick: mapping.nick(nick),
     }))
 }
 
 fn parted(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
+    let mapping = client.state().casemapping();
     Some(HistoryItem::Parted(Parted {
-        channel: message.param(0)?.into(),
+        channel: mapping.channel(message.param(0)?),
         is_self: is_self(client, &nick),
-        nick: nick.into(),
+        nick: mapping.nick(nick),
         reason: message.param(1).map(str::to_owned),
     }))
 }
 
-fn quit(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
+fn quit(message: &papo_proto::LineRef<'_>, mapping: crate::Casemapping) -> Option<HistoryItem> {
     Some(HistoryItem::Quit(Quit {
-        nick: source_nick(message)?.into(),
+        nick: mapping.nick(source_nick(message)?),
         reason: message.param(0).map(str::to_owned),
         channels: Vec::new(),
     }))
@@ -169,37 +182,43 @@ fn quit(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
 
 fn kicked(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let nick = message.param(1)?.to_owned();
+    let mapping = client.state().casemapping();
     Some(HistoryItem::Kicked(Kicked {
-        channel: message.param(0)?.into(),
+        channel: mapping.channel(message.param(0)?),
         is_self: is_self(client, &nick),
-        nick: nick.into(),
-        by: Source::from_proto(message.source()?, crate::Casemapping::default()),
+        nick: mapping.nick(nick),
+        by: Source::from_proto(message.source()?, mapping),
         reason: message.param(2).map(str::to_owned),
     }))
 }
 
 fn nick_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let old = source_nick(message)?;
+    let mapping = client.state().casemapping();
     Some(HistoryItem::NickChanged(NickChanged {
         is_self: is_self(client, &old),
-        old: old.into(),
-        new: message.param(0)?.into(),
+        old: mapping.nick(old),
+        new: mapping.nick(message.param(0)?),
     }))
 }
 
-fn topic_changed(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
+fn topic_changed(
+    message: &papo_proto::LineRef<'_>,
+    mapping: crate::Casemapping,
+) -> Option<HistoryItem> {
     Some(HistoryItem::TopicChanged(TopicChanged {
-        channel: message.param(0)?.into(),
+        channel: mapping.channel(message.param(0)?),
         topic: message
             .param(1)
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
-        by: Source::from_proto(message.source()?, crate::Casemapping::default()),
+        by: Source::from_proto(message.source()?, mapping),
     }))
 }
 
 fn mode_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
     let state = client.state();
+    let mapping = state.casemapping();
     let changes = ModeChanges::parse(
         message.param(1)?,
         message.params().skip(2),
@@ -214,7 +233,7 @@ fn mode_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<Hi
     .collect();
     Some(HistoryItem::ModeChanged(ModeChanged {
         target: message.param(0)?.into(),
-        by: Source::from_proto(message.source()?, crate::Casemapping::default()),
+        by: Source::from_proto(message.source()?, mapping),
         changes,
     }))
 }
@@ -609,9 +628,9 @@ mod tests {
     use std::time::{Duration, UNIX_EPOCH};
 
     use papo_core::{HistoryLine, HistoryQuery, MsgRef};
-    use papo_proto::{Line, LineRef};
+    use papo_proto::{Casemapping, Line, LineRef};
 
-    use super::{HistoryItem, HistoryReference, history_item};
+    use super::{HistoryItem, HistoryReference, history_item, reaction};
 
     fn core_item(message: &str) -> HistoryLine {
         HistoryLine {
@@ -675,6 +694,23 @@ mod tests {
                     && event.message == "RfcBTzyxY120004"
                     && event.reason.is_none()
         ));
+    }
+
+    #[test]
+    fn replayed_sources_capture_the_active_casemapping() {
+        let line = LineRef::parse(
+            "@+draft/react=👍;+draft/reply=RfcBTzyxY120004 :Alice[bot]!~a@cloak.example TAGMSG #papo",
+        )
+        .unwrap();
+        let Some(HistoryItem::Reacted(event)) = reaction(&line, Casemapping::Ascii) else {
+            panic!("reaction should be typed");
+        };
+        let Some(crate::Source::User { nick, .. }) = event.source else {
+            panic!("reaction should have a user source");
+        };
+
+        assert_eq!(nick.casemapping(), Casemapping::Ascii);
+        assert_ne!(nick, "alice{bot}");
     }
 
     #[test]
