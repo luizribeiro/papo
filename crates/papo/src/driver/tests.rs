@@ -252,17 +252,18 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::Connect(crate::ConnectErrorKind::Unavailable),
+            cause: crate::DisconnectCause::Connect(error),
             retry_in: Some(retry_in),
-        })) if retry_in == Duration::from_millis(800)
+        })) if error.kind() == crate::ConnectErrorKind::Unavailable
+            && retry_in == Duration::from_millis(800)
     ));
     tokio::time::advance(Duration::from_secs(2)).await;
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::Connect(crate::ConnectErrorKind::Unavailable),
+            cause: crate::DisconnectCause::Connect(error),
             retry_in: None,
-        }))
+        })) if error.kind() == crate::ConnectErrorKind::Unavailable
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1697,6 +1698,23 @@ fn certificate_verification_failure_is_fatal() {
         .into(),
     );
     assert!(super::is_fatal_failure(&error, None));
+    let Event::Disconnected(disconnected) =
+        Event::Disconnected(super::disconnected_event(&error, None))
+    else {
+        unreachable!()
+    };
+    let crate::DisconnectCause::Connect(connect) = &disconnected.cause else {
+        panic!("expected the certificate connection error")
+    };
+    assert_eq!(connect.kind(), crate::ConnectErrorKind::CertificateRejected);
+    let source = std::error::Error::source(&disconnected).unwrap();
+    assert!(
+        source
+            .source()
+            .unwrap()
+            .to_string()
+            .contains("UnknownIssuer")
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]

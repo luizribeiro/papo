@@ -1610,7 +1610,7 @@ fn finish(events: EventSink, end: ConnectionEnd, _will_retry: bool) -> Result<()
 fn disconnected_event(error: &Error, retry_in: Option<Duration>) -> crate::Disconnected {
     let cause = match error {
         Error::Disconnected(disconnected) => disconnected.cause.clone(),
-        Error::Connect(error) => crate::DisconnectCause::Connect(error.kind()),
+        Error::Connect(error) => crate::DisconnectCause::Connect(error.clone()),
         Error::Registration(error) => crate::DisconnectCause::Registration(error.clone()),
         _ => crate::DisconnectCause::ConnectionLost,
     };

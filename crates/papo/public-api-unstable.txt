@@ -437,6 +437,7 @@ impl core::cmp::Eq for papo::Disconnected
 impl core::cmp::PartialEq for papo::Disconnected
 pub fn papo::Disconnected::eq(&self, &Self) -> bool
 impl core::error::Error for papo::Disconnected
+pub fn papo::Disconnected::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for papo::Disconnected
 pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::Disconnected
@@ -447,8 +448,8 @@ impl core::marker::Send for papo::Disconnected
 impl core::marker::Sync for papo::Disconnected
 impl core::marker::Unpin for papo::Disconnected
 impl core::marker::UnsafeUnpin for papo::Disconnected
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
-impl core::panic::unwind_safe::UnwindSafe for papo::Disconnected
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
+impl !core::panic::unwind_safe::UnwindSafe for papo::Disconnected
 #[non_exhaustive] pub struct papo::event::FeaturesChanged
 pub papo::event::FeaturesChanged::added: alloc::vec::Vec<papo::Feature>
 pub papo::event::FeaturesChanged::removed: alloc::vec::Vec<papo::Feature>
@@ -1278,7 +1279,7 @@ impl core::marker::UnsafeUnpin for papo::ConnectErrorKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ConnectErrorKind
 impl core::panic::unwind_safe::UnwindSafe for papo::ConnectErrorKind
 #[non_exhaustive] pub enum papo::DisconnectCause
-pub papo::DisconnectCause::Connect(papo::ConnectErrorKind)
+pub papo::DisconnectCause::Connect(papo::ConnectError)
 pub papo::DisconnectCause::ConnectionLost
 pub papo::DisconnectCause::PingTimeout
 pub papo::DisconnectCause::Protocol
@@ -1303,8 +1304,8 @@ impl core::marker::Send for papo::DisconnectCause
 impl core::marker::Sync for papo::DisconnectCause
 impl core::marker::Unpin for papo::DisconnectCause
 impl core::marker::UnsafeUnpin for papo::DisconnectCause
-impl core::panic::unwind_safe::RefUnwindSafe for papo::DisconnectCause
-impl core::panic::unwind_safe::UnwindSafe for papo::DisconnectCause
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::DisconnectCause
+impl !core::panic::unwind_safe::UnwindSafe for papo::DisconnectCause
 #[non_exhaustive] pub enum papo::EndpointKind
 pub papo::EndpointKind::Plaintext
 pub papo::EndpointKind::SecureWebSocket
@@ -1479,8 +1480,8 @@ impl core::marker::Send for papo::Event
 impl core::marker::Sync for papo::Event
 impl core::marker::Unpin for papo::Event
 impl core::marker::UnsafeUnpin for papo::Event
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Event
-impl core::panic::unwind_safe::UnwindSafe for papo::Event
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::Event
+impl !core::panic::unwind_safe::UnwindSafe for papo::Event
 #[non_exhaustive] pub enum papo::Fallback
 pub papo::Fallback::ContextTagDropped
 pub papo::Fallback::ReplyTagDropped
@@ -1860,6 +1861,9 @@ pub fn papo::ConnectError::kind(&self) -> papo::ConnectErrorKind
 pub fn papo::ConnectError::new(papo::ConnectErrorKind, impl core::convert::Into<alloc::boxed::Box<(dyn core::error::Error + core::marker::Send + core::marker::Sync)>>) -> Self
 impl core::clone::Clone for papo::ConnectError
 pub fn papo::ConnectError::clone(&self) -> Self
+impl core::cmp::Eq for papo::ConnectError
+impl core::cmp::PartialEq for papo::ConnectError
+pub fn papo::ConnectError::eq(&self, &Self) -> bool
 impl core::convert::From<papo::ConnectError> for papo::Error
 pub fn papo::Error::from(papo::ConnectError) -> Self
 impl core::error::Error for papo::ConnectError
@@ -1907,6 +1911,7 @@ impl core::cmp::Eq for papo::Disconnected
 impl core::cmp::PartialEq for papo::Disconnected
 pub fn papo::Disconnected::eq(&self, &Self) -> bool
 impl core::error::Error for papo::Disconnected
+pub fn papo::Disconnected::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for papo::Disconnected
 pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::Disconnected
@@ -1917,8 +1922,8 @@ impl core::marker::Send for papo::Disconnected
 impl core::marker::Sync for papo::Disconnected
 impl core::marker::Unpin for papo::Disconnected
 impl core::marker::UnsafeUnpin for papo::Disconnected
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
-impl core::panic::unwind_safe::UnwindSafe for papo::Disconnected
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
+impl !core::panic::unwind_safe::UnwindSafe for papo::Disconnected
 pub struct papo::Driver
 impl core::future::future::Future for papo::Driver
 pub type papo::Driver::Output = core::result::Result<(), papo::Error>

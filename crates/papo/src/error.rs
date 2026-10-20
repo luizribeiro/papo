@@ -25,11 +25,22 @@ pub enum ConnectErrorKind {
 }
 
 /// An opaque, cloneable error from opening a network connection.
+///
+/// Equality compares the stable [`ConnectErrorKind`] and the text of the
+/// underlying error.
 #[derive(Clone, Debug)]
 pub struct ConnectError {
     kind: ConnectErrorKind,
     source: Arc<dyn std::error::Error + Send + Sync>,
 }
+
+impl PartialEq for ConnectError {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind && self.source.to_string() == other.source.to_string()
+    }
+}
+
+impl Eq for ConnectError {}
 
 impl ConnectError {
     /// Creates a connection error with a stable category and underlying cause.
@@ -282,7 +293,7 @@ pub enum DisconnectCause {
     /// The transport reached EOF or otherwise vanished.
     ConnectionLost,
     /// Opening a replacement connection failed.
-    Connect(ConnectErrorKind),
+    Connect(ConnectError),
     /// Registration failed on a replacement connection.
     Registration(RegistrationError),
     /// The server sent `ERROR` with bounded explanatory text.
@@ -307,7 +318,7 @@ impl fmt::Display for DisconnectCause {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ConnectionLost => formatter.write_str("the connection was lost"),
-            Self::Connect(kind) => write!(formatter, "a connection attempt failed: {kind:?}"),
+            Self::Connect(error) => error.fmt(formatter),
             Self::Registration(error) => error.fmt(formatter),
             Self::Server { message } => write!(formatter, "the server disconnected: {message}"),
             Self::PingTimeout => formatter.write_str("the server stopped responding"),
@@ -348,7 +359,15 @@ impl fmt::Display for Disconnected {
     }
 }
 
-impl std::error::Error for Disconnected {}
+impl std::error::Error for Disconnected {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match &self.cause {
+            DisconnectCause::Connect(error) => Some(error),
+            DisconnectCause::Registration(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 /// An error produced by the asynchronous IRC client.
 #[derive(Clone, Debug, Error)]
@@ -720,7 +739,10 @@ mod tests {
 
         for cause in [
             DisconnectCause::ConnectionLost,
-            DisconnectCause::Connect(ConnectErrorKind::Refused),
+            DisconnectCause::Connect(ConnectError::new(
+                ConnectErrorKind::Refused,
+                io::Error::new(io::ErrorKind::ConnectionRefused, "connection refused"),
+            )),
             DisconnectCause::Registration(RegistrationError::Timeout),
             DisconnectCause::Server {
                 message: "maintenance".into(),
