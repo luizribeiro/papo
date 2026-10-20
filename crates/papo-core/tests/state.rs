@@ -5,10 +5,10 @@ mod support;
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
-    Account, Away, Config, Conversation, Event, OwnedModeChange, RateLimit, ResponseMatcher,
-    Source, StateLimit, Subject,
+    Account, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange, RateLimit,
+    ResponseMatcher, Source, StateLimit, Subject,
 };
-use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, ModeKind, Nick};
+use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick};
 use support::Transcript;
 
 #[test]
@@ -867,20 +867,26 @@ fn reports_mixed_channel_and_user_mode_changes() {
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { .. }))
-        .server(":alice!alice@staff.example MODE #papo +o-b emily *!*@gateway/tor-sasl")
+        .server(":alice!alice@staff.example MODE #papo +ob-v alice *!*@spam.example bob")
         .event(|event| match event {
             Event::ModeChanged { subject, actor, changes, .. } => {
                 matches!(subject, Subject::Channel(channel) if channel == "#papo")
                     && actor == "alice"
                     && changes == &vec![
-                        OwnedModeChange { set: true, mode: 'o', arg: Some("emily".into()), kind: ModeKind::Prefix(0) },
-                        OwnedModeChange { set: false, mode: 'b', arg: Some("*!*@gateway/tor-sasl".into()), kind: ModeKind::List },
+                        ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::Nick(Casemapping::Rfc1459.nick("alice"))) },
+                        ModeChange { mode: 'b', action: ModeAction::Add, arg: Some(ModeArg::Mask(Casemapping::Rfc1459.mask("*!*@spam.example"))) },
+                        ModeChange { mode: 'v', action: ModeAction::Remove, arg: Some(ModeArg::Nick(Casemapping::Rfc1459.nick("bob"))) },
                     ]
             }
             _ => false,
         })
+        .server(":alice!alice@staff.example MODE #papo +kl review-key-2026 50")
+        .event(|event| matches!(event, Event::ModeChanged { changes, .. } if changes == &vec![
+            ModeChange { mode: 'k', action: ModeAction::Add, arg: Some(ModeArg::Value("review-key-2026".into())) },
+            ModeChange { mode: 'l', action: ModeAction::Add, arg: Some(ModeArg::Value("50".into())) },
+        ]))
         .server(":ergo.test MODE emily +i")
-        .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor, changes, .. } if nick == "emily" && actor == "ergo.test" && changes == &vec![OwnedModeChange { set: true, mode: 'i', arg: None, kind: ModeKind::Unknown }]))
+        .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor, changes, .. } if nick == "emily" && actor == "ergo.test" && changes == &vec![ModeChange { mode: 'i', action: ModeAction::Add, arg: None }]))
         .no_event();
 }
 

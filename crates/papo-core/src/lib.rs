@@ -1932,7 +1932,7 @@ pub enum Event {
         /// Whether the distinct subject is this session's user.
         subject_authorship: Authorship,
         /// Parsed mode operations in wire order.
-        changes: Vec<OwnedModeChange>,
+        changes: Vec<ModeChange>,
     },
     /// A channel topic changed live.
     TopicChanged {

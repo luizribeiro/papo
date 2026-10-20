@@ -16,13 +16,14 @@ use std::{
 
 use papo_proto::{
     Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
-    Command, Isupport, Join, LineRef, MetadataKey, ModeChanges, ModeKind, NamesEntry, Nick,
-    Numeric, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
+    Command, Isupport, Join, LineRef, MetadataKey, ModeChange as ProtoModeChange, ModeChanges,
+    ModeKind, NamesEntry, Nick, Numeric, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence,
+    WhoxReply, parse_353, time,
 };
 
 use crate::{
-    Authorship, Config, Conversation, Event, Handled, LastSeen, MetadataValue, NameKey, Outbox,
-    OwnedModeChange, ReadMarker, Source, StateLimit, Subject,
+    Authorship, Config, Conversation, Event, Handled, LastSeen, MetadataValue, ModeArg, ModeChange,
+    NameKey, Outbox, ReadMarker, Source, StateLimit, Subject,
     conversation::classify_target,
     monitor::{Monitor, presence_nicks},
     typing::{Typer, TypingTable},
@@ -607,11 +608,12 @@ impl State {
         };
         let changes = if isupport.is_channel(target) {
             ModeChanges::parse(modestring, message.params().skip(2), isupport)
-                .map(OwnedModeChange::from)
+                .map(|change| typed_mode_change(change, isupport))
                 .collect()
         } else {
-            ModeChanges::parse(modestring, message.params().skip(2), &Isupport::default())
-                .map(OwnedModeChange::from)
+            let defaults = Isupport::default();
+            ModeChanges::parse(modestring, message.params().skip(2), &defaults)
+                .map(|change| typed_mode_change(change, isupport))
                 .collect()
         };
         outbox.event(Event::ModeChanged {
@@ -958,6 +960,19 @@ impl State {
     /// Iterates over users currently typing in `conversation`, in start order.
     pub fn typing<'a>(&'a self, conversation: &'a Conversation) -> impl Iterator<Item = &'a Typer> {
         self.typing.get(conversation)
+    }
+}
+
+fn typed_mode_change(change: ProtoModeChange<'_>, isupport: &Isupport) -> ModeChange {
+    let arg = change.arg.map(|arg| match change.kind {
+        ModeKind::Prefix(_) => ModeArg::Nick(isupport.casemapping().nick(arg)),
+        ModeKind::List => ModeArg::Mask(isupport.casemapping().mask(arg)),
+        _ => ModeArg::Value(arg.to_owned()),
+    });
+    ModeChange {
+        mode: change.mode,
+        action: change.action,
+        arg,
     }
 }
 

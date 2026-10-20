@@ -1237,17 +1237,24 @@ pub(crate) fn from_core(
                 changes: changes
                     .into_iter()
                     .map(|change| {
-                        typed_mode_change(
-                            if change.set {
-                                LegacyModeAction::Add
-                            } else {
-                                LegacyModeAction::Remove
-                            },
-                            change.mode,
-                            change.arg.as_deref(),
-                            change.kind,
-                            casemapping,
-                        )
+                        let action = match change.action {
+                            papo_core::ModeAction::Add => LegacyModeAction::Add,
+                            papo_core::ModeAction::Remove => LegacyModeAction::Remove,
+                        };
+                        let (arg, kind) = match change.arg {
+                            Some(papo_core::ModeArg::Nick(nick)) => {
+                                (Some(nick.into_string()), papo_proto::ModeKind::Prefix(0))
+                            }
+                            Some(papo_core::ModeArg::Mask(mask)) => {
+                                (Some(mask.into_string()), papo_proto::ModeKind::List)
+                            }
+                            Some(papo_core::ModeArg::Value(value)) => {
+                                (Some(value), papo_proto::ModeKind::AlwaysArg)
+                            }
+                            Some(_) => (None, papo_proto::ModeKind::Unknown),
+                            None => (None, papo_proto::ModeKind::NoArg),
+                        };
+                        typed_mode_change(action, change.mode, arg.as_deref(), kind, casemapping)
                     })
                     .collect(),
             })
@@ -1326,7 +1333,7 @@ mod tests {
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
-    use papo_proto::{Casemapping, Isupport, Line, LineRef, ModeKind as ProtoModeKind, Typing};
+    use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
 
     fn from_core(event: papo_core::Event) -> CoreEvent {
         from_core_with_mapping(event, Casemapping::default(), UNIX_EPOCH)
@@ -2277,11 +2284,12 @@ mod tests {
 
     #[test]
     fn maps_mode_changed() {
-        let mode_changes = vec![papo_core::OwnedModeChange {
-            set: true,
+        let mode_changes = vec![papo_core::ModeChange {
             mode: 'o',
-            arg: Some("emily".into()),
-            kind: ProtoModeKind::Prefix(0),
+            action: papo_core::ModeAction::Add,
+            arg: Some(papo_core::ModeArg::Nick(
+                Casemapping::default().nick("emily"),
+            )),
         }];
         assert!(matches!(
             forwarded(papo_core::Event::ModeChanged {
