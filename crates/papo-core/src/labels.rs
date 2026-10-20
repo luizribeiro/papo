@@ -1,7 +1,6 @@
 use crate::{
-    Command, Event, Feature, Instant, LineRef, MAX_PENDING_REQUESTS, Message, Numeric,
-    RequestError, RequestId, Response, ResponseMatcher, Session, cap, parse_whois_channels,
-    sent_info,
+    Command, Event, Feature, Instant, Line, LineRef, MAX_PENDING_REQUESTS, Numeric, RequestError,
+    RequestId, Response, ResponseMatcher, Session, cap, parse_whois_channels, sent_info,
 };
 
 impl Session {
@@ -123,7 +122,7 @@ impl Session {
     pub(super) fn queue_request(
         &mut self,
         now: Instant,
-        mut message: Message,
+        mut message: Line,
         feature: Option<Feature>,
         emit_events: bool,
     ) -> Result<RequestId, RequestError> {

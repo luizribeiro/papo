@@ -91,7 +91,7 @@ use std::{
 use web_time::Instant;
 
 use papo_proto::{
-    BuildError, Casemapping, Command, Ctcp, LineRef, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message,
+    BuildError, Casemapping, Command, Ctcp, Line, LineRef, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN,
     ModeChange, ModeKind, Numeric, Source, StandardReply as StandardReplyView, StandardReplyKind,
 };
 
@@ -883,7 +883,7 @@ struct UnlabelledRequest {
     started: Instant,
     matcher: ResponseMatcher,
     fence: Option<String>,
-    lines: Vec<Message>,
+    lines: Vec<Line>,
 }
 
 /// One channel reported by a `WHOIS` response.
@@ -901,7 +901,7 @@ pub struct Response {
     /// Identifier assigned when the request was queued.
     pub id: RequestId,
     /// Response lines in server delivery order.
-    pub lines: Vec<Message>,
+    pub lines: Vec<Line>,
     /// A typed history page nested in this response, when present.
     pub history: Option<HistoryPage>,
     /// Targets nested in a completed `CHATHISTORY TARGETS` response.
@@ -1070,13 +1070,13 @@ impl StandardReply {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HistoryMessage {
     /// The replayed IRC message.
-    pub message: Message,
+    pub message: Line,
     /// Whether the server supplied it as context outside the requested limit.
     pub context: bool,
 }
 
 impl std::ops::Deref for HistoryMessage {
-    type Target = Message;
+    type Target = Line;
 
     fn deref(&self) -> &Self::Target {
         &self.message
@@ -1181,7 +1181,7 @@ pub type ResponseHistory = HistoryPage;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MultilineMessage {
     /// The reconstructed `PRIVMSG` or `NOTICE`.
-    pub message: Message,
+    pub message: Line,
 }
 
 /// A received `TAGMSG` and its client-only metadata.
@@ -1474,7 +1474,7 @@ pub enum Event {
         /// The servers on either side of the lost link.
         servers: [String; 2],
         /// The `QUIT` messages grouped by the server.
-        quits: Vec<Message>,
+        quits: Vec<Line>,
     },
     /// Users returned after connectivity between two servers was restored.
     ///
@@ -1484,7 +1484,7 @@ pub enum Event {
         /// The servers on either side of the restored link.
         servers: [String; 2],
         /// The `JOIN` messages grouped by the server.
-        joins: Vec<Message>,
+        joins: Vec<Line>,
     },
     /// A server batch exceeded a retention bound or deadline.
     BatchAbandoned {
@@ -1694,7 +1694,7 @@ pub enum BatchAbandonReason {
 /// A parsed message annotated with protocol dispatch context.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReceivedMessage {
-    message: Message,
+    message: Line,
     batch_type: Option<String>,
     echo: bool,
     other_session: bool,
@@ -1727,25 +1727,25 @@ impl ReceivedMessage {
 
     /// Removes the dispatch annotation and returns the parsed IRC message.
     #[must_use]
-    pub fn into_message(self) -> Message {
+    pub fn into_message(self) -> Line {
         self.message
     }
 
     /// Splits the message into its wire value and dispatch annotations.
     #[must_use]
-    pub fn into_parts(self) -> (Message, Option<String>, bool) {
+    pub fn into_parts(self) -> (Line, Option<String>, bool) {
         (self.message, self.batch_type, self.echo)
     }
 
     /// Splits the message into its wire value and all dispatch annotations.
     #[must_use]
-    pub fn into_context_parts(self) -> (Message, Option<String>, bool, bool) {
+    pub fn into_context_parts(self) -> (Line, Option<String>, bool, bool) {
         (self.message, self.batch_type, self.echo, self.other_session)
     }
 }
 
 impl std::ops::Deref for ReceivedMessage {
-    type Target = Message;
+    type Target = Line;
 
     fn deref(&self) -> &Self::Target {
         &self.message
@@ -1882,7 +1882,7 @@ impl Outbox {
     }
 
     fn transmit<const N: usize>(&mut self, command: &str, params: [&str; N]) {
-        match Message::new(command, params).to_line() {
+        match Line::new(command, params).to_line() {
             Ok(line) => self.transmit_raw(line.into()),
             Err(error) => self.close(
                 CloseKind::Other,
@@ -1895,7 +1895,7 @@ impl Outbox {
         if self.close_requested {
             return;
         }
-        match Message::new(command, params).to_line() {
+        match Line::new(command, params).to_line() {
             Ok(line) => self.immediate.push_back(line.into()),
             Err(error) => self.close(
                 CloseKind::Other,
@@ -2172,7 +2172,7 @@ impl Session {
     /// # Errors
     ///
     /// Returns [`BuildError`] if `message` cannot be represented as a valid IRC wire line.
-    pub fn send(&mut self, now: Instant, message: Message) -> Result<(), BuildError> {
+    pub fn send(&mut self, now: Instant, message: Line) -> Result<(), BuildError> {
         self.rate_limit.advance(now);
         let line = message.to_line()?;
         drop(message);
@@ -2256,7 +2256,7 @@ impl Session {
                 }
                 let id = format!("b{}-{batch_count}", encode_label(self.next_request_id));
                 let params = [format!("+{id}"), cap::MULTILINE.into(), target.into()];
-                let mut open = Message::new("BATCH", params);
+                let mut open = Line::new("BATCH", params);
                 for &(key, value) in tags {
                     if batch_count == 0 || !outgoing::first_line_only(key) {
                         open = open.with_tag(key, value);
@@ -2269,15 +2269,15 @@ impl Session {
                 }
                 lines.push(open.to_line()?.into_bytes());
                 for (offset, segment) in segments[start..end].iter().enumerate() {
-                    let mut inner = Message::new(kind.command(), [target, segment.text])
-                        .with_tag(cap::BATCH, &id);
+                    let mut inner =
+                        Line::new(kind.command(), [target, segment.text]).with_tag(cap::BATCH, &id);
                     if offset > 0 && segments[offset + start - 1].concat {
                         inner = inner.with_tag("draft/multiline-concat", "");
                     }
                     lines.push(inner.to_line()?.into_bytes());
                 }
                 lines.push(
-                    Message::new("BATCH", [format!("-{id}")])
+                    Line::new("BATCH", [format!("-{id}")])
                         .to_line()?
                         .into_bytes(),
                 );
@@ -2286,7 +2286,7 @@ impl Session {
             }
         } else {
             for (index, segment) in segments.iter().enumerate() {
-                let mut message = Message::new(kind.command(), [target, segment.text]);
+                let mut message = Line::new(kind.command(), [target, segment.text]);
                 for &(key, value) in tags {
                     if index == 0 || !outgoing::first_line_only(key) {
                         message = message.with_tag(key, value);
@@ -2329,7 +2329,7 @@ impl Session {
     /// requested by the message is unavailable,
     /// [`RequestError::PendingLimit`] when 256 labelled requests are already pending, or
     /// [`RequestError::Build`] when the tagged message cannot be represented on the wire.
-    pub fn request(&mut self, now: Instant, message: Message) -> Result<RequestId, RequestError> {
+    pub fn request(&mut self, now: Instant, message: Line) -> Result<RequestId, RequestError> {
         self.request_with_event_policy(now, message, true)
     }
 
@@ -2344,7 +2344,7 @@ impl Session {
     pub fn request_silent(
         &mut self,
         now: Instant,
-        message: Message,
+        message: Line,
     ) -> Result<RequestId, RequestError> {
         self.request_with_event_policy(now, message, false)
     }
@@ -2352,7 +2352,7 @@ impl Session {
     fn request_with_event_policy(
         &mut self,
         now: Instant,
-        message: Message,
+        message: Line,
         emit_events: bool,
     ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::LabeledResponse)?;
@@ -2371,7 +2371,7 @@ impl Session {
     pub(crate) fn request_for_feature(
         &mut self,
         now: Instant,
-        message: Message,
+        message: Line,
         feature: Feature,
     ) -> Result<RequestId, RequestError> {
         self.require_feature(feature)?;
@@ -2389,7 +2389,7 @@ impl Session {
     pub fn request_with_matcher(
         &mut self,
         now: Instant,
-        message: Message,
+        message: Line,
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
         let away_message = matches!(matcher, ResponseMatcher::Away(true))
@@ -2683,7 +2683,7 @@ impl Session {
     ) -> Result<(), RequestError> {
         self.request_for_feature(
             now,
-            Message::new(
+            Line::new(
                 "REGISTER",
                 [
                     account.unwrap_or("*"),
@@ -2718,7 +2718,7 @@ impl Session {
         }
         self.request_for_feature(
             now,
-            Message::new("VERIFY", [account, code]),
+            Line::new("VERIFY", [account, code]),
             Feature::AccountRegistration,
         )?;
         self.account_registration.request_started();
@@ -3233,7 +3233,7 @@ impl Session {
         }
     }
 
-    fn apply_aggregate_state(&mut self, message: &Message) {
+    fn apply_aggregate_state(&mut self, message: &Line) {
         let before = self.state.clone();
         let event_count = self.outbox.events.len();
         self.state.handle_message(
@@ -3352,7 +3352,7 @@ fn requested_message_feature(message: &LineRef<'_>) -> Option<Feature> {
     message.tag("+typing").map(|_| Feature::Typing)
 }
 
-fn parse_whois_channels(lines: &[Message], isupport: &papo_proto::Isupport) -> Vec<WhoisChannel> {
+fn parse_whois_channels(lines: &[Line], isupport: &papo_proto::Isupport) -> Vec<WhoisChannel> {
     let symbols: Vec<_> = isupport
         .prefix()
         .into_iter()

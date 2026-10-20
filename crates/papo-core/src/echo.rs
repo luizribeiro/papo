@@ -1,4 +1,4 @@
-use crate::{Event, LineRef, Message, ReceivedMessage, Session, cap};
+use crate::{Event, Line, LineRef, ReceivedMessage, Session, cap};
 
 impl Session {
     pub(super) fn enqueue_labelled_echo(&mut self, message: &LineRef<'_>) {
@@ -30,7 +30,7 @@ impl Session {
 
     pub(super) fn received_message(
         &self,
-        message: Message,
+        message: Line,
         batch_type: Option<String>,
         labelled_echo: bool,
     ) -> ReceivedMessage {
