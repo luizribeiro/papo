@@ -28,31 +28,6 @@ pub struct MetadataChanged {
     pub visibility: Visibility,
 }
 
-/// An account's configured persistence preference.
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum PersistenceSetting {
-    /// Keep the account's client active while disconnected.
-    On,
-    /// Disconnect the account's client normally.
-    Off,
-    /// Use the server's default persistence policy.
-    Default,
-}
-
-#[cfg(feature = "unstable")]
-impl PersistenceSetting {
-    pub(crate) const fn into_core(self) -> papo_core::PersistenceSetting {
-        match self {
-            Self::On => papo_core::PersistenceSetting::On,
-            Self::Off => papo_core::PersistenceSetting::Off,
-            Self::Default => papo_core::PersistenceSetting::Default,
-        }
-    }
-}
-
 /// The server reported the account's persistence state.
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -60,7 +35,7 @@ impl PersistenceSetting {
 #[non_exhaustive]
 pub struct PersistenceChanged {
     /// The configured persistence preference.
-    pub setting: PersistenceSetting,
+    pub setting: crate::PersistenceSetting,
     /// Whether persistence is currently effective.
     pub effective: bool,
 }

@@ -38,10 +38,13 @@ pub use connection::{
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use papo_core::PersistenceSetting;
 pub use server::{BatchAbandonReason, MetadataChanged, StateLimit, Warning};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use server::{BouncerNetworkChanged, PersistenceChanged, PersistenceSetting};
+pub use server::{BouncerNetworkChanged, PersistenceChanged};
 pub use source::Source;
 pub use tags::Tags;
 pub use user::{
@@ -878,12 +881,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         #[cfg(feature = "unstable")]
         papo_core::Event::PersistenceStatus(status) => {
             Event::PersistenceChanged(PersistenceChanged {
-                setting: match status.setting {
-                    papo_core::PersistenceSetting::On => PersistenceSetting::On,
-                    papo_core::PersistenceSetting::Off => PersistenceSetting::Off,
-                    papo_core::PersistenceSetting::Default => PersistenceSetting::Default,
-                    _ => return CoreEvent::Unknown,
-                },
+                setting: status.setting,
                 effective: status.effective,
             })
         }

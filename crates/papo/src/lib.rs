@@ -62,9 +62,6 @@ pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use event_impl::PersistenceSetting;
 pub use event_impl::{
     Authorship, Ctcp, Event, Message, MessageKind, ModeKind, Origin, Source, Tags,
 };
@@ -83,9 +80,6 @@ pub use ext::monitor::Monitor;
 pub use ext::persistence::Persistence;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use ext::persistence::PersistenceStatus;
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport::Isupport;
 pub use metadata::{MetadataValue, Visibility};
@@ -101,6 +95,9 @@ pub use papo_core::{Account, Away, Capabilities, Channel, Conversation, Feature,
 pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 #[doc(inline)]
 pub use papo_core::{InvalidRateLimit, RateLimit, Sasl};
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use papo_core::{PersistenceSetting, PersistenceStatus};
 #[doc(inline)]
 pub use papo_core::{Unsupported, UnsupportedReason};
 #[doc(inline)]
@@ -125,6 +122,9 @@ pub enum Subject {
 
 /// Payloads carried by [`Event`].
 pub mod event {
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub use crate::PersistenceStatus;
     pub use crate::event_impl::{
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
         ChannelRenamed, ChannelSynced, Connected, Departed, Disconnected, FeaturesChanged,

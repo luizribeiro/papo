@@ -211,9 +211,7 @@ impl State {
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn persistence(&self) -> Option<crate::PersistenceStatus> {
-        self.core
-            .persistence()
-            .and_then(crate::PersistenceStatus::from_core)
+        self.core.persistence()
     }
 
     /// Returns cached metadata for `target`.

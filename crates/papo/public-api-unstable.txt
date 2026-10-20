@@ -21,6 +21,8 @@ pub use papo::NetworkConfig
 pub use papo::NetworkId
 pub use papo::NetworkState
 pub use papo::Nick
+pub use papo::PersistenceSetting
+pub use papo::PersistenceStatus
 pub use papo::RateLimit
 pub use papo::Refusal
 pub use papo::Sasl
@@ -142,6 +144,8 @@ pub const papo::cap::USERHOST_IN_NAMES: &str
 pub const papo::cap::WEBPUSH: &str
 pub const papo::cap::WHOAMI: &str
 pub mod papo::event
+pub use papo::event::PersistenceSetting
+pub use papo::event::PersistenceStatus
 pub use papo::event::Visibility
 #[non_exhaustive] pub enum papo::event::BatchAbandonReason
 pub papo::event::BatchAbandonReason::ByteLimit
@@ -164,26 +168,6 @@ impl core::marker::Unpin for papo::event::BatchAbandonReason
 impl core::marker::UnsafeUnpin for papo::event::BatchAbandonReason
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::BatchAbandonReason
 impl core::panic::unwind_safe::UnwindSafe for papo::event::BatchAbandonReason
-#[non_exhaustive] pub enum papo::event::PersistenceSetting
-pub papo::event::PersistenceSetting::Default
-pub papo::event::PersistenceSetting::Off
-pub papo::event::PersistenceSetting::On
-impl core::clone::Clone for papo::PersistenceSetting
-pub fn papo::PersistenceSetting::clone(&self) -> Self
-impl core::cmp::Eq for papo::PersistenceSetting
-impl core::cmp::PartialEq for papo::PersistenceSetting
-pub fn papo::PersistenceSetting::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::PersistenceSetting
-pub fn papo::PersistenceSetting::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::PersistenceSetting
-impl core::marker::StructuralPartialEq for papo::PersistenceSetting
-impl core::marker::Freeze for papo::PersistenceSetting
-impl core::marker::Send for papo::PersistenceSetting
-impl core::marker::Sync for papo::PersistenceSetting
-impl core::marker::Unpin for papo::PersistenceSetting
-impl core::marker::UnsafeUnpin for papo::PersistenceSetting
-impl core::panic::unwind_safe::RefUnwindSafe for papo::PersistenceSetting
-impl core::panic::unwind_safe::UnwindSafe for papo::PersistenceSetting
 #[non_exhaustive] pub enum papo::event::Source
 #[non_exhaustive] pub papo::event::Source::Server
 pub papo::event::Source::Server::name: alloc::string::String
@@ -1705,26 +1689,6 @@ impl core::marker::Unpin for papo::Origin
 impl core::marker::UnsafeUnpin for papo::Origin
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Origin
 impl core::panic::unwind_safe::UnwindSafe for papo::Origin
-#[non_exhaustive] pub enum papo::PersistenceSetting
-pub papo::PersistenceSetting::Default
-pub papo::PersistenceSetting::Off
-pub papo::PersistenceSetting::On
-impl core::clone::Clone for papo::PersistenceSetting
-pub fn papo::PersistenceSetting::clone(&self) -> Self
-impl core::cmp::Eq for papo::PersistenceSetting
-impl core::cmp::PartialEq for papo::PersistenceSetting
-pub fn papo::PersistenceSetting::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::PersistenceSetting
-pub fn papo::PersistenceSetting::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::PersistenceSetting
-impl core::marker::StructuralPartialEq for papo::PersistenceSetting
-impl core::marker::Freeze for papo::PersistenceSetting
-impl core::marker::Send for papo::PersistenceSetting
-impl core::marker::Sync for papo::PersistenceSetting
-impl core::marker::Unpin for papo::PersistenceSetting
-impl core::marker::UnsafeUnpin for papo::PersistenceSetting
-impl core::panic::unwind_safe::RefUnwindSafe for papo::PersistenceSetting
-impl core::panic::unwind_safe::UnwindSafe for papo::PersistenceSetting
 #[non_exhaustive] pub enum papo::Source
 #[non_exhaustive] pub papo::Source::Server
 pub papo::Source::Server::name: alloc::string::String
@@ -2325,25 +2289,6 @@ impl core::marker::Unpin for papo::Persistence
 impl core::marker::UnsafeUnpin for papo::Persistence
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Persistence
 impl core::panic::unwind_safe::UnwindSafe for papo::Persistence
-#[non_exhaustive] pub struct papo::PersistenceStatus
-pub papo::PersistenceStatus::effective: bool
-pub papo::PersistenceStatus::setting: papo::PersistenceSetting
-impl core::clone::Clone for papo::PersistenceStatus
-pub fn papo::PersistenceStatus::clone(&self) -> Self
-impl core::cmp::Eq for papo::PersistenceStatus
-impl core::cmp::PartialEq for papo::PersistenceStatus
-pub fn papo::PersistenceStatus::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::PersistenceStatus
-pub fn papo::PersistenceStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::PersistenceStatus
-impl core::marker::StructuralPartialEq for papo::PersistenceStatus
-impl core::marker::Freeze for papo::PersistenceStatus
-impl core::marker::Send for papo::PersistenceStatus
-impl core::marker::Sync for papo::PersistenceStatus
-impl core::marker::Unpin for papo::PersistenceStatus
-impl core::marker::UnsafeUnpin for papo::PersistenceStatus
-impl core::panic::unwind_safe::RefUnwindSafe for papo::PersistenceStatus
-impl core::panic::unwind_safe::UnwindSafe for papo::PersistenceStatus
 #[non_exhaustive] pub struct papo::PushKeys
 impl papo::PushKeys
 pub fn papo::PushKeys::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
