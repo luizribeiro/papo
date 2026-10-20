@@ -8,11 +8,11 @@ use std::{
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
-use papo_proto::{Ctcp, Line, LineRef, Typing, time};
+use papo_proto::{Ctcp, LineRef, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
-    Error, Feature, InvalidInput, RawLine, Unsupported, UnsupportedReason,
+    Error, Feature, InvalidInput, Line, Unsupported, UnsupportedReason,
     driver::{Command, CoreRequest},
     event_impl,
     state::State,
@@ -328,7 +328,7 @@ impl Client {
         &self,
         command: impl AsRef<str>,
         params: I,
-    ) -> crate::RequestFuture<Vec<RawLine>>
+    ) -> crate::RequestFuture<Vec<Line>>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -337,12 +337,7 @@ impl Client {
         let message = build_command(command.as_ref(), params);
         crate::RequestFuture::new(async move {
             let response = client.correlated(message?, None).await?;
-            let mapping = client.state().casemapping();
-            Ok(response
-                .lines
-                .iter()
-                .map(|line| RawLine::from_proto(line, mapping))
-                .collect())
+            Ok(response.lines)
         })
     }
 
@@ -372,17 +367,12 @@ impl Client {
     /// Returns [`Error::InvalidInput`] when the line is malformed or contains
     /// CR, LF, or NUL. Returns an error when labelled responses are unavailable,
     /// the request limit is reached, the response times out, or the driver stops.
-    pub fn request_raw(&self, line: impl Into<String>) -> crate::RequestFuture<Vec<RawLine>> {
+    pub fn request_raw(&self, line: impl Into<String>) -> crate::RequestFuture<Vec<Line>> {
         let client = self.clone();
         let line = line.into();
         crate::RequestFuture::new(async move {
             let response = client.correlated(parse_raw(&line)?, None).await?;
-            let mapping = client.state().casemapping();
-            Ok(response
-                .lines
-                .iter()
-                .map(|line| RawLine::from_proto(line, mapping))
-                .collect())
+            Ok(response.lines)
         })
     }
 

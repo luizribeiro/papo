@@ -196,7 +196,7 @@ async fn server_information(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let motd_codes = motd
         .iter()
-        .filter_map(papo::RawLine::numeric)
+        .filter_map(papo::Line::numeric)
         .collect::<Vec<_>>();
     match motd_codes.first() {
         Some(375) => {
@@ -212,7 +212,7 @@ async fn server_information(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let codes = lusers
         .iter()
-        .filter_map(papo::RawLine::numeric)
+        .filter_map(papo::Line::numeric)
         .collect::<Vec<_>>();
     assert_eq!(codes.first(), Some(&251));
     assert!(codes.contains(&255));

@@ -433,10 +433,10 @@ pub papo_core::Event::MonitorOnline::user: core::option::Option<alloc::string::S
 pub papo_core::Event::MonitorUnsupported
 pub papo_core::Event::MultilineMessage(papo_core::MultilineMessage)
 pub papo_core::Event::Netjoin
-pub papo_core::Event::Netjoin::joins: alloc::vec::Vec<papo_proto::line::Line>
+pub papo_core::Event::Netjoin::joins: alloc::vec::Vec<papo::Line>
 pub papo_core::Event::Netjoin::servers: [alloc::string::String; 2]
 pub papo_core::Event::Netsplit
-pub papo_core::Event::Netsplit::quits: alloc::vec::Vec<papo_proto::line::Line>
+pub papo_core::Event::Netsplit::quits: alloc::vec::Vec<papo::Line>
 pub papo_core::Event::Netsplit::servers: [alloc::string::String; 2]
 pub papo_core::Event::NickChanged
 pub papo_core::Event::NickChanged::new: papo::Nick
@@ -776,7 +776,7 @@ impl core::marker::UnsafeUnpin for papo_core::Refusal
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Refusal
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Refusal
 #[non_exhaustive] pub enum papo_core::RequestError
-pub papo_core::RequestError::Build(papo_proto::line::BuildError)
+pub papo_core::RequestError::Build(papo::BuildError)
 pub papo_core::RequestError::CustomAccountNameUnsupported
 pub papo_core::RequestError::EmailRequired
 pub papo_core::RequestError::EmptyText
@@ -798,8 +798,8 @@ pub fn papo_core::RequestError::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::RequestError
 impl core::cmp::PartialEq for papo_core::RequestError
 pub fn papo_core::RequestError::eq(&self, &Self) -> bool
-impl core::convert::From<papo_proto::line::BuildError> for papo_core::RequestError
-pub fn papo_core::RequestError::from(papo_proto::line::BuildError) -> Self
+impl core::convert::From<papo::BuildError> for papo_core::RequestError
+pub fn papo_core::RequestError::from(papo::BuildError) -> Self
 impl core::error::Error for papo_core::RequestError
 pub fn papo_core::RequestError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for papo_core::RequestError
@@ -1081,7 +1081,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::CtcpReplies
 impl core::panic::unwind_safe::UnwindSafe for papo_core::CtcpReplies
 pub struct papo_core::HistoryLine
 pub papo_core::HistoryLine::context: bool
-pub papo_core::HistoryLine::line: papo_proto::line::Line
+pub papo_core::HistoryLine::line: papo::Line
 impl core::clone::Clone for papo_core::HistoryLine
 pub fn papo_core::HistoryLine::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::HistoryLine
@@ -1091,7 +1091,7 @@ impl core::fmt::Debug for papo_core::HistoryLine
 pub fn papo_core::HistoryLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo_core::HistoryLine
 impl core::ops::deref::Deref for papo_core::HistoryLine
-pub type papo_core::HistoryLine::Target = papo_proto::line::Line
+pub type papo_core::HistoryLine::Target = papo::Line
 pub fn papo_core::HistoryLine::deref(&self) -> &Self::Target
 impl core::marker::Freeze for papo_core::HistoryLine
 impl core::marker::Send for papo_core::HistoryLine
@@ -1206,7 +1206,7 @@ impl core::marker::UnsafeUnpin for papo_core::MetadataValue
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MetadataValue
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MetadataValue
 pub struct papo_core::MultilineMessage
-pub papo_core::MultilineMessage::message: papo_proto::line::Line
+pub papo_core::MultilineMessage::message: papo::Line
 impl core::clone::Clone for papo_core::MultilineMessage
 pub fn papo_core::MultilineMessage::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::MultilineMessage
@@ -1287,11 +1287,11 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ReadMarker
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ReadMarker
 pub struct papo_core::ReceivedLine
 impl papo_core::ReceivedLine
-pub fn papo_core::ReceivedLine::as_ref(&self) -> papo_proto::line::LineRef<'_>
+pub fn papo_core::ReceivedLine::as_ref(&self) -> papo::LineRef<'_>
 pub fn papo_core::ReceivedLine::batch_type(&self) -> core::option::Option<&str>
-pub fn papo_core::ReceivedLine::into_context_parts(self) -> (papo_proto::line::Line, core::option::Option<alloc::string::String>, bool, bool)
-pub fn papo_core::ReceivedLine::into_line(self) -> papo_proto::line::Line
-pub fn papo_core::ReceivedLine::into_parts(self) -> (papo_proto::line::Line, core::option::Option<alloc::string::String>, bool)
+pub fn papo_core::ReceivedLine::into_context_parts(self) -> (papo::Line, core::option::Option<alloc::string::String>, bool, bool)
+pub fn papo_core::ReceivedLine::into_line(self) -> papo::Line
+pub fn papo_core::ReceivedLine::into_parts(self) -> (papo::Line, core::option::Option<alloc::string::String>, bool)
 pub const fn papo_core::ReceivedLine::is_echo(&self) -> bool
 pub const fn papo_core::ReceivedLine::is_other_session(&self) -> bool
 impl core::clone::Clone for papo_core::ReceivedLine
@@ -1303,7 +1303,7 @@ impl core::fmt::Debug for papo_core::ReceivedLine
 pub fn papo_core::ReceivedLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo_core::ReceivedLine
 impl core::ops::deref::Deref for papo_core::ReceivedLine
-pub type papo_core::ReceivedLine::Target = papo_proto::line::Line
+pub type papo_core::ReceivedLine::Target = papo::Line
 pub fn papo_core::ReceivedLine::deref(&self) -> &Self::Target
 impl core::marker::Freeze for papo_core::ReceivedLine
 impl core::marker::Send for papo_core::ReceivedLine
@@ -1357,7 +1357,7 @@ pub struct papo_core::Response
 pub papo_core::Response::history: core::option::Option<papo_core::HistoryPage>
 pub papo_core::Response::history_targets: core::option::Option<alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>>
 pub papo_core::Response::id: papo_core::RequestId
-pub papo_core::Response::lines: alloc::vec::Vec<papo_proto::line::Line>
+pub papo_core::Response::lines: alloc::vec::Vec<papo::Line>
 pub papo_core::Response::whois_channels: alloc::vec::Vec<papo_core::WhoisChannel>
 impl papo_core::Response
 pub fn papo_core::Response::error(&self) -> core::option::Option<papo_core::ServerError>
@@ -1469,10 +1469,10 @@ pub fn papo_core::Session::poll_transmit(&mut self) -> core::option::Option<allo
 pub fn papo_core::Session::queued_len(&self) -> usize
 pub fn papo_core::Session::reauthenticate(&mut self, std::time::Instant)
 pub fn papo_core::Session::register(&mut self, std::time::Instant, core::option::Option<&str>, core::option::Option<&str>, impl core::convert::Into<papo_core::Secret>) -> core::result::Result<(), papo_core::RequestError>
-pub fn papo_core::Session::request(&mut self, std::time::Instant, papo_proto::line::Line) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
-pub fn papo_core::Session::request_silent(&mut self, std::time::Instant, papo_proto::line::Line) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
-pub fn papo_core::Session::request_with_matcher(&mut self, std::time::Instant, papo_proto::line::Line, papo_core::ResponseMatcher) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
-pub fn papo_core::Session::send(&mut self, std::time::Instant, papo_proto::line::Line) -> core::result::Result<(), papo_proto::line::BuildError>
+pub fn papo_core::Session::request(&mut self, std::time::Instant, papo::Line) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
+pub fn papo_core::Session::request_silent(&mut self, std::time::Instant, papo::Line) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
+pub fn papo_core::Session::request_with_matcher(&mut self, std::time::Instant, papo::Line, papo_core::ResponseMatcher) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
+pub fn papo_core::Session::send(&mut self, std::time::Instant, papo::Line) -> core::result::Result<(), papo::BuildError>
 pub fn papo_core::Session::send_text(&mut self, std::time::Instant, papo_core::TextKind, &str, &str, &[(&str, &str)]) -> core::result::Result<core::option::Option<papo_core::RequestId>, papo_core::RequestError>
 pub const fn papo_core::Session::state(&self) -> &papo_core::State
 pub const fn papo_core::Session::state_generation(&self) -> u64

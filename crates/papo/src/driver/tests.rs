@@ -2496,10 +2496,7 @@ async fn structured_request_returns_every_labelled_response_line() {
     server_line(&mut server, b"@label=0 :ergo.test BATCH +motd labeled-response\r\n@batch=motd :ergo.test 375 papo-driver :- Ergo Message of the Day -\r\n@batch=motd :ergo.test 372 papo-driver :- Welcome to ErgoTest\r\n@batch=motd :ergo.test 376 papo-driver :End of /MOTD command.\r\n:ergo.test BATCH -motd\r\n").await;
     let lines = within(request).await.unwrap().unwrap();
     assert_eq!(
-        lines
-            .iter()
-            .map(crate::RawLine::command)
-            .collect::<Vec<_>>(),
+        lines.iter().map(crate::Line::command).collect::<Vec<_>>(),
         ["375", "372", "376"]
     );
 
