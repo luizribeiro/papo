@@ -442,6 +442,53 @@ impl core::marker::Unpin for papo_proto::AccountName
 impl core::marker::UnsafeUnpin for papo_proto::AccountName
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::AccountName
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::AccountName
+pub struct papo_proto::Address(_)
+impl papo_proto::Address
+pub fn papo_proto::Address::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+impl papo_proto::Address
+pub fn papo_proto::Address::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_proto::Address
+pub fn papo_proto::Address::borrow(&self) -> &str
+impl core::clone::Clone for papo_proto::Address
+pub fn papo_proto::Address::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Address
+impl core::cmp::Ord for papo_proto::Address
+pub fn papo_proto::Address::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::Address
+pub fn papo_proto::Address::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::Address
+pub fn papo_proto::Address::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::Address
+pub fn papo_proto::Address::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::Address
+pub fn papo_proto::Address::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::Address
+pub fn papo_proto::Address::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::Address
+pub fn papo_proto::Address::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::Address> for papo_proto::Address
+pub fn papo_proto::Address::from(&Self) -> Self
+impl core::convert::From<&str> for papo_proto::Address
+pub fn papo_proto::Address::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::Address
+pub fn papo_proto::Address::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo_proto::Address
+pub fn papo_proto::Address::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::Address
+pub fn papo_proto::Address::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Address
+pub fn papo_proto::Address::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_proto::Address
+impl core::ops::deref::Deref for papo_proto::Address
+pub type papo_proto::Address::Target = str
+pub fn papo_proto::Address::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::Address
+impl core::marker::Send for papo_proto::Address
+impl core::marker::Sync for papo_proto::Address
+impl core::marker::Unpin for papo_proto::Address
+impl core::marker::UnsafeUnpin for papo_proto::Address
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Address
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Address
 pub struct papo_proto::Away<'a>
 pub papo_proto::Away::message: core::option::Option<&'a str>
 impl<'a> papo_proto::Away<'a>
@@ -1533,4 +1580,3 @@ pub fn papo_proto::escape_tag_value(&str) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::parse_353<'a>(&papo_proto::LineRef<'a>) -> core::option::Option<(&'a str, &'a str, impl core::iter::traits::iterator::Iterator<Item = &'a str>)>
 pub fn papo_proto::split_text(&str, usize) -> alloc::vec::Vec<papo_proto::Segment<'_>>
 pub fn papo_proto::strip_formatting(&str) -> alloc::borrow::Cow<'_, str>
-pub type papo_proto::Address = papo_proto::Target

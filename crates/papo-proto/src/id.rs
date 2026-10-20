@@ -219,6 +219,7 @@ macro_rules! name_identifier {
 name_identifier!(Nick, "An IRC nickname.");
 name_identifier!(ChannelName, "An IRC channel name.");
 name_identifier!(AccountName, "An IRC account name.");
+identifier!(Address, "An IRC wire address chosen by the caller.");
 identifier!(Target, "An IRC message target chosen by the caller.");
 name_identifier!(Mask, "An IRC user or channel mask.");
 identifier!(MetadataKey, "An IRC metadata key.");
@@ -277,6 +278,17 @@ impl ChannelName {
     }
 }
 
+impl Address {
+    /// Validates this nickname, channel, status address, or server mask.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the address is invalid under the server's ISUPPORT state.
+    pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
+        check_address(self, isupport)
+    }
+}
+
 impl Target {
     /// Validates this nickname, channel, status target, or server mask.
     ///
@@ -284,18 +296,22 @@ impl Target {
     ///
     /// Returns an error when the target is invalid under the server's ISUPPORT state.
     pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
-        let target = isupport
-            .statusmsg()
-            .and_then(|prefixes| self.strip_prefix(|character| prefixes.contains(character)))
-            .unwrap_or(self);
-        if isupport.is_channel(target) {
-            return isupport.casemapping().channel(target).check(isupport);
-        }
-        if self.as_ref() == "*" || self.starts_with('$') {
-            return check_parameter(self);
-        }
-        isupport.casemapping().nick(self.as_ref()).check(isupport)
+        check_address(self, isupport)
     }
+}
+
+fn check_address(value: &str, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
+    let target = isupport
+        .statusmsg()
+        .and_then(|prefixes| value.strip_prefix(|character| prefixes.contains(character)))
+        .unwrap_or(value);
+    if isupport.is_channel(target) {
+        return isupport.casemapping().channel(target).check(isupport);
+    }
+    if value == "*" || value.starts_with('$') {
+        return check_parameter(value);
+    }
+    isupport.casemapping().nick(value).check(isupport)
 }
 
 fn check_length(value: &str, maximum: usize) -> Result<(), InvalidIdentifier> {

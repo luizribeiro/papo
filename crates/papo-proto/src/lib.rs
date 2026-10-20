@@ -27,7 +27,8 @@ pub use command::Command;
 pub use ctcp::Ctcp;
 pub use formatting::{Color, FormatBuilder, Formatted, Span, Style, strip_formatting};
 pub use id::{
-    AccountName, ChannelName, InvalidIdentifier, Mask, MessageId, MetadataKey, Nick, Target,
+    AccountName, Address, ChannelName, InvalidIdentifier, Mask, MessageId, MetadataKey, Nick,
+    Target,
 };
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, Extban, Isupport, Limit, LimitValue, Prefix,
@@ -44,6 +45,3 @@ pub use source::Source;
 pub use text::{Segment, split_text};
 pub use views::{Account, Away, Chghost, Join, Setname, StandardReply, StandardReplyKind};
 pub use whox::{WhoxFlags, WhoxPresence, WhoxReply};
-
-/// An IRC wire address chosen by the caller.
-pub type Address = Target;
