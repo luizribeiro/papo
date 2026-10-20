@@ -4449,7 +4449,7 @@ async fn keepalive_expiry_while_events_are_stalled_is_a_slow_consumer() {
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn session_deadline_sends_keepalive_ping() {
     let config = config()
-        .registration_timeout(Duration::from_secs(300))
+        .welcome_timeout(Duration::from_secs(300))
         .ping_interval(Duration::from_secs(30))
         .ping_timeout(Duration::from_secs(120));
     let (mut server, _client, mut events, driver) = scripted(config);

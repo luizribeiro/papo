@@ -19,7 +19,7 @@ fn config_builders_set_registration_identity_and_timeout() {
         .username("em")
         .realname("Emily Example")
         .password("correct horse battery staple")
-        .registration_timeout(Duration::from_secs(23))
+        .welcome_timeout(Duration::from_secs(23))
         .ping_interval(Duration::from_secs(41))
         .ping_timeout(Duration::from_secs(82))
         .rate_limit(RateLimit::new(7, Duration::from_millis(250)).unwrap())
@@ -41,7 +41,7 @@ fn config_builders_set_registration_identity_and_timeout() {
     );
     assert_eq!(config.connection_security, ConnectionSecurity::Secure);
     assert_eq!(config.host, "irc.example.net");
-    assert_eq!(config.registration_timeout, Duration::from_secs(23));
+    assert_eq!(config.welcome_timeout, Duration::from_secs(23));
     assert_eq!(config.ping_interval, Duration::from_secs(41));
     assert_eq!(config.ping_timeout, Duration::from_secs(82));
     assert_eq!(config.max_channels, 17);

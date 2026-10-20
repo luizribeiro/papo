@@ -314,11 +314,11 @@ pub papo_core::CloseKind::LineTooLong
 pub papo_core::CloseKind::Other
 pub papo_core::CloseKind::PasswordIncorrect
 pub papo_core::CloseKind::PingTimeout
-pub papo_core::CloseKind::RegistrationTimeout
 pub papo_core::CloseKind::SaslFailed
 pub papo_core::CloseKind::ServerError
 pub papo_core::CloseKind::StsUpgrade
 pub papo_core::CloseKind::WebIrcRejected
+pub papo_core::CloseKind::WelcomeTimeout
 impl core::clone::Clone for papo_core::CloseKind
 pub fn papo_core::CloseKind::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::CloseKind
@@ -1089,12 +1089,12 @@ pub papo_core::Config::ping_interval: core::time::Duration
 pub papo_core::Config::ping_timeout: core::time::Duration
 pub papo_core::Config::rate_limit: papo_core::RateLimit
 pub papo_core::Config::realname: alloc::string::String
-pub papo_core::Config::registration_timeout: core::time::Duration
 pub papo_core::Config::request_timeout: core::time::Duration
 pub papo_core::Config::sasl: core::option::Option<papo_core::Sasl>
 pub papo_core::Config::username: alloc::string::String
 pub papo_core::Config::wanted_caps: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Config::webirc: core::option::Option<papo_core::WebIrc>
+pub papo_core::Config::welcome_timeout: core::time::Duration
 impl papo_core::Config
 pub fn papo_core::Config::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_core::Config::away_on_connect(self, core::option::Option<papo_core::AwayOnConnect>) -> Self
@@ -1117,12 +1117,12 @@ pub const fn papo_core::Config::ping_timeout(self, core::time::Duration) -> Self
 pub const fn papo_core::Config::rate_limit(self, papo_core::RateLimit) -> Self
 pub fn papo_core::Config::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::Config::register_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, impl core::convert::Into<papo_core::Secret>) -> Self
-pub const fn papo_core::Config::registration_timeout(self, core::time::Duration) -> Self
 pub const fn papo_core::Config::request_timeout(self, core::time::Duration) -> Self
 pub fn papo_core::Config::sasl(self, papo_core::Sasl) -> Self
 pub fn papo_core::Config::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::Config::wanted_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_core::Config::webirc(self, papo_core::WebIrc) -> Self
+pub const fn papo_core::Config::welcome_timeout(self, core::time::Duration) -> Self
 pub fn papo_core::Config::without_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 impl core::clone::Clone for papo_core::Config
 pub fn papo_core::Config::clone(&self) -> Self

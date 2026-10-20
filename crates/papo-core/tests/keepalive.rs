@@ -77,7 +77,7 @@ fn does_not_answer_invalid_pings() {
 
 #[test]
 fn pings_after_sixty_idle_seconds_and_measures_matching_pongs() {
-    Transcript::new(Config::default().registration_timeout(Duration::from_secs(300)))
+    Transcript::new(Config::default().welcome_timeout(Duration::from_secs(300)))
         .connect_default()
         .deadline(Some(Duration::from_secs(60)))
         .advance(Duration::from_secs(59))
@@ -99,7 +99,7 @@ fn pings_after_sixty_idle_seconds_and_measures_matching_pongs() {
 
 #[test]
 fn closes_at_120_seconds_of_silence_but_any_pong_resets_the_timeout() {
-    let config = Config::default().registration_timeout(Duration::from_secs(300));
+    let config = Config::default().welcome_timeout(Duration::from_secs(300));
     Transcript::new(config.clone())
         .connect_default()
         .advance(Duration::from_secs(60))

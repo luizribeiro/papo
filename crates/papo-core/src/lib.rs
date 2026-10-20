@@ -72,7 +72,6 @@ mod outgoing;
 mod persistence;
 mod ratelimit;
 mod refusal;
-mod registration;
 #[cfg(feature = "unstable")]
 mod relaymsg;
 mod replies;
@@ -82,6 +81,7 @@ mod state;
 pub mod sts;
 #[cfg(feature = "unstable")]
 mod webpush;
+mod welcome;
 
 pub use secret::Secret;
 
@@ -116,15 +116,15 @@ pub use outgoing::TextKind;
 use ratelimit::RateLimiter;
 pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
-use registration::Registration;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
 pub use state::{Account, Away, Channel, Member, State, User};
 use state::{MetadataContext, StateSnapshot};
 use sts::ConnectionSecurity;
+use welcome::Registration;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_LINE_LEN;
-const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
+const DEFAULT_WELCOME_TIMEOUT: Duration = Duration::from_secs(60);
 const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(120);
 const DEFAULT_MAX_CHANNELS: usize = 10_000;
@@ -277,7 +277,7 @@ pub struct Config {
     /// Gateway identity sent before registration begins.
     pub webirc: Option<WebIrc>,
     /// The maximum time to wait for the welcome numeric.
-    pub registration_timeout: Duration,
+    pub welcome_timeout: Duration,
     /// Idle time after which the client probes the server with `PING`.
     pub ping_interval: Duration,
     /// Maximum silence before the session closes the connection.
@@ -334,7 +334,7 @@ impl std::fmt::Debug for Config {
             .field("realname", &self.realname)
             .field("password", &self.password.as_ref().map(|_| RedactedSecret))
             .field("webirc", &self.webirc)
-            .field("registration_timeout", &self.registration_timeout)
+            .field("welcome_timeout", &self.welcome_timeout)
             .field("ping_interval", &self.ping_interval)
             .field("ping_timeout", &self.ping_timeout)
             .field("rate_limit", &self.rate_limit)
@@ -381,7 +381,7 @@ impl Default for Config {
             realname: "papo".to_owned(),
             password: None,
             webirc: None,
-            registration_timeout: DEFAULT_REGISTRATION_TIMEOUT,
+            welcome_timeout: DEFAULT_WELCOME_TIMEOUT,
             ping_interval: DEFAULT_PING_INTERVAL,
             ping_timeout: DEFAULT_PING_TIMEOUT,
             rate_limit: RateLimit::default(),
@@ -479,8 +479,8 @@ impl Config {
 
     /// Sets the maximum time to wait for the welcome numeric.
     #[must_use]
-    pub const fn registration_timeout(mut self, timeout: Duration) -> Self {
-        self.registration_timeout = timeout;
+    pub const fn welcome_timeout(mut self, timeout: Duration) -> Self {
+        self.welcome_timeout = timeout;
         self
     }
 
@@ -1312,7 +1312,7 @@ pub enum CloseKind {
     /// The server rejected the gateway's `WEBIRC` command.
     WebIrcRejected,
     /// IRC registration did not complete before its deadline.
-    RegistrationTimeout,
+    WelcomeTimeout,
     /// A server line exceeded the protocol framing limit.
     LineTooLong,
     /// The server sent an `ERROR` command.

@@ -32,7 +32,7 @@ impl Registration {
 
     pub(super) fn handle_connected(&mut self, now: Instant, config: &Config, outbox: &mut Outbox) {
         self.nick.clone_from(&config.nick);
-        self.deadline = Some(now + config.registration_timeout);
+        self.deadline = Some(now + config.welcome_timeout);
         self.welcome_deadline = None;
         self.welcome_text = None;
         self.next_alt_nick = 0;
@@ -161,8 +161,8 @@ impl Registration {
         if self.deadline.is_some_and(|deadline| now >= deadline) {
             self.deadline = None;
             outbox.close(
-                CloseKind::RegistrationTimeout,
-                "IRC registration timed out before 001".to_owned(),
+                CloseKind::WelcomeTimeout,
+                "IRC welcome timed out before 001".to_owned(),
             );
         } else if self
             .welcome_deadline

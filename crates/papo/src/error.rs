@@ -453,9 +453,7 @@ impl Error {
             papo_core::CloseKind::WebIrcRejected | papo_core::CloseKind::PasswordIncorrect => {
                 Self::Registration(RegistrationError::Rejected { message })
             }
-            papo_core::CloseKind::RegistrationTimeout => {
-                Self::Registration(RegistrationError::Timeout)
-            }
+            papo_core::CloseKind::WelcomeTimeout => Self::Registration(RegistrationError::Timeout),
             papo_core::CloseKind::AccountRequired => {
                 Self::Registration(RegistrationError::AccountRequired)
             }
@@ -672,7 +670,7 @@ mod tests {
     fn close_kinds_retain_their_specific_categories() {
         assert!(matches!(
             Error::disconnected_close(
-                papo_core::CloseKind::RegistrationTimeout,
+                papo_core::CloseKind::WelcomeTimeout,
                 "registration timed out".into()
             ),
             Error::Registration(RegistrationError::Timeout)

@@ -56,16 +56,16 @@ fn welcome_adopts_the_server_nick_and_cancels_the_timeout() {
 }
 
 #[test]
-fn registration_timeout_is_the_first_deadline_and_closes_once() {
+fn welcome_timeout_is_the_first_deadline_and_closes_once() {
     let timeout = Duration::from_secs(23);
-    Transcript::new(Config::default().registration_timeout(timeout))
+    Transcript::new(Config::default().welcome_timeout(timeout))
         .connect_default()
         .deadline(Some(timeout))
         .advance(timeout.checked_sub(Duration::from_nanos(1)).unwrap())
         .no_event()
         .deadline(Some(Duration::from_nanos(1)))
         .advance(Duration::from_nanos(1))
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::RegistrationTimeout, reason } if reason.contains("before 001")))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::WelcomeTimeout, reason } if reason.contains("before 001")))
         .deadline(None)
         .advance(Duration::ZERO)
         .no_event();
@@ -181,7 +181,7 @@ fn requests_and_applies_extended_isupport_before_welcome() {
 fn incomplete_isupport_batch_does_not_change_state() {
     Transcript::new(
         Config::default()
-            .registration_timeout(Duration::from_secs(300))
+            .welcome_timeout(Duration::from_secs(300))
             .ping_interval(Duration::from_secs(300))
             .ping_timeout(Duration::from_secs(300)),
     )
