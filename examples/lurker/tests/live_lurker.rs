@@ -5,7 +5,7 @@ mod support;
 
 use std::time::Duration;
 
-use papo::{Client, Endpoint, Event, ModeAction};
+use papo::{Client, Endpoint, Event, LegacyModeAction as ModeAction};
 use papo_test_server::{create_account, from_env, unique};
 use support::{Lurker, PASSWORD};
 use tokio::time::timeout;

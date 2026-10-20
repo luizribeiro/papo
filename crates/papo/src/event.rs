@@ -29,8 +29,8 @@ mod user;
 
 pub use crate::metadata::Visibility;
 pub use channel::{
-    ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeAction, ModeArg, ModeChange,
-    ModeChanged, ModeKind, Parted, TopicChanged,
+    ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, LegacyModeAction, ModeAction, ModeArg,
+    ModeChange, ModeChanged, ModeKind, Parted, TopicChanged,
 };
 pub use connection::{
     CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged, Motd,

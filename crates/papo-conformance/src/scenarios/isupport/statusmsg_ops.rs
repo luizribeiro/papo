@@ -1,4 +1,4 @@
-use papo::{ModeAction, ModeArg, Origin};
+use papo::{LegacyModeAction as ModeAction, ModeArg, Origin};
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 

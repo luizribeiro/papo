@@ -13,6 +13,10 @@ pub enum ModeAction {
     Remove,
 }
 
+/// Compatibility name used while mode events adopt the shared action type.
+#[doc(hidden)]
+pub type LegacyModeAction = ModeAction;
+
 /// A mode argument classified using the server's advertised rules.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

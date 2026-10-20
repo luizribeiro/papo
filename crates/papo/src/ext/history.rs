@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Line, Message as ChatMessage, ModeAction, Origin,
+    Client, Error, LegacyModeAction as ModeAction, Line, Message as ChatMessage, Origin,
     driver::Command,
     event::{
         Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,

@@ -1,5 +1,5 @@
 use papo::isupport::{Advertised, Prefix};
-use papo::{ModeAction, ModeArg, Nick, State};
+use papo::{LegacyModeAction as ModeAction, ModeArg, Nick, State};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 use papo_testing::Peer;

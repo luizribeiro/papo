@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use papo::{Error, InvalidInput, Isupport, ModeAction, isupport::Advertised};
+use papo::{Error, InvalidInput, Isupport, LegacyModeAction as ModeAction, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;

@@ -1,4 +1,7 @@
-use papo::{Account, DisconnectCause, Error, Event, ModeAction, ModeArg, Refusal, Source};
+use papo::{
+    Account, DisconnectCause, Error, Event, LegacyModeAction as ModeAction, ModeArg, Refusal,
+    Source,
+};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 

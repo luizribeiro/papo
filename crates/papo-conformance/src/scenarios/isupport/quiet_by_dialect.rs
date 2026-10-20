@@ -1,4 +1,4 @@
-use papo::{ModeAction, ModeArg, Refusal};
+use papo::{LegacyModeAction as ModeAction, ModeArg, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;

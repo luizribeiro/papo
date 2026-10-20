@@ -1,5 +1,5 @@
 use papo::event::{ModeChange, ModeChanged};
-use papo::{ModeAction, ModeArg};
+use papo::{LegacyModeAction as ModeAction, ModeArg};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
