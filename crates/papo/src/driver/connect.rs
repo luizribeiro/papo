@@ -82,6 +82,7 @@ pub(super) async fn run_plan(
     let mut pending_events = VecDeque::new();
     let mut sts_required = false;
     let mut last_sts_upgrade = None;
+    let mut last_disconnect = None;
     loop {
         attempts = attempts.saturating_add(1);
         let plan = plan_with_stored_sts(&base_plan, sts_store.as_mut());
@@ -96,6 +97,7 @@ pub(super) async fn run_plan(
             reconnect,
             attempts,
             entropy.as_mut(),
+            &mut last_disconnect,
         )
         .await
         {
@@ -160,7 +162,9 @@ pub(super) async fn run_plan(
         } else {
             retry_delay(reconnect, attempts, entropy.as_mut())
         };
-        pending_events = match enqueue_retry_event(&events, end, retry_in) {
+        let disconnected = super::disconnected_event(&end.error, Some(retry_in));
+        last_disconnect = Some(disconnected.cause.clone());
+        pending_events = match enqueue_retry_event(&events, end, disconnected.clone()) {
             Ok(pending) => pending,
             Err(end) => return finish(events, *end, false),
         };
@@ -171,7 +175,7 @@ pub(super) async fn run_plan(
             &mut commands,
             &events.regular,
             &mut pending_events,
-            retry_in,
+            disconnected,
         )
         .await
         {
@@ -192,12 +196,12 @@ fn finish_requested(events: EventSink, mut pending_events: VecDeque<Event>) {
 fn enqueue_retry_event(
     events: &EventSink,
     mut end: ConnectionEnd,
-    retry_in: Duration,
+    disconnected: crate::Disconnected,
 ) -> Result<VecDeque<Event>, Box<ConnectionEnd>> {
     if enqueue_event(
         events,
         &mut end.pending_events,
-        Event::Disconnected(super::disconnected_event(&end.error, Some(retry_in))),
+        Event::Disconnected(disconnected),
     ) {
         return Ok(end.pending_events);
     }
@@ -330,9 +334,16 @@ async fn connect_or_wait(
     reconnect: Reconnect,
     attempts: usize,
     entropy: &mut (dyn FnMut() -> u64 + Send),
+    last_disconnect: &mut Option<crate::DisconnectCause>,
 ) -> ConnectionAttempt {
-    let Some(result) =
-        connect_while_disconnected(connection, commands, &events.regular, pending_events).await
+    let Some(result) = connect_while_disconnected(
+        connection,
+        commands,
+        &events.regular,
+        pending_events,
+        last_disconnect.as_ref(),
+    )
+    .await
     else {
         return ConnectionAttempt::Stop;
     };
@@ -344,14 +355,16 @@ async fn connect_or_wait(
         return ConnectionAttempt::Failed(error);
     }
     let retry_in = retry_delay(reconnect, attempts, entropy);
+    let disconnected = super::disconnected_event(&error, Some(retry_in));
+    *last_disconnect = Some(disconnected.cause.clone());
     if !enqueue_event(
         events,
         pending_events,
-        Event::Disconnected(super::disconnected_event(&error, Some(retry_in))),
+        Event::Disconnected(disconnected.clone()),
     ) {
         return ConnectionAttempt::SlowConsumer;
     }
-    if wait_before_retry(commands, &events.regular, pending_events, retry_in).await {
+    if wait_before_retry(commands, &events.regular, pending_events, disconnected).await {
         ConnectionAttempt::Retry
     } else {
         ConnectionAttempt::Stop
@@ -493,7 +506,14 @@ async fn connect_while_disconnected(
     commands: &mut mpsc::Receiver<Command>,
     events: &mpsc::Sender<Event>,
     pending_events: &mut VecDeque<Event>,
+    last_cause: Option<&crate::DisconnectCause>,
 ) -> Option<Result<BoxConnection, Error>> {
+    let disconnected = crate::Disconnected::new(
+        last_cause
+            .cloned()
+            .unwrap_or(crate::DisconnectCause::ConnectionLost),
+        None,
+    );
     loop {
         tokio::select! {
             result = &mut connection => return Some(result),
@@ -502,7 +522,7 @@ async fn connect_while_disconnected(
                 Err(_) => pending_events.clear(),
             },
             command = commands.recv() => {
-                if !handle_disconnected_command(command) {
+                if !handle_disconnected_command(command, &disconnected) {
                     return None;
                 }
             }
@@ -514,9 +534,10 @@ async fn wait_before_retry(
     commands: &mut mpsc::Receiver<Command>,
     events: &mpsc::Sender<Event>,
     pending_events: &mut VecDeque<Event>,
-    retry_in: Duration,
+    disconnected: crate::Disconnected,
 ) -> bool {
-    let sleep = crate::rt::sleep_until(now() + retry_in);
+    let deadline = now() + disconnected.retry_in.unwrap_or_default();
+    let sleep = crate::rt::sleep_until(deadline);
     tokio::pin!(sleep);
     loop {
         tokio::select! {
@@ -532,7 +553,11 @@ async fn wait_before_retry(
                         return true;
                     }
                     command => {
-                        if !handle_disconnected_command(command) {
+                        let current = crate::Disconnected::new(
+                            disconnected.cause.clone(),
+                            Some(deadline.saturating_duration_since(now())),
+                        );
+                        if !handle_disconnected_command(command, &current) {
                             return false;
                         }
                     }
@@ -551,7 +576,10 @@ fn retry_delay(
     reconnect.delay(retry, entropy())
 }
 
-fn handle_disconnected_command(command: Option<Command>) -> bool {
+fn handle_disconnected_command(
+    command: Option<Command>,
+    disconnected: &crate::Disconnected,
+) -> bool {
     match command {
         Some(
             Command::Request { result, .. }
@@ -560,15 +588,15 @@ fn handle_disconnected_command(command: Option<Command>) -> bool {
             | Command::History { result, .. }
             | Command::MarkRead { result, .. },
         ) => {
-            _ = result.send(Err(Error::connection_lost()));
+            _ = result.send(Err(Error::disconnected(disconnected.clone())));
             true
         }
         Some(Command::SendText { result, .. }) => {
-            _ = result.send(Err(Error::connection_lost()));
+            _ = result.send(Err(Error::disconnected(disconnected.clone())));
             true
         }
         Some(Command::ReadMarker { result, .. }) => {
-            _ = result.send(Err(Error::connection_lost()));
+            _ = result.send(Err(Error::disconnected(disconnected.clone())));
             true
         }
         Some(
@@ -579,7 +607,7 @@ fn handle_disconnected_command(command: Option<Command>) -> bool {
             | Command::MonitorRemove { result, .. }
             | Command::MonitorClear { result },
         ) => {
-            _ = result.send(Err(Error::connection_lost()));
+            _ = result.send(Err(Error::disconnected(disconnected.clone())));
             true
         }
         Some(Command::Reconnect { result }) => {

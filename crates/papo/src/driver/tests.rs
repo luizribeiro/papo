@@ -234,7 +234,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
             Box::pin(async { Err(unavailable("scripted connection failure")) })
         }
     });
-    let (_client, mut events, driver) = Driver::with_connector_and_entropy(
+    let (client, mut events, driver) = Driver::with_connector_and_entropy(
         Ok(ConnectionPlan {
             address: "irc://irc.example.net".parse().unwrap(),
             tls: TlsConfig::default(),
@@ -257,7 +257,24 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
         })) if error.kind() == crate::ConnectErrorKind::Unavailable
             && retry_in == Duration::from_millis(800)
     ));
-    tokio::time::advance(Duration::from_secs(2)).await;
+    assert!(matches!(
+        client.privmsg("#papo", "first retry probe").await,
+        Err(Error::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Connect(error),
+            retry_in: Some(retry_in),
+        })) if error.kind() == crate::ConnectErrorKind::Unavailable
+            && retry_in == Duration::from_millis(800)
+    ));
+    tokio::time::advance(Duration::from_millis(300)).await;
+    assert!(matches!(
+        client.privmsg("#papo", "second retry probe").await,
+        Err(Error::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Connect(error),
+            retry_in: Some(retry_in),
+        })) if error.kind() == crate::ConnectErrorKind::Unavailable
+            && retry_in == Duration::from_millis(500)
+    ));
+    tokio::time::advance(Duration::from_millis(500)).await;
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
