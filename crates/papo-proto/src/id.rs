@@ -304,12 +304,12 @@ impl Target {
             .and_then(|prefixes| self.strip_prefix(|character| prefixes.contains(character)))
             .unwrap_or(self);
         if isupport.is_channel(target) {
-            return ChannelName::from(target).check(isupport);
+            return isupport.casemapping().channel(target).check(isupport);
         }
         if self.as_ref() == "*" || self.starts_with('$') {
             return check_parameter(self);
         }
-        Nick::from(self.as_ref()).check(isupport)
+        isupport.casemapping().nick(self.as_ref()).check(isupport)
     }
 }
 
@@ -434,9 +434,7 @@ mod tests {
 
     use crate::{Casemapping, Isupport, LineRef};
 
-    use super::{
-        AccountName, ChannelName, InvalidIdentifier, Mask, MessageId, MetadataKey, Nick, Target,
-    };
+    use super::{InvalidIdentifier, MessageId, MetadataKey, Nick, Target};
 
     fn assert_contract<T>()
     where
@@ -540,22 +538,31 @@ mod tests {
 
     #[test]
     fn targets_accept_typed_nicks_and_channels() {
-        assert_eq!(Target::from(Nick::from("alice")), "alice");
-        assert_eq!(Target::from(&ChannelName::from("#papo")), "#papo");
+        assert_eq!(Target::from(Casemapping::default().nick("alice")), "alice");
+        assert_eq!(
+            Target::from(&Casemapping::default().channel("#papo")),
+            "#papo"
+        );
     }
 
     #[test]
     fn validates_exact_and_structured_identifiers() {
-        assert_eq!(AccountName::from("emily").check(), Ok(()));
-        assert_eq!(Mask::from("*!*@cloak.example").check(), Ok(()));
+        assert_eq!(Casemapping::default().account("emily").check(), Ok(()));
+        assert_eq!(
+            Casemapping::default().mask("*!*@cloak.example").check(),
+            Ok(())
+        );
         assert_eq!(MetadataKey::from("profile/display-name").check(), Ok(()));
         assert_eq!(MessageId::from("8VX4P6dUQ44L").check(), Ok(()));
 
         assert_eq!(
-            AccountName::from("*").check(),
+            Casemapping::default().account("*").check(),
             Err(InvalidIdentifier::InvalidCharacter('*'))
         );
-        assert_eq!(Mask::from("").check(), Err(InvalidIdentifier::Empty));
+        assert_eq!(
+            Casemapping::default().mask("").check(),
+            Err(InvalidIdentifier::Empty)
+        );
         assert_eq!(
             MetadataKey::from("Avatar").check(),
             Err(InvalidIdentifier::InvalidCharacter('A'))
@@ -579,17 +586,20 @@ mod tests {
             ("emily staff", ' '),
         ] {
             assert_eq!(
-                AccountName::from(value).check(),
+                Casemapping::default().account(value).check(),
                 Err(InvalidIdentifier::InvalidCharacter(character))
             );
         }
-        assert_eq!(AccountName::from("").check(), Err(InvalidIdentifier::Empty));
         assert_eq!(
-            Mask::from(":*!*@localhost").check(),
+            Casemapping::default().account("").check(),
+            Err(InvalidIdentifier::Empty)
+        );
+        assert_eq!(
+            Casemapping::default().mask(":*!*@localhost").check(),
             Err(InvalidIdentifier::InvalidPrefix(':'))
         );
         assert_eq!(
-            Mask::from("*!*@local host").check(),
+            Casemapping::default().mask("*!*@local host").check(),
             Err(InvalidIdentifier::InvalidCharacter(' '))
         );
         assert_eq!(MessageId::from("").check(), Err(InvalidIdentifier::Empty));
@@ -619,21 +629,42 @@ mod tests {
     #[test]
     fn validates_names_at_literal_isupport_boundaries() {
         let support = libera_isupport();
-        assert_eq!(Nick::from("abcdefghijklmnop").check(&support), Ok(()));
-        assert_eq!(Nick::from("éééééééééééééééé").check(&support), Ok(()));
         assert_eq!(
-            Nick::from("abcdefghijklmnopq").check(&support),
+            support
+                .casemapping()
+                .nick("abcdefghijklmnop")
+                .check(&support),
+            Ok(())
+        );
+        assert_eq!(
+            support
+                .casemapping()
+                .nick("éééééééééééééééé")
+                .check(&support),
+            Ok(())
+        );
+        assert_eq!(
+            support
+                .casemapping()
+                .nick("abcdefghijklmnopq")
+                .check(&support),
             Err(InvalidIdentifier::TooLong {
                 length: 17,
                 maximum: 16
             })
         );
         assert_eq!(
-            ChannelName::from(format!("#{}", "p".repeat(49))).check(&support),
+            support
+                .casemapping()
+                .channel(format!("#{}", "p".repeat(49)))
+                .check(&support),
             Ok(())
         );
         assert_eq!(
-            ChannelName::from(format!("#{}", "p".repeat(50))).check(&support),
+            support
+                .casemapping()
+                .channel(format!("#{}", "p".repeat(50)))
+                .check(&support),
             Err(InvalidIdentifier::TooLong {
                 length: 51,
                 maximum: 50
@@ -644,20 +675,29 @@ mod tests {
     #[test]
     fn validates_literal_default_name_limits() {
         let support = Isupport::default();
-        assert_eq!(Nick::from("abcdefghi").check(&support), Ok(()));
         assert_eq!(
-            Nick::from("abcdefghij").check(&support),
+            support.casemapping().nick("abcdefghi").check(&support),
+            Ok(())
+        );
+        assert_eq!(
+            support.casemapping().nick("abcdefghij").check(&support),
             Err(InvalidIdentifier::TooLong {
                 length: 10,
                 maximum: 9,
             })
         );
         assert_eq!(
-            ChannelName::from(format!("#{}", "p".repeat(49))).check(&support),
+            support
+                .casemapping()
+                .channel(format!("#{}", "p".repeat(49)))
+                .check(&support),
             Ok(())
         );
         assert_eq!(
-            ChannelName::from(format!("#{}", "p".repeat(50))).check(&support),
+            support
+                .casemapping()
+                .channel(format!("#{}", "p".repeat(50)))
+                .check(&support),
             Err(InvalidIdentifier::TooLong {
                 length: 51,
                 maximum: 50,
@@ -675,7 +715,7 @@ mod tests {
             ("alice staff", ' '),
         ] {
             assert_eq!(
-                Nick::from(nick).check(&support),
+                support.casemapping().nick(nick).check(&support),
                 Err(InvalidIdentifier::InvalidCharacter(character))
             );
         }
@@ -687,7 +727,7 @@ mod tests {
             ("alice@h", '@'),
         ] {
             assert_eq!(
-                Nick::from(nick).check(&support),
+                support.casemapping().nick(nick).check(&support),
                 Err(InvalidIdentifier::InvalidCharacter(character))
             );
         }
@@ -698,12 +738,12 @@ mod tests {
             (":alice", ':'),
         ] {
             assert_eq!(
-                Nick::from(nick).check(&support),
+                support.casemapping().nick(nick).check(&support),
                 Err(InvalidIdentifier::InvalidPrefix(prefix))
             );
         }
         assert_eq!(
-            ChannelName::from("papo").check(&support),
+            support.casemapping().channel("papo").check(&support),
             Err(InvalidIdentifier::InvalidPrefix('p'))
         );
         for (channel, character) in [
@@ -715,7 +755,7 @@ mod tests {
             ("#papo,dev", ','),
         ] {
             assert_eq!(
-                ChannelName::from(channel).check(&support),
+                support.casemapping().channel(channel).check(&support),
                 Err(InvalidIdentifier::InvalidCharacter(character))
             );
         }

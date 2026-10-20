@@ -193,8 +193,6 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
-    use crate::Nick;
-
     use super::{Casemapping, Folded};
 
     #[test]
@@ -255,18 +253,19 @@ mod tests {
 
     #[test]
     fn folded_keys_follow_each_irc_casemapping() {
-        let rfc = Casemapping::Rfc1459.key(&Nick::from("[]\\~"));
-        let rfc_equivalent = Casemapping::Rfc1459.key(&Nick::from("{}|^"));
+        let rfc = Casemapping::Rfc1459.key(&Casemapping::Rfc1459.nick("[]\\~"));
+        let rfc_equivalent = Casemapping::Rfc1459.key(&Casemapping::Rfc1459.nick("{}|^"));
         assert_eq!(rfc, rfc_equivalent);
 
-        let strict = Casemapping::Rfc1459Strict.key(&Nick::from("[]\\~"));
-        let strict_different = Casemapping::Rfc1459Strict.key(&Nick::from("{}|^"));
+        let strict = Casemapping::Rfc1459Strict.key(&Casemapping::Rfc1459Strict.nick("[]\\~"));
+        let strict_different =
+            Casemapping::Rfc1459Strict.key(&Casemapping::Rfc1459Strict.nick("{}|^"));
         assert_ne!(strict, strict_different);
         assert_eq!(strict.folded(), "{}|~");
 
-        let ascii = Casemapping::Ascii.key(&Nick::from("ALICE[]\\~"));
-        let ascii_case_only = Casemapping::Ascii.key(&Nick::from("alice[]\\~"));
-        let ascii_punctuation = Casemapping::Ascii.key(&Nick::from("alice{}|^"));
+        let ascii = Casemapping::Ascii.key(&Casemapping::Ascii.nick("ALICE[]\\~"));
+        let ascii_case_only = Casemapping::Ascii.key(&Casemapping::Ascii.nick("alice[]\\~"));
+        let ascii_punctuation = Casemapping::Ascii.key(&Casemapping::Ascii.nick("alice{}|^"));
         assert_eq!(ascii, ascii_case_only);
         assert_ne!(ascii, ascii_punctuation);
         assert_eq!(ascii.value().as_ref(), "ALICE[]\\~");
@@ -275,7 +274,10 @@ mod tests {
     #[test]
     fn folded_keys_borrow_the_canonical_spelling() {
         let mut users = HashMap::new();
-        users.insert(Casemapping::Rfc1459.key(&Nick::from("Alice[bot]")), 7);
+        users.insert(
+            Casemapping::Rfc1459.key(&Casemapping::Rfc1459.nick("Alice[bot]")),
+            7,
+        );
 
         assert_eq!(users.get("alice{bot}"), Some(&7));
         assert_eq!(users.get("Alice[bot]"), None);
