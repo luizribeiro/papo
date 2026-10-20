@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 
 use super::{
     BackoffEntropy, BoxConnection, Command, ConnectFuture, ConnectionEnd, ConnectionPlan,
-    Connector, EventSink, PostRegistration, RegistrationWait, SLOW_CONSUMER_REASON,
-    STABLE_CONNECTION, StsActions, enqueue_event, finish, now, run_connection,
+    Connector, EventSink, PostConnect, RegistrationWait, SLOW_CONSUMER_REASON, STABLE_CONNECTION,
+    StsActions, enqueue_event, finish, now, run_connection,
 };
 #[cfg(sockets)]
 use crate::address::Protocol;
@@ -68,7 +68,7 @@ pub(super) async fn run_plan(
     mut commands: mpsc::Receiver<Command>,
     events: EventSink,
     mut registration: RegistrationWait,
-    mut defaults: PostRegistration,
+    mut defaults: PostConnect,
     reconnect: Reconnect,
     mut sts_store: Box<dyn StsStore + Send>,
     connector: Connector,
@@ -236,7 +236,7 @@ pub(super) async fn run_planned_connection(
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
     registration: &mut RegistrationWait,
-    defaults: &mut PostRegistration,
+    defaults: &mut PostConnect,
     registered: &mut bool,
     plan: &ConnectionPlan,
     sts_store: Box<dyn StsStore + Send>,

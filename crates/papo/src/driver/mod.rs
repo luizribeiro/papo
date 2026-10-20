@@ -358,7 +358,7 @@ pub(crate) struct ConnectionPlan {
 }
 
 #[derive(Default)]
-pub(crate) struct PostRegistration {
+pub(crate) struct PostConnect {
     pub(crate) bot: bool,
     pub(crate) channels: Vec<Autojoin>,
     pub(crate) history_on_reconnect: bool,
@@ -474,13 +474,7 @@ impl Driver {
     where
         S: ConnectionIo + 'static,
     {
-        Self::with_stream_and_registration(
-            stream,
-            session,
-            capacity,
-            None,
-            PostRegistration::default(),
-        )
+        Self::with_stream_and_registration(stream, session, capacity, None, PostConnect::default())
     }
 
     pub(crate) fn with_stream_and_registration<S>(
@@ -488,7 +482,7 @@ impl Driver {
         session: Session,
         capacity: usize,
         registration: Option<RegistrationSender>,
-        defaults: PostRegistration,
+        defaults: PostConnect,
     ) -> (Client, Events, Self)
     where
         S: ConnectionIo + 'static,
@@ -529,7 +523,7 @@ impl Driver {
         session: Session,
         capacity: usize,
         registration: Option<RegistrationSender>,
-        defaults: PostRegistration,
+        defaults: PostConnect,
         reconnect: Reconnect,
         sts_store: Box<dyn StsStore + Send>,
     ) -> (Client, Events, Self) {
@@ -557,7 +551,7 @@ impl Driver {
         session: Session,
         capacity: usize,
         registration: Option<RegistrationSender>,
-        defaults: PostRegistration,
+        defaults: PostConnect,
         reconnect: Reconnect,
         sts_store: Box<dyn StsStore + Send>,
         connector: Connector,
@@ -581,7 +575,7 @@ impl Driver {
         session: Session,
         capacity: usize,
         registration: Option<RegistrationSender>,
-        defaults: PostRegistration,
+        defaults: PostConnect,
         reconnect: Reconnect,
         sts_store: Box<dyn StsStore + Send>,
         connector: Connector,
@@ -648,7 +642,7 @@ async fn run<S>(
     mut commands: mpsc::Receiver<Command>,
     events: EventSink,
     mut registration: RegistrationWait,
-    mut defaults: PostRegistration,
+    mut defaults: PostConnect,
 ) -> Result<(), Error>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -720,7 +714,7 @@ async fn run_connection<S>(
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
     registration: &mut RegistrationWait,
-    defaults: &mut PostRegistration,
+    defaults: &mut PostConnect,
     registered: &mut bool,
     connection: Option<Connection>,
     mut sts_store: Option<Box<dyn StsStore + Send>>,
@@ -1131,7 +1125,7 @@ async fn drain<S>(
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
     catchups: &mut BTreeMap<RequestId, Catchup>,
     registration: &mut RegistrationWait,
-    defaults: &mut PostRegistration,
+    defaults: &mut PostConnect,
     registered: &mut bool,
     registered_at: &mut Option<Instant>,
     sts: &mut StsActions,
@@ -1421,7 +1415,7 @@ where
     Ok(true)
 }
 
-fn update_rejoin_channels(_session: &Session, defaults: &mut PostRegistration, event: &Event) {
+fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event: &Event) {
     match event {
         Event::Joined(joined) if joined.is_self => {
             if !defaults
@@ -1448,7 +1442,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostRegistration, e
     }
 }
 
-fn remember_rejoin(session: &Session, defaults: &mut PostRegistration, entry: Autojoin) {
+fn remember_rejoin(session: &Session, defaults: &mut PostConnect, entry: Autojoin) {
     let casemapping = session.isupport().casemapping();
     defaults
         .channels
@@ -1458,7 +1452,7 @@ fn remember_rejoin(session: &Session, defaults: &mut PostRegistration, entry: Au
 
 fn drop_bad_rejoin_key(
     session: &Session,
-    defaults: &mut PostRegistration,
+    defaults: &mut PostConnect,
     message: &papo_proto::LineRef<'_>,
 ) {
     if message.command() != ProtoCommand::Numeric(Numeric::ERR_BADCHANNELKEY) {
@@ -1473,7 +1467,7 @@ fn drop_bad_rejoin_key(
         .retain(|entry| casemapping.channel(&entry.channel) != channel);
 }
 
-fn dedupe_autojoin(session: &Session, defaults: &mut PostRegistration) {
+fn dedupe_autojoin(session: &Session, defaults: &mut PostConnect) {
     let casemapping = session.isupport().casemapping();
     let mut deduplicated = Vec::with_capacity(defaults.channels.len());
     for entry in defaults.channels.drain(..) {
@@ -1555,7 +1549,7 @@ fn publish_state(events: &EventSink, session: &Session, connected: bool) {
 fn after_registration(
     session: &mut Session,
     welcome: &papo_core::Welcome,
-    defaults: &mut PostRegistration,
+    defaults: &mut PostConnect,
 ) -> Result<(), io::Error> {
     dedupe_autojoin(session, defaults);
     if defaults.bot

@@ -4,7 +4,7 @@ use std::{
     time::SystemTime,
 };
 
-use super::{EventSink, PostRegistration, now};
+use super::{EventSink, PostConnect, now};
 use crate::{Client, Event};
 use papo_core::{HistoryQuery, RequestId, Response, Session};
 
@@ -33,7 +33,7 @@ pub(super) fn advance_catchup(
     session: &mut Session,
     events: &EventSink,
     catchups: &mut BTreeMap<RequestId, Catchup>,
-    defaults: &mut PostRegistration,
+    defaults: &mut PostConnect,
     mut catchup: Catchup,
     response: Response,
 ) -> Option<Event> {
@@ -134,7 +134,7 @@ fn newest_cursor(items: &[papo_core::HistoryItem]) -> Option<CatchupCursor> {
 
 pub(super) fn begin_catchup(
     session: &mut Session,
-    defaults: &PostRegistration,
+    defaults: &PostConnect,
     catchups: &mut BTreeMap<RequestId, Catchup>,
 ) {
     if !defaults.history_on_reconnect || !should_fetch_history(session) {
@@ -237,7 +237,7 @@ mod tests {
         session.handle_bytes(now, b":ergo.test 005 papo MSGREFTYPES=msgid :supported\r\n:ergo.test 001 papo :Welcome\r\n:ergo.test 422 papo :No MOTD\r\n");
         while session.poll_event().is_some() {}
 
-        let defaults = super::super::PostRegistration {
+        let defaults = super::super::PostConnect {
             bot: false,
             channels: vec!["#papo".into()],
             history_on_reconnect: true,

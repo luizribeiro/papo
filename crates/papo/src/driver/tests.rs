@@ -286,7 +286,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         crate::Reconnect::exponential().max_attempts(2),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -352,7 +352,7 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -393,7 +393,7 @@ async fn registration_disconnect_does_not_enter_reconnect_backoff() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -442,7 +442,7 @@ async fn eof_reconnects_and_emits_reconnected() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -519,7 +519,7 @@ async fn eof_reconnects_and_emits_reconnected() {
 #[test]
 fn rejoin_set_tracks_our_joins_parts_and_kicks() {
     let session = Session::new(config());
-    let mut defaults = super::PostRegistration {
+    let mut defaults = super::PostConnect {
         bot: false,
         channels: vec![super::Autojoin::new(
             "#staff",
@@ -607,7 +607,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
 #[test]
 fn remembering_a_rejoin_replaces_only_the_same_channel() {
     let session = Session::new(config());
-    let mut defaults = super::PostRegistration {
+    let mut defaults = super::PostConnect {
         bot: false,
         channels: vec![
             super::Autojoin::new("#Papo", Some("old-channel-key".into())),
@@ -653,7 +653,7 @@ async fn write_timeout_resumes_before_the_next_line() {
     let mut sync_waiters = Vec::new();
     let mut catchups = std::collections::BTreeMap::new();
     let mut registration = super::RegistrationWait::default();
-    let mut defaults = super::PostRegistration {
+    let mut defaults = super::PostConnect {
         bot: false,
         channels: vec!["#papo".into(), "#rust".into()],
         history_on_reconnect: false,
@@ -753,7 +753,7 @@ async fn explicit_reconnect_redials_without_backoff() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -824,7 +824,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
         Session::new(config),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration {
+        super::PostConnect {
             bot: false,
             channels: vec!["#papo".into(), "#rust".into()],
             history_on_reconnect: true,
@@ -965,7 +965,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
         Session::new(config),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration {
+        super::PostConnect {
             bot: false,
             channels: vec!["#papo".into()],
             history_on_reconnect: true,
@@ -1084,7 +1084,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -1143,7 +1143,7 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -1191,7 +1191,7 @@ async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
         Session::new(config()),
         1,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -1233,7 +1233,7 @@ fn failing_driver_with_one_event_slot() -> (super::Client, super::Events, Driver
         Session::new(config()),
         1,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -1304,7 +1304,7 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential().max_attempts(3),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -1356,7 +1356,7 @@ async fn stable_registration_resets_the_backoff() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -1424,7 +1424,7 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(store),
         connector,
@@ -1466,7 +1466,7 @@ async fn connector_failure_under_stored_sts_is_terminal() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(store),
         connector,
@@ -1613,7 +1613,7 @@ async fn required_sasl_failure_rejects_registration_waiter() {
         Session::new(settings),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
     );
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -1641,7 +1641,7 @@ async fn account_required_cap_rejects_registration_without_sasl() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
     );
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -1674,7 +1674,7 @@ async fn password_numeric_is_a_generic_registration_rejection() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
     );
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -1723,7 +1723,7 @@ async fn required_sasl_failure_does_not_reconnect() {
         Session::new(settings),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -1794,7 +1794,7 @@ async fn successful_registration_preserves_earlier_events() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
     );
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -1835,7 +1835,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
         Session::new(config),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
     );
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -1882,7 +1882,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration {
+        super::PostConnect {
             bot: true,
             channels: vec![
                 "#papo".into(),
@@ -1918,7 +1918,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
 #[tokio::test(flavor = "current_thread")]
 async fn bot_default_without_advertised_mode_sends_no_mode() {
     assert_connect_output(
-        super::PostRegistration {
+        super::PostConnect {
             bot: true,
             channels: Vec::new(),
             history_on_reconnect: false,
@@ -1933,7 +1933,7 @@ async fn bot_default_without_advertised_mode_sends_no_mode() {
 #[tokio::test(flavor = "current_thread")]
 async fn advertised_bot_mode_without_bot_default_sends_no_mode() {
     assert_connect_output(
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Some(b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n"),
         b"",
     )
@@ -1943,7 +1943,7 @@ async fn advertised_bot_mode_without_bot_default_sends_no_mode() {
 #[tokio::test(flavor = "current_thread")]
 async fn empty_channel_defaults_send_no_join() {
     assert_connect_output(
-        super::PostRegistration {
+        super::PostConnect {
             bot: true,
             channels: Vec::new(),
             history_on_reconnect: false,
@@ -2040,7 +2040,7 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
         Session::new(config().host("irc.example.net").wanted_caps(["sts"])),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -2093,7 +2093,7 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
         Session::new(config().host("irc.example.net").wanted_caps(["sts"])),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential().max_attempts(1),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -2169,7 +2169,7 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
         ),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::never(),
         Box::new(store),
         connector,
@@ -2246,7 +2246,7 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
         ),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::never(),
         Box::new(store),
         connector,
@@ -2294,7 +2294,7 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
         ),
         1,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::never(),
         Box::new(store),
         connector,
@@ -4364,7 +4364,7 @@ async fn slow_consumer_reconnects_after_its_reported_delay() {
         Session::new(config()),
         1,
         None,
-        super::PostRegistration::default(),
+        super::PostConnect::default(),
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,

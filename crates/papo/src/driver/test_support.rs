@@ -410,7 +410,7 @@ pub(crate) async fn next_message(events: &mut super::Events) -> ChatMessage {
 }
 
 pub(crate) async fn assert_connect_output(
-    defaults: super::PostRegistration,
+    defaults: super::PostConnect,
     isupport: Option<&[u8]>,
     expected: &[u8],
 ) {

@@ -10,7 +10,7 @@ use crate::transport::{ClientCertificate, TlsRoots};
 use crate::{
     Error, InvalidInput, NewAccount, Reconnect,
     address::ServerAddress,
-    driver::{Autojoin, ConnectionPlan, PostRegistration},
+    driver::{Autojoin, ConnectionPlan, PostConnect},
     transport::TlsConfig,
 };
 
@@ -553,7 +553,7 @@ impl Builder {
             session,
             self.event_capacity,
             registration,
-            PostRegistration {
+            PostConnect {
                 bot: self.bot,
                 channels: self.autojoin,
                 history_on_reconnect: self.history_on_reconnect,
@@ -590,7 +590,7 @@ impl Builder {
         });
         let session =
             papo_core::Session::with_entropy(self.config, Box::new(crate::entropy::OsEntropy));
-        let defaults = PostRegistration {
+        let defaults = PostConnect {
             bot: self.bot,
             channels: self.autojoin,
             history_on_reconnect: self.history_on_reconnect,
