@@ -75,7 +75,9 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(alice.state().has_cap("sasl"));
     // SASL is driven raw here because the numeric wire outcomes are the behavior under test.
-    alice.send_raw("AUTHENTICATE PLAIN").await?;
+    alice
+        .send_raw(papo::Line::new("AUTHENTICATE", ["PLAIN"]))
+        .await?;
     let challenge = alice
         .wait_for(|event| {
             event
@@ -84,7 +86,9 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(challenge.params(), ["+"]);
-    alice.send_raw("AUTHENTICATE *").await?;
+    alice
+        .send_raw(papo::Line::new("AUTHENTICATE", ["*"]))
+        .await?;
     let aborted = alice.wait_for(Event::as_warning).await?;
     assert!(matches!(
         aborted,

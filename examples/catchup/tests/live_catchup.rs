@@ -3,7 +3,7 @@
 
 use std::{process::Command, time::Duration};
 
-use papo::{Client, Endpoint, Event, Sasl};
+use papo::{Client, Endpoint, Event, Line, Sasl};
 use papo_test_server::{from_env, register_account, unique};
 use tokio::time::timeout;
 
@@ -31,7 +31,10 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             .await
             .unwrap();
         wait_synced(&mut persistent_events, &channel).await;
-        persistent.send_raw("PERSISTENCE SET ON").await.unwrap();
+        persistent
+            .send_raw(Line::new("PERSISTENCE", ["SET", "ON"]))
+            .await
+            .unwrap();
         persistent
             .quit("persistent catchup test account ready")
             .await

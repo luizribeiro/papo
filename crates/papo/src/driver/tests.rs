@@ -2335,7 +2335,7 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn client_send_raw_parses_and_obeys_the_rate_limit() {
+async fn client_send_raw_obeys_the_rate_limit() {
     let settings = config()
         .ping_interval(Duration::from_secs(200))
         .ping_timeout(Duration::from_secs(200))
@@ -2349,9 +2349,12 @@ async fn client_send_raw_parses_and_obeys_the_rate_limit() {
     complete_registration(&mut server, &mut events).await;
     let started = crate::rt::now_mono();
     for index in 0..200 {
-        let command = format!("WHOIS release-bot-{index}");
-        client.send_raw(&command).await.unwrap();
-        client_line(&mut server, format!("{command}\r\n").as_bytes()).await;
+        let nick = format!("release-bot-{index}");
+        client
+            .send_raw(crate::Line::new("WHOIS", [&nick]))
+            .await
+            .unwrap();
+        client_line(&mut server, format!("WHOIS {nick}\r\n").as_bytes()).await;
     }
     assert_eq!(
         crate::rt::now_mono().duration_since(started),
@@ -2372,7 +2375,10 @@ async fn queued_raw_sends_fail_when_the_connection_drops() {
     );
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    client.send_raw("WHOIS release-bot").await.unwrap();
+    client
+        .send_raw(crate::Line::new("WHOIS", ["release-bot"]))
+        .await
+        .unwrap();
     client_line(&mut server, b"WHOIS release-bot\r\n").await;
 
     let queued: Vec<_> = (0..3)
@@ -2380,7 +2386,10 @@ async fn queued_raw_sends_fail_when_the_connection_drops() {
             let client = client.clone();
             tokio::spawn(async move {
                 client
-                    .send_raw(format!("WHOIS queued-release-bot-{index}"))
+                    .send_raw(crate::Line::new(
+                        "WHOIS",
+                        [format!("queued-release-bot-{index}")],
+                    ))
                     .await
             })
         })
@@ -2412,10 +2421,17 @@ async fn queued_raw_send_preserves_the_server_disconnect_cause() {
     );
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    client.send_raw("WHOIS release-bot").await.unwrap();
+    client
+        .send_raw(crate::Line::new("WHOIS", ["release-bot"]))
+        .await
+        .unwrap();
     client_line(&mut server, b"WHOIS release-bot\r\n").await;
 
-    let queued = tokio::spawn(async move { client.send_raw("WHOIS queued-release-bot").await });
+    let queued = tokio::spawn(async move {
+        client
+            .send_raw(crate::Line::new("WHOIS", ["queued-release-bot"]))
+            .await
+    });
     for _ in 0..4 {
         tokio::task::yield_now().await;
     }
@@ -2506,7 +2522,7 @@ async fn structured_commands_reject_parameter_injection() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn structured_request_returns_every_labelled_response_line() {
+async fn raw_request_returns_every_line_from_a_labelled_batch() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
     let driver = tokio::spawn(driver);
@@ -2516,7 +2532,7 @@ async fn structured_request_returns_every_labelled_response_line() {
         let client = client.clone();
         async move {
             client
-                .request_command("MOTD", std::iter::empty::<&str>())
+                .request_raw(crate::Line::new("MOTD", Vec::<String>::new()))
                 .await
         }
     });
@@ -2527,6 +2543,32 @@ async fn structured_request_returns_every_labelled_response_line() {
         lines.iter().map(crate::Line::command).collect::<Vec<_>>(),
         ["375", "372", "376"]
     );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn raw_request_returns_no_lines_for_an_ack() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_labelled_registration(&mut server, &mut events).await;
+
+    let request = tokio::spawn({
+        let client = client.clone();
+        async move {
+            client
+                .request_raw(crate::Line::new("MODE", ["#papo", "+i"]))
+                .await
+        }
+    });
+    client_line(&mut server, b"@label=0 MODE #papo +i\r\n").await;
+    server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
+    assert!(within(request).await.unwrap().unwrap().is_empty());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -3842,16 +3884,16 @@ async fn private_notice_adds_the_source_channel_context() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn client_send_raw_rejects_malformed_or_delimited_input() {
+async fn client_send_raw_rejects_invalid_lines() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
     for line in [
-        "",
-        "   ",
-        "WHOIS emily\r\n",
-        "WHOIS emily\nPRIVMSG #papo :injected",
-        "PING \0token",
+        crate::Line::new("", Vec::<String>::new()),
+        crate::Line::new("   ", Vec::<String>::new()),
+        crate::Line::new("WHOIS", ["emily\r\n"]),
+        crate::Line::new("WHOIS", ["emily\nPRIVMSG #papo :injected"]),
+        crate::Line::new("PING", ["\0token"]),
     ] {
         assert!(matches!(
             client.send_raw(line).await,

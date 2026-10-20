@@ -8,7 +8,7 @@ use std::{
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
-use papo_proto::{Ctcp, LineRef, Typing, time};
+use papo_proto::{Ctcp, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
@@ -341,19 +341,19 @@ impl Client {
         })
     }
 
-    /// Parses and queues one IRC protocol line for transmission.
+    /// Queues one IRC protocol line for transmission.
     ///
-    /// The line must not include a line ending. Sending is subject to the
-    /// client's normal outbound rate limit.
+    /// The future resolves only after the entire line has been written.
+    /// Sending is subject to the client's normal outbound rate limit.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidInput`] when the line is malformed or contains
-    /// CR, LF, or NUL, or [`Error::Disconnected`] if the driver has stopped.
-    pub fn send_raw(&self, line: impl Into<String>) -> crate::RequestFuture<()> {
+    /// Returns [`Error::InvalidInput`] when the line cannot be represented on
+    /// the wire, or [`Error::Disconnected`] if the driver stops before writing it.
+    pub fn send_raw(&self, line: impl Into<Line>) -> crate::RequestFuture<()> {
         let client = self.clone();
         let line = line.into();
-        crate::RequestFuture::new(async move { client.send_message(parse_raw(&line)?).await })
+        crate::RequestFuture::new(async move { client.send_message(line).await })
     }
 
     /// Sends one IRC protocol line and waits for its labelled response.
@@ -364,14 +364,15 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidInput`] when the line is malformed or contains
-    /// CR, LF, or NUL. Returns an error when labelled responses are unavailable,
-    /// the request limit is reached, the response times out, or the driver stops.
-    pub fn request_raw(&self, line: impl Into<String>) -> crate::RequestFuture<Vec<Line>> {
+    /// Returns [`Error::Unsupported`] when `labeled-response` is unavailable;
+    /// raw requests have no unlabelled fallback. Also returns an error when the
+    /// line cannot be represented on the wire, the request limit is reached,
+    /// the response times out, or the driver stops.
+    pub fn request_raw(&self, line: impl Into<Line>) -> crate::RequestFuture<Vec<Line>> {
         let client = self.clone();
         let line = line.into();
         crate::RequestFuture::new(async move {
-            let response = client.correlated(parse_raw(&line)?, None).await?;
+            let response = client.correlated(line, None).await?;
             Ok(response.lines)
         })
     }
@@ -1188,17 +1189,6 @@ impl Client {
             receiver.await.unwrap_or(Ok(()))
         })
     }
-}
-
-fn parse_raw(line: &str) -> Result<Line, Error> {
-    if line.contains(['\r', '\n', '\0']) {
-        return Err(
-            InvalidInput::InvalidMessage("raw IRC line contains CR, LF, or NUL".into()).into(),
-        );
-    }
-    LineRef::parse(line)
-        .map(|message| message.to_owned())
-        .map_err(|_| InvalidInput::InvalidMessage("malformed raw IRC line".into()).into())
 }
 
 fn build_command<I, S>(command: &str, params: I) -> Result<Line, Error>
