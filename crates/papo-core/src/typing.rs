@@ -1,8 +1,8 @@
 use std::{collections::VecDeque, sync::Arc};
 
-use papo_proto::{Nick, Typing};
+use papo_proto::{LineRef, Nick, Source, Typing};
 
-use crate::{Authorship, Conversation};
+use crate::{Authorship, Conversation, Event, Session, conversation::classify_line};
 
 /// Why a user's typing state changed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,6 +67,37 @@ impl TypingTable {
             .iter()
             .filter(move |(candidate, _)| candidate == conversation)
             .map(|(_, typer)| typer)
+    }
+}
+
+impl Session {
+    pub(crate) fn report_typing(&mut self, message: &LineRef<'_>, is_batched: bool) -> bool {
+        if is_batched || !message.command_is("TAGMSG") {
+            return false;
+        }
+        let state = match message.tag("+typing").as_deref() {
+            Some("active") => Typing::Active,
+            Some("paused") => Typing::Paused,
+            Some("done") => Typing::Done,
+            _ => return false,
+        };
+        let (Some(Source::User { .. }), Some(actor)) = (message.source(), message.raw_source())
+        else {
+            return false;
+        };
+        let Ok((status, conversation)) = classify_line(message, self.nick(), self.isupport.value())
+        else {
+            return false;
+        };
+        self.outbox.event(Event::TypingChanged(TypingChanged {
+            actor: actor.to_owned(),
+            authorship: self.authorship(message),
+            conversation,
+            status,
+            state,
+            reason: TypingReason::Notified,
+        }));
+        true
     }
 }
 

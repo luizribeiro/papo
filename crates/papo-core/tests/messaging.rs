@@ -4,7 +4,9 @@ mod support;
 
 use std::time::Instant;
 
-use papo_core::{Authorship, Config, Conversation, CtcpReplies, Event, RateLimit, Session};
+use papo_core::{
+    Authorship, Config, Conversation, CtcpReplies, Event, RateLimit, Session, TypingReason,
+};
 use papo_proto::{Line, Reaction, Typing};
 use support::Transcript;
 
@@ -46,14 +48,22 @@ fn reports_active_paused_and_done_typing() {
         ("paused", Typing::Paused),
         ("done", Typing::Done),
     ] {
-        let tag = tag_message(&format!("@+typing={value} :alice!~a@cloak TAGMSG #papo"));
-        assert_eq!(tag.actor, "alice!~a@cloak");
-        assert_eq!(tag.authorship, Authorship::Other);
-        assert!(
-            matches!(tag.conversation, Conversation::Channel(ref channel) if channel == "#papo")
+        let mut session = Session::new(Config::default());
+        session.handle_line(
+            Instant::now(),
+            format!("@+typing={value} :alice!~a@cloak TAGMSG #papo").as_bytes(),
         );
-        assert_eq!(tag.status, None);
-        assert_eq!(Typing::parse(&as_message(&tag).as_ref()), Some(expected));
+        let Some(Event::TypingChanged(change)) = session.poll_event() else {
+            panic!("expected typed notification")
+        };
+        assert_eq!(change.actor, "alice!~a@cloak");
+        assert_eq!(change.authorship, Authorship::Other);
+        assert!(
+            matches!(change.conversation, Conversation::Channel(ref channel) if channel == "#papo")
+        );
+        assert_eq!(change.status, None);
+        assert_eq!(change.state, expected);
+        assert_eq!(change.reason, TypingReason::Notified);
     }
 }
 
@@ -94,15 +104,15 @@ fn classifies_status_and_private_tag_messages() {
         Instant::now(),
         b"@+typing=active :alice!~a@cloak TAGMSG @#ops",
     );
-    let Some(Event::TagMessage(channel)) = session.poll_event() else {
-        panic!("expected channel tag message")
+    let Some(Event::TypingChanged(channel)) = session.poll_event() else {
+        panic!("expected channel typing event")
     };
     assert!(matches!(channel.conversation, Conversation::Channel(ref name) if name == "#ops"));
     assert_eq!(channel.status, Some(vec!['@']));
 
     session.handle_line(Instant::now(), b"@+typing=done :alice!~a@cloak TAGMSG papo");
-    let Some(Event::TagMessage(private)) = session.poll_event() else {
-        panic!("expected private tag message")
+    let Some(Event::TypingChanged(private)) = session.poll_event() else {
+        panic!("expected private typing event")
     };
     assert!(matches!(private.conversation, Conversation::Private(ref nick) if nick == "alice"));
     assert_eq!(private.status, None);
@@ -111,8 +121,8 @@ fn classifies_status_and_private_tag_messages() {
         Instant::now(),
         b"@+typing=active :papo!~papo@localhost TAGMSG #ops",
     );
-    let Some(Event::TagMessage(own)) = session.poll_event() else {
-        panic!("expected own tag message")
+    let Some(Event::TypingChanged(own)) = session.poll_event() else {
+        panic!("expected own typing event")
     };
     assert_eq!(own.authorship, Authorship::Own);
 }

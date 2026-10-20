@@ -3342,6 +3342,7 @@ impl Session {
         }
         let whoami = self.handle_whoami(message);
         let own_away_message = self.confirmed_away_message(message).map(str::to_owned);
+        let typing_handled = self.report_typing(message, context.batch_type().is_some());
         let state_handled = whoami
             || self.state.handle_message(
                 message,
@@ -3372,6 +3373,7 @@ impl Session {
             || account_registration_handled
             || nick_regain_handled
             || monitor_handled
+            || typing_handled
             || state_handled
             || isupport_handled
             || self
@@ -3391,7 +3393,8 @@ impl Session {
         if response && labelled_echo && emit_response_events {
             self.enqueue_labelled_echo(message);
         }
-        let tag_message = !response && emit_unhandled && self.report_tag_message(message);
+        let tag_message =
+            !response && !typing_handled && emit_unhandled && self.report_tag_message(message);
         let redacted =
             !response && !tag_message && emit_unhandled && self.report_redaction(message);
         let invited =
