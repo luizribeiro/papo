@@ -172,12 +172,16 @@ pub struct TopicChanged {
 pub struct ModeChange {
     /// Whether the mode was set rather than removed.
     pub set: bool,
-    /// The mode letter.
-    pub mode: char,
     /// The mode's advertised parameter behavior.
     pub kind: ModeKind,
-    /// The argument required by [`Self::kind`], when supplied by the server.
+    /// The raw mode argument, when supplied by the server.
     pub arg: Option<String>,
+    /// Whether the mode was added or removed.
+    pub action: ModeAction,
+    /// The argument classified using the server's advertised rules.
+    pub typed_arg: Option<ModeArg>,
+    /// The mode letter.
+    pub mode: char,
 }
 
 /// A user or channel mode changed.

@@ -1236,11 +1236,18 @@ pub(crate) fn from_core(
                 subject_authorship: Authorship::from_core(subject_authorship),
                 changes: changes
                     .into_iter()
-                    .map(|change| ModeChange {
-                        set: change.set,
-                        mode: change.mode,
-                        kind: ModeKind::from_proto(change.kind),
-                        arg: change.arg,
+                    .map(|change| {
+                        typed_mode_change(
+                            if change.set {
+                                ModeAction::Add
+                            } else {
+                                ModeAction::Remove
+                            },
+                            change.mode,
+                            change.arg.as_deref(),
+                            change.kind,
+                            casemapping,
+                        )
                     })
                     .collect(),
             })
@@ -1284,14 +1291,36 @@ pub(crate) fn from_core(
     })
 }
 
+pub(crate) fn typed_mode_change(
+    action: ModeAction,
+    mode: char,
+    arg: Option<&str>,
+    kind: papo_proto::ModeKind,
+    casemapping: Casemapping,
+) -> ModeChange {
+    let typed_arg = arg.map(|arg| match kind {
+        papo_proto::ModeKind::Prefix(_) => ModeArg::Nick(casemapping.nick(arg)),
+        papo_proto::ModeKind::List => ModeArg::Mask(casemapping.mask(arg)),
+        _ => ModeArg::Value(arg.to_owned()),
+    });
+    ModeChange {
+        mode,
+        action,
+        typed_arg,
+        set: action == ModeAction::Add,
+        kind: ModeKind::from_proto(kind),
+        arg: arg.map(str::to_owned),
+    }
+}
+
 #[cfg(all(test, not(browser)))]
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
         Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageKind,
-        MetadataChanged, ModeKind, Origin, Source, StandardReplyKind, Visibility, Warning,
-        from_core as from_core_with_mapping,
+        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Visibility,
+        Warning, from_core as from_core_with_mapping,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
@@ -2267,10 +2296,9 @@ mod tests {
                 if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && mode.actor.nick().is_some_and(|nick| nick == "alice")
                     && mode.changes.len() == 1
-                    && mode.changes[0].set
+                    && mode.changes[0].action == ModeAction::Add
                     && mode.changes[0].mode == 'o'
-                    && mode.changes[0].kind == ModeKind::Prefix(0)
-                    && mode.changes[0].arg.as_deref() == Some("emily")
+                    && matches!(&mode.changes[0].typed_arg, Some(ModeArg::Nick(nick)) if nick == "emily")
         ));
     }
 

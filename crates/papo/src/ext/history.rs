@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Line, Message as ChatMessage, Origin,
+    Client, Error, Line, Message as ChatMessage, ModeAction, Origin,
     driver::Command,
     event::{
         Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,
@@ -438,11 +438,17 @@ fn mode_changed(
         message.params().skip(2),
         state.isupport().inner(),
     )
-    .map(|change| crate::event::ModeChange {
-        set: change.action == papo_proto::ModeAction::Add,
-        mode: change.mode,
-        kind: crate::ModeKind::from_proto(change.kind),
-        arg: change.arg.map(str::to_owned),
+    .map(|change| {
+        crate::event_impl::typed_mode_change(
+            match change.action {
+                papo_proto::ModeAction::Add => ModeAction::Add,
+                papo_proto::ModeAction::Remove => ModeAction::Remove,
+            },
+            change.mode,
+            change.arg,
+            change.kind,
+            mapping,
+        )
     })
     .collect();
     Some(HistoryItem::ModeChanged(ModeChanged {
@@ -1308,7 +1314,7 @@ mod tests {
                 if matches!(event.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && event.actor.nick().is_some_and(|nick| nick == "emily")
                     && event.changes.len() == 2
-                    && event.changes.iter().all(|change| change.set)
+                    && event.changes.iter().all(|change| change.action == crate::ModeAction::Add)
                     && event.changes[0].mode == 'i' && event.changes[1].mode == 'm'
         ));
 

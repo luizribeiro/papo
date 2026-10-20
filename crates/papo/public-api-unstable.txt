@@ -565,10 +565,12 @@ impl core::marker::UnsafeUnpin for papo::event::MetadataChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MetadataChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::MetadataChanged
 #[non_exhaustive] pub struct papo::event::ModeChange
+pub papo::event::ModeChange::action: papo::ModeAction
 pub papo::event::ModeChange::arg: core::option::Option<alloc::string::String>
 pub papo::event::ModeChange::kind: papo::ModeKind
 pub papo::event::ModeChange::mode: char
 pub papo::event::ModeChange::set: bool
+pub papo::event::ModeChange::typed_arg: core::option::Option<papo::ModeArg>
 impl core::clone::Clone for papo::event::ModeChange
 pub fn papo::event::ModeChange::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ModeChange
