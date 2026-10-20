@@ -1,6 +1,6 @@
 use std::fmt;
 
-use papo_proto::{Nick, ServerName};
+use papo_proto::{Casemapping, Nick, ServerName};
 
 /// The source of an IRC event.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -33,6 +33,24 @@ impl Source {
             Self::Server { .. } => None,
         }
     }
+
+    /// Builds an owned source from a parsed protocol prefix.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemapping) -> Self {
+        match source {
+            papo_proto::Source::Server(name) => Self::Server { name: name.into() },
+            papo_proto::Source::User {
+                nick,
+                username,
+                host,
+            } => Self::User {
+                nick: casemapping.nick(nick),
+                username: username.map(str::to_owned),
+                host: host.map(str::to_owned),
+            },
+        }
+    }
 }
 
 impl fmt::Display for Source {
@@ -46,23 +64,28 @@ impl fmt::Display for Source {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::{Casemapping, ServerName};
+    use papo_proto::Casemapping;
 
     use super::Source;
 
     #[test]
     fn returns_only_user_nicknames() {
         let nick = Casemapping::Rfc1459.nick("Alice[bot]");
-        let user = Source::User {
-            nick: nick.clone(),
-            username: Some("~alice".into()),
-            host: Some("staff.example".into()),
-        };
-        let server = Source::Server {
-            name: ServerName::from("irc.example.net"),
-        };
+        let user = Source::from_proto(
+            papo_proto::Source::User {
+                nick: "Alice[bot]",
+                username: Some("~alice"),
+                host: Some("staff.example"),
+            },
+            Casemapping::Rfc1459,
+        );
+        let server = Source::from_proto(
+            papo_proto::Source::Server("irc.example.net"),
+            Casemapping::Rfc1459,
+        );
 
         assert_eq!(user.nick(), Some(&nick));
         assert_eq!(server.nick(), None);
+        assert!(matches!(server, Source::Server { name } if name == "IRC.EXAMPLE.NET"));
     }
 }
