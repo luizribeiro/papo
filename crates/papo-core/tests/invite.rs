@@ -12,18 +12,18 @@ fn reports_direct_and_notified_invitations() {
         .event(|event| {
             matches!(
                 event,
-                Event::Invited { channel, nick, by }
+                Event::Invited { channel, nick, actor }
                     if channel == "#papo" && nick == "papo"
-                        && by == "emily!~emily@localhost"
+                        && actor == "emily!~emily@localhost"
             )
         })
         .server(":alice!~alice@staff.example INVITE bob #staff")
         .event(|event| {
             matches!(
                 event,
-                Event::Invited { channel, nick, by }
+                Event::Invited { channel, nick, actor }
                     if channel == "#staff" && nick == "bob"
-                        && by == "alice!~alice@staff.example"
+                        && actor == "alice!~alice@staff.example"
             )
         })
         .no_client();

@@ -431,14 +431,14 @@ pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
 pub papo_core::Event::HostChanged::user: alloc::string::String
 pub papo_core::Event::Invited
-pub papo_core::Event::Invited::by: alloc::string::String
+pub papo_core::Event::Invited::actor: alloc::string::String
 pub papo_core::Event::Invited::channel: papo::ChannelName
 pub papo_core::Event::Invited::nick: papo::Nick
 pub papo_core::Event::Joined
 pub papo_core::Event::Joined::channel: papo::ChannelName
 pub papo_core::Event::Joined::nick: papo::Nick
 pub papo_core::Event::Kicked
-pub papo_core::Event::Kicked::by: alloc::string::String
+pub papo_core::Event::Kicked::actor: alloc::string::String
 pub papo_core::Event::Kicked::channel: papo::ChannelName
 pub papo_core::Event::Kicked::nick: papo::Nick
 pub papo_core::Event::Kicked::reason: core::option::Option<alloc::string::String>
@@ -454,7 +454,7 @@ pub papo_core::Event::MetadataSyncLater
 pub papo_core::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
 pub papo_core::Event::MetadataSyncLater::target: alloc::string::String
 pub papo_core::Event::ModeChanged
-pub papo_core::Event::ModeChanged::by: alloc::string::String
+pub papo_core::Event::ModeChanged::actor: alloc::string::String
 pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::OwnedModeChange>
 pub papo_core::Event::ModeChanged::target: alloc::string::String
 pub papo_core::Event::MonitorListFull
@@ -514,7 +514,7 @@ pub papo_core::Event::StsUpgrade
 pub papo_core::Event::StsUpgrade::port: u16
 pub papo_core::Event::TagMessage(papo_core::TagMessage)
 pub papo_core::Event::TopicChanged
-pub papo_core::Event::TopicChanged::by: alloc::string::String
+pub papo_core::Event::TopicChanged::actor: alloc::string::String
 pub papo_core::Event::TopicChanged::channel: papo::ChannelName
 pub papo_core::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
 pub papo_core::Event::VerificationRequired

@@ -60,7 +60,7 @@ impl Session {
         self.outbox.event(Event::Invited {
             channel: casemapping.channel(channel),
             nick: casemapping.nick(nick),
-            by: by.to_owned(),
+            actor: by.to_owned(),
         });
         true
     }

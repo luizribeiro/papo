@@ -1696,7 +1696,7 @@ pub enum Event {
         /// The removed user's nickname.
         nick: Nick,
         /// The user or server that issued the kick.
-        by: String,
+        actor: String,
         /// The optional kick reason.
         reason: Option<String>,
     },
@@ -1707,7 +1707,7 @@ pub enum Event {
         /// The invited user's nickname.
         nick: Nick,
         /// The user or server prefix that sent the invitation.
-        by: String,
+        actor: String,
     },
     /// A user sharing channels with the session disconnected.
     Quit {
@@ -1769,7 +1769,7 @@ pub enum Event {
         /// The mode target.
         target: String,
         /// The user or server that changed the modes.
-        by: String,
+        actor: String,
         /// Parsed mode operations in wire order.
         changes: Vec<OwnedModeChange>,
     },
@@ -1780,7 +1780,7 @@ pub enum Event {
         /// The new topic, or `None` when it was cleared.
         topic: Option<String>,
         /// The user or server that changed the topic.
-        by: String,
+        actor: String,
     },
 }
 

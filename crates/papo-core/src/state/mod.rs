@@ -399,14 +399,14 @@ impl State {
             else {
                 return Handled::No;
             };
-            let by = match source {
+            let actor = match source {
                 Source::Server(name) => name,
                 Source::User { nick, .. } => nick,
             };
             outbox.event(Event::Kicked {
                 channel: mapping.channel(channel),
                 nick: mapping.nick(nick),
-                by: by.to_owned(),
+                actor: actor.to_owned(),
                 reason: message.param(2).map(str::to_owned),
             });
             if crate::names_equal(mapping, nick, &self.nick) {
@@ -556,7 +556,7 @@ impl State {
     }
 
     fn report_mode_change(message: &LineRef<'_>, isupport: &Isupport, outbox: &mut Outbox) -> bool {
-        let (Some(target), Some(modestring), Some(by)) = (
+        let (Some(target), Some(modestring), Some(actor)) = (
             message
                 .param(0)
                 .filter(|_| message.command() == Command::Mode),
@@ -576,7 +576,7 @@ impl State {
         };
         outbox.event(Event::ModeChanged {
             target: target.to_owned(),
-            by: by.to_owned(),
+            actor: actor.to_owned(),
             changes,
         });
         true
@@ -649,11 +649,11 @@ impl State {
             }
             _ => return false,
         };
-        if live && let (Some(channel), Some(by)) = (channel_name, source_name(message)) {
+        if live && let (Some(channel), Some(actor)) = (channel_name, source_name(message)) {
             outbox.event(Event::TopicChanged {
                 channel: self.casemapping.channel(channel),
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
-                by: by.to_owned(),
+                actor: actor.to_owned(),
             });
         }
         let Some(channel) =

@@ -994,19 +994,23 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         papo_core::Event::Kicked {
             channel,
             nick,
-            by,
+            actor,
             reason,
         } => Event::Kicked(Kicked {
             channel,
             nick,
-            by: Source::from_name(by, casemapping),
+            by: Source::from_name(actor, casemapping),
             reason,
             is_self: false,
         }),
-        papo_core::Event::Invited { channel, nick, by } => Event::Invited(Invited {
+        papo_core::Event::Invited {
             channel,
             nick,
-            by: Source::from_prefix(by, casemapping),
+            actor,
+        } => Event::Invited(Invited {
+            channel,
+            nick,
+            by: Source::from_prefix(actor, casemapping),
             is_self: false,
         }),
         papo_core::Event::Quit {
@@ -1046,11 +1050,11 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         }
         papo_core::Event::ModeChanged {
             target,
-            by,
+            actor,
             changes,
         } => Event::ModeChanged(ModeChanged {
             target,
-            by: Source::from_name(by, casemapping),
+            by: Source::from_name(actor, casemapping),
             changes: changes
                 .into_iter()
                 .map(|change| ModeChange {
@@ -1061,13 +1065,15 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 })
                 .collect(),
         }),
-        papo_core::Event::TopicChanged { channel, topic, by } => {
-            Event::TopicChanged(TopicChanged {
-                channel,
-                topic,
-                by: Source::from_name(by, casemapping),
-            })
-        }
+        papo_core::Event::TopicChanged {
+            channel,
+            topic,
+            actor,
+        } => Event::TopicChanged(TopicChanged {
+            channel,
+            topic,
+            by: Source::from_name(actor, casemapping),
+        }),
         papo_core::Event::StateLimitReached { limit } => {
             Event::Warning(Warning::StateLimitReached {
                 limit: match limit {
@@ -1436,7 +1442,7 @@ mod tests {
         let event = forwarded(papo_core::Event::Invited {
             channel: Casemapping::default().channel("#papo"),
             nick: Casemapping::default().nick("papo"),
-            by: "emily!~emily@localhost".to_owned(),
+            actor: "emily!~emily@localhost".to_owned(),
         });
         let invited = event.as_invited().unwrap();
         assert_eq!(invited.channel, "#papo");
@@ -1855,7 +1861,7 @@ mod tests {
             forwarded(papo_core::Event::Kicked {
                 channel: Casemapping::default().channel("#papo"),
                 nick: Casemapping::default().nick("emily"),
-                by: "alice".into(),
+                actor: "alice".into(),
                 reason: Some("Flooding".into()),
             }),
             Event::Kicked(kicked)
@@ -1954,7 +1960,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::ModeChanged {
                 target: "#papo".into(),
-                by: "alice".into(),
+                actor: "alice".into(),
                 changes: mode_changes.clone(),
             }),
             Event::ModeChanged(mode)
@@ -1974,7 +1980,7 @@ mod tests {
             forwarded(papo_core::Event::TopicChanged {
                 channel: Casemapping::default().channel("#papo"),
                 topic: Some("Rust 1.90 is out".into()),
-                by: "alice".into(),
+                actor: "alice".into(),
             }),
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"

@@ -802,7 +802,7 @@ fn tracks_live_topic_changes_and_clearing() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":alice!alice@staff.example TOPIC #papo :Rust 1.90 is out")
-        .event(|event| matches!(event, Event::TopicChanged { channel, topic, by } if channel == "#papo" && topic.as_deref() == Some("Rust 1.90 is out") && by == "alice"))
+        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor } if channel == "#papo" && topic.as_deref() == Some("Rust 1.90 is out") && actor == "alice"))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), Some("Rust 1.90 is out"));
@@ -810,7 +810,7 @@ fn tracks_live_topic_changes_and_clearing() {
             assert_eq!(channel.topic_set_at(), None);
         })
         .server(":alice!alice@staff.example TOPIC #papo :")
-        .event(|event| matches!(event, Event::TopicChanged { channel, topic, by } if channel == "#papo" && topic.is_none() && by == "alice"))
+        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor } if channel == "#papo" && topic.is_none() && actor == "alice"))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), None);
@@ -827,9 +827,9 @@ fn reports_mixed_channel_and_user_mode_changes() {
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":alice!alice@staff.example MODE #papo +o-b emily *!*@gateway/tor-sasl")
         .event(|event| match event {
-            Event::ModeChanged { target, by, changes } => {
+            Event::ModeChanged { target, actor, changes } => {
                 target == "#papo"
-                    && by == "alice"
+                    && actor == "alice"
                     && changes == &vec![
                         OwnedModeChange { set: true, mode: 'o', arg: Some("emily".into()), kind: ModeKind::Prefix(0) },
                         OwnedModeChange { set: false, mode: 'b', arg: Some("*!*@gateway/tor-sasl".into()), kind: ModeKind::List },
@@ -838,7 +838,7 @@ fn reports_mixed_channel_and_user_mode_changes() {
             _ => false,
         })
         .server(":ergo.test MODE emily +i")
-        .event(|event| matches!(event, Event::ModeChanged { target, by, changes } if target == "emily" && by == "ergo.test" && changes == &vec![OwnedModeChange { set: true, mode: 'i', arg: None, kind: ModeKind::Unknown }]))
+        .event(|event| matches!(event, Event::ModeChanged { target, actor, changes } if target == "emily" && actor == "ergo.test" && changes == &vec![OwnedModeChange { set: true, mode: 'i', arg: None, kind: ModeKind::Unknown }]))
         .no_event();
 }
 
@@ -1344,7 +1344,7 @@ fn reports_parts_and_kicks_for_other_users_and_ourselves() {
         .server(":dan!dan@cloak.example JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
         .server(":chanop!op@staff.example KICK #papo dan :Rule violation")
-        .event(|event| matches!(event, Event::Kicked { channel, nick, by, reason } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && by == "chanop" && reason.as_deref() == Some("Rule violation")))
+        .event(|event| matches!(event, Event::Kicked { channel, nick, actor, reason } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && actor == "chanop" && reason.as_deref() == Some("Rule violation")))
         .server(":emily!em@127.0.0.1 PART #papo :Requested")
         .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "emily"))
         .server(":emily!em@127.0.0.1 JOIN #rust")
