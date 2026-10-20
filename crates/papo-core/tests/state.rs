@@ -188,12 +188,23 @@ fn read_models_expose_typed_identifiers() {
 
 #[test]
 fn wire_names_capture_the_advertised_ascii_casemapping() {
-    Transcript::new(Config::default().nick("emily"))
-        .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
-        .server(":Emily!em@127.0.0.1 JOIN #Papo[dev] Emily :Emily Example")
+    Transcript::new(Config::default().nick("emily[bot]"))
+        .server(":ergo.test 005 emily[bot] CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
+        .server(":Emily[bot]!em@127.0.0.1 JOIN #Papo[dev] Emily[bot] :Emily Example")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Joined { channel, nick }
+                    if channel.casemapping() == Casemapping::Ascii
+                        && nick.casemapping() == Casemapping::Ascii
+                        && channel != "#papo{dev}"
+                        && nick != "emily{bot}"
+            )
+        })
         .inspect(|session| {
             let channel = session.state().channel("#papo[dev]").unwrap();
-            let user = session.state().user("EMILY").unwrap();
+            let user = session.state().user("EMILY[bot]").unwrap();
             let Account::LoggedIn(account) = user.account() else {
                 panic!("extended join should report the account");
             };
@@ -201,7 +212,7 @@ fn wire_names_capture_the_advertised_ascii_casemapping() {
             assert_eq!(channel.name().as_ref(), "#Papo[dev]");
             assert_eq!(channel.name().casemapping(), Casemapping::Ascii);
             assert_eq!(
-                channel.member("emily").unwrap().nick().casemapping(),
+                channel.member("emily[bot]").unwrap().nick().casemapping(),
                 Casemapping::Ascii
             );
             assert_eq!(user.nick().casemapping(), Casemapping::Ascii);
@@ -215,7 +226,16 @@ fn wire_names_capture_the_advertised_ascii_casemapping() {
 fn utf8mapping_builds_names_with_precis_rules() {
     Transcript::new(Config::default().nick("émilie"))
         .server(":ergo.test 005 émilie CASEMAPPING=ascii UTF8MAPPING=rfc8265 :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .server(":ÉMILIE!em@127.0.0.1 JOIN #Papo ÉMILIE :Émilie Example")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Joined { channel, nick }
+                    if channel.casemapping() == Casemapping::Precis
+                        && nick.casemapping() == Casemapping::Precis
+            )
+        })
         .inspect(|session| {
             let user = session.state().user("émilie").unwrap();
             assert_eq!(session.state().casemapping(), Casemapping::Precis);
@@ -229,7 +249,15 @@ fn utf8mapping_builds_names_with_precis_rules() {
 fn names_received_before_isupport_are_refolded_under_announced_rules() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #Papo[dev]")
-        .event(|event| matches!(event, Event::Joined { .. }))
+        .event(|event| {
+            matches!(
+                event,
+                Event::Joined { channel, nick }
+                    if channel.casemapping() == Casemapping::Rfc1459
+                        && nick.casemapping() == Casemapping::Rfc1459
+                        && channel == "#papo{dev}"
+            )
+        })
         .inspect(|session| assert!(session.state().channel("#papo{dev}").is_some()))
         .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
         .event(|event| matches!(event, Event::CasemappingChanged { .. }))

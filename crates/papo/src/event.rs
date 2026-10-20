@@ -947,13 +947,13 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined { channel, nick } => Event::Joined(Joined {
-            channel: casemapping.channel(channel),
-            nick: casemapping.nick(nick),
+            channel,
+            nick,
             is_self: false,
         }),
-        papo_core::Event::ChannelSynced { channel } => Event::ChannelSynced(ChannelSynced {
-            channel: casemapping.channel(channel),
-        }),
+        papo_core::Event::ChannelSynced { channel } => {
+            Event::ChannelSynced(ChannelSynced { channel })
+        }
         papo_core::Event::Parted {
             channel,
             nick,
@@ -977,8 +977,8 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             is_self: false,
         }),
         papo_core::Event::Invited { channel, nick, by } => Event::Invited(Invited {
-            channel: casemapping.channel(channel),
-            nick: casemapping.nick(nick),
+            channel,
+            nick,
             by: Source::from_prefix(by, casemapping),
             is_self: false,
         }),
@@ -1409,8 +1409,8 @@ mod tests {
     #[test]
     fn maps_invitation_source_details() {
         let event = forwarded(papo_core::Event::Invited {
-            channel: "#papo".to_owned(),
-            nick: "papo".to_owned(),
+            channel: Casemapping::default().channel("#papo"),
+            nick: Casemapping::default().nick("papo"),
             by: "emily!~emily@localhost".to_owned(),
         });
         let invited = event.as_invited().unwrap();
@@ -1425,13 +1425,13 @@ mod tests {
     }
 
     #[test]
-    fn forwarded_names_capture_the_supplied_casemapping() {
+    fn forwarded_names_keep_the_core_casemapping() {
         let CoreEvent::Forward(Event::Joined(joined)) = from_core_with_mapping(
             papo_core::Event::Joined {
-                channel: "#Papo[dev]".into(),
-                nick: "Alice[bot]".into(),
+                channel: Casemapping::Ascii.channel("#Papo[dev]"),
+                nick: Casemapping::Ascii.nick("Alice[bot]"),
             },
-            Casemapping::Ascii,
+            Casemapping::Rfc1459,
         ) else {
             panic!("join was not forwarded");
         };
@@ -1782,8 +1782,8 @@ mod tests {
     fn maps_joined() {
         assert!(matches!(
             forwarded(papo_core::Event::Joined {
-                channel: "#papo".into(),
-                nick: "emily".into()
+                channel: Casemapping::default().channel("#papo"),
+                nick: Casemapping::default().nick("emily")
             }),
             Event::Joined(joined) if joined.channel == "#papo" && joined.nick == "emily"
         ));
@@ -1793,7 +1793,7 @@ mod tests {
     fn maps_channel_synced() {
         assert!(matches!(
             forwarded(papo_core::Event::ChannelSynced {
-                channel: "#papo".into()
+                channel: Casemapping::default().channel("#papo")
             }),
             Event::ChannelSynced(synced) if synced.channel == "#papo"
         ));

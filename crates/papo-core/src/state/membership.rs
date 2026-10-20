@@ -52,8 +52,8 @@ impl State {
             return Handled::No;
         };
         outbox.event(Event::Joined {
-            channel: join.channel.to_owned(),
-            nick: nick.to_owned(),
+            channel: self.casemapping.channel(join.channel),
+            nick: self.casemapping.nick(nick),
         });
         let ours = self.casemapping.eq(nick, &self.nick);
         if ours {
@@ -114,7 +114,7 @@ impl State {
             outbox.transmit("MODE", [channel]);
             self.start_who(channel, isupport, outbox);
             outbox.event(Event::ChannelSynced {
-                channel: channel.to_owned(),
+                channel: self.casemapping.channel(channel),
             });
         }
         true

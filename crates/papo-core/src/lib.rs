@@ -91,8 +91,9 @@ use std::{
 use web_time::Instant;
 
 use papo_proto::{
-    BuildError, Casemapping, Command, Ctcp, Line, LineRef, MAX_LINE_LEN, MAX_TAG_SECTION_LEN,
-    ModeChange, ModeKind, Numeric, Source, StandardReply as StandardReplyView, StandardReplyKind,
+    BuildError, Casemapping, ChannelName, Command, Ctcp, Line, LineRef, MAX_LINE_LEN,
+    MAX_TAG_SECTION_LEN, ModeChange, ModeKind, Nick, Numeric, Source,
+    StandardReply as StandardReplyView, StandardReplyKind,
 };
 
 use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
@@ -1619,14 +1620,14 @@ pub enum Event {
     /// A user joined a channel shared with the session.
     Joined {
         /// The channel that was joined.
-        channel: String,
+        channel: ChannelName,
         /// The joining user's nickname.
-        nick: String,
+        nick: Nick,
     },
     /// Initial channel membership synchronization completed.
     ChannelSynced {
         /// The synchronized channel.
-        channel: String,
+        channel: ChannelName,
     },
     /// A user left a shared channel with `PART`.
     Parted {
@@ -1651,9 +1652,9 @@ pub enum Event {
     /// A user was invited to a channel.
     Invited {
         /// The invited channel.
-        channel: String,
+        channel: ChannelName,
         /// The invited user's nickname.
-        nick: String,
+        nick: Nick,
         /// The user or server prefix that sent the invitation.
         by: String,
     },

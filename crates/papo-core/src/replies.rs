@@ -40,9 +40,10 @@ impl Session {
         ) else {
             return false;
         };
+        let casemapping = self.isupport.value().casemapping();
         self.outbox.event(Event::Invited {
-            channel: channel.to_owned(),
-            nick: nick.to_owned(),
+            channel: casemapping.channel(channel),
+            nick: casemapping.nick(nick),
             by: by.to_owned(),
         });
         true
