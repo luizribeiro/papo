@@ -1075,10 +1075,11 @@ mod tests {
 
     #[test]
     fn configures_post_registration_defaults() {
+        let staff = crate::Casemapping::default().channel("#staff");
         let builder = Builder::new("irc.example.net")
             .bot()
             .autojoin(["#papo", "#papo-bots"])
-            .autojoin_with_key("#staff", "private channel key")
+            .autojoin_with_key(staff, "private channel key")
             .history_on_reconnect(true);
         assert!(builder.bot);
         assert_eq!(

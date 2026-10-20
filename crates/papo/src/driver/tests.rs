@@ -3384,7 +3384,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     client_line(&mut server, b"NOTICE helper :maintenance soon\r\n").await;
     let sent = client
         .privmsg("helper", "reviewed")
-        .reply_to(&crate::MessageId::from("RfcBTzyxY120004"))
+        .reply_to(crate::MessageId::from("RfcBTzyxY120004"))
         .channel_context("#papo")
         .await
         .unwrap();
@@ -3447,19 +3447,24 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
         "echo-message labeled-response message-tags",
     )
     .await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply,-channel-context :are supported\r\n",
+    )
+    .await;
 
     let sender = client.clone();
     let sent = tokio::spawn(async move {
         sender
             .privmsg("helper", "fixed in 69876ec")
-            .reply_to(&crate::MessageId::from("RfcBTzyxY120004"))
+            .reply_to("abc123")
             .channel_context(crate::Casemapping::default().channel("#papo"))
             .tag("+example.org/trace", "98")
             .await
     });
     client_line(
         &mut server,
-        b"@+example.org/trace=98;+reply=RfcBTzyxY120004;+channel-context=#papo;label=0 PRIVMSG helper :fixed in 69876ec\r\n",
+        b"@+example.org/trace=98;+draft/reply=abc123;+channel-context=#papo;label=0 PRIVMSG helper :fixed in 69876ec\r\n",
     )
     .await;
     server_line(

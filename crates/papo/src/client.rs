@@ -104,8 +104,8 @@ impl IntoFuture for JoinChannel {
 impl SendMessage {
     /// Marks this message as a reply to `message` when replies are available.
     #[must_use]
-    pub fn reply_to(mut self, message: &crate::MessageId) -> Self {
-        self.reply_to = Some(message.clone());
+    pub fn reply_to(mut self, message: impl Into<crate::MessageId>) -> Self {
+        self.reply_to = Some(message.into());
         self
     }
 
@@ -438,7 +438,7 @@ impl Client {
     pub fn reply(&self, message: &crate::Message, text: impl Into<String>) -> SendMessage {
         let mut request = self.privmsg(message.reply_target(), text);
         if let Some(id) = message.id() {
-            request = request.reply_to(&id.into());
+            request = request.reply_to(id);
         }
         if message.is_private()
             && let Some(context) = message.channel_context()
@@ -459,7 +459,7 @@ impl Client {
         };
         let mut request = self.notice(target, text);
         if let Some(id) = message.id() {
-            request = request.reply_to(&id.into());
+            request = request.reply_to(id);
         }
         let context = if message.is_private() {
             message.channel_context()
