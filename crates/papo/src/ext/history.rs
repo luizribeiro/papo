@@ -292,6 +292,20 @@ pub struct HistoryTarget {
     pub latest: SystemTime,
 }
 
+/// A conversation with the timestamp of its newest available history entry.
+///
+/// Returned by the `IRCv3` [`CHATHISTORY TARGETS`] query.
+///
+/// [`CHATHISTORY TARGETS`]: https://ircv3.net/specs/extensions/chathistory#targets
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct RecentConversation {
+    /// Conversation with available history.
+    pub conversation: crate::Conversation,
+    /// Timestamp of the newest available entry.
+    pub latest: SystemTime,
+}
+
 impl HistoryPage {
     /// Iterates over chat messages, excluding replayed activity items.
     pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
@@ -565,6 +579,47 @@ impl Client {
                                 _ => return None,
                             };
                             Some(HistoryTarget { target, latest })
+                        })
+                        .collect()
+                })
+        })
+    }
+
+    /// Lists conversations that received messages during an inclusive time range.
+    ///
+    /// This sends the `IRCv3` [`CHATHISTORY TARGETS`] query.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::History`] with reason
+    /// [`crate::UnsupportedReason::NotOffered`] or
+    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
+    /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
+    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
+    ///
+    /// [`CHATHISTORY TARGETS`]: https://ircv3.net/specs/extensions/chathistory#targets
+    pub fn recent_conversations(
+        &self,
+        since: SystemTime,
+        until: SystemTime,
+    ) -> crate::RequestFuture<Vec<RecentConversation>> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            client
+                .history_response(HistoryQuery::Targets {
+                    from: since,
+                    to: until,
+                    limit: 1_000,
+                })
+                .await?
+                .history_targets
+                .ok_or_else(Error::connection_lost)
+                .map(|targets| {
+                    targets
+                        .into_iter()
+                        .map(|(conversation, latest)| RecentConversation {
+                            conversation,
+                            latest,
                         })
                         .collect()
                 })
@@ -1050,7 +1105,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn history_targets_are_typed_and_time_bounded() {
+    async fn recent_conversations_are_typed_and_time_bounded() {
         let config = config().wanted_caps([
             "draft/chathistory",
             "labeled-response",
@@ -1060,9 +1115,10 @@ mod tests {
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
         complete_connect_history(&mut server, &mut events).await;
+        let channel = client.state().channel_name("#papo");
         let request = tokio::spawn(async move {
             client
-                .history_targets(
+                .recent_conversations(
                     UNIX_EPOCH + Duration::from_secs(42),
                     UNIX_EPOCH + Duration::from_secs(84),
                 )
@@ -1076,7 +1132,10 @@ mod tests {
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply :ergo.test BATCH +targets draft/chathistory-targets\r\n@batch=targets :ergo.test CHATHISTORY TARGETS #papo 2026-10-15T12:00:00.000Z\r\n@batch=reply :ergo.test BATCH -targets\r\n:ergo.test BATCH -reply\r\n").await;
         let targets = within(request).await.unwrap().unwrap();
         assert_eq!(targets.len(), 1);
-        assert_eq!(targets[0].target, "#papo");
+        assert_eq!(
+            targets[0].conversation,
+            crate::Conversation::Channel(channel)
+        );
         assert_eq!(
             targets[0].latest,
             UNIX_EPOCH + Duration::from_hours(497_796)

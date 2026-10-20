@@ -1714,6 +1714,7 @@ pub fn papo::Client::fetch_read_marker(&self, impl core::convert::AsRef<str>) ->
 pub fn papo::Client::history(&self, impl core::convert::AsRef<str>) -> papo::History
 pub fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::HistoryTarget>>
 pub fn papo::Client::mark_read(&self, impl core::convert::AsRef<str>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
+pub fn papo::Client::recent_conversations(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
 impl papo::Client
 pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
@@ -2175,6 +2176,24 @@ impl core::marker::Unpin for papo::NewAccount
 impl core::marker::UnsafeUnpin for papo::NewAccount
 impl core::panic::unwind_safe::RefUnwindSafe for papo::NewAccount
 impl core::panic::unwind_safe::UnwindSafe for papo::NewAccount
+#[non_exhaustive] pub struct papo::RecentConversation
+pub papo::RecentConversation::conversation: papo::Conversation
+pub papo::RecentConversation::latest: std::time::SystemTime
+impl core::clone::Clone for papo::RecentConversation
+pub fn papo::RecentConversation::clone(&self) -> Self
+impl core::cmp::Eq for papo::RecentConversation
+impl core::cmp::PartialEq for papo::RecentConversation
+pub fn papo::RecentConversation::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::RecentConversation
+pub fn papo::RecentConversation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::RecentConversation
+impl core::marker::Freeze for papo::RecentConversation
+impl core::marker::Send for papo::RecentConversation
+impl core::marker::Sync for papo::RecentConversation
+impl core::marker::Unpin for papo::RecentConversation
+impl core::marker::UnsafeUnpin for papo::RecentConversation
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RecentConversation
+impl core::panic::unwind_safe::UnwindSafe for papo::RecentConversation
 pub struct papo::Reconnect
 impl papo::Reconnect
 pub const fn papo::Reconnect::exponential() -> Self
