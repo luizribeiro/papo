@@ -5254,6 +5254,43 @@ async fn client_exposes_capability_aliases_and_casemapping() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn casemapping_change_refolds_the_state_snapshot() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #Papo[dev]\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    let rfc1459 = client.state();
+    assert!(rfc1459.channel("#papo{dev}").is_some());
+
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CASEMAPPING=ascii :are supported\r\n",
+    )
+    .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::CasemappingChanged(changed))
+            if changed.old == crate::Casemapping::Rfc1459
+                && changed.new == crate::Casemapping::Ascii
+    ));
+    let ascii = client.state();
+    assert!(!Arc::ptr_eq(&rfc1459, &ascii));
+    assert!(ascii.channel("#papo[dev]").is_some());
+    assert!(ascii.channel("#papo{dev}").is_none());
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn monitor_offline_snapshot_keeps_other_online_users() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);

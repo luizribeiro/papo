@@ -12,7 +12,7 @@ use crate::Isupport;
 /// applied in order using their self-contained payloads.
 #[derive(Clone, Debug)]
 pub struct State {
-    core: papo_core::State,
+    core: Arc<papo_core::State>,
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     account: Option<AccountName>,
@@ -20,6 +20,7 @@ pub struct State {
     #[cfg(feature = "unstable")]
     bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
+    away: bool,
     connected: bool,
     generation: u64,
 }
@@ -33,6 +34,28 @@ impl State {
     }
 
     pub(crate) fn from_session(session: &Session, connected: bool) -> Self {
+        Self::from_session_with_core(session, connected, Arc::new(session.state().clone()))
+    }
+
+    pub(crate) fn from_session_reusing(
+        session: &Session,
+        connected: bool,
+        previous: &Self,
+    ) -> Self {
+        let core = if previous.generation == session.state_generation() {
+            Arc::clone(&previous.core)
+        } else {
+            Arc::new(session.state().clone())
+        };
+        Self::from_session_with_core(session, connected, core)
+    }
+
+    fn from_session_with_core(
+        session: &Session,
+        connected: bool,
+        core: Arc<papo_core::State>,
+    ) -> Self {
+        let away = core.away();
         let unsupported = FEATURES
             .iter()
             .copied()
@@ -44,7 +67,7 @@ impl State {
             })
             .collect();
         Self {
-            core: session.state().clone(),
+            core,
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             account: session
@@ -62,6 +85,7 @@ impl State {
                 _ => None,
             },
             unsupported,
+            away,
             connected,
             generation: session.state_generation(),
         }
@@ -128,7 +152,7 @@ impl State {
     /// Reports whether the client is marked away.
     #[must_use]
     pub const fn away(&self) -> bool {
-        self.core.away()
+        self.away
     }
 
     /// Returns the client's confirmed away message.
@@ -323,6 +347,8 @@ const FEATURES: &[Feature] = &[
 
 #[cfg(test)]
 mod name_tests {
+    use std::sync::Arc;
+
     use papo_core::{Config, Session};
 
     use super::State;
@@ -332,6 +358,19 @@ mod name_tests {
         let mut session = Session::new(Config::default());
         session.handle_line(crate::rt::now_mono(), line.as_bytes());
         State::from_session(&session, false)
+    }
+
+    #[test]
+    fn core_snapshot_is_reused_only_for_the_same_generation() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default());
+        let initial = State::from_session(&session, false);
+        let reused = State::from_session_reusing(&session, true, &initial);
+        assert!(Arc::ptr_eq(&initial.core, &reused.core));
+
+        session.handle_connected(now);
+        let changed = State::from_session_reusing(&session, true, &reused);
+        assert!(!Arc::ptr_eq(&reused.core, &changed.core));
     }
 
     #[test]

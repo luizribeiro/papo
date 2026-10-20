@@ -1672,19 +1672,21 @@ fn drop_closed_waiters(
 }
 
 fn publish_state(events: &EventSink, session: &Session, connected: bool) {
-    let current = events
-        .state
-        .read()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let current = Arc::clone(
+        &events
+            .state
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+    );
     if current.matches(session, connected) {
         return;
     }
-    drop(current);
+    let next = Arc::new(State::from_session_reusing(session, connected, &current));
     let mut slot = events
         .state
         .write()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    *slot = Arc::new(State::from_session(session, connected));
+    *slot = next;
 }
 
 fn after_connect(
