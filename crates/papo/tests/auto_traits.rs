@@ -6,7 +6,7 @@ use futures_core::Stream;
 use papo::{
     Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel, Line,
     ListFilter, Message as ChatMessage, MessageId, NewAccount, RequestFuture, SendMessage,
-    SetModes, State, Target,
+    SetModes, State,
 };
 #[cfg(feature = "unstable")]
 use papo::{NetworkConfig, NetworkId, PersistenceSetting, PushKeys};
@@ -27,10 +27,10 @@ fn assert_clone<T: Clone>() {}
 fn assert_event_stream<T: Stream<Item = Event>>() {}
 
 fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
-    let target = Target::from("#papo");
+    let target = "#papo";
     let id = MessageId::from("RfcBTzyxY120004");
-    assert_send_static(client.react(&target, &id, "👍"));
-    assert_send_static(client.unreact(&target, &id, "👍"));
+    assert_send_static(client.react(target, &id, "👍"));
+    assert_send_static(client.unreact(target, &id, "👍"));
     assert_send_static(client.react_to(message, "👍"));
     assert_send_static(client.reply(message, "Acknowledged").into_future());
 }

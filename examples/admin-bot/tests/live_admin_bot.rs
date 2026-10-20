@@ -45,10 +45,8 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
         user.privmsg(&channels[1], format!("{bot_nick}: ping"))
             .await
             .unwrap();
-        assert_eq!(
-            wait_message(&mut user_events, "pong").await.target(),
-            channels[1]
-        );
+        let pong = wait_message(&mut user_events, "pong").await;
+        assert!(matches!(pong.conversation, papo::Conversation::Channel(ref channel) if channel.as_ref() == channels[1].as_str()));
 
         user.privmsg(&channels[2], format!("!op {admin_nick}"))
             .await

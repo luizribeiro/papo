@@ -126,7 +126,9 @@ async fn wait_typing(events: &mut papo::Events, target: &str, state: Typing) {
     loop {
         match events.next().await {
             Some(Event::TypingChanged(typing))
-                if typing.target == target && typing.state == state =>
+                if matches!(&typing.conversation, papo::Conversation::Channel(channel) if channel == target)
+                    && typing.status.is_none()
+                    && typing.state == state =>
             {
                 return;
             }

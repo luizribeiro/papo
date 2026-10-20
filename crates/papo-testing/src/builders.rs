@@ -12,11 +12,11 @@ pub struct MessageBuilder {
 impl MessageBuilder {
     /// Starts a live `PRIVMSG` with deterministic receipt time.
     #[must_use]
-    pub fn new(target: impl Into<papo::Target>, text: impl Into<String>) -> Self {
+    pub fn new(target: impl Into<String>, text: impl Into<String>) -> Self {
         let target = target.into();
         let private = !target.starts_with(['#', '&']);
         Self {
-            message: papo::__testing::message(None, target.to_string(), text, private),
+            message: papo::__testing::message(None, target, text, private),
             tags: Vec::new(),
         }
     }
@@ -29,6 +29,10 @@ impl MessageBuilder {
         user: Option<String>,
         host: Option<String>,
     ) -> Self {
+        let nick = nick.into();
+        if matches!(self.message.conversation, papo::Conversation::Private(_)) {
+            self.message.conversation = papo::Conversation::Private(nick.clone());
+        }
         self.message.sender = Some(papo::__testing::user_source(nick, user, host));
         self
     }
@@ -118,7 +122,7 @@ mod tests {
             .tag("bot", None)
             .build();
 
-        assert_eq!(message.reply_target(), "alice");
+        assert_eq!(message.return_address(), "alice");
         assert_eq!(message.kind(), MessageKind::Notice);
         assert_eq!(message.origin(), Origin::Replay);
         assert_eq!(message.account(), Some("alice"));
