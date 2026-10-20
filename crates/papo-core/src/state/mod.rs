@@ -15,9 +15,9 @@ use std::{
 };
 
 use papo_proto::{
-    Account as AccountNotify, AccountName, Address as Target, Away as AwayNotify, Casemapping,
-    ChannelName, Chghost, Command, Isupport, Join, LineRef, ModeChanges, ModeKind, NamesEntry,
-    Nick, Numeric, Setname, Source, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
+    Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
+    Command, Isupport, Join, LineRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Setname,
+    Source, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
 #[cfg(feature = "unstable")]
@@ -53,8 +53,8 @@ pub struct State {
     channels: HashMap<ChannelName, Channel>,
     users: HashMap<Nick, User>,
     who_sweeps: HashSet<ChannelName>,
-    read_markers: HashMap<NameKey<Target>, ReadMarker>,
-    last_seen: HashMap<NameKey<Target>, LastSeen>,
+    read_markers: HashMap<NameKey<String>, ReadMarker>,
+    last_seen: HashMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
     max_channels: usize,
     max_members_per_channel: usize,
@@ -64,7 +64,7 @@ pub struct State {
     persistence: Option<PersistenceStatus>,
     #[cfg(feature = "unstable")]
     bouncer_networks: BTreeMap<NetworkId, BouncerNetwork>,
-    metadata: HashMap<NameKey<Target>, HashMap<String, MetadataValue>>,
+    metadata: HashMap<NameKey<String>, HashMap<String, MetadataValue>>,
     metadata_subscriptions: Vec<String>,
     limits_warned: HashSet<StateLimit>,
 }
@@ -151,7 +151,7 @@ pub(crate) struct MetadataContext {
 pub(crate) enum StateSnapshot {
     Full(Box<State>),
     Metadata {
-        target: NameKey<Target>,
+        target: NameKey<String>,
         key: String,
         value: Option<MetadataValue>,
     },
