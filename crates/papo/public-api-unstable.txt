@@ -1532,13 +1532,14 @@ pub papo::HistoryItem::Kicked(papo::event::Kicked)
 pub papo::HistoryItem::Message(papo::Message)
 pub papo::HistoryItem::ModeChanged(papo::event::ModeChanged)
 pub papo::HistoryItem::NickChanged(papo::event::NickChanged)
-pub papo::HistoryItem::Other(papo::RawLine)
+pub papo::HistoryItem::Other(papo::Line)
 pub papo::HistoryItem::Parted(papo::event::Parted)
 pub papo::HistoryItem::Quit(papo::event::Quit)
 pub papo::HistoryItem::Reacted(papo::event::Reacted)
 pub papo::HistoryItem::Redacted(papo::event::Redacted)
 pub papo::HistoryItem::TopicChanged(papo::event::TopicChanged)
 impl papo::HistoryItem
+pub const fn papo::HistoryItem::as_other(&self) -> core::option::Option<&papo::Line>
 pub const fn papo::HistoryItem::message(&self) -> core::option::Option<&papo::Message>
 impl core::clone::Clone for papo::HistoryItem
 pub fn papo::HistoryItem::clone(&self) -> Self
@@ -2375,32 +2376,6 @@ impl core::marker::Unpin for papo::PushKeys
 impl core::marker::UnsafeUnpin for papo::PushKeys
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PushKeys
 impl core::panic::unwind_safe::UnwindSafe for papo::PushKeys
-pub struct papo::RawLine
-impl papo::RawLine
-pub fn papo::RawLine::command(&self) -> &str
-pub fn papo::RawLine::numeric(&self) -> core::option::Option<u16>
-pub fn papo::RawLine::param(&self, usize) -> core::option::Option<&str>
-pub fn papo::RawLine::params(&self) -> &[alloc::string::String]
-pub fn papo::RawLine::source(&self) -> core::option::Option<papo::Source>
-pub fn papo::RawLine::tag(&self, &str) -> core::option::Option<&str>
-pub const fn papo::RawLine::tags(&self) -> &papo::Tags
-impl core::clone::Clone for papo::RawLine
-pub fn papo::RawLine::clone(&self) -> Self
-impl core::cmp::Eq for papo::RawLine
-impl core::cmp::PartialEq for papo::RawLine
-pub fn papo::RawLine::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::RawLine
-pub fn papo::RawLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::RawLine
-pub fn papo::RawLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::RawLine
-impl core::marker::Freeze for papo::RawLine
-impl core::marker::Send for papo::RawLine
-impl core::marker::Sync for papo::RawLine
-impl core::marker::Unpin for papo::RawLine
-impl core::marker::UnsafeUnpin for papo::RawLine
-impl core::panic::unwind_safe::RefUnwindSafe for papo::RawLine
-impl core::panic::unwind_safe::UnwindSafe for papo::RawLine
 pub struct papo::Reconnect
 impl papo::Reconnect
 pub const fn papo::Reconnect::exponential() -> Self

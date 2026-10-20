@@ -4,7 +4,6 @@ use papo_proto::{Casemapping, Line};
 
 use super::{Source, Tags};
 
-/// An owned IRC line not represented by a typed event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RawLine {
     line: Line,
@@ -13,50 +12,41 @@ pub struct RawLine {
 }
 
 impl RawLine {
-    /// Returns the command with its original spelling.
     #[must_use]
     pub fn command(&self) -> &str {
         self.line.command()
     }
 
-    /// Returns the parameters in wire order.
     #[must_use]
     pub fn params(&self) -> &[String] {
         self.line.params()
     }
 
-    /// Returns the parameter at `index` in wire order.
     #[must_use]
     pub fn param(&self, index: usize) -> Option<&str> {
         self.line.param(index)
     }
 
-    /// Returns the command as a three-digit numeric reply or error.
     #[must_use]
     pub fn numeric(&self) -> Option<u16> {
         self.line.numeric()
     }
 
-    /// Returns the last value for a case-sensitive tag key.
     #[must_use]
     pub fn tag(&self, key: &str) -> Option<&str> {
         self.tags.get(key)
     }
 
-    /// Returns the message tags.
     #[must_use]
     pub const fn tags(&self) -> &Tags {
         &self.tags
     }
 
-    /// Returns the parsed source, when supplied by the server.
     #[must_use]
     pub fn source(&self) -> Option<Source> {
         self.source.clone()
     }
-}
 
-impl RawLine {
     pub(crate) fn from_proto(message: &Line, casemapping: Casemapping) -> Self {
         Self {
             line: message.clone(),

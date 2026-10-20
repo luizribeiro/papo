@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Message as ChatMessage, Origin, RawLine, Source,
+    Client, Error, Line, Message as ChatMessage, Origin, Source,
     driver::Command,
     event::{
         Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,
@@ -37,10 +37,11 @@ pub enum HistoryItem {
     TopicChanged(TopicChanged),
     /// A replayed mode change.
     ModeChanged(ModeChanged),
-    /// A replayed line without a more specific typed representation.
+    /// A line papo did not turn into a typed event.
     ///
-    /// A later minor release may refine a command currently classified here.
-    Other(RawLine),
+    /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
+    /// and logging; a future version may type it.
+    Other(Line),
 }
 
 impl HistoryItem {
@@ -49,6 +50,15 @@ impl HistoryItem {
     pub const fn message(&self) -> Option<&ChatMessage> {
         match self {
             Self::Message(message) => Some(message),
+            _ => None,
+        }
+    }
+
+    /// Returns the line when this item is [`HistoryItem::Other`].
+    #[must_use]
+    pub const fn as_other(&self) -> Option<&Line> {
+        match self {
+            Self::Other(line) => Some(line),
             _ => None,
         }
     }
@@ -67,52 +77,47 @@ pub(crate) fn history_item(
                 Origin::History => ChatMessage::from_history(item.line, client, received_at),
                 _ => ChatMessage::from_replay(item.line, client, received_at),
             };
-            message.map_or_else(
-                |raw| HistoryItem::Other(RawLine::from_proto(&raw, mapping)),
-                HistoryItem::Message,
-            )
+            message.map_or_else(HistoryItem::Other, HistoryItem::Message)
         }
         papo_core::HistoryItem::Reacted(item) => {
-            typed_or_raw(&item.line, mapping, |message| reaction(message, mapping))
+            typed_or_raw(&item.line, |message| reaction(message, mapping))
         }
         papo_core::HistoryItem::Redacted(item) => {
-            typed_or_raw(&item.line, mapping, |message| redaction(message, mapping))
+            typed_or_raw(&item.line, |message| redaction(message, mapping))
         }
         papo_core::HistoryItem::Joined(item) => {
-            typed_or_raw(&item.line, mapping, |message| joined(message, client))
+            typed_or_raw(&item.line, |message| joined(message, client))
         }
         papo_core::HistoryItem::Parted(item) => {
-            typed_or_raw(&item.line, mapping, |message| parted(message, client))
+            typed_or_raw(&item.line, |message| parted(message, client))
         }
         papo_core::HistoryItem::Quit(item) => {
-            typed_or_raw(&item.line, mapping, |message| quit(message, mapping))
+            typed_or_raw(&item.line, |message| quit(message, mapping))
         }
         papo_core::HistoryItem::Kicked(item) => {
-            typed_or_raw(&item.line, mapping, |message| kicked(message, client))
+            typed_or_raw(&item.line, |message| kicked(message, client))
         }
         papo_core::HistoryItem::NickChanged(item) => {
-            typed_or_raw(&item.line, mapping, |message| nick_changed(message, client))
+            typed_or_raw(&item.line, |message| nick_changed(message, client))
         }
         papo_core::HistoryItem::TopicChanged(item) => {
-            typed_or_raw(&item.line, mapping, |message| {
-                topic_changed(message, mapping)
-            })
+            typed_or_raw(&item.line, |message| topic_changed(message, mapping))
         }
         papo_core::HistoryItem::ModeChanged(item) => {
-            typed_or_raw(&item.line, mapping, |message| mode_changed(message, client))
+            typed_or_raw(&item.line, |message| mode_changed(message, client))
         }
         item => {
             let raw = item.into_line().line;
-            HistoryItem::Other(RawLine::from_proto(&raw, mapping))
+            HistoryItem::Other(raw)
         }
     }
 }
 
-fn typed_or_raw<F>(raw: &papo_proto::Line, mapping: crate::Casemapping, convert: F) -> HistoryItem
+fn typed_or_raw<F>(raw: &papo_proto::Line, convert: F) -> HistoryItem
 where
     F: FnOnce(&papo_proto::LineRef<'_>) -> Option<HistoryItem>,
 {
-    convert(&raw.as_ref()).unwrap_or_else(|| HistoryItem::Other(RawLine::from_proto(raw, mapping)))
+    convert(&raw.as_ref()).unwrap_or_else(|| HistoryItem::Other(raw.clone()))
 }
 
 fn reaction(message: &papo_proto::LineRef<'_>, mapping: crate::Casemapping) -> Option<HistoryItem> {
@@ -904,7 +909,7 @@ mod tests {
         assert_eq!(page.items.len(), 4);
         assert!(matches!(page.items[1], HistoryItem::Reacted(_)));
         assert!(matches!(page.items[2], HistoryItem::Joined(_)));
-        assert!(matches!(page.items[3], HistoryItem::Other(_)));
+        assert_eq!(page.items[3].as_other().unwrap().command(), "TAGMSG");
         let message = page.messages().next().unwrap();
         assert_eq!(message.text(), "earlier");
         assert_eq!(message.origin(), Origin::History);
@@ -914,7 +919,7 @@ mod tests {
         };
         assert!(matches!(history.items[1], HistoryItem::Reacted(_)));
         assert!(matches!(history.items[2], HistoryItem::Joined(_)));
-        assert!(matches!(history.items[3], HistoryItem::Other(_)));
+        assert_eq!(history.items[3].as_other().unwrap().command(), "TAGMSG");
         assert_eq!(history.messages().next().unwrap().origin(), Origin::Replay);
         abort_task(task).await;
     }

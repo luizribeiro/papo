@@ -16,6 +16,7 @@ mod channel;
 mod connection;
 #[path = "event/conversation.rs"]
 mod conversation;
+#[allow(dead_code)]
 #[path = "event/raw.rs"]
 mod raw;
 #[path = "event/server.rs"]
@@ -35,7 +36,6 @@ pub use connection::{CapsChanged, CasemappingChanged, Disconnected, FeaturesChan
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
-pub use raw::RawLine;
 pub use server::{BatchAbandonReason, MetadataChanged, StateLimit, Visibility, Warning};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
