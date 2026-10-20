@@ -67,8 +67,6 @@ type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>> +
 type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>>>>;
 pub(crate) type Connector = Arc<dyn Fn(ConnectionPlan) -> ConnectFuture + Send + Sync>;
 type BackoffEntropy = Box<dyn FnMut() -> u64 + Send>;
-type ReadMarkerSender = oneshot::Sender<Result<Option<SystemTime>, Error>>;
-type ReadMarkerWaiters = Vec<(String, ReadMarkerSender)>;
 
 pub(crate) enum CoreRequest {
     Register {
@@ -245,6 +243,13 @@ enum PendingRequest {
 }
 
 impl PendingRequest {
+    fn is_closed(&self) -> bool {
+        match self {
+            Self::Response(result) => result.is_closed(),
+            Self::Text { result, .. } => result.is_closed(),
+        }
+    }
+
     fn respond(self, response: Response) {
         match self {
             Self::Response(result) => _ = result.send(Ok(response)),
@@ -741,7 +746,6 @@ where
     let mut join_keys = BTreeMap::new();
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
-    let mut read_marker_waiters = Vec::new();
     let mut catchups = BTreeMap::new();
     let mut registered_at = None;
     let mut sts = StsActions::default();
@@ -750,6 +754,7 @@ where
     let mut pending_write = None;
     let mut drain_after_timeout = false;
     let (reason, error, close_kind, quit_timed_out) = loop {
+        drop_closed_waiters(&mut requests, &mut sync_waiters, registration);
         let write_deadline = [
             session.poll_timeout(),
             quit.as_ref().map(|quit: &Quit| quit.deadline),
@@ -767,7 +772,6 @@ where
             &mut transmits,
             &mut join_keys,
             &mut sync_waiters,
-            &mut read_marker_waiters,
             &mut catchups,
             registration,
             defaults,
@@ -800,7 +804,6 @@ where
         let read_ahead = should_read_ahead(
             &requests,
             &sync_waiters,
-            &read_marker_waiters,
             &catchups,
             registration,
             quit.is_some(),
@@ -1048,9 +1051,6 @@ where
     for (_, result) in sync_waiters {
         _ = result.send(Err(Error::disconnected(disconnected.clone())));
     }
-    for (_, result) in read_marker_waiters {
-        _ = result.send(Err(Error::disconnected(disconnected.clone())));
-    }
     connected.store(false, Ordering::Relaxed);
     publish_state(events, session, false);
     close_stream_before(&mut stream, quit.as_ref().map(|quit: &Quit| quit.deadline)).await;
@@ -1128,7 +1128,6 @@ async fn drain<S>(
     transmits: &mut BTreeMap<TransmitToken, PendingTransmit>,
     join_keys: &mut BTreeMap<RequestId, (crate::ChannelName, Option<crate::Secret>)>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
-    read_marker_waiters: &mut ReadMarkerWaiters,
     catchups: &mut BTreeMap<RequestId, Catchup>,
     registration: &mut RegistrationWait,
     defaults: &mut PostRegistration,
@@ -1148,14 +1147,8 @@ where
     if !drain_transmit(stream, session, pending_write, transmits, deadline).await? {
         return Ok(None);
     }
-    let read_ahead = should_read_ahead(
-        requests,
-        sync_waiters,
-        read_marker_waiters,
-        catchups,
-        registration,
-        quitting,
-    );
+    drop_closed_waiters(requests, sync_waiters, registration);
+    let read_ahead = should_read_ahead(requests, sync_waiters, catchups, registration, quitting);
     while (pending_events.is_empty() || read_ahead || after_timeout)
         && let Some(core_event) = session.poll_event()
     {
@@ -1164,9 +1157,6 @@ where
                 event.mark_self(session.nick(), session.isupport().casemapping());
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);
-                }
-                if let Event::ReadMarker(marker) = &event {
-                    resolve_read_marker_waiters(session, read_marker_waiters, marker);
                 }
                 update_rejoin_channels(session, defaults, &event);
                 if matches!(
@@ -1371,14 +1361,12 @@ where
 fn should_read_ahead(
     requests: &BTreeMap<RequestId, PendingRequest>,
     sync_waiters: &[(String, oneshot::Sender<Result<(), Error>>)],
-    read_marker_waiters: &ReadMarkerWaiters,
     catchups: &BTreeMap<RequestId, Catchup>,
     registration: &RegistrationWait,
     quitting: bool,
 ) -> bool {
     !requests.is_empty()
         || !sync_waiters.is_empty()
-        || !read_marker_waiters.is_empty()
         || !catchups.is_empty()
         || registration.0.is_some()
         || quitting
@@ -1540,23 +1528,20 @@ fn resolve_sync_waiters(
         .collect();
 }
 
-fn resolve_read_marker_waiters(
-    session: &Session,
-    waiters: &mut ReadMarkerWaiters,
-    marker: &crate::event::ReadMarker,
+fn drop_closed_waiters(
+    requests: &mut BTreeMap<RequestId, PendingRequest>,
+    sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
+    registration: &mut RegistrationWait,
 ) {
-    let mapping = session.isupport().casemapping();
-    *waiters = std::mem::take(waiters)
-        .into_iter()
-        .filter_map(|(target, result)| {
-            if mapping.eq(&target, &marker.target) {
-                _ = result.send(Ok(marker.time));
-                None
-            } else {
-                Some((target, result))
-            }
-        })
-        .collect();
+    requests.retain(|_, request| !request.is_closed());
+    sync_waiters.retain(|(_, result)| !result.is_closed());
+    if registration
+        .0
+        .as_ref()
+        .is_some_and(oneshot::Sender::is_closed)
+    {
+        registration.0 = None;
+    }
 }
 
 fn publish_state(events: &EventSink, session: &Session, connected: bool) {

@@ -608,7 +608,6 @@ async fn write_timeout_resumes_before_the_next_line() {
     let mut transmits = std::collections::BTreeMap::new();
     let mut join_keys = std::collections::BTreeMap::new();
     let mut sync_waiters = Vec::new();
-    let mut read_marker_waiters = Vec::new();
     let mut catchups = std::collections::BTreeMap::new();
     let mut registration = super::RegistrationWait::default();
     let mut defaults = super::PostRegistration {
@@ -637,7 +636,6 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut transmits,
         &mut join_keys,
         &mut sync_waiters,
-        &mut read_marker_waiters,
         &mut catchups,
         &mut registration,
         &mut defaults,
@@ -666,7 +664,6 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut transmits,
         &mut join_keys,
         &mut sync_waiters,
-        &mut read_marker_waiters,
         &mut catchups,
         &mut registration,
         &mut defaults,
@@ -3967,13 +3964,11 @@ async fn only_pending_request_enables_read_ahead() {
 fn registration_and_quit_independently_enable_read_ahead() {
     let requests = std::collections::BTreeMap::new();
     let sync_waiters = Vec::new();
-    let read_marker_waiters = Vec::new();
     let catchups = std::collections::BTreeMap::new();
     let registration = super::RegistrationWait::default();
     assert!(!super::should_read_ahead(
         &requests,
         &sync_waiters,
-        &read_marker_waiters,
         &catchups,
         &registration,
         false,
@@ -3984,7 +3979,6 @@ fn registration_and_quit_independently_enable_read_ahead() {
     assert!(super::should_read_ahead(
         &requests,
         &sync_waiters,
-        &read_marker_waiters,
         &catchups,
         &registration,
         false,
@@ -3992,10 +3986,43 @@ fn registration_and_quit_independently_enable_read_ahead() {
     assert!(super::should_read_ahead(
         &requests,
         &sync_waiters,
-        &read_marker_waiters,
         &catchups,
         &super::RegistrationWait::default(),
         true,
+    ));
+}
+
+#[test]
+fn closed_waiters_do_not_enable_read_ahead() {
+    let now = crate::rt::now_mono();
+    let mut session = Session::new(config());
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("WHOIS", ["alice"]),
+            papo_core::ResponseMatcher::Whois("alice".into()),
+        )
+        .unwrap();
+    let (request, request_receiver) = tokio::sync::oneshot::channel();
+    let mut requests =
+        std::collections::BTreeMap::from([(id, super::PendingRequest::Response(request))]);
+    let (sync, sync_receiver) = tokio::sync::oneshot::channel();
+    let mut sync_waiters = vec![("#papo".to_owned(), sync)];
+    let (registration, registration_receiver) = tokio::sync::oneshot::channel();
+    let mut registration = super::RegistrationWait(Some(registration));
+    drop((request_receiver, sync_receiver, registration_receiver));
+
+    super::drop_closed_waiters(&mut requests, &mut sync_waiters, &mut registration);
+
+    assert!(requests.is_empty());
+    assert!(sync_waiters.is_empty());
+    assert!(registration.0.is_none());
+    assert!(!super::should_read_ahead(
+        &requests,
+        &sync_waiters,
+        &std::collections::BTreeMap::new(),
+        &registration,
+        false,
     ));
 }
 
