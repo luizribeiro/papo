@@ -106,7 +106,7 @@ fn request_futures_are_send() {
 
 fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping) {
     assert_send_static(client.history("#papo").latest(10).into_future());
-    assert_send_static(client.history_targets(SystemTime::UNIX_EPOCH, SystemTime::now()));
+    assert_send_static(client.recent_conversations(SystemTime::UNIX_EPOCH, SystemTime::now()));
     assert_send_static(client.mark_read("#papo", SystemTime::UNIX_EPOCH));
     assert_send_static(client.fetch_read_marker("#papo"));
     assert_send_static(

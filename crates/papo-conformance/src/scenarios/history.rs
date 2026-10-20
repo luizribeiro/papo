@@ -247,14 +247,17 @@ async fn chathistory_targets(s: Scenario) -> papo_testing::Result<()> {
         .expect("server-time accompanies the labelled echo");
 
     let targets = alice
-        .history_targets(
+        .recent_conversations(
             time - Duration::from_secs(60),
             time + Duration::from_secs(60),
         )
         .await?;
     let target = targets
         .iter()
-        .find(|target| target.target.as_str() == channel)
+        .find(|target| {
+            crate::scenarios::support::conversation_name(&target.conversation)
+                == Some(channel.as_str())
+        })
         .expect("the active channel is returned");
     assert_eq!(target.latest, time);
     Ok(())
@@ -298,17 +301,18 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         assert!(page.end);
     }
     let targets = alice
-        .history_targets(
+        .recent_conversations(
             SystemTime::UNIX_EPOCH,
             SystemTime::now() + Duration::from_secs(60),
         )
         .await?;
     let bouncer = alice.state().nickname("BouncerServ");
-    assert!(
-        targets
-            .iter()
-            .all(|entry| { entry.target.as_str() != target && bouncer != entry.target.as_str() })
-    );
+    assert!(targets.iter().all(|entry| {
+        let Some(name) = crate::scenarios::support::conversation_name(&entry.conversation) else {
+            return true;
+        };
+        name != target && bouncer != name
+    }));
     Ok(())
 }
 

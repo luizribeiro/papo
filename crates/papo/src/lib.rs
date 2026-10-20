@@ -71,8 +71,7 @@ pub use ext::accounts::{AccountCreation, NewAccount};
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::bouncer::Bouncer;
 pub use ext::history::{
-    History, HistoryItem, HistoryPage, HistoryReference, HistoryRequest, HistoryTarget,
-    RecentConversation,
+    History, HistoryItem, HistoryPage, HistoryReference, HistoryRequest, RecentConversation,
 };
 pub use ext::metadata::Metadata;
 pub use ext::monitor::Monitor;

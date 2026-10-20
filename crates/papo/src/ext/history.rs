@@ -282,16 +282,6 @@ pub struct HistoryPage {
     pub end: bool,
 }
 
-/// A target with the timestamp of its newest available history entry.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub struct HistoryTarget {
-    /// Target with available history.
-    pub target: String,
-    /// Timestamp of the newest available entry.
-    pub latest: SystemTime,
-}
-
 /// A conversation with the timestamp of its newest available history entry.
 ///
 /// Returned by the `IRCv3` [`CHATHISTORY TARGETS`] query.
@@ -542,47 +532,6 @@ impl Client {
             return Err(Error::server(error));
         }
         Ok(response)
-    }
-
-    /// Lists targets that received messages during an inclusive time range.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::Unsupported`] for [`crate::Feature::History`] with reason
-    /// [`crate::UnsupportedReason::NotOffered`] or
-    /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
-    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub fn history_targets(
-        &self,
-        since: SystemTime,
-        until: SystemTime,
-    ) -> crate::RequestFuture<Vec<HistoryTarget>> {
-        let client = self.clone();
-        crate::RequestFuture::new(async move {
-            client
-                .history_response(HistoryQuery::Targets {
-                    from: since,
-                    to: until,
-                    limit: 1_000,
-                })
-                .await?
-                .history_targets
-                .ok_or_else(Error::connection_lost)
-                .map(|targets| {
-                    targets
-                        .into_iter()
-                        .filter_map(|(conversation, latest)| {
-                            let target = match conversation {
-                                crate::Conversation::Channel(name) => name.to_string(),
-                                crate::Conversation::Private(name) => name.to_string(),
-                                _ => return None,
-                            };
-                            Some(HistoryTarget { target, latest })
-                        })
-                        .collect()
-                })
-        })
     }
 
     /// Lists conversations that received messages during an inclusive time range.

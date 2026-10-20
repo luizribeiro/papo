@@ -56,7 +56,7 @@ async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
         check_action(|client| action(client.fetch_read_marker(first.clone()))).await;
     }
     check_action(|client| action(client.bouncer().networks())).await;
-    check_action(|client| action(client.history_targets(UNIX_EPOCH, UNIX_EPOCH))).await;
+    check_action(|client| action(client.recent_conversations(UNIX_EPOCH, UNIX_EPOCH))).await;
     check_action(|client| action(client.persistence().get())).await;
     check_action(|client| action(client.persistence().set(crate::PersistenceSetting::Default)))
         .await;
