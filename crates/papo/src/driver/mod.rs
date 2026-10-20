@@ -242,6 +242,9 @@ pub(crate) enum Command {
 
 enum PendingRequest {
     Response(oneshot::Sender<Result<Response, Error>>),
+    AutoJoin {
+        channel: crate::ChannelName,
+    },
     Text {
         conversation: crate::Conversation,
         status: Option<Vec<char>>,
@@ -254,6 +257,7 @@ impl PendingRequest {
     fn is_closed(&self) -> bool {
         match self {
             Self::Response(result) => result.is_closed(),
+            Self::AutoJoin { .. } => false,
             Self::Text { result, .. } => result.is_closed(),
         }
     }
@@ -261,6 +265,7 @@ impl PendingRequest {
     fn respond(self, response: Response) {
         match self {
             Self::Response(result) => _ = result.send(Ok(response)),
+            Self::AutoJoin { .. } => {}
             Self::Text {
                 conversation,
                 status,
@@ -286,6 +291,7 @@ impl PendingRequest {
     fn fail(self, error: Error) {
         match self {
             Self::Response(result) => _ = result.send(Err(error)),
+            Self::AutoJoin { .. } => {}
             Self::Text { result, .. } => _ = result.send(Err(error)),
         }
     }
@@ -1258,7 +1264,7 @@ where
                 }
             }
             event::CoreEvent::Connected(welcome) => {
-                after_connect(session, &welcome, defaults)?;
+                after_connect(session, &welcome, defaults, requests)?;
                 registration.succeeded();
                 *registered_at = Some(now());
                 let reconnected = *registered;
@@ -1372,7 +1378,22 @@ where
                         )));
                     }
                 } else if let Some(result) = requests.remove(&response.id) {
-                    result.respond(response);
+                    if let PendingRequest::AutoJoin { channel } = result {
+                        if let Some(error) = response.error() {
+                            let event = Event::AutoJoinFailed {
+                                channel,
+                                error: crate::ServerError::from_core(error),
+                            };
+                            if !enqueue_event(events, pending_events, event) {
+                                return Ok(Some((
+                                    papo_core::CloseKind::Other,
+                                    SLOW_CONSUMER_REASON.to_owned(),
+                                )));
+                            }
+                        }
+                    } else {
+                        result.respond(response);
+                    }
                 }
             }
             event::CoreEvent::RequestUntracked(id) => {
@@ -1670,6 +1691,7 @@ fn after_connect(
     session: &mut Session,
     welcome: &papo_core::Welcome,
     defaults: &mut PostConnect,
+    requests: &mut BTreeMap<RequestId, PendingRequest>,
 ) -> Result<(), io::Error> {
     dedupe_autojoin(session, defaults);
     if defaults.bot
@@ -1696,9 +1718,20 @@ fn after_connect(
                 }
                 None => vec![channel.channel.clone()],
             };
-            session
-                .send(now(), Line::new("JOIN", params))
+            let channel_name = session.isupport().casemapping().channel(&channel.channel);
+            let id = session
+                .request_with_matcher(
+                    now(),
+                    Line::new("JOIN", params),
+                    ResponseMatcher::Join(channel.channel.clone()),
+                )
                 .map_err(io::Error::other)?;
+            requests.insert(
+                id,
+                PendingRequest::AutoJoin {
+                    channel: channel_name,
+                },
+            );
         }
     }
     Ok(())

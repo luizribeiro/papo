@@ -570,6 +570,13 @@ pub enum Event {
     FeaturesChanged(FeaturesChanged),
     /// Server-defined name comparison rules changed between connections.
     CasemappingChanged(CasemappingChanged),
+    /// A channel join configured or remembered by papo was refused.
+    AutoJoinFailed {
+        /// The channel papo tried to join.
+        channel: ChannelName,
+        /// The server's typed refusal.
+        error: crate::ServerError,
+    },
     /// A user joined a channel shared with the client.
     Joined(Joined),
     /// Initial channel membership synchronization completed.

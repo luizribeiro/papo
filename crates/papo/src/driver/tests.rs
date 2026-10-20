@@ -572,8 +572,8 @@ async fn eof_reconnects_and_emits_reconnected() {
     .await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Other(line))
-            if line.numeric() == Some(crate::numeric::ERR_BADCHANNELKEY)
+        Some(Event::AutoJoinFailed { channel, error })
+            if channel == "#papo" && error.kind() == crate::Refusal::BadChannelKey
     ));
     within(second_server.shutdown()).await.unwrap();
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
@@ -710,6 +710,43 @@ fn remembering_a_rejoin_replaces_only_the_same_channel() {
     assert_eq!(defaults.channels.len(), 2);
     assert_eq!(defaults.channels[0].channel, "#rust");
     assert_eq!(defaults.channels[1].channel, "#papo");
+}
+
+#[test]
+fn only_bad_keys_remove_channels_from_the_rejoin_set() {
+    let session = Session::new(config());
+    let cases = [
+        (
+            ":ergo.test 471 papo-driver #papo :Cannot join channel (+l)",
+            true,
+        ),
+        (
+            ":ergo.test 473 papo-driver #papo :Cannot join channel (+i)",
+            true,
+        ),
+        (
+            ":irc.example.org 474 papo-driver #papo :Cannot join channel (+b)",
+            true,
+        ),
+        (
+            ":ergo.test 475 papo-driver #papo :Cannot join channel (+k)",
+            false,
+        ),
+        (
+            ":irc.example.org 477 papo-driver #papo :Cannot join channel (+r) - you need to be identified with services",
+            true,
+        ),
+    ];
+
+    for (line, retained) in cases {
+        let mut defaults = super::PostConnect {
+            channels: vec!["#Papo".into()],
+            ..super::PostConnect::default()
+        };
+        let line = papo_proto::LineRef::parse(line).unwrap();
+        super::drop_bad_rejoin_key(&session, &mut defaults, &line);
+        assert_eq!(!defaults.channels.is_empty(), retained, "{line:?}");
+    }
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -923,7 +960,11 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     let driver = tokio::spawn(driver);
 
     complete_connect_history(&mut first_server, &mut events).await;
-    client_line(&mut first_server, b"JOIN #papo\r\nJOIN #rust\r\n").await;
+    client_line(
+        &mut first_server,
+        b"@label=0 JOIN #papo\r\n@label=1 JOIN #rust\r\n",
+    )
+    .await;
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     within(first_server.shutdown()).await.unwrap();
@@ -951,10 +992,14 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     assert!(
         matches!(events.next().await, Some(Event::Connected(connected)) if connected.reconnected)
     );
-    client_line(&mut second_server, b"JOIN #papo\r\nJOIN #rust\r\n").await;
     client_line(
         &mut second_server,
-        b"@label=0 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
+        b"@label=2 JOIN #papo\r\n@label=3 JOIN #rust\r\n",
+    )
+    .await;
+    client_line(
+        &mut second_server,
+        b"@label=4 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
     )
     .await;
     let mut timestamp_request = Vec::new();
@@ -966,10 +1011,10 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
         }
     }
     let timestamp_request = String::from_utf8(timestamp_request).unwrap();
-    assert!(timestamp_request.starts_with("@label=1 CHATHISTORY AFTER #rust timestamp="));
+    assert!(timestamp_request.starts_with("@label=5 CHATHISTORY AFTER #rust timestamp="));
     assert!(timestamp_request.ends_with(" 100\r\n"));
     let mut first_page = String::from(
-        "@label=0 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0 :ergo.test BATCH +history0 chathistory #papo\r\n",
+        "@label=4 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0 :ergo.test BATCH +history0 chathistory #papo\r\n",
     );
     for index in 0..=950 {
         use std::fmt::Write as _;
@@ -983,11 +1028,11 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     server_line(&mut second_server, first_page.as_bytes()).await;
     client_line(
         &mut second_server,
-        b"@label=2 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120950 50\r\n",
+        b"@label=6 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120950 50\r\n",
     )
     .await;
     let mut second_page = String::from(
-        "@label=2 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2 :ergo.test BATCH +history2 chathistory #papo\r\n",
+        "@label=6 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2 :ergo.test BATCH +history2 chathistory #papo\r\n",
     );
     for index in 950..=1_000 {
         use std::fmt::Write as _;
@@ -1067,7 +1112,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     let driver = tokio::spawn(driver);
 
     complete_connect_history(&mut first_server, &mut events).await;
-    client_line(&mut first_server, b"JOIN #papo\r\n").await;
+    client_line(&mut first_server, b"@label=0 JOIN #papo\r\n").await;
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
     within(first_server.shutdown()).await.unwrap();
@@ -1075,13 +1120,13 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     tokio::time::advance(Duration::from_secs(2)).await;
 
     complete_connect_history(&mut second_server, &mut events).await;
-    client_line(&mut second_server, b"JOIN #papo\r\n").await;
+    client_line(&mut second_server, b"@label=1 JOIN #papo\r\n").await;
     client_line(
         &mut second_server,
-        b"@label=0 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
+        b"@label=2 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
     )
     .await;
-    server_line(&mut second_server, b"@label=0 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0;draft/chathistory-end :ergo.test BATCH +history0 chathistory #papo\r\n@batch=history0;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed once\r\n@batch=reply0 :ergo.test BATCH -history0\r\n:ergo.test BATCH -reply0\r\n").await;
+    server_line(&mut second_server, b"@label=2 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0;draft/chathistory-end :ergo.test BATCH +history0 chathistory #papo\r\n@batch=history0;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed once\r\n@batch=reply0 :ergo.test BATCH -history0\r\n:ergo.test BATCH -reply0\r\n").await;
     let Some(Event::History(history)) = events.next().await else {
         panic!("expected first catch-up")
     };
@@ -1097,13 +1142,13 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     tokio::time::advance(Duration::from_secs(2)).await;
 
     complete_connect_history(&mut third_server, &mut events).await;
-    client_line(&mut third_server, b"JOIN #papo\r\n").await;
+    client_line(&mut third_server, b"@label=3 JOIN #papo\r\n").await;
     client_line(
         &mut third_server,
-        b"@label=1 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
+        b"@label=4 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
     )
     .await;
-    server_line(&mut third_server, b"@label=1 :ergo.test BATCH +reply1 labeled-response\r\n@batch=reply1;draft/chathistory-end :ergo.test BATCH +history1 chathistory #papo\r\n@batch=reply1 :ergo.test BATCH -history1\r\n:ergo.test BATCH -reply1\r\n").await;
+    server_line(&mut third_server, b"@label=4 :ergo.test BATCH +reply1 labeled-response\r\n@batch=reply1;draft/chathistory-end :ergo.test BATCH +history1 chathistory #papo\r\n@batch=reply1 :ergo.test BATCH -history1\r\n:ergo.test BATCH -reply1\r\n").await;
     let Some(Event::History(history)) = events.next().await else {
         panic!("expected empty second catch-up")
     };
@@ -2231,6 +2276,16 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
         b"MODE papo-driver +B\r\nJOIN #PAPO replacement-channel-key\r\nJOIN #papo-bots private-channel-key\r\n",
     )
     .await;
+    server_line(
+        &mut server,
+        b":ergo.test 473 papo-driver #PAPO :Cannot join channel (+i)\r\n",
+    )
+    .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::AutoJoinFailed { channel, error })
+            if channel == "#PAPO" && error.kind() == crate::Refusal::InviteOnlyChannel
+    ));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),

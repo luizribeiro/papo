@@ -1335,6 +1335,9 @@ impl !core::panic::unwind_safe::UnwindSafe for papo::Error
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
 pub papo::Event::AccountCreation(papo::AccountCreation)
+pub papo::Event::AutoJoinFailed
+pub papo::Event::AutoJoinFailed::channel: papo::ChannelName
+pub papo::Event::AutoJoinFailed::error: papo::ServerError
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
 pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::CasemappingChanged(papo::event::CasemappingChanged)
