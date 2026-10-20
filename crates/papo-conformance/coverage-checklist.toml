@@ -1,5 +1,5 @@
 ids = [
-  "base.connreg.pass", "base.connreg.nick-user", "base.connreg.welcome-order", "base.connreg.cap-interleave",
+  "base.connreg.pass", "base.connreg.nick-user", "base.connreg.welcome-order", "base.connreg.cap-interleave", "base.connreg.server-line-length",
   "base.nick.change", "base.nick.collision-in-use", "base.nick.collision-race", "base.nick.invalid-chars",
   "base.nick.empty", "base.quit.self", "base.quit.peer-broadcast", "base.quit.server-initiated",
   "base.error.message", "base.ping.client-initiated", "base.ping.server-initiated", "base.privmsg.channel",

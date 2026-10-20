@@ -68,7 +68,6 @@ struct Scenario<S = ServerInfo> {
     server: S,
     name: &'static str,
     fixture: Option<papo_testing::Scenario>,
-    #[allow(dead_code, reason = "only evidence-producing scenarios read this")]
     json: bool,
 }
 
@@ -283,7 +282,6 @@ impl<S> Scenario<S> {
 }
 
 impl Scenario {
-    #[allow(dead_code, reason = "only evidence-producing scenarios call this")]
     fn record_evidence(&self, value: &str) {
         if self.json {
             println!(

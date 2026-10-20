@@ -4,6 +4,7 @@ mod auth;
 mod connection;
 mod history;
 mod isupport;
+mod line_length;
 mod membership;
 mod messaging;
 mod metadata;
@@ -42,6 +43,7 @@ pub(super) fn all() -> Vec<ScenarioSpec> {
         connection::__papo_scenario_spec_whoami,
         connection::__papo_scenario_spec_webirc,
         connection::__papo_scenario_spec_ping,
+        line_length::__papo_scenario_spec_connect_line_lengths,
         history::__papo_scenario_spec_draft_chathistory,
         history::__papo_scenario_spec_chathistory_paging,
         history::__papo_scenario_spec_chathistory_errors,
@@ -194,6 +196,7 @@ mod tests {
                 "chghost",
                 "client_batch_errors",
                 "connect",
+                "connect_line_lengths",
                 "ctcp",
                 "ctcp_channel_query",
                 "direct_messages",
