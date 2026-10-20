@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, VecDeque};
 use web_time::Instant;
 
-use papo_proto::{LineRef, MAX_MESSAGE_LEN};
+use papo_proto::{LineRef, MAX_LINE_LEN};
 
 use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 };
 
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
-const MAX_IRC_BODY_LEN: usize = MAX_MESSAGE_LEN - 2;
+const MAX_IRC_BODY_LEN: usize = MAX_LINE_LEN - 2;
 
 #[derive(Debug, Default)]
 pub(super) struct Caps {

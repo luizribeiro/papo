@@ -91,7 +91,7 @@ use std::{
 use web_time::Instant;
 
 use papo_proto::{
-    BuildError, Casemapping, Command, Ctcp, Line, LineRef, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN,
+    BuildError, Casemapping, Command, Ctcp, Line, LineRef, MAX_LINE_LEN, MAX_TAG_SECTION_LEN,
     ModeChange, ModeKind, Numeric, Source, StandardReply as StandardReplyView, StandardReplyKind,
 };
 
@@ -120,7 +120,7 @@ pub use state::{Account, Away, Channel, Member, State, User};
 use state::{MetadataContext, StateSnapshot};
 use sts::ConnectionSecurity;
 
-const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_MESSAGE_LEN;
+const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_LINE_LEN;
 const DEFAULT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(60);
 const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(120);

@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use papo_proto::{Casemapping, Folded, Isupport, LimitValue, LineRef, MAX_MESSAGE_LEN, Nick};
+use papo_proto::{Casemapping, Folded, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
 use crate::{Event, Handled, Outbox};
 
 const MAX_DESIRED: usize = 10_000;
-const MONITOR_PAYLOAD_LEN: usize = MAX_MESSAGE_LEN - "MONITOR + \r\n".len();
+const MONITOR_PAYLOAD_LEN: usize = MAX_LINE_LEN - "MONITOR + \r\n".len();
 type NickKey = Folded<Nick>;
 
 #[derive(Debug, Default)]
