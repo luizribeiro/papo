@@ -4,7 +4,7 @@ mod support;
 
 use std::time::Instant;
 
-use papo_core::{Config, Conversation, CtcpReplies, Event, RateLimit, Session};
+use papo_core::{Authorship, Config, Conversation, CtcpReplies, Event, RateLimit, Session};
 use papo_proto::{Line, Reaction, Typing};
 use support::Transcript;
 
@@ -48,6 +48,7 @@ fn reports_active_paused_and_done_typing() {
     ] {
         let tag = tag_message(&format!("@+typing={value} :alice!~a@cloak TAGMSG #papo"));
         assert_eq!(tag.actor, "alice!~a@cloak");
+        assert_eq!(tag.authorship, Authorship::Other);
         assert!(
             matches!(tag.conversation, Conversation::Channel(ref channel) if channel == "#papo")
         );
@@ -105,6 +106,15 @@ fn classifies_status_and_private_tag_messages() {
     };
     assert!(matches!(private.conversation, Conversation::Private(ref nick) if nick == "alice"));
     assert_eq!(private.status, None);
+
+    session.handle_line(
+        Instant::now(),
+        b"@+typing=active :papo!~papo@localhost TAGMSG #ops",
+    );
+    let Some(Event::TagMessage(own)) = session.poll_event() else {
+        panic!("expected own tag message")
+    };
+    assert_eq!(own.authorship, Authorship::Own);
 }
 
 #[test]
@@ -122,6 +132,7 @@ fn reports_redactions_with_and_without_a_reason() {
             panic!("expected redaction")
         };
         assert_eq!(redacted.actor, "alice!~a@cloak");
+        assert_eq!(redacted.authorship, Authorship::Other);
         assert!(
             matches!(redacted.conversation, Conversation::Channel(ref channel) if channel == "#papo")
         );

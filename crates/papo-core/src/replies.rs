@@ -17,6 +17,7 @@ impl Session {
         };
         self.outbox.event(Event::TagMessage(TagMessage {
             actor: actor.to_owned(),
+            authorship: self.authorship(message),
             conversation,
             status,
             tags: message
@@ -40,6 +41,7 @@ impl Session {
         };
         self.outbox.event(Event::Redacted(Redacted {
             actor: actor.to_owned(),
+            authorship: self.authorship(message),
             conversation,
             status,
             msgid: msgid.to_owned(),

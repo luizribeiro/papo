@@ -1554,6 +1554,7 @@ mod tests {
     fn maps_tag_messages_with_typed_accessors() {
         let tag = papo_core::TagMessage {
             actor: "alice!~a@cloak".into(),
+            authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             tags: vec![
@@ -1580,6 +1581,7 @@ mod tests {
         let typing = |value: &str| {
             let tag = papo_core::TagMessage {
                 actor: "alice!~a@cloak".into(),
+                authorship: papo_core::Authorship::Other,
                 conversation: papo_core::Conversation::Channel(
                     Casemapping::default().channel("#papo"),
                 ),
@@ -1598,6 +1600,7 @@ mod tests {
 
         let tag = papo_core::TagMessage {
             actor: "alice!~a@cloak".into(),
+            authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             tags: vec![("+typing".into(), Some("active".into()))],
@@ -1611,6 +1614,7 @@ mod tests {
     fn maps_redactions() {
         let redacted = papo_core::Redacted {
             actor: "alice!~a@cloak".into(),
+            authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             msgid: "RKi9Cw".into(),

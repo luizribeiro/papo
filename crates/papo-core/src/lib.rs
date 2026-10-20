@@ -1313,6 +1313,8 @@ pub struct MultilineMessage {
 pub struct TagMessage {
     /// Actor prefix without its leading colon.
     pub actor: String,
+    /// Whether the actor is this session's user.
+    pub authorship: Authorship,
     /// IRC conversation addressed by the message.
     pub conversation: Conversation,
     /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
@@ -1326,6 +1328,8 @@ pub struct TagMessage {
 pub struct Redacted {
     /// Actor prefix without its leading colon.
     pub actor: String,
+    /// Whether the actor is this session's user.
+    pub authorship: Authorship,
     /// IRC conversation containing the message.
     pub conversation: Conversation,
     /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
@@ -2175,6 +2179,14 @@ impl Outbox {
 }
 
 impl Session {
+    fn authorship(&self, message: &LineRef<'_>) -> Authorship {
+        if self.is_own_source(message) {
+            Authorship::Own
+        } else {
+            Authorship::Other
+        }
+    }
+
     /// Creates a session with no active connection.
     #[must_use]
     pub fn new(config: Config) -> Self {

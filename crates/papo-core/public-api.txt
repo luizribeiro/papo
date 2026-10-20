@@ -1399,6 +1399,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ReceivedLine
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ReceivedLine
 pub struct papo_core::Redacted
 pub papo_core::Redacted::actor: alloc::string::String
+pub papo_core::Redacted::authorship: papo_core::Authorship
 pub papo_core::Redacted::conversation: papo::Conversation
 pub papo_core::Redacted::msgid: alloc::string::String
 pub papo_core::Redacted::reason: core::option::Option<alloc::string::String>
@@ -1644,6 +1645,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::State
 impl core::panic::unwind_safe::UnwindSafe for papo_core::State
 pub struct papo_core::TagMessage
 pub papo_core::TagMessage::actor: alloc::string::String
+pub papo_core::TagMessage::authorship: papo_core::Authorship
 pub papo_core::TagMessage::conversation: papo::Conversation
 pub papo_core::TagMessage::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo_core::TagMessage::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
