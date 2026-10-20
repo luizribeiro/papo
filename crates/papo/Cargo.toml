@@ -11,7 +11,6 @@ publish.workspace = true
 default = ["tls-ring"]
 bot = []
 precis = ["papo-core/precis", "papo-proto/precis"]
-sts-file = ["dep:serde", "dep:serde_json"]
 websocket = ["dep:futures-util", "dep:tokio-tungstenite"]
 tls-aws-lc = [
   "dep:rustls",
@@ -28,7 +27,7 @@ tls-ring = [
 unstable = ["papo-core/unstable"]
 
 [package.metadata.docs.rs]
-features = ["bot", "sts-file", "unstable"]
+features = ["bot", "unstable"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
@@ -37,8 +36,6 @@ futures-io = "0.3.34"
 getrandom = { version = "0.4.3", features = ["wasm_js"] }
 papo-core = { path = "../papo-core", version = "=0.0.0" }
 papo-proto = { path = "../papo-proto", version = "=0.0.0" }
-serde = { version = "1.0.228", features = ["derive"], optional = true }
-serde_json = { version = "1.0.145", optional = true }
 thiserror = "2.0.21"
 tokio = { version = "1.53.3", features = ["io-util", "macros", "rt", "sync"] }
 web-time = "1.1.0"

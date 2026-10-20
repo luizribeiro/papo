@@ -40,7 +40,7 @@ generate() {
   mv "$actual" "$snapshot"
 }
 
-stable=bot,sts-file,websocket,tls-aws-lc,tls-ring
+stable=bot,websocket,tls-aws-lc,tls-ring
 generate papo-proto papo_proto '' crates/papo-proto/public-api.txt "$work/papo-proto"
 generate papo-core papo_core '' crates/papo-core/public-api.txt "$work/papo-core-stable"
 generate papo-core papo_core unstable crates/papo-core/public-api-unstable.txt "$work/papo-core-unstable"

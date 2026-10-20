@@ -313,7 +313,7 @@
                 diff -u "$expected" "$actual"
                 rm -f "$actual"
               }
-              stable=bot,sts-file,websocket,tls-aws-lc,tls-ring
+              stable=bot,websocket,tls-aws-lc,tls-ring
               check_api papo-proto papo_proto "" crates/papo-proto/public-api.txt target/public-api/papo-proto
               check_api papo-core papo_core "" crates/papo-core/public-api.txt target/public-api/papo-core-stable
               check_api papo-core papo_core unstable crates/papo-core/public-api-unstable.txt target/public-api/papo-core-unstable

@@ -1164,24 +1164,6 @@ pub mod papo::sts
 pub use papo::sts::MemoryStsStore
 pub use papo::sts::StsPolicy
 pub use papo::sts::StsStore
-pub struct papo::sts::FileStsStore
-impl papo::sts::FileStsStore
-pub fn papo::sts::FileStsStore::default_path() -> core::option::Option<std::path::PathBuf>
-pub fn papo::sts::FileStsStore::last_error(&self) -> core::option::Option<&core::io::error::Error>
-pub fn papo::sts::FileStsStore::open(impl core::convert::Into<std::path::PathBuf>) -> Self
-impl core::fmt::Debug for papo::sts::FileStsStore
-pub fn papo::sts::FileStsStore::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl papo::sts::StsStore for papo::sts::FileStsStore
-pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo::sts::StsPolicy>
-pub fn papo::sts::FileStsStore::put(&mut self, papo::sts::StsPolicy)
-pub fn papo::sts::FileStsStore::remove(&mut self, &str)
-impl core::marker::Freeze for papo::sts::FileStsStore
-impl core::marker::Send for papo::sts::FileStsStore
-impl core::marker::Sync for papo::sts::FileStsStore
-impl core::marker::Unpin for papo::sts::FileStsStore
-impl core::marker::UnsafeUnpin for papo::sts::FileStsStore
-impl !core::panic::unwind_safe::RefUnwindSafe for papo::sts::FileStsStore
-impl !core::panic::unwind_safe::UnwindSafe for papo::sts::FileStsStore
 pub mod papo::tags
 pub mod papo::tags::keys
 pub const papo::tags::keys::CHANNEL_CONTEXT: &str

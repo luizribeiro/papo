@@ -688,8 +688,6 @@ dependencies = [
  "proptest",
  "rustls",
  "rustls-platform-verifier",
- "serde",
- "serde_json",
  "thiserror",
  "tokio",
  "tokio-rustls",
