@@ -1789,7 +1789,7 @@ async fn account_required_cap_rejects_registration_without_sasl() {
 async fn terminal_numerics_have_specific_connect_errors() {
     for (line, expected, diagnostic) in [
         (
-            ":ergo.test 464 papo-driver :Password incorrect\r\n",
+            ":ergo.test 464 * :Password incorrect\r\n",
             crate::ConnectErrorKind::PasswordIncorrect,
             "Password incorrect",
         ),
@@ -3466,11 +3466,7 @@ async fn oper_and_ping_return_server_outcomes() {
         async move { client.oper("papo", "unique-oper-password-4928").await }
     });
     client_line(&mut server, b"OPER papo unique-oper-password-4928\r\n").await;
-    server_line(
-        &mut server,
-        b":ergo.test 464 papo-driver :Password incorrect\r\n",
-    )
-    .await;
+    server_line(&mut server, b":ergo.test 464 * :Password incorrect\r\n").await;
     assert!(matches!(
         within(oper).await.unwrap(),
         Err(Error::Server(error)) if error.code() == "464"
