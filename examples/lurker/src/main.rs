@@ -37,7 +37,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             Event::Quit(mut event) => {
                 event.channels.sort();
-                let channels = event.channels.join(",");
+                let channels = event
+                    .channels
+                    .iter()
+                    .map(AsRef::as_ref)
+                    .collect::<Vec<_>>()
+                    .join(",");
                 let reason = event.reason.as_deref().unwrap_or("-");
                 println!("quit {} [{channels}]: {reason}", event.nick);
             }

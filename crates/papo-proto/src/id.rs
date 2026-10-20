@@ -1,6 +1,12 @@
-use std::{borrow::Borrow, fmt, ops::Deref};
+use std::{
+    borrow::Borrow,
+    cmp::Ordering,
+    fmt,
+    hash::{Hash, Hasher},
+    ops::Deref,
+};
 
-use crate::Isupport;
+use crate::{Casemapping, Isupport};
 
 /// Why an IRC identifier cannot be sent to the server.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -138,7 +144,86 @@ macro_rules! identifier {
 
 macro_rules! name_identifier {
     ($name:ident, $description:literal) => {
-        identifier!($name, $description);
+        #[doc = $description]
+        ///
+        /// The original spelling is retained for display. Equality, ordering,
+        /// and hashing use the server-defined casemapping captured at creation.
+        #[derive(Clone, Debug)]
+        pub struct $name {
+            original: String,
+            folded: String,
+            casemapping: Casemapping,
+        }
+
+        impl $name {
+            pub(crate) fn new(value: impl Into<String>, casemapping: Casemapping) -> Self {
+                let original = value.into();
+                let folded = casemapping.fold(&original).into_owned();
+                Self {
+                    original,
+                    folded,
+                    casemapping,
+                }
+            }
+        }
+
+        original_text!($name, original);
+
+        impl PartialEq for $name {
+            fn eq(&self, other: &Self) -> bool {
+                self.folded == other.folded
+            }
+        }
+
+        impl Eq for $name {}
+
+        impl Hash for $name {
+            fn hash<H: Hasher>(&self, state: &mut H) {
+                self.folded.hash(state);
+            }
+        }
+
+        impl PartialOrd for $name {
+            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        impl Ord for $name {
+            fn cmp(&self, other: &Self) -> Ordering {
+                self.folded.cmp(&other.folded)
+            }
+        }
+
+        impl PartialEq<str> for $name {
+            fn eq(&self, other: &str) -> bool {
+                self.folded == self.casemapping.fold(other)
+            }
+        }
+
+        impl PartialEq<&str> for $name {
+            fn eq(&self, other: &&str) -> bool {
+                self == *other
+            }
+        }
+
+        impl From<&str> for $name {
+            fn from(value: &str) -> Self {
+                Self::new(value, Casemapping::default())
+            }
+        }
+
+        impl From<String> for $name {
+            fn from(value: String) -> Self {
+                Self::new(value, Casemapping::default())
+            }
+        }
+
+        impl From<&String> for $name {
+            fn from(value: &String) -> Self {
+                Self::new(value, Casemapping::default())
+            }
+        }
     };
 }
 
@@ -333,7 +418,7 @@ impl From<&ChannelName> for Target {
 mod tests {
     use std::{borrow::Borrow, collections::HashMap, fmt, hash::Hash, ops::Deref};
 
-    use crate::{Isupport, LineRef};
+    use crate::{Casemapping, Isupport, LineRef};
 
     use super::{
         AccountName, ChannelName, InvalidIdentifier, Mask, MessageId, MetadataKey, Nick, Target,
@@ -360,12 +445,8 @@ mod tests {
     }
 
     #[test]
-    fn every_identifier_has_the_owned_string_contract() {
-        assert_contract::<Nick>();
-        assert_contract::<ChannelName>();
-        assert_contract::<AccountName>();
+    fn every_exact_identifier_has_the_owned_string_contract() {
         assert_contract::<Target>();
-        assert_contract::<Mask>();
         assert_contract::<MetadataKey>();
         assert_contract::<MessageId>();
     }
@@ -383,16 +464,18 @@ mod tests {
     }
 
     #[test]
-    fn identifiers_preserve_case_and_compare_exact_bytes() {
-        let nick = Nick::from("Alice[bot]");
+    fn names_preserve_spelling_and_compare_by_folded_text() {
+        let nick = Nick::new("Alice[bot]", Casemapping::Rfc1459);
         let mut values = HashMap::new();
         values.insert(nick.clone(), 7);
 
         assert_eq!(nick, "Alice[bot]");
-        assert_ne!(nick, "alice{bot}");
+        assert_eq!(nick, "alice{bot}");
         assert_eq!(nick.to_string(), "Alice[bot]");
-        assert_eq!(format!("{nick:?}"), "Nick(\"Alice[bot]\")");
-        assert_eq!(values.get("Alice[bot]"), Some(&7));
+        assert_eq!(
+            values.get(&Nick::new("alice{bot}", Casemapping::Ascii)),
+            Some(&7)
+        );
         assert_eq!(Nick::from(&nick).into_string(), "Alice[bot]");
     }
 

@@ -399,13 +399,11 @@ impl<'a> core::marker::Unpin for papo_proto::Account<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Account<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Account<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Account<'a>
-pub struct papo_proto::AccountName(_)
+pub struct papo_proto::AccountName
 impl papo_proto::AccountName
 pub fn papo_proto::AccountName::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::AccountName
 pub fn papo_proto::AccountName::into_string(self) -> alloc::string::String
-impl core::borrow::Borrow<str> for papo_proto::AccountName
-pub fn papo_proto::AccountName::borrow(&self) -> &str
 impl core::clone::Clone for papo_proto::AccountName
 pub fn papo_proto::AccountName::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::AccountName
@@ -434,8 +432,7 @@ pub fn papo_proto::AccountName::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 impl core::fmt::Display for papo_proto::AccountName
 pub fn papo_proto::AccountName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo_proto::AccountName
-pub fn papo_proto::AccountName::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo_proto::AccountName
+pub fn papo_proto::AccountName::hash<H: core::hash::Hasher>(&self, &mut H)
 impl core::ops::deref::Deref for papo_proto::AccountName
 pub type papo_proto::AccountName::Target = str
 pub fn papo_proto::AccountName::deref(&self) -> &Self::Target
@@ -487,13 +484,11 @@ impl<'a> core::marker::Unpin for papo_proto::ChanModes<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::ChanModes<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::ChanModes<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::ChanModes<'a>
-pub struct papo_proto::ChannelName(_)
+pub struct papo_proto::ChannelName
 impl papo_proto::ChannelName
 pub fn papo_proto::ChannelName::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::ChannelName
 pub fn papo_proto::ChannelName::into_string(self) -> alloc::string::String
-impl core::borrow::Borrow<str> for papo_proto::ChannelName
-pub fn papo_proto::ChannelName::borrow(&self) -> &str
 impl core::clone::Clone for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::ChannelName
@@ -526,8 +521,7 @@ pub fn papo_proto::ChannelName::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 impl core::fmt::Display for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo_proto::ChannelName
-pub fn papo_proto::ChannelName::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::hash<H: core::hash::Hasher>(&self, &mut H)
 impl core::ops::deref::Deref for papo_proto::ChannelName
 pub type papo_proto::ChannelName::Target = str
 pub fn papo_proto::ChannelName::deref(&self) -> &Self::Target
@@ -860,13 +854,11 @@ impl<'a> core::marker::Unpin for papo_proto::LineRef<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::LineRef<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::LineRef<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::LineRef<'a>
-pub struct papo_proto::Mask(_)
+pub struct papo_proto::Mask
 impl papo_proto::Mask
 pub fn papo_proto::Mask::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::Mask
 pub fn papo_proto::Mask::into_string(self) -> alloc::string::String
-impl core::borrow::Borrow<str> for papo_proto::Mask
-pub fn papo_proto::Mask::borrow(&self) -> &str
 impl core::clone::Clone for papo_proto::Mask
 pub fn papo_proto::Mask::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::Mask
@@ -895,8 +887,7 @@ pub fn papo_proto::Mask::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt:
 impl core::fmt::Display for papo_proto::Mask
 pub fn papo_proto::Mask::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo_proto::Mask
-pub fn papo_proto::Mask::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo_proto::Mask
+pub fn papo_proto::Mask::hash<H: core::hash::Hasher>(&self, &mut H)
 impl core::ops::deref::Deref for papo_proto::Mask
 pub type papo_proto::Mask::Target = str
 pub fn papo_proto::Mask::deref(&self) -> &Self::Target
@@ -1054,13 +1045,11 @@ impl<'a> core::marker::Unpin for papo_proto::NamesEntry<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::NamesEntry<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::NamesEntry<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::NamesEntry<'a>
-pub struct papo_proto::Nick(_)
+pub struct papo_proto::Nick
 impl papo_proto::Nick
 pub fn papo_proto::Nick::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::Nick
 pub fn papo_proto::Nick::into_string(self) -> alloc::string::String
-impl core::borrow::Borrow<str> for papo_proto::Nick
-pub fn papo_proto::Nick::borrow(&self) -> &str
 impl core::clone::Clone for papo_proto::Nick
 pub fn papo_proto::Nick::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::Nick
@@ -1093,8 +1082,7 @@ pub fn papo_proto::Nick::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt:
 impl core::fmt::Display for papo_proto::Nick
 pub fn papo_proto::Nick::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo_proto::Nick
-pub fn papo_proto::Nick::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo_proto::Nick
+pub fn papo_proto::Nick::hash<H: core::hash::Hasher>(&self, &mut H)
 impl core::ops::deref::Deref for papo_proto::Nick
 pub type papo_proto::Nick::Target = str
 pub fn papo_proto::Nick::deref(&self) -> &Self::Target
