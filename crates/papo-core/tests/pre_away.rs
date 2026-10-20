@@ -34,7 +34,7 @@ fn sends_message_and_hidden_away_before_cap_end() {
 }
 
 #[test]
-fn sends_only_message_away_after_registration_without_the_capability() {
+fn sends_only_message_away_after_connect_without_the_capability() {
     Transcript::new(config(
         AwayOnConnect::Message("Reviewing patches".into()),
         false,

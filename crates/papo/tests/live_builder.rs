@@ -28,7 +28,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
                 .await
                 .unwrap();
 
-        wait_registered(&mut events, &account).await;
+        wait_connected(&mut events, &account).await;
         wait_joined(&mut events, &account, &channel).await;
 
         assert!(client.whois(support::nick(&account)).await.unwrap().is_bot);
@@ -65,7 +65,7 @@ async fn connects_through_the_configured_websocket_url() {
             .connect()
             .await
             .unwrap();
-        wait_registered(&mut events, &nick).await;
+        wait_connected(&mut events, &nick).await;
         client
             .quit("WebSocket builder test complete")
             .await
@@ -74,7 +74,7 @@ async fn connects_through_the_configured_websocket_url() {
     .await;
 }
 
-async fn wait_registered(events: &mut papo::Events, nick: &str) {
+async fn wait_connected(events: &mut papo::Events, nick: &str) {
     loop {
         match events.next().await {
             Some(Event::Connected(welcome)) => {

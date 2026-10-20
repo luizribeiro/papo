@@ -43,7 +43,7 @@ async fn registers_then_logs_in_with_sasl() {
             .connect()
             .await
             .unwrap();
-        wait_registered(&mut registrar_events, &account).await;
+        wait_connected(&mut registrar_events, &account).await;
         assert!(matches!(
             registrar
                 .register_account(NewAccount::new(PASSWORD).account(support::account(&account)))
@@ -60,7 +60,7 @@ async fn registers_then_logs_in_with_sasl() {
             .connect()
             .await
             .unwrap();
-        wait_registered(&mut authenticated_events, &account).await;
+        wait_connected(&mut authenticated_events, &account).await;
         assert_eq!(
             authenticated
                 .state()
@@ -193,7 +193,7 @@ async fn forward_client_lines(
     }
 }
 
-async fn wait_registered(events: &mut papo::Events, nick: &str) {
+async fn wait_connected(events: &mut papo::Events, nick: &str) {
     loop {
         match events.next().await {
             Some(Event::Connected(welcome)) if welcome.nick == nick => return,

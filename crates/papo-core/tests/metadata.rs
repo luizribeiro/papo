@@ -505,7 +505,7 @@ fn subscribes_before_cap_end_and_resubscribes_with_an_empty_cache() {
 }
 
 #[test]
-fn subscribes_after_registration_without_before_connect() {
+fn subscribes_after_connect_without_before_connect() {
     let config = Config::default()
         .wanted_caps(["draft/metadata-2", "labeled-response"])
         .metadata_subscriptions(["avatar"]);

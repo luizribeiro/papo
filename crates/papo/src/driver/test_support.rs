@@ -415,7 +415,7 @@ pub(crate) async fn assert_connect_output(
     expected: &[u8],
 ) {
     let (client_stream, mut server) = tokio::io::duplex(4096);
-    let (_client, mut events, driver) = Driver::with_stream_and_registration(
+    let (_client, mut events, driver) = Driver::with_stream_and_connect(
         client_stream,
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,

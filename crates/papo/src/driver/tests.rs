@@ -652,7 +652,7 @@ async fn write_timeout_resumes_before_the_next_line() {
     let mut join_keys = std::collections::BTreeMap::new();
     let mut sync_waiters = Vec::new();
     let mut catchups = std::collections::BTreeMap::new();
-    let mut registration = super::RegistrationWait::default();
+    let mut registration = super::ConnectWait::default();
     let mut defaults = super::PostConnect {
         bot: false,
         channels: vec!["#papo".into(), "#rust".into()],
@@ -1608,7 +1608,7 @@ async fn required_sasl_failure_rejects_registration_waiter() {
         .sasl(Sasl::plain("alice", "correct horse battery staple"));
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
-    let (_client, _events, driver) = Driver::with_stream_and_registration(
+    let (_client, _events, driver) = Driver::with_stream_and_connect(
         client_stream,
         Session::new(settings),
         super::DEFAULT_CHANNEL_CAPACITY,
@@ -1636,7 +1636,7 @@ async fn required_sasl_failure_rejects_registration_waiter() {
 async fn account_required_cap_rejects_registration_without_sasl() {
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
-    let (_client, _events, driver) = Driver::with_stream_and_registration(
+    let (_client, _events, driver) = Driver::with_stream_and_connect(
         client_stream,
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
@@ -1669,7 +1669,7 @@ async fn account_required_cap_rejects_registration_without_sasl() {
 async fn password_numeric_is_a_generic_registration_rejection() {
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
-    let (_client, _events, driver) = Driver::with_stream_and_registration(
+    let (_client, _events, driver) = Driver::with_stream_and_connect(
         client_stream,
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
@@ -1789,7 +1789,7 @@ fn certificate_verification_failure_is_fatal() {
 async fn successful_registration_preserves_earlier_events() {
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
-    let (_client, mut events, driver) = Driver::with_stream_and_registration(
+    let (_client, mut events, driver) = Driver::with_stream_and_connect(
         client_stream,
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
@@ -1830,7 +1830,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
             Some("alice@example.org"),
             "correct horse battery staple",
         );
-    let (_client, mut events, driver) = Driver::with_stream_and_registration(
+    let (_client, mut events, driver) = Driver::with_stream_and_connect(
         client_stream,
         Session::new(config),
         super::DEFAULT_CHANNEL_CAPACITY,
@@ -1877,7 +1877,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
 #[tokio::test(flavor = "current_thread")]
 async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     let (client_stream, mut server) = tokio::io::duplex(4096);
-    let (_client, mut events, driver) = Driver::with_stream_and_registration(
+    let (_client, mut events, driver) = Driver::with_stream_and_connect(
         client_stream,
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
@@ -4125,7 +4125,7 @@ fn registration_and_quit_independently_enable_read_ahead() {
     let requests = std::collections::BTreeMap::new();
     let sync_waiters = Vec::new();
     let catchups = std::collections::BTreeMap::new();
-    let registration = super::RegistrationWait::default();
+    let registration = super::ConnectWait::default();
     assert!(!super::should_read_ahead(
         &requests,
         &sync_waiters,
@@ -4135,7 +4135,7 @@ fn registration_and_quit_independently_enable_read_ahead() {
     ));
 
     let (registration, _result) = tokio::sync::oneshot::channel();
-    let registration = super::RegistrationWait(Some(registration));
+    let registration = super::ConnectWait(Some(registration));
     assert!(super::should_read_ahead(
         &requests,
         &sync_waiters,
@@ -4147,7 +4147,7 @@ fn registration_and_quit_independently_enable_read_ahead() {
         &requests,
         &sync_waiters,
         &catchups,
-        &super::RegistrationWait::default(),
+        &super::ConnectWait::default(),
         true,
     ));
 }
@@ -4169,7 +4169,7 @@ fn closed_waiters_do_not_enable_read_ahead() {
     let (sync, sync_receiver) = tokio::sync::oneshot::channel();
     let mut sync_waiters = vec![("#papo".to_owned(), sync)];
     let (registration, registration_receiver) = tokio::sync::oneshot::channel();
-    let mut registration = super::RegistrationWait(Some(registration));
+    let mut registration = super::ConnectWait(Some(registration));
     drop((request_receiver, sync_receiver, registration_receiver));
 
     super::drop_closed_waiters(&mut requests, &mut sync_waiters, &mut registration);

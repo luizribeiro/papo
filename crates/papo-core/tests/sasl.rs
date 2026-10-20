@@ -339,7 +339,7 @@ fn already_authenticated_counts_as_success() {
 }
 
 #[test]
-fn authenticates_when_sasl_arrives_after_registration() {
+fn authenticates_when_sasl_arrives_after_connect() {
     Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
         .connect_default()
         .server("CAP * LS :")

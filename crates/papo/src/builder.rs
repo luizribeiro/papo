@@ -498,7 +498,7 @@ impl Builder {
     ///
     /// The returned [`crate::Driver`] connects when it is first polled.
     pub fn build(self) -> (crate::Client, crate::Events, crate::Driver) {
-        self.build_with_registration(None)
+        self.build_with_connect(None)
     }
 
     /// Connects in a spawned driver and waits for IRC registration.
@@ -517,17 +517,17 @@ impl Builder {
     /// registration fails before welcome or an account-verification challenge.
     pub async fn connect(self) -> Result<(crate::Client, crate::Events), Error> {
         let (sender, receiver) = oneshot::channel();
-        let (client, events, driver) = self.build_with_registration(Some(sender));
+        let (client, events, driver) = self.build_with_connect(Some(sender));
         crate::rt::spawn(driver);
         receiver.await.map_err(|_| Error::connection_lost())??;
         Ok((client, events))
     }
 
     #[cfg(not(browser))]
-    fn build_stream_with_registration(
+    fn build_stream_with_connect(
         mut self,
         stream: Box<dyn crate::io_compat::FutureStream>,
-        registration: Option<crate::driver::RegistrationSender>,
+        registration: Option<crate::driver::ConnectSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
         if let Ok(address) = &self.address {
             apply_address(&mut self.config, address);
@@ -536,7 +536,7 @@ impl Builder {
             .address
             .err()
             .or(self.invalid_input)
-            .or_else(|| registration_input_error(&self.config));
+            .or_else(|| connect_input_error(&self.config));
         let session =
             papo_core::Session::with_entropy(self.config, Box::new(crate::entropy::OsEntropy));
         if let Some(error) = input_error {
@@ -548,7 +548,7 @@ impl Builder {
                 Error::InvalidInput(error),
             );
         }
-        crate::Driver::with_stream_and_registration(
+        crate::Driver::with_stream_and_connect(
             crate::io_compat::FuturesIo::new(stream),
             session,
             self.event_capacity,
@@ -562,17 +562,17 @@ impl Builder {
         )
     }
 
-    fn build_with_registration(
+    fn build_with_connect(
         mut self,
-        registration: Option<crate::driver::RegistrationSender>,
+        registration: Option<crate::driver::ConnectSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
         #[cfg(not(browser))]
         if let Some(stream) = self.stream.take() {
-            return self.build_stream_with_registration(stream, registration);
+            return self.build_stream_with_connect(stream, registration);
         }
         let validation_error = self
             .invalid_input
-            .or_else(|| registration_input_error(&self.config));
+            .or_else(|| connect_input_error(&self.config));
         let plan = self.address.and_then(|address| {
             if let Some(error) = validation_error {
                 return Err(error);
@@ -617,7 +617,7 @@ fn apply_address(config: &mut Config, address: &ServerAddress) {
     };
 }
 
-fn registration_input_error(config: &Config) -> Option<InvalidInput> {
+fn connect_input_error(config: &Config) -> Option<InvalidInput> {
     let invalid = |message: Line| {
         message
             .to_line()
@@ -691,7 +691,7 @@ mod tests {
     use papo_core::{DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, sts::ConnectionSecurity};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    use super::{Builder, apply_address, registration_input_error};
+    use super::{Builder, apply_address, connect_input_error};
     use crate::{
         Error, InvalidInput, NewAccount, address::Protocol, driver::test_support::within,
         transport::TlsRoots,
@@ -1042,7 +1042,7 @@ mod tests {
                 "192.0.2.42",
             ))
             .config;
-        assert_eq!(registration_input_error(&config), None);
+        assert_eq!(connect_input_error(&config), None);
     }
 
     #[test]

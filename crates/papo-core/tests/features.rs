@@ -231,7 +231,7 @@ fn unsupported_messages_name_the_feature_and_reason() {
 }
 
 #[test]
-fn reports_capability_and_isupport_feature_changes_after_registration() {
+fn reports_capability_and_isupport_feature_changes_after_connect() {
     Transcript::new(Config::default().wanted_caps(["message-tags"]))
         .connect_default()
         .server("CAP * LS :message-tags")

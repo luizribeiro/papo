@@ -331,12 +331,12 @@ pub(crate) struct Channels {
     event_sink: EventSink,
 }
 
-pub(crate) type RegistrationSender = oneshot::Sender<Result<(), Error>>;
+pub(crate) type ConnectSender = oneshot::Sender<Result<(), Error>>;
 
 #[derive(Default)]
-struct RegistrationWait(Option<RegistrationSender>);
+struct ConnectWait(Option<ConnectSender>);
 
-impl RegistrationWait {
+impl ConnectWait {
     fn succeeded(&mut self) {
         if let Some(sender) = self.0.take() {
             _ = sender.send(Ok(()));
@@ -474,14 +474,14 @@ impl Driver {
     where
         S: ConnectionIo + 'static,
     {
-        Self::with_stream_and_registration(stream, session, capacity, None, PostConnect::default())
+        Self::with_stream_and_connect(stream, session, capacity, None, PostConnect::default())
     }
 
-    pub(crate) fn with_stream_and_registration<S>(
+    pub(crate) fn with_stream_and_connect<S>(
         stream: S,
         session: Session,
         capacity: usize,
-        registration: Option<RegistrationSender>,
+        registration: Option<ConnectSender>,
         defaults: PostConnect,
     ) -> (Client, Events, Self)
     where
@@ -493,7 +493,7 @@ impl Driver {
             session,
             channels.commands,
             channels.event_sink,
-            RegistrationWait(registration),
+            ConnectWait(registration),
             defaults,
         ));
         (channels.client, channels.events, Self { inner })
@@ -502,7 +502,7 @@ impl Driver {
     pub(crate) fn failed(
         session: &Session,
         capacity: usize,
-        registration: Option<RegistrationSender>,
+        registration: Option<ConnectSender>,
         error: Error,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity, session);
@@ -522,7 +522,7 @@ impl Driver {
         plan: Result<ConnectionPlan, InvalidInput>,
         session: Session,
         capacity: usize,
-        registration: Option<RegistrationSender>,
+        registration: Option<ConnectSender>,
         defaults: PostConnect,
         reconnect: Reconnect,
         sts_store: Box<dyn StsStore + Send>,
@@ -550,7 +550,7 @@ impl Driver {
         plan: Result<ConnectionPlan, InvalidInput>,
         session: Session,
         capacity: usize,
-        registration: Option<RegistrationSender>,
+        registration: Option<ConnectSender>,
         defaults: PostConnect,
         reconnect: Reconnect,
         sts_store: Box<dyn StsStore + Send>,
@@ -574,7 +574,7 @@ impl Driver {
         plan: Result<ConnectionPlan, InvalidInput>,
         session: Session,
         capacity: usize,
-        registration: Option<RegistrationSender>,
+        registration: Option<ConnectSender>,
         defaults: PostConnect,
         reconnect: Reconnect,
         sts_store: Box<dyn StsStore + Send>,
@@ -587,7 +587,7 @@ impl Driver {
             session,
             channels.commands,
             channels.event_sink,
-            RegistrationWait(registration),
+            ConnectWait(registration),
             defaults,
             reconnect,
             sts_store,
@@ -641,7 +641,7 @@ async fn run<S>(
     mut session: Session,
     mut commands: mpsc::Receiver<Command>,
     events: EventSink,
-    mut registration: RegistrationWait,
+    mut registration: ConnectWait,
     mut defaults: PostConnect,
 ) -> Result<(), Error>
 where
@@ -713,7 +713,7 @@ async fn run_connection<S>(
     session: &mut Session,
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
-    registration: &mut RegistrationWait,
+    registration: &mut ConnectWait,
     defaults: &mut PostConnect,
     registered: &mut bool,
     connection: Option<Connection>,
@@ -1124,7 +1124,7 @@ async fn drain<S>(
     join_keys: &mut BTreeMap<RequestId, (crate::ChannelName, Option<crate::Secret>)>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
     catchups: &mut BTreeMap<RequestId, Catchup>,
-    registration: &mut RegistrationWait,
+    registration: &mut ConnectWait,
     defaults: &mut PostConnect,
     registered: &mut bool,
     registered_at: &mut Option<Instant>,
@@ -1170,7 +1170,7 @@ where
                 }
             }
             event::CoreEvent::Connected(welcome) => {
-                after_registration(session, &welcome, defaults)?;
+                after_connect(session, &welcome, defaults)?;
                 registration.succeeded();
                 *registered_at = Some(now());
                 let reconnected = *registered;
@@ -1348,7 +1348,7 @@ fn should_read_ahead(
     requests: &BTreeMap<RequestId, PendingRequest>,
     sync_waiters: &[(String, oneshot::Sender<Result<(), Error>>)],
     catchups: &BTreeMap<RequestId, Catchup>,
-    registration: &RegistrationWait,
+    registration: &ConnectWait,
     quitting: bool,
 ) -> bool {
     !requests.is_empty()
@@ -1517,7 +1517,7 @@ fn resolve_sync_waiters(
 fn drop_closed_waiters(
     requests: &mut BTreeMap<RequestId, PendingRequest>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
-    registration: &mut RegistrationWait,
+    registration: &mut ConnectWait,
 ) {
     requests.retain(|_, request| !request.is_closed());
     sync_waiters.retain(|(_, result)| !result.is_closed());
@@ -1546,7 +1546,7 @@ fn publish_state(events: &EventSink, session: &Session, connected: bool) {
     *slot = Arc::new(State::from_session(session, connected));
 }
 
-fn after_registration(
+fn after_connect(
     session: &mut Session,
     welcome: &papo_core::Welcome,
     defaults: &mut PostConnect,

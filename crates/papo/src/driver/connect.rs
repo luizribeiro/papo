@@ -9,8 +9,8 @@ use papo_core::{
 use tokio::sync::mpsc;
 
 use super::{
-    BackoffEntropy, BoxConnection, Command, ConnectFuture, ConnectionEnd, ConnectionPlan,
-    Connector, EventSink, PostConnect, RegistrationWait, SLOW_CONSUMER_REASON, STABLE_CONNECTION,
+    BackoffEntropy, BoxConnection, Command, ConnectFuture, ConnectWait, ConnectionEnd,
+    ConnectionPlan, Connector, EventSink, PostConnect, SLOW_CONSUMER_REASON, STABLE_CONNECTION,
     StsActions, enqueue_event, finish, now, run_connection,
 };
 #[cfg(sockets)]
@@ -67,7 +67,7 @@ pub(super) async fn run_plan(
     mut session: Session,
     mut commands: mpsc::Receiver<Command>,
     events: EventSink,
-    mut registration: RegistrationWait,
+    mut registration: ConnectWait,
     mut defaults: PostConnect,
     reconnect: Reconnect,
     mut sts_store: Box<dyn StsStore + Send>,
@@ -217,7 +217,7 @@ fn enqueue_retry_event(
 
 fn initial_connection_plan(
     plan: Result<ConnectionPlan, InvalidInput>,
-    registration: &mut RegistrationWait,
+    registration: &mut ConnectWait,
 ) -> Result<Option<ConnectionPlan>, Error> {
     match plan {
         Ok(plan) => Ok(Some(plan)),
@@ -235,7 +235,7 @@ pub(super) async fn run_planned_connection(
     session: &mut Session,
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
-    registration: &mut RegistrationWait,
+    registration: &mut ConnectWait,
     defaults: &mut PostConnect,
     registered: &mut bool,
     plan: &ConnectionPlan,
@@ -387,7 +387,7 @@ pub(super) fn record_sts_upgrade(last_host: &mut Option<String>, host: &str) -> 
 
 fn finish_connection_failure(
     events: EventSink,
-    registration: &mut RegistrationWait,
+    registration: &mut ConnectWait,
     error: Error,
 ) -> Result<(), Error> {
     let reason = error.to_string();
@@ -417,7 +417,7 @@ fn finish_connection_failure(
 
 fn finish_slow_consumer(
     events: EventSink,
-    registration: &mut RegistrationWait,
+    registration: &mut ConnectWait,
     pending_events: VecDeque<Event>,
 ) -> Result<(), Error> {
     registration.failed(Error::disconnected_slow_consumer());

@@ -441,7 +441,7 @@ async fn probe(
         Some(wanted_caps),
         None,
     )?;
-    let welcome = wait_for_registration(&connection.client, &mut connection.events).await?;
+    let welcome = wait_connected(&connection.client, &mut connection.events).await?;
     connection
         .client
         .quit("conformance probe complete")
@@ -543,7 +543,7 @@ fn connect_client(
     })
 }
 
-async fn wait_for_registration(client: &Client, events: &mut Events) -> Result<Welcome, String> {
+async fn wait_connected(client: &Client, events: &mut Events) -> Result<Welcome, String> {
     timeout(TIMEOUT, async {
         loop {
             match events.next().await {
