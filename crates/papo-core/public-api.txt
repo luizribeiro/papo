@@ -491,9 +491,11 @@ pub papo_core::Event::Motd
 pub papo_core::Event::Motd::lines: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Event::MultilineMessage(papo_core::MultilineMessage)
 pub papo_core::Event::Netjoin
+pub papo_core::Event::Netjoin::authorship: alloc::vec::Vec<papo_core::Authorship>
 pub papo_core::Event::Netjoin::joins: alloc::vec::Vec<papo::Line>
 pub papo_core::Event::Netjoin::servers: [alloc::string::String; 2]
 pub papo_core::Event::Netsplit
+pub papo_core::Event::Netsplit::authorship: alloc::vec::Vec<papo_core::Authorship>
 pub papo_core::Event::Netsplit::quits: alloc::vec::Vec<papo::Line>
 pub papo_core::Event::Netsplit::servers: [alloc::string::String; 2]
 pub papo_core::Event::NickChanged

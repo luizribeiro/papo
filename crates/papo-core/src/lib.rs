@@ -1622,6 +1622,8 @@ pub enum Event {
         servers: [String; 2],
         /// The `QUIT` messages grouped by the server.
         quits: Vec<Line>,
+        /// Authorship facts corresponding to `quits` in wire order.
+        authorship: Vec<Authorship>,
     },
     /// Users returned after connectivity between two servers was restored.
     ///
@@ -1632,6 +1634,8 @@ pub enum Event {
         servers: [String; 2],
         /// The `JOIN` messages grouped by the server.
         joins: Vec<Line>,
+        /// Authorship facts corresponding to `joins` in wire order.
+        authorship: Vec<Authorship>,
     },
     /// A server batch exceeded a retention bound or deadline.
     BatchAbandoned {
@@ -3521,18 +3525,34 @@ impl Session {
                     .event(Event::HistoryTargets(self.history_targets(targets)));
             }
             BatchEvent::Netsplit { servers, quits } => {
+                let authorship = quits
+                    .iter()
+                    .map(|message| self.authorship(&message.as_ref()))
+                    .collect();
                 // History can describe stale membership, while netsplit and netjoin batches
                 // report connectivity changes that define the current live membership.
                 for message in &quits {
                     self.apply_aggregate_state(message);
                 }
-                self.outbox.event(Event::Netsplit { servers, quits });
+                self.outbox.event(Event::Netsplit {
+                    servers,
+                    quits,
+                    authorship,
+                });
             }
             BatchEvent::Netjoin { servers, joins } => {
+                let authorship = joins
+                    .iter()
+                    .map(|message| self.authorship(&message.as_ref()))
+                    .collect();
                 for message in &joins {
                     self.apply_aggregate_state(message);
                 }
-                self.outbox.event(Event::Netjoin { servers, joins });
+                self.outbox.event(Event::Netjoin {
+                    servers,
+                    joins,
+                    authorship,
+                });
             }
             BatchEvent::Abandoned {
                 reference,

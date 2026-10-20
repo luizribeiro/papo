@@ -2201,6 +2201,7 @@ mod tests {
         let Event::Netsplit(netsplit) = forwarded(papo_core::Event::Netsplit {
             servers: ["irc.example".into(), "irc.remote".into()],
             quits: vec![quit],
+            authorship: vec![papo_core::Authorship::Other],
         }) else {
             panic!("netsplit was not forwarded")
         };
@@ -2220,6 +2221,7 @@ mod tests {
         let Event::Netjoin(netjoin) = forwarded(papo_core::Event::Netjoin {
             servers: ["irc.example".into(), "irc.remote".into()],
             joins: vec![join],
+            authorship: vec![papo_core::Authorship::Other],
         }) else {
             panic!("netjoin was not forwarded")
         };

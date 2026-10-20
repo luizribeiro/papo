@@ -2,7 +2,9 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{BatchAbandonReason, Config, Conversation, Event, HistoryItem, RateLimit, Session};
+use papo_core::{
+    Authorship, BatchAbandonReason, Config, Conversation, Event, HistoryItem, RateLimit, Session,
+};
 #[cfg(feature = "unstable")]
 use papo_proto::Line;
 
@@ -502,9 +504,10 @@ fn outermost_aggregate_groups_its_commands_and_releases_others() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Netsplit { servers, quits })
+        Some(Event::Netsplit { servers, quits, authorship })
             if servers == ["irc.example", "irc.remote"]
                 && quits.len() == 1
+                && authorship == [Authorship::Other]
                 && quits[0].as_ref().param(0) == Some("link lost")
     ));
     let extra = line(&mut session);
@@ -542,7 +545,7 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
     );
     session.handle_line(
         now,
-        b"@batch=split :alice!~a@remote.example QUIT :irc.example irc.remote",
+        b"@batch=split :papo!~papo@remote.example QUIT :irc.example irc.remote",
     );
     session.handle_line(
         now,
@@ -555,7 +558,7 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
     );
     session.handle_line(
         now,
-        b"@batch=join :alice!~a@remote.example JOIN #papo alice :Alice Example",
+        b"@batch=join :papo!~papo@remote.example JOIN #papo papo :Papo Client",
     );
     session.handle_line(
         now,
@@ -565,13 +568,15 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Netsplit { servers, quits })
+        Some(Event::Netsplit { servers, quits, authorship })
             if servers == ["irc.example", "irc.remote"] && quits.len() == 2
+                && authorship == [Authorship::Own, Authorship::Other]
     ));
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Netjoin { servers, joins })
+        Some(Event::Netjoin { servers, joins, authorship })
             if servers == ["irc.example", "irc.remote"] && joins.len() == 2
+                && authorship == [Authorship::Own, Authorship::Other]
     ));
     assert_eq!(session.poll_event(), None);
 }
