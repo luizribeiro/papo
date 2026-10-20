@@ -79,7 +79,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
         bob.state().user(&alice_nick).unwrap().account(),
         Account::LoggedIn(observed) if observed == &account
     ));
-    alice.wait_for(Event::as_account_registration).await?;
+    alice.wait_for(Event::as_account_creation).await?;
     bob.expect_none(Event::as_account_changed).await?;
     Ok(())
 }

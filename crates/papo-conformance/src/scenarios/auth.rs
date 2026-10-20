@@ -208,16 +208,13 @@ async fn draft_account_registration(s: Scenario) -> papo_testing::Result<()> {
         &outcome,
         AccountCreation::Created { account: registered } if registered == &account
     ));
-    assert_eq!(
-        alice.wait_for(Event::as_account_registration).await?,
-        outcome
-    );
+    assert_eq!(alice.wait_for(Event::as_account_creation).await?, outcome);
     assert_eq!(alice.state().account(), Some(&account));
 
     let whois = alice.whois(nick.clone()).await?;
     assert_eq!(whois.nick, nick);
     assert_eq!(whois.account, Some(account));
-    alice.expect_none(Event::as_account_registration).await?;
+    alice.expect_none(Event::as_account_creation).await?;
     Ok(())
 }
 
@@ -237,7 +234,7 @@ async fn account_registration_error(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(matches!(registered, AccountCreation::Created { .. }));
     assert_eq!(
-        alice.wait_for(Event::as_account_registration).await?,
+        alice.wait_for(Event::as_account_creation).await?,
         registered
     );
     let error = alice

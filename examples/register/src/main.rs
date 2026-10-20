@@ -28,16 +28,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut logged_in = None;
     while let Some(event) = events.next().await {
         match event {
-            Event::AccountRegistration(AccountCreation::VerificationRequired {
-                account,
-                message,
-            }) => {
+            Event::AccountCreation(AccountCreation::VerificationRequired { account, message }) => {
                 eprintln!("{message}");
                 let mut code = String::new();
                 io::stdin().read_line(&mut code)?;
                 client.verify_account(&account, code.trim()).await?;
             }
-            Event::AccountRegistration(AccountCreation::Created { account }) => {
+            Event::AccountCreation(AccountCreation::Created { account }) => {
                 logged_in = Some(account);
             }
             Event::Connected(_) => connected = true,
