@@ -85,7 +85,7 @@ impl Client {
                     password: account.password,
                 })
                 .await?;
-            account_registration_result(&response, "REGISTER")
+            account_registration_result(&response, "REGISTER", client.state().casemapping())
         })
     }
 
@@ -116,7 +116,7 @@ impl Client {
                     code,
                 })
                 .await?;
-            account_registration_result(&response, "VERIFY")
+            account_registration_result(&response, "VERIFY", client.state().casemapping())
         })
     }
 }
@@ -124,6 +124,7 @@ impl Client {
 fn account_registration_result(
     response: &Response,
     command: &'static str,
+    casemapping: crate::Casemapping,
 ) -> Result<AccountRegistration, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));
@@ -133,10 +134,11 @@ fn account_registration_result(
         .first()
         .ok_or_else(|| Error::unexpected_reply(command))?
         .as_ref();
-    let account = message
-        .param(1)
-        .ok_or_else(|| Error::unexpected_reply(command))?
-        .into();
+    let account = casemapping.account(
+        message
+            .param(1)
+            .ok_or_else(|| Error::unexpected_reply(command))?,
+    );
     match message.param(0) {
         Some("SUCCESS") => Ok(AccountRegistration::Registered { account }),
         Some("VERIFICATION_REQUIRED") => Ok(AccountRegistration::VerificationRequired {

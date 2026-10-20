@@ -510,7 +510,7 @@ impl Client {
         if message.is_private()
             && let Some(context) = message.channel_context()
         {
-            request = request.channel_context(&context.into());
+            request = request.channel_context(&self.state().casemapping().channel(context));
         }
         request
     }
@@ -534,7 +534,7 @@ impl Client {
             Some(message.target())
         };
         if let Some(context) = context {
-            request = request.channel_context(&context.into());
+            request = request.channel_context(&self.state().casemapping().channel(context));
         }
         request.await.map(drop)
     }
