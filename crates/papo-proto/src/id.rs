@@ -397,29 +397,36 @@ fn check_parameter(value: &str) -> Result<(), InvalidIdentifier> {
         })
 }
 
-impl From<Nick> for Target {
-    fn from(value: Nick) -> Self {
-        Self(value.into_string())
-    }
+macro_rules! name_address_conversions {
+    ($name:ident) => {
+        impl From<Nick> for $name {
+            fn from(value: Nick) -> Self {
+                Self(value.into_string())
+            }
+        }
+
+        impl From<&Nick> for $name {
+            fn from(value: &Nick) -> Self {
+                Self(value.as_ref().to_owned())
+            }
+        }
+
+        impl From<ChannelName> for $name {
+            fn from(value: ChannelName) -> Self {
+                Self(value.into_string())
+            }
+        }
+
+        impl From<&ChannelName> for $name {
+            fn from(value: &ChannelName) -> Self {
+                Self(value.as_ref().to_owned())
+            }
+        }
+    };
 }
 
-impl From<&Nick> for Target {
-    fn from(value: &Nick) -> Self {
-        Self(value.as_ref().to_owned())
-    }
-}
-
-impl From<ChannelName> for Target {
-    fn from(value: ChannelName) -> Self {
-        Self(value.into_string())
-    }
-}
-
-impl From<&ChannelName> for Target {
-    fn from(value: &ChannelName) -> Self {
-        Self(value.as_ref().to_owned())
-    }
-}
+name_address_conversions!(Address);
+name_address_conversions!(Target);
 
 #[cfg(test)]
 mod tests {
@@ -435,7 +442,7 @@ mod tests {
 
     use crate::{Casemapping, Isupport, LineRef};
 
-    use super::{InvalidIdentifier, MessageId, MetadataKey, Nick, Target};
+    use super::{Address, InvalidIdentifier, MessageId, MetadataKey, Nick, Target};
 
     fn assert_contract<T>()
     where
@@ -459,6 +466,7 @@ mod tests {
 
     #[test]
     fn every_exact_identifier_has_the_owned_string_contract() {
+        assert_contract::<Address>();
         assert_contract::<Target>();
         assert_contract::<MetadataKey>();
         assert_contract::<MessageId>();
@@ -538,10 +546,10 @@ mod tests {
     }
 
     #[test]
-    fn targets_accept_typed_nicks_and_channels() {
-        assert_eq!(Target::from(Casemapping::default().nick("alice")), "alice");
+    fn addresses_accept_typed_nicks_and_channels() {
+        assert_eq!(Address::from(Casemapping::default().nick("alice")), "alice");
         assert_eq!(
-            Target::from(&Casemapping::default().channel("#papo")),
+            Address::from(&Casemapping::default().channel("#papo")),
             "#papo"
         );
     }
