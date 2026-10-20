@@ -90,10 +90,10 @@ use std::{
 };
 use web_time::Instant;
 
+use papo_proto::MessageRef;
 use papo_proto::{
-    BuildError, Casemapping, Command, Ctcp, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message,
-    MessageRef, ModeChange, ModeKind, Numeric, Source, StandardReply as StandardReplyView,
-    StandardReplyKind,
+    BuildError, Casemapping, Command, Ctcp, LineRef, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message,
+    ModeChange, ModeKind, Numeric, Source, StandardReply as StandardReplyView, StandardReplyKind,
 };
 
 use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
@@ -676,24 +676,19 @@ pub enum ResponseMatcher {
 }
 
 impl ResponseMatcher {
-    fn standard_failure(message: &MessageRef<'_>, command: &str) -> bool {
+    fn standard_failure(message: &LineRef<'_>, command: &str) -> bool {
         StandardReplyView::parse(message).is_some_and(|reply| {
             reply.kind == StandardReplyKind::Fail && reply.command.eq_ignore_ascii_case(command)
         })
     }
 
-    fn target_is(
-        message: &MessageRef<'_>,
-        index: usize,
-        target: &str,
-        mapping: Casemapping,
-    ) -> bool {
+    fn target_is(message: &LineRef<'_>, index: usize, target: &str, mapping: Casemapping) -> bool {
         message
             .param(index)
             .is_some_and(|value| mapping.eq(value, target))
     }
 
-    fn numeric_names_command(message: &MessageRef<'_>, numeric: Numeric, command: &str) -> bool {
+    fn numeric_names_command(message: &LineRef<'_>, numeric: Numeric, command: &str) -> bool {
         numeric.is_error()
             && message
                 .param(1)
@@ -701,7 +696,7 @@ impl ResponseMatcher {
     }
 
     fn own_channel_departure(
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         channel: &str,
         mapping: Casemapping,
         own_nick: &str,
@@ -720,7 +715,7 @@ impl ResponseMatcher {
     #[allow(clippy::too_many_lines)]
     fn matches(
         &self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         mapping: Casemapping,
         own_nick: &str,
         state: &State,
@@ -1709,7 +1704,7 @@ pub struct ReceivedMessage {
 impl ReceivedMessage {
     /// Borrows the parsed IRC message.
     #[must_use]
-    pub fn as_ref(&self) -> MessageRef<'_> {
+    pub fn as_ref(&self) -> LineRef<'_> {
         self.message.as_ref()
     }
 
@@ -2061,7 +2056,7 @@ impl Session {
             self.malformed(line);
             return;
         }
-        match MessageRef::parse(&decoded) {
+        match LineRef::parse(&decoded) {
             Ok(message) => {
                 let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
                     .map_or(usize::MAX, |limits| limits.max_bytes);
@@ -2804,7 +2799,7 @@ impl Session {
 
     fn snapshot_values_for(
         &self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
     ) -> (
         StateSnapshot,
         Capabilities,
@@ -2823,7 +2818,7 @@ impl Session {
     fn dispatch_message(
         &mut self,
         now: Instant,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         context: &DispatchContext,
         emit_unhandled: bool,
     ) {
@@ -3030,7 +3025,7 @@ impl Session {
         }
     }
 
-    fn handle_whoami(&mut self, message: &MessageRef<'_>) -> bool {
+    fn handle_whoami(&mut self, message: &LineRef<'_>) -> bool {
         if !self.caps.enabled().contains_key(cap::WHOAMI)
             || !self.registration.is_in_welcome_burst()
             || !self.state.handle_whoami(
@@ -3048,7 +3043,7 @@ impl Session {
         true
     }
 
-    fn handle_ctcp(&mut self, now: Instant, message: &MessageRef<'_>) -> bool {
+    fn handle_ctcp(&mut self, now: Instant, message: &LineRef<'_>) -> bool {
         let (Some(Source::User { nick, .. }), Some(text)) = (message.source(), message.param(1))
         else {
             return false;
@@ -3348,7 +3343,7 @@ fn bypasses_rate_limit(line: &[u8]) -> bool {
     .any(|exempt| command.eq_ignore_ascii_case(exempt))
 }
 
-fn requested_message_feature(message: &MessageRef<'_>) -> Option<Feature> {
+fn requested_message_feature(message: &LineRef<'_>) -> Option<Feature> {
     if message.command_is("REDACT") {
         return Some(Feature::Redaction);
     }
@@ -3388,7 +3383,7 @@ fn parse_whois_channels(lines: &[Message], isupport: &papo_proto::Isupport) -> V
         .collect()
 }
 
-fn sent_info(message: &MessageRef<'_>) -> Option<SentInfo> {
+fn sent_info(message: &LineRef<'_>) -> Option<SentInfo> {
     Some(SentInfo {
         msgid: message.tag("msgid")?.into_owned(),
         time: message.tag("time").map(std::borrow::Cow::into_owned),
