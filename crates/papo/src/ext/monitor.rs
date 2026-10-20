@@ -29,7 +29,7 @@ impl Monitor {
     pub fn add<I, S>(&self, nicks: I) -> crate::RequestFuture<()>
     where
         I: IntoIterator<Item = S>,
-        S: Into<crate::Nick>,
+        S: AsRef<str>,
     {
         self.change(nicks, true)
     }
@@ -43,7 +43,7 @@ impl Monitor {
     pub fn remove<I, S>(&self, nicks: I) -> crate::RequestFuture<()>
     where
         I: IntoIterator<Item = S>,
-        S: Into<crate::Nick>,
+        S: AsRef<str>,
     {
         self.change(nicks, false)
     }
@@ -71,18 +71,22 @@ impl Monitor {
     fn change<I, S>(&self, nicks: I, add: bool) -> crate::RequestFuture<()>
     where
         I: IntoIterator<Item = S>,
-        S: Into<crate::Nick>,
+        S: AsRef<str>,
     {
         let client = self.client.clone();
-        let nicks = nicks.into_iter().map(Into::into).collect::<Vec<_>>();
+        let nicks = nicks
+            .into_iter()
+            .map(|nick| nick.as_ref().to_owned())
+            .collect::<Vec<_>>();
         crate::RequestFuture::new(async move {
             preflight(&client)?;
             let state = client.state();
             for nick in &nicks {
-                nick.check(state.isupport().inner())
+                state
+                    .nickname(nick)
+                    .check(state.isupport().inner())
                     .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             }
-            let nicks = nicks.into_iter().map(crate::Nick::into_string).collect();
             let (result, receiver) = oneshot::channel();
             let command = if add {
                 Command::MonitorAdd { nicks, result }
@@ -125,13 +129,7 @@ mod tests {
 
         let add = tokio::spawn({
             let client = client.clone();
-            async move {
-                let mapping = client.state().casemapping();
-                client
-                    .monitor()
-                    .add([mapping.nick("alice"), mapping.nick("bob")])
-                    .await
-            }
+            async move { client.monitor().add(["alice", "bob"]).await }
         });
         client_line(&mut server, b"MONITOR + alice,bob\r\n").await;
         assert!(within(add).await.unwrap().is_ok());

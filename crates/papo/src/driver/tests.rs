@@ -2849,9 +2849,9 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
         async move {
             client
                 .mode("#papo")
-                .op(test_nick("alice"))
-                .voice(test_nick("carol"))
-                .ban(test_mask("*!*@spam.example"))
+                .op("alice")
+                .voice("carol")
+                .ban("*!*@spam.example")
                 .await
         }
     });

@@ -48,54 +48,45 @@ impl SetModes {
 
     /// Adds `mask` to the channel ban list.
     #[must_use]
-    pub fn ban(self, mask: impl Into<Mask>) -> Self {
-        self.change(
-            true,
-            Selector::Letter('b'),
-            Some(Argument::Mask(mask.into())),
-        )
+    pub fn ban(self, mask: impl AsRef<str>) -> Self {
+        let mask = self.client.state().mask(mask.as_ref());
+        self.change(true, Selector::Letter('b'), Some(Argument::Mask(mask)))
     }
 
     /// Removes `mask` from the channel ban list.
     #[must_use]
-    pub fn unban(self, mask: impl Into<Mask>) -> Self {
-        self.change(
-            false,
-            Selector::Letter('b'),
-            Some(Argument::Mask(mask.into())),
-        )
+    pub fn unban(self, mask: impl AsRef<str>) -> Self {
+        let mask = self.client.state().mask(mask.as_ref());
+        self.change(false, Selector::Letter('b'), Some(Argument::Mask(mask)))
     }
 
     /// Grants channel-operator privileges to `nick`.
     #[must_use]
-    pub fn op(self, nick: impl Into<Nick>) -> Self {
+    pub fn op(self, nick: impl AsRef<str>) -> Self {
         self.prefix(true, 'o', nick)
     }
 
     /// Removes channel-operator privileges from `nick`.
     #[must_use]
-    pub fn deop(self, nick: impl Into<Nick>) -> Self {
+    pub fn deop(self, nick: impl AsRef<str>) -> Self {
         self.prefix(false, 'o', nick)
     }
 
     /// Grants voice privileges to `nick`.
     #[must_use]
-    pub fn voice(self, nick: impl Into<Nick>) -> Self {
+    pub fn voice(self, nick: impl AsRef<str>) -> Self {
         self.prefix(true, 'v', nick)
     }
 
     /// Removes voice privileges from `nick`.
     #[must_use]
-    pub fn devoice(self, nick: impl Into<Nick>) -> Self {
+    pub fn devoice(self, nick: impl AsRef<str>) -> Self {
         self.prefix(false, 'v', nick)
     }
 
-    fn prefix(self, set: bool, mode: char, nick: impl Into<Nick>) -> Self {
-        self.change(
-            set,
-            Selector::Prefix(mode),
-            Some(Argument::Nick(nick.into())),
-        )
+    fn prefix(self, set: bool, mode: char, nick: impl AsRef<str>) -> Self {
+        let nick = self.client.state().nickname(nick.as_ref());
+        self.change(set, Selector::Prefix(mode), Some(Argument::Nick(nick)))
     }
 
     fn change(mut self, set: bool, mode: Selector, arg: Option<Argument>) -> Self {
@@ -133,10 +124,10 @@ impl IntoFuture for SetModes {
 impl Client {
     /// Starts a validated mode-change request for `target`.
     #[must_use]
-    pub fn mode(&self, target: impl Into<Target>) -> SetModes {
+    pub fn mode(&self, target: impl AsRef<str>) -> SetModes {
         SetModes {
             client: self.clone(),
-            target: target.into(),
+            target: Target::from(target.as_ref()),
             changes: Vec::new(),
         }
     }

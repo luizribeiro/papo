@@ -1731,7 +1731,7 @@ pub fn papo::Client::mark_read(&self, impl core::convert::Into<papo::Target>, st
 impl papo::Client
 pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
-pub fn papo::Client::mode(&self, impl core::convert::Into<papo::Target>) -> papo::SetModes
+pub fn papo::Client::mode(&self, impl core::convert::AsRef<str>) -> papo::SetModes
 impl papo::Client
 pub fn papo::Client::monitor(&self) -> papo::Monitor
 impl papo::Client
@@ -2163,9 +2163,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::metadata::MetadataValue
 impl core::panic::unwind_safe::UnwindSafe for papo::metadata::MetadataValue
 pub struct papo::Monitor
 impl papo::Monitor
-pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Nick>
+pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Monitor::clear(&self) -> papo::RequestFuture<()>
-pub fn papo::Monitor::remove<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Nick>
+pub fn papo::Monitor::remove<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 impl core::marker::Freeze for papo::Monitor
 impl core::marker::Send for papo::Monitor
 impl core::marker::Sync for papo::Monitor
@@ -2321,14 +2321,14 @@ pub struct papo::SetModes
 impl papo::SetModes
 pub fn papo::SetModes::add(self, char) -> Self
 pub fn papo::SetModes::add_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::SetModes::ban(self, impl core::convert::Into<papo::Mask>) -> Self
-pub fn papo::SetModes::deop(self, impl core::convert::Into<papo::Nick>) -> Self
-pub fn papo::SetModes::devoice(self, impl core::convert::Into<papo::Nick>) -> Self
-pub fn papo::SetModes::op(self, impl core::convert::Into<papo::Nick>) -> Self
+pub fn papo::SetModes::ban(self, impl core::convert::AsRef<str>) -> Self
+pub fn papo::SetModes::deop(self, impl core::convert::AsRef<str>) -> Self
+pub fn papo::SetModes::devoice(self, impl core::convert::AsRef<str>) -> Self
+pub fn papo::SetModes::op(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::SetModes::unban(self, impl core::convert::Into<papo::Mask>) -> Self
-pub fn papo::SetModes::voice(self, impl core::convert::Into<papo::Nick>) -> Self
+pub fn papo::SetModes::unban(self, impl core::convert::AsRef<str>) -> Self
+pub fn papo::SetModes::voice(self, impl core::convert::AsRef<str>) -> Self
 impl core::future::into_future::IntoFuture for papo::SetModes
 pub type papo::SetModes::IntoFuture = papo::RequestFuture<()>
 pub type papo::SetModes::Output = core::result::Result<(), papo::Error>
