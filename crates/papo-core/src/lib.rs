@@ -1182,6 +1182,34 @@ pub struct HistoryLine {
     pub subject_authorship: Authorship,
 }
 
+/// Tags carried by a server line that identify and contextualize its event.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct LineEnvelope {
+    msgid: Option<String>,
+    time: Option<std::time::SystemTime>,
+    account: Option<String>,
+}
+
+impl LineEnvelope {
+    /// Returns the server-assigned message identifier, when supplied.
+    #[must_use]
+    pub fn msgid(&self) -> Option<&str> {
+        self.msgid.as_deref()
+    }
+
+    /// Returns the valid server timestamp, when supplied.
+    #[must_use]
+    pub const fn time(&self) -> Option<std::time::SystemTime> {
+        self.time
+    }
+
+    /// Returns the actor's authenticated account, when tagged.
+    #[must_use]
+    pub fn account(&self) -> Option<&str> {
+        self.account.as_deref()
+    }
+}
+
 impl std::ops::Deref for HistoryLine {
     type Target = Line;
 

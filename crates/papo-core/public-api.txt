@@ -1254,6 +1254,28 @@ impl core::marker::Unpin for papo_core::LastSeen
 impl core::marker::UnsafeUnpin for papo_core::LastSeen
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::LastSeen
 impl core::panic::unwind_safe::UnwindSafe for papo_core::LastSeen
+pub struct papo_core::LineEnvelope
+impl papo_core::LineEnvelope
+pub fn papo_core::LineEnvelope::account(&self) -> core::option::Option<&str>
+pub fn papo_core::LineEnvelope::msgid(&self) -> core::option::Option<&str>
+pub const fn papo_core::LineEnvelope::time(&self) -> core::option::Option<std::time::SystemTime>
+impl core::clone::Clone for papo_core::LineEnvelope
+pub fn papo_core::LineEnvelope::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::LineEnvelope
+impl core::cmp::PartialEq for papo_core::LineEnvelope
+pub fn papo_core::LineEnvelope::eq(&self, &Self) -> bool
+impl core::default::Default for papo_core::LineEnvelope
+pub fn papo_core::LineEnvelope::default() -> Self
+impl core::fmt::Debug for papo_core::LineEnvelope
+pub fn papo_core::LineEnvelope::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::LineEnvelope
+impl core::marker::Freeze for papo_core::LineEnvelope
+impl core::marker::Send for papo_core::LineEnvelope
+impl core::marker::Sync for papo_core::LineEnvelope
+impl core::marker::Unpin for papo_core::LineEnvelope
+impl core::marker::UnsafeUnpin for papo_core::LineEnvelope
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::LineEnvelope
+impl core::panic::unwind_safe::UnwindSafe for papo_core::LineEnvelope
 pub struct papo_core::Member
 impl papo_core::Member
 pub fn papo_core::Member::has_prefix_at_least(&self, char) -> bool
