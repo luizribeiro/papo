@@ -824,7 +824,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             context: reply.context,
             description: reply.description,
         }),
-        papo_core::Event::AccountRegistered { account, .. } => {
+        papo_core::Event::AccountCreated { account, .. } => {
             Event::AccountRegistration(crate::AccountRegistration::Registered { account })
         }
         papo_core::Event::VerificationRequired { account, message } => {
@@ -1606,7 +1606,7 @@ mod tests {
     #[test]
     fn maps_account_registration_results() {
         assert!(matches!(
-            forwarded(papo_core::Event::AccountRegistered {
+            forwarded(papo_core::Event::AccountCreated {
                 account: Casemapping::default().account("alice"),
                 logged_in: true,
             }),

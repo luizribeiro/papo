@@ -1928,7 +1928,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
     let (registration, waiter) = tokio::sync::oneshot::channel();
     let config = config()
         .wanted_caps(["draft/account-registration"])
-        .register_on_connect(
+        .create_account_on_connect(
             Some("alice"),
             Some("alice@example.org"),
             "correct horse battery staple",

@@ -461,9 +461,9 @@ impl Config {
         self
     }
 
-    /// Stages account registration for servers supporting the before-connect extension.
+    /// Stages account creation through the account-registration extension.
     #[must_use]
-    pub fn register_on_connect(
+    pub fn create_account_on_connect(
         mut self,
         account: Option<impl Into<String>>,
         email: Option<impl Into<String>>,
@@ -1457,8 +1457,8 @@ pub enum Event {
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
     /// Account creation completed and the session is authenticated.
-    AccountRegistered {
-        /// The registered account name.
+    AccountCreated {
+        /// The created account name.
         account: AccountName,
         /// Whether the server authenticated the session to the account.
         logged_in: bool,
@@ -2859,7 +2859,7 @@ impl Session {
     /// Returns [`RequestError::Unsupported`] before connection registration or when the
     /// capability was not negotiated, or [`RequestError::InvalidSecret`] when `password`
     /// contains bytes rather than text. Other failures are the same as [`Session::request`].
-    pub fn register(
+    pub fn create_account(
         &mut self,
         now: Instant,
         account: Option<&str>,

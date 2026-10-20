@@ -406,7 +406,7 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
             Err(expected(Feature::Persistence))
         );
         assert_eq!(
-            session.register(now, Some("alice"), None, "account-password"),
+            session.create_account(now, Some("alice"), None, "account-password"),
             Err(expected(Feature::AccountRegistration))
         );
         assert_eq!(

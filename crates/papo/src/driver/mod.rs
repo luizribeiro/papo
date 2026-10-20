@@ -121,7 +121,7 @@ impl CoreRequest {
                 email,
                 password,
             } => {
-                session.register(now(), account.as_deref(), email.as_deref(), password)?;
+                session.create_account(now(), account.as_deref(), email.as_deref(), password)?;
             }
             Self::Verify { account, code } => session.verify(now(), &account, &code)?,
             #[cfg(feature = "unstable")]

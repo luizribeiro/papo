@@ -54,7 +54,7 @@ impl AccountRegistration {
             };
             self.account = Some(account.to_owned());
             self.waiting = false;
-            outbox.event(Event::AccountRegistered {
+            outbox.event(Event::AccountCreated {
                 account: casemapping.account(account),
                 logged_in: true,
             });

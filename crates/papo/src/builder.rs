@@ -196,7 +196,7 @@ impl Builder {
         }
         self.config =
             self.config
-                .register_on_connect(account.account, account.email, account.password);
+                .create_account_on_connect(account.account, account.email, account.password);
         self
     }
 

@@ -28,7 +28,7 @@ fn early_registration_waiting() -> Transcript {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .register(std::time::Instant::now(), None, None, "password")
+                .create_account(std::time::Instant::now(), None, None, "password")
                 .unwrap();
         })
         .server("CAP * ACK :draft/account-registration")
@@ -40,7 +40,7 @@ fn early_registration_waiting() -> Transcript {
 fn configured_registration_waits_for_before_connect_capability() {
     let config = Config::default()
         .wanted_caps(["draft/account-registration"])
-        .register_on_connect(
+        .create_account_on_connect(
             Some("alice"),
             Some("alice@example.org"),
             "unique-registration-password",
@@ -59,7 +59,7 @@ fn configured_registration_waits_for_before_connect_capability() {
 fn configured_registration_survives_a_multiline_capability_listing() {
     let config = Config::default()
         .wanted_caps(["draft/account-registration"])
-        .register_on_connect(
+        .create_account_on_connect(
             Some("alice"),
             None::<String>,
             "unique-registration-password",
@@ -80,7 +80,7 @@ fn registers_an_account_with_a_labelled_response() {
     registered()
         .update(|session| {
             session
-                .register(
+                .create_account(
                     std::time::Instant::now(),
                     Some("alice"),
                     Some("alice@example.org"),
@@ -91,7 +91,7 @@ fn registers_an_account_with_a_labelled_response() {
         .client("@label=0 REGISTER alice alice@example.org :correct horse battery staple")
         .server("@label=0 :ergo.test REGISTER SUCCESS alice :Account successfully registered")
         .event(|event| {
-            matches!(event, Event::AccountRegistered { account, logged_in: true } if account == "alice" && account.casemapping() == papo_proto::Casemapping::Ascii)
+            matches!(event, Event::AccountCreated { account, logged_in: true } if account == "alice" && account.casemapping() == papo_proto::Casemapping::Ascii)
         })
         .event(|event| matches!(event, Event::Response(_)))
         .inspect(|session| assert_eq!(session.account(), Some("alice")));
@@ -102,7 +102,7 @@ fn rejects_a_byte_account_password() {
     registered()
         .update(|session| {
             assert_eq!(
-                session.register(
+                session.create_account(
                     std::time::Instant::now(),
                     Some("alice"),
                     Some("alice@example.org"),
@@ -119,7 +119,7 @@ fn verifies_an_account_after_the_server_requires_it() {
     registered()
         .update(|session| {
             session
-                .register(
+                .create_account(
                     std::time::Instant::now(),
                     Some("alice"),
                     Some("alice@example.org"),
@@ -144,7 +144,7 @@ fn verifies_an_account_after_the_server_requires_it() {
         .client("@label=1 VERIFY alice 39gvcdg4myvnmdcfhvd6exsv4n")
         .server("@label=1 :ergo.test VERIFY SUCCESS alice :Account successfully registered")
         .event(|event| {
-            matches!(event, Event::AccountRegistered { account, logged_in: true } if account == "alice")
+            matches!(event, Event::AccountCreated { account, logged_in: true } if account == "alice")
         })
         .event(|event| matches!(event, Event::Response(_)));
 }
@@ -281,11 +281,11 @@ fn enforces_account_registration_capability_values_locally() {
         .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| {
             assert_eq!(
-                session.register(std::time::Instant::now(), None, None, "hunter2"),
+                session.create_account(std::time::Instant::now(), None, None, "hunter2"),
                 Err(papo_core::RequestError::EmailRequired)
             );
             assert_eq!(
-                session.register(
+                session.create_account(
                     std::time::Instant::now(),
                     Some("other-account"),
                     Some("alice@example.org"),
@@ -305,7 +305,7 @@ fn registers_before_connect_and_holds_cap_end_until_success() {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .register(
+                .create_account(
                     std::time::Instant::now(),
                     None,
                     Some("alice@example.org"),
@@ -319,9 +319,7 @@ fn registers_before_connect_and_holds_cap_end_until_success() {
         .no_client()
         .server(":ergo.test REGISTER SUCCESS alice :Account successfully registered")
         .event(|event| matches!(event, Event::RequestUntracked { .. }))
-        .event(
-            |event| matches!(event, Event::AccountRegistered { account, .. } if account == "alice"),
-        )
+        .event(|event| matches!(event, Event::AccountCreated { account, .. } if account == "alice"))
         .client("CAP END");
 }
 
@@ -333,7 +331,7 @@ fn rejects_early_registration_without_before_connect() {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             assert_eq!(
-                session.register(
+                session.create_account(
                     std::time::Instant::now(),
                     None,
                     Some("alice@example.org"),
@@ -361,7 +359,7 @@ fn early_verification_keeps_cap_negotiation_open() {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .register(
+                .create_account(
                     std::time::Instant::now(),
                     None,
                     Some("alice@example.org"),
@@ -383,7 +381,7 @@ fn early_verification_keeps_cap_negotiation_open() {
         .client("VERIFY alice 39gvcdg4myvnmdcfhvd6exsv4n")
         .server(":ergo.test VERIFY SUCCESS alice :Account successfully registered")
         .event(|event| matches!(event, Event::RequestUntracked { .. }))
-        .event(|event| matches!(event, Event::AccountRegistered { account, .. } if account == "alice"))
+        .event(|event| matches!(event, Event::AccountCreated { account, .. } if account == "alice"))
         .client("CAP END");
 }
 
@@ -395,7 +393,7 @@ fn early_registration_failure_releases_cap_end() {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .register(std::time::Instant::now(), None, None, "password")
+                .create_account(std::time::Instant::now(), None, None, "password")
                 .unwrap();
         })
         .server("CAP * ACK :draft/account-registration")
@@ -419,7 +417,7 @@ fn disconnect_aborts_registration_and_rejects_its_late_success() {
     .client("CAP REQ :draft/account-registration labeled-response")
     .update(|session| {
         session
-            .register(
+            .create_account(
                 std::time::Instant::now(),
                 None,
                 Some("alice@example.org"),
@@ -481,7 +479,7 @@ fn pending_cap_request_preserves_queued_registration() {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .register(std::time::Instant::now(), None, None, "password")
+                .create_account(std::time::Instant::now(), None, None, "password")
                 .unwrap();
         })
         .server("PING :ergo.test")
@@ -499,7 +497,7 @@ fn rejected_cap_request_discards_queued_registration() {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .register(std::time::Instant::now(), None, None, "password")
+                .create_account(std::time::Instant::now(), None, None, "password")
                 .unwrap();
         })
         .server("CAP * NAK :draft/account-registration")
