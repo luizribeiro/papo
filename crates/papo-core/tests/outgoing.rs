@@ -124,6 +124,28 @@ fn unlabelled_text_tags_only_its_last_line_for_write_completion() {
 }
 
 #[test]
+fn plain_split_text_allows_urgent_traffic_at_the_512_byte_boundary() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let first_text = format!("{} b", "a".repeat(418));
+    let text = format!("{first_text}\ndeployment complete");
+    let sent = session
+        .send_text_detailed(now, TextKind::Privmsg, "#papo", &text, &[])
+        .unwrap();
+    assert!(sent.split);
+
+    let first = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
+    let visible = format!(":papo!papo@{} {first}", "h".repeat(63));
+    assert_eq!(visible.len(), 512);
+    session.handle_line(now, b"PING :urgent-check");
+    assert_eq!(session.poll_transmit().unwrap(), b"PONG :urgent-check\r\n");
+    assert_eq!(
+        session.poll_transmit().unwrap(),
+        b"PRIVMSG #papo :deployment complete\r\n"
+    );
+}
+
+#[test]
 fn closing_aborts_queued_and_later_user_transmissions() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
