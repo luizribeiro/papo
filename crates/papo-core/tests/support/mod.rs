@@ -122,7 +122,7 @@ impl Transcript {
     /// Plays and consumes a server welcome numeric.
     pub fn welcome(self, line: &str) -> Self {
         self.server(line).event(
-            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("001")),
+            |event| matches!(event, Event::Line(message) if message.as_ref().command_is("001")),
         )
     }
 

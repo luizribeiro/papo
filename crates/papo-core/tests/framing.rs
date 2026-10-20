@@ -7,7 +7,7 @@ use papo_core::{CloseKind, Config, Decoding, Event, Session};
 fn messages(session: &mut Session) -> Vec<String> {
     std::iter::from_fn(|| session.poll_event())
         .map(|event| match event {
-            Event::Message(message) | Event::Line(message) => message.to_line().unwrap(),
+            Event::Line(message) => message.to_line().unwrap(),
             other => panic!("expected message, got {other:?}"),
         })
         .collect()

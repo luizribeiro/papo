@@ -111,7 +111,7 @@ fn ignores_status_with_the_wrong_command_or_subcommand() {
     ] {
         registered(&["draft/persistence"])
             .server(line)
-            .event(|event| matches!(event, Event::Message(_) | Event::Line(_)))
+            .event(|event| matches!(event, Event::Line(_)))
             .inspect(|session| assert_eq!(session.state().persistence(), None));
     }
 }

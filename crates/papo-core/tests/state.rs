@@ -766,29 +766,17 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
 fn exposes_channel_replies_for_unjoined_channels_as_messages() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 353 emily = #opers :@alice +dan")
-        .event(
-            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("353")),
-        )
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("353")))
         .server(":ergo.test 366 emily #opers :End of NAMES list")
-        .event(
-            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("366")),
-        )
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("366")))
         .server(":solanum.example 332 emily #staff :Operator coordination")
-        .event(
-            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("332")),
-        )
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("332")))
         .server(":solanum.example 333 emily #staff alice 1760529342")
-        .event(
-            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("333")),
-        )
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("333")))
         .server(":irc.unreal.test 324 emily #services +snt")
-        .event(
-            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("324")),
-        )
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("324")))
         .server(":irc.unreal.test 329 emily #services 1760529342")
-        .event(
-            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("329")),
-        )
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("329")))
         .inspect(|session| assert!(session.state().channel("#opers").is_none()))
         .no_event();
 }
@@ -1086,10 +1074,10 @@ fn whox_replies_require_our_token_and_an_active_sweep() {
         .client("WHO #papo %tcuhnfar,152")
         .event(|event| matches!(event, Event::ChannelSynced { .. }))
         .server(":ergo.test 354 emily 999 #papo dan cloak.example dan H dan :Daniel Garcia")
-        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "354"))
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "354"))
         .server(":ergo.test 315 emily #papo :End of WHO list")
         .server(":ergo.test 354 emily 152 #papo alice users.example alice H alice :Alice Smith")
-        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "354"))
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "354"))
         .inspect(|session| {
             assert!(session.state().user("dan").is_none());
             assert!(session.state().user("alice").is_none());
@@ -1103,9 +1091,9 @@ fn user_requested_who_replies_remain_messages() {
         .send(Line::new("WHO", ["#rust"]))
         .client("WHO #rust")
         .server(":ergo.test 352 emily #rust ferris user/ferris ergo.test ferris H :0 Ferris Crab")
-        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "352"))
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "352"))
         .server(":ergo.test 315 emily #rust :End of WHO list")
-        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "315"))
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "315"))
         .no_event();
 }
 

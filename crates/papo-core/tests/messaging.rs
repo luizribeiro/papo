@@ -145,13 +145,13 @@ fn does_not_answer_own_ctcp_queries() {
     Transcript::new(Config::default().nick("papo"))
         .server(":papo!~p@cloak PRIVMSG bob :\x01VERSION\x01")
         .no_client()
-        .event(|event| matches!(event, Event::Message(_) | Event::Line(_)))
+        .event(|event| matches!(event, Event::Line(_)))
         .no_event();
 
     Transcript::new(Config::default().nick("Papo[bot]"))
         .server(":papo{bot}!~p@cloak PRIVMSG bob :\x01VERSION\x01")
         .no_client()
-        .event(|event| matches!(event, Event::Message(_) | Event::Line(_)))
+        .event(|event| matches!(event, Event::Line(_)))
         .no_event();
 }
 

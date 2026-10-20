@@ -33,5 +33,7 @@ fn reports_direct_and_notified_invitations() {
 fn leaves_malformed_invitations_untyped() {
     Transcript::new(Config::default())
         .server(":emily!~emily@localhost INVITE papo")
-        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("INVITE")));
+        .event(
+            |event| matches!(event, Event::Line(message) if message.as_ref().command_is("INVITE")),
+        );
 }

@@ -16,7 +16,7 @@ fn replays_recorded_ergo_registration() {
         .connect()
         .load("tests/data/ergo-registration.irc")
         .event_until(|event| match event {
-            Event::Message(_) | Event::Line(_) => false,
+            Event::Line(_) => false,
             Event::Registered(welcome) => {
                 assert_eq!(welcome.nick, "papo-fixture");
                 assert!(welcome.caps.contains_key("server-time"));
