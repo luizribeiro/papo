@@ -1645,9 +1645,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Source
 impl core::panic::unwind_safe::UnwindSafe for papo::Source
 pub struct papo::Builder
 impl papo::Builder
-pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Nick>
-pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub fn papo::Builder::autojoin_with_key(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo::Builder::autojoin_with_key(self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::bot(self) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
@@ -1659,7 +1659,7 @@ pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::Strin
 pub fn papo::Builder::event_capacity(self, usize) -> Self
 pub const fn papo::Builder::history_on_reconnect(self, bool) -> Self
 pub fn papo::Builder::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Builder::nick(self, impl core::convert::Into<papo::Nick>) -> Self
+pub fn papo::Builder::nick(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::Builder::password(self, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo::Builder::ping_interval(self, core::time::Duration) -> Self
 pub fn papo::Builder::ping_timeout(self, core::time::Duration) -> Self
@@ -1736,7 +1736,7 @@ impl papo::Client
 pub fn papo::Client::monitor(&self) -> papo::Monitor
 impl papo::Client
 pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountRegistration>
-pub fn papo::Client::verify_account(&self, impl core::convert::Into<papo::AccountName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
+pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
 impl papo::Client
 pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 impl core::clone::Clone for papo::Client
@@ -2049,7 +2049,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::ListEntry
 impl core::panic::unwind_safe::UnwindSafe for papo::ListEntry
 pub struct papo::ListFilter
 impl papo::ListFilter
-pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Mask>
+pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 impl core::clone::Clone for papo::ListFilter
 pub fn papo::ListFilter::clone(&self) -> Self
 impl core::cmp::Eq for papo::ListFilter
@@ -2175,7 +2175,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Monitor
 impl core::panic::unwind_safe::UnwindSafe for papo::Monitor
 pub struct papo::NewAccount
 impl papo::NewAccount
-pub fn papo::NewAccount::account(self, impl core::convert::Into<papo::AccountName>) -> Self
+pub fn papo::NewAccount::account(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::NewAccount::email(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::NewAccount::new(impl core::convert::Into<papo::Secret>) -> Self
 impl core::clone::Clone for papo::NewAccount

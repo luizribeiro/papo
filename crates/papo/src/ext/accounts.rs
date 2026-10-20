@@ -15,7 +15,7 @@ impl NewAccount {
     ///
     /// ```
     /// let account = papo::NewAccount::new("correct horse battery staple")
-    ///     .account(papo::Casemapping::default().account("alice"))
+    ///     .account("alice")
     ///     .email("alice@example.org");
     /// # _ = account;
     /// ```
@@ -30,8 +30,8 @@ impl NewAccount {
 
     /// Sets the requested account name.
     #[must_use]
-    pub fn account(mut self, account: impl Into<crate::AccountName>) -> Self {
-        self.account = Some(account.into().into_string());
+    pub fn account(mut self, account: impl AsRef<str>) -> Self {
+        self.account = Some(account.as_ref().to_owned());
         self
     }
 
@@ -100,11 +100,11 @@ impl Client {
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn verify_account(
         &self,
-        account: impl Into<crate::AccountName>,
+        account: impl AsRef<str>,
         code: impl Into<String>,
     ) -> crate::RequestFuture<AccountRegistration> {
         let client = self.clone();
-        let account = account.into();
+        let account = self.state().account_name(account.as_ref());
         let code = code.into();
         crate::RequestFuture::new(async move {
             account
@@ -184,7 +184,7 @@ mod tests {
                 client
                     .register_account(
                         super::NewAccount::new("correct horse battery staple")
-                            .account(client.state().casemapping().account("alice"))
+                            .account("alice")
                             .email("alice@example.org"),
                     )
                     .await

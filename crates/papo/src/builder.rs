@@ -93,8 +93,8 @@ impl Builder {
     }
 
     /// Sets the primary nickname.
-    pub fn nick(mut self, nick: impl Into<crate::Nick>) -> Self {
-        let nick = nick.into().into_string();
+    pub fn nick(mut self, nick: impl AsRef<str>) -> Self {
+        let nick = nick.as_ref().to_owned();
         self.config.nick.clone_from(&nick);
         if !self.username_set {
             self.config.username.clone_from(&nick);
@@ -109,12 +109,11 @@ impl Builder {
     pub fn alt_nicks<I, S>(mut self, nicks: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<crate::Nick>,
+        S: AsRef<str>,
     {
         self.config.alt_nicks = nicks
             .into_iter()
-            .map(Into::into)
-            .map(crate::Nick::into_string)
+            .map(|nick| nick.as_ref().to_owned())
             .collect();
         self
     }
@@ -445,10 +444,10 @@ impl Builder {
     pub fn autojoin<I, S>(mut self, channels: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: AsRef<str>,
     {
         for channel in channels {
-            self.push_autojoin(Autojoin::new(channel, None));
+            self.push_autojoin(Autojoin::new(channel.as_ref(), None));
         }
         self
     }
@@ -463,12 +462,12 @@ impl Builder {
     /// ```
     pub fn autojoin_with_key(
         mut self,
-        channel: impl Into<String>,
+        channel: impl AsRef<str>,
         key: impl Into<papo_core::Secret>,
     ) -> Self {
         let key = key.into();
         self.reject_binary_secret(&key);
-        self.push_autojoin(Autojoin::new(channel, Some(key)));
+        self.push_autojoin(Autojoin::new(channel.as_ref(), Some(key)));
         self
     }
 

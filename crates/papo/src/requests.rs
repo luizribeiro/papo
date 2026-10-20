@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use papo_core::Response;
 use papo_proto::{
-    AccountName, ChannelName, Command, Isupport, Line, Mask, Nick, Numeric, WhoxPresence, WhoxReply,
+    AccountName, ChannelName, Command, Isupport, Line, Nick, Numeric, WhoxPresence, WhoxReply,
 };
 
 use crate::Error;
@@ -78,7 +78,7 @@ pub struct WhoEntry {
 /// filter is still sent and the server decides how to interpret or reject it.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ListFilter {
-    channels: Vec<Mask>,
+    channels: Vec<String>,
 }
 
 impl ListFilter {
@@ -87,9 +87,12 @@ impl ListFilter {
     pub fn channels<I, S>(mut self, channels: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<Mask>,
+        S: AsRef<str>,
     {
-        self.channels = channels.into_iter().map(Into::into).collect();
+        self.channels = channels
+            .into_iter()
+            .map(|channel| channel.as_ref().to_owned())
+            .collect();
         self
     }
 
@@ -299,11 +302,7 @@ mod tests {
         assert_eq!(ListFilter::default().parameter(), None);
         assert_eq!(
             ListFilter::default()
-                .channels([
-                    Casemapping::default().mask("#papo"),
-                    Casemapping::default().mask("#rust-*"),
-                    Casemapping::default().mask("##chat"),
-                ])
+                .channels(["#papo", "#rust-*", "##chat"])
                 .parameter()
                 .as_deref(),
             Some("#papo,#rust-*,##chat")
