@@ -82,6 +82,7 @@ mod secret;
 mod source;
 mod state;
 pub mod sts;
+mod typing;
 #[cfg(feature = "unstable")]
 mod webpush;
 mod welcome;
@@ -126,6 +127,7 @@ pub use sasl::{Entropy, Sasl};
 pub use state::{Account, Away, Channel, Member, State, User};
 use state::{MetadataContext, StateSnapshot};
 use sts::ConnectionSecurity;
+pub use typing::Typer;
 use welcome::WelcomeState;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_LINE_LEN;

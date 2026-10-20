@@ -1714,6 +1714,7 @@ pub fn papo_core::State::nick(&self) -> &papo::Nick
 pub fn papo_core::State::parse_target(&self, impl core::convert::AsRef<str>) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo::Conversation), papo::InvalidIdentifier>
 pub fn papo_core::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::ReadMarker>
 pub fn papo_core::State::realname(&self) -> &str
+pub fn papo_core::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo_core::Typer>
 pub fn papo_core::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::User>
 pub fn papo_core::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo_core::State::username(&self) -> &str
@@ -1754,6 +1755,25 @@ impl core::marker::Unpin for papo_core::TagMessage
 impl core::marker::UnsafeUnpin for papo_core::TagMessage
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::TagMessage
 impl core::panic::unwind_safe::UnwindSafe for papo_core::TagMessage
+pub struct papo_core::Typer
+pub papo_core::Typer::nick: papo::Nick
+pub papo_core::Typer::state: papo::Typing
+pub papo_core::Typer::status: core::option::Option<alloc::vec::Vec<char>>
+impl core::clone::Clone for papo_core::Typer
+pub fn papo_core::Typer::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::Typer
+impl core::cmp::PartialEq for papo_core::Typer
+pub fn papo_core::Typer::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::Typer
+pub fn papo_core::Typer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::Typer
+impl core::marker::Freeze for papo_core::Typer
+impl core::marker::Send for papo_core::Typer
+impl core::marker::Sync for papo_core::Typer
+impl core::marker::Unpin for papo_core::Typer
+impl core::marker::UnsafeUnpin for papo_core::Typer
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Typer
+impl core::panic::unwind_safe::UnwindSafe for papo_core::Typer
 #[non_exhaustive] pub struct papo_core::Unsupported
 pub papo_core::Unsupported::feature: papo_core::Feature
 pub papo_core::Unsupported::reason: papo_core::UnsupportedReason

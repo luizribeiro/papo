@@ -25,6 +25,7 @@ use crate::{
     OwnedModeChange, ReadMarker, Source, StateLimit, Subject,
     conversation::classify_target,
     monitor::{Monitor, presence_nicks},
+    typing::{Typer, TypingTable},
 };
 #[cfg(feature = "unstable")]
 use crate::{
@@ -68,6 +69,7 @@ pub struct State {
     metadata: HashMap<NameKey<String>, HashMap<MetadataKey, MetadataValue>>,
     metadata_subscriptions: Vec<MetadataKey>,
     limits_warned: HashSet<StateLimit>,
+    pub(crate) typing: Arc<TypingTable>,
 }
 
 /// State known about a joined channel.
@@ -287,6 +289,7 @@ impl State {
             metadata: HashMap::new(),
             metadata_subscriptions: Vec::new(),
             limits_warned: HashSet::new(),
+            typing: TypingTable::new(),
         }
     }
 
@@ -949,6 +952,11 @@ impl State {
     /// monitor list was full.
     pub fn monitored(&self) -> impl Iterator<Item = &Nick> {
         self.monitored.iter()
+    }
+
+    /// Iterates over users currently typing in `conversation`, in start order.
+    pub fn typing<'a>(&'a self, conversation: &'a Conversation) -> impl Iterator<Item = &'a Typer> {
+        self.typing.get(conversation)
     }
 }
 
