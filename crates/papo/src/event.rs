@@ -1057,9 +1057,9 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             actor,
             changes,
         } => Event::ModeChanged(ModeChanged {
-            target: match subject {
-                papo_core::Subject::Channel(channel) => channel.to_string(),
-                papo_core::Subject::User(nick) => nick.to_string(),
+            subject: match subject {
+                papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
+                papo_core::Subject::User(nick) => crate::Subject::User(nick),
                 _ => return CoreEvent::Unknown,
             },
             actor: Source::from_name(actor, casemapping),
@@ -1984,7 +1984,7 @@ mod tests {
                 changes: mode_changes.clone(),
             }),
             Event::ModeChanged(mode)
-                if mode.target == "#papo"
+                if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && mode.actor.nick() == Some("alice")
                     && mode.changes.len() == 1
                     && mode.changes[0].set

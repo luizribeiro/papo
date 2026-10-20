@@ -111,6 +111,16 @@ pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};
 pub use state::State;
 pub use webirc::WebIrc;
 
+/// A user or channel acted on by an IRC event.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
+pub enum Subject {
+    /// A channel acted on by the event.
+    Channel(ChannelName),
+    /// A user acted on by the event.
+    User(Nick),
+}
+
 /// Payloads carried by [`Event`].
 pub mod event {
     pub use crate::event_impl::{

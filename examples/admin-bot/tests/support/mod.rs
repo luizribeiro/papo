@@ -114,7 +114,7 @@ pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
     loop {
         match events.next().await {
             Some(Event::ModeChanged(changed))
-                if changed.target == channel
+                if matches!(&changed.subject, papo::Subject::Channel(name) if name == channel)
                     && changed.changes.iter().any(|change| {
                         change.set && change.mode == 'o' && change.arg.as_deref() == Some(nick)
                     }) =>

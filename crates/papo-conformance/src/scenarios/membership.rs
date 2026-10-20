@@ -2,7 +2,7 @@ use papo::{Account, DisconnectCause, Error, Event, ModeKind, Refusal, Source};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
-use super::support::{assert_refusal, wait_channel_mode};
+use super::support::{assert_refusal, subject_name, wait_channel_mode};
 use crate::Scenario;
 
 /// exposes the joining account and real name to every channel member
@@ -435,7 +435,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     alice.mode(&channel).voice(alice_nick.clone()).await?;
     let changed = wait_channel_mode(&mut alice, &channel, 'v').await?;
 
-    assert_eq!(changed.target.as_str(), channel);
+    assert_eq!(subject_name(&changed.subject), channel);
     assert_actor_or_server(&changed.actor, alice_nick.as_ref());
     let voice = changed
         .changes
@@ -474,7 +474,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     bob.expect_none(|event| {
         event
             .as_mode_changed()
-            .filter(|changed| changed.target.as_str() == channel)
+            .filter(|changed| subject_name(&changed.subject) == channel)
     })
     .await?;
     Ok(())
@@ -504,7 +504,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     alice.mode(&channel).op(bob_nick.clone()).await?;
     let promoted = wait_channel_mode(&mut bob, &channel, 'o').await?;
 
-    assert_eq!(promoted.target.as_str(), channel);
+    assert_eq!(subject_name(&promoted.subject), channel);
     assert_actor_or_server(&promoted.actor, alice_nick.as_ref());
     let operator = promoted
         .changes
@@ -1291,7 +1291,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
         let removed = alice
             .wait_for(|event| {
                 event.as_mode_changed().filter(|changed| {
-                    changed.target.as_str() == nick.as_ref()
+                    subject_name(&changed.subject) == nick.as_ref()
                         && changed
                             .changes
                             .iter()
@@ -1311,7 +1311,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
     let added = alice
         .wait_for(|event| {
             event.as_mode_changed().filter(|changed| {
-                changed.target.as_str() == nick.as_ref()
+                subject_name(&changed.subject) == nick.as_ref()
                     && changed
                         .changes
                         .iter()
@@ -1319,7 +1319,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert_eq!(added.target.as_str(), nick.as_ref());
+    assert_eq!(subject_name(&added.subject), nick.as_ref());
     assert!(
         added
             .changes
@@ -1373,7 +1373,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
 
     alice.mode(&channel).add_with('k', key).add('s').await?;
     let modes = wait_channel_mode(&mut bob, &channel, 'k').await?;
-    assert_eq!(modes.target.as_str(), channel);
+    assert_eq!(subject_name(&modes.subject), channel);
     assert_actor_or_server(&modes.actor, alice_nick.as_ref());
     assert_eq!(modes.changes.len(), 2);
     let key_change = modes

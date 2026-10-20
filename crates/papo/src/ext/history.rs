@@ -246,7 +246,11 @@ fn mode_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<Hi
     })
     .collect();
     Some(HistoryItem::ModeChanged(ModeChanged {
-        target: message.param(0)?.into(),
+        subject: if state.isupport().inner().is_channel(message.param(0)?) {
+            crate::Subject::Channel(mapping.channel(message.param(0)?))
+        } else {
+            crate::Subject::User(mapping.nick(message.param(0)?))
+        },
         actor: Source::from_proto(message.source()?, mapping),
         changes,
     }))
@@ -958,7 +962,8 @@ mod tests {
         assert!(matches!(
             mode,
             HistoryItem::ModeChanged(event)
-                if event.target == "#papo" && event.actor.nick() == Some("emily")
+                if matches!(event.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
+                    && event.actor.nick() == Some("emily")
                     && event.changes.len() == 2
                     && event.changes.iter().all(|change| change.set)
                     && event.changes[0].mode == 'i' && event.changes[1].mode == 'm'

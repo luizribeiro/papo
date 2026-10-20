@@ -1,7 +1,7 @@
 use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Origin, Refusal};
 use papo_conformance_macros::scenario;
 
-use super::support::assert_refusal;
+use super::support::{assert_refusal, subject_name};
 use crate::Scenario;
 
 /// delivers an authenticated sender account
@@ -337,13 +337,13 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
     let changed = alice
         .wait_for(|event| {
             event.as_mode_changed().filter(|changed| {
-                changed.target.as_str() == alice_nick.as_ref()
+                subject_name(&changed.subject) == alice_nick.as_ref()
                     && changed.changes.iter().any(|change| change.mode == 'B')
             })
         })
         .await?;
 
-    assert_eq!(changed.target.as_str(), alice_nick.as_ref());
+    assert_eq!(subject_name(&changed.subject), alice_nick.as_ref());
     let bot_change = changed
         .changes
         .iter()
@@ -592,7 +592,7 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     bob.wait_for(|event| {
         event.as_mode_changed().filter(|changed| {
-            changed.target.as_str() == bob_nick.as_ref()
+            subject_name(&changed.subject) == bob_nick.as_ref()
                 && changed
                     .changes
                     .iter()

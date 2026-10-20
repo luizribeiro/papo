@@ -4,7 +4,7 @@ use papo::isupport::Advertised;
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{channel_mode, join_seen_by};
+use crate::scenarios::support::{channel_mode, join_seen_by, subject_name};
 
 /// splits a mode request into lines of at most MODES changes
 #[scenario(covers = ["base.isupport.modes"])]
@@ -38,7 +38,7 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
     request.await?;
 
     let assert_ban_changes = |changed: &ModeChanged, expected: &[papo::Mask]| {
-        assert_eq!(changed.target.as_str(), channel);
+        assert_eq!(subject_name(&changed.subject), channel);
         assert_eq!(changed.changes.len(), expected.len());
         for (change, mask) in changed.changes.iter().zip(expected) {
             assert_eq!(change.mode, 'b');

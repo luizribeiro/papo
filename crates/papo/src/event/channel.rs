@@ -1,4 +1,4 @@
-use crate::{ChannelName, Nick};
+use crate::{ChannelName, Nick, Subject};
 
 use super::Source;
 
@@ -127,8 +127,8 @@ pub struct ModeChange {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct ModeChanged {
-    /// The mode target.
-    pub target: String,
+    /// The user or channel whose modes changed.
+    pub subject: Subject,
     /// The user or server that changed the modes.
     pub actor: Source,
     /// Parsed mode operations in wire order.

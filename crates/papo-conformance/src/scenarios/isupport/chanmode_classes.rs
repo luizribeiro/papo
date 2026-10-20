@@ -3,7 +3,7 @@ use papo::event::{ModeChange, ModeChanged};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{channel_mode, join_seen_by, wait_channel_mode};
+use crate::scenarios::support::{channel_mode, join_seen_by, subject_name, wait_channel_mode};
 
 const MASK: &str = "flooder!*@spam.example";
 const KEY: &str = "review-key-2026";
@@ -37,7 +37,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         .remove('n')
         .await?;
     let changed = wait_channel_mode(&mut bob, &channel, 'k').await?;
-    assert_eq!(changed.target.as_str(), channel);
+    assert_eq!(subject_name(&changed.subject), channel);
     assert_eq!(changed.actor.nick(), Some(alice_nick.as_ref()));
     assert_eq!(changed.changes.len(), 4);
 

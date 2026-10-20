@@ -583,7 +583,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::ModeChange
 #[non_exhaustive] pub struct papo::event::ModeChanged
 pub papo::event::ModeChanged::actor: papo::Source
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
-pub papo::event::ModeChanged::target: alloc::string::String
+pub papo::event::ModeChanged::subject: papo::Subject
 impl core::clone::Clone for papo::event::ModeChanged
 pub fn papo::event::ModeChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ModeChanged
@@ -1636,6 +1636,30 @@ impl core::marker::Unpin for papo::Source
 impl core::marker::UnsafeUnpin for papo::Source
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Source
 impl core::panic::unwind_safe::UnwindSafe for papo::Source
+#[non_exhaustive] pub enum papo::Subject
+pub papo::Subject::Channel(papo::ChannelName)
+pub papo::Subject::User(papo::Nick)
+impl core::clone::Clone for papo::Subject
+pub fn papo::Subject::clone(&self) -> Self
+impl core::cmp::Eq for papo::Subject
+impl core::cmp::Ord for papo::Subject
+pub fn papo::Subject::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo::Subject
+pub fn papo::Subject::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo::Subject
+pub fn papo::Subject::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo::Subject
+pub fn papo::Subject::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::Subject
+pub fn papo::Subject::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::Subject
+impl core::marker::Freeze for papo::Subject
+impl core::marker::Send for papo::Subject
+impl core::marker::Sync for papo::Subject
+impl core::marker::Unpin for papo::Subject
+impl core::marker::UnsafeUnpin for papo::Subject
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Subject
+impl core::panic::unwind_safe::UnwindSafe for papo::Subject
 pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>

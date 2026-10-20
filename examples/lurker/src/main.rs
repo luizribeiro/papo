@@ -48,6 +48,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             Event::NickChanged(event) => println!("nick {} -> {}", event.old, event.new),
             Event::ModeChanged(event) => {
+                let subject = match &event.subject {
+                    papo::Subject::Channel(channel) => channel.as_ref(),
+                    papo::Subject::User(nick) => nick.as_ref(),
+                    _ => "?",
+                };
                 let changes = event
                     .changes
                     .into_iter()
@@ -57,7 +62,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     })
                     .collect::<Vec<_>>()
                     .join(" ");
-                println!("mode {} by {}: {changes}", event.target, event.actor);
+                println!("mode {subject} by {}: {changes}", event.actor);
             }
             Event::TopicChanged(event) => {
                 let topic = event.topic.as_deref().unwrap_or("-");
