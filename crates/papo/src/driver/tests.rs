@@ -240,6 +240,34 @@ async fn registration_is_forwarded() {
     assert!(!client.state().is_connected());
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn unknown_numeric_and_vendor_command_are_other_lines() {
+    let (mut server, _client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+
+    server_line(
+        &mut server,
+        b"@time=2026-10-20T12:00:00.000Z :ergo.test 777 papo-driver :Network-specific reply\r\n:irc.example ENCAP * REALHOST bob client.example\r\n",
+    )
+    .await;
+    let numeric = events.next().await.unwrap();
+    assert!(matches!(numeric, Event::Other(ref line) if line.numeric() == Some(777)));
+    assert_eq!(
+        numeric.as_other().unwrap().tag("time"),
+        Some("2026-10-20T12:00:00.000Z")
+    );
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Other(line))
+            if line.command() == "ENCAP"
+                && line.params() == ["*", "REALHOST", "bob", "client.example"]
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn connection_failures_retry_up_to_the_configured_limit() {
     let calls = Arc::new(AtomicUsize::new(0));
@@ -468,7 +496,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     .await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Raw(line))
+        Some(Event::Other(line))
             if line.numeric() == Some(crate::numeric::ERR_BADCHANNELKEY)
     ));
     within(second_server.shutdown()).await.unwrap();

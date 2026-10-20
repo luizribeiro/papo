@@ -509,11 +509,11 @@ pub enum Event {
     Registered(Registered),
     /// An incoming `PRIVMSG` or `NOTICE`.
     Message(Box<Message>),
-    /// A parsed message without a typed event variant.
+    /// A line papo did not turn into a typed event.
     ///
-    /// A minor release may start typing a command, which then arrives as its typed variant.
-    /// Match on `Raw` only for display and logging.
-    Raw(RawLine),
+    /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
+    /// and logging; a future version may type it.
+    Other(ProtoLine),
     /// A tag-only message with typed accessors for known client tags.
     TagMsg(TagMsg),
     /// A tag-only reaction or unreaction.
@@ -659,7 +659,7 @@ event_accessors! {
     (MetadataChanged, as_metadata_changed, MetadataChanged),
     (AccountRegistration, as_account_registration, crate::AccountRegistration),
     (Warning, as_warning, Warning),
-    (Raw, as_raw, RawLine),
+    (Other, as_other, ProtoLine),
 }
 
 #[cfg(feature = "unstable")]
@@ -714,7 +714,7 @@ pub(crate) enum CoreEvent {
     Forward(Event),
     Registered(Welcome),
     Line(papo_core::ReceivedLine),
-    Raw(ProtoLine),
+    Other(ProtoLine),
     Response(Response),
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
@@ -752,7 +752,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             }
             return CoreEvent::Line(message);
         }
-        papo_core::Event::MultilineMessage(message) => return CoreEvent::Raw(message.message),
+        papo_core::Event::MultilineMessage(message) => return CoreEvent::Other(message.message),
         papo_core::Event::TagMessage(message) => {
             let tag = TagMsg {
                 source: message
@@ -1456,7 +1456,7 @@ mod tests {
         };
         assert!(matches!(
             from_core(papo_core::Event::MultilineMessage(multiline)),
-            CoreEvent::Raw(message) if message.as_ref().param(1) == Some("first\nsecond")
+            CoreEvent::Other(message) if message.as_ref().param(1) == Some("first\nsecond")
         ));
     }
 

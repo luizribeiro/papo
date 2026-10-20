@@ -79,7 +79,7 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     let challenge = alice
         .wait_for(|event| {
             event
-                .as_raw()
+                .as_other()
                 .filter(|line| line.command() == "AUTHENTICATE")
         })
         .await?;

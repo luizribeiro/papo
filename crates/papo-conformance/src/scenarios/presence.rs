@@ -576,7 +576,7 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     let wallops = "Network maintenance begins soon";
     alice.send_command("WALLOPS", [wallops]).await?;
     let delivered = bob
-        .wait_for(|event| event.as_raw().filter(|line| line.command() == "WALLOPS"))
+        .wait_for(|event| event.as_other().filter(|line| line.command() == "WALLOPS"))
         .await?;
     assert_eq!(delivered.params(), [wallops]);
     Ok(())

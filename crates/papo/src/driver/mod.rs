@@ -1202,15 +1202,7 @@ where
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
                 let event =
                     crate::Message::from_core(message, session.isupport(), crate::rt::now_wall())
-                        .map_or_else(
-                            |message| {
-                                Event::Raw(crate::RawLine::from_proto(
-                                    &message,
-                                    session.isupport().casemapping(),
-                                ))
-                            },
-                            |message| Event::Message(Box::new(message)),
-                        );
+                        .map_or_else(Event::Other, |message| Event::Message(Box::new(message)));
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,
@@ -1254,7 +1246,7 @@ where
                     )));
                 }
             }
-            event::CoreEvent::Raw(message) => {
+            event::CoreEvent::Other(message) => {
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
                 let event = crate::Message::new(
                     message,
@@ -1263,15 +1255,7 @@ where
                     session.caps(),
                     crate::rt::now_wall(),
                 )
-                .map_or_else(
-                    |message| {
-                        Event::Raw(crate::RawLine::from_proto(
-                            &message,
-                            session.isupport().casemapping(),
-                        ))
-                    },
-                    |message| Event::Message(Box::new(message)),
-                );
+                .map_or_else(Event::Other, |message| Event::Message(Box::new(message)));
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,

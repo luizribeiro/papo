@@ -1404,10 +1404,10 @@ pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
 pub papo::Event::Netjoin(papo::event::Netjoin)
 pub papo::Event::Netsplit(papo::event::Netsplit)
 pub papo::Event::NickChanged(papo::event::NickChanged)
+pub papo::Event::Other(papo::Line)
 pub papo::Event::Parted(papo::event::Parted)
 pub papo::Event::PersistenceChanged(papo::event::PersistenceChanged)
 pub papo::Event::Quit(papo::event::Quit)
-pub papo::Event::Raw(papo::RawLine)
 pub papo::Event::Reacted(papo::event::Reacted)
 pub papo::Event::ReadMarker(papo::event::ReadMarker)
 pub papo::Event::RealnameChanged(papo::event::RealnameChanged)
@@ -1466,11 +1466,11 @@ pub const fn papo::Event::as_netsplit(&self) -> core::option::Option<&papo::even
 impl papo::Event
 pub const fn papo::Event::as_nick_changed(&self) -> core::option::Option<&papo::event::NickChanged>
 impl papo::Event
+pub const fn papo::Event::as_other(&self) -> core::option::Option<&papo::Line>
+impl papo::Event
 pub const fn papo::Event::as_parted(&self) -> core::option::Option<&papo::event::Parted>
 impl papo::Event
 pub const fn papo::Event::as_quit(&self) -> core::option::Option<&papo::event::Quit>
-impl papo::Event
-pub const fn papo::Event::as_raw(&self) -> core::option::Option<&papo::RawLine>
 impl papo::Event
 pub const fn papo::Event::as_reacted(&self) -> core::option::Option<&papo::event::Reacted>
 impl papo::Event

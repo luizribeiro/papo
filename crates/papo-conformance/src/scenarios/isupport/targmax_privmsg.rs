@@ -80,7 +80,7 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| message_text(event, at_limit_text))
         .await?;
     alice
-        .expect_none(|event| event.as_raw().filter(|line| line.numeric() == Some(407)))
+        .expect_none(|event| event.as_other().filter(|line| line.numeric() == Some(407)))
         .await?;
 
     let over_limit_text = "over the target limit";
@@ -93,7 +93,7 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     }
     let refusal = alice
         .wait_for(|event| {
-            event.as_raw().filter(|line| {
+            event.as_other().filter(|line| {
                 line.numeric() == Some(407) && line.param(1) == Some(frank_nick.as_ref())
             })
         })

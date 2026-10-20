@@ -354,7 +354,7 @@ async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
     // The server numeric is the behavior under test, so retain its raw response.
     alice.send_command("JOIN", [&targets]).await?;
     let refusal = alice
-        .wait_for(|event| event.as_raw().filter(|line| line.command() == "405"))
+        .wait_for(|event| event.as_other().filter(|line| line.command() == "405"))
         .await?;
     assert_eq!(refusal.numeric(), Some(405));
     assert_eq!(refusal.param(1), Some(channels[limit].as_str()));
