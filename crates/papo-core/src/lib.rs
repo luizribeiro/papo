@@ -1632,18 +1632,18 @@ pub enum Event {
     /// A user left a shared channel with `PART`.
     Parted {
         /// The departed channel.
-        channel: String,
+        channel: ChannelName,
         /// The departing user's nickname.
-        nick: String,
+        nick: Nick,
         /// The optional part reason.
         reason: Option<String>,
     },
     /// A user was removed from a shared channel with `KICK`.
     Kicked {
         /// The affected channel.
-        channel: String,
+        channel: ChannelName,
         /// The removed user's nickname.
-        nick: String,
+        nick: Nick,
         /// The user or server that issued the kick.
         by: String,
         /// The optional kick reason.
@@ -1661,25 +1661,25 @@ pub enum Event {
     /// A user sharing channels with the session disconnected.
     Quit {
         /// The disconnected user's nickname.
-        nick: String,
+        nick: Nick,
         /// The optional quit reason.
         reason: Option<String>,
         /// Shared channels captured before the user was removed.
-        channels: Vec<String>,
+        channels: Vec<ChannelName>,
     },
     /// A user changed nickname.
     NickChanged {
         /// The previous nickname.
-        old: String,
+        old: Nick,
         /// The new nickname.
-        new: String,
+        new: Nick,
     },
     /// A joined channel was renamed.
     ChannelRenamed {
         /// The previous channel name.
-        old: String,
+        old: ChannelName,
         /// The new channel name.
-        new: String,
+        new: ChannelName,
         /// The server-supplied reason, which may be empty.
         reason: String,
     },

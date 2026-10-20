@@ -1249,16 +1249,18 @@ fn user_requested_who_replies_remain_messages() {
 #[test]
 fn reports_parts_and_kicks_for_other_users_and_ourselves() {
     Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
         .server(":dan!dan@cloak.example JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
         .server(":dan!dan@cloak.example PART #papo :Leaving")
-        .event(|event| matches!(event, Event::Parted { channel, nick, reason } if channel == "#papo" && nick == "dan" && reason.as_deref() == Some("Leaving")))
+        .event(|event| matches!(event, Event::Parted { channel, nick, reason } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && reason.as_deref() == Some("Leaving")))
         .server(":dan!dan@cloak.example JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
         .server(":chanop!op@staff.example KICK #papo dan :Rule violation")
-        .event(|event| matches!(event, Event::Kicked { channel, nick, by, reason } if channel == "#papo" && nick == "dan" && by == "chanop" && reason.as_deref() == Some("Rule violation")))
+        .event(|event| matches!(event, Event::Kicked { channel, nick, by, reason } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && by == "chanop" && reason.as_deref() == Some("Rule violation")))
         .server(":emily!em@127.0.0.1 PART #papo :Requested")
         .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "emily"))
         .server(":emily!em@127.0.0.1 JOIN #rust")
@@ -1271,6 +1273,8 @@ fn reports_parts_and_kicks_for_other_users_and_ourselves() {
 #[test]
 fn reports_nick_changes_and_quit_channels_before_removal() {
     Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":emily!em@127.0.0.1 JOIN #rust")
@@ -1280,7 +1284,7 @@ fn reports_nick_changes_and_quit_channels_before_removal() {
         .server(":dan!dan@cloak.example JOIN #rust")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":dan!dan@cloak.example NICK :dan-away")
-        .event(|event| matches!(event, Event::NickChanged { old, new } if old == "dan" && new == "dan-away"))
+        .event(|event| matches!(event, Event::NickChanged { old, new } if old == "dan" && new == "dan-away" && old.casemapping() == Casemapping::Ascii && new.casemapping() == Casemapping::Ascii))
         .server(":emily!em@127.0.0.1 NICK :emily_")
         .event(|event| matches!(event, Event::NickChanged { old, new } if old == "emily" && new == "emily_"))
         .server(":dan-away!dan@cloak.example QUIT :Client exited")
@@ -1289,6 +1293,10 @@ fn reports_nick_changes_and_quit_channels_before_removal() {
                 let mut channels = channels.clone();
                 channels.sort();
                 nick == "dan-away" && reason.as_deref() == Some("Client exited")
+                    && nick.casemapping() == Casemapping::Ascii
+                    && channels
+                        .iter()
+                        .all(|channel| channel.casemapping() == Casemapping::Ascii)
                     && channels == ["#papo", "#rust"]
             }
             _ => false,

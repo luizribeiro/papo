@@ -366,8 +366,8 @@ impl State {
             };
             for channel in channels.split(',') {
                 outbox.event(Event::Parted {
-                    channel: channel.to_owned(),
-                    nick: nick.to_owned(),
+                    channel: mapping.channel(channel),
+                    nick: mapping.nick(nick),
                     reason: message.param(1).map(str::to_owned),
                 });
                 if mapping.eq(nick, &self.nick) {
@@ -389,8 +389,8 @@ impl State {
                 Source::User { nick, .. } => nick,
             };
             outbox.event(Event::Kicked {
-                channel: channel.to_owned(),
-                nick: nick.to_owned(),
+                channel: mapping.channel(channel),
+                nick: mapping.nick(nick),
                 by: by.to_owned(),
                 reason: message.param(2).map(str::to_owned),
             });
@@ -415,8 +415,8 @@ impl State {
                 self.nick = mapping.nick(new_nick);
             }
             outbox.event(Event::NickChanged {
-                old: nick.to_owned(),
-                new: new_nick.to_owned(),
+                old: mapping.nick(nick),
+                new: mapping.nick(new_nick),
             });
             return Handled::Yes;
         }

@@ -959,8 +959,8 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             nick,
             reason,
         } => Event::Parted(Parted {
-            channel: casemapping.channel(channel),
-            nick: casemapping.nick(nick),
+            channel,
+            nick,
             reason,
             is_self: false,
         }),
@@ -970,8 +970,8 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             by,
             reason,
         } => Event::Kicked(Kicked {
-            channel: casemapping.channel(channel),
-            nick: casemapping.nick(nick),
+            channel,
+            nick,
             by: Source::from_name(by, casemapping),
             reason,
             is_self: false,
@@ -987,24 +987,17 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             reason,
             channels,
         } => Event::Quit(Quit {
-            nick: casemapping.nick(nick),
+            nick,
             reason,
-            channels: channels
-                .into_iter()
-                .map(|channel| casemapping.channel(channel))
-                .collect(),
+            channels,
         }),
         papo_core::Event::NickChanged { old, new } => Event::NickChanged(NickChanged {
-            old: casemapping.nick(old),
-            new: casemapping.nick(new),
+            old,
+            new,
             is_self: false,
         }),
         papo_core::Event::ChannelRenamed { old, new, reason } => {
-            Event::ChannelRenamed(ChannelRenamed {
-                old: casemapping.channel(old),
-                new: casemapping.channel(new),
-                reason,
-            })
+            Event::ChannelRenamed(ChannelRenamed { old, new, reason })
         }
         papo_core::Event::AccountChanged { nick, account } => {
             Event::AccountChanged(AccountChanged {
@@ -1664,8 +1657,8 @@ mod tests {
     fn maps_channel_renames() {
         assert!(matches!(
             forwarded(papo_core::Event::ChannelRenamed {
-                old: "#rust".into(),
-                new: "#rust-lang".into(),
+                old: Casemapping::default().channel("#rust"),
+                new: Casemapping::default().channel("#rust-lang"),
                 reason: "Project renamed".into(),
             }),
             Event::ChannelRenamed(renamed)
@@ -1803,8 +1796,8 @@ mod tests {
     fn maps_parted() {
         assert!(matches!(
             forwarded(papo_core::Event::Parted {
-                channel: "#papo".into(),
-                nick: "emily".into(),
+                channel: Casemapping::default().channel("#papo"),
+                nick: Casemapping::default().nick("emily"),
                 reason: Some("Leaving for lunch".into()),
             }),
             Event::Parted(parted)
@@ -1818,8 +1811,8 @@ mod tests {
     fn maps_kicked() {
         assert!(matches!(
             forwarded(papo_core::Event::Kicked {
-                channel: "#papo".into(),
-                nick: "emily".into(),
+                channel: Casemapping::default().channel("#papo"),
+                nick: Casemapping::default().nick("emily"),
                 by: "alice".into(),
                 reason: Some("Flooding".into()),
             }),
@@ -1835,9 +1828,12 @@ mod tests {
     fn maps_quit() {
         assert!(matches!(
             forwarded(papo_core::Event::Quit {
-                nick: "emily".into(),
+                nick: Casemapping::default().nick("emily"),
                 reason: Some("Client exited".into()),
-                channels: vec!["#papo".into(), "#rust".into()],
+                channels: vec![
+                    Casemapping::default().channel("#papo"),
+                    Casemapping::default().channel("#rust"),
+                ],
             }),
             Event::Quit(quit)
                 if quit.nick == "emily" && quit.reason.as_deref() == Some("Client exited")
@@ -1849,8 +1845,8 @@ mod tests {
     fn maps_nick_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::NickChanged {
-                old: "emily".into(),
-                new: "em".into(),
+                old: Casemapping::default().nick("emily"),
+                new: Casemapping::default().nick("em"),
             }),
             Event::NickChanged(changed) if changed.old == "emily" && changed.new == "em"
         ));

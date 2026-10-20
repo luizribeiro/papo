@@ -382,8 +382,8 @@ pub papo_core::Event::CasemappingChanged
 pub papo_core::Event::CasemappingChanged::new: papo::Casemapping
 pub papo_core::Event::CasemappingChanged::old: papo::Casemapping
 pub papo_core::Event::ChannelRenamed
-pub papo_core::Event::ChannelRenamed::new: alloc::string::String
-pub papo_core::Event::ChannelRenamed::old: alloc::string::String
+pub papo_core::Event::ChannelRenamed::new: papo::ChannelName
+pub papo_core::Event::ChannelRenamed::old: papo::ChannelName
 pub papo_core::Event::ChannelRenamed::reason: alloc::string::String
 pub papo_core::Event::ChannelSynced
 pub papo_core::Event::ChannelSynced::channel: papo::ChannelName
@@ -411,8 +411,8 @@ pub papo_core::Event::Joined::channel: papo::ChannelName
 pub papo_core::Event::Joined::nick: papo::Nick
 pub papo_core::Event::Kicked
 pub papo_core::Event::Kicked::by: alloc::string::String
-pub papo_core::Event::Kicked::channel: alloc::string::String
-pub papo_core::Event::Kicked::nick: alloc::string::String
+pub papo_core::Event::Kicked::channel: papo::ChannelName
+pub papo_core::Event::Kicked::nick: papo::Nick
 pub papo_core::Event::Kicked::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::Line(papo_core::ReceivedLine)
 pub papo_core::Event::Malformed
@@ -447,18 +447,18 @@ pub papo_core::Event::Netsplit
 pub papo_core::Event::Netsplit::quits: alloc::vec::Vec<papo_proto::line::Line>
 pub papo_core::Event::Netsplit::servers: [alloc::string::String; 2]
 pub papo_core::Event::NickChanged
-pub papo_core::Event::NickChanged::new: alloc::string::String
-pub papo_core::Event::NickChanged::old: alloc::string::String
+pub papo_core::Event::NickChanged::new: papo::Nick
+pub papo_core::Event::NickChanged::old: papo::Nick
 pub papo_core::Event::Parted
-pub papo_core::Event::Parted::channel: alloc::string::String
-pub papo_core::Event::Parted::nick: alloc::string::String
+pub papo_core::Event::Parted::channel: papo::ChannelName
+pub papo_core::Event::Parted::nick: papo::Nick
 pub papo_core::Event::Parted::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::PersistenceStatus
 pub papo_core::Event::PersistenceStatus::effective: bool
 pub papo_core::Event::PersistenceStatus::setting: papo_core::PersistenceSetting
 pub papo_core::Event::Quit
-pub papo_core::Event::Quit::channels: alloc::vec::Vec<alloc::string::String>
-pub papo_core::Event::Quit::nick: alloc::string::String
+pub papo_core::Event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
+pub papo_core::Event::Quit::nick: papo::Nick
 pub papo_core::Event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::ReadMarker(papo_core::ReadMarker)
 pub papo_core::Event::RealnameChanged

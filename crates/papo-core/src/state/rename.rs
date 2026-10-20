@@ -34,8 +34,8 @@ impl State {
                 .insert(Folded::new(new, self.casemapping), values);
         }
         outbox.event(Event::ChannelRenamed {
-            old: old.to_owned(),
-            new: new.to_owned(),
+            old: self.casemapping.channel(old),
+            new: self.casemapping.channel(new),
             reason: reason.to_owned(),
         });
         true

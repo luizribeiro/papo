@@ -12,21 +12,16 @@ impl State {
         let channels = if ours {
             self.channels
                 .values()
-                .map(|channel| channel.name.as_ref().to_owned())
+                .map(|channel| channel.name.clone())
                 .collect()
         } else {
             self.users
                 .get(&self.casemapping.nick(nick))
-                .map(|user| {
-                    user.channels
-                        .iter()
-                        .map(|key| key.as_ref().to_owned())
-                        .collect()
-                })
+                .map(|user| user.channels.iter().cloned().collect())
                 .unwrap_or_default()
         };
         outbox.event(Event::Quit {
-            nick: nick.to_owned(),
+            nick: self.casemapping.nick(nick),
             reason: message.param(0).map(str::to_owned),
             channels,
         });
