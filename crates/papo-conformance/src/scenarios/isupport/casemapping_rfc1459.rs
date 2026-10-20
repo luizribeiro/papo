@@ -1,4 +1,4 @@
-use papo::{Casemapping, Error, Event, Refusal, Source, isupport::Advertised};
+use papo::{Casemapping, Error, Event, Refusal, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -113,10 +113,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| event.as_message().filter(|message| message.text() == text))
         .await?;
     assert_eq!(name(&message.conversation), Some(&*chan));
-    assert_eq!(
-        message.sender.as_ref().and_then(Source::nick),
-        Some(alice_nick.as_str())
-    );
+    assert_eq!(message.actor.nick(), Some(alice_nick.as_str()));
     assert!(!message.is_private());
 
     bob.expect_none(Event::as_message).await?;

@@ -756,7 +756,9 @@ mod tests {
             matches!(HistoryReference::from(UNIX_EPOCH).0, Some(MsgRef::Timestamp(time)) if time == UNIX_EPOCH)
         );
         let event = crate::Message::from_history(
-            Line::privmsg("#papo", "earlier").with_tag("msgid", "RfcBTzyxY120004"),
+            Line::privmsg("#papo", "earlier")
+                .with_source("emily!~emily@localhost")
+                .with_tag("msgid", "RfcBTzyxY120004"),
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
         )

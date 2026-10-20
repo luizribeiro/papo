@@ -289,9 +289,6 @@ async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(
-        message.sender.as_ref().and_then(papo::Source::nick),
-        Some("matrix/alice")
-    );
+    assert_eq!(message.actor.nick(), Some("matrix/alice"));
     Ok(())
 }

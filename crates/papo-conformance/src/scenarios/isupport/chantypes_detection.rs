@@ -1,4 +1,4 @@
-use papo::{Error, Event, InvalidIdentifier, InvalidInput, Source, isupport::Advertised};
+use papo::{Error, Event, InvalidIdentifier, InvalidInput, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -53,10 +53,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         );
         assert!(!message.is_private());
         assert_eq!(message.return_address(), name);
-        assert_eq!(
-            message.sender.as_ref().and_then(Source::nick),
-            Some(bob_nick.as_ref())
-        );
+        assert_eq!(message.actor.nick(), Some(bob_nick.as_ref()));
     }
 
     for c in UNADVERTISED_CHANTYPES_CANDIDATES {

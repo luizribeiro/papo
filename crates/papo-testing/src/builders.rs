@@ -23,7 +23,7 @@ impl MessageBuilder {
 
     /// Sets a user prefix with optional username and hostname.
     #[must_use]
-    pub fn sender(
+    pub fn actor(
         mut self,
         nick: impl Into<papo::Nick>,
         user: Option<String>,
@@ -33,7 +33,7 @@ impl MessageBuilder {
         if matches!(self.message.conversation, papo::Conversation::Private(_)) {
             self.message.conversation = papo::Conversation::Private(nick.clone());
         }
-        self.message.sender = Some(papo::__testing::user_source(nick, user, host));
+        self.message.actor = papo::__testing::user_source(nick, user, host);
         self
     }
 
@@ -51,7 +51,7 @@ impl MessageBuilder {
         self
     }
 
-    /// Sets the sender's authenticated account.
+    /// Sets the actor's authenticated account.
     #[must_use]
     pub fn account(mut self, account: impl Into<AccountName>) -> Self {
         self.message.account = Some(account.into());
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn builds_private_message_details_and_ordered_tags() {
         let message = MessageBuilder::new("bob", "formatted hello")
-            .sender(
+            .actor(
                 papo::Casemapping::default().nick("alice"),
                 Some("a".into()),
                 Some("cloak.example".into()),

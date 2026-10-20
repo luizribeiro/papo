@@ -2044,6 +2044,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::ListFilter
 impl core::panic::unwind_safe::UnwindSafe for papo::ListFilter
 #[non_exhaustive] pub struct papo::Message
 pub papo::Message::account: core::option::Option<papo::AccountName>
+pub papo::Message::actor: papo::Source
 pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
 pub papo::Message::conversation: papo::Conversation
 pub papo::Message::is_bot: bool
@@ -2055,7 +2056,6 @@ pub papo::Message::origin: papo::Origin
 pub papo::Message::raw_text: alloc::string::String
 pub papo::Message::received_at: std::time::SystemTime
 pub papo::Message::reply_to: core::option::Option<papo::MessageId>
-pub papo::Message::sender: core::option::Option<papo::Source>
 pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Message::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::Message::tags: papo::Tags

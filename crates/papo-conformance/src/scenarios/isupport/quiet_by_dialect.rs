@@ -1,4 +1,4 @@
-use papo::{ModeKind, Refusal, Source};
+use papo::{ModeKind, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -91,10 +91,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
             crate::scenarios::support::conversation_name(&message.conversation),
             Some(channel.as_str())
         );
-        assert_eq!(
-            message.sender.as_ref().and_then(Source::nick),
-            Some(bob_nick.as_ref())
-        );
+        assert_eq!(message.actor.nick(), Some(bob_nick.as_ref()));
         assert!(!message.is_private());
     }
     for peer in [&alice, &bob, &carol] {
@@ -122,9 +119,6 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     let again = "unmuted again";
     carol.privmsg(&channel, again).await?;
     let message = bob.wait_for(|event| message_text(event, again)).await?;
-    assert_eq!(
-        message.sender.as_ref().and_then(Source::nick),
-        Some(carol_nick.as_ref())
-    );
+    assert_eq!(message.actor.nick(), Some(carol_nick.as_ref()));
     Ok(())
 }

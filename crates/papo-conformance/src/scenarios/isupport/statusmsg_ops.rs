@@ -1,4 +1,4 @@
-use papo::{Origin, Source};
+use papo::Origin;
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
@@ -111,10 +111,7 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(echo.origin(), Origin::Echo);
     assert!(!echo.is_private());
     assert_eq!(received.origin(), Origin::Live);
-    assert_eq!(
-        received.sender.as_ref().and_then(Source::nick),
-        Some(alice_nick.as_ref())
-    );
+    assert_eq!(received.actor.nick(), Some(alice_nick.as_ref()));
 
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| message_text(event, "operators only"))

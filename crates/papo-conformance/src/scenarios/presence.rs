@@ -1,4 +1,4 @@
-use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Origin, Refusal, Source};
+use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Origin, Refusal};
 use papo_conformance_macros::scenario;
 
 use super::support::assert_refusal;
@@ -25,10 +25,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         .await?;
 
     assert_eq!(message.text(), text);
-    assert_eq!(
-        message.sender.as_ref().and_then(Source::nick),
-        Some(alice_nick.as_ref())
-    );
+    assert_eq!(message.actor.nick(), Some(alice_nick.as_ref()));
     assert_eq!(
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())
@@ -145,10 +142,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| event.as_message().filter(|message| message.text() == text))
         .await?;
 
-    assert_eq!(
-        message.sender.as_ref().and_then(Source::nick),
-        Some(bob_nick.as_ref())
-    );
+    assert_eq!(message.actor.nick(), Some(bob_nick.as_ref()));
     assert_eq!(
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(bob_nick.as_ref())
@@ -374,10 +368,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| event.as_message().filter(|message| message.text() == text))
         .await?;
 
-    assert_eq!(
-        message.sender.as_ref().and_then(Source::nick),
-        Some(alice_nick.as_ref())
-    );
+    assert_eq!(message.actor.nick(), Some(alice_nick.as_ref()));
     assert_eq!(
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())

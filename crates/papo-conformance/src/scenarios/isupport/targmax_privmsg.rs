@@ -1,4 +1,4 @@
-use papo::{Nick, Source, isupport::Advertised};
+use papo::{Nick, isupport::Advertised};
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
@@ -133,9 +133,6 @@ async fn expect_delivery(
         Some(sender_nick.as_ref())
     );
     assert!(message.is_private());
-    assert_eq!(
-        message.sender.as_ref().and_then(Source::nick),
-        Some(sender_nick.as_ref())
-    );
+    assert_eq!(message.actor.nick(), Some(sender_nick.as_ref()));
     Ok(())
 }

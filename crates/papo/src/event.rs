@@ -117,8 +117,8 @@ pub enum Origin {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Message {
-    /// The user or server that sent the message, when supplied.
-    pub sender: Option<Source>,
+    /// The user or server that sent the message.
+    pub actor: Source,
     /// The IRC conversation to which the message belongs.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
@@ -135,7 +135,7 @@ pub struct Message {
     pub server_time: Option<SystemTime>,
     /// Local wall-clock time when the message was received.
     pub received_at: SystemTime,
-    /// The sender's authenticated account, when tagged.
+    /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// The identifier referenced by a reply tag.
     pub reply_to: Option<MessageId>,
@@ -289,9 +289,12 @@ impl Message {
         };
         let text = strip_formatting(displayed).into_owned();
         let raw_text = raw_text.to_owned();
-        let sender = message
+        let Some(actor) = message
             .source()
-            .map(|source| Source::from_proto(source, isupport.casemapping()));
+            .map(|source| Source::from_proto(source, isupport.casemapping()))
+        else {
+            return Err(raw);
+        };
         let tags = Tags::from_message(&message);
         let channel_context = if matches!(conversation, Conversation::Private(_)) {
             tag_owned(&message, &["+channel-context", "+draft/channel-context"])
@@ -323,7 +326,7 @@ impl Message {
             Origin::Live
         };
         Ok(Self {
-            sender,
+            actor,
             conversation,
             status,
             text,
@@ -346,7 +349,7 @@ impl Message {
     }
 
     pub(crate) fn sender_nick(&self) -> Option<&str> {
-        match self.sender.as_ref()? {
+        match &self.actor {
             Source::User { nick, .. } => Some(nick.as_ref()),
             Source::Server { .. } => None,
         }
@@ -380,10 +383,10 @@ impl Message {
         &self.tags
     }
 
-    /// Returns the parsed source, when the server supplied one.
+    /// Returns the parsed source.
     #[must_use]
     pub fn source(&self) -> Option<Source> {
-        self.sender.clone()
+        Some(self.actor.clone())
     }
 
     /// Reports whether this message belongs to a private conversation.
@@ -405,10 +408,7 @@ impl Message {
                 .collect(),
             Conversation::Private(nick) => nick.to_string(),
             Conversation::Broadcast(mask) => mask.to_string(),
-            Conversation::Server => self
-                .sender
-                .as_ref()
-                .map_or_else(|| "*".to_owned(), ToString::to_string),
+            Conversation::Server => self.actor.to_string(),
             _ => "*".to_owned(),
         }
     }
@@ -433,7 +433,7 @@ impl Message {
         self.server_time.unwrap_or(self.received_at)
     }
 
-    /// Returns the sender's authenticated account, when tagged.
+    /// Returns the actor's authenticated account, when tagged.
     #[must_use]
     pub fn account(&self) -> Option<&str> {
         self.account.as_deref()
@@ -465,7 +465,7 @@ impl Message {
         self.is_oper
     }
 
-    /// Returns the sender's IRC operator name when supplied.
+    /// Returns the actor's IRC operator name when supplied.
     #[must_use]
     pub fn oper(&self) -> Option<&str> {
         self.oper.as_deref()
@@ -1171,6 +1171,16 @@ mod tests {
             )
             .is_err()
         );
+        assert!(
+            ChatMessage::new(
+                Line::privmsg("#papo", "actorless message"),
+                &Isupport::default(),
+                "papo",
+                &Capabilities::new(),
+                UNIX_EPOCH,
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -1294,6 +1304,7 @@ mod tests {
         let received = UNIX_EPOCH + Duration::from_secs(42);
         let tagged = event(
             Line::privmsg("#papo", "hello")
+                .with_source("emily!~emily@localhost")
                 .with_tag("time", "2026-02-03T04:05:06.789Z")
                 .with_tag("msgid", "RfcBTzyxY120004")
                 .with_tag("account", "emily")
@@ -1318,7 +1329,8 @@ mod tests {
         assert!(!chat("PRIVMSG", "human message").is_bot());
 
         for time in [None, Some("not-a-time")] {
-            let mut message = Line::privmsg("#papo", "fallback");
+            let mut message =
+                Line::privmsg("#papo", "fallback").with_source("emily!~emily@localhost");
             if let Some(time) = time {
                 message = message.with_tag("time", time);
             }
@@ -1344,7 +1356,7 @@ mod tests {
             UNIX_EPOCH,
         );
 
-        let Source::User { nick, .. } = message.sender.as_ref().unwrap() else {
+        let Source::User { nick, .. } = &message.actor else {
             panic!("message should have a user source");
         };
         assert_eq!(nick.casemapping(), Casemapping::Ascii);

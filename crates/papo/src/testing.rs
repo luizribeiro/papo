@@ -29,7 +29,7 @@ pub fn tags(values: Vec<(String, Option<String>)>) -> Tags {
 /// Constructs the minimal message payload extended by `papo-testing`.
 #[must_use]
 pub fn message(
-    sender: Option<Source>,
+    actor: Option<Source>,
     target: impl Into<String>,
     text: impl Into<String>,
     private: bool,
@@ -37,13 +37,15 @@ pub fn message(
     let text = text.into();
     let target = target.into();
     let conversation = if private {
-        let other = sender.as_ref().and_then(Source::nick).unwrap_or(&target);
+        let other = actor.as_ref().and_then(Source::nick).unwrap_or(&target);
         Conversation::Private(crate::Casemapping::default().nick(other))
     } else {
         Conversation::Channel(crate::Casemapping::default().channel(&target))
     };
     Message {
-        sender,
+        actor: actor.unwrap_or_else(|| Source::Server {
+            name: "irc.example".into(),
+        }),
         conversation,
         status: None,
         raw_text: text.clone(),
