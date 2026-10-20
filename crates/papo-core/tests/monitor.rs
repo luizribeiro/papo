@@ -103,6 +103,18 @@ fn monitor_updates_generation_only_when_presence_changes() {
 }
 
 #[test]
+fn adding_a_desired_nick_updates_the_state_generation_once() {
+    registered()
+        .inspect(|session| assert_eq!(session.state_generation(), 2))
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .inspect(|session| assert_eq!(session.state_generation(), 3))
+        .update(|session| session.monitor_add(["ALICE"]))
+        .inspect(|session| assert_eq!(session.state_generation(), 3))
+        .no_client();
+}
+
+#[test]
 fn removing_a_monitored_nick_fills_the_advertised_slot() {
     Transcript::new(Config::default())
         .connect_default()
