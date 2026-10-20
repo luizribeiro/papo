@@ -24,7 +24,6 @@ pub use papo::RateLimit
 pub use papo::Refusal
 pub use papo::Sasl
 pub use papo::Secret
-pub use papo::Target
 pub use papo::Typing
 pub use papo::Unsupported
 pub use papo::UnsupportedReason

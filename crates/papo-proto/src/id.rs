@@ -302,7 +302,6 @@ fn check_address(value: &str, isupport: &Isupport) -> Result<(), InvalidIdentifi
     }
     isupport.casemapping().nick(value).check(isupport)
 }
-
 fn check_length(value: &str, maximum: usize) -> Result<(), InvalidIdentifier> {
     let length = value.chars().count();
     if length > maximum {
@@ -415,7 +414,6 @@ macro_rules! name_address_conversions {
 }
 
 name_address_conversions!(Address);
-
 #[cfg(test)]
 mod tests {
     use std::{
