@@ -380,6 +380,7 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let channel_name = alice.state().channel_name(&channel);
 
     alice.action(&channel, "waves hello").await?;
     let echo = alice
@@ -390,7 +391,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     for message in [&echo, &action] {
         assert_eq!(message.kind(), MessageKind::Action);
-        assert_eq!(message.target(), channel);
+        assert_eq!(channel_name, message.target());
         assert_eq!(message.raw_text(), "\u{1}ACTION waves hello\u{1}");
         let ctcp = message.ctcp().expect("ACTION has a CTCP representation");
         assert_eq!(ctcp.command(), "ACTION");
@@ -398,7 +399,10 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     }
 
     alice
-        .send_command("PRIVMSG", [bob.nick().as_ref(), "\u{1}VERSION\u{1}"])
+        .send_raw(papo::Line::new(
+            "PRIVMSG",
+            [bob.nick().as_ref(), "\u{1}VERSION\u{1}"],
+        ))
         .await?;
     let query = bob
         .wait_for(|event| {
@@ -426,10 +430,10 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
 
     let mut carol = s.connect("carol").await?;
     alice
-        .send_command(
+        .send_raw(papo::Line::new(
             "PRIVMSG",
             [carol.nick().as_ref(), "\u{1}PING 1735689600\u{1}"],
-        )
+        ))
         .await?;
     let query = carol
         .wait_for(|event| {
@@ -469,13 +473,14 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
+    let channel_name = alice.state().channel_name(&channel);
     alice
-        .send_command("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"])
+        .send_raw(papo::Line::new("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"]))
         .await?;
     let query = bob
         .wait_for(|event| {
             event.as_message().filter(|message| {
-                message.target() == channel
+                channel_name == message.target()
                     && message.ctcp().map(|ctcp| ctcp.command()) == Some("VERSION")
             })
         })
@@ -485,7 +490,7 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event.as_message().filter(|message| {
                 message.kind() == MessageKind::CtcpReply
-                    && message.target() == alice_nick.as_ref()
+                    && alice_nick == message.target()
                     && message.source().as_ref().and_then(Source::nick) == Some(bob_nick.as_ref())
             })
         })
@@ -502,13 +507,14 @@ async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("the selected profile has no managed no-CTCP channel mode");
     }
     let (mut alice, bob, channel) = fixture_pair(&s).await?;
+    let channel_name = alice.state().channel_name(&channel);
     alice.mode(&channel).add('C').await?;
-    bob.send_command("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"])
+    bob.send_raw(papo::Line::new("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"]))
         .await?;
     alice
         .expect_none(|event| {
             event.as_message().filter(|message| {
-                message.target() == channel
+                channel_name == message.target()
                     && message.ctcp().map(|ctcp| ctcp.command()) == Some("VERSION")
             })
         })

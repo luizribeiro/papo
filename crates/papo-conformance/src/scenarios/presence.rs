@@ -232,7 +232,10 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     alice.oper(oper_name, password).await?;
     alice
-        .send_command("CHGHOST", [bob_nick.as_ref(), "conformance.example"])
+        .send_raw(papo::Line::new(
+            "CHGHOST",
+            [bob_nick.as_ref(), "conformance.example"],
+        ))
         .await?;
     let own = bob
         .wait_for(|event| {
@@ -393,6 +396,8 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
     let alice_nick = alice.nick();
+    let mapping = bob.state().casemapping();
+    let channel_name = mapping.channel(&channel);
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     let away = "reading WHO reply fields";
@@ -401,10 +406,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let who = bob.who(channel.clone()).await?;
     let alice_who = who.iter().find(|entry| entry.nick == alice_nick).unwrap();
 
-    assert_eq!(
-        alice_who.channel.as_ref().map(AsRef::as_ref),
-        Some(channel.as_str())
-    );
+    assert_eq!(alice_who.channel.as_ref(), Some(&channel_name));
     assert!(!alice_who.user.is_empty());
     assert!(!alice_who.host.is_empty());
     assert_eq!(alice_who.realname, "papo test peer");
@@ -414,12 +416,20 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice_who.prefixes, ['@']);
 
     // Plain WHO's numeric fields are the behavior under test, without WHOX rewriting them.
-    let plain = bob.request_command("WHO", [&channel]).await?;
+    let plain = bob.request_raw(papo::Line::new("WHO", [&channel])).await?;
     let row = plain
         .iter()
-        .find(|line| line.numeric() == Some(352) && line.param(5) == Some(alice_nick.as_ref()))
+        .find(|line| {
+            line.numeric() == Some(352)
+                && line
+                    .param(5)
+                    .is_some_and(|nick| mapping.nick(nick) == alice_nick)
+        })
         .unwrap();
-    assert_eq!(row.param(1), Some(channel.as_str()));
+    assert_eq!(
+        mapping.channel(row.param(1).expect("352 includes the channel")),
+        channel_name
+    );
     assert!(row.param(2).is_some_and(|user| !user.is_empty()));
     assert!(row.param(3).is_some_and(|host| !host.is_empty()));
     assert!(row.param(4).is_some_and(|server| !server.is_empty()));
@@ -429,11 +439,12 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
             .split_once(' ')
             .is_some_and(|(_, realname)| realname == "papo test peer")
     }));
-    assert!(
-        plain
-            .iter()
-            .any(|line| { line.numeric() == Some(315) && line.param(1) == Some(channel.as_str()) })
-    );
+    assert!(plain.iter().any(|line| {
+        line.numeric() == Some(315)
+            && line
+                .param(1)
+                .is_some_and(|name| mapping.channel(name) == channel_name)
+    }));
 
     let whois = bob.whois(alice_nick.clone()).await?;
 
@@ -447,7 +458,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
         whois
             .channels
             .iter()
-            .any(|joined| joined.name.as_ref() == channel)
+            .any(|joined| joined.name == channel_name)
     );
 
     assert_refusal(
@@ -466,6 +477,7 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
     let alice_nick = alice.nick();
+    let mapping = bob.state().casemapping();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
@@ -473,20 +485,36 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     assert!(alice.state().user_modes().any(|mode_| mode_ == 'o'));
 
     // The operator markers are encoded only in WHO flags and WHOIS numerics.
-    let who = bob.request_command("WHO", [alice_nick.as_ref()]).await?;
+    let who = bob
+        .request_raw(papo::Line::new("WHO", [alice_nick.as_ref()]))
+        .await?;
     let row = who
         .iter()
-        .find(|line| line.numeric() == Some(352) && line.param(5) == Some(alice_nick.as_ref()))
+        .find(|line| {
+            line.numeric() == Some(352)
+                && line
+                    .param(5)
+                    .is_some_and(|nick| mapping.nick(nick) == alice_nick)
+        })
         .unwrap();
     assert!(row.param(6).is_some_and(|flags| flags.contains('*')));
     assert!(who.iter().any(|line| line.numeric() == Some(315)));
 
-    let whois = bob.request_command("WHOIS", [alice_nick.as_ref()]).await?;
+    let whois = bob
+        .request_raw(papo::Line::new("WHOIS", [alice_nick.as_ref()]))
+        .await?;
     let operator = whois
         .iter()
         .find(|line| line.numeric() == Some(313))
         .unwrap();
-    assert_eq!(operator.param(1), Some(alice_nick.as_ref()));
+    assert_eq!(
+        mapping.nick(
+            operator
+                .param(1)
+                .expect("313 includes the operator nickname")
+        ),
+        alice_nick
+    );
     assert!(operator.param(2).is_some_and(|text| !text.is_empty()));
     assert!(whois.iter().any(|line| line.numeric() == Some(318)));
     Ok(())
@@ -526,14 +554,13 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
     assert!(matches!(refusal.code(), "464" | "491"));
 
     alice
-        .send_command("KILL", [charlie_nick.as_ref(), "conformance test"])
+        .send_raw(papo::Line::new(
+            "KILL",
+            [charlie_nick.as_ref(), "conformance test"],
+        ))
         .await?;
     let quit = bob
-        .wait_for(|event| {
-            event
-                .as_quit()
-                .filter(|quit| quit.nick.as_ref() == charlie_nick.as_ref())
-        })
+        .wait_for(|event| event.as_quit().filter(|quit| quit.nick == charlie_nick))
         .await?;
     assert_eq!(quit.nick, charlie_nick);
     assert!(
@@ -561,10 +588,12 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     alice.oper(oper_name, password).await?;
     let bob_nick = bob.nick();
-    bob.send_command("MODE", [bob_nick.as_ref(), "+w"]).await?;
+    let mapping = bob.state().casemapping();
+    bob.send_raw(papo::Line::new("MODE", [bob_nick.as_ref(), "+w"]))
+        .await?;
     bob.wait_for(|event| {
         event.as_mode_changed().filter(|changed| {
-            changed.target.as_ref() == bob_nick.as_ref()
+            mapping.nick(changed.target.as_ref()) == bob_nick
                 && changed
                     .changes
                     .iter()
@@ -574,7 +603,9 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     .await?;
 
     let wallops = "Network maintenance begins soon";
-    alice.send_command("WALLOPS", [wallops]).await?;
+    alice
+        .send_raw(papo::Line::new("WALLOPS", [wallops]))
+        .await?;
     let delivered = bob
         .wait_for(|event| event.as_other().filter(|line| line.command() == "WALLOPS"))
         .await?;
@@ -603,10 +634,11 @@ async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
 async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let alice_nick = alice.nick();
+    let mapping = alice.state().casemapping();
 
     // The host and certificate numerics have no richer public result type.
     let lines = alice
-        .request_command("WHOIS", [alice_nick.as_ref()])
+        .request_raw(papo::Line::new("WHOIS", [alice_nick.as_ref()]))
         .await?;
     let detail = lines
         .iter()
@@ -615,13 +647,17 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
             std::io::Error::other("WHOIS omitted host and certificate numerics 378 and 276")
         })?;
 
-    assert_eq!(detail.param(1), Some(alice_nick.as_ref()));
-    assert!(detail.param(2).is_some_and(|value| !value.is_empty()));
-    assert!(
-        lines.iter().any(|line| {
-            line.numeric() == Some(318) && line.param(1) == Some(alice_nick.as_ref())
-        })
+    assert_eq!(
+        mapping.nick(detail.param(1).expect("WHOIS detail includes the nickname")),
+        alice_nick
     );
+    assert!(detail.param(2).is_some_and(|value| !value.is_empty()));
+    assert!(lines.iter().any(|line| {
+        line.numeric() == Some(318)
+            && line
+                .param(1)
+                .is_some_and(|nick| mapping.nick(nick) == alice_nick)
+    }));
     Ok(())
 }
 

@@ -59,6 +59,7 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
         .collect::<Vec<_>>();
     let (within_nicks, over_nicks) = nicks.split_at(limit);
     let frank_nick = over_nicks[0].clone();
+    let mapping = alice.state().casemapping();
     let targets = within_nicks
         .iter()
         .map(AsRef::as_ref)
@@ -71,7 +72,10 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     // behavior under test, so the raw command is sent directly.
     let at_limit_text = "at the target limit";
     alice
-        .send_command("PRIVMSG", [targets.as_str(), at_limit_text])
+        .send_raw(papo::Line::new(
+            "PRIVMSG",
+            [targets.as_str(), at_limit_text],
+        ))
         .await?;
     for (recipient, nick) in within_limit.iter_mut().zip(within_nicks) {
         expect_delivery(recipient, nick, &alice_nick, at_limit_text).await?;
@@ -86,7 +90,10 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     let over_limit_text = "over the target limit";
     let all_targets = format!("{targets},{frank_nick}");
     alice
-        .send_command("PRIVMSG", [all_targets.as_str(), over_limit_text])
+        .send_raw(papo::Line::new(
+            "PRIVMSG",
+            [all_targets.as_str(), over_limit_text],
+        ))
         .await?;
     for (recipient, nick) in within_limit.iter_mut().zip(within_nicks) {
         expect_delivery(recipient, nick, &alice_nick, over_limit_text).await?;
@@ -94,12 +101,18 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     let refusal = alice
         .wait_for(|event| {
             event.as_other().filter(|line| {
-                line.numeric() == Some(407) && line.param(1) == Some(frank_nick.as_ref())
+                line.numeric() == Some(407)
+                    && line
+                        .param(1)
+                        .is_some_and(|nick| mapping.nick(nick) == frank_nick)
             })
         })
         .await?;
     assert_eq!(refusal.numeric(), Some(407));
-    assert_eq!(refusal.param(1), Some(frank_nick.as_ref()));
+    assert_eq!(
+        mapping.nick(refusal.param(1).expect("407 includes the refused nickname")),
+        frank_nick
+    );
     frank
         .expect_none(|event| message_text(event, over_limit_text))
         .await?;
