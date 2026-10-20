@@ -66,6 +66,7 @@ impl HistoryItem {
 
 pub(crate) fn history_item(
     item: papo_core::HistoryItem,
+    history_conversation: Option<&crate::Conversation>,
     client: &Client,
     received_at: SystemTime,
     origin: Origin,
@@ -119,6 +120,7 @@ pub(crate) fn history_item(
             quit(
                 message,
                 crate::Authorship::from_core(item.authorship),
+                history_conversation,
                 mapping,
             )
         }),
@@ -246,12 +248,16 @@ fn parted(
 fn quit(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
+    history_conversation: Option<&crate::Conversation>,
     mapping: crate::Casemapping,
 ) -> Option<HistoryItem> {
     Some(HistoryItem::Quit(Quit {
         nick: mapping.nick(source_nick(message)?),
         reason: message.param(0).map(str::to_owned),
-        channels: Vec::new(),
+        channels: match history_conversation {
+            Some(crate::Conversation::Channel(channel)) => vec![channel.clone()],
+            _ => Vec::new(),
+        },
         authorship,
     }))
 }
@@ -671,15 +677,27 @@ impl Client {
         }
         let response = self.history_response(query).await?;
         let page = response.history.ok_or_else(Error::connection_lost)?;
-        let items = page
-            .items
+        let papo_core::HistoryPage {
+            conversation,
+            items,
+            end,
+        } = page;
+        let items = items
             .into_iter()
-            .map(|item| history_item(item, self, crate::rt::now_wall(), Origin::History))
+            .map(|item| {
+                history_item(
+                    item,
+                    Some(&conversation),
+                    self,
+                    crate::rt::now_wall(),
+                    Origin::History,
+                )
+            })
             .collect();
         Ok(crate::HistoryPage {
-            conversation: page.conversation,
+            conversation,
             items,
-            end: page.end,
+            end,
         })
     }
 
@@ -809,9 +827,9 @@ impl Client {
 #[cfg(all(test, not(browser)))]
 mod tests {
     use crate::driver::test_support::*;
-    use std::time::{Duration, UNIX_EPOCH};
+    use std::time::{Duration, Instant, UNIX_EPOCH};
 
-    use papo_core::{HistoryLine, HistoryQuery, MsgRef};
+    use papo_core::{Config, Event as CoreEvent, HistoryLine, HistoryQuery, MsgRef, Sasl, Session};
     use papo_proto::{Casemapping, Line, LineRef};
 
     use super::{ConversationInput, HistoryItem, HistoryReference, history_item, reaction};
@@ -848,6 +866,69 @@ mod tests {
     }
 
     #[test]
+    fn preserves_proven_history_authorship_and_activity_context() {
+        let now = Instant::now();
+        let mut session = Session::new(
+            Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")),
+        );
+        session.handle_connected(now);
+        for line in [
+            "CAP * LS :sasl=PLAIN",
+            "CAP * ACK :sasl",
+            "AUTHENTICATE +",
+            ":ergo.test 900 papo papo!~papo@localhost papo :You are now logged in as papo",
+            ":ergo.test 903 papo :SASL authentication successful",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        while session.poll_event().is_some() {}
+        for line in [
+            ":ergo.test BATCH +history chathistory #papo",
+            "@batch=history;account=papo;time=2026-10-19T14:31:08.123Z;msgid=RfcBTzyxY120004 :papo!~papo@localhost PRIVMSG #papo :deploy finished",
+            "@batch=history;account=emily;time=2026-10-19T14:31:11.456Z;msgid=RfcBTzyxY120005 :emily!~emily@localhost PRIVMSG #papo :looks good",
+            "@batch=history;time=2026-10-19T14:31:15.789Z;msgid=RfcBTzyxY120006 :papo!~papo@localhost PRIVMSG #papo :from an older server",
+            "@batch=history;account=papo;time=2026-10-19T14:31:19.012Z;msgid=RfcBTzyxY120007 :papo-old!~papo@localhost NICK papo",
+            "@batch=history;account=emily;time=2026-10-19T14:31:22.345Z;msgid=RfcBTzyxY120008 :emily!~emily@localhost QUIT :Connection reset by peer",
+            ":ergo.test BATCH -history",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let Some(CoreEvent::History {
+            conversation,
+            items,
+            ..
+        }) = session.poll_event()
+        else {
+            panic!("expected history event");
+        };
+        let client = crate::Client::disconnected_for_test();
+        let items: Vec<_> = items
+            .into_iter()
+            .map(|item| {
+                history_item(
+                    item,
+                    Some(&conversation),
+                    &client,
+                    UNIX_EPOCH,
+                    crate::Origin::History,
+                )
+            })
+            .collect();
+
+        assert!(matches!(&items[0], HistoryItem::Message(message)
+            if message.authorship == crate::Authorship::Own && message.is_own()));
+        assert!(matches!(&items[1], HistoryItem::Message(message)
+            if message.authorship == crate::Authorship::Other && !message.is_own()));
+        assert!(matches!(&items[2], HistoryItem::Message(message)
+            if message.authorship == crate::Authorship::Unknown && !message.is_own()));
+        assert!(matches!(&items[3], HistoryItem::NickChanged(changed)
+            if changed.old == "papo-old" && changed.new == "papo"
+                && changed.authorship == crate::Authorship::Own));
+        assert!(matches!(&items[4], HistoryItem::Quit(quit)
+            if quit.channels == ["#papo"] && quit.authorship == crate::Authorship::Other));
+    }
+
+    #[test]
     fn conversation_inputs_preserve_channel_and_private_addresses() {
         let client = crate::Client::disconnected_for_test();
         let state = client.state();
@@ -877,6 +958,7 @@ mod tests {
             papo_core::HistoryItem::Reacted(core_item(
                 "@+draft/react=👍;+draft/reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo",
             )),
+            None,
             &client,
             UNIX_EPOCH,
             crate::Origin::History,
@@ -896,6 +978,7 @@ mod tests {
             papo_core::HistoryItem::Redacted(core_item(
                 ":irc.example REDACT #papo RfcBTzyxY120004 :",
             )),
+            None,
             &client,
             UNIX_EPOCH,
             crate::Origin::History,
@@ -937,6 +1020,7 @@ mod tests {
     fn malformed_typed_history_item_remains_raw() {
         let item = history_item(
             papo_core::HistoryItem::Redacted(core_item(":irc.example REDACT #papo")),
+            None,
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
             crate::Origin::History,
@@ -951,6 +1035,7 @@ mod tests {
             papo_core::HistoryItem::Joined(core_item(
                 ":emily!~e@localhost JOIN #papo emily :Emily Smith",
             )),
+            None,
             &client,
             UNIX_EPOCH,
             crate::Origin::Replay,
@@ -966,18 +1051,20 @@ mod tests {
             papo_core::HistoryItem::Joined(core_item(
                 ":PAPO!papo@localhost JOIN #papo papo :Papo client",
             )),
+            None,
             &client,
             UNIX_EPOCH,
             crate::Origin::Replay,
         );
-        assert!(matches!(joined, HistoryItem::Joined(event)
-            if event.authorship == crate::Authorship::Unknown));
+        assert!(
+            matches!(joined, HistoryItem::Joined(event) if event.authorship == crate::Authorship::Unknown)
+        );
     }
 
     #[test]
     fn maps_each_replayed_membership_change() {
         let client = crate::Client::disconnected_for_test();
-        let map = |item| history_item(item, &client, UNIX_EPOCH, crate::Origin::Replay);
+        let map = |item| history_item(item, None, &client, UNIX_EPOCH, crate::Origin::Replay);
 
         let parted = map(papo_core::HistoryItem::Parted(core_item(
             ":emily!~e@localhost PART #papo :Leaving for lunch",
@@ -1027,7 +1114,7 @@ mod tests {
     #[test]
     fn maps_replayed_topic_modes_and_unreaction() {
         let client = crate::Client::disconnected_for_test();
-        let map = |item| history_item(item, &client, UNIX_EPOCH, crate::Origin::Replay);
+        let map = |item| history_item(item, None, &client, UNIX_EPOCH, crate::Origin::Replay);
 
         let topic = map(papo_core::HistoryItem::TopicChanged(core_item(
             ":emily!~e@localhost TOPIC #papo :Rust 1.90 is out",

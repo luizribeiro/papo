@@ -1323,6 +1323,7 @@ where
                     .map(|item| {
                         crate::ext::history::history_item(
                             item,
+                            Some(&conversation),
                             &client,
                             crate::rt::now_wall(),
                             crate::Origin::Replay,
