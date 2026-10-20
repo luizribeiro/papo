@@ -7,7 +7,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 use papo_core::{
     Account, Away, Config, Event, OwnedModeChange, RateLimit, ResponseMatcher, StateLimit,
 };
-use papo_proto::{AccountName, ChannelName, Message, ModeKind, Nick};
+use papo_proto::{AccountName, ChannelName, Line, ModeKind, Nick};
 use support::Transcript;
 
 #[test]
@@ -69,7 +69,7 @@ fn silent_labelled_response_updates_state_without_a_state_event() {
             session
                 .request_silent(
                     std::time::Instant::now(),
-                    Message::new("NICK", ["papo-renamed"]),
+                    Line::new("NICK", ["papo-renamed"]),
                 )
                 .unwrap();
         })
@@ -318,7 +318,7 @@ fn own_away_confirmation_carries_the_requested_message() {
             session
                 .request_with_matcher(
                     Instant::now(),
-                    Message::new("AWAY", ["Reviewing the release notes"]),
+                    Line::new("AWAY", ["Reviewing the release notes"]),
                     ResponseMatcher::Away(true),
                 )
                 .unwrap();
@@ -941,7 +941,7 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     .client("CAP LS 302")
     .client("NICK emily")
     .client("USER papo 0 * papo")
-    .send(Message::privmsg("#papo", "warmup"))
+    .send(Line::privmsg("#papo", "warmup"))
     .client("PRIVMSG #papo warmup")
     .server(":ergo.test 005 emily WHOX BOT=B PREFIX=(ov)@+ :are supported")
     .server(":emily!em@127.0.0.1 JOIN #papo")
@@ -1100,7 +1100,7 @@ fn whox_replies_require_our_token_and_an_active_sweep() {
 #[test]
 fn user_requested_who_replies_remain_messages() {
     Transcript::new(Config::default().nick("emily"))
-        .send(Message::new("WHO", ["#rust"]))
+        .send(Line::new("WHO", ["#rust"]))
         .client("WHO #rust")
         .server(":ergo.test 352 emily #rust ferris user/ferris ergo.test ferris H :0 Ferris Crab")
         .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "352"))

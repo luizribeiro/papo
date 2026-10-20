@@ -7,7 +7,7 @@ use std::time::Duration;
 use std::{any::Any, panic};
 
 use papo_core::{Config, Event};
-use papo_proto::Message;
+use papo_proto::Line;
 use support::{TEST_DEADLINE, Transcript};
 
 #[test]
@@ -28,7 +28,7 @@ fn panic_text(payload: &(dyn Any + Send)) -> String {
 fn drives_server_lines_events_and_time() {
     Transcript::new(Config::default())
         .connect_default()
-        .send(Message::new("NICK", ["tester"]))
+        .send(Line::new("NICK", ["tester"]))
         .client("NICK tester")
         .server(":ergo.test NOTICE tester :Connection established")
         .no_client()
@@ -40,7 +40,7 @@ fn drives_server_lines_events_and_time() {
 fn plays_trace_file_contents() {
     Transcript::new(Config::default())
         .connect_default()
-        .send(Message::new("NICK", ["tester"]))
+        .send(Line::new("NICK", ["tester"]))
         .play(include_str!("data/harness.irc"))
         .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")))
         .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "tester"))
@@ -51,7 +51,7 @@ fn plays_trace_file_contents() {
 fn loads_trace_files() {
     Transcript::new(Config::default())
         .connect_default()
-        .send(Message::new("NICK", ["tester"]))
+        .send(Line::new("NICK", ["tester"]))
         .load("tests/data/harness.irc")
         .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")))
         .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "tester"))
@@ -64,7 +64,7 @@ fn reports_unexpected_client_output_with_a_readable_diff() {
     let panic = panic::catch_unwind(|| {
         Transcript::new(Config::default())
             .connect_default()
-            .send(Message::new("NICK", ["tester"]))
+            .send(Line::new("NICK", ["tester"]))
             .client("NICK someone-else");
     })
     .expect_err("mismatched output must fail");
@@ -94,7 +94,7 @@ fn drop_reports_unexamined_output() {
     let panic = panic::catch_unwind(|| {
         Transcript::new(Config::default())
             .connect_default()
-            .send(Message::new("NICK", ["tester"]))
+            .send(Line::new("NICK", ["tester"]))
             .server(":ergo.test NOTICE tester :Connection established");
     })
     .expect_err("unexamined output must fail");
@@ -107,7 +107,7 @@ fn drop_reports_unexamined_output() {
 fn can_explicitly_ignore_remaining_output() {
     Transcript::new(Config::default())
         .connect_default()
-        .send(Message::new("NICK", ["tester"]))
+        .send(Line::new("NICK", ["tester"]))
         .server(":ergo.test NOTICE tester :Connection established")
         .ignore_rest();
 }

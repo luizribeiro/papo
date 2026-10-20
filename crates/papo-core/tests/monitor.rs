@@ -5,7 +5,7 @@ mod support;
 use std::{cell::Cell, time::Instant};
 
 use papo_core::{Account, Away, Config, Event};
-use papo_proto::Message;
+use papo_proto::Line;
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -563,7 +563,7 @@ fn processes_the_literal_monitor_cache_bound() {
 #[test]
 fn user_requested_monitor_list_replies_remain_messages() {
     registered()
-        .send(Message::new("MONITOR", ["L"]))
+        .send(Line::new("MONITOR", ["L"]))
         .client("MONITOR L")
         .server(":ergo.test 732 papo :alice,bob")
         .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "732"))

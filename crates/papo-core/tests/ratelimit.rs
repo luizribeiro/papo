@@ -5,7 +5,7 @@ mod support;
 use std::time::Duration;
 
 use papo_core::{Config, RateLimit};
-use papo_proto::Message;
+use papo_proto::Line;
 use support::Transcript;
 
 #[test]
@@ -17,7 +17,7 @@ fn releases_five_lines_then_one_every_500_milliseconds() {
     )
     .connect_default();
     for index in 1..=8 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
@@ -47,7 +47,7 @@ fn default_limiter_honors_both_saferate_spellings() {
             ":ergo.test 005 papo {token} :are supported by this server"
         ));
         for index in 1..=8 {
-            transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+            transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
         }
         for index in 1..=8 {
             transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
@@ -64,7 +64,7 @@ fn strict_limiter_ignores_saferate() {
         Transcript::rate_limited(Config::default().rate_limit(RateLimit::default().strict()))
             .server(":ergo.test 005 papo SAFERATE :are supported by this server");
     for index in 1..=6 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
@@ -78,7 +78,7 @@ fn strict_limiter_ignores_saferate() {
 fn one_interval_refills_exactly_one_token() {
     let mut transcript = Transcript::rate_limited(Config::default());
     for index in 1..=8 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
@@ -99,7 +99,7 @@ fn one_interval_refills_exactly_one_token() {
 fn unconsumed_intervals_refill_the_whole_bucket() {
     let mut transcript = Transcript::rate_limited(Config::default());
     for index in 1..=10 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
@@ -115,7 +115,7 @@ fn unconsumed_intervals_refill_the_whole_bucket() {
 fn a_full_bucket_has_no_refill_deadline() {
     let mut transcript = Transcript::rate_limited(Config::default());
     for index in 1..=10 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
@@ -131,14 +131,14 @@ fn a_full_bucket_has_no_refill_deadline() {
 fn reconnecting_restores_the_full_burst() {
     let mut transcript = Transcript::rate_limited(Config::default()).connect_default();
     for index in 1..=5 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("before {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("before {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :before {index}"));
     }
     transcript = transcript.disconnect().connect_default();
     for index in 1..=5 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("after {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("after {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :after {index}"));
@@ -149,9 +149,9 @@ fn reconnecting_restores_the_full_burst() {
 #[test]
 fn taking_another_token_preserves_the_refill_deadline() {
     Transcript::rate_limited(Config::default())
-        .send(Message::privmsg("#papo", "first"))
-        .send(Message::privmsg("#papo", "second"))
-        .send(Message::privmsg("#papo", "third"))
+        .send(Line::privmsg("#papo", "first"))
+        .send(Line::privmsg("#papo", "second"))
+        .send(Line::privmsg("#papo", "third"))
         .client("PRIVMSG #papo first")
         .deadline(Some(Duration::from_millis(500)))
         .advance(Duration::from_millis(100))
@@ -164,7 +164,7 @@ fn taking_another_token_preserves_the_refill_deadline() {
 fn taking_from_a_refilled_bucket_starts_a_new_interval() {
     let mut transcript = Transcript::rate_limited(Config::default());
     for index in 1..=10 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
@@ -179,7 +179,7 @@ fn taking_from_a_refilled_bucket_starts_a_new_interval() {
 #[test]
 fn unlimited_rate_limit_never_schedules_a_token_deadline() {
     Transcript::rate_limited(Config::default().rate_limit(RateLimit::unlimited()))
-        .send(Message::privmsg("#papo", "one"))
+        .send(Line::privmsg("#papo", "one"))
         .client("PRIVMSG #papo one")
         .deadline(None);
 }
@@ -187,11 +187,11 @@ fn unlimited_rate_limit_never_schedules_a_token_deadline() {
 #[test]
 fn queued_len_sums_regular_and_bypass_lines() {
     Transcript::rate_limited(Config::default())
-        .send(Message::privmsg("#papo", "first"))
-        .send(Message::privmsg("#papo", "second"))
-        .send(Message::privmsg("#papo", "third"))
-        .send(Message::new("PONG", ["ergo.test-4917"]))
-        .send(Message::new("CAP", ["END"]))
+        .send(Line::privmsg("#papo", "first"))
+        .send(Line::privmsg("#papo", "second"))
+        .send(Line::privmsg("#papo", "third"))
+        .send(Line::new("PONG", ["ergo.test-4917"]))
+        .send(Line::new("CAP", ["END"]))
         .inspect(|session| assert_eq!(session.queued_len(), 5))
         .ignore_rest();
 }
@@ -200,15 +200,15 @@ fn queued_len_sums_regular_and_bypass_lines() {
 fn protocol_critical_commands_bypass_an_exhausted_bucket() {
     let mut transcript = Transcript::rate_limited(Config::default());
     for index in 1..=5 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("message {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
     }
     for (message, expected) in [
-        (Message::new("CAP", ["END"]), "CAP END"),
-        (Message::new("AUTHENTICATE", ["+"]), "AUTHENTICATE +"),
-        (Message::new("PONG", ["ergo.test"]), "PONG ergo.test"),
+        (Line::new("CAP", ["END"]), "CAP END"),
+        (Line::new("AUTHENTICATE", ["+"]), "AUTHENTICATE +"),
+        (Line::new("PONG", ["ergo.test"]), "PONG ergo.test"),
     ] {
         transcript = transcript.send(message).client(expected);
     }
@@ -218,16 +218,16 @@ fn protocol_critical_commands_bypass_an_exhausted_bucket() {
 fn quit_keeps_its_place_behind_queued_messages() {
     let mut transcript = Transcript::rate_limited(Config::default());
     for index in 1..=5 {
-        transcript = transcript.send(Message::privmsg("#papo", format!("drain {index}")));
+        transcript = transcript.send(Line::privmsg("#papo", format!("drain {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :drain {index}"));
     }
     transcript
-        .send(Message::privmsg("#papo", "first"))
-        .send(Message::privmsg("#papo", "second"))
-        .send(Message::privmsg("#papo", "third"))
-        .send(Message::new("QUIT", ["shutting down"]))
+        .send(Line::privmsg("#papo", "first"))
+        .send(Line::privmsg("#papo", "second"))
+        .send(Line::privmsg("#papo", "third"))
+        .send(Line::new("QUIT", ["shutting down"]))
         .no_client()
         .advance(Duration::from_millis(500))
         .client("PRIVMSG #papo first")

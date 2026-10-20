@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use papo_core::{Config, Event, RateLimit, RequestError, ServerError, Session, TextKind};
-use papo_proto::Message;
+use papo_proto::Line;
 
 fn multiline_session(now: Instant, value: &str, labels: bool) -> Session {
     multiline_session_with_rate_limit(now, value, labels, RateLimit::unlimited())
@@ -366,7 +366,7 @@ fn interleaved_traffic_waits_for_the_batch_close() {
         "BATCH +b0-0 draft/multiline #papo\r\n"
     );
     session
-        .send(now, Message::privmsg("#elsewhere", "queued later"))
+        .send(now, Line::privmsg("#elsewhere", "queued later"))
         .unwrap();
     session.handle_line(now, b"PING :keepalive");
     let remaining = drain(&mut session);

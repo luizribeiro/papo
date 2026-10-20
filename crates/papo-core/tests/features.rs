@@ -7,7 +7,7 @@ use papo_core::{
     Config, Event, Feature, HistoryQuery, MetadataCommand, PersistenceSetting, ResponseMatcher,
     Session, Unsupported, UnsupportedReason,
 };
-use papo_proto::Message;
+use papo_proto::Line;
 use support::{Transcript, unsupported_because};
 
 const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration soju.im/bouncer-networks draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response away-notify account-notify account-tag chghost";
@@ -350,7 +350,7 @@ fn failing_a_feature_request_keeps_other_join_tracking() {
         session
             .request_with_matcher(
                 std::time::Instant::now(),
-                Message::join("#papo"),
+                Line::join("#papo"),
                 ResponseMatcher::Join("#papo".into()),
             )
             .unwrap();
@@ -434,7 +434,7 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
             Err(expected(Feature::Relay))
         );
         assert_eq!(
-            session.request(now, Message::new("WHOIS", ["alice"])),
+            session.request(now, Line::new("WHOIS", ["alice"])),
             Err(expected(Feature::LabeledResponse))
         );
     })

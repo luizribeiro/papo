@@ -5,7 +5,7 @@ mod support;
 use std::time::Instant;
 
 use papo_core::{Config, CtcpReplies, Event, RateLimit, Session};
-use papo_proto::{Message, Reaction, Typing};
+use papo_proto::{Line, Reaction, Typing};
 use support::Transcript;
 
 fn tag_message(line: &str) -> papo_core::TagMessage {
@@ -17,8 +17,8 @@ fn tag_message(line: &str) -> papo_core::TagMessage {
     message
 }
 
-fn as_message(tag: &papo_core::TagMessage) -> Message {
-    let mut message = Message::tagmsg(&tag.target);
+fn as_message(tag: &papo_core::TagMessage) -> Line {
+    let mut message = Line::tagmsg(&tag.target);
     if let Some(source) = &tag.source {
         message = message.with_source(source);
     }

@@ -13,7 +13,7 @@ use papo_core::{
     Config, Connection, Entropy, Event, Feature, RateLimit, RequestError, Session, Unsupported,
     UnsupportedReason,
 };
-use papo_proto::Message;
+use papo_proto::Line;
 
 /// Maximum time a blocking transcript operation may wait for the server.
 pub const TEST_DEADLINE: Duration = Duration::from_secs(5);
@@ -133,7 +133,7 @@ impl Transcript {
     }
 
     /// Queues a user-originated message.
-    pub fn send(mut self, message: Message) -> Self {
+    pub fn send(mut self, message: Line) -> Self {
         self.session
             .send(self.now, message)
             .expect("transcript user message is valid");
