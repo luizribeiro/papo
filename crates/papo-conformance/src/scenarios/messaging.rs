@@ -615,6 +615,37 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// a typing notification to an operator target reaches only channel operators
+#[scenario(
+    requires(caps = ["message-tags"], isupport = ["STATUSMSG"]),
+    covers = ["tag.typing.status-target"]
+)]
+async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let mut carol = s.connect("carol").await?;
+    let mut dave = s.connect("dave").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    carol.join(&channel).await?;
+    dave.join(&channel).await?;
+    alice.mode(&channel).op(bob.nick()).await?;
+
+    let target = format!("@{channel}");
+    alice.typing(target.clone(), Typing::Active).await?;
+    let typing = bob.wait_for(Event::as_typing_changed).await?;
+    assert_eq!(
+        typing.source.as_ref().and_then(Source::nick),
+        Some(alice.nick().as_ref())
+    );
+    assert_eq!(typing.target.as_ref(), target);
+    assert_eq!(typing.state, Typing::Active);
+    carol.expect_none(Event::as_typing_changed).await?;
+    dave.expect_none(Event::as_typing_changed).await?;
+    Ok(())
+}
+
 /// multiline delivery concatenates lines while preserving message metadata
 #[scenario(
     requires(caps = [

@@ -48,7 +48,7 @@ ids = [
   "draft.multiline.concat", "draft.multiline.errors-limits", "draft.network-icon", "draft.oper-tag",
   "draft.pre-away", "draft.read-marker.set-get", "draft.read-marker.monotonic", "draft.read-marker.on-join",
   "draft.persistence", "draft.bouncer-networks", "draft.webpush",
-  "tag.typing", "tag.reply", "tag.react", "tag.channel-context",
+  "tag.typing", "tag.typing.status-target", "tag.reply", "tag.react", "tag.channel-context",
   "tag.multiline-concat", "tag.bot",
   "core.cap.ls-302-multiline", "core.cap-notify.new", "core.cap-notify.del", "core.sasl.reauth",
   "core.sts.upgrade", "core.sts.persistence", "core.batch.netsplit-netjoin", "core.labeled-response.correlation",
