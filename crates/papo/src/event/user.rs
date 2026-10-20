@@ -1,4 +1,4 @@
-use crate::{AccountName, ChannelName, Nick};
+use crate::{AccountName, Authorship, ChannelName, Nick};
 
 use super::Joined;
 
@@ -12,6 +12,8 @@ pub struct Quit {
     pub reason: Option<String>,
     /// Shared channels captured before the user was removed.
     pub channels: Vec<ChannelName>,
+    /// Whether the disconnected user is this client's user.
+    pub authorship: Authorship,
 }
 
 /// A user changed nickname.
@@ -22,6 +24,8 @@ pub struct NickChanged {
     pub old: Nick,
     /// The new nickname.
     pub new: Nick,
+    /// Whether the renamed user is this client's user.
+    pub authorship: Authorship,
     /// Whether the renamed user is this client.
     pub is_self: bool,
 }
@@ -94,6 +98,8 @@ pub struct MonitorOffline {
 pub struct Departed {
     /// The departed user's nickname.
     pub nick: Nick,
+    /// Whether the departed user is this client's user.
+    pub authorship: Authorship,
     /// The optional quit reason.
     pub reason: Option<String>,
 }

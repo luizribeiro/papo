@@ -207,6 +207,7 @@ fn quit(message: &papo_proto::LineRef<'_>, mapping: crate::Casemapping) -> Optio
         nick: mapping.nick(source_nick(message)?),
         reason: message.param(0).map(str::to_owned),
         channels: Vec::new(),
+        authorship: crate::Authorship::Unknown,
     }))
 }
 
@@ -226,6 +227,7 @@ fn nick_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<Hi
     let old = source_nick(message)?;
     let mapping = client.state().casemapping();
     Some(HistoryItem::NickChanged(NickChanged {
+        authorship: crate::Authorship::Unknown,
         is_self: is_self(client, &old),
         old: mapping.nick(old),
         new: mapping.nick(message.param(0)?),

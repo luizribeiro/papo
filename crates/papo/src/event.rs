@@ -948,11 +948,16 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             conversation: marker.conversation,
             time: marker.time,
         }),
-        papo_core::Event::Netsplit { servers, quits, .. } => Event::Netsplit(Netsplit {
+        papo_core::Event::Netsplit {
+            servers,
+            quits,
+            authorship,
+        } => Event::Netsplit(Netsplit {
             servers: servers.into(),
             quits: quits
                 .into_iter()
-                .filter_map(|message| {
+                .zip(authorship)
+                .filter_map(|(message, authorship)| {
                     let message = message.as_ref();
                     let nick = match message.source()? {
                         papo_proto::Source::User { nick, .. } => nick.to_owned(),
@@ -960,6 +965,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                     };
                     Some(Departed {
                         nick: casemapping.nick(nick),
+                        authorship: Authorship::from_core(authorship),
                         reason: message.param(0).map(str::to_owned),
                     })
                 })
@@ -1070,15 +1076,21 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             nick,
             reason,
             channels,
-            ..
+            authorship,
         } => Event::Quit(Quit {
             nick,
             reason,
             channels,
+            authorship: Authorship::from_core(authorship),
         }),
-        papo_core::Event::NickChanged { old, new, .. } => Event::NickChanged(NickChanged {
+        papo_core::Event::NickChanged {
             old,
             new,
+            authorship,
+        } => Event::NickChanged(NickChanged {
+            old,
+            new,
+            authorship: Authorship::from_core(authorship),
             is_self: false,
         }),
         papo_core::Event::ChannelRenamed {
@@ -2321,6 +2333,7 @@ mod tests {
             Event::NickChanged(super::NickChanged {
                 old: mapping.nick("Papo[Bot]"),
                 new: mapping.nick("papo-away"),
+                authorship: crate::Authorship::Own,
                 is_self: false,
             }),
             Event::Netjoin(super::Netjoin {

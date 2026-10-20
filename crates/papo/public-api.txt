@@ -402,6 +402,7 @@ impl core::marker::UnsafeUnpin for papo::event::Connected
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Connected
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Connected
 #[non_exhaustive] pub struct papo::event::Departed
+pub papo::event::Departed::authorship: papo::Authorship
 pub papo::event::Departed::nick: papo::Nick
 pub papo::event::Departed::reason: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::event::Departed
@@ -690,6 +691,7 @@ impl core::marker::UnsafeUnpin for papo::event::Netsplit
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Netsplit
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Netsplit
 #[non_exhaustive] pub struct papo::event::NickChanged
+pub papo::event::NickChanged::authorship: papo::Authorship
 pub papo::event::NickChanged::is_self: bool
 pub papo::event::NickChanged::new: papo::Nick
 pub papo::event::NickChanged::old: papo::Nick
@@ -729,6 +731,7 @@ impl core::marker::UnsafeUnpin for papo::event::Parted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Parted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Parted
 #[non_exhaustive] pub struct papo::event::Quit
+pub papo::event::Quit::authorship: papo::Authorship
 pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo::event::Quit::nick: papo::Nick
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
