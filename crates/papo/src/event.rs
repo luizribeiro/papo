@@ -240,30 +240,20 @@ impl Message {
 
     pub(crate) fn from_history(
         message: ProtoLine,
+        authorship: Authorship,
         client: &Client,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
-        Self::from_historical(
-            message,
-            client,
-            received_at,
-            Origin::History,
-            Authorship::Unknown,
-        )
+        Self::from_historical(message, client, received_at, Origin::History, authorship)
     }
 
     pub(crate) fn from_replay(
         message: ProtoLine,
+        authorship: Authorship,
         client: &Client,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
-        Self::from_historical(
-            message,
-            client,
-            received_at,
-            Origin::Replay,
-            Authorship::Unknown,
-        )
+        Self::from_historical(message, client, received_at, Origin::Replay, authorship)
     }
 
     fn from_historical(

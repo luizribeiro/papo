@@ -74,9 +74,12 @@ pub(crate) fn history_item(
     let mapping = state.casemapping();
     match item {
         papo_core::HistoryItem::Message(item) => {
+            let authorship = crate::Authorship::from_core(item.authorship);
             let message = match origin {
-                Origin::History => ChatMessage::from_history(item.line, client, received_at),
-                _ => ChatMessage::from_replay(item.line, client, received_at),
+                Origin::History => {
+                    ChatMessage::from_history(item.line, authorship, client, received_at)
+                }
+                _ => ChatMessage::from_replay(item.line, authorship, client, received_at),
             };
             message.map_or_else(HistoryItem::Other, HistoryItem::Message)
         }
@@ -777,6 +780,7 @@ mod tests {
             Line::privmsg("#papo", "earlier")
                 .with_source("emily!~emily@localhost")
                 .with_tag("msgid", "RfcBTzyxY120004"),
+            crate::Authorship::Unknown,
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
         )
