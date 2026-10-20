@@ -54,11 +54,11 @@ pub papo_proto::Casemapping::Ascii
 pub papo_proto::Casemapping::Rfc1459
 pub papo_proto::Casemapping::Rfc1459Strict
 impl papo_proto::Casemapping
-pub fn papo_proto::Casemapping::account(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::AccountName
-pub fn papo_proto::Casemapping::channel(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::ChannelName
+pub fn papo_proto::Casemapping::account(self, impl core::convert::AsRef<str>) -> papo_proto::AccountName
+pub fn papo_proto::Casemapping::channel(self, impl core::convert::AsRef<str>) -> papo_proto::ChannelName
 pub fn papo_proto::Casemapping::fold(self, &str) -> alloc::borrow::Cow<'_, str>
-pub fn papo_proto::Casemapping::mask(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::Mask
-pub fn papo_proto::Casemapping::nick(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::Nick
+pub fn papo_proto::Casemapping::mask(self, impl core::convert::AsRef<str>) -> papo_proto::Mask
+pub fn papo_proto::Casemapping::nick(self, impl core::convert::AsRef<str>) -> papo_proto::Nick
 pub fn papo_proto::Casemapping::parse(&str) -> core::option::Option<Self>
 impl core::clone::Clone for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::clone(&self) -> Self

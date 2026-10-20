@@ -96,7 +96,7 @@ impl State {
 
     /// Builds a nickname with the current or last-known server-defined comparison rules.
     #[must_use]
-    pub fn nickname(&self, text: impl Into<String>) -> Nick {
+    pub fn nickname(&self, text: impl AsRef<str>) -> Nick {
         self.casemapping().nick(text)
     }
 
@@ -108,7 +108,7 @@ impl State {
 
     /// Builds an account name with the current or last-known server-defined comparison rules.
     #[must_use]
-    pub fn account_name(&self, text: impl Into<String>) -> AccountName {
+    pub fn account_name(&self, text: impl AsRef<str>) -> AccountName {
         self.casemapping().account(text)
     }
 
@@ -140,7 +140,7 @@ impl State {
 
     /// Builds a channel name with the current or last-known server-defined comparison rules.
     #[must_use]
-    pub fn channel_name(&self, text: impl Into<String>) -> ChannelName {
+    pub fn channel_name(&self, text: impl AsRef<str>) -> ChannelName {
         self.casemapping().channel(text)
     }
 
@@ -261,7 +261,7 @@ impl State {
 
     /// Builds a mask with the current or last-known server-defined comparison rules.
     #[must_use]
-    pub fn mask(&self, text: impl Into<String>) -> Mask {
+    pub fn mask(&self, text: impl AsRef<str>) -> Mask {
         self.casemapping().mask(text)
     }
 }

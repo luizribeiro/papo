@@ -33,26 +33,26 @@ pub enum Casemapping {
 impl Casemapping {
     /// Creates a nickname carrying these server-defined comparison rules.
     #[must_use]
-    pub fn nick(self, text: impl Into<String>) -> Nick {
-        Nick::new(text, self)
+    pub fn nick(self, text: impl AsRef<str>) -> Nick {
+        Nick::new(text.as_ref().to_owned(), self)
     }
 
     /// Creates a channel name carrying these server-defined comparison rules.
     #[must_use]
-    pub fn channel(self, text: impl Into<String>) -> ChannelName {
-        ChannelName::new(text, self)
+    pub fn channel(self, text: impl AsRef<str>) -> ChannelName {
+        ChannelName::new(text.as_ref().to_owned(), self)
     }
 
     /// Creates an account name carrying these server-defined comparison rules.
     #[must_use]
-    pub fn account(self, text: impl Into<String>) -> AccountName {
-        AccountName::new(text, self)
+    pub fn account(self, text: impl AsRef<str>) -> AccountName {
+        AccountName::new(text.as_ref().to_owned(), self)
     }
 
     /// Creates a mask carrying these server-defined comparison rules.
     #[must_use]
-    pub fn mask(self, text: impl Into<String>) -> Mask {
-        Mask::new(text, self)
+    pub fn mask(self, text: impl AsRef<str>) -> Mask {
+        Mask::new(text.as_ref().to_owned(), self)
     }
 
     /// Parses a `CASEMAPPING` token value.
