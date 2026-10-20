@@ -76,11 +76,7 @@ fn request_futures_are_send() {
     assert_send_static(client.notice("emily", "maintenance soon").into_future());
     assert_send_static(client.action("#papo", "waves").into_future());
     assert_send_static(client.typing("#papo", Typing::Active));
-    assert_send_static(client.redact(
-        Target::from("#papo"),
-        MessageId::from("RfcBTzyxY120004"),
-        "",
-    ));
+    assert_send_static(client.redact("#papo", MessageId::from("RfcBTzyxY120004"), ""));
     assert_send_static(client.whois("emily"));
     assert_send_static(client.who(mapping.mask("#papo")));
     assert_send_static(client.join("#papo").into_future());

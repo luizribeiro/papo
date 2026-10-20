@@ -435,15 +435,11 @@ impl Client {
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
-    pub fn privmsg(
-        &self,
-        target: impl Into<crate::Target>,
-        text: impl Into<String>,
-    ) -> SendMessage {
+    pub fn privmsg(&self, target: impl AsRef<str>, text: impl Into<String>) -> SendMessage {
         SendMessage {
             client: self.clone(),
             kind: TextKind::Privmsg,
-            target: target.into(),
+            target: crate::Target::from(target.as_ref()),
             text: text.into(),
             reply_to: None,
             channel_context: None,
@@ -466,11 +462,11 @@ impl Client {
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
-    pub fn notice(&self, target: impl Into<crate::Target>, text: impl Into<String>) -> SendMessage {
+    pub fn notice(&self, target: impl AsRef<str>, text: impl Into<String>) -> SendMessage {
         SendMessage {
             client: self.clone(),
             kind: TextKind::Notice,
-            target: target.into(),
+            target: crate::Target::from(target.as_ref()),
             text: text.into(),
             reply_to: None,
             channel_context: None,
@@ -484,7 +480,7 @@ impl Client {
     /// # Errors
     ///
     /// Returns the same errors as [`Client::privmsg`].
-    pub fn action(&self, target: impl Into<crate::Target>, text: impl Into<String>) -> SendMessage {
+    pub fn action(&self, target: impl AsRef<str>, text: impl Into<String>) -> SendMessage {
         let text = text.into();
         if let Some(action) = Ctcp::action(&text) {
             self.privmsg(target, action)
@@ -552,11 +548,16 @@ impl Client {
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
     pub fn react(
         &self,
-        target: impl Into<crate::Target>,
+        target: impl AsRef<str>,
         message: impl Into<crate::MessageId>,
         emoji: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        self.reaction(target.into(), message.into(), emoji.into(), "+draft/react")
+        self.reaction(
+            crate::Target::from(target.as_ref()),
+            message.into(),
+            emoji.into(),
+            "+draft/react",
+        )
     }
 
     /// Removes `emoji` as a reaction to `message`.
@@ -571,12 +572,12 @@ impl Client {
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
     pub fn unreact(
         &self,
-        target: impl Into<crate::Target>,
+        target: impl AsRef<str>,
         message: impl Into<crate::MessageId>,
         emoji: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         self.reaction(
-            target.into(),
+            crate::Target::from(target.as_ref()),
             message.into(),
             emoji.into(),
             "+draft/unreact",
@@ -661,13 +662,9 @@ impl Client {
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
-    pub fn typing(
-        &self,
-        target: impl Into<crate::Target>,
-        state: Typing,
-    ) -> crate::RequestFuture<()> {
+    pub fn typing(&self, target: impl AsRef<str>, state: Typing) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let target = target.into();
+        let target = crate::Target::from(target.as_ref());
         crate::RequestFuture::new(async move {
             let snapshot = client.state();
             Self::require_feature(&snapshot, Feature::Typing)?;
@@ -699,12 +696,12 @@ impl Client {
     /// [`Error::Disconnected`].
     pub fn redact(
         &self,
-        target: impl Into<crate::Target>,
+        target: impl AsRef<str>,
         message: impl Into<crate::MessageId>,
         reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let target = target.into();
+        let target = crate::Target::from(target.as_ref());
         let message = message.into();
         let reason = reason.into();
         crate::RequestFuture::new(async move {
