@@ -4278,6 +4278,52 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    server_line(
+        &mut server,
+        b"@+typing=active :alice!~alice@cloak.example TAGMSG #papo\r\n",
+    )
+    .await;
+    let conversation = match events.next().await {
+        Some(Event::TypingChanged(change)) => change.conversation,
+        other => panic!("expected typing event, got {other:?}"),
+    };
+    let state = client.state();
+    let typer = state.typing(&conversation).next().unwrap();
+    assert_eq!(typer.nick, "alice");
+    assert_eq!(typer.state, Typing::Active);
+    assert_eq!(typer.status, None);
+
+    tokio::time::advance(Duration::from_secs(3)).await;
+    server_line(
+        &mut server,
+        b"@+typing=active :ALICE!~alice@cloak.example TAGMSG #papo\r\n",
+    )
+    .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::TypingChanged(change)) if change.state == Typing::Active
+    ));
+    assert!(Arc::ptr_eq(&state, &client.state()));
+
+    tokio::time::advance(Duration::from_secs(6)).await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::TypingChanged(change)) if change.state == Typing::Done
+    ));
+    let expired = client.state();
+    assert!(!Arc::ptr_eq(&state, &expired));
+    assert_eq!(expired.typing(&conversation).count(), 0);
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn redaction_requires_its_capability_and_propagates_fail() {
     let caps = ["draft/message-redaction", "labeled-response"];

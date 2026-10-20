@@ -249,6 +249,14 @@ impl State {
         self.core.monitored()
     }
 
+    /// Iterates over users currently typing in `conversation`, in start order.
+    pub fn typing<'a>(
+        &'a self,
+        conversation: &'a crate::Conversation,
+    ) -> impl Iterator<Item = &'a crate::Typer> {
+        self.core.typing(conversation)
+    }
+
     /// Returns the capabilities enabled on the current connection.
     #[must_use]
     pub const fn caps(&self) -> &Capabilities {

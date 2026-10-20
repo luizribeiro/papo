@@ -29,6 +29,7 @@ pub use papo::Sasl
 pub use papo::Secret
 pub use papo::ServerName
 pub use papo::Source
+pub use papo::Typer
 pub use papo::Typing
 pub use papo::Unsupported
 pub use papo::UnsupportedReason
@@ -2415,6 +2416,7 @@ pub fn papo::State::nickname(&self, impl core::convert::AsRef<str>) -> papo::Nic
 pub fn papo::State::persistence(&self) -> core::option::Option<papo::PersistenceStatus>
 pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::time::SystemTime>
 pub fn papo::State::supports(&self, papo::Feature) -> bool
+pub fn papo::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo::Typer>
 pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 impl core::clone::Clone for papo::State
