@@ -274,6 +274,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::NameKind
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::NameKind
 #[non_exhaustive] pub enum papo_proto::ParseError
 pub papo_proto::ParseError::EmptyLine
+pub papo_proto::ParseError::InvalidByte
 pub papo_proto::ParseError::InvalidUtf8
 pub papo_proto::ParseError::MissingCommand
 pub papo_proto::ParseError::TooLong
@@ -780,7 +781,12 @@ impl core::cmp::PartialEq for papo_proto::Line
 pub fn papo_proto::Line::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_proto::Line
 pub fn papo_proto::Line::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::Line
+pub fn papo_proto::Line::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo_proto::Line
+impl core::str::traits::FromStr for papo_proto::Line
+pub type papo_proto::Line::Err = papo_proto::ParseError
+pub fn papo_proto::Line::from_str(&str) -> core::result::Result<Self, Self::Err>
 impl core::marker::Freeze for papo_proto::Line
 impl core::marker::Send for papo_proto::Line
 impl core::marker::Sync for papo_proto::Line

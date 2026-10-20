@@ -1,4 +1,11 @@
-use std::{borrow::Cow, error::Error, fmt, iter::FusedIterator, slice, str::Utf8Error};
+use std::{
+    borrow::Cow,
+    error::Error,
+    fmt,
+    iter::FusedIterator,
+    slice,
+    str::{FromStr, Utf8Error},
+};
 
 use crate::{Command, Source};
 
@@ -46,6 +53,8 @@ pub enum ParseError {
     MissingCommand,
     /// The byte input is not valid UTF-8.
     InvalidUtf8,
+    /// The input contains CR, LF, or NUL within the line.
+    InvalidByte,
     /// The tag section or the rest of the line exceeds its wire limit.
     TooLong,
 }
@@ -56,6 +65,7 @@ impl fmt::Display for ParseError {
             Self::EmptyLine => "IRC line is empty",
             Self::MissingCommand => "IRC line has no command",
             Self::InvalidUtf8 => "IRC line is not valid UTF-8",
+            Self::InvalidByte => "IRC line contains CR, LF, or NUL",
             Self::TooLong => "IRC line exceeds its wire length limit",
         })
     }
@@ -448,6 +458,24 @@ impl Line {
         } else {
             self.tags.push((key, value));
         }
+    }
+}
+
+impl FromStr for Line {
+    type Err = ParseError;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        if input.contains(['\r', '\n', '\0']) {
+            return Err(ParseError::InvalidByte);
+        }
+        LineRef::parse(input).map(|line| line.to_owned())
+    }
+}
+
+impl fmt::Display for Line {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let wire = self.to_line().map_err(|_| fmt::Error)?;
+        formatter.write_str(wire.strip_suffix("\r\n").unwrap_or(&wire))
     }
 }
 

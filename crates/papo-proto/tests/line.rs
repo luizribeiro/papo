@@ -247,6 +247,73 @@ fn parses_realistic_ergo_lines() {
 }
 
 #[test]
+fn owned_lines_parse_real_ergo_messages() {
+    let message: Line = "@time=2026-10-14T20:15:42.123Z;msgid=abcDEF123 :alice!~a@cloak.example PRIVMSG #papo :release ready"
+        .parse()
+        .unwrap();
+    let borrowed = message.as_ref();
+    assert_eq!(borrowed.raw_command(), "PRIVMSG");
+    assert_eq!(
+        borrowed.params().collect::<Vec<_>>(),
+        ["#papo", "release ready"]
+    );
+    assert_eq!(
+        borrowed.tag("time").as_deref(),
+        Some("2026-10-14T20:15:42.123Z")
+    );
+    assert_eq!(borrowed.tag("msgid").as_deref(), Some("abcDEF123"));
+    assert!(matches!(
+        borrowed.source(),
+        Some(Source::User {
+            nick: "alice",
+            user: Some("~a"),
+            host: Some("cloak.example")
+        })
+    ));
+
+    let numeric: Line = ":ergo.test 372 papo :- Welcome to ErgoTest"
+        .parse()
+        .unwrap();
+    assert_eq!(
+        numeric.as_ref().command(),
+        Command::Numeric(Numeric::new(372).unwrap())
+    );
+    assert_eq!(numeric.as_ref().param(1), Some("- Welcome to ErgoTest"));
+    assert_eq!(
+        numeric.to_string(),
+        ":ergo.test 372 papo :- Welcome to ErgoTest"
+    );
+}
+
+#[test]
+fn owned_line_parsing_rejects_delimiters_and_empty_input() {
+    for input in [
+        "PRIVMSG #papo :hello\rthere",
+        "PRIVMSG #papo :hello\nthere",
+        "PRIVMSG #papo :hello\0there",
+    ] {
+        assert_eq!(input.parse::<Line>(), Err(ParseError::InvalidByte));
+    }
+    assert_eq!("".parse::<Line>(), Err(ParseError::EmptyLine));
+}
+
+#[test]
+fn owned_lines_format_parameters_and_reject_invalid_content() {
+    assert_eq!(
+        Line::new("PRIVMSG", ["#papo", "release ready"]).to_string(),
+        "PRIVMSG #papo :release ready"
+    );
+    assert_eq!(
+        Line::new("KILL", ["alice evil", "policy violation"]).to_line(),
+        Err(BuildError::InvalidParam(0))
+    );
+    assert_eq!(
+        Line::new("NOTICE", ["papo", "bad\nQUIT"]).to_line(),
+        Err(BuildError::InvalidParam(1))
+    );
+}
+
+#[test]
 fn parses_literal_wire_commands() {
     let cases = [
         ("NICK papo-test", Command::Nick),
