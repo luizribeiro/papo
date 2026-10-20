@@ -259,6 +259,22 @@ fn advertised_max_keys_does_not_limit_received_metadata() {
 }
 
 #[test]
+fn metadata_target_spelling_survives_casemapping_changes() {
+    registered("max-subs=100,max-keys=100")
+        .server(":soju.example METADATA #Papo[dev] soju.im/pinned * :1")
+        .event(|event| matches!(event, Event::MetadataChanged { .. }))
+        .server(":ergo.test 005 alice CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
+        .inspect(|session| {
+            assert_eq!(
+                session.state().metadata("#Papo[dev]").unwrap()["soju.im/pinned"].value,
+                "1"
+            );
+            assert!(session.state().metadata("#papo{dev}").is_none());
+        });
+}
+
+#[test]
 fn bounds_received_metadata_with_its_own_storage_limit() {
     registered("max-subs=100,max-keys=20000").update(|session| {
         for index in 0..10_001 {
