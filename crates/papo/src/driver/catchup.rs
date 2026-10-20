@@ -233,11 +233,14 @@ mod tests {
             msgid: Some("RfcBTzyxY120010".into()),
             time: SystemTime::UNIX_EPOCH,
             account: Some(mapping.account("emily")),
-            actor: crate::Source::User {
-                nick: mapping.nick("emily"),
-                username: Some("~e".into()),
-                host: Some("cloak.example".into()),
-            },
+            actor: crate::Source::from_proto(
+                papo_proto::Source::User {
+                    nick: "emily",
+                    username: Some("~e"),
+                    host: Some("cloak.example"),
+                },
+                mapping,
+            ),
             authorship: crate::Authorship::Other,
             conversation: crate::Conversation::Channel(mapping.channel("#papo")),
             status: None,

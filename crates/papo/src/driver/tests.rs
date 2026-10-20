@@ -665,11 +665,14 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             account: None,
             channel: test_channel("#staff"),
             nick: test_nick("alice"),
-            actor: crate::Source::User {
-                nick: test_nick("chanserv"),
-                username: None,
-                host: None,
-            },
+            actor: crate::Source::from_proto(
+                papo_proto::Source::User {
+                    nick: "chanserv",
+                    username: None,
+                    host: None,
+                },
+                papo_proto::Casemapping::default(),
+            ),
             authorship: crate::Authorship::Other,
             subject_authorship: crate::Authorship::Other,
             reason: Some("idle".into()),
@@ -700,11 +703,14 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             account: None,
             channel: test_channel("#staff"),
             nick: test_nick("papo-driver"),
-            actor: crate::Source::User {
-                nick: test_nick("chanserv"),
-                username: None,
-                host: None,
-            },
+            actor: crate::Source::from_proto(
+                papo_proto::Source::User {
+                    nick: "chanserv",
+                    username: None,
+                    host: None,
+                },
+                papo_proto::Casemapping::default(),
+            ),
             authorship: crate::Authorship::Other,
             subject_authorship: crate::Authorship::Own,
             reason: Some("access removed".into()),
