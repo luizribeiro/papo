@@ -1,6 +1,6 @@
 use papo::{Client, Error, Event as ClientEvent, Events, Reconnect, RequestFuture, Sasl};
 use papo_core::{Config, Event, Session};
-use papo_proto::MessageRef;
+use papo_proto::LineRef;
 use wasm_bindgen_test::wasm_bindgen_test;
 use web_time::Instant;
 #[path = "../../../../../papo/src/rt.rs"]
@@ -102,7 +102,7 @@ async fn wait_for(events: &mut Events, accepted: impl Fn(&ClientEvent) -> bool) 
 
 #[wasm_bindgen_test]
 fn parses_an_ergo_message() {
-    let message = MessageRef::parse(
+    let message = LineRef::parse(
         "@time=2026-10-16T12:34:56.789Z :emily!~em@localhost PRIVMSG #papo :hello browser",
     )
     .unwrap();

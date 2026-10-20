@@ -3,7 +3,7 @@
 #[cfg(feature = "driver")]
 use papo::{Client, Endpoint};
 use papo_core::{Config, Session};
-use papo_proto::MessageRef;
+use papo_proto::LineRef;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_time::Instant;
 
@@ -15,7 +15,7 @@ use web_time::Instant;
 #[must_use]
 #[wasm_bindgen]
 pub fn core_probe() -> usize {
-    let message = MessageRef::parse(
+    let message = LineRef::parse(
         "@time=2026-10-16T12:34:56.789Z :emily!~em@localhost PRIVMSG #papo :hello",
     )
     .expect("the probe line is valid IRC");

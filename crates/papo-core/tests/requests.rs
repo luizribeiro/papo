@@ -6,7 +6,7 @@ use papo_core::{
     Config, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher, ServerError,
     Session,
 };
-use papo_proto::{Message, MessageRef, Numeric};
+use papo_proto::{LineRef, Message, Numeric};
 
 fn labelled_session(now: Instant) -> Session {
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -1488,7 +1488,7 @@ fn labelled_join_fallbacks_obey_the_literal_pending_limit() {
             .request_with_matcher(now, Message::join(&channel), ResponseMatcher::Join(channel))
             .unwrap();
         let line = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
-        let label = MessageRef::parse(&line)
+        let label = LineRef::parse(&line)
             .unwrap()
             .tag("label")
             .unwrap()
@@ -1524,7 +1524,7 @@ fn generates_one_thousand_distinct_short_alphanumeric_labels() {
             .request(now, Message::new("WHOIS", [format!("user{nick}")]))
             .unwrap();
         let line = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
-        let message = MessageRef::parse(&line).unwrap();
+        let message = LineRef::parse(&line).unwrap();
         let label = message.tag("label").unwrap().into_owned();
         assert!(label.len() <= 64);
         assert!(label.bytes().all(|byte| byte.is_ascii_alphanumeric()));
