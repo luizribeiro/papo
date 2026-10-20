@@ -42,11 +42,16 @@ fn reclaims_the_primary_nick_when_ergo_reports_it_offline() {
 
 #[test]
 fn nickname_regain_is_disabled_by_default() {
-    registered_after_collision(Config::default(), true).no_client();
+    registered_after_collision(
+        Config::default().ping_interval(Duration::from_secs(300)),
+        false,
+    )
+    .advance(Duration::from_secs(60))
+    .no_client();
 }
 
 #[test]
-fn polls_ison_with_only_one_request_in_flight() {
+fn ison_replies_drive_bounded_polling_and_reclaim() {
     let mut config = Config::default()
         .ping_interval(Duration::from_secs(300))
         .ping_timeout(Duration::from_secs(600));
@@ -55,5 +60,21 @@ fn polls_ison_with_only_one_request_in_flight() {
         .advance(Duration::from_secs(60))
         .client("ISON papo")
         .advance(Duration::from_secs(60))
+        .no_client()
+        .server(":irc.solanum.example 303 papo_")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("303")))
+        .server(":irc.solanum.example 303 papo_ :papo")
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .server(":irc.solanum.example 303 papo_ :")
+        .client("NICK papo")
+        .server(":irc.solanum.example 433 papo_ papo :Nickname is already in use")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("433")))
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .server(":irc.solanum.example 303 papo_ :")
+        .client("NICK papo")
+        .server(":papo_!~papo@user/papo NICK :papo")
+        .event(|event| matches!(event, Event::NickChanged { new, .. } if new == "papo"))
         .no_client();
 }

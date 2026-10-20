@@ -3213,7 +3213,8 @@ impl Session {
                 own_away_message.as_deref(),
                 &mut self.outbox,
             ) == Handled::Yes;
-        self.nick_regain.handle_message(
+        let nick_regain_handled = self.nick_regain.handle_message(
+            now,
             message,
             self.welcome_state.is_connected(),
             self.state.nick(),
@@ -3227,6 +3228,7 @@ impl Session {
             || caps_handled
             || sasl_handled
             || account_registration_handled
+            || nick_regain_handled
             || monitor_handled
             || state_handled
             || isupport_handled

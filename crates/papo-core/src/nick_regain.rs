@@ -23,6 +23,7 @@ enum Watch {
     },
     Ison {
         next_poll: Option<Instant>,
+        claim_pending: bool,
     },
 }
 
@@ -47,6 +48,7 @@ impl NickRegain {
         if isupport.monitor().is_none() {
             self.watch = Watch::Ison {
                 next_poll: Some(now + ISON_INTERVAL),
+                claim_pending: false,
             };
             return;
         }
@@ -63,6 +65,7 @@ impl NickRegain {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn handle_message(
         &mut self,
+        now: Instant,
         message: &LineRef<'_>,
         connected: bool,
         current_nick: &str,
@@ -70,14 +73,36 @@ impl NickRegain {
         isupport: &Isupport,
         monitor: &Monitor,
         outbox: &mut Outbox,
-    ) {
+    ) -> bool {
         self.observe_collision(message, connected, &config.nick);
+        if matches!(self.watch, Watch::Ison { .. })
+            && message.command_is("NICK")
+            && names_equal(isupport.casemapping(), current_nick, &config.nick)
+        {
+            self.reset();
+            return false;
+        }
+        if let Watch::Ison {
+            next_poll,
+            claim_pending,
+        } = &mut self.watch
+        {
+            return handle_ison(
+                now,
+                message,
+                config,
+                isupport,
+                next_poll,
+                claim_pending,
+                outbox,
+            );
+        }
         let Watch::Monitor {
             added,
             claim_pending,
         } = &mut self.watch
         else {
-            return;
+            return false;
         };
         if message.command_is("NICK")
             && names_equal(isupport.casemapping(), current_nick, &config.nick)
@@ -104,6 +129,7 @@ impl NickRegain {
         {
             *claim_pending = false;
         }
+        false
     }
 
     pub(super) fn handle_timeout(&mut self, now: Instant, nick: &str, outbox: &mut Outbox) {
@@ -131,6 +157,46 @@ fn nick_unavailable(message: &LineRef<'_>) -> bool {
     ["433", "436", "437"]
         .iter()
         .any(|numeric| message.command_is(numeric))
+}
+
+fn unavailable_primary(message: &LineRef<'_>, config: &Config, isupport: &Isupport) -> bool {
+    nick_unavailable(message)
+        && message
+            .param(1)
+            .is_some_and(|nick| names_equal(isupport.casemapping(), nick, &config.nick))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_ison(
+    now: Instant,
+    message: &LineRef<'_>,
+    config: &Config,
+    isupport: &Isupport,
+    next_poll: &mut Option<Instant>,
+    claim_pending: &mut bool,
+    outbox: &mut Outbox,
+) -> bool {
+    if message.command_is("303") && next_poll.is_none() && !*claim_pending {
+        let Some(online) = message.param(1) else {
+            return false;
+        };
+        if online
+            .split_whitespace()
+            .any(|nick| names_equal(isupport.casemapping(), nick, &config.nick))
+        {
+            *next_poll = Some(now + ISON_INTERVAL);
+        } else {
+            *claim_pending = true;
+            outbox.transmit("NICK", [&config.nick]);
+        }
+        true
+    } else {
+        if *claim_pending && unavailable_primary(message, config, isupport) {
+            *claim_pending = false;
+            *next_poll = Some(now + ISON_INTERVAL);
+        }
+        false
+    }
 }
 
 #[cfg(test)]
