@@ -4,6 +4,10 @@ use papo_conformance_macros::scenario;
 use crate::Scenario;
 use crate::scenarios::support::assert_refusal;
 
+fn rfc1459_nick(value: &str) -> papo::Nick {
+    Casemapping::Rfc1459.nick(value)
+}
+
 /// folds []\~ onto {}|^ for nicknames, channels and state lookups under rfc1459
 #[scenario(
     requires(isupport = ["CASEMAPPING"]),
@@ -25,10 +29,10 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let square_nick = format!("[{stem}]");
     let curly_nick = format!("{{{stem}}}");
     let mut square = s
-        .connect_with(s.configure("square")?.nick(square_nick.clone()))
+        .connect_with(s.configure("square")?.nick(rfc1459_nick(&square_nick)))
         .await?;
     let curly = s
-        .connect_with(s.configure("curly")?.nick(curly_nick.clone()))
+        .connect_with(s.configure("curly")?.nick(rfc1459_nick(&curly_nick)))
         .await?;
     assert_eq!(square.state().nick().as_ref(), square_nick);
     assert_ne!(curly.state().nick().as_ref(), curly_nick);

@@ -4294,7 +4294,7 @@ async fn slow_consumer_reconnects_after_its_reported_delay() {
 
     let whois = tokio::spawn({
         let client = client.clone();
-        async move { client.whois("alice").await }
+        async move { client.whois(test_nick("alice")).await }
     });
     client_line(&mut first_server, b"WHOIS alice\r\n").await;
     server_line(

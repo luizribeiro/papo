@@ -3,6 +3,10 @@ use papo_conformance_macros::scenario;
 
 use crate::Scenario;
 
+fn ascii_nick(value: &str) -> papo::Nick {
+    Casemapping::Ascii.nick(value)
+}
+
 /// folds only ASCII letters for nicknames, channels and state lookups under ascii
 #[scenario(
     requires(isupport = ["CASEMAPPING"]),
@@ -29,9 +33,9 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
         (square, curly)
     } else {
         (
-            s.connect_with(s.configure("square")?.nick(square_nick.clone()))
+            s.connect_with(s.configure("square")?.nick(ascii_nick(&square_nick)))
                 .await?,
-            s.connect_with(s.configure("curly")?.nick(curly_nick.clone()))
+            s.connect_with(s.configure("curly")?.nick(ascii_nick(&curly_nick)))
                 .await?,
         )
     };
