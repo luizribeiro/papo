@@ -1191,6 +1191,16 @@ pub struct LineEnvelope {
 }
 
 impl LineEnvelope {
+    pub(crate) fn from_line(line: &LineRef<'_>) -> Self {
+        Self {
+            msgid: line.tag("msgid").map(std::borrow::Cow::into_owned),
+            time: line
+                .tag("time")
+                .and_then(|value| papo_proto::time::parse(&value)),
+            account: line.tag("account").map(std::borrow::Cow::into_owned),
+        }
+    }
+
     /// Returns the server-assigned message identifier, when supplied.
     #[must_use]
     pub fn msgid(&self) -> Option<&str> {
@@ -1339,6 +1349,8 @@ pub struct MultilineMessage {
 /// A received `TAGMSG` and its client-only metadata.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TagMessage {
+    /// Identity, time, and account tags from the line.
+    pub envelope: LineEnvelope,
     /// Actor prefix without its leading colon.
     pub actor: String,
     /// Whether the actor is this session's user.

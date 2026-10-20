@@ -548,6 +548,20 @@ pub(crate) fn line_envelope(
     }
 }
 
+fn core_envelope(
+    envelope: &papo_core::LineEnvelope,
+    casemapping: Casemapping,
+    received_at: SystemTime,
+) -> EventEnvelope {
+    EventEnvelope {
+        msgid: envelope.msgid().map(MessageId::from),
+        time: envelope.time().unwrap_or(received_at),
+        account: envelope
+            .account()
+            .map(|account| casemapping.account(account)),
+    }
+}
+
 pub(crate) fn allowed_alias<'a>(
     denied: &papo_proto::ClientTagDeny<'_>,
     preferred: &'a str,
@@ -794,7 +808,11 @@ pub(crate) enum CoreEvent {
 
 // Keeping the exhaustive forwarding table together makes omissions visible when core grows.
 #[allow(clippy::too_many_lines)]
-pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> CoreEvent {
+pub(crate) fn from_core(
+    event: papo_core::Event,
+    casemapping: Casemapping,
+    received_at: SystemTime,
+) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Connected(welcome) => return CoreEvent::Connected(welcome),
         papo_core::Event::Motd { lines } => Event::Motd(Motd { lines }),
@@ -806,6 +824,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         }
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Other(message.message),
         papo_core::Event::TagMessage(message) => {
+            let envelope = core_envelope(&message.envelope, casemapping, received_at);
             let tag = TagMsg {
                 actor: Source::from_prefix(message.actor, casemapping),
                 authorship: Authorship::from_core(message.authorship),
@@ -828,6 +847,9 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 });
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
+                    msgid: envelope.msgid,
+                    time: envelope.time,
+                    account: envelope.account,
                     actor: tag.actor,
                     authorship: tag.authorship,
                     conversation: tag.conversation,
@@ -1171,7 +1193,7 @@ mod tests {
     use papo_proto::{Casemapping, Isupport, Line, LineRef, ModeKind as ProtoModeKind, Typing};
 
     fn from_core(event: papo_core::Event) -> CoreEvent {
-        from_core_with_mapping(event, Casemapping::default())
+        from_core_with_mapping(event, Casemapping::default(), UNIX_EPOCH)
     }
 
     fn event(
@@ -1532,6 +1554,7 @@ mod tests {
                 authorship: papo_core::Authorship::Other,
             },
             Casemapping::Rfc1459,
+            UNIX_EPOCH,
         ) else {
             panic!("join was not forwarded");
         };
@@ -1549,14 +1572,18 @@ mod tests {
         session.handle_line(now, b":papo!papo@localhost JOIN #papo");
         session.handle_line(now, b":papo!papo@localhost NICK papo-away");
 
-        let CoreEvent::Forward(Event::Joined(joined)) =
-            from_core_with_mapping(session.poll_event().unwrap(), Casemapping::Rfc1459)
-        else {
+        let CoreEvent::Forward(Event::Joined(joined)) = from_core_with_mapping(
+            session.poll_event().unwrap(),
+            Casemapping::Rfc1459,
+            UNIX_EPOCH,
+        ) else {
             panic!("expected queued join");
         };
-        let CoreEvent::Forward(Event::NickChanged(changed)) =
-            from_core_with_mapping(session.poll_event().unwrap(), Casemapping::Rfc1459)
-        else {
+        let CoreEvent::Forward(Event::NickChanged(changed)) = from_core_with_mapping(
+            session.poll_event().unwrap(),
+            Casemapping::Rfc1459,
+            UNIX_EPOCH,
+        ) else {
             panic!("expected queued nick change");
         };
         assert_eq!(joined.authorship, Authorship::Own);
@@ -1615,6 +1642,7 @@ mod tests {
     #[test]
     fn maps_tag_messages_with_typed_accessors() {
         let tag = papo_core::TagMessage {
+            envelope: papo_core::LineEnvelope::default(),
             actor: "alice!~a@cloak".into(),
             authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
@@ -1642,6 +1670,7 @@ mod tests {
     fn distinguishes_every_typing_tag_value() {
         let typing = |value: &str| {
             let tag = papo_core::TagMessage {
+                envelope: papo_core::LineEnvelope::default(),
                 actor: "alice!~a@cloak".into(),
                 authorship: papo_core::Authorship::Other,
                 conversation: papo_core::Conversation::Channel(
@@ -1661,6 +1690,7 @@ mod tests {
         assert_eq!(typing("composing"), None);
 
         let tag = papo_core::TagMessage {
+            envelope: papo_core::LineEnvelope::default(),
             actor: "alice!~a@cloak".into(),
             authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),

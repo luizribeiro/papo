@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{Conversation, MessageId, Typing};
+use crate::{AccountName, Conversation, MessageId, Typing};
 
 use super::{Authorship, Source, Tags};
 
@@ -8,6 +8,12 @@ use super::{Authorship, Source, Tags};
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Reacted {
+    /// The server-assigned identifier of the reaction line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
     /// The user or server that changed the reaction.
     pub actor: Source,
     /// Whether the actor is this client's user.

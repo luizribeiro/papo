@@ -91,6 +91,7 @@ pub(crate) fn history_item(
                 mapping,
                 state.nick(),
                 state.isupport().inner(),
+                received_at,
             )
         }),
         papo_core::HistoryItem::Redacted(item) => typed_or_raw(&item.line, |message| {
@@ -174,6 +175,7 @@ fn reaction(
     mapping: crate::Casemapping,
     own_nick: &str,
     isupport: &papo_proto::Isupport,
+    received_at: SystemTime,
 ) -> Option<HistoryItem> {
     let reaction = Reaction::parse(message)?;
     let (status, conversation) =
@@ -183,7 +185,11 @@ fn reaction(
         .react
         .map(|value| (value, false))
         .or_else(|| reaction.unreact.map(|value| (value, true)))?;
+    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(HistoryItem::Reacted(Reacted {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
         actor: Source::from_proto(message.source()?, mapping),
         authorship,
         conversation,
@@ -1005,6 +1011,7 @@ mod tests {
             Casemapping::Ascii,
             "papo",
             &papo_proto::Isupport::default(),
+            UNIX_EPOCH,
         ) else {
             panic!("reaction should be typed");
         };

@@ -1121,7 +1121,11 @@ where
     let disconnected = disconnected_event(&error, None);
     session.handle_disconnected(now());
     while let Some(core_event) = session.poll_event() {
-        let core_event = event::from_core(core_event, session.isupport().casemapping());
+        let core_event = event::from_core(
+            core_event,
+            session.isupport().casemapping(),
+            crate::rt::now_wall(),
+        );
         if let event::CoreEvent::RequestAborted { id, transmitted } = core_event {
             join_keys.remove(&id);
             if let Some(result) = requests.remove(&id) {
@@ -1244,7 +1248,11 @@ where
     while (pending_events.is_empty() || read_ahead || after_timeout)
         && let Some(core_event) = session.poll_event()
     {
-        match event::from_core(core_event, session.isupport().casemapping()) {
+        match event::from_core(
+            core_event,
+            session.isupport().casemapping(),
+            crate::rt::now_wall(),
+        ) {
             event::CoreEvent::Forward(event) => {
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);

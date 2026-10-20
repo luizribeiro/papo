@@ -1887,6 +1887,7 @@ pub struct papo_core::TagMessage
 pub papo_core::TagMessage::actor: alloc::string::String
 pub papo_core::TagMessage::authorship: papo_core::Authorship
 pub papo_core::TagMessage::conversation: papo::Conversation
+pub papo_core::TagMessage::envelope: papo_core::LineEnvelope
 pub papo_core::TagMessage::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo_core::TagMessage::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
 impl core::clone::Clone for papo_core::TagMessage

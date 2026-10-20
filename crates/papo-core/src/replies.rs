@@ -1,6 +1,6 @@
 use crate::{
-    Authorship, Event, LineRef, Redacted, Session, StandardReply, StandardReplyView, TagMessage,
-    conversation::classify_line,
+    Authorship, Event, LineEnvelope, LineRef, Redacted, Session, StandardReply, StandardReplyView,
+    TagMessage, conversation::classify_line,
 };
 
 impl Session {
@@ -16,6 +16,7 @@ impl Session {
             return false;
         };
         self.outbox.event(Event::TagMessage(TagMessage {
+            envelope: LineEnvelope::from_line(message),
             actor: actor.to_owned(),
             authorship: self.authorship(message),
             conversation,
