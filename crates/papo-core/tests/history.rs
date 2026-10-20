@@ -449,6 +449,20 @@ fn read_marker_failures_resolve_the_pending_request() {
 }
 
 #[test]
+fn read_marker_silence_times_out_after_the_literal_request_timeout() {
+    let (mut session, now) = read_marker_session();
+    let id = session.read_marker(now, "#papo").unwrap();
+    assert_eq!(transmitted(&mut session), "@label=0 MARKREAD #papo");
+    assert_eq!(session.poll_timeout(), Some(now + Duration::from_secs(30)));
+
+    session.handle_timeout(now + Duration::from_secs(30));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::RequestTimedOut { id: expired }) if expired == id
+    ));
+}
+
+#[test]
 fn rejects_read_markers_without_the_capability() {
     let mut session = Session::new(Config::default());
     assert_eq!(
