@@ -650,8 +650,23 @@ impl History {
     }
 }
 
-/// A message identifier or timestamp accepted by a history query.
+/// A message identifier or timestamp accepted as an exclusive history bound.
+///
+/// Timestamp references are exclusive and can skip other lines carrying the same timestamp.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HistoryReference(Option<MsgRef>);
+
+impl From<crate::MessageId> for HistoryReference {
+    fn from(value: crate::MessageId) -> Self {
+        Self(Some(MsgRef::Msgid(value.to_string())))
+    }
+}
+
+impl From<&crate::MessageId> for HistoryReference {
+    fn from(value: &crate::MessageId) -> Self {
+        Self(Some(MsgRef::Msgid(value.to_string())))
+    }
+}
 
 impl From<&str> for HistoryReference {
     fn from(value: &str) -> Self {
@@ -679,7 +694,10 @@ impl From<SystemTime> for HistoryReference {
 
 impl From<&ChatMessage> for HistoryReference {
     fn from(value: &ChatMessage) -> Self {
-        Self(value.msgid().map(|msgid| MsgRef::Msgid(msgid.to_owned())))
+        value.msgid.as_ref().map_or_else(
+            || Self::from(value.time),
+            |msgid| Self(Some(MsgRef::Msgid(msgid.to_string()))),
+        )
     }
 }
 
@@ -943,6 +961,24 @@ mod tests {
         .unwrap();
         assert!(
             matches!(HistoryReference::from(&event).0, Some(MsgRef::Msgid(id)) if id == "RfcBTzyxY120004")
+        );
+    }
+
+    #[test]
+    fn message_without_msgid_uses_its_time_as_reference() {
+        let event = crate::Message::from_history(
+            Line::privmsg("#papo", "soju backlog")
+                .with_source("emily!~emily@localhost")
+                .with_tag("time", "1970-01-01T00:00:00.000Z"),
+            crate::Authorship::Unknown,
+            &crate::Client::disconnected_for_test(),
+            UNIX_EPOCH,
+        )
+        .unwrap();
+
+        assert_eq!(
+            HistoryReference::from(&event),
+            HistoryReference::from(UNIX_EPOCH)
         );
     }
 

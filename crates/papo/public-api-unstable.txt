@@ -1995,16 +1995,28 @@ impl core::marker::UnsafeUnpin for papo::HistoryPage
 impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryPage
 impl core::panic::unwind_safe::UnwindSafe for papo::HistoryPage
 pub struct papo::HistoryReference(_)
+impl core::clone::Clone for papo::HistoryReference
+pub fn papo::HistoryReference::clone(&self) -> Self
+impl core::cmp::Eq for papo::HistoryReference
+impl core::cmp::PartialEq for papo::HistoryReference
+pub fn papo::HistoryReference::eq(&self, &Self) -> bool
 impl core::convert::From<&alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&alloc::string::String) -> Self
 impl core::convert::From<&papo::Message> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::Message) -> Self
+impl core::convert::From<&papo::MessageId> for papo::HistoryReference
+pub fn papo::HistoryReference::from(&papo::MessageId) -> Self
 impl core::convert::From<&str> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&str) -> Self
 impl core::convert::From<alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(alloc::string::String) -> Self
+impl core::convert::From<papo::MessageId> for papo::HistoryReference
+pub fn papo::HistoryReference::from(papo::MessageId) -> Self
 impl core::convert::From<std::time::SystemTime> for papo::HistoryReference
 pub fn papo::HistoryReference::from(std::time::SystemTime) -> Self
+impl core::fmt::Debug for papo::HistoryReference
+pub fn papo::HistoryReference::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::HistoryReference
 impl core::marker::Freeze for papo::HistoryReference
 impl core::marker::Send for papo::HistoryReference
 impl core::marker::Sync for papo::HistoryReference
