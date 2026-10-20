@@ -1203,7 +1203,12 @@ where
                 let event =
                     crate::Message::from_core(message, session.isupport(), crate::rt::now_wall())
                         .map_or_else(
-                            |message| Event::Raw(crate::RawLine::from_proto(&message)),
+                            |message| {
+                                Event::Raw(crate::RawLine::from_proto(
+                                    &message,
+                                    session.isupport().casemapping(),
+                                ))
+                            },
                             |message| Event::Message(Box::new(message)),
                         );
                 if !enqueue_event(events, pending_events, event) {
@@ -1262,7 +1267,12 @@ where
                     crate::rt::now_wall(),
                 )
                 .map_or_else(
-                    |message| Event::Raw(crate::RawLine::from_proto(&message)),
+                    |message| {
+                        Event::Raw(crate::RawLine::from_proto(
+                            &message,
+                            session.isupport().casemapping(),
+                        ))
+                    },
                     |message| Event::Message(Box::new(message)),
                 );
                 if !enqueue_event(events, pending_events, event) {

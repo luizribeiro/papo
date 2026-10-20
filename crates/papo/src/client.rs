@@ -337,7 +337,12 @@ impl Client {
         let message = build_command(command.as_ref(), params);
         crate::RequestFuture::new(async move {
             let response = client.correlated(message?, None).await?;
-            Ok(response.lines.iter().map(RawLine::from_proto).collect())
+            let mapping = client.state().casemapping();
+            Ok(response
+                .lines
+                .iter()
+                .map(|line| RawLine::from_proto(line, mapping))
+                .collect())
         })
     }
 
@@ -372,7 +377,12 @@ impl Client {
         let line = line.into();
         crate::RequestFuture::new(async move {
             let response = client.correlated(parse_raw(&line)?, None).await?;
-            Ok(response.lines.iter().map(RawLine::from_proto).collect())
+            let mapping = client.state().casemapping();
+            Ok(response
+                .lines
+                .iter()
+                .map(|line| RawLine::from_proto(line, mapping))
+                .collect())
         })
     }
 

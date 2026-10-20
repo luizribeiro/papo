@@ -62,7 +62,7 @@ impl RawLine {
 }
 
 impl RawLine {
-    pub(crate) fn from_proto(message: &Line) -> Self {
+    pub(crate) fn from_proto(message: &Line, casemapping: Casemapping) -> Self {
         let message = message.as_ref();
         Self {
             command: message.raw_command().to_owned(),
@@ -70,7 +70,7 @@ impl RawLine {
             tags: Tags::from_message(&message),
             source: message
                 .source()
-                .map(|source| Source::from_proto(source, Casemapping::default())),
+                .map(|source| Source::from_proto(source, casemapping)),
         }
     }
 }
@@ -129,7 +129,7 @@ fn escape_tag(value: &str) -> String {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use papo_proto::LineRef;
+    use papo_proto::{Casemapping, LineRef};
 
     use super::{RawLine, Source};
 
@@ -140,7 +140,7 @@ mod tests {
         )
         .unwrap()
         .to_owned();
-        let line = RawLine::from_proto(&message);
+        let line = RawLine::from_proto(&message, Casemapping::default());
 
         assert_eq!(line.command(), "NOTICE");
         assert_eq!(line.params(), ["#papo", "maintenance soon"]);
@@ -167,7 +167,7 @@ mod tests {
         let message = LineRef::parse("@bot :ergo.test 372 papo :")
             .unwrap()
             .to_owned();
-        let line = RawLine::from_proto(&message);
+        let line = RawLine::from_proto(&message, Casemapping::default());
 
         assert_eq!(line.tag("bot"), Some(""));
         assert_eq!(line.params(), ["papo", ""]);
@@ -184,8 +184,22 @@ mod tests {
             .unwrap()
             .to_owned();
         assert_eq!(
-            RawLine::from_proto(&mode).to_string(),
+            RawLine::from_proto(&mode, Casemapping::default()).to_string(),
             ":papo-driver!papo@localhost MODE #papo +o alice"
         );
+    }
+
+    #[test]
+    fn source_nicks_capture_the_supplied_casemapping() {
+        let message = LineRef::parse(":Alice[bot]!~a@cloak.example NOTICE * :maintenance")
+            .unwrap()
+            .to_owned();
+        let line = RawLine::from_proto(&message, Casemapping::Ascii);
+        let Some(Source::User { nick, .. }) = line.source() else {
+            panic!("line should have a user source");
+        };
+
+        assert_eq!(nick.casemapping(), Casemapping::Ascii);
+        assert_ne!(nick, "alice{bot}");
     }
 }
