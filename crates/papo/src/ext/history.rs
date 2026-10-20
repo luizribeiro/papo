@@ -738,7 +738,7 @@ mod tests {
     use papo_core::{HistoryLine, HistoryQuery, MsgRef};
     use papo_proto::{Casemapping, Line, LineRef};
 
-    use super::{HistoryItem, HistoryReference, history_item, reaction};
+    use super::{ConversationInput, HistoryItem, HistoryReference, history_item, reaction};
 
     fn core_item(message: &str) -> HistoryLine {
         HistoryLine {
@@ -764,6 +764,29 @@ mod tests {
         assert!(
             matches!(HistoryReference::from(&event).0, Some(MsgRef::Msgid(id)) if id == "RfcBTzyxY120004")
         );
+    }
+
+    #[test]
+    fn conversation_inputs_preserve_channel_and_private_addresses() {
+        let client = crate::Client::disconnected_for_test();
+        let state = client.state();
+        for (conversation, expected) in [
+            (
+                crate::Conversation::Channel(state.channel_name("#Papo[dev]")),
+                "#Papo[dev]",
+            ),
+            (
+                crate::Conversation::Private(state.nickname("Emily_")),
+                "Emily_",
+            ),
+        ] {
+            assert_eq!(
+                ConversationInput::from(conversation)
+                    .target(&state)
+                    .unwrap(),
+                expected
+            );
+        }
     }
 
     #[test]
