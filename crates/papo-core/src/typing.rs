@@ -113,7 +113,9 @@ impl TypingTable {
                 status: status.clone(),
             };
             if let Some(position) = entry {
-                table.entries[position].1 = typer;
+                if table.entries[position].1.state != state {
+                    table.entries[position].1 = typer;
+                }
             } else {
                 table.entries.push_back((conversation.clone(), typer));
             }
