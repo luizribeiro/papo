@@ -1693,15 +1693,15 @@ impl papo::Client
 pub fn papo::Client::action(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
-pub fn papo::Client::clear_topic(&self, impl core::convert::Into<papo::ChannelName>) -> papo::RequestFuture<()>
-pub fn papo::Client::invite(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::Nick>) -> papo::RequestFuture<()>
-pub fn papo::Client::join(&self, impl core::convert::Into<papo::ChannelName>) -> papo::JoinChannel
-pub fn papo::Client::kick(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::Nick>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::clear_topic(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
+pub fn papo::Client::invite(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
+pub fn papo::Client::join(&self, impl core::convert::AsRef<str>) -> papo::JoinChannel
+pub fn papo::Client::kick(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc::vec::Vec<papo::ListEntry>>
 pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<()>
-pub fn papo::Client::part(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::part(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::quit(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -1715,14 +1715,14 @@ pub fn papo::Client::request_raw(&self, impl core::convert::Into<alloc::string::
 pub fn papo::Client::send_command<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Client::send_raw(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::set_nick(&self, impl core::convert::Into<papo::Nick>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_nick(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::set_topic(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_topic(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl core::convert::Into<papo::Target>, papo::Typing) -> papo::RequestFuture<()>
 pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<papo::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::who(&self, impl core::convert::Into<papo::Mask>) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
-pub fn papo::Client::whois(&self, impl core::convert::Into<papo::Nick>) -> papo::RequestFuture<papo::Whois>
+pub fn papo::Client::who(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
+pub fn papo::Client::whois(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<papo::Whois>
 impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::history(&self, impl core::convert::Into<papo::Target>) -> papo::History
@@ -1738,7 +1738,7 @@ impl papo::Client
 pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountRegistration>
 pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
 impl papo::Client
-pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::rename_channel(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 impl core::clone::Clone for papo::Client
 pub fn papo::Client::clone(&self) -> Self
 impl core::fmt::Debug for papo::Client
@@ -2256,7 +2256,7 @@ impl<T> !core::panic::unwind_safe::RefUnwindSafe for papo::RequestFuture<T>
 impl<T> !core::panic::unwind_safe::UnwindSafe for papo::RequestFuture<T>
 pub struct papo::SendMessage
 impl papo::SendMessage
-pub fn papo::SendMessage::channel_context(self, &papo::ChannelName) -> Self
+pub fn papo::SendMessage::channel_context(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::SendMessage::reply_to(self, &papo::MessageId) -> Self
 pub fn papo::SendMessage::tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::future::into_future::IntoFuture for papo::SendMessage

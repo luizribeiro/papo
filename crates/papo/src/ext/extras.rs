@@ -12,13 +12,14 @@ impl Client {
     /// [`crate::Error::TooManyPendingRequests`], [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
     pub fn rename_channel(
         &self,
-        old: impl Into<crate::ChannelName>,
-        new: impl Into<crate::ChannelName>,
+        old: impl AsRef<str>,
+        new: impl AsRef<str>,
         reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let old = old.into();
-        let new = new.into();
+        let state = self.state();
+        let old = state.channel_name(old.as_ref());
+        let new = state.channel_name(new.as_ref());
         let reason = reason.into();
         crate::RequestFuture::new(async move {
             let state = client.state();
@@ -51,13 +52,14 @@ impl Client {
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn relay(
         &self,
-        channel: impl Into<crate::ChannelName>,
-        nick: impl Into<crate::Nick>,
+        channel: impl AsRef<str>,
+        nick: impl AsRef<str>,
         text: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let channel = channel.into();
-        let nick = nick.into();
+        let state = self.state();
+        let channel = state.channel_name(channel.as_ref());
+        let nick = state.nickname(nick.as_ref());
         let text = text.into();
         crate::RequestFuture::new(async move {
             let state = client.state();

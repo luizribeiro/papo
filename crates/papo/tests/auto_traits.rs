@@ -81,24 +81,20 @@ fn request_futures_are_send() {
         MessageId::from("RfcBTzyxY120004"),
         "",
     ));
-    assert_send_static(client.whois(mapping.nick("emily")));
+    assert_send_static(client.whois("emily"));
     assert_send_static(client.who(mapping.mask("#papo")));
-    assert_send_static(client.join(mapping.channel("#papo")).into_future());
+    assert_send_static(client.join("#papo").into_future());
     assert_send_static(client.part(mapping.channel("#papo"), "tests complete"));
-    assert_send_static(client.kick(
-        mapping.channel("#papo"),
-        mapping.nick("spambot"),
-        "flooding",
-    ));
+    assert_send_static(client.kick("#papo", "spambot", "flooding"));
     assert_send_static(client.invite(mapping.channel("#papo"), mapping.nick("carol")));
-    assert_send_static(client.set_nick(mapping.nick("papo-away")));
+    assert_send_static(client.set_nick("papo-away"));
     assert_send_static(client.set_away("reviewing patches"));
     assert_send_static(client.clear_away());
     assert_send_static(client.set_realname("Papo Test Client"));
     assert_send_static(client.oper("papo", "correct horse battery staple"));
     assert_send_static(client.ping());
     assert_send_static(client.mode("#papo").add('t').into_future());
-    assert_send_static(client.set_topic(mapping.channel("#papo"), "Ergonomic IRC"));
+    assert_send_static(client.set_topic("#papo", "Ergonomic IRC"));
     assert_send_static(client.clear_topic(mapping.channel("#papo")));
     assert_send_static(client.list(ListFilter::default()));
     assert_send_static(client.quit("trait check complete"));

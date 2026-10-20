@@ -3308,7 +3308,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let sent = client
         .privmsg("helper", "reviewed")
         .reply_to(&crate::MessageId::from("RfcBTzyxY120004"))
-        .channel_context(&crate::Casemapping::default().channel("#papo"))
+        .channel_context("#papo")
         .await
         .unwrap();
     assert_eq!(
@@ -3376,7 +3376,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
         sender
             .privmsg("helper", "fixed in 69876ec")
             .reply_to(&crate::MessageId::from("RfcBTzyxY120004"))
-            .channel_context(&crate::Casemapping::default().channel("#papo"))
+            .channel_context(crate::Casemapping::default().channel("#papo"))
             .tag("+example.org/trace", "98")
             .await
     });
