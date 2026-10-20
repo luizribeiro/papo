@@ -221,6 +221,28 @@ fn wire_names_capture_the_advertised_ascii_casemapping() {
         .ignore_rest();
 }
 
+#[test]
+fn state_change_events_capture_the_advertised_ascii_casemapping() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
+        .server(":emily!em@127.0.0.1 JOIN #Papo[dev]")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":Alice[bot]!alice@staff.example JOIN #Papo[dev]")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":Alice[bot]!alice@staff.example ACCOUNT Alice[acct]")
+        .event(|event| matches!(event, Event::AccountChanged { nick, account: Account::LoggedIn(account) } if nick.casemapping() == Casemapping::Ascii && account.casemapping() == Casemapping::Ascii))
+        .server(":Alice[bot]!alice@staff.example AWAY :Reviewing logs")
+        .event(|event| matches!(event, Event::AwayChanged { nick, .. } if nick.casemapping() == Casemapping::Ascii && nick != "alice{bot}"))
+        .server(":Alice[bot]!alice@staff.example CHGHOST alice users/alice")
+        .event(|event| matches!(event, Event::HostChanged { nick, .. } if nick.casemapping() == Casemapping::Ascii && nick != "alice{bot}"))
+        .server(":Alice[bot]!alice@users/alice SETNAME :Alice Smith")
+        .event(|event| matches!(event, Event::RealnameChanged { nick, .. } if nick.casemapping() == Casemapping::Ascii && nick != "alice{bot}"))
+        .server(":Alice[bot]!alice@users/alice TOPIC #Papo[dev] :Release planning")
+        .event(|event| matches!(event, Event::TopicChanged { channel, .. } if channel.casemapping() == Casemapping::Ascii && channel != "#papo{dev}"))
+        .no_event();
+}
+
 #[cfg(feature = "precis")]
 #[test]
 fn utf8mapping_builds_names_with_precis_rules() {

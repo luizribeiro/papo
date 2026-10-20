@@ -17,7 +17,7 @@ impl State {
                         if user.account != account {
                             user.account = account.clone();
                             outbox.event(Event::AccountChanged {
-                                nick: nick.to_owned(),
+                                nick: self.casemapping.nick(nick),
                                 account,
                             });
                         }
@@ -65,7 +65,7 @@ impl State {
         {
             user.account = account.clone();
             outbox.event(Event::AccountChanged {
-                nick: nick.to_owned(),
+                nick: self.casemapping.nick(nick),
                 account,
             });
         }
@@ -93,7 +93,7 @@ impl State {
                 if user.away != next {
                     user.away = next;
                     outbox.event(Event::AwayChanged {
-                        nick: nick.to_owned(),
+                        nick: self.casemapping.nick(nick),
                         message: away
                             .message
                             .filter(|message| *message != "*")
@@ -116,7 +116,7 @@ impl State {
                     if user.away != next {
                         user.away = next;
                         outbox.event(Event::AwayChanged {
-                            nick: nick.to_owned(),
+                            nick: self.casemapping.nick(nick),
                             message: Some(message),
                         });
                     }
@@ -126,7 +126,7 @@ impl State {
                 self.away = false;
                 self.away_message = None;
                 outbox.event(Event::AwayChanged {
-                    nick: self.nick.as_ref().to_owned(),
+                    nick: self.nick.clone(),
                     message: None,
                 });
             }
@@ -135,7 +135,7 @@ impl State {
                 if let Some(message) = own_away_message {
                     self.away_message = Some(message.to_owned());
                     outbox.event(Event::AwayChanged {
-                        nick: self.nick.as_ref().to_owned(),
+                        nick: self.nick.clone(),
                         message: self.away_message.clone(),
                     });
                 }
@@ -176,7 +176,7 @@ impl State {
         }
         self.host = Some(host.to_owned());
         outbox.event(Event::HostChanged {
-            nick: self.nick.as_ref().to_owned(),
+            nick: self.nick.clone(),
             user: self.user.clone(),
             host: host.to_owned(),
         });
@@ -200,7 +200,7 @@ impl State {
                 self.host = Some(change.host.to_owned());
             }
             outbox.event(Event::HostChanged {
-                nick: nick.to_owned(),
+                nick: self.casemapping.nick(nick),
                 user: change.user.to_owned(),
                 host: change.host.to_owned(),
             });
@@ -214,7 +214,7 @@ impl State {
             change.realname.clone_into(&mut self.realname);
         }
         outbox.event(Event::RealnameChanged {
-            nick: nick.to_owned(),
+            nick: self.casemapping.nick(nick),
             realname: change.realname.to_owned(),
         });
         Some(Handled::Yes)

@@ -487,7 +487,7 @@ impl State {
         change.realname.clone_into(&mut self.realname);
         if realname_changed {
             outbox.event(Event::RealnameChanged {
-                nick: nick.to_owned(),
+                nick: self.casemapping.nick(nick),
                 realname: change.realname.to_owned(),
             });
         }
@@ -636,7 +636,7 @@ impl State {
         };
         if live && let (Some(channel), Some(by)) = (channel_name, source_name(message)) {
             outbox.event(Event::TopicChanged {
-                channel: channel.to_owned(),
+                channel: self.casemapping.channel(channel),
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
                 by: by.to_owned(),
             });

@@ -1001,27 +1001,21 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         }
         papo_core::Event::AccountChanged { nick, account } => {
             Event::AccountChanged(AccountChanged {
-                nick: casemapping.nick(nick),
+                nick,
                 account: match account {
                     Account::LoggedIn(account) => Some(account),
                     _ => None,
                 },
             })
         }
-        papo_core::Event::AwayChanged { nick, message } => Event::AwayChanged(AwayChanged {
-            nick: casemapping.nick(nick),
-            message,
-        }),
-        papo_core::Event::HostChanged { nick, user, host } => Event::HostChanged(HostChanged {
-            nick: casemapping.nick(nick),
-            user,
-            host,
-        }),
+        papo_core::Event::AwayChanged { nick, message } => {
+            Event::AwayChanged(AwayChanged { nick, message })
+        }
+        papo_core::Event::HostChanged { nick, user, host } => {
+            Event::HostChanged(HostChanged { nick, user, host })
+        }
         papo_core::Event::RealnameChanged { nick, realname } => {
-            Event::RealnameChanged(RealnameChanged {
-                nick: casemapping.nick(nick),
-                realname,
-            })
+            Event::RealnameChanged(RealnameChanged { nick, realname })
         }
         papo_core::Event::ModeChanged {
             target,
@@ -1042,7 +1036,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         }),
         papo_core::Event::TopicChanged { channel, topic, by } => {
             Event::TopicChanged(TopicChanged {
-                channel: casemapping.channel(channel),
+                channel,
                 topic,
                 by: Source::from_name(by, casemapping),
             })
@@ -1856,7 +1850,7 @@ mod tests {
     fn maps_account_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::AccountChanged {
-                nick: "emily".into(),
+                nick: Casemapping::default().nick("emily"),
                 account: Account::LoggedIn(Casemapping::default().account("emily")),
             }),
             Event::AccountChanged(changed)
@@ -1868,7 +1862,7 @@ mod tests {
     fn maps_away_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::AwayChanged {
-                nick: "emily".into(),
+                nick: Casemapping::default().nick("emily"),
                 message: Some("Gone to lunch".into()),
             }),
             Event::AwayChanged(changed)
@@ -1880,7 +1874,7 @@ mod tests {
     fn maps_host_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::HostChanged {
-                nick: "emily".into(),
+                nick: Casemapping::default().nick("emily"),
                 user: "~em".into(),
                 host: "users/emily".into(),
             }),
@@ -1893,7 +1887,7 @@ mod tests {
     fn maps_realname_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::RealnameChanged {
-                nick: "emily".into(),
+                nick: Casemapping::default().nick("emily"),
                 realname: "Emily Smith".into(),
             }),
             Event::RealnameChanged(changed)
@@ -1930,7 +1924,7 @@ mod tests {
     fn maps_topic_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::TopicChanged {
-                channel: "#papo".into(),
+                channel: Casemapping::default().channel("#papo"),
                 topic: Some("Rust 1.90 is out".into()),
                 by: "alice".into(),
             }),

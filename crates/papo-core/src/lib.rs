@@ -1686,21 +1686,21 @@ pub enum Event {
     /// A user's account state changed.
     AccountChanged {
         /// The affected user's nickname.
-        nick: String,
+        nick: Nick,
         /// The user's new account state.
         account: Account,
     },
     /// A user's away state changed.
     AwayChanged {
         /// The affected user's nickname.
-        nick: String,
+        nick: Nick,
         /// The away message, or `None` when the user returned.
         message: Option<String>,
     },
     /// A user's username or hostname changed.
     HostChanged {
         /// The affected user's nickname.
-        nick: String,
+        nick: Nick,
         /// The user's new username.
         user: String,
         /// The user's new hostname.
@@ -1709,7 +1709,7 @@ pub enum Event {
     /// A user's real name changed.
     RealnameChanged {
         /// The affected user's nickname.
-        nick: String,
+        nick: Nick,
         /// The user's new real name.
         realname: String,
     },
@@ -1725,7 +1725,7 @@ pub enum Event {
     /// A channel topic changed live.
     TopicChanged {
         /// The affected channel.
-        channel: String,
+        channel: ChannelName,
         /// The new topic, or `None` when it was cleared.
         topic: Option<String>,
         /// The user or server that changed the topic.
