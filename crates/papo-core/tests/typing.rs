@@ -57,6 +57,30 @@ fn notifications_update_state_in_start_order_without_refresh_churn() {
 }
 
 #[test]
+fn paused_typing_expires_after_thirty_seconds() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_connected(now);
+    session.handle_line(now, b"@+typing=paused :alice!~a@cloak TAGMSG #papo");
+    _ = session.poll_event();
+    assert_eq!(
+        session.poll_timeout(),
+        Some(now + std::time::Duration::from_secs(30))
+    );
+
+    session.handle_timeout(now + std::time::Duration::from_secs(29));
+    assert_eq!(session.state_generation(), 2);
+    session.handle_timeout(now + std::time::Duration::from_secs(30));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::TypingChanged(change))
+            if change.state == Typing::Done
+                && change.reason == papo_core::TypingReason::TimedOut
+    ));
+    assert_eq!(session.state_generation(), 3);
+}
+
+#[test]
 fn own_and_history_typing_are_not_stored() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
