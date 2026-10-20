@@ -844,7 +844,12 @@ where
             Ok(None) => {}
             Err(error) => {
                 let reason = error.to_string();
-                break (reason, Error::connection_lost(), None, false);
+                break (
+                    reason.clone(),
+                    Error::connection_lost_with(reason),
+                    None,
+                    false,
+                );
             }
         }
         drain_after_timeout = false;
@@ -867,7 +872,7 @@ where
                 Ok(0) => {
                     break (
                         "server closed the connection".to_owned(),
-                        Error::connection_lost(),
+                        Error::connection_lost_with("server closed the connection"),
                         None,
                         false,
                     );
@@ -875,7 +880,12 @@ where
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
                 Err(error) => {
                     let reason = error.to_string();
-                    break (reason, Error::connection_lost(), None, false);
+                    break (
+                        reason.clone(),
+                        Error::connection_lost_with(reason),
+                        None,
+                        false,
+                    );
                 }
             },
             permit = events.regular.clone().reserve_owned(), if !pending_events.is_empty() => match permit {
@@ -1351,8 +1361,10 @@ where
             event::CoreEvent::RequestAborted { id, transmitted } => {
                 join_keys.remove(&id);
                 if let Some(result) = requests.remove(&id) {
-                    let disconnected =
-                        crate::Disconnected::new(crate::DisconnectCause::ConnectionLost, None);
+                    let disconnected = crate::Disconnected::new(
+                        crate::DisconnectCause::connection_lost("transport ended unexpectedly"),
+                        None,
+                    );
                     result.fail(if transmitted {
                         Error::Interrupted(disconnected)
                     } else {
@@ -1677,7 +1689,7 @@ fn disconnected_event(error: &Error, retry_in: Option<Duration>) -> crate::Disco
     let cause = match error {
         Error::Disconnected(disconnected) => disconnected.cause.clone(),
         Error::Connect(error) => crate::DisconnectCause::Connect(error.clone()),
-        _ => crate::DisconnectCause::ConnectionLost,
+        _ => crate::DisconnectCause::connection_lost("transport ended unexpectedly"),
     };
     crate::Disconnected::new(cause, retry_in)
 }

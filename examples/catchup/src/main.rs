@@ -87,7 +87,9 @@ async fn wait_for_channels(
             }
             Some(Event::Disconnected(_)) | None => {
                 return Err(papo::Error::Disconnected(papo::Disconnected::new(
-                    papo::DisconnectCause::ConnectionLost,
+                    papo::DisconnectCause::ConnectionLost {
+                        message: "event stream ended unexpectedly".to_owned(),
+                    },
                     None,
                 )));
             }

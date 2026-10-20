@@ -1331,6 +1331,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ConnectErrorKind
 #[non_exhaustive] pub enum papo::DisconnectCause
 pub papo::DisconnectCause::Connect(papo::ConnectError)
 pub papo::DisconnectCause::ConnectionLost
+pub papo::DisconnectCause::ConnectionLost::message: alloc::string::String
 pub papo::DisconnectCause::PingTimeout
 pub papo::DisconnectCause::Protocol
 pub papo::DisconnectCause::Protocol::message: alloc::string::String
@@ -1344,6 +1345,8 @@ pub fn papo::DisconnectCause::clone(&self) -> Self
 impl core::cmp::Eq for papo::DisconnectCause
 impl core::cmp::PartialEq for papo::DisconnectCause
 pub fn papo::DisconnectCause::eq(&self, &Self) -> bool
+impl core::error::Error for papo::DisconnectCause
+pub fn papo::DisconnectCause::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for papo::DisconnectCause
 pub fn papo::DisconnectCause::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::DisconnectCause

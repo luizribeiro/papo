@@ -487,14 +487,14 @@ async fn registration_disconnect_does_not_enter_reconnect_backoff() {
     assert!(matches!(
         within(waiting).await.unwrap(),
         Err(Error::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost,
+            cause: crate::DisconnectCause::ConnectionLost { .. },
             ..
         }))
     ));
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost,
+            cause: crate::DisconnectCause::ConnectionLost { .. },
             retry_in: None,
         }))
     ));
@@ -1592,7 +1592,7 @@ async fn eof_emits_disconnected_and_returns_an_error() {
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost,
+            cause: crate::DisconnectCause::ConnectionLost { .. },
             retry_in: None,
         }))
     ));
@@ -1608,14 +1608,14 @@ async fn shutdown_error_does_not_replace_eof() {
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost,
+            cause: crate::DisconnectCause::ConnectionLost { .. },
             retry_in: None,
         }))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost,
+            cause: crate::DisconnectCause::ConnectionLost { .. },
             ..
         }))
     ));
@@ -1626,17 +1626,22 @@ async fn read_error_is_connection_loss() {
     let (mut server, _client, mut events, driver) = scripted_with_failures(true);
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost,
-            retry_in: None,
-        }))
-    ));
+    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+        panic!("expected connection loss")
+    };
+    assert_eq!(
+        disconnected.to_string(),
+        "the connection was lost: original read failure"
+    );
+    assert_eq!(
+        std::error::Error::source(&disconnected).map(ToString::to_string),
+        Some("the connection was lost: original read failure".into())
+    );
+    assert_eq!(disconnected.retry_in, None);
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost,
+            cause: crate::DisconnectCause::ConnectionLost { .. },
             ..
         }))
     ));
@@ -2879,7 +2884,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     assert!(matches!(
         within(aborted).await.unwrap(),
         Err(Error::Interrupted(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost,
+            cause: crate::DisconnectCause::ConnectionLost { .. },
             retry_in: None,
         }))
     ));
@@ -4194,7 +4199,7 @@ async fn quit_resolves_when_the_server_closed_first() {
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::ConnectionLost,
+            cause: crate::DisconnectCause::ConnectionLost { .. },
             retry_in: None,
         }))
     ));

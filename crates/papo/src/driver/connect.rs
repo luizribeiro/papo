@@ -529,9 +529,9 @@ async fn connect_while_disconnected(
     timeout: Duration,
 ) -> Option<Result<BoxConnection, Error>> {
     let disconnected = crate::Disconnected::new(
-        last_cause
-            .cloned()
-            .unwrap_or(crate::DisconnectCause::ConnectionLost),
+        last_cause.cloned().unwrap_or_else(|| {
+            crate::DisconnectCause::connection_lost("transport ended unexpectedly")
+        }),
         None,
     );
     let timeout = crate::rt::sleep_until(now() + timeout);

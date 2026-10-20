@@ -318,7 +318,10 @@ impl std::error::Error for ServerError {}
 #[non_exhaustive]
 pub enum DisconnectCause {
     /// The transport reached EOF or otherwise vanished.
-    ConnectionLost,
+    ConnectionLost {
+        /// A bounded transport diagnostic.
+        message: String,
+    },
     /// Opening a replacement connection or completing its login failed.
     Connect(ConnectError),
     /// The server sent `ERROR` with bounded explanatory text.
@@ -346,10 +349,22 @@ pub enum DisconnectCause {
     },
 }
 
+impl DisconnectCause {
+    pub(crate) fn connection_lost(message: impl Into<String>) -> Self {
+        let message = message.into();
+        let end = message.floor_char_boundary(message.len().min(256));
+        Self::ConnectionLost {
+            message: message[..end].to_owned(),
+        }
+    }
+}
+
 impl fmt::Display for DisconnectCause {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ConnectionLost => formatter.write_str("the connection was lost"),
+            Self::ConnectionLost { message } => {
+                write!(formatter, "the connection was lost: {message}")
+            }
             Self::Connect(error) => error.fmt(formatter),
             Self::Server { message } => write!(formatter, "the server disconnected: {message}"),
             Self::PingTimeout => formatter.write_str("the server stopped responding"),
@@ -394,6 +409,16 @@ impl std::error::Error for Disconnected {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.cause {
             DisconnectCause::Connect(error) => Some(error),
+            DisconnectCause::ConnectionLost { .. } => Some(&self.cause),
+            _ => None,
+        }
+    }
+}
+
+impl std::error::Error for DisconnectCause {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Connect(error) => Some(error),
             _ => None,
         }
     }
@@ -452,8 +477,15 @@ impl Error {
         Self::Disconnected(disconnected)
     }
 
-    pub(crate) const fn connection_lost() -> Self {
-        Self::disconnected(Disconnected::new(DisconnectCause::ConnectionLost, None))
+    pub(crate) fn connection_lost() -> Self {
+        Self::connection_lost_with("transport ended unexpectedly")
+    }
+
+    pub(crate) fn connection_lost_with(message: impl Into<String>) -> Self {
+        Self::disconnected(Disconnected::new(
+            DisconnectCause::connection_lost(message),
+            None,
+        ))
     }
 
     pub(crate) fn disconnected_protocol(message: impl Into<String>) -> Self {
@@ -808,7 +840,9 @@ mod tests {
         }
 
         for cause in [
-            DisconnectCause::ConnectionLost,
+            DisconnectCause::ConnectionLost {
+                message: "connection reset by peer".into(),
+            },
             DisconnectCause::Connect(ConnectError::new(
                 ConnectErrorKind::Refused,
                 io::Error::new(io::ErrorKind::ConnectionRefused, "connection refused"),
@@ -892,11 +926,30 @@ mod tests {
     }
 
     #[test]
+    fn connection_loss_diagnostics_stop_at_the_bound() {
+        for input in ["x".repeat(256), "x".repeat(257)] {
+            let Error::Disconnected(Disconnected {
+                cause: DisconnectCause::ConnectionLost { message },
+                ..
+            }) = Error::connection_lost_with(input)
+            else {
+                panic!("expected connection loss")
+            };
+            assert_eq!(message.len(), 256);
+        }
+    }
+
+    #[test]
     fn terminal_errors_have_distinct_messages() {
         assert_eq!(
-            Error::Disconnected(Disconnected::new(DisconnectCause::ConnectionLost, None))
-                .to_string(),
-            "the connection was lost"
+            Error::Disconnected(Disconnected::new(
+                DisconnectCause::ConnectionLost {
+                    message: "connection reset by peer".into(),
+                },
+                None,
+            ))
+            .to_string(),
+            "the connection was lost: connection reset by peer"
         );
         assert_eq!(Error::Timeout.to_string(), "the IRC operation timed out");
         assert_eq!(
