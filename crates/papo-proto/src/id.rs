@@ -49,6 +49,44 @@ impl fmt::Display for InvalidIdentifier {
 
 impl std::error::Error for InvalidIdentifier {}
 
+macro_rules! original_text {
+    ($name:ident, $field:tt) => {
+        impl $name {
+            /// Returns the owned identifier text.
+            #[must_use]
+            pub fn into_string(self) -> String {
+                self.$field
+            }
+        }
+
+        impl Deref for $name {
+            type Target = str;
+
+            fn deref(&self) -> &Self::Target {
+                &self.$field
+            }
+        }
+
+        impl AsRef<str> for $name {
+            fn as_ref(&self) -> &str {
+                &self.$field
+            }
+        }
+
+        impl fmt::Display for $name {
+            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str(&self.$field)
+            }
+        }
+
+        impl From<&Self> for $name {
+            fn from(value: &Self) -> Self {
+                value.clone()
+            }
+        }
+    };
+}
+
 macro_rules! identifier {
     ($name:ident, $description:literal) => {
         #[doc = $description]
@@ -58,37 +96,11 @@ macro_rules! identifier {
         #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
         pub struct $name(String);
 
-        impl $name {
-            /// Returns the owned identifier text.
-            #[must_use]
-            pub fn into_string(self) -> String {
-                self.0
-            }
-        }
-
-        impl Deref for $name {
-            type Target = str;
-
-            fn deref(&self) -> &Self::Target {
-                &self.0
-            }
-        }
-
-        impl AsRef<str> for $name {
-            fn as_ref(&self) -> &str {
-                &self.0
-            }
-        }
+        original_text!($name, 0);
 
         impl Borrow<str> for $name {
             fn borrow(&self) -> &str {
                 &self.0
-            }
-        }
-
-        impl fmt::Display for $name {
-            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str(&self.0)
             }
         }
 
@@ -119,12 +131,6 @@ macro_rules! identifier {
         impl From<&String> for $name {
             fn from(value: &String) -> Self {
                 Self(value.clone())
-            }
-        }
-
-        impl From<&Self> for $name {
-            fn from(value: &Self) -> Self {
-                value.clone()
             }
         }
     };
