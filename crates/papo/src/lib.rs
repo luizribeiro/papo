@@ -114,12 +114,12 @@ pub use webirc::WebIrc;
 /// Payloads carried by [`Event`].
 pub mod event {
     pub use crate::event_impl::{
-        AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, ChannelRenamed,
-        ChannelSynced, Departed, Disconnected, FeaturesChanged, HostChanged, Invited, Joined,
-        Kicked, MetadataChanged, ModeChange, ModeChanged, MonitorOffline, MonitorOnline, Netjoin,
-        Netsplit, NickChanged, Parted, Quit, Reacted, ReadMarker, RealnameChanged, Redacted,
-        Registered, Source, SplitServers, StandardReply, StandardReplyKind, StateLimit, TagMsg,
-        TopicChanged, TypingChanged, Visibility, Warning,
+        AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
+        ChannelRenamed, ChannelSynced, Departed, Disconnected, FeaturesChanged, HostChanged,
+        Invited, Joined, Kicked, MetadataChanged, ModeChange, ModeChanged, MonitorOffline,
+        MonitorOnline, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted, ReadMarker,
+        RealnameChanged, Redacted, Registered, Source, SplitServers, StandardReply,
+        StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, Visibility, Warning,
     };
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]

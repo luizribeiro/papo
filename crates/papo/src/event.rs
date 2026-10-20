@@ -31,7 +31,7 @@ pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChange, ModeChanged, ModeKind,
     Parted, TopicChanged,
 };
-pub use connection::{CapsChanged, Disconnected, FeaturesChanged, Registered};
+pub use connection::{CapsChanged, CasemappingChanged, Disconnected, FeaturesChanged, Registered};
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
@@ -552,6 +552,8 @@ pub enum Event {
     CapsChanged(CapsChanged),
     /// Optional behaviors available on an established connection changed.
     FeaturesChanged(FeaturesChanged),
+    /// Server-defined name comparison rules changed between connections.
+    CasemappingChanged(CasemappingChanged),
     /// A user joined a channel shared with the client.
     Joined(Joined),
     /// Initial channel membership synchronization completed.
@@ -629,6 +631,7 @@ event_accessors! {
     (Disconnected, as_disconnected, Disconnected),
     (CapsChanged, as_caps_changed, CapsChanged),
     (FeaturesChanged, as_features_changed, FeaturesChanged),
+    (CasemappingChanged, as_casemapping_changed, CasemappingChanged),
     (Reacted, as_reacted, Reacted),
     (Redacted, as_redacted, Redacted),
     (TypingChanged, as_typing_changed, TypingChanged),
@@ -937,6 +940,9 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         }
         papo_core::Event::FeaturesChanged { added, removed } => {
             Event::FeaturesChanged(FeaturesChanged { added, removed })
+        }
+        papo_core::Event::CasemappingChanged { old, new } => {
+            Event::CasemappingChanged(CasemappingChanged { old, new })
         }
         papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
@@ -1387,6 +1393,17 @@ mod tests {
         let changed = event.as_features_changed().unwrap();
         assert_eq!(changed.added, [Feature::Reactions, Feature::Typing]);
         assert_eq!(changed.removed, [Feature::History]);
+    }
+
+    #[test]
+    fn maps_casemapping_changes() {
+        let event = forwarded(papo_core::Event::CasemappingChanged {
+            old: Casemapping::Ascii,
+            new: Casemapping::Rfc1459Strict,
+        });
+        let changed = event.as_casemapping_changed().unwrap();
+        assert_eq!(changed.old, Casemapping::Ascii);
+        assert_eq!(changed.new, Casemapping::Rfc1459Strict);
     }
 
     #[test]

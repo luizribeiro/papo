@@ -1,4 +1,4 @@
-use crate::{Capabilities, Feature, Nick};
+use crate::{Capabilities, Casemapping, Feature, Nick};
 
 pub use crate::Disconnected;
 
@@ -34,4 +34,14 @@ pub struct FeaturesChanged {
     pub added: Vec<Feature>,
     /// Behaviors that became unavailable.
     pub removed: Vec<Feature>,
+}
+
+/// Server-defined name rules changed between connections.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct CasemappingChanged {
+    /// Rules retained from the previous connection or offline seed.
+    pub old: Casemapping,
+    /// Rules advertised by the current connection.
+    pub new: Casemapping,
 }

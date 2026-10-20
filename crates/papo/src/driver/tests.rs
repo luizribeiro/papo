@@ -4660,6 +4660,12 @@ async fn client_exposes_capability_aliases_and_casemapping() {
         b":ergo.test 005 papo-driver CASEMAPPING=ascii NICKLEN=27 :are supported\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::CasemappingChanged(changed))
+            if changed.old == crate::Casemapping::Rfc1459
+                && changed.new == crate::Casemapping::Ascii
+    ));
     assert!(matches!(events.next().await, Some(Event::Registered(_))));
 
     let state = client.state();
