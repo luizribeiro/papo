@@ -66,17 +66,19 @@ async fn client_batch_errors(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
 
     alice
-        .send_command(
+        .send_raw(papo::Line::new(
             "BATCH",
             ["+papo-unknown", "papo.example/unknown", "#papo-missing"],
-        )
+        ))
         .await?;
     let unknown = alice.wait_for(Event::as_standard_reply).await?;
     assert_eq!(unknown.kind, StandardReplyKind::Fail);
     assert_eq!(unknown.command, "BATCH");
     let unknown_code = unknown.code.clone();
 
-    alice.send_command("BATCH", ["-papo-not-open"]).await?;
+    alice
+        .send_raw(papo::Line::new("BATCH", ["-papo-not-open"]))
+        .await?;
     let invalid = alice.wait_for(Event::as_standard_reply).await?;
     assert_eq!(invalid.kind, StandardReplyKind::Fail);
     assert_eq!(invalid.command, "BATCH");
@@ -106,7 +108,7 @@ async fn client_batch_errors(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn standard_replies(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    alice.send_command("SETNAME", [""]).await?;
+    alice.send_raw(papo::Line::new("SETNAME", [""])).await?;
     let reply = alice.wait_for(Event::as_standard_reply).await?;
     assert_eq!(reply.kind, StandardReplyKind::Fail);
     assert_eq!(reply.command, "SETNAME");

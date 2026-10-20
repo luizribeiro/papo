@@ -95,7 +95,9 @@ async fn cap_notify_new(s: Scenario) -> papo_testing::Result<()> {
 async fn capability_negotiation(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     // CAP framing is inspected raw because continuation markers and NAK are the behavior under test.
-    let lines = alice.request_command("CAP", ["LS", "302"]).await?;
+    let lines = alice
+        .request_raw(papo::Line::new("CAP", ["LS", "302"]))
+        .await?;
     if lines.len() < 2 {
         return s.skip("the server's CAP LS reply fits on one line");
     }
@@ -110,7 +112,7 @@ async fn capability_negotiation(s: Scenario) -> papo_testing::Result<()> {
     assert_ne!(last.param(2), Some("*"));
 
     let nak = alice
-        .request_command("CAP", ["REQ", "papo.example/unavailable"])
+        .request_raw(papo::Line::new("CAP", ["REQ", "papo.example/unavailable"]))
         .await?;
     assert_eq!(nak.len(), 1);
     assert_eq!(nak[0].command(), "CAP");
@@ -192,7 +194,7 @@ async fn server_information(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     // Numeric replies are inspected raw because their sequence is the behavior under test.
     let motd = alice
-        .request_command("MOTD", std::iter::empty::<&str>())
+        .request_raw(papo::Line::new("MOTD", Vec::<String>::new()))
         .await?;
     let motd_codes = motd
         .iter()
@@ -208,7 +210,7 @@ async fn server_information(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let lusers = alice
-        .request_command("LUSERS", std::iter::empty::<&str>())
+        .request_raw(papo::Line::new("LUSERS", Vec::<String>::new()))
         .await?;
     let codes = lusers
         .iter()
@@ -234,7 +236,7 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
 
     // These commands expose protocol numerics rather than richer result types.
     let time = bob
-        .request_command("TIME", std::iter::empty::<&str>())
+        .request_raw(papo::Line::new("TIME", Vec::<String>::new()))
         .await?;
     let reply = time
         .iter()
@@ -245,13 +247,22 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
 
     let nick = alice.nick();
     alice.quit("record this departure").await?;
-    let whowas = bob.request_command("WHOWAS", [nick.as_ref(), "1"]).await?;
+    let whowas = bob
+        .request_raw(papo::Line::new("WHOWAS", [nick.as_ref(), "1"]))
+        .await?;
     let users = whowas
         .iter()
         .filter(|line| line.numeric() == Some(papo::numeric::RPL_WHOWASUSER))
         .collect::<Vec<_>>();
     assert_eq!(users.len(), 1);
-    assert_eq!(users[0].param(1), Some(nick.as_ref()));
+    assert_eq!(
+        bob.state().nickname(
+            users[0]
+                .param(1)
+                .expect("WHOWAS user reply includes a nickname")
+        ),
+        nick
+    );
     assert!(
         whowas
             .iter()
@@ -259,7 +270,9 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
     );
 
     let missing = papo_test_server::unique("missing-whowas");
-    let absent = bob.request_command("WHOWAS", [&missing]).await?;
+    let absent = bob
+        .request_raw(papo::Line::new("WHOWAS", [&missing]))
+        .await?;
     assert!(
         absent
             .iter()

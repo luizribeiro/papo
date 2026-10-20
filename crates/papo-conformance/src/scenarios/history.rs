@@ -82,9 +82,14 @@ async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {
     }
     let text = "legacy history checkpoint";
     let (_, mut reader, channel, _) = history_peers(&s, &[text]).await?;
-    reader.send_command("HISTORY", [&channel, "10"]).await?;
+    reader
+        .send_raw(papo::Line::new("HISTORY", [channel.as_str(), "10"]))
+        .await?;
     let page = reader.wait_for(Event::as_history).await?;
-    assert_eq!(page.target.as_ref(), channel);
+    assert_eq!(
+        reader.state().channel_name(page.target.as_ref()),
+        channel.as_str()
+    );
     let message = page
         .messages()
         .find(|message| message.text() == text)

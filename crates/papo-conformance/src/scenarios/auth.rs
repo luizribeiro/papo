@@ -108,7 +108,9 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     let bob = s
         .connect_with(s.configure("bob")?.sasl(Sasl::plain(&account, PASSWORD)))
         .await?;
-    let response = bob.request_command("AUTHENTICATE", ["PLAIN"]).await?;
+    let response = bob
+        .request_raw(papo::Line::new("AUTHENTICATE", ["PLAIN"]))
+        .await?;
     let reauth = response
         .iter()
         .find(|line| line.numeric() == Some(907))
@@ -151,7 +153,9 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     }
     let mut alice = s.connect_as_account("alice").await?;
     let account = alice.state().account().unwrap().clone();
-    alice.send_command("NS", ["INFO", account.as_ref()]).await?;
+    alice
+        .send_raw(papo::Line::new("NS", ["INFO", account.as_ref()]))
+        .await?;
     let nickserv = alice
         .wait_for(|event| {
             event.as_message().filter(|message| {
@@ -165,7 +169,9 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
 
     let channel = s.channel_name();
     alice.join(&channel).await?;
-    alice.send_command("CS", ["REGISTER", &channel]).await?;
+    alice
+        .send_raw(papo::Line::new("CS", ["REGISTER", &channel]))
+        .await?;
     let chanserv = alice
         .wait_for(|event| {
             event.as_message().filter(|message| {
