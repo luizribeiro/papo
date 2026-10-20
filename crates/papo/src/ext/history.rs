@@ -70,7 +70,8 @@ pub(crate) fn history_item(
     received_at: SystemTime,
     origin: Origin,
 ) -> HistoryItem {
-    let mapping = client.state().casemapping();
+    let state = client.state();
+    let mapping = state.casemapping();
     match item {
         papo_core::HistoryItem::Message(item) => {
             let message = match origin {
@@ -79,12 +80,12 @@ pub(crate) fn history_item(
             };
             message.map_or_else(HistoryItem::Other, HistoryItem::Message)
         }
-        papo_core::HistoryItem::Reacted(item) => {
-            typed_or_raw(&item.line, |message| reaction(message, mapping))
-        }
-        papo_core::HistoryItem::Redacted(item) => {
-            typed_or_raw(&item.line, |message| redaction(message, mapping))
-        }
+        papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, |message| {
+            reaction(message, mapping, state.nick(), state.isupport().inner())
+        }),
+        papo_core::HistoryItem::Redacted(item) => typed_or_raw(&item.line, |message| {
+            redaction(message, mapping, state.nick(), state.isupport().inner())
+        }),
         papo_core::HistoryItem::Joined(item) => {
             typed_or_raw(&item.line, |message| joined(message, client))
         }
@@ -120,9 +121,15 @@ where
     convert(&raw.as_ref()).unwrap_or_else(|| HistoryItem::Other(raw.clone()))
 }
 
-fn reaction(message: &papo_proto::LineRef<'_>, mapping: crate::Casemapping) -> Option<HistoryItem> {
+fn reaction(
+    message: &papo_proto::LineRef<'_>,
+    mapping: crate::Casemapping,
+    own_nick: &str,
+    isupport: &papo_proto::Isupport,
+) -> Option<HistoryItem> {
     let reaction = Reaction::parse(message)?;
-    let target = message.param(0)?.to_owned();
+    let (status, conversation) =
+        papo_core::classify_conversation(message, own_nick, isupport).ok()?;
     let reply_to = reaction.reply_to.clone();
     let (reaction, removed) = reaction
         .react
@@ -132,7 +139,9 @@ fn reaction(message: &papo_proto::LineRef<'_>, mapping: crate::Casemapping) -> O
         source: message
             .source()
             .map(|source| Source::from_proto(source, mapping)),
-        target: target.into(),
+        target: message.param(0)?.into(),
+        conversation,
+        status,
         message: reply_to.into(),
         reaction,
         removed,
@@ -142,12 +151,18 @@ fn reaction(message: &papo_proto::LineRef<'_>, mapping: crate::Casemapping) -> O
 fn redaction(
     message: &papo_proto::LineRef<'_>,
     mapping: crate::Casemapping,
+    own_nick: &str,
+    isupport: &papo_proto::Isupport,
 ) -> Option<HistoryItem> {
+    let (status, conversation) =
+        papo_core::classify_conversation(message, own_nick, isupport).ok()?;
     Some(HistoryItem::Redacted(Redacted {
         source: message
             .source()
             .map(|source| Source::from_proto(source, mapping)),
         target: message.param(0)?.into(),
+        conversation,
+        status,
         message: message.param(1)?.into(),
         reason: message
             .param(2)
@@ -707,7 +722,12 @@ mod tests {
             "@+draft/react=👍;+draft/reply=RfcBTzyxY120004 :Alice[bot]!~a@cloak.example TAGMSG #papo",
         )
         .unwrap();
-        let Some(HistoryItem::Reacted(event)) = reaction(&line, Casemapping::Ascii) else {
+        let Some(HistoryItem::Reacted(event)) = reaction(
+            &line,
+            Casemapping::Ascii,
+            "papo",
+            &papo_proto::Isupport::default(),
+        ) else {
             panic!("reaction should be typed");
         };
         let Some(crate::Source::User { nick, .. }) = event.source else {

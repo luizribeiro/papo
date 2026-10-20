@@ -756,6 +756,8 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                     .source
                     .map(|source| Source::from_prefix(source, casemapping)),
                 target: message.target.into(),
+                conversation: message.conversation,
+                status: message.status,
                 tags: Tags::from_pairs(message.tags),
             };
             let reply_to = tag
@@ -775,6 +777,8 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 Event::Reacted(Reacted {
                     source: tag.source,
                     target: tag.target,
+                    conversation: tag.conversation,
+                    status: tag.status,
                     message: msgid.into(),
                     reaction: reaction.to_owned(),
                     removed,
@@ -788,6 +792,8 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 Event::TypingChanged(TypingChanged {
                     source: tag.source,
                     target: tag.target,
+                    conversation: tag.conversation,
+                    status: tag.status,
                     state,
                 })
             } else {
@@ -799,6 +805,8 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 .source
                 .map(|source| Source::from_prefix(source, casemapping)),
             target: redacted.target.into(),
+            conversation: redacted.conversation,
+            status: redacted.status,
             message: redacted.msgid.into(),
             reason: redacted.reason.filter(|reason| !reason.is_empty()),
         }),

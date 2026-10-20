@@ -6,6 +6,7 @@ pub use papo::Capabilities
 pub use papo::Casemapping
 pub use papo::Channel
 pub use papo::ChannelName
+pub use papo::Conversation
 pub use papo::Feature
 pub use papo::InvalidIdentifier
 pub use papo::InvalidRateLimit
@@ -730,10 +731,12 @@ impl core::marker::UnsafeUnpin for papo::event::Quit
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Quit
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Quit
 #[non_exhaustive] pub struct papo::event::Reacted
+pub papo::event::Reacted::conversation: papo::Conversation
 pub papo::event::Reacted::message: papo::MessageId
 pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::source: core::option::Option<papo::Source>
+pub papo::event::Reacted::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::Reacted::target: papo::Address
 impl core::clone::Clone for papo::event::Reacted
 pub fn papo::event::Reacted::clone(&self) -> Self
@@ -787,9 +790,11 @@ impl core::marker::UnsafeUnpin for papo::event::RealnameChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::RealnameChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::RealnameChanged
 #[non_exhaustive] pub struct papo::event::Redacted
+pub papo::event::Redacted::conversation: papo::Conversation
 pub papo::event::Redacted::message: papo::MessageId
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::source: core::option::Option<papo::Source>
+pub papo::event::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::Redacted::target: papo::Address
 impl core::clone::Clone for papo::event::Redacted
 pub fn papo::event::Redacted::clone(&self) -> Self
@@ -848,7 +853,9 @@ impl core::marker::UnsafeUnpin for papo::event::StandardReply
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::StandardReply
 impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReply
 #[non_exhaustive] pub struct papo::event::TagMsg
+pub papo::event::TagMsg::conversation: papo::Conversation
 pub papo::event::TagMsg::source: core::option::Option<papo::Source>
+pub papo::event::TagMsg::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::TagMsg::tags: papo::Tags
 pub papo::event::TagMsg::target: papo::Address
 impl core::clone::Clone for papo::event::TagMsg
@@ -886,8 +893,10 @@ impl core::marker::UnsafeUnpin for papo::event::TopicChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TopicChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::TopicChanged
 #[non_exhaustive] pub struct papo::event::TypingChanged
+pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::source: core::option::Option<papo::Source>
 pub papo::event::TypingChanged::state: papo::Typing
+pub papo::event::TypingChanged::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::TypingChanged::target: papo::Address
 impl core::clone::Clone for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::clone(&self) -> Self

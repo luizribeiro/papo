@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{MessageId, Target, Typing};
+use crate::{Conversation, MessageId, Target, Typing};
 
 use super::{Source, Tags};
 
@@ -10,8 +10,12 @@ use super::{Source, Tags};
 pub struct Reacted {
     /// The user or server that changed the reaction.
     pub source: Option<Source>,
-    /// The conversation containing the message.
-    pub target: Target,
+    /// The wire target containing the message.
+    pub target: crate::Target,
+    /// The IRC conversation containing the message.
+    pub conversation: Conversation,
+    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    pub status: Option<Vec<char>>,
     /// The message being reacted to.
     pub message: MessageId,
     /// The reaction text, usually an emoji.
@@ -28,8 +32,12 @@ pub struct Reacted {
 pub struct Redacted {
     /// The user or server that removed the message.
     pub source: Option<Source>,
-    /// The conversation containing the message.
-    pub target: Target,
+    /// The wire target containing the message.
+    pub target: crate::Target,
+    /// The IRC conversation containing the message.
+    pub conversation: Conversation,
+    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    pub status: Option<Vec<char>>,
     /// The message removed from history.
     pub message: MessageId,
     /// The optional human-readable reason.
@@ -42,8 +50,12 @@ pub struct Redacted {
 pub struct TypingChanged {
     /// The user or server that sent the notification.
     pub source: Option<Source>,
-    /// The channel or nickname where typing is occurring.
-    pub target: Target,
+    /// The wire target where typing is occurring.
+    pub target: crate::Target,
+    /// The IRC conversation where typing is occurring.
+    pub conversation: Conversation,
+    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    pub status: Option<Vec<char>>,
     /// The new typing state.
     pub state: Typing,
 }
@@ -55,7 +67,11 @@ pub struct TagMsg {
     /// The message source, when supplied by the server.
     pub source: Option<Source>,
     /// The message target.
-    pub target: Target,
+    pub target: crate::Target,
+    /// The IRC conversation addressed by the message.
+    pub conversation: Conversation,
+    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    pub status: Option<Vec<char>>,
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,
 }
