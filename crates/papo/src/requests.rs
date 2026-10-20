@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use papo_core::Response;
 use papo_proto::{
-    AccountName, ChannelName, Command, Isupport, Line, Nick, Numeric, WhoxPresence, WhoxReply,
+    AccountName, ChannelName, Command, Isupport, Line, Nick, Numeric, ServerName, WhoxPresence,
+    WhoxReply,
 };
 
 use crate::Error;
@@ -22,7 +23,7 @@ pub struct Whois {
     /// Logged-in account name.
     pub account: Option<AccountName>,
     /// Server to which the user is connected.
-    pub server: Option<String>,
+    pub server: Option<ServerName>,
     /// Visible channels, retaining membership prefixes.
     pub channels: Vec<WhoisChannel>,
     /// Away message, when the user is away.
@@ -153,7 +154,7 @@ pub(crate) fn whois(
                 result.host = message.param(3).map(str::to_owned);
                 result.realname = message.param(5).map(str::to_owned);
             }
-            Numeric::RPL_WHOISSERVER => result.server = message.param(2).map(str::to_owned),
+            Numeric::RPL_WHOISSERVER => result.server = message.param(2).map(ServerName::from),
             Numeric::RPL_WHOISIDLE => {
                 result.idle = message
                     .param(2)

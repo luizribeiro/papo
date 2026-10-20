@@ -2396,7 +2396,7 @@ pub papo::Whois::is_bot: bool
 pub papo::Whois::nick: papo::Nick
 pub papo::Whois::realname: core::option::Option<alloc::string::String>
 pub papo::Whois::secure: bool
-pub papo::Whois::server: core::option::Option<alloc::string::String>
+pub papo::Whois::server: core::option::Option<papo::ServerName>
 pub papo::Whois::username: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::Whois
 pub fn papo::Whois::clone(&self) -> Self

@@ -3,7 +3,7 @@ set -euo pipefail
 
 expressions=(
   -e 's#papo_proto::isupport::#papo::isupport::#g'
-  -e 's#papo_proto::(casemapping|client_tags|id|line)::#papo::#g'
+  -e 's#papo_proto::(casemapping|client_tags|id|line|server_name)::#papo::#g'
   -e 's#papo_core::sts::#papo::sts::#g'
   -e 's#papo_core::(bouncer|features|metadata|ratelimit|refusal|sasl|secret|source|state)::#papo::#g'
   -e 's#papo_core::Conversation#papo::Conversation#g'
