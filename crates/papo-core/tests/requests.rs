@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
     Config, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher, ServerError,
-    Session,
+    Session, TextKind,
 };
 use papo_proto::{Line, LineRef, Numeric};
 
@@ -1483,8 +1483,36 @@ fn aborts_pending_requests_on_disconnect() {
     let id = request(&mut session, now, Line::new("WHOIS", ["alice"]));
     session.handle_disconnected(now);
     assert!(
-        matches!(session.poll_event(), Some(Event::RequestAborted { id: aborted }) if aborted == id)
+        matches!(session.poll_event(), Some(Event::RequestAborted { id: aborted, transmitted: false }) if aborted == id)
     );
+}
+
+#[test]
+fn abort_reports_when_a_labelled_privmsg_reached_the_transport() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    session.handle_connected(now);
+    session.handle_line(now, b":ergo.test CAP * LS :echo-message labeled-response");
+    session.handle_line(now, b":ergo.test CAP * ACK :echo-message labeled-response");
+    while session.poll_transmit().is_some() {}
+    let id = session
+        .send_text_detailed(now, TextKind::Privmsg, "#papo", "deploy complete", &[])
+        .unwrap()
+        .request
+        .unwrap();
+
+    assert_eq!(
+        session.poll_transmit().unwrap(),
+        b"@label=0 PRIVMSG #papo :deploy complete\r\n"
+    );
+    session.handle_disconnected(now);
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::RequestAborted {
+            id: aborted,
+            transmitted: true,
+        }) if aborted == id
+    ));
 }
 
 #[test]

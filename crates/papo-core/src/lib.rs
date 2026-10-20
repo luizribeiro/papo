@@ -1418,6 +1418,8 @@ pub enum Event {
     RequestAborted {
         /// Identifier assigned to the request.
         id: RequestId,
+        /// Whether transmission of the request had begun.
+        transmitted: bool,
     },
     /// A user-originated line was discarded before reaching the transport.
     #[doc(hidden)]
@@ -2240,12 +2242,18 @@ impl Session {
         self.framer.close();
         self.outbox.reset_connection();
         self.batches.reset();
-        for (_, (id, _, _, _, _)) in std::mem::take(&mut self.requests) {
+        for (_, (id, started, _, _, _)) in std::mem::take(&mut self.requests) {
             self.unlabelled_requests.retain(|request| request.id != id);
-            self.outbox.event(Event::RequestAborted { id });
+            self.outbox.event(Event::RequestAborted {
+                id,
+                transmitted: started.is_some(),
+            });
         }
         for request in self.unlabelled_requests.drain(..) {
-            self.outbox.event(Event::RequestAborted { id: request.id });
+            self.outbox.event(Event::RequestAborted {
+                id: request.id,
+                transmitted: request.started.is_some(),
+            });
         }
         self.away_messages.clear();
         self.registration.handle_disconnected();

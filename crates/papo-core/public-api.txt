@@ -454,6 +454,7 @@ pub papo_core::Event::Redacted(papo_core::Redacted)
 pub papo_core::Event::Registered(papo_core::Welcome)
 pub papo_core::Event::RequestAborted
 pub papo_core::Event::RequestAborted::id: papo_core::RequestId
+pub papo_core::Event::RequestAborted::transmitted: bool
 pub papo_core::Event::RequestTimedOut
 pub papo_core::Event::RequestTimedOut::id: papo_core::RequestId
 pub papo_core::Event::RequestUnsupported
