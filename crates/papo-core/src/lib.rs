@@ -198,6 +198,16 @@ pub enum Conversation {
     Broadcast(Mask),
 }
 
+/// Classifies the IRC conversation and `STATUSMSG` prefixes addressed by a line.
+#[doc(hidden)]
+pub fn classify_conversation(
+    line: &LineRef<'_>,
+    own_nick: &str,
+    isupport: &papo_proto::Isupport,
+) -> Result<(Option<Vec<char>>, Conversation), papo_proto::InvalidIdentifier> {
+    conversation::classify_line(line, own_nick, isupport)
+}
+
 /// Automatic replies to private CTCP queries.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CtcpReplies {
