@@ -181,6 +181,25 @@ pub struct Message {
     pub tags: Tags,
 }
 
+struct MessageMetadata {
+    actor: Source,
+    authorship: Authorship,
+    conversation: Conversation,
+    status: Option<Vec<char>>,
+    msgid: Option<MessageId>,
+    time: SystemTime,
+    account: Option<AccountName>,
+    reply_to: Option<MessageId>,
+    channel_context: Option<ChannelName>,
+    #[cfg(feature = "unstable")]
+    relayed_by: Option<Nick>,
+    is_bot: bool,
+    is_oper: bool,
+    oper: Option<String>,
+    origin: Origin,
+    tags: Tags,
+}
+
 impl Message {
     pub(crate) fn new(
         raw: ProtoLine,
@@ -323,56 +342,38 @@ impl Message {
         };
         let text = strip_formatting(displayed).into_owned();
         let raw_text = raw_text.to_owned();
-        let Some(actor) = message
-            .source()
-            .map(|source| source::from_proto(source, isupport.casemapping()))
-        else {
-            return Err(raw);
-        };
-        let tags = Tags::from_message(&message);
-        let channel_context = if matches!(conversation, Conversation::Private(_)) {
-            tag_owned(&message, &["+channel-context", "+draft/channel-context"])
-                .map(|channel| isupport.casemapping().channel(channel))
-        } else {
-            None
-        };
-        let envelope = line_envelope(&message, isupport.casemapping(), received_at);
-        let is_bot = tags.contains("bot");
-        let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]).map(MessageId::from);
-        #[cfg(feature = "unstable")]
-        let relayed_by = tag_owned(&message, &[crate::cap::RELAYMSG])
-            .map(|nick| isupport.casemapping().nick(nick));
-        let oper_tag = message.tags().find(|(key, _)| *key == "draft/oper");
-        let is_oper = oper_tag.is_some();
-        let oper = oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned));
-        let replay = batch_type.is_some_and(|kind| !matches!(kind, "netsplit" | "netjoin"));
-        let origin = if echo {
-            Origin::Echo
-        } else if replay {
-            Origin::Replay
-        } else {
-            Origin::Live
-        };
-        Ok(Self {
-            actor,
+        let Some(metadata) = message_metadata(
+            &message,
+            batch_type,
+            echo,
             authorship,
             conversation,
             status,
+            isupport,
+            received_at,
+        ) else {
+            return Err(raw);
+        };
+        Ok(Self {
+            actor: metadata.actor,
+            authorship: metadata.authorship,
+            conversation: metadata.conversation,
+            status: metadata.status,
             text,
             raw_text,
             kind,
-            msgid: envelope.msgid,
-            time: envelope.time,
-            account: envelope.account,
-            reply_to,
-            channel_context,
+            msgid: metadata.msgid,
+            time: metadata.time,
+            account: metadata.account,
+            reply_to: metadata.reply_to,
+            channel_context: metadata.channel_context,
             #[cfg(feature = "unstable")]
-            relayed_by,
-            is_bot,
-            is_oper,
-            oper,
-            origin,
-            tags,
+            relayed_by: metadata.relayed_by,
+            is_bot: metadata.is_bot,
+            is_oper: metadata.is_oper,
+            oper: metadata.oper,
+            origin: metadata.origin,
+            tags: metadata.tags,
         })
     }
 
@@ -526,6 +527,60 @@ impl Message {
     pub fn ctcp(&self) -> Option<Ctcp<'_>> {
         ProtoCtcp::parse(&self.raw_text).map(Ctcp::from_proto)
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn message_metadata(
+    message: &LineRef<'_>,
+    batch_type: Option<&str>,
+    echo: bool,
+    authorship: Authorship,
+    conversation: Conversation,
+    status: Option<Vec<char>>,
+    isupport: &Isupport,
+    received_at: SystemTime,
+) -> Option<MessageMetadata> {
+    let actor = message
+        .source()
+        .map(|source| source::from_proto(source, isupport.casemapping()))?;
+    let tags = Tags::from_message(message);
+    let channel_context = if matches!(conversation, Conversation::Private(_)) {
+        tag_owned(message, &["+channel-context", "+draft/channel-context"])
+            .map(|channel| isupport.casemapping().channel(channel))
+    } else {
+        None
+    };
+    let envelope = line_envelope(message, isupport.casemapping(), received_at);
+    let reply_to = tag_owned(message, &["+reply", "+draft/reply"]).map(MessageId::from);
+    #[cfg(feature = "unstable")]
+    let relayed_by =
+        tag_owned(message, &[crate::cap::RELAYMSG]).map(|nick| isupport.casemapping().nick(nick));
+    let oper_tag = message.tags().find(|(key, _)| *key == "draft/oper");
+    let replay = batch_type.is_some_and(|kind| !matches!(kind, "netsplit" | "netjoin"));
+    Some(MessageMetadata {
+        actor,
+        authorship,
+        conversation,
+        status,
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
+        reply_to,
+        channel_context,
+        #[cfg(feature = "unstable")]
+        relayed_by,
+        is_bot: tags.contains("bot"),
+        is_oper: oper_tag.is_some(),
+        oper: oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned)),
+        origin: if echo {
+            Origin::Echo
+        } else if replay {
+            Origin::Replay
+        } else {
+            Origin::Live
+        },
+        tags,
+    })
 }
 
 pub(crate) struct EventEnvelope {
