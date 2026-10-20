@@ -1,4 +1,6 @@
-use crate::{Event, Line, LineRef, ReceivedLine, Session, cap, conversation::classify_line};
+use crate::{
+    Authorship, Event, Line, LineRef, ReceivedLine, Session, cap, conversation::classify_line,
+};
 
 impl Session {
     pub(super) fn enqueue_labelled_echo(&mut self, message: &LineRef<'_>) {
@@ -47,6 +49,11 @@ impl Session {
             batch_type,
             echo: own_source && (labelled_echo || !labels),
             other_session: own_source && !labelled_echo && labels,
+            authorship: if own_source {
+                Authorship::Own
+            } else {
+                Authorship::Other
+            },
             conversation,
             status,
         }

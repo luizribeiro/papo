@@ -249,6 +249,32 @@ impl core::marker::Unpin for papo_core::Account
 impl core::marker::UnsafeUnpin for papo_core::Account
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Account
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Account
+#[non_exhaustive] pub enum papo_core::Authorship
+pub papo_core::Authorship::Other
+pub papo_core::Authorship::Own
+pub papo_core::Authorship::Unknown
+impl core::clone::Clone for papo_core::Authorship
+pub fn papo_core::Authorship::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::Authorship
+impl core::cmp::Ord for papo_core::Authorship
+pub fn papo_core::Authorship::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_core::Authorship
+pub fn papo_core::Authorship::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_core::Authorship
+pub fn papo_core::Authorship::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo_core::Authorship
+pub fn papo_core::Authorship::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::Authorship
+pub fn papo_core::Authorship::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_core::Authorship
+impl core::marker::StructuralPartialEq for papo_core::Authorship
+impl core::marker::Freeze for papo_core::Authorship
+impl core::marker::Send for papo_core::Authorship
+impl core::marker::Sync for papo_core::Authorship
+impl core::marker::Unpin for papo_core::Authorship
+impl core::marker::UnsafeUnpin for papo_core::Authorship
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Authorship
+impl core::panic::unwind_safe::UnwindSafe for papo_core::Authorship
 #[non_exhaustive] pub enum papo_core::Away
 pub papo_core::Away::Away
 pub papo_core::Away::Away::message: core::option::Option<alloc::string::String>
@@ -1515,6 +1541,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::ReadMarker
 pub struct papo_core::ReceivedLine
 impl papo_core::ReceivedLine
 pub fn papo_core::ReceivedLine::as_ref(&self) -> papo::LineRef<'_>
+pub const fn papo_core::ReceivedLine::authorship(&self) -> papo_core::Authorship
 pub fn papo_core::ReceivedLine::batch_type(&self) -> core::option::Option<&str>
 pub const fn papo_core::ReceivedLine::conversation(&self) -> core::option::Option<&papo::Conversation>
 pub fn papo_core::ReceivedLine::into_context_parts(self) -> (papo::Line, core::option::Option<alloc::string::String>, bool, bool)

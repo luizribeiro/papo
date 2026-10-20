@@ -210,6 +210,18 @@ pub enum Subject {
     User(Nick),
 }
 
+/// Whether an event's actor is this session's user.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
+pub enum Authorship {
+    /// The actor is this session's user.
+    Own,
+    /// The actor is another user or a server.
+    Other,
+    /// The protocol did not prove who the actor is relative to this session.
+    Unknown,
+}
+
 /// Classifies the IRC conversation and `STATUSMSG` prefixes addressed by a line.
 #[doc(hidden)]
 pub fn classify_conversation(
@@ -1817,6 +1829,7 @@ pub struct ReceivedLine {
     batch_type: Option<String>,
     echo: bool,
     other_session: bool,
+    authorship: Authorship,
     conversation: Option<Conversation>,
     status: Option<Vec<char>>,
 }
@@ -1844,6 +1857,12 @@ impl ReceivedLine {
     #[must_use]
     pub const fn is_other_session(&self) -> bool {
         self.other_session
+    }
+
+    /// Returns whether the line's actor is this session's user.
+    #[must_use]
+    pub const fn authorship(&self) -> Authorship {
+        self.authorship
     }
 
     /// Returns the conversation addressed by this line, when its address is valid.

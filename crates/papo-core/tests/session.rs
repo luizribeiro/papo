@@ -6,8 +6,8 @@ use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
 use papo_core::{
-    Config, DEFAULT_WANTED_CAPS, Event, Feature, RateLimit, RequestError, Secret, Session,
-    TextKind, UnsupportedReason,
+    Authorship, Config, DEFAULT_WANTED_CAPS, Event, Feature, RateLimit, RequestError, Secret,
+    Session, TextKind, UnsupportedReason,
 };
 use papo_proto::{BuildError, Line};
 use support::unsupported_error;
@@ -157,7 +157,7 @@ fn annotates_echoes_with_the_active_casemapping() {
 }
 
 #[test]
-fn labels_distinguish_our_echo_from_another_session() {
+fn labels_distinguish_a_confirmed_echo_from_an_own_live_line() {
     let now = Instant::now();
     let mut session = Session::new(
         Config::default()
@@ -189,8 +189,10 @@ fn labels_distinguish_our_echo_from_another_session() {
         .collect();
     assert_eq!(messages.len(), 2);
     assert!(messages[0].is_echo());
+    assert_eq!(messages[0].authorship(), Authorship::Own);
     assert!(!messages[0].is_other_session());
     assert!(!messages[1].is_echo());
+    assert_eq!(messages[1].authorship(), Authorship::Own);
     assert!(messages[1].is_other_session());
 }
 
@@ -221,7 +223,9 @@ fn labelled_response_batch_also_emits_its_message_echo() {
         Event::Line(message) => Some(message),
         _ => None,
     });
-    assert!(echo.is_some_and(|message| message.is_echo() && !message.is_other_session()));
+    assert!(echo.is_some_and(|message| {
+        message.is_echo() && message.authorship() == Authorship::Own && !message.is_other_session()
+    }));
 }
 
 fn pending_labelled_echo(now: Instant) -> Session {
