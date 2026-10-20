@@ -1878,6 +1878,61 @@ async fn server_error_before_welcome_is_a_connection_failure() {
     ));
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn webirc_rejection_is_a_specific_connection_failure() {
+    let settings = config().webirc(papo_core::WebIrc {
+        password: papo_core::Secret::from("gateway-password"),
+        gateway: "papo-gateway".into(),
+        hostname: None,
+        ip: "192.0.2.42".into(),
+        options: Vec::new(),
+    });
+    let (client_stream, mut server) = tokio::io::duplex(4096);
+    let (registration, waiter) = tokio::sync::oneshot::channel();
+    let (_client, mut events, driver) = Driver::with_stream_and_connect(
+        client_stream,
+        Session::new(settings),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        Some(registration),
+        super::PostConnect::default(),
+    );
+    let driver = tokio::spawn(driver);
+    client_line(
+        &mut server,
+        b"WEBIRC gateway-password papo-gateway 192.0.2.42 192.0.2.42\r\n",
+    )
+    .await;
+    welcome_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b"ERROR :WEBIRC command is not usable from your address or incorrect password given\r\n",
+    )
+    .await;
+
+    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+        panic!("expected WEBIRC connection failure")
+    };
+    assert!(matches!(
+        &disconnected.cause,
+        crate::DisconnectCause::Connect(error)
+            if error.kind() == crate::ConnectErrorKind::WebIrcRejected
+                && std::error::Error::source(error).is_some_and(|source| {
+                    source.to_string()
+                        == "WEBIRC command is not usable from your address or incorrect password given"
+                })
+    ));
+    assert!(matches!(
+        within(waiter).await.unwrap(),
+        Err(Error::Connect(error))
+            if error.kind() == crate::ConnectErrorKind::WebIrcRejected
+    ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Connect(error))
+            if error.kind() == crate::ConnectErrorKind::WebIrcRejected
+    ));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn nick_candidates_exhaustion_ends_login_immediately() {
     let settings = config()
