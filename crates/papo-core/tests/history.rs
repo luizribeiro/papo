@@ -5,8 +5,8 @@ mod support;
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
-    Config, Event, Feature, HistoryItem, HistoryQuery, MsgRef, RateLimit, RequestError, Session,
-    UnsupportedReason,
+    Config, Event, Feature, HistoryItem, HistoryQuery, MsgRef, RateLimit, Refusal, RequestError,
+    Session, UnsupportedReason,
 };
 use support::{Transcript, unsupported_because, unsupported_error};
 
@@ -427,15 +427,32 @@ fn sends_read_marker_set_and_query_commands() {
         transmitted(&mut session),
         "@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z"
     );
-    session.read_marker("#papo").unwrap();
-    assert_eq!(transmitted(&mut session), "MARKREAD #papo");
+    session.read_marker(now, "#papo").unwrap();
+    assert_eq!(transmitted(&mut session), "@label=1 MARKREAD #papo");
+}
+
+#[test]
+fn read_marker_failures_resolve_the_pending_request() {
+    let (mut session, now) = read_marker_session();
+    let id = session.read_marker(now, "#papo").unwrap();
+    assert_eq!(transmitted(&mut session), "@label=0 MARKREAD #papo");
+
+    session.handle_line(
+        now,
+        b"@label=0 :ergo.test FAIL MARKREAD NEED_MORE_PARAMS #papo :Not enough parameters",
+    );
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected MARKREAD failure response")
+    };
+    assert_eq!(response.id, id);
+    assert_eq!(response.refusal(), Some(Refusal::MissingParameters));
 }
 
 #[test]
 fn rejects_read_markers_without_the_capability() {
     let mut session = Session::new(Config::default());
     assert_eq!(
-        session.read_marker("#papo"),
+        session.read_marker(Instant::now(), "#papo"),
         Err(unsupported_error(Feature::ReadMarkers))
     );
 }
@@ -466,7 +483,7 @@ fn rejects_explicitly_disabled_history_features_before_transmitting() {
                 ))
             );
             assert_eq!(
-                session.read_marker("#papo"),
+                session.read_marker(now, "#papo"),
                 Err(unsupported_because(
                     Feature::ReadMarkers,
                     UnsupportedReason::DisabledByClient,

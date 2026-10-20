@@ -196,7 +196,7 @@ pub(crate) enum Command {
     },
     ReadMarker {
         target: String,
-        result: ReadMarkerSender,
+        result: oneshot::Sender<Result<Response, Error>>,
     },
     MonitorAdd {
         nicks: Vec<String>,
@@ -909,12 +909,8 @@ where
                     }
                 }
                 Some(Command::ReadMarker { target, result }) => {
-                    match session.read_marker(&target) {
-                        Ok(()) => match session.state().read_marker(&target) {
-                            Some(marker) => { _ = result.send(Ok(marker.time)); }
-                            None if read_marker_waiters.len() < 256 => read_marker_waiters.push((target, result)),
-                            None => { _ = result.send(Err(Error::TooManyPendingRequests)); }
-                        },
+                    match session.read_marker(now(), &target) {
+                        Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
                         Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }

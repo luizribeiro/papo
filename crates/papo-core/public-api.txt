@@ -826,6 +826,7 @@ pub papo_core::ResponseMatcher::Nick(alloc::string::String)
 pub papo_core::ResponseMatcher::Oper
 pub papo_core::ResponseMatcher::Part(alloc::string::String)
 pub papo_core::ResponseMatcher::Ping(alloc::string::String)
+pub papo_core::ResponseMatcher::ReadMarker(alloc::string::String)
 pub papo_core::ResponseMatcher::SetName(alloc::string::String)
 pub papo_core::ResponseMatcher::Topic(alloc::string::String)
 pub papo_core::ResponseMatcher::Who(alloc::string::String)
@@ -1475,7 +1476,7 @@ pub fn papo_core::Session::with_entropy(papo_core::Config, alloc::boxed::Box<(dy
 impl papo_core::Session
 pub fn papo_core::Session::chathistory(&mut self, std::time::Instant, papo_core::HistoryQuery) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 pub fn papo_core::Session::mark_read(&mut self, std::time::Instant, &str, std::time::SystemTime) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
-pub fn papo_core::Session::read_marker(&mut self, &str) -> core::result::Result<(), papo_core::RequestError>
+pub fn papo_core::Session::read_marker(&mut self, std::time::Instant, &str) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 impl papo_core::Session
 pub fn papo_core::Session::metadata(&mut self, std::time::Instant, papo_core::MetadataCommand) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 impl papo_core::Session

@@ -588,16 +588,13 @@ fn handle_disconnected_command(
             | Command::Join { result, .. }
             | Command::CoreRequest { result, .. }
             | Command::History { result, .. }
-            | Command::MarkRead { result, .. },
+            | Command::MarkRead { result, .. }
+            | Command::ReadMarker { result, .. },
         ) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
             true
         }
         Some(Command::SendText { result, .. }) => {
-            _ = result.send(Err(Error::disconnected(disconnected.clone())));
-            true
-        }
-        Some(Command::ReadMarker { result, .. }) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
             true
         }

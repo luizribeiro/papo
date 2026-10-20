@@ -568,7 +568,8 @@ impl Client {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
     /// [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
-    /// [`Error::Disconnected`]; server refusals are classified as [`crate::Refusal::Other`].
+    /// [`Error::Disconnected`]. A refusal returns [`Error::Server`] with its typed
+    /// [`crate::Refusal`].
     pub fn fetch_read_marker(
         &self,
         target: impl Into<crate::Target>,
@@ -588,7 +589,9 @@ impl Client {
                 })
                 .await
                 .map_err(|_| Error::connection_lost())?;
-            receiver.await.map_err(|_| Error::connection_lost())?
+            let response = receiver.await.map_err(|_| Error::connection_lost())??;
+            crate::requests::empty(&response)?;
+            Ok(client.state().read_marker(&target))
         })
     }
 }
@@ -1042,7 +1045,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn read_marker_resolves_fresh_and_cached_values() {
+    async fn read_marker_queries_update_and_return_cached_state() {
         let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
@@ -1051,21 +1054,24 @@ mod tests {
             let client = client.clone();
             async move { client.fetch_read_marker("#papo").await }
         });
-        client_line(&mut server, b"MARKREAD #papo\r\n").await;
+        client_line(&mut server, b"@label=0 MARKREAD #papo\r\n").await;
         server_line(
             &mut server,
-            b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+            b"@label=0 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
         )
         .await;
         let expected = UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
         assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));
         assert_eq!(client.state().read_marker("#PAPO"), Some(expected));
 
-        assert_eq!(
-            within(client.fetch_read_marker("#papo")).await.unwrap(),
-            Some(expected)
-        );
-        client_line(&mut server, b"MARKREAD #papo\r\n").await;
+        let request = tokio::spawn(async move { client.fetch_read_marker("#papo").await });
+        client_line(&mut server, b"@label=1 MARKREAD #papo\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=1 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));
         abort_task(task).await;
     }
 }

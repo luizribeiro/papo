@@ -161,12 +161,14 @@ impl Session {
     /// # Errors
     ///
     /// Returns [`RequestError::Unsupported`] when read markers were not negotiated,
-    /// or [`RequestError::Build`] when the target cannot be encoded.
-    pub fn read_marker(&mut self, target: &str) -> Result<(), RequestError> {
+    /// or an error documented by [`Session::request_with_matcher`].
+    pub fn read_marker(&mut self, now: Instant, target: &str) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::ReadMarkers)?;
-        let line = Line::new("MARKREAD", [target]).to_line()?;
-        self.outbox.transmit_raw(line.into());
-        Ok(())
+        self.request_with_matcher(
+            now,
+            Line::new("MARKREAD", [target]),
+            crate::ResponseMatcher::ReadMarker(target.to_owned()),
+        )
     }
 }
 

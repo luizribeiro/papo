@@ -4033,7 +4033,7 @@ async fn only_channel_sync_waiter_enables_read_ahead() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn only_read_marker_waiter_enables_read_ahead() {
+async fn pending_read_marker_request_enables_read_ahead() {
     let settings = config().wanted_caps(["draft/read-marker", "labeled-response"]);
     let (mut server, client, mut events, driver) = scripted_with_capacity(settings, 2);
     let driver = tokio::spawn(driver);
@@ -4041,10 +4041,10 @@ async fn only_read_marker_waiter_enables_read_ahead() {
     saturate_events(&mut server, &events).await;
 
     let marker = tokio::spawn(async move { client.fetch_read_marker("#papo").await });
-    client_line(&mut server, b"MARKREAD #papo\r\n").await;
+    client_line(&mut server, b"@label=0 MARKREAD #papo\r\n").await;
     server_line(
         &mut server,
-        b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        b"@label=0 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
     )
     .await;
     assert_eq!(

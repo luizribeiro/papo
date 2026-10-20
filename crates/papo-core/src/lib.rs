@@ -695,6 +695,8 @@ pub enum ResponseMatcher {
     Ping(String),
     /// A channel list ending at `323`.
     List,
+    /// A read-marker query ending at the matching `MARKREAD` reply.
+    ReadMarker(String),
 }
 
 impl ResponseMatcher {
@@ -896,6 +898,10 @@ impl ResponseMatcher {
                         .then_some(numeric == Numeric::RPL_LISTEND || list_error)
                 })
             }
+            Self::ReadMarker(target) => ((message.command() == Command::Markread
+                && Self::target_is(message, 0, target, mapping))
+                || Self::standard_failure(message, "MARKREAD"))
+            .then_some(true),
         }
     }
 }
