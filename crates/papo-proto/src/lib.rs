@@ -44,3 +44,6 @@ pub use source::Source;
 pub use text::{Segment, split_text};
 pub use views::{Account, Away, Chghost, Join, Setname, StandardReply, StandardReplyKind};
 pub use whox::{WhoxFlags, WhoxPresence, WhoxReply};
+
+/// An IRC wire address chosen by the caller.
+pub type Address = Target;

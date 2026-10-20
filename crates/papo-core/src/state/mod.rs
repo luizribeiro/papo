@@ -15,9 +15,9 @@ use std::{
 };
 
 use papo_proto::{
-    Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
-    Command, Isupport, Join, LineRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Setname,
-    Source, Target, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
+    Account as AccountNotify, AccountName, Address as Target, Away as AwayNotify, Casemapping,
+    ChannelName, Chghost, Command, Isupport, Join, LineRef, ModeChanges, ModeKind, NamesEntry,
+    Nick, Numeric, Setname, Source, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
 #[cfg(feature = "unstable")]

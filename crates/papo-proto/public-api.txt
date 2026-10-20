@@ -1533,3 +1533,4 @@ pub fn papo_proto::escape_tag_value(&str) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::parse_353<'a>(&papo_proto::LineRef<'a>) -> core::option::Option<(&'a str, &'a str, impl core::iter::traits::iterator::Iterator<Item = &'a str>)>
 pub fn papo_proto::split_text(&str, usize) -> alloc::vec::Vec<papo_proto::Segment<'_>>
 pub fn papo_proto::strip_formatting(&str) -> alloc::borrow::Cow<'_, str>
+pub type papo_proto::Address = papo_proto::Target

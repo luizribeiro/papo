@@ -1,7 +1,7 @@
 use std::future::IntoFuture;
 
 use papo_core::ResponseMatcher;
-use papo_proto::{Isupport, Line, Mask, ModeKind, Nick, Target};
+use papo_proto::{Address as Target, Isupport, Line, Mask, ModeKind, Nick};
 
 use crate::{Client, Error, InvalidInput, RequestFuture};
 
@@ -261,7 +261,7 @@ fn invalid(message: impl Into<String>) -> Error {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use papo_proto::{Isupport, LineRef, Target};
+    use papo_proto::{Address as Target, Isupport, LineRef};
 
     use super::{Argument, Change, Selector, encode};
 
