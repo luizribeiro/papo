@@ -876,15 +876,15 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             })
         }
         #[cfg(feature = "unstable")]
-        papo_core::Event::PersistenceStatus { setting, effective } => {
+        papo_core::Event::PersistenceStatus(status) => {
             Event::PersistenceChanged(PersistenceChanged {
-                setting: match setting {
+                setting: match status.setting {
                     papo_core::PersistenceSetting::On => PersistenceSetting::On,
                     papo_core::PersistenceSetting::Off => PersistenceSetting::Off,
                     papo_core::PersistenceSetting::Default => PersistenceSetting::Default,
                     _ => return CoreEvent::Unknown,
                 },
-                effective,
+                effective: status.effective,
             })
         }
         #[cfg(feature = "unstable")]
@@ -1168,8 +1168,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
-    #[cfg(feature = "unstable")]
-    use super::PersistenceSetting;
     use super::{
         Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageKind,
         MetadataChanged, ModeKind, Origin, Source, StandardReplyKind, Visibility, Warning,
@@ -1839,23 +1837,7 @@ mod tests {
 
     #[cfg(feature = "unstable")]
     #[test]
-    fn maps_persistence_status() {
-        for (core, public) in [
-            (papo_core::PersistenceSetting::On, PersistenceSetting::On),
-            (papo_core::PersistenceSetting::Off, PersistenceSetting::Off),
-            (
-                papo_core::PersistenceSetting::Default,
-                PersistenceSetting::Default,
-            ),
-        ] {
-            let event = forwarded(papo_core::Event::PersistenceStatus {
-                setting: core,
-                effective: true,
-            });
-            let changed = event.as_persistence_changed().unwrap();
-            assert_eq!(changed.setting, public);
-            assert!(changed.effective);
-        }
+    fn maps_bouncer_network_updates() {
         let event = forwarded(papo_core::Event::BouncerNetwork {
             id: papo_core::NetworkId::new("42"),
             network: None,

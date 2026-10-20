@@ -3,7 +3,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, PersistenceSetting};
+use papo_core::{Config, Event, PersistenceSetting, PersistenceStatus};
 use support::Transcript;
 
 fn registered(caps: &[&str]) -> Transcript {
@@ -31,10 +31,11 @@ fn stores_a_persistence_push_before_motd() {
         .event(|event| {
             matches!(
                 event,
-                Event::PersistenceStatus {
+                Event::PersistenceStatus(PersistenceStatus {
                     setting: PersistenceSetting::Default,
                     effective: true,
-                }
+                    ..
+                })
             )
         })
         .inspect(|session| {
@@ -56,10 +57,11 @@ fn gets_persistence_status_in_a_labelled_response() {
         .event(|event| {
             matches!(
                 event,
-                Event::PersistenceStatus {
+                Event::PersistenceStatus(PersistenceStatus {
                     setting: PersistenceSetting::Off,
                     effective: false,
-                }
+                    ..
+                })
             )
         })
         .event(|event| matches!(event, Event::Response(_)))
@@ -84,7 +86,7 @@ fn sets_each_persistence_preference() {
                 "@label=0 :ergo.test PERSISTENCE STATUS {token} {}",
                 if effective { "ON" } else { "OFF" }
             ))
-            .event(|event| matches!(event, Event::PersistenceStatus { setting: actual, effective: actual_effective }
+            .event(|event| matches!(event, Event::PersistenceStatus(PersistenceStatus { setting: actual, effective: actual_effective, .. })
                 if *actual == setting && *actual_effective == effective))
             .event(|event| matches!(event, Event::Response(_)));
     }

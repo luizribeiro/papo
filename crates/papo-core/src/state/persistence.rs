@@ -23,8 +23,9 @@ impl State {
         ) else {
             return false;
         };
-        self.persistence = Some(PersistenceStatus { setting, effective });
-        outbox.event(Event::PersistenceStatus { setting, effective });
+        let status = PersistenceStatus { setting, effective };
+        self.persistence = Some(status);
+        outbox.event(Event::PersistenceStatus(status));
         true
     }
 

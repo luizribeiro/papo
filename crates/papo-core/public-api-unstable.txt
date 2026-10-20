@@ -522,9 +522,7 @@ pub papo_core::Event::Parted::authorship: papo_core::Authorship
 pub papo_core::Event::Parted::channel: papo::ChannelName
 pub papo_core::Event::Parted::nick: papo::Nick
 pub papo_core::Event::Parted::reason: core::option::Option<alloc::string::String>
-pub papo_core::Event::PersistenceStatus
-pub papo_core::Event::PersistenceStatus::effective: bool
-pub papo_core::Event::PersistenceStatus::setting: papo_core::PersistenceSetting
+pub papo_core::Event::PersistenceStatus(papo_core::PersistenceStatus)
 pub papo_core::Event::Quit
 pub papo_core::Event::Quit::authorship: papo_core::Authorship
 pub papo_core::Event::Quit::channels: alloc::vec::Vec<papo::ChannelName>

@@ -1568,12 +1568,7 @@ pub enum Event {
     },
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
-    PersistenceStatus {
-        /// The configured persistence preference.
-        setting: PersistenceSetting,
-        /// Whether persistence is currently effective.
-        effective: bool,
-    },
+    PersistenceStatus(PersistenceStatus),
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
     BouncerNetwork {
