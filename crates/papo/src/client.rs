@@ -282,8 +282,8 @@ impl Client {
                 .commands
                 .send(Command::Reconnect { result })
                 .await
-                .map_err(|_| Error::disconnected())?;
-            receiver.await.map_err(|_| Error::disconnected())?
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
         })
     }
 
@@ -381,8 +381,8 @@ impl Client {
         self.commands
             .send(Command::Send { message, result })
             .await
-            .map_err(|_| Error::disconnected())?;
-        receiver.await.map_err(|_| Error::disconnected())?
+            .map_err(|_| Error::connection_lost())?;
+        receiver.await.map_err(|_| Error::connection_lost())?
     }
 
     pub(crate) async fn correlated(
@@ -398,8 +398,8 @@ impl Client {
                 result,
             })
             .await
-            .map_err(|_| Error::disconnected())?;
-        receiver.await.map_err(|_| Error::disconnected())?
+            .map_err(|_| Error::connection_lost())?;
+        receiver.await.map_err(|_| Error::connection_lost())?
     }
 
     pub(crate) async fn core_request(&self, request: CoreRequest) -> Result<Response, Error> {
@@ -407,8 +407,8 @@ impl Client {
         self.commands
             .send(Command::CoreRequest { request, result })
             .await
-            .map_err(|_| Error::disconnected())?;
-        receiver.await.map_err(|_| Error::disconnected())?
+            .map_err(|_| Error::connection_lost())?;
+        receiver.await.map_err(|_| Error::connection_lost())?
     }
 
     /// Sends a private message to a channel or directly to a user.
@@ -673,8 +673,8 @@ impl Client {
                     result,
                 })
                 .await
-                .map_err(|_| Error::disconnected())?;
-            receiver.await.map_err(|_| Error::disconnected())?
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
         })
     }
 
@@ -743,8 +743,8 @@ impl Client {
                 result,
             })
             .await
-            .map_err(|_| Error::disconnected())?;
-        receiver.await.map_err(|_| Error::disconnected())?
+            .map_err(|_| Error::connection_lost())?;
+        receiver.await.map_err(|_| Error::connection_lost())?
     }
 
     /// Requests information about a nickname.
@@ -834,8 +834,8 @@ impl Client {
                 result,
             })
             .await
-            .map_err(|_| Error::disconnected())?;
-        let response = receiver.await.map_err(|_| Error::disconnected())??;
+            .map_err(|_| Error::connection_lost())?;
+        let response = receiver.await.map_err(|_| Error::connection_lost())??;
         if let Some(error) = response.error() {
             return Err(Error::server(error));
         }
@@ -854,8 +854,8 @@ impl Client {
                     result,
                 })
                 .await
-                .map_err(|_| Error::disconnected())?;
-            receiver.await.map_err(|_| Error::disconnected())??;
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())??;
         }
         Ok(())
     }
@@ -1178,8 +1178,8 @@ impl Client {
                 .commands
                 .send(Command::Quit { reason, result })
                 .await
-                .map_err(|_| Error::disconnected())?;
-            receiver.await.map_err(|_| Error::disconnected())?
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
         })
     }
 }

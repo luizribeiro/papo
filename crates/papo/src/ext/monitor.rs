@@ -63,8 +63,8 @@ impl Monitor {
                 .commands
                 .send(Command::MonitorClear { result })
                 .await
-                .map_err(|_| Error::disconnected())?;
-            receiver.await.map_err(|_| Error::disconnected())?
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
         })
     }
 
@@ -93,8 +93,8 @@ impl Monitor {
                 .commands
                 .send(command)
                 .await
-                .map_err(|_| Error::disconnected())?;
-            receiver.await.map_err(|_| Error::disconnected())?
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
         })
     }
 }
@@ -102,7 +102,7 @@ impl Monitor {
 fn preflight(client: &Client) -> Result<(), Error> {
     let state = client.state();
     if !state.is_connected() {
-        return Err(Error::disconnected());
+        return Err(Error::connection_lost());
     }
     Client::require_feature(&state, Feature::Monitor)
 }

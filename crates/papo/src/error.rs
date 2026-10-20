@@ -388,9 +388,15 @@ pub enum Error {
     /// Registration ended before the server welcomed the client.
     #[error(transparent)]
     Registration(RegistrationError),
-    /// The established connection ended.
+    /// The operation was not written because the connection ended.
     #[error(transparent)]
     Disconnected(Disconnected),
+    /// The connection ended after transmission began but before the reply arrived.
+    ///
+    /// The server may already have acted, so retrying a non-idempotent operation
+    /// can repeat its effect.
+    #[error("the IRC operation was interrupted: {0}")]
+    Interrupted(Disconnected),
     /// Every line was sent, but the expected reply did not arrive in time.
     ///
     /// The server may already have acted. Retrying an action such as `KICK` or
@@ -415,8 +421,12 @@ impl Error {
         }
     }
 
-    pub(crate) const fn disconnected() -> Self {
-        Self::Disconnected(Disconnected::new(DisconnectCause::ConnectionLost, None))
+    pub(crate) const fn disconnected(disconnected: Disconnected) -> Self {
+        Self::Disconnected(disconnected)
+    }
+
+    pub(crate) const fn connection_lost() -> Self {
+        Self::disconnected(Disconnected::new(DisconnectCause::ConnectionLost, None))
     }
 
     pub(crate) fn disconnected_protocol(message: impl Into<String>) -> Self {
@@ -828,6 +838,16 @@ mod tests {
             "the connection was lost"
         );
         assert_eq!(Error::Timeout.to_string(), "the IRC operation timed out");
+        assert_eq!(
+            Error::Interrupted(Disconnected::new(
+                DisconnectCause::Server {
+                    message: "maintenance restart".into(),
+                },
+                None,
+            ))
+            .to_string(),
+            "the IRC operation was interrupted: the server disconnected: maintenance restart"
+        );
         assert_eq!(
             Error::InvalidInput(InvalidInput::InvalidMessage("invalid IRC line".into()))
                 .to_string(),

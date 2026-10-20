@@ -787,7 +787,7 @@ where
             Ok(None) => {}
             Err(error) => {
                 let reason = error.to_string();
-                break (reason, Error::disconnected(), None, false);
+                break (reason, Error::connection_lost(), None, false);
             }
         }
         let read_ahead = should_read_ahead(
@@ -810,7 +810,7 @@ where
                 Ok(0) => {
                     break (
                         "server closed the connection".to_owned(),
-                        Error::disconnected(),
+                        Error::connection_lost(),
                         None,
                         false,
                     );
@@ -818,7 +818,7 @@ where
                 Ok(count) => session.handle_bytes(now(), &buffer[..count]),
                 Err(error) => {
                     let reason = error.to_string();
-                    break (reason, Error::disconnected(), None, false);
+                    break (reason, Error::connection_lost(), None, false);
                 }
             },
             permit = events.regular.clone().reserve_owned(), if !pending_events.is_empty() => match permit {
@@ -991,7 +991,7 @@ where
                             false,
                         );
                     }
-                    _ = result.send(Err(Error::disconnected()));
+                    _ = result.send(Err(Error::connection_lost()));
                 }
                 Some(Command::Quit { reason, result }) => {
                     request_quit(session, &mut quit, reason, Some(result));
@@ -1017,16 +1017,16 @@ where
     };
     session.handle_disconnected(now());
     for (_, result) in transmits {
-        result.fail(Error::disconnected());
+        result.fail(Error::connection_lost());
     }
     for (_, result) in requests {
-        result.fail(Error::disconnected());
+        result.fail(Error::connection_lost());
     }
     for (_, result) in sync_waiters {
-        _ = result.send(Err(Error::disconnected()));
+        _ = result.send(Err(Error::connection_lost()));
     }
     for (_, result) in read_marker_waiters {
-        _ = result.send(Err(Error::disconnected()));
+        _ = result.send(Err(Error::connection_lost()));
     }
     connected.store(false, Ordering::Relaxed);
     publish_state(events, session, false);
@@ -1299,12 +1299,12 @@ where
             event::CoreEvent::RequestAborted(id) => {
                 join_keys.remove(&id);
                 if let Some(result) = requests.remove(&id) {
-                    result.fail(Error::disconnected());
+                    result.fail(Error::connection_lost());
                 }
             }
             event::CoreEvent::TransmitAborted(token) => {
                 if let Some(result) = transmits.remove(&token) {
-                    result.fail(Error::disconnected());
+                    result.fail(Error::connection_lost());
                 }
             }
             event::CoreEvent::StsUpgrade(port) => sts.upgrade = Some(port),

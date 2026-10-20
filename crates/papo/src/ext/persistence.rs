@@ -57,7 +57,10 @@ impl Persistence {
         crate::RequestFuture::new(async move {
             let response = client.core_request(CoreRequest::PersistenceGet).await?;
             crate::requests::empty(&response)?;
-            client.state().persistence().ok_or_else(Error::disconnected)
+            client
+                .state()
+                .persistence()
+                .ok_or_else(Error::connection_lost)
         })
     }
 
@@ -80,7 +83,10 @@ impl Persistence {
                 .core_request(CoreRequest::PersistenceSet(setting.into_core()))
                 .await?;
             crate::requests::empty(&response)?;
-            client.state().persistence().ok_or_else(Error::disconnected)
+            client
+                .state()
+                .persistence()
+                .ok_or_else(Error::connection_lost)
         })
     }
 }

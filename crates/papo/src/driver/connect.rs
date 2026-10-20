@@ -560,15 +560,15 @@ fn handle_disconnected_command(command: Option<Command>) -> bool {
             | Command::History { result, .. }
             | Command::MarkRead { result, .. },
         ) => {
-            _ = result.send(Err(Error::disconnected()));
+            _ = result.send(Err(Error::connection_lost()));
             true
         }
         Some(Command::SendText { result, .. }) => {
-            _ = result.send(Err(Error::disconnected()));
+            _ = result.send(Err(Error::connection_lost()));
             true
         }
         Some(Command::ReadMarker { result, .. }) => {
-            _ = result.send(Err(Error::disconnected()));
+            _ = result.send(Err(Error::connection_lost()));
             true
         }
         Some(
@@ -579,7 +579,7 @@ fn handle_disconnected_command(command: Option<Command>) -> bool {
             | Command::MonitorRemove { result, .. }
             | Command::MonitorClear { result },
         ) => {
-            _ = result.send(Err(Error::disconnected()));
+            _ = result.send(Err(Error::connection_lost()));
             true
         }
         Some(Command::Reconnect { result }) => {

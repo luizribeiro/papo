@@ -1252,6 +1252,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::EndpointKind
 #[non_exhaustive] pub enum papo::Error
 pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected(papo::Disconnected)
+pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::Registration(papo::RegistrationError)
 pub papo::Error::Server(papo::ServerError)

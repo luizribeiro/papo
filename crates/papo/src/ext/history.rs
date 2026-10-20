@@ -460,7 +460,7 @@ impl Client {
                 .map_err(|reason| crate::InvalidInput::invalid_name(target.clone(), reason))?;
         }
         let response = self.history_response(query).await?;
-        let page = response.history.ok_or_else(Error::disconnected)?;
+        let page = response.history.ok_or_else(Error::connection_lost)?;
         let items = page
             .items
             .into_iter()
@@ -478,8 +478,8 @@ impl Client {
         self.commands
             .send(Command::History { query, result })
             .await
-            .map_err(|_| Error::disconnected())?;
-        let response = receiver.await.map_err(|_| Error::disconnected())??;
+            .map_err(|_| Error::connection_lost())?;
+        let response = receiver.await.map_err(|_| Error::connection_lost())??;
         if let Some(error) = response.error() {
             return Err(Error::server(error));
         }
@@ -510,7 +510,7 @@ impl Client {
                 })
                 .await?
                 .history_targets
-                .ok_or_else(Error::disconnected)
+                .ok_or_else(Error::connection_lost)
                 .map(|targets| {
                     targets
                         .into_iter()
@@ -553,8 +553,8 @@ impl Client {
                     result,
                 })
                 .await
-                .map_err(|_| Error::disconnected())?;
-            let response = receiver.await.map_err(|_| Error::disconnected())??;
+                .map_err(|_| Error::connection_lost())?;
+            let response = receiver.await.map_err(|_| Error::connection_lost())??;
             crate::requests::empty(&response)?;
             Ok(client.state().read_marker(&target))
         })
@@ -587,8 +587,8 @@ impl Client {
                     result,
                 })
                 .await
-                .map_err(|_| Error::disconnected())?;
-            receiver.await.map_err(|_| Error::disconnected())?
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
         })
     }
 }
