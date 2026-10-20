@@ -74,13 +74,15 @@ def render(results, evidence=None):
     evidence = evidence or {}
     scenarios = sorted(set().union(*(statuses.keys() for statuses in results.values())))
     footnotes = []
+    evidence_footnotes = []
 
     def cell(profile, scenario):
         status = results[profile].get(scenario, "failed")
         if status == "passed":
             if scenario in evidence.get(profile, {}):
-                footnotes.append((profile, scenario, None, evidence[profile][scenario]))
-                return f"✓ [^{len(footnotes)}]"
+                label = f"evidence-{profile}-{scenario.replace('_', '-')}"
+                evidence_footnotes.append((label, profile, scenario, evidence[profile][scenario]))
+                return f"✓ [^{label}]"
             return "✓"
         if status.startswith("ignored"):
             return "—"
@@ -109,13 +111,12 @@ def render(results, evidence=None):
         ]
     )
     for number, (profile, scenario, kind, reason) in enumerate(footnotes, 1):
-        if kind is None:
-            lines.append(f"[^{number}]: `{profile}` / `{scenario}` — {reason}")
-        else:
-            lines.append(
-                f"[^{number}]: ⚠ {KIND_LABELS[kind]}: "
-                f"`{profile}` / `{scenario}` — {reason}"
-            )
+        lines.append(
+            f"[^{number}]: ⚠ {KIND_LABELS[kind]}: "
+            f"`{profile}` / `{scenario}` — {reason}"
+        )
+    for label, profile, scenario, value in evidence_footnotes:
+        lines.append(f"[^{label}]: `{profile}` / `{scenario}` — {value}")
     return "\n".join(lines) + "\n"
 
 

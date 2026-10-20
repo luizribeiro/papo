@@ -57,7 +57,16 @@ class ServerNotesTests(unittest.TestCase):
         output = MODULE["render"](
             {"ergo-default": {"registration": entry}},
             {"wire.patch": patch},
-            {"ergo-default": {"history-end": observation}},
+            {
+                "ergo-default": {
+                    "history-end": observation,
+                    "connect-line-length": {
+                        "finding": "Every line fits.",
+                        "evidence": "longest S: 501 bytes CAP",
+                        "server_version": "1.0",
+                    },
+                }
+            },
         )
         self.assertIn("### Server bugs", output)
         self.assertIn("`registration` (`1.0`)", output)
@@ -65,6 +74,7 @@ class ServerNotesTests(unittest.TestCase):
         self.assertIn("`nix/wire.patch`", output)
         self.assertIn("Server bug: **yes**", output)
         self.assertIn("**Chat history end** (`1.0`)", output)
+        self.assertIn("**Connect line length** (`1.0`)", output)
 
 
 if __name__ == "__main__":

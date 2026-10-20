@@ -25,7 +25,10 @@ KINDS = {
     "spec-ambiguity": "Specification ambiguities",
     "fixture-limit": "Fixture limits",
 }
-OBSERVATION_LABELS = {"history-end": "Chat history end"}
+OBSERVATION_LABELS = {
+    "history-end": "Chat history end",
+    "connect-line-length": "Connect line length",
+}
 
 
 def require_fields(name, record, fields):

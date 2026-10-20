@@ -37,13 +37,16 @@ class MatrixTests(unittest.TestCase):
             {"ergo-default": {"known": "longest S: 487 bytes, CAP"}},
         )
         self.assertIn("| `fail` | ✗ | ✓ |", output)
-        self.assertIn("| `known` | ✓ [^1] | ⚠ [^2] |", output)
+        self.assertIn(
+            "| `known` | ✓ [^evidence-ergo-default-known] | ⚠ [^1] |",
+            output,
+        )
         self.assertIn("| `skip` | — | ✓ |", output)
         self.assertIn(
-            "[^2]: ⚠ not implemented: `soju-ergo` / `known` — wire difference",
+            "[^1]: ⚠ not implemented: `soju-ergo` / `known` — wire difference",
             output,
         )
         self.assertIn(
-            "[^1]: `ergo-default` / `known` — longest S: 487 bytes, CAP",
+            "[^evidence-ergo-default-known]: `ergo-default` / `known` — longest S: 487 bytes, CAP",
             output,
         )

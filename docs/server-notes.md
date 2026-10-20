@@ -25,6 +25,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Observations
 - **Chat history end** (`2.19.1`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`
+- **Connect line length** (`2.19.1`) — Every observed CAP LS and welcome-burst line fits the wire limits. Evidence: `longest S: 501 bytes CAP (0 tag section + 501 line)`
 
 ### Fixture patches (none)
 
@@ -52,6 +53,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Observations
 - **Chat history end** (`2.19.1`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`
+- **Connect line length** (`2.19.1`) — Every observed CAP LS and welcome-burst line fits the wire limits. Evidence: `longest S: 501 bytes CAP (0 tag section + 501 line)`
 
 ### Fixture patches (none)
 
@@ -99,6 +101,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Observations
 - **Chat history end** (`soju 0.11.1 / Ergo 2.19.1`) — The terminal signal is not observable because returned messages lack the advertised msgid reference needed for the next page. Evidence: `S: 005 MSGREFTYPES=msgid | S: history PRIVMSG lines without msgid`
+- **Connect line length** (`soju 0.11.1 / Ergo 2.19.1`) — Every observed CAP LS and welcome-burst line fits the wire limits with the fixture patch. Evidence: `longest S: 430 bytes CAP (0 tag section + 430 line)`
 
 ### Fixture patches
 - `nix/soju-cap-lines.patch` — Splits downstream CAP LS replies into continuation lines with at most 400 capability bytes. Why: soju emits every proxied Ergo capability on one IRC line, exceeding the 512-byte wire limit. Evidence: `Before: one CAP * LS line exceeded 512 bytes; after: CAP * LS * continuations end with CAP * LS.` Server bug: **yes**.
@@ -120,6 +123,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Observations
 - **Chat history end** (`4.12.1`) — The fixture does not advertise chat history, so no end signal is available. Evidence: `S: CAP LS omits chathistory and draft/chathistory`
+- **Connect line length** (`4.12.1`) — Every observed CAP LS and welcome-burst line fits the wire limits. Evidence: `longest S: 339 bytes CAP (0 tag section + 339 line)`
 
 ### Fixture patches (none)
 
@@ -150,6 +154,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Observations
 - **Chat history end** (`2026-09-13`) — The fixture does not advertise chat history, so no end signal is available. Evidence: `S: CAP LS omits chathistory and draft/chathistory`
+- **Connect line length** (`2026-09-13`) — Every observed CAP LS and welcome-burst line fits the wire limits. Evidence: `longest S: 260 bytes 005 (0 tag section + 260 line)`
 
 ### Fixture patches
 - `nix/solanum-numeric-dns-port.patch` — Passes numeric port 53 to getaddrinfo when configuring the fallback DNS resolver. Why: Isolated Nix builds do not provide the service-name database entry for the name domain. Evidence: `Before: getaddrinfo(address, domain) failed during fixture startup; after: getaddrinfo(address, 53) succeeds.` Server bug: **no**.
@@ -172,5 +177,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Observations
 - **Chat history end** (`6.2.7`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`
+- **Connect line length** (`6.2.7`) — Every observed CAP LS and welcome-burst line fits the wire limits. Evidence: `longest S: 501 bytes CAP (0 tag section + 501 line)`
 
 ### Fixture patches (none)
