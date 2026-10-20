@@ -6,14 +6,18 @@ impl State {
         message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> bool {
-        if message.command() != Command::Rename || message.len() != 3 {
+        if message.command() != Command::Rename || !(2..=3).contains(&message.len()) {
             return false;
         }
-        let (Some(old), Some(new), Some(reason)) =
-            (message.param(0), message.param(1), message.param(2))
+        let (Some(actor), Some(old), Some(new)) =
+            (message.raw_source(), message.param(0), message.param(1))
         else {
             return false;
         };
+        let reason = message
+            .param(2)
+            .filter(|reason| !reason.is_empty())
+            .map(str::to_owned);
         let old_key = self.casemapping.channel(old);
         let new_key = self.casemapping.channel(new);
         if let Some(mut channel) = self.channels.remove(&old_key) {
@@ -36,7 +40,8 @@ impl State {
         outbox.event(Event::ChannelRenamed {
             old: self.casemapping.channel(old),
             new: self.casemapping.channel(new),
-            reason: reason.to_owned(),
+            actor: actor.to_owned(),
+            reason,
         });
         true
     }

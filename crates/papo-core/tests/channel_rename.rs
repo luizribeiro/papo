@@ -91,11 +91,12 @@ fn rekeys_channel_members_and_metadata() {
         .event(|event| matches!(event, Event::MetadataChanged { .. }))
         .server(":alice!a@localhost RENAME #rust #rust-lang :Project renamed")
         .event(|event| {
-            matches!(event, Event::ChannelRenamed { old, new, reason }
+            matches!(event, Event::ChannelRenamed { old, new, actor, reason }
             if old == "#rust" && new == "#rust-lang"
                 && old.casemapping() == papo_proto::Casemapping::Ascii
                 && new.casemapping() == papo_proto::Casemapping::Ascii
-                && reason == "Project renamed")
+                && actor == "alice!a@localhost"
+                && reason.as_deref() == Some("Project renamed"))
         })
         .inspect(|session| {
             assert!(session.state().channel("#rust").is_none());
@@ -130,6 +131,18 @@ fn applies_case_only_channel_renames() {
         .server(":alice!a@localhost JOIN #Rust * :Alice Example")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":alice!a@localhost RENAME #Rust #rust :")
-        .event(|event| matches!(event, Event::ChannelRenamed { reason, .. } if reason.is_empty()))
+        .event(|event| matches!(event, Event::ChannelRenamed { reason: None, .. }))
         .inspect(|session| assert_eq!(session.state().channel("#RUST").unwrap().name(), "#rust"));
+}
+
+#[test]
+fn accepts_a_rename_without_a_reason() {
+    registered()
+        .server(":alice!a@localhost JOIN #rust * :Alice Example")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":ergo.test RENAME #rust #rust-lang")
+        .event(|event| {
+            matches!(event, Event::ChannelRenamed { actor, reason: None, .. }
+                if actor == "ergo.test")
+        });
 }

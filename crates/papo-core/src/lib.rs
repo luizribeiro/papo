@@ -1741,8 +1741,10 @@ pub enum Event {
         old: ChannelName,
         /// The new channel name.
         new: ChannelName,
-        /// The server-supplied reason, which may be empty.
-        reason: String,
+        /// The user or server prefix that renamed the channel.
+        actor: String,
+        /// The server-supplied reason, when present and non-empty.
+        reason: Option<String>,
     },
     /// A user's account state changed.
     AccountChanged {

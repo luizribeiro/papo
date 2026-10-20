@@ -1031,9 +1031,13 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             new,
             is_self: false,
         }),
-        papo_core::Event::ChannelRenamed { old, new, reason } => {
-            Event::ChannelRenamed(ChannelRenamed { old, new, reason })
-        }
+        papo_core::Event::ChannelRenamed {
+            old, new, reason, ..
+        } => Event::ChannelRenamed(ChannelRenamed {
+            old,
+            new,
+            reason: reason.unwrap_or_default(),
+        }),
         papo_core::Event::AccountChanged { nick, account } => {
             Event::AccountChanged(AccountChanged {
                 nick,
@@ -1727,7 +1731,8 @@ mod tests {
             forwarded(papo_core::Event::ChannelRenamed {
                 old: Casemapping::default().channel("#rust"),
                 new: Casemapping::default().channel("#rust-lang"),
-                reason: "Project renamed".into(),
+                actor: "alice!a@localhost".into(),
+                reason: Some("Project renamed".into()),
             }),
             Event::ChannelRenamed(renamed)
                 if renamed.old == "#rust"

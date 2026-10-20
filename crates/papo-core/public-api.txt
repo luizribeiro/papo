@@ -401,9 +401,10 @@ pub papo_core::Event::CasemappingChanged
 pub papo_core::Event::CasemappingChanged::new: papo::Casemapping
 pub papo_core::Event::CasemappingChanged::old: papo::Casemapping
 pub papo_core::Event::ChannelRenamed
+pub papo_core::Event::ChannelRenamed::actor: alloc::string::String
 pub papo_core::Event::ChannelRenamed::new: papo::ChannelName
 pub papo_core::Event::ChannelRenamed::old: papo::ChannelName
-pub papo_core::Event::ChannelRenamed::reason: alloc::string::String
+pub papo_core::Event::ChannelRenamed::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::ChannelSynced
 pub papo_core::Event::ChannelSynced::channel: papo::ChannelName
 pub papo_core::Event::Close
