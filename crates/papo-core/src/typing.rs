@@ -2,7 +2,39 @@ use std::{collections::VecDeque, sync::Arc};
 
 use papo_proto::{Nick, Typing};
 
-use crate::Conversation;
+use crate::{Authorship, Conversation};
+
+/// Why a user's typing state changed.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum TypingReason {
+    /// The user sent a typing notification.
+    Notified,
+    /// The locally measured typing deadline elapsed.
+    TimedOut,
+    /// The user sent a chat message to the conversation.
+    Messaged,
+    /// The user left the conversation or disconnected.
+    Departed,
+}
+
+/// A user's typing state changed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct TypingChanged {
+    /// The user prefix associated with the typing state.
+    pub actor: String,
+    /// Whether the user is this session's user.
+    pub authorship: Authorship,
+    /// The IRC conversation where typing is occurring.
+    pub conversation: Conversation,
+    /// `STATUSMSG` prefixes on the typing notification's wire address.
+    pub status: Option<Vec<char>>,
+    /// The new typing state.
+    pub state: Typing,
+    /// Why the state changed.
+    pub reason: TypingReason,
+}
 
 /// A user currently composing a message in a conversation.
 #[derive(Clone, Debug, Eq, PartialEq)]

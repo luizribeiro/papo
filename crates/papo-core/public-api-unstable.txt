@@ -566,6 +566,7 @@ pub papo_core::Event::TopicChanged::authorship: papo_core::Authorship
 pub papo_core::Event::TopicChanged::channel: papo::ChannelName
 pub papo_core::Event::TopicChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
+pub papo_core::Event::TypingChanged(papo_core::TypingChanged)
 pub papo_core::Event::VerificationRequired
 pub papo_core::Event::VerificationRequired::account: papo::AccountName
 pub papo_core::Event::VerificationRequired::message: alloc::string::String
@@ -1118,6 +1119,27 @@ impl core::marker::Unpin for papo_core::TextKind
 impl core::marker::UnsafeUnpin for papo_core::TextKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::TextKind
 impl core::panic::unwind_safe::UnwindSafe for papo_core::TextKind
+#[non_exhaustive] pub enum papo_core::TypingReason
+pub papo_core::TypingReason::Departed
+pub papo_core::TypingReason::Messaged
+pub papo_core::TypingReason::Notified
+pub papo_core::TypingReason::TimedOut
+impl core::clone::Clone for papo_core::TypingReason
+pub fn papo_core::TypingReason::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::TypingReason
+impl core::cmp::PartialEq for papo_core::TypingReason
+pub fn papo_core::TypingReason::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::TypingReason
+pub fn papo_core::TypingReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_core::TypingReason
+impl core::marker::StructuralPartialEq for papo_core::TypingReason
+impl core::marker::Freeze for papo_core::TypingReason
+impl core::marker::Send for papo_core::TypingReason
+impl core::marker::Sync for papo_core::TypingReason
+impl core::marker::Unpin for papo_core::TypingReason
+impl core::marker::UnsafeUnpin for papo_core::TypingReason
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::TypingReason
+impl core::panic::unwind_safe::UnwindSafe for papo_core::TypingReason
 #[non_exhaustive] pub enum papo_core::UnsupportedReason
 pub papo_core::UnsupportedReason::DisabledByClient
 pub papo_core::UnsupportedReason::LimitZero
@@ -1962,6 +1984,28 @@ impl core::marker::Unpin for papo_core::Typer
 impl core::marker::UnsafeUnpin for papo_core::Typer
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Typer
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Typer
+#[non_exhaustive] pub struct papo_core::TypingChanged
+pub papo_core::TypingChanged::actor: alloc::string::String
+pub papo_core::TypingChanged::authorship: papo_core::Authorship
+pub papo_core::TypingChanged::conversation: papo::Conversation
+pub papo_core::TypingChanged::reason: papo_core::TypingReason
+pub papo_core::TypingChanged::state: papo::Typing
+pub papo_core::TypingChanged::status: core::option::Option<alloc::vec::Vec<char>>
+impl core::clone::Clone for papo_core::TypingChanged
+pub fn papo_core::TypingChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::TypingChanged
+impl core::cmp::PartialEq for papo_core::TypingChanged
+pub fn papo_core::TypingChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::TypingChanged
+pub fn papo_core::TypingChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::TypingChanged
+impl core::marker::Freeze for papo_core::TypingChanged
+impl core::marker::Send for papo_core::TypingChanged
+impl core::marker::Sync for papo_core::TypingChanged
+impl core::marker::Unpin for papo_core::TypingChanged
+impl core::marker::UnsafeUnpin for papo_core::TypingChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::TypingChanged
+impl core::panic::unwind_safe::UnwindSafe for papo_core::TypingChanged
 #[non_exhaustive] pub struct papo_core::Unsupported
 pub papo_core::Unsupported::feature: papo_core::Feature
 pub papo_core::Unsupported::reason: papo_core::UnsupportedReason

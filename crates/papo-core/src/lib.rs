@@ -127,7 +127,7 @@ pub use sasl::{Entropy, Sasl};
 pub use state::{Account, Away, Channel, Member, State, User};
 use state::{MetadataContext, StateSnapshot};
 use sts::ConnectionSecurity;
-pub use typing::Typer;
+pub use typing::{Typer, TypingChanged, TypingReason};
 use welcome::WelcomeState;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_LINE_LEN;
@@ -1562,6 +1562,8 @@ pub enum Event {
     MultilineMessage(MultilineMessage),
     /// A received tag-only message.
     TagMessage(TagMessage),
+    /// A user's typing state changed.
+    TypingChanged(TypingChanged),
     /// A message was redacted from a target's history.
     Redacted(Redacted),
     /// A request was sent without protocol-level response correlation.
