@@ -182,7 +182,7 @@ impl Message {
     }
 
     pub(crate) fn from_core(
-        received: papo_core::ReceivedMessage,
+        received: papo_core::ReceivedLine,
         isupport: &Isupport,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
@@ -710,7 +710,7 @@ impl Event {
 pub(crate) enum CoreEvent {
     Forward(Event),
     Registered(Welcome),
-    Message(papo_core::ReceivedMessage),
+    Message(papo_core::ReceivedLine),
     Raw(ProtoLine),
     Response(Response),
     RequestUntracked(RequestId),

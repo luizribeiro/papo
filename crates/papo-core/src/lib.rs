@@ -1372,7 +1372,7 @@ pub enum Event {
     /// Connection registration completed.
     Registered(Welcome),
     /// A parsed message not consumed by session protocol behavior.
-    Message(ReceivedMessage),
+    Message(ReceivedLine),
     /// A completed `draft/multiline` batch.
     MultilineMessage(MultilineMessage),
     /// A received tag-only message.
@@ -1693,14 +1693,17 @@ pub enum BatchAbandonReason {
 
 /// A parsed message annotated with protocol dispatch context.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ReceivedMessage {
+pub struct ReceivedLine {
     message: Line,
     batch_type: Option<String>,
     echo: bool,
     other_session: bool,
 }
 
-impl ReceivedMessage {
+#[doc(hidden)]
+pub type ReceivedMessage = ReceivedLine;
+
+impl ReceivedLine {
     /// Borrows the parsed IRC message.
     #[must_use]
     pub fn as_ref(&self) -> LineRef<'_> {
@@ -1744,7 +1747,7 @@ impl ReceivedMessage {
     }
 }
 
-impl std::ops::Deref for ReceivedMessage {
+impl std::ops::Deref for ReceivedLine {
     type Target = Line;
 
     fn deref(&self) -> &Self::Target {
