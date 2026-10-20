@@ -601,7 +601,9 @@ impl Client {
 
     /// Sends a typing state for `target`.
     ///
-    /// Repeated active states within three seconds are silently dropped.
+    /// While composing, send [`Typing::Active`] every three seconds so recipients can refresh
+    /// their local expiry deadline. Repeated active states within three seconds are silently
+    /// dropped.
     ///
     /// # Errors
     ///
