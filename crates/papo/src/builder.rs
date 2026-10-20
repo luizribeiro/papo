@@ -331,6 +331,11 @@ impl Builder {
 
     /// Sets the bounded event queue capacity.
     ///
+    /// When both this queue and its equally sized overflow fill, the connection
+    /// ends with [`DisconnectCause::SlowConsumer`](crate::DisconnectCause::SlowConsumer)
+    /// and follows the reconnect policy. Move slow work out of the event loop
+    /// before raising this bound.
+    ///
     pub fn event_capacity(mut self, capacity: usize) -> Self {
         if capacity == 0 {
             self.invalid_input

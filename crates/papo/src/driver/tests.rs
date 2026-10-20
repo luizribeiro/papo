@@ -4150,6 +4150,76 @@ async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn slow_consumer_reconnects_after_its_reported_delay() {
+    let (first_stream, mut first_server) = tokio::io::duplex(4096);
+    let (second_stream, _second_server) = tokio::io::duplex(4096);
+    let streams = Arc::new(Mutex::new(VecDeque::from([
+        Box::new(first_stream) as super::BoxConnection,
+        Box::new(second_stream) as super::BoxConnection,
+    ])));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let connector: super::Connector = Arc::new({
+        let streams = Arc::clone(&streams);
+        let calls = Arc::clone(&calls);
+        move |_| {
+            calls.fetch_add(1, Ordering::Relaxed);
+            let stream = streams.lock().unwrap().pop_front().unwrap();
+            Box::pin(async move { Ok(stream) })
+        }
+    });
+    let (client, mut events, driver) = Driver::with_connector_and_entropy(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        1,
+        None,
+        super::PostRegistration::default(),
+        Reconnect::exponential(),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+        Box::new(|| 0),
+    );
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut first_server, &mut events).await;
+
+    let whois = tokio::spawn({
+        let client = client.clone();
+        async move { client.whois("alice").await }
+    });
+    client_line(&mut first_server, b"WHOIS alice\r\n").await;
+    server_line(
+        &mut first_server,
+        b":ergo.test NOTICE papo-driver :maintenance one\r\n:ergo.test NOTICE papo-driver :maintenance two\r\n:ergo.test NOTICE papo-driver :maintenance three\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        within(whois).await.unwrap(),
+        Err(Error::Interrupted(crate::Disconnected {
+            cause: crate::DisconnectCause::SlowConsumer,
+            ..
+        }))
+    ));
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::SlowConsumer,
+            retry_in: Some(delay),
+        })) if delay == Duration::from_millis(800)
+    ));
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    tokio::time::advance(Duration::from_millis(800)).await;
+    while calls.load(Ordering::Relaxed) != 2 {
+        tokio::task::yield_now().await;
+    }
+    client.quit("test complete").await.unwrap();
+    assert!(within(driver).await.unwrap().is_ok());
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn session_deadline_sends_keepalive_ping() {
     let config = config()
         .registration_timeout(Duration::from_secs(300))

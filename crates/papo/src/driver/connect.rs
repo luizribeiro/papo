@@ -135,7 +135,7 @@ pub(super) async fn run_plan(
             .take()
             .expect("planned connections retain their STS store");
         reschedule_stored_policy(sts_store.as_mut(), &plan.address.host);
-        let (end, upgrade_port) = match triage_connection_end(
+        let (mut end, upgrade_port) = match triage_connection_end(
             end,
             &plan,
             registration.0.is_some(),
@@ -163,6 +163,9 @@ pub(super) async fn run_plan(
             retry_delay(reconnect, attempts, entropy.as_mut())
         };
         let disconnected = super::disconnected_event(&end.error, Some(retry_in));
+        if matches!(disconnected.cause, crate::DisconnectCause::SlowConsumer) {
+            end.pending_events.clear();
+        }
         last_disconnect = Some(disconnected.cause.clone());
         pending_events = match enqueue_retry_event(&events, end, disconnected.clone()) {
             Ok(pending) => pending,
@@ -277,9 +280,6 @@ fn triage_connection_end(
     attempts: &mut usize,
     last_sts_upgrade: &mut Option<String>,
 ) -> ControlFlow<(ConnectionEnd, bool), (ConnectionEnd, Option<u16>)> {
-    if end.reason == SLOW_CONSUMER_REASON {
-        return ControlFlow::Break((end, true));
-    }
     if end.quit.is_some() {
         return ControlFlow::Break((end, false));
     }

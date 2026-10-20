@@ -386,7 +386,11 @@ impl From<&str> for Autojoin {
 /// The events produced by a running IRC client.
 ///
 /// Delivery is bounded. If events are not consumed, socket reads stall while
-/// client commands and session timers continue to be served.
+/// client commands and session timers continue to be served. If the bounded
+/// overflow also fills, the connection ends with
+/// [`DisconnectCause::SlowConsumer`] and follows the configured reconnect
+/// policy. Move slow work out of the event loop or raise
+/// [`Builder::event_capacity`](crate::Builder::event_capacity) to avoid this.
 pub struct Events {
     receiver: mpsc::Receiver<Event>,
     disconnected: Option<oneshot::Receiver<VecDeque<Event>>>,

@@ -309,6 +309,10 @@ pub enum DisconnectCause {
         message: String,
     },
     /// The event consumer remained full past its bounded overflow.
+    ///
+    /// The disconnect follows the configured reconnect policy. Move slow work
+    /// out of the event loop or raise [`Builder::event_capacity`](crate::Builder::event_capacity)
+    /// to avoid it.
     SlowConsumer,
     /// The client deliberately ended the connection.
     Requested {
