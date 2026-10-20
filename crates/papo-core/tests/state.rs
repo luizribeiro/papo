@@ -5,9 +5,10 @@ mod support;
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
-    Account, Away, Config, Event, OwnedModeChange, RateLimit, ResponseMatcher, StateLimit,
+    Account, Away, Config, Conversation, Event, OwnedModeChange, RateLimit, ResponseMatcher,
+    StateLimit,
 };
-use papo_proto::{AccountName, Casemapping, ChannelName, Line, ModeKind, Nick};
+use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, ModeKind, Nick};
 use support::Transcript;
 
 #[test]
@@ -19,6 +20,57 @@ fn starts_with_configured_identity_and_empty_shared_state() {
             assert_eq!(state.nick().casemapping(), Casemapping::Rfc1459);
             assert_eq!(state.username(), "em");
             assert_eq!(state.host(), None);
+        })
+        .no_event();
+}
+
+#[test]
+fn parses_targets_with_advertised_status_and_channel_types() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily CHANTYPES=#! STATUSMSG=@+ :are supported")
+        .inspect(|session| {
+            let state = session.state();
+            assert!(matches!(
+                state.parse_target("@#ops"),
+                Ok((Some(status), Conversation::Channel(channel)))
+                    if status == ['@'] && channel == "#ops"
+            ));
+            assert!(matches!(
+                state.parse_target("!staff"),
+                Ok((None, Conversation::Channel(channel))) if channel == "!staff"
+            ));
+            assert!(matches!(
+                state.parse_target("$*.example.org"),
+                Ok((None, Conversation::Broadcast(mask))) if mask == "$*.example.org"
+            ));
+            assert!(matches!(
+                state.parse_target("emily"),
+                Ok((None, Conversation::Private(nick))) if nick == "emily"
+            ));
+            assert!(matches!(
+                state.parse_target("*"),
+                Ok((None, Conversation::Server))
+            ));
+        })
+        .no_event();
+}
+
+#[test]
+fn rejects_invalid_targets_and_unadvertised_status_prefixes() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":solanum.example 005 emily CHANTYPES=# STATUSMSG=+ :are supported")
+        .inspect(|session| {
+            let state = session.state();
+            assert_eq!(state.parse_target(""), Err(InvalidIdentifier::Empty));
+            assert_eq!(
+                state.parse_target("@#ops"),
+                Err(InvalidIdentifier::InvalidPrefix('@'))
+            );
+            assert!(matches!(
+                state.parse_target("+#ops"),
+                Ok((Some(status), Conversation::Channel(channel)))
+                    if status == ['+'] && channel == "#ops"
+            ));
         })
         .no_event();
 }

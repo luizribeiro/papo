@@ -57,6 +57,7 @@ mod bouncer;
 pub mod cap;
 mod caps;
 mod channel_rename;
+mod conversation;
 mod echo;
 mod features;
 mod framing;
@@ -3412,6 +3413,7 @@ impl Session {
     }
 
     fn remember_casemapping(&mut self) {
+        self.state.update_isupport(self.isupport.value());
         let new = self.isupport.value().casemapping();
         if !self.casemapping_change_emitted && new != self.casemapping_baseline {
             self.outbox.event(Event::CasemappingChanged {

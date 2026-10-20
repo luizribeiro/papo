@@ -1559,6 +1559,7 @@ pub fn papo_core::State::metadata_subscriptions(&self) -> &[alloc::string::Strin
 pub fn papo_core::State::metadata_target_count(&self) -> usize
 pub fn papo_core::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::User>
 pub fn papo_core::State::nick(&self) -> &papo::Nick
+pub fn papo_core::State::parse_target(&self, impl core::convert::AsRef<str>) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo_core::Conversation), papo::InvalidIdentifier>
 pub fn papo_core::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::ReadMarker>
 pub fn papo_core::State::realname(&self) -> &str
 pub fn papo_core::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::User>

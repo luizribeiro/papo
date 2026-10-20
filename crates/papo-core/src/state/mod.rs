@@ -25,8 +25,9 @@ use crate::{
     BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, bouncer::NetworkUpdate,
 };
 use crate::{
-    Config, Event, Handled, LastSeen, MetadataValue, NameKey, Outbox, OwnedModeChange, ReadMarker,
-    StateLimit,
+    Config, Conversation, Event, Handled, LastSeen, MetadataValue, NameKey, Outbox,
+    OwnedModeChange, ReadMarker, StateLimit,
+    conversation::classify_target,
     monitor::{Monitor, presence_nicks},
 };
 
@@ -48,6 +49,7 @@ pub struct State {
     away_message: Option<String>,
     user_modes: HashSet<char>,
     casemapping: Casemapping,
+    isupport: Isupport,
     channels: HashMap<ChannelName, Channel>,
     users: HashMap<Nick, User>,
     who_sweeps: HashSet<ChannelName>,
@@ -250,6 +252,7 @@ impl State {
             away_message: None,
             user_modes: HashSet::new(),
             casemapping,
+            isupport: Isupport::default(),
             channels: HashMap::new(),
             users: HashMap::new(),
             who_sweeps: HashSet::new(),
@@ -295,6 +298,11 @@ impl State {
         }
         self.users
             .retain(|_, user| user.monitored || !user.channels.is_empty());
+    }
+
+    pub(crate) fn update_isupport(&mut self, isupport: &Isupport) {
+        self.update_casemapping(isupport.casemapping());
+        self.isupport.clone_from(isupport);
     }
 
     pub(crate) fn sync_monitored_nick(
@@ -724,6 +732,22 @@ impl State {
     #[must_use]
     pub fn nick(&self) -> &Nick {
         &self.nick
+    }
+
+    /// Parses a wire address using the server's advertised `STATUSMSG` and `CHANTYPES` rules.
+    ///
+    /// Prefixes not advertised through `STATUSMSG` are left on the address and validated there.
+    /// In particular, `@#ops` is rejected when `@` is not advertised because `@` is not valid in
+    /// a nickname.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the address is not a valid channel, nickname, server mask, or `*`.
+    pub fn parse_target(
+        &self,
+        target: impl AsRef<str>,
+    ) -> Result<(Option<Vec<char>>, Conversation), papo_proto::InvalidIdentifier> {
+        classify_target(target.as_ref(), None, &self.nick, &self.isupport)
     }
 
     /// Returns the rules attached to names in this state.
