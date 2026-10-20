@@ -101,6 +101,7 @@ pub(crate) fn history_item(
                 mapping,
                 state.nick(),
                 state.isupport().inner(),
+                received_at,
             )
         }),
         papo_core::HistoryItem::Joined(item) => typed_or_raw(&item.line, |message| {
@@ -206,10 +207,15 @@ fn redaction(
     mapping: crate::Casemapping,
     own_nick: &str,
     isupport: &papo_proto::Isupport,
+    received_at: SystemTime,
 ) -> Option<HistoryItem> {
     let (status, conversation) =
         papo_core::classify_conversation(message, own_nick, isupport).ok()?;
+    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(HistoryItem::Redacted(Redacted {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
         actor: Source::from_proto(message.source()?, mapping),
         authorship,
         conversation,

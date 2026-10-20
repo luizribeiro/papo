@@ -875,14 +875,20 @@ pub(crate) fn from_core(
                 Event::TagMsg(tag)
             }
         }
-        papo_core::Event::Redacted(redacted) => Event::Redacted(Redacted {
-            actor: Source::from_prefix(redacted.actor, casemapping),
-            authorship: Authorship::from_core(redacted.authorship),
-            conversation: redacted.conversation,
-            status: redacted.status,
-            message: redacted.msgid.into(),
-            reason: redacted.reason.filter(|reason| !reason.is_empty()),
-        }),
+        papo_core::Event::Redacted(redacted) => {
+            let envelope = core_envelope(&redacted.envelope, casemapping, received_at);
+            Event::Redacted(Redacted {
+                msgid: envelope.msgid,
+                time: envelope.time,
+                account: envelope.account,
+                actor: Source::from_prefix(redacted.actor, casemapping),
+                authorship: Authorship::from_core(redacted.authorship),
+                conversation: redacted.conversation,
+                status: redacted.status,
+                message: redacted.msgid.into(),
+                reason: redacted.reason.filter(|reason| !reason.is_empty()),
+            })
+        }
         papo_core::Event::Response(response) => return CoreEvent::Response(response),
         papo_core::Event::RequestUntracked { id } => return CoreEvent::RequestUntracked(id),
         papo_core::Event::RequestTimedOut { id } => return CoreEvent::RequestTimedOut(id),
@@ -1705,6 +1711,7 @@ mod tests {
     #[test]
     fn maps_redactions() {
         let redacted = papo_core::Redacted {
+            envelope: papo_core::LineEnvelope::default(),
             actor: "alice!~a@cloak".into(),
             authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),

@@ -762,12 +762,15 @@ impl core::marker::UnsafeUnpin for papo::event::RealnameChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::RealnameChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::RealnameChanged
 #[non_exhaustive] pub struct papo::event::Redacted
+pub papo::event::Redacted::account: core::option::Option<papo::AccountName>
 pub papo::event::Redacted::actor: papo::Source
 pub papo::event::Redacted::authorship: papo::Authorship
 pub papo::event::Redacted::conversation: papo::Conversation
 pub papo::event::Redacted::message: papo::MessageId
+pub papo::event::Redacted::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
+pub papo::event::Redacted::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Redacted
 pub fn papo::event::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Redacted

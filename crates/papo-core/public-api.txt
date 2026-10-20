@@ -1453,6 +1453,7 @@ pub struct papo_core::Redacted
 pub papo_core::Redacted::actor: alloc::string::String
 pub papo_core::Redacted::authorship: papo_core::Authorship
 pub papo_core::Redacted::conversation: papo::Conversation
+pub papo_core::Redacted::envelope: papo_core::LineEnvelope
 pub papo_core::Redacted::msgid: alloc::string::String
 pub papo_core::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo_core::Redacted::status: core::option::Option<alloc::vec::Vec<char>>

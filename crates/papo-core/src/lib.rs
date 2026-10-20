@@ -1366,6 +1366,8 @@ pub struct TagMessage {
 /// A server-relayed message redaction.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Redacted {
+    /// Identity, time, and account tags from the line.
+    pub envelope: LineEnvelope,
     /// Actor prefix without its leading colon.
     pub actor: String,
     /// Whether the actor is this session's user.

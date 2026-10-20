@@ -41,6 +41,7 @@ impl Session {
             return false;
         };
         self.outbox.event(Event::Redacted(Redacted {
+            envelope: LineEnvelope::from_line(message),
             actor: actor.to_owned(),
             authorship: self.authorship(message),
             conversation,
