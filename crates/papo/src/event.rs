@@ -5,10 +5,10 @@ use std::time::SystemTime;
 use papo_proto::Nick;
 use papo_proto::{
     AccountName, Casemapping, ChannelName, Ctcp as ProtoCtcp, Isupport, Line as ProtoLine, LineRef,
-    MessageId, Target, strip_formatting, time,
+    MessageId, strip_formatting, time,
 };
 
-use crate::Client;
+use crate::{Client, Target};
 
 #[path = "event/channel.rs"]
 mod channel;

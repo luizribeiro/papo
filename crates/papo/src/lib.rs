@@ -101,10 +101,11 @@ pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 pub use papo_core::{InvalidRateLimit, RateLimit, Sasl};
 #[doc(inline)]
 pub use papo_core::{Unsupported, UnsupportedReason};
+pub use papo_proto::Address as Target;
 #[doc(inline)]
 pub use papo_proto::{
-    AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Mask, MessageId, MetadataKey,
-    Nick, Target, Typing,
+    AccountName, Address, Casemapping, ChannelName, InvalidIdentifier, Line, Mask, MessageId,
+    MetadataKey, Nick, Typing,
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};

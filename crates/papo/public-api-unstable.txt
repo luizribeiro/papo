@@ -1,6 +1,7 @@
 pub mod papo
 pub use papo::Account
 pub use papo::AccountName
+pub use papo::Address
 pub use papo::Away
 pub use papo::BouncerNetwork
 pub use papo::Capabilities
@@ -568,7 +569,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Kicked
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Kicked
 #[non_exhaustive] pub struct papo::event::MetadataChanged
 pub papo::event::MetadataChanged::key: papo::MetadataKey
-pub papo::event::MetadataChanged::target: papo::Target
+pub papo::event::MetadataChanged::target: papo::Address
 pub papo::event::MetadataChanged::value: core::option::Option<alloc::string::String>
 pub papo::event::MetadataChanged::visibility: papo::event::Visibility
 impl core::clone::Clone for papo::event::MetadataChanged
@@ -609,7 +610,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::ModeChange
 #[non_exhaustive] pub struct papo::event::ModeChanged
 pub papo::event::ModeChanged::by: papo::Source
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
-pub papo::event::ModeChanged::target: papo::Target
+pub papo::event::ModeChanged::target: papo::Address
 impl core::clone::Clone for papo::event::ModeChanged
 pub fn papo::event::ModeChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ModeChanged
@@ -778,7 +779,7 @@ pub papo::event::Reacted::message: papo::MessageId
 pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::source: core::option::Option<papo::Source>
-pub papo::event::Reacted::target: papo::Target
+pub papo::event::Reacted::target: papo::Address
 impl core::clone::Clone for papo::event::Reacted
 pub fn papo::event::Reacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Reacted
@@ -795,7 +796,7 @@ impl core::marker::UnsafeUnpin for papo::event::Reacted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Reacted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Reacted
 #[non_exhaustive] pub struct papo::event::ReadMarker
-pub papo::event::ReadMarker::target: papo::Target
+pub papo::event::ReadMarker::target: papo::Address
 pub papo::event::ReadMarker::time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::event::ReadMarker
 pub fn papo::event::ReadMarker::clone(&self) -> Self
@@ -834,7 +835,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::RealnameChanged
 pub papo::event::Redacted::message: papo::MessageId
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::source: core::option::Option<papo::Source>
-pub papo::event::Redacted::target: papo::Target
+pub papo::event::Redacted::target: papo::Address
 impl core::clone::Clone for papo::event::Redacted
 pub fn papo::event::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Redacted
@@ -914,7 +915,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReply
 #[non_exhaustive] pub struct papo::event::TagMsg
 pub papo::event::TagMsg::source: core::option::Option<papo::Source>
 pub papo::event::TagMsg::tags: papo::Tags
-pub papo::event::TagMsg::target: papo::Target
+pub papo::event::TagMsg::target: papo::Address
 impl core::clone::Clone for papo::event::TagMsg
 pub fn papo::event::TagMsg::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TagMsg
@@ -952,7 +953,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::TopicChanged
 #[non_exhaustive] pub struct papo::event::TypingChanged
 pub papo::event::TypingChanged::source: core::option::Option<papo::Source>
 pub papo::event::TypingChanged::state: papo::Typing
-pub papo::event::TypingChanged::target: papo::Target
+pub papo::event::TypingChanged::target: papo::Address
 impl core::clone::Clone for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TypingChanged
@@ -2017,7 +2018,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::History
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::end: bool
 pub papo::HistoryPage::items: alloc::vec::Vec<papo::HistoryItem>
-pub papo::HistoryPage::target: papo::Target
+pub papo::HistoryPage::target: papo::Address
 impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
 impl core::clone::Clone for papo::HistoryPage
@@ -2069,7 +2070,7 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::HistoryRequest
 impl !core::panic::unwind_safe::UnwindSafe for papo::HistoryRequest
 #[non_exhaustive] pub struct papo::HistoryTarget
 pub papo::HistoryTarget::latest: std::time::SystemTime
-pub papo::HistoryTarget::target: papo::Target
+pub papo::HistoryTarget::target: papo::Address
 impl core::clone::Clone for papo::HistoryTarget
 pub fn papo::HistoryTarget::clone(&self) -> Self
 impl core::cmp::Eq for papo::HistoryTarget
@@ -2215,7 +2216,7 @@ pub papo::Message::sender: core::option::Option<papo::Source>
 pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Message::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::Message::tags: papo::Tags
-pub papo::Message::target: papo::Target
+pub papo::Message::target: papo::Address
 pub papo::Message::text: alloc::string::String
 impl papo::Message
 pub fn papo::Message::account(&self) -> core::option::Option<&str>
@@ -2428,7 +2429,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
 #[non_exhaustive] pub struct papo::Sent
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
 pub papo::Sent::id: core::option::Option<papo::MessageId>
-pub papo::Sent::target: papo::Target
+pub papo::Sent::target: papo::Address
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::Sent
 pub fn papo::Sent::clone(&self) -> Self
