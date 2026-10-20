@@ -191,7 +191,7 @@ fn response_lines(session: &mut Session) -> (BTreeMap<RequestId, Vec<Line>>, Vec
             Event::Response(response) => {
                 responses.insert(response.id, response.lines);
             }
-            Event::Line(message) => messages.push(message.into_message()),
+            Event::Line(line) => messages.push(line.into_line()),
             _ => {}
         }
     }

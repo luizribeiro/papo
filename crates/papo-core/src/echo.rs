@@ -8,7 +8,7 @@ impl Session {
             .pop_back()
             .expect("a resolved request queued its response");
         debug_assert!(matches!(response, Event::Response(_)));
-        let received = self.received_message(message.to_owned(), None, true);
+        let received = self.received_line(message.to_owned(), None, true);
         self.outbox.event(Event::Line(received));
         // Consumers must observe the confirming event before the action completes.
         self.outbox.event(response);
@@ -28,16 +28,16 @@ impl Session {
         })
     }
 
-    pub(super) fn received_message(
+    pub(super) fn received_line(
         &self,
-        message: Line,
+        line: Line,
         batch_type: Option<String>,
         labelled_echo: bool,
     ) -> ReceivedLine {
-        let own_source = self.is_own_source(&message.as_ref());
+        let own_source = self.is_own_source(&line.as_ref());
         let labels = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
         ReceivedLine {
-            message,
+            line,
             batch_type,
             echo: own_source && (labelled_echo || !labels),
             other_session: own_source && !labelled_echo && labels,

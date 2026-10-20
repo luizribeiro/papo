@@ -1371,8 +1371,6 @@ impl From<ModeChange<'_>> for OwnedModeChange {
 pub enum Event {
     /// Connection registration completed.
     Registered(Welcome),
-    /// A parsed protocol message not consumed by session protocol behavior.
-    Message(ReceivedLine),
     /// A parsed protocol line not consumed by session protocol behavior.
     Line(ReceivedLine),
     /// A completed `draft/multiline` batch.
@@ -1693,23 +1691,20 @@ pub enum BatchAbandonReason {
     Timeout,
 }
 
-/// A parsed message annotated with protocol dispatch context.
+/// A parsed line annotated with protocol dispatch context.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReceivedLine {
-    message: Line,
+    line: Line,
     batch_type: Option<String>,
     echo: bool,
     other_session: bool,
 }
 
-#[doc(hidden)]
-pub type ReceivedMessage = ReceivedLine;
-
 impl ReceivedLine {
-    /// Borrows the parsed IRC message.
+    /// Borrows the parsed IRC line.
     #[must_use]
     pub fn as_ref(&self) -> LineRef<'_> {
-        self.message.as_ref()
+        self.line.as_ref()
     }
 
     /// Returns the containing batch's type, when known.
@@ -1724,28 +1719,28 @@ impl ReceivedLine {
         self.echo
     }
 
-    /// Reports whether the message came from another session using our nickname.
+    /// Reports whether the line came from another session using our nickname.
     #[must_use]
     pub const fn is_other_session(&self) -> bool {
         self.other_session
     }
 
-    /// Removes the dispatch annotation and returns the parsed IRC message.
+    /// Removes the dispatch annotation and returns the parsed IRC line.
     #[must_use]
-    pub fn into_message(self) -> Line {
-        self.message
+    pub fn into_line(self) -> Line {
+        self.line
     }
 
-    /// Splits the message into its wire value and dispatch annotations.
+    /// Splits the line into its wire value and dispatch annotations.
     #[must_use]
     pub fn into_parts(self) -> (Line, Option<String>, bool) {
-        (self.message, self.batch_type, self.echo)
+        (self.line, self.batch_type, self.echo)
     }
 
-    /// Splits the message into its wire value and all dispatch annotations.
+    /// Splits the line into its wire value and all dispatch annotations.
     #[must_use]
     pub fn into_context_parts(self) -> (Line, Option<String>, bool, bool) {
-        (self.message, self.batch_type, self.echo, self.other_session)
+        (self.line, self.batch_type, self.echo, self.other_session)
     }
 }
 
@@ -1753,7 +1748,7 @@ impl std::ops::Deref for ReceivedLine {
     type Target = Line;
 
     fn deref(&self) -> &Self::Target {
-        &self.message
+        &self.line
     }
 }
 
@@ -2945,7 +2940,7 @@ impl Session {
             && !standard_reply
             && emit_unhandled
         {
-            let received = self.received_message(
+            let received = self.received_line(
                 message.to_owned(),
                 context.batch_type().map(str::to_owned),
                 false,
@@ -3126,7 +3121,7 @@ impl Session {
                 message,
                 batch_type,
             } => {
-                let received = self.received_message(message, batch_type, false);
+                let received = self.received_line(message, batch_type, false);
                 self.outbox.event(Event::Line(received));
             }
             BatchEvent::Multiline(message) => self
@@ -3232,7 +3227,7 @@ impl Session {
                 whois_channels,
             }));
             for message in echoed.into_iter().flatten() {
-                let received = self.received_message(message, None, true);
+                let received = self.received_line(message, None, true);
                 self.outbox.event(Event::Line(received));
             }
         }

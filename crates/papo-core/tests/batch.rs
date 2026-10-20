@@ -6,11 +6,11 @@ use papo_core::{BatchAbandonReason, Config, Event, HistoryItem, RateLimit, Sessi
 #[cfg(feature = "unstable")]
 use papo_proto::Line;
 
-fn message(session: &mut Session) -> papo_core::ReceivedMessage {
-    let Some(Event::Line(message)) = session.poll_event() else {
-        panic!("expected a message event")
+fn line(session: &mut Session) -> papo_core::ReceivedLine {
+    let Some(Event::Line(line)) = session.poll_event() else {
+        panic!("expected a line event")
     };
-    message
+    line
 }
 
 #[cfg(feature = "unstable")]
@@ -109,8 +109,8 @@ fn multiline_over_advertised_max_bytes_is_released() {
     session.handle_line(now, b"@batch=m :alice PRIVMSG #papo :12345");
     session.handle_line(now, b"@batch=m :alice PRIVMSG #papo :67890");
 
-    assert_eq!(message(&mut session).as_ref().param(1), Some("12345"));
-    assert_eq!(message(&mut session).as_ref().param(1), Some("67890"));
+    assert_eq!(line(&mut session).as_ref().param(1), Some("12345"));
+    assert_eq!(line(&mut session).as_ref().param(1), Some("67890"));
     assert!(matches!(
         session.poll_event(),
         Some(Event::BatchAbandoned { reference, batch_type, reason })
@@ -183,7 +183,7 @@ fn multiline_accepts_the_line_limit_and_abandons_one_over() {
         );
     }
     for expected in ["one", "two", "three"] {
-        assert_eq!(message(&mut over).as_ref().param(1), Some(expected));
+        assert_eq!(line(&mut over).as_ref().param(1), Some(expected));
     }
     assert!(matches!(
         over.poll_event(),
@@ -232,10 +232,10 @@ fn unknown_nested_and_interleaved_batches_flow_with_their_types() {
         b"@batch=other :bob!~b@cloak NOTICE papo :interleaved line",
     );
 
-    let nested = message(&mut session);
+    let nested = line(&mut session);
     assert_eq!(nested.batch_type(), Some("vendor/nested"));
     assert_eq!(nested.as_ref().param(1), Some("nested line"));
-    let other = message(&mut session);
+    let other = line(&mut session);
     assert_eq!(other.batch_type(), Some("vendor/other"));
     assert_eq!(other.as_ref().param(1), Some("interleaved line"));
 
@@ -252,8 +252,8 @@ fn malformed_batch_commands_pass_through() {
     session.handle_line(now, b":ergo.test BATCH +bad_ref vendor/sync");
     session.handle_line(now, b":ergo.test BATCH -missing");
 
-    assert!(message(&mut session).as_ref().command_is("BATCH"));
-    assert!(message(&mut session).as_ref().command_is("BATCH"));
+    assert!(line(&mut session).as_ref().command_is("BATCH"));
+    assert!(line(&mut session).as_ref().command_is("BATCH"));
     assert_eq!(session.poll_event(), None);
 }
 
@@ -265,11 +265,11 @@ fn duplicate_batch_reference_passes_through_without_replacing_the_batch() {
     session.handle_line(now, b"BATCH +sync vendor/second");
     session.handle_line(now, b"@batch=sync :alice NOTICE papo :still first");
 
-    let duplicate = message(&mut session);
+    let duplicate = line(&mut session);
     assert!(duplicate.as_ref().command_is("BATCH"));
     assert_eq!(duplicate.as_ref().param(0), Some("+sync"));
     assert_eq!(duplicate.as_ref().param(1), Some("vendor/second"));
-    let member = message(&mut session);
+    let member = line(&mut session);
     assert_eq!(member.batch_type(), Some("vendor/first"));
     assert_eq!(member.as_ref().param(1), Some("still first"));
     assert_eq!(session.poll_event(), None);
@@ -285,9 +285,9 @@ fn invalid_nested_batch_closes_pass_through() {
     session.handle_line(now, b"BATCH -outer");
     session.handle_line(now, b"@batch=other BATCH -inner");
 
-    let outer = message(&mut session);
+    let outer = line(&mut session);
     assert_eq!(outer.as_ref().param(0), Some("-outer"));
-    let inner = message(&mut session);
+    let inner = line(&mut session);
     assert_eq!(inner.batch_type(), Some("vendor/other"));
     assert_eq!(inner.as_ref().param(0), Some("-inner"));
     assert_eq!(session.poll_event(), None);
@@ -305,7 +305,7 @@ fn disconnect_forgets_open_batches() {
         b"@batch=sync :alice!~a@cloak PRIVMSG #papo :after reconnect",
     );
 
-    assert_eq!(message(&mut session).batch_type(), None);
+    assert_eq!(line(&mut session).batch_type(), None);
 }
 
 #[test]
@@ -467,10 +467,10 @@ fn abandoned_outer_batch_flattens_completed_history_exactly() {
     session.handle_line(now, b"@batch=reply BATCH -h");
     session.handle_timeout(now + Duration::from_secs(2));
 
-    let fallback = message(&mut session);
+    let fallback = line(&mut session);
     assert_eq!(fallback.batch_type(), None);
     assert_eq!(
-        fallback.into_message().to_line().unwrap(),
+        fallback.into_line().to_line().unwrap(),
         "@batch=h;time=2026-10-15T12:00:01.000Z :alice!~a@cloak PRIVMSG #papo :from history\r\n"
     );
     assert!(matches!(
@@ -501,7 +501,7 @@ fn outermost_aggregate_groups_its_commands_and_releases_others() {
                 && quits.len() == 1
                 && quits[0].as_ref().param(0) == Some("link lost")
     ));
-    let extra = message(&mut session);
+    let extra = line(&mut session);
     assert_eq!(extra.batch_type(), Some("netsplit"));
     assert!(extra.as_ref().command_is("NOTICE"));
     assert_eq!(extra.as_ref().param(1), Some("split metadata"));
@@ -618,7 +618,7 @@ fn abandons_history_on_the_first_line_beyond_its_limit() {
     session.handle_line(now, b"@batch=h :bob!~b@cloak MODE #papo +v bob");
 
     for expected in ["JOIN", "PART", "MODE"] {
-        let fallback = message(&mut session);
+        let fallback = line(&mut session);
         assert_eq!(fallback.batch_type(), Some("draft/event-playback"));
         assert!(fallback.as_ref().command_is(expected));
     }
@@ -638,13 +638,10 @@ fn unknown_batch_overflow_delivers_the_overflowing_line_before_abandonment() {
     let mut session = Session::new(Config::default().max_batch_lines(1));
     session.handle_line(now, b"BATCH +sync vendor/sync");
     session.handle_line(now, b"@batch=sync :alice NOTICE papo :within limit");
-    assert_eq!(
-        message(&mut session).as_ref().param(1),
-        Some("within limit")
-    );
+    assert_eq!(line(&mut session).as_ref().param(1), Some("within limit"));
     session.handle_line(now, b"@batch=sync :alice NOTICE papo :overflowing line");
 
-    let overflow = message(&mut session);
+    let overflow = line(&mut session);
     assert_eq!(overflow.batch_type(), Some("vendor/sync"));
     assert_eq!(overflow.as_ref().param(1), Some("overflowing line"));
     assert!(matches!(
@@ -673,7 +670,7 @@ fn abandons_an_unclosed_batch_at_its_deadline() {
     assert_eq!(session.poll_event(), None);
     session.handle_timeout(now + Duration::from_secs(2));
 
-    let fallback = message(&mut session);
+    let fallback = line(&mut session);
     assert_eq!(fallback.as_ref().param(1), Some("remembered"));
     assert!(matches!(
         session.poll_event(),
@@ -698,7 +695,7 @@ fn nested_batches_expiring_together_abandon_only_the_outer_batch() {
     session.handle_line(now, b"@batch=h :alice PRIVMSG #papo :nested fallback");
     session.handle_timeout(now + Duration::from_secs(2));
 
-    let fallback = message(&mut session);
+    let fallback = line(&mut session);
     assert_eq!(fallback.batch_type(), Some("chathistory"));
     assert_eq!(fallback.as_ref().param(1), Some("nested fallback"));
     assert!(matches!(
