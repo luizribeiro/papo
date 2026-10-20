@@ -146,10 +146,10 @@ fn annotates_echoes_with_the_active_casemapping() {
     session.handle_line(now, b":papo{bot}!~papo@localhost PRIVMSG #papo :sent");
     session.handle_line(now, b":alice!~a@localhost PRIVMSG #papo :received");
 
-    let Some(Event::Message(echo) | Event::Line(echo)) = session.poll_event() else {
+    let Some(Event::Line(echo)) = session.poll_event() else {
         panic!("expected echoed message")
     };
-    let Some(Event::Message(received) | Event::Line(received)) = session.poll_event() else {
+    let Some(Event::Line(received)) = session.poll_event() else {
         panic!("expected received message")
     };
     assert!(echo.is_echo());
@@ -183,7 +183,7 @@ fn labels_distinguish_our_echo_from_another_session() {
 
     let messages: Vec<_> = std::iter::from_fn(|| session.poll_event())
         .filter_map(|event| match event {
-            Event::Message(message) | Event::Line(message) => Some(message),
+            Event::Line(message) => Some(message),
             _ => None,
         })
         .collect();
@@ -218,7 +218,7 @@ fn labelled_response_batch_also_emits_its_message_echo() {
     session.handle_line(now, b"BATCH -response");
 
     let echo = std::iter::from_fn(|| session.poll_event()).find_map(|event| match event {
-        Event::Message(message) | Event::Line(message) => Some(message),
+        Event::Line(message) => Some(message),
         _ => None,
     });
     assert!(echo.is_some_and(|message| message.is_echo() && !message.is_other_session()));
@@ -253,8 +253,7 @@ fn labelled_echo_batch_does_not_turn_our_tagmsg_into_a_message() {
     session.handle_line(now, b"BATCH -response");
 
     assert!(
-        std::iter::from_fn(|| session.poll_event())
-            .all(|event| !matches!(event, Event::Message(_) | Event::Line(_)))
+        std::iter::from_fn(|| session.poll_event()).all(|event| !matches!(event, Event::Line(_)))
     );
 }
 
@@ -270,8 +269,7 @@ fn labelled_echo_batch_does_not_dispatch_another_users_message() {
     session.handle_line(now, b"BATCH -response");
 
     assert!(
-        std::iter::from_fn(|| session.poll_event())
-            .all(|event| !matches!(event, Event::Message(_) | Event::Line(_)))
+        std::iter::from_fn(|| session.poll_event()).all(|event| !matches!(event, Event::Line(_)))
     );
 }
 

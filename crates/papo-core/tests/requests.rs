@@ -191,7 +191,7 @@ fn response_lines(session: &mut Session) -> (BTreeMap<RequestId, Vec<Line>>, Vec
             Event::Response(response) => {
                 responses.insert(response.id, response.lines);
             }
-            Event::Message(message) | Event::Line(message) => messages.push(message.into_message()),
+            Event::Line(message) => messages.push(message.into_message()),
             _ => {}
         }
     }
@@ -976,7 +976,7 @@ fn exposes_the_msgid_and_time_of_a_labelled_echo() {
         b"@label=0;msgid=RKi9Cw;time=2026-10-15T12:00:01.000Z :papo!~papo@localhost PRIVMSG #papo :hello from papo",
     );
 
-    let Some(Event::Message(message) | Event::Line(message)) = session.poll_event() else {
+    let Some(Event::Line(message)) = session.poll_event() else {
         panic!("expected confirming message before response")
     };
     assert!(message.is_echo());
@@ -1268,7 +1268,7 @@ fn unclaimed_history_response_releases_its_messages() {
     ));
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Message(message) | Event::Line(message))
+        Some(Event::Line(message))
             if message.as_ref().command_is("PRIVMSG")
                 && message.batch_type() == Some("labeled-response")
     ));
@@ -1299,7 +1299,7 @@ fn unclaimed_response_batches_preserve_their_distinct_types() {
         session.handle_line(now, format!(":ergo.test BATCH -{reference}").as_bytes());
         assert!(matches!(
             session.poll_event(),
-            Some(Event::Message(message) | Event::Line(message)) if message.batch_type() == Some(batch_type)
+            Some(Event::Line(message)) if message.batch_type() == Some(batch_type)
         ));
     }
     assert_eq!(session.poll_event(), None);
@@ -1440,7 +1440,7 @@ fn times_out_and_releases_a_label_for_late_delivery() {
         b"@label=0 :ergo.test 401 papo alice :No such nick/channel",
     );
     assert!(
-        matches!(session.poll_event(), Some(Event::Message(message) | Event::Line(message)) if message.as_ref().command_is("401"))
+        matches!(session.poll_event(), Some(Event::Line(message)) if message.as_ref().command_is("401"))
     );
 }
 
@@ -1546,6 +1546,6 @@ fn reports_only_well_formed_unlabelled_standard_replies() {
 
     session.handle_line(now, b":ergo.test WARN CHATHISTORY MISSING_DESCRIPTION");
     assert!(
-        matches!(session.poll_event(), Some(Event::Message(message) | Event::Line(message)) if message.as_ref().command_is("WARN"))
+        matches!(session.poll_event(), Some(Event::Line(message)) if message.as_ref().command_is("WARN"))
     );
 }

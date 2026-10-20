@@ -7,7 +7,7 @@ use papo_core::{BatchAbandonReason, Config, Event, HistoryItem, RateLimit, Sessi
 use papo_proto::Line;
 
 fn message(session: &mut Session) -> papo_core::ReceivedMessage {
-    let Some(Event::Message(message) | Event::Line(message)) = session.poll_event() else {
+    let Some(Event::Line(message)) = session.poll_event() else {
         panic!("expected a message event")
     };
     message
