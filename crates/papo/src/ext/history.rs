@@ -877,7 +877,7 @@ mod tests {
         ]);
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
-        registration_burst(&mut server).await;
+        welcome_burst(&mut server).await;
         server_line(
             &mut server,
             b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",

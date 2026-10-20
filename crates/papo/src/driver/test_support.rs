@@ -139,7 +139,7 @@ pub(crate) fn scripted_with_failures(
     (server, client, events, driver)
 }
 
-pub(crate) async fn registration_burst(server: &mut DuplexStream) {
+pub(crate) async fn welcome_burst(server: &mut DuplexStream) {
     let expected = b"CAP LS 302\r\nNICK papo-driver\r\nUSER papo 0 * :papo driver test\r\n";
     let mut actual = vec![0; expected.len()];
     within(server.read_exact(&mut actual)).await.unwrap();
@@ -183,7 +183,7 @@ pub(crate) async fn complete_registration(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) -> crate::event::Connected {
-    registration_burst(server).await;
+    welcome_burst(server).await;
     server_line(server, b":ergo.test CAP * LS :\r\n").await;
     client_line(server, b"CAP END\r\n").await;
     server_line(server, b":ergo.test 001 papo-driver :Welcome to the Ergo test network\r\n:ergo.test 002 papo-driver :Your host is ergo.test, running version ergo-2.16.0\r\n:ergo.test 003 papo-driver :This server was created Wed Oct 15 2025\r\n:ergo.test 004 papo-driver ergo.test ergo-2.16.0 BioZ beI,k,l,imnst\r\n:ergo.test 005 papo-driver NETWORK=ErgoTest UTF8ONLY :are supported by this server\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
@@ -202,7 +202,7 @@ pub(crate) async fn complete_labelled_registration(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) {
-    registration_burst(server).await;
+    welcome_burst(server).await;
     server_line(server, b":ergo.test CAP * LS :labeled-response\r\n").await;
     client_line(server, b"CAP REQ :labeled-response\r\n").await;
     server_line(server, b":ergo.test CAP * ACK :labeled-response\r\n").await;
@@ -221,7 +221,7 @@ pub(crate) async fn complete_caps_registration(
     advertised: &str,
     requested: &str,
 ) {
-    registration_burst(server).await;
+    welcome_burst(server).await;
     server_line(
         server,
         format!(":ergo.test CAP * LS :{advertised}\r\n").as_bytes(),
@@ -242,7 +242,7 @@ pub(crate) async fn complete_history_registration(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) {
-    registration_burst(server).await;
+    welcome_burst(server).await;
     server_line(
         server,
         b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",
@@ -267,7 +267,7 @@ pub(crate) async fn complete_read_marker_registration(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) {
-    registration_burst(server).await;
+    welcome_burst(server).await;
     server_line(
         server,
         b":ergo.test CAP * LS :draft/read-marker labeled-response\r\n",
@@ -385,7 +385,7 @@ pub(crate) async fn complete_extended_monitor_registration(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) {
-    registration_burst(server).await;
+    welcome_burst(server).await;
     server_line(server, b":ergo.test CAP * LS :extended-monitor\r\n").await;
     client_line(server, b"CAP REQ :extended-monitor\r\n").await;
     server_line(
@@ -423,7 +423,7 @@ pub(crate) async fn assert_registration_output(
         defaults,
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     if let Some(isupport) = isupport {
@@ -472,7 +472,7 @@ pub(crate) async fn assert_reply_wire(
     let wanted = message_tags.then_some("message-tags");
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(wanted));
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     if message_tags {
         server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
         client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
@@ -513,7 +513,7 @@ pub(crate) async fn assert_reply_wire(
 pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected: Option<&[u8]>) {
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(["message-tags"]));
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
     client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
     server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;

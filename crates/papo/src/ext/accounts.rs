@@ -158,7 +158,7 @@ mod tests {
         let settings = config().wanted_caps(["draft/account-registration", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
-        registration_burst(&mut server).await;
+        welcome_burst(&mut server).await;
         server_line(
             &mut server,
             b":ergo.test CAP * LS :draft/account-registration=custom-account-name labeled-response\r\n",

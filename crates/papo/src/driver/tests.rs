@@ -163,7 +163,7 @@ async fn shared_test_deadline_rejects_a_stalled_future() {
 async fn message_accessors_use_captured_session_facts() {
     let (mut server, _client, mut events, driver) = scripted(config().max_batch_lines(0));
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 005 papo-driver CHANTYPES=# CASEMAPPING=rfc1459 :are supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n").await;
@@ -223,7 +223,7 @@ async fn registration_is_forwarded() {
     let (mut server, client, mut events, driver) = scripted(config());
     assert!(!client.state().is_connected());
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     assert!(client.state().is_connected());
     within(server.write_all(b":ergo.test CAP * LS :\r\n"))
         .await
@@ -399,7 +399,7 @@ async fn registration_disconnect_does_not_enter_reconnect_backoff() {
         connector,
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     within(server.shutdown()).await.unwrap();
 
     assert!(matches!(
@@ -497,7 +497,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
 
     tokio::time::advance(Duration::from_secs(3)).await;
-    registration_burst(&mut third_server).await;
+    welcome_burst(&mut third_server).await;
     server_line(&mut third_server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut third_server, b"CAP END\r\n").await;
     server_line(&mut third_server, b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
@@ -771,7 +771,7 @@ async fn explicit_reconnect_redials_without_backoff() {
             ..
         }))
     ));
-    registration_burst(&mut second_server).await;
+    welcome_burst(&mut second_server).await;
     {
         let connection_times = connection_times.lock().unwrap();
         assert_eq!(connection_times.len(), 2);
@@ -844,7 +844,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
     tokio::time::advance(Duration::from_secs(2)).await;
 
-    registration_burst(&mut second_server).await;
+    welcome_burst(&mut second_server).await;
     server_line(
         &mut second_server,
         b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",
@@ -1109,7 +1109,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     ));
 
     tokio::time::advance(Duration::from_secs(2)).await;
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(
@@ -1366,7 +1366,7 @@ async fn stable_registration_resets_the_backoff() {
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
 
-    registration_burst(&mut stable_server).await;
+    welcome_burst(&mut stable_server).await;
     server_line(&mut stable_server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut stable_server, b"CAP END\r\n").await;
     server_line(
@@ -1380,7 +1380,7 @@ async fn stable_registration_resets_the_backoff() {
     within(stable_server.shutdown()).await.unwrap();
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
 
-    registration_burst(&mut next_server).await;
+    welcome_burst(&mut next_server).await;
     let delay = {
         let attempts = attempts.lock().unwrap();
         assert_eq!(attempts.len(), 4);
@@ -1430,7 +1430,7 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         connector,
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
     within(server.shutdown()).await.unwrap();
@@ -1484,7 +1484,7 @@ async fn connector_failure_under_stored_sts_is_terminal() {
 async fn eof_emits_disconnected_and_returns_an_error() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
@@ -1500,7 +1500,7 @@ async fn eof_emits_disconnected_and_returns_an_error() {
 async fn shutdown_error_does_not_replace_eof() {
     let (mut server, _client, mut events, driver) = scripted_with_failures(false);
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
@@ -1522,7 +1522,7 @@ async fn shutdown_error_does_not_replace_eof() {
 async fn read_error_is_connection_loss() {
     let (mut server, _client, mut events, driver) = scripted_with_failures(true);
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
@@ -1543,7 +1543,7 @@ async fn read_error_is_connection_loss() {
 async fn overlong_line_becomes_a_terminal_disconnect() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     within(server.write_all(&vec![b'x'; 8704])).await.unwrap();
     assert!(matches!(
         events.next().await,
@@ -1562,7 +1562,7 @@ async fn overlong_line_becomes_a_terminal_disconnect() {
 async fn malformed_line_preserves_exact_bytes() {
     let (mut server, _client, mut events, driver) = scripted(config().decoding(Decoding::Utf8));
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     within(server.write_all(b":ergo.test NOTICE * :caf\xe9\r\n"))
         .await
         .unwrap();
@@ -1585,7 +1585,7 @@ async fn sasl_nak_forwards_authentication_failure() {
         .sasl(Sasl::plain("alice", "correct horse battery staple").optional());
     let (mut server, _client, mut events, driver) = scripted(settings);
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
     server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
@@ -1616,7 +1616,7 @@ async fn required_sasl_failure_rejects_registration_waiter() {
         super::PostRegistration::default(),
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
     server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
@@ -1644,7 +1644,7 @@ async fn account_required_cap_rejects_registration_without_sasl() {
         super::PostRegistration::default(),
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":soju.example CAP * LS :soju.im/account-required sasl=PLAIN\r\n",
@@ -1677,7 +1677,7 @@ async fn password_numeric_is_a_generic_registration_rejection() {
         super::PostRegistration::default(),
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test 464 papo-driver :Password incorrect\r\n",
@@ -1729,7 +1729,7 @@ async fn required_sasl_failure_does_not_reconnect() {
         connector,
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
     server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
@@ -1797,7 +1797,7 @@ async fn successful_registration_preserves_earlier_events() {
         super::PostRegistration::default(),
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(
@@ -1838,7 +1838,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
         super::PostRegistration::default(),
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test CAP * LS :draft/account-registration=before-connect\r\n",
@@ -1894,7 +1894,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
         },
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(
@@ -1996,7 +1996,7 @@ async fn plaintext_sts_forwards_upgrade_and_closes() {
     let settings = config().host("irc.example.net").wanted_caps(["sts"]);
     let (mut server, _client, mut events, driver) = scripted(settings);
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
         events.next().await,
@@ -2046,7 +2046,7 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
         connector,
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut first_server).await;
+    welcome_burst(&mut first_server).await;
     server_line(&mut first_server, b":ergo.test CAP * LS :sts=port=6699\r\n").await;
     assert!(matches!(
         events.next().await,
@@ -2055,7 +2055,7 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
             ..
         }))
     ));
-    registration_burst(&mut second_server).await;
+    welcome_burst(&mut second_server).await;
     assert_eq!(&*requested.lock().unwrap(), &[(false, 6667), (true, 6699)]);
     server_line(
         &mut second_server,
@@ -2099,7 +2099,7 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
         connector,
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
         events.next().await,
@@ -2130,7 +2130,7 @@ async fn secure_sts_forwards_persistence_policy() {
         .wanted_caps(["sts"]);
     let (mut server, _client, _events, driver) = scripted(settings);
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test CAP * LS :sts=duration=3600,preload\r\n",
@@ -2175,7 +2175,7 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
         connector,
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sts=duration=3600\r\n").await;
     within(async {
         while papo_core::sts::StsStore::get(&inspection, "irc.example.net").is_none() {
@@ -2252,7 +2252,7 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
         connector,
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sts=duration=0\r\n").await;
     within(async {
         while papo_core::sts::StsStore::get(&inspection, "irc.example.net").is_some() {
@@ -2300,7 +2300,7 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
         connector,
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test NOTICE papo-driver :maintenance soon\r\n",
@@ -2368,7 +2368,7 @@ async fn queued_raw_sends_fail_when_the_connection_drops() {
         ),
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     client
         .send_raw(crate::Line::new("WHOIS", ["release-bot"]))
         .await
@@ -2414,7 +2414,7 @@ async fn queued_raw_send_preserves_the_server_disconnect_cause() {
         ),
     );
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     client
         .send_raw(crate::Line::new("WHOIS", ["release-bot"]))
         .await
@@ -2454,7 +2454,7 @@ async fn raw_line_builder_quotes_real_commands() {
         config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500)).unwrap()),
     );
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
 
     client
         .send_raw(crate::Line::new("KILL", ["alice", "policy violation"]))
@@ -3093,7 +3093,7 @@ async fn capability_loss_fails_a_pending_request_immediately() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :labeled-response\r\n").await;
     client_line(&mut server, b"CAP REQ :labeled-response\r\n").await;
     server_line(&mut server, b":ergo.test CAP * ACK :labeled-response\r\n").await;
@@ -3166,7 +3166,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
 async fn keyed_join_redacts_the_key_and_waits_for_channel_sync() {
     let (mut server, client, _events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     let join = client
         .join(test_channel("#ergo-ops"))
         .key("unique-dynamic-channel-key-4862");
@@ -3195,7 +3195,7 @@ async fn keyed_join_redacts_the_key_and_waits_for_channel_sync() {
 async fn text_only_commands_reject_byte_secrets() {
     let (mut server, client, _events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
 
     assert!(matches!(
         client
@@ -3362,7 +3362,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
 async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     let sent = within(client.privmsg("#papo", "a".repeat(600)))
         .await
         .unwrap();
@@ -3403,7 +3403,7 @@ async fn chat_text_uses_multiline_when_negotiated() {
     let config = config().wanted_caps(["batch", "draft/multiline"]);
     let (mut server, client, _events, driver) = scripted(config);
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test CAP * LS :batch draft/multiline=max-bytes=4096,max-lines=100\r\n",
@@ -3496,7 +3496,7 @@ async fn chat_text_returns_metadata_from_a_labelled_echo() {
     let config = config().wanted_caps(["echo-message", "labeled-response"]);
     let (mut server, client, _events, driver) = scripted(config);
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test CAP * LS :echo-message labeled-response\r\n",
@@ -3535,7 +3535,7 @@ async fn written_labelled_privmsg_is_interrupted_by_the_server_disconnect() {
     let config = config().wanted_caps(["echo-message", "labeled-response"]);
     let (mut server, client, _events, driver) = scripted(config);
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test CAP * LS :echo-message labeled-response\r\n",
@@ -3661,7 +3661,7 @@ async fn reactions_reject_empty_and_oversized_text() {
 async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     let (mut server, client, _events, driver) = scripted(config().wanted_caps(["message-tags"]));
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
     client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
     server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
@@ -3729,7 +3729,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     let caps = ["draft/message-redaction", "labeled-response"];
     let (mut server, client, _events, driver) = scripted(config().wanted_caps(caps));
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test CAP * LS :draft/message-redaction labeled-response\r\n",
@@ -3821,7 +3821,7 @@ async fn labels_distinguish_our_echo_from_another_session() {
     let caps = ["echo-message", "labeled-response"];
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test CAP * LS :echo-message labeled-response\r\n",
@@ -3896,7 +3896,7 @@ async fn private_notice_adds_the_source_channel_context() {
 async fn client_send_raw_rejects_invalid_lines() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     for line in [
         crate::Line::new("", Vec::<String>::new()),
         crate::Line::new("   ", Vec::<String>::new()),
@@ -3922,7 +3922,7 @@ async fn client_send_raw_rejects_invalid_lines() {
 async fn quit_resolves_when_the_server_closed_first() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -3952,7 +3952,7 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
     };
     let (client, mut events, driver) = Driver::with_stream(stream, Session::new(config()));
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
 
@@ -3978,7 +3978,7 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
 async fn quit_times_out_after_ten_seconds() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     let quit = tokio::spawn(async move { client.quit("").await });
     let mut line = [0; 6];
     within(server.read_exact(&mut line)).await.unwrap();
@@ -4009,7 +4009,7 @@ async fn quit_deadline_bounds_final_flush_for_a_peer_that_never_drains() {
     };
     let (client, _events, driver) = Driver::with_stream(stream, Session::new(config()));
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     let quit = tokio::spawn(async move { client.quit("bounded shutdown").await });
     while !written
         .lock()
@@ -4039,7 +4039,7 @@ async fn quit_deadline_bounds_final_flush_for_a_peer_that_never_drains() {
 async fn dropping_every_client_sends_quit() {
     let (mut server, client, _events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     drop(client);
     let mut line = [0; 6];
     within(server.read_exact(&mut line)).await.unwrap();
@@ -4052,7 +4052,7 @@ async fn dropping_every_client_sends_quit() {
 async fn full_event_channel_still_serves_quit_and_its_timer() {
     let (mut server, client, events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     within(server.write_all(b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :still queued\r\n"))
         .await
         .unwrap();
@@ -4075,7 +4075,7 @@ async fn full_event_channel_still_serves_quit_and_its_timer() {
 async fn quit_reads_server_close_while_events_are_backed_up() {
     let (mut server, client, events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :still queued\r\n",
@@ -4454,7 +4454,7 @@ async fn session_deadline_sends_keepalive_ping() {
         .ping_timeout(Duration::from_secs(120));
     let (mut server, _client, mut events, driver) = scripted(config);
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     tokio::time::advance(Duration::from_secs(30)).await;
     let mut ping = [0; 14];
     within(server.read_exact(&mut ping)).await.unwrap();
@@ -4522,7 +4522,7 @@ async fn public_state_accessors_report_the_registered_session() {
         .sasl(Sasl::plain("alice", "hunter2"));
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(
         &mut server,
         b":ergo.test CAP * LS :extended-monitor sasl=PLAIN\r\n",
@@ -4727,7 +4727,7 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     let config = config().wanted_caps(["draft/no-implicit-names"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    registration_burst(&mut server).await;
+    welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :no-implicit-names\r\n").await;
     client_line(&mut server, b"CAP REQ :no-implicit-names\r\n").await;
     server_line(

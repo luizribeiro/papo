@@ -121,7 +121,7 @@ mod tests {
     async fn monitor_mutations_reach_the_wire() {
         let (mut server, client, mut events, driver) = scripted(config());
         let driver = tokio::spawn(driver);
-        registration_burst(&mut server).await;
+        welcome_burst(&mut server).await;
         server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
         client_line(&mut server, b"CAP END\r\n").await;
         server_line(&mut server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver MONITOR=100 NICKLEN=32 :are supported\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
