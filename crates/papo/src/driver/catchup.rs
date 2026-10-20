@@ -38,8 +38,10 @@ pub(super) fn advance_catchup(
     response: Response,
 ) -> Option<Event> {
     let page = response.history?;
+    let conversation = page.conversation;
+    let page_end = page.end;
     let next = extend_catchup(&mut catchup, page.items);
-    if !page.end
+    if !page_end
         && catchup.items.len() < 1_000
         && let Some(next) = next
     {
@@ -82,9 +84,9 @@ pub(super) fn advance_catchup(
         })
         .collect();
     Some(Event::History(Box::new(crate::HistoryPage {
-        target: catchup.target,
+        conversation,
         items,
-        end: page.end,
+        end: page_end,
     })))
 }
 

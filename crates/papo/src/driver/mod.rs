@@ -1222,9 +1222,14 @@ where
                     )));
                 }
             }
-            event::CoreEvent::History { target, items, end } => {
+            event::CoreEvent::History {
+                conversation,
+                items,
+                end,
+            } => {
                 if catchups.values().any(|catchup| {
-                    session.isupport().casemapping().channel(&catchup.target) == target.as_str()
+                    matches!(&conversation, crate::Conversation::Channel(channel)
+                        if session.isupport().casemapping().channel(&catchup.target) == *channel)
                 }) {
                     continue;
                 }
@@ -1246,7 +1251,11 @@ where
                         )
                     })
                     .collect();
-                let event = Event::History(Box::new(crate::HistoryPage { target, items, end }));
+                let event = Event::History(Box::new(crate::HistoryPage {
+                    conversation,
+                    items,
+                    end,
+                }));
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,

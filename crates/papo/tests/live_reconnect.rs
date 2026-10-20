@@ -144,7 +144,9 @@ async fn wait_history(events: &mut papo::Events, target: &str) -> papo::HistoryP
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
             match events.next().await {
-                Some(Event::History(history)) if history.target == target => {
+                Some(Event::History(history))
+                    if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel == target) =>
+                {
                     return *history;
                 }
                 Some(Event::Disconnected(disconnected)) => {
@@ -170,7 +172,8 @@ async fn assert_no_repeated_history(
         tokio::select! {
             () = &mut deadline => return,
             event = events.next() => match event {
-                Some(Event::History(history)) if history.target == target => assert!(
+                Some(Event::History(history))
+                    if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel == target) => assert!(
                     history.messages().all(|message| {
                         !message.text().contains("missed during the outage")
                             && message.msgid().is_none_or(|msgid| {

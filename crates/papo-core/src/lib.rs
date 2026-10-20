@@ -1232,8 +1232,6 @@ impl HistoryItem {
 /// History page attached to a completed response.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HistoryPage {
-    /// History target named by the batch.
-    pub target: String,
     /// Conversation named by the history batch.
     pub conversation: Conversation,
     /// Replayed items in server delivery order.
@@ -1544,8 +1542,6 @@ pub enum Event {
     },
     /// A completed history or playback batch.
     History {
-        /// The history target named by the batch.
-        target: String,
         /// The conversation named by the batch.
         conversation: Conversation,
         /// Replayed items in server delivery order.
@@ -3385,7 +3381,6 @@ impl Session {
             BatchEvent::History { target, items, end } => {
                 if let Some(conversation) = self.history_conversation(&target) {
                     self.outbox.event(Event::History {
-                        target,
                         conversation,
                         items,
                         end,
@@ -3547,7 +3542,6 @@ impl Session {
                 history: history.and_then(|(target, items, end)| {
                     Some(HistoryPage {
                         conversation: self.history_conversation(&target)?,
-                        target,
                         items,
                         end,
                     })

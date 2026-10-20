@@ -272,8 +272,8 @@ fn is_self(client: &Client, nick: &str) -> bool {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct HistoryPage {
-    /// Target whose history was requested.
-    pub target: String,
+    /// Conversation whose history was requested.
+    pub conversation: crate::Conversation,
     /// Replayed entries in server delivery order.
     pub items: Vec<HistoryItem>,
     /// Whether this page was empty or the server reported that no further page exists.
@@ -511,7 +511,7 @@ impl Client {
             .map(|item| history_item(item, self, crate::rt::now_wall(), Origin::History))
             .collect();
         Ok(crate::HistoryPage {
-            target,
+            conversation: page.conversation,
             items,
             end: page.end,
         })

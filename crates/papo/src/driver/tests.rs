@@ -920,7 +920,9 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     let Some(Event::History(history)) = events.next().await else {
         panic!("expected aggregate history event")
     };
-    assert_eq!(history.target, "#papo");
+    assert!(
+        matches!(&history.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
+    );
     assert_eq!(history.messages().count(), 1_000);
     assert_eq!(
         history.messages().next().map(ChatMessage::text),

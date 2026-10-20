@@ -416,7 +416,6 @@ pub papo_core::Event::History
 pub papo_core::Event::History::conversation: papo::Conversation
 pub papo_core::Event::History::end: bool
 pub papo_core::Event::History::items: alloc::vec::Vec<papo_core::HistoryItem>
-pub papo_core::Event::History::target: alloc::string::String
 pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(alloc::string::String, std::time::SystemTime)>)
 pub papo_core::Event::HostChanged
 pub papo_core::Event::HostChanged::host: alloc::string::String
@@ -1130,7 +1129,6 @@ pub struct papo_core::HistoryPage
 pub papo_core::HistoryPage::conversation: papo::Conversation
 pub papo_core::HistoryPage::end: bool
 pub papo_core::HistoryPage::items: alloc::vec::Vec<papo_core::HistoryItem>
-pub papo_core::HistoryPage::target: alloc::string::String
 impl papo_core::HistoryPage
 pub fn papo_core::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::HistoryLine>
 impl core::clone::Clone for papo_core::HistoryPage

@@ -40,7 +40,10 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     ];
     let (writer, reader, channel, sent) = history_peers(&s, &texts).await?;
     let page = reader.history(&channel).latest(10).await?;
-    assert_eq!(page.target.as_str(), channel);
+    assert_eq!(
+        conversation_name(&page.conversation),
+        Some(channel.as_str())
+    );
     assert!(page.end);
     let messages = page
         .messages()
@@ -87,7 +90,10 @@ async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {
         .send_raw(papo::Line::new("HISTORY", [channel.as_str(), "10"]))
         .await?;
     let page = reader.wait_for(Event::as_history).await?;
-    assert_eq!(page.target.as_str(), channel);
+    assert_eq!(
+        conversation_name(&page.conversation),
+        Some(channel.as_str())
+    );
     let message = page
         .messages()
         .find(|message| message.text() == text)

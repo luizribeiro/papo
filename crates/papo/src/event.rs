@@ -737,7 +737,7 @@ pub(crate) enum CoreEvent {
     StsUpgrade(u16),
     StsPolicy(StsAction),
     History {
-        target: String,
+        conversation: crate::Conversation,
         items: Vec<papo_core::HistoryItem>,
         end: bool,
     },
@@ -883,9 +883,15 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             },
         }),
         papo_core::Event::History {
-            target, items, end, ..
+            conversation,
+            items,
+            end,
         } => {
-            return CoreEvent::History { target, items, end };
+            return CoreEvent::History {
+                conversation,
+                items,
+                end,
+            };
         }
         papo_core::Event::ReadMarker(marker) => Event::ReadMarker(ReadMarker {
             conversation: marker.conversation,
@@ -2049,9 +2055,13 @@ mod tests {
     #[test]
     fn maps_history() {
         let message = Line::privmsg("#papo", "earlier");
-        let CoreEvent::History { target, items, end } = from_core(papo_core::Event::History {
-            target: "#papo".into(),
-            conversation: Conversation::Channel(Casemapping::Rfc1459.channel("#papo")),
+        let conversation = Conversation::Channel(Casemapping::Rfc1459.channel("#papo"));
+        let CoreEvent::History {
+            conversation: mapped,
+            items,
+            end,
+        } = from_core(papo_core::Event::History {
+            conversation: conversation.clone(),
             items: vec![
                 papo_core::HistoryItem::Message(papo_core::HistoryLine {
                     line: message.clone(),
@@ -2063,10 +2073,11 @@ mod tests {
                 }),
             ],
             end: true,
-        }) else {
+        })
+        else {
             panic!("history was not classified")
         };
-        assert_eq!(target, "#papo");
+        assert_eq!(mapped, conversation);
         assert_eq!(items.len(), 2);
         assert!(matches!(
             &items[0],

@@ -2,6 +2,7 @@ use papo::{Event, Origin, event::StandardReplyKind};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
+use crate::scenarios::support::conversation_name;
 
 /// a labelled WHOIS resolves to the requested user
 #[scenario(
@@ -46,7 +47,10 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
     let reader = s.connect("reader").await?;
     reader.join(&channel).await?;
     let page = reader.history(&channel).latest(10).await?;
-    assert_eq!(page.target.as_str(), channel);
+    assert_eq!(
+        conversation_name(&page.conversation),
+        Some(channel.as_str())
+    );
     let message = page
         .messages()
         .find(|message| message.raw_text() == "batch correlation deployment")
