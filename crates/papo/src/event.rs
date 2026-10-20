@@ -69,6 +69,36 @@ pub enum MessageKind {
     CtcpReply,
 }
 
+/// An incoming Client-to-Client Protocol query or reply.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Ctcp {
+    /// The user or server that sent the CTCP message.
+    pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
+    /// The IRC conversation to which the CTCP message belongs.
+    pub conversation: Conversation,
+    /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    pub status: Option<Vec<char>>,
+    /// The command with its original spelling.
+    pub command: String,
+    /// The command parameters, when present.
+    pub params: Option<String>,
+    /// Whether this is a response sent with `NOTICE`.
+    pub reply: bool,
+    /// The server-assigned message identifier, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
+    /// How the CTCP message relates to the current session.
+    pub origin: Origin,
+    /// All message tags in wire order.
+    pub tags: Tags,
+}
+
 /// Whether an event's actor is this client's user.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
@@ -635,6 +665,8 @@ pub enum Event {
     Motd(Motd),
     /// An incoming `PRIVMSG` or `NOTICE`.
     Message(Box<Message>),
+    /// An incoming Client-to-Client Protocol query or reply.
+    Ctcp(Ctcp),
     /// A line papo did not turn into a typed event.
     ///
     /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
@@ -759,6 +791,7 @@ macro_rules! event_accessors {
 
 event_accessors! {
     (boxed Message, as_message, Message),
+    (Ctcp, as_ctcp, Ctcp),
     (boxed History, as_history, crate::HistoryPage),
     (Connected, as_connected, Connected),
     (Motd, as_motd, Motd),

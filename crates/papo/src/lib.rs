@@ -128,7 +128,7 @@ pub mod event {
     pub use crate::PersistenceStatus;
     pub use crate::event_impl::{
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
-        ChannelRenamed, ChannelSynced, Connected, Departed, Disconnected, FeaturesChanged,
+        ChannelRenamed, ChannelSynced, Connected, Ctcp, Departed, Disconnected, FeaturesChanged,
         HostChanged, Invited, Joined, Kicked, MetadataChanged, ModeChange, ModeChanged,
         MonitorOffline, MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
         ReadMarker, RealnameChanged, Redacted, Source, SplitServers, StandardReply,
