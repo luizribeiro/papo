@@ -16,8 +16,8 @@ use std::{
 
 use papo_proto::{
     Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
-    Command, Folded, Isupport, Join, LineRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric,
-    Setname, Source, Target, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
+    Command, Isupport, Join, LineRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Setname,
+    Source, Target, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
 #[cfg(feature = "unstable")]
@@ -25,7 +25,7 @@ use crate::{
     BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, bouncer::NetworkUpdate,
 };
 use crate::{
-    Config, Event, Handled, LastSeen, MetadataValue, Outbox, OwnedModeChange, ReadMarker,
+    Config, Event, Handled, LastSeen, MetadataValue, NameKey, Outbox, OwnedModeChange, ReadMarker,
     StateLimit,
     monitor::{Monitor, presence_nicks},
 };
@@ -51,8 +51,8 @@ pub struct State {
     channels: HashMap<ChannelName, Channel>,
     users: HashMap<Nick, User>,
     who_sweeps: HashSet<ChannelName>,
-    read_markers: HashMap<Folded<Target>, ReadMarker>,
-    last_seen: HashMap<Folded<Target>, LastSeen>,
+    read_markers: HashMap<NameKey<Target>, ReadMarker>,
+    last_seen: HashMap<NameKey<Target>, LastSeen>,
     last_seen_order: VecDeque<String>,
     max_channels: usize,
     max_members_per_channel: usize,
@@ -62,7 +62,7 @@ pub struct State {
     persistence: Option<PersistenceStatus>,
     #[cfg(feature = "unstable")]
     bouncer_networks: BTreeMap<NetworkId, BouncerNetwork>,
-    metadata: HashMap<Folded<Target>, HashMap<String, MetadataValue>>,
+    metadata: HashMap<NameKey<Target>, HashMap<String, MetadataValue>>,
     metadata_subscriptions: Vec<String>,
     limits_warned: HashSet<StateLimit>,
 }
@@ -149,7 +149,7 @@ pub(crate) struct MetadataContext {
 pub(crate) enum StateSnapshot {
     Full(Box<State>),
     Metadata {
-        target: Folded<Target>,
+        target: NameKey<Target>,
         key: String,
         value: Option<MetadataValue>,
     },
@@ -200,7 +200,7 @@ fn metadata_update<'a>(
 impl State {
     pub(crate) fn snapshot_for(&self, message: &LineRef<'_>) -> StateSnapshot {
         if let Some((target, key, _, _)) = metadata_update(message) {
-            let target = Folded::new(target, self.casemapping);
+            let target = NameKey::new(target, self.casemapping);
             let value = self
                 .metadata
                 .get(&target)
@@ -276,7 +276,7 @@ impl State {
         *self = Self::with_casemapping(config, casemapping);
         self.last_seen = last_seen
             .into_values()
-            .map(|seen| (Folded::new(&seen.target, self.casemapping), seen))
+            .map(|seen| (NameKey::new(&seen.target, self.casemapping), seen))
             .collect();
         self.last_seen_order = last_seen_order;
     }
@@ -701,11 +701,11 @@ impl State {
             .collect();
         self.read_markers = std::mem::take(&mut self.read_markers)
             .into_values()
-            .map(|marker| (Folded::new(&marker.target, mapping), marker))
+            .map(|marker| (NameKey::new(&marker.target, mapping), marker))
             .collect();
         self.last_seen = std::mem::take(&mut self.last_seen)
             .into_values()
-            .map(|seen| (Folded::new(&seen.target, mapping), seen))
+            .map(|seen| (NameKey::new(&seen.target, mapping), seen))
             .collect();
         #[cfg(feature = "unstable")]
         for network in self.bouncer_networks.values_mut() {
@@ -715,7 +715,7 @@ impl State {
         }
         self.metadata = std::mem::take(&mut self.metadata)
             .into_iter()
-            .map(|(target, values)| (Folded::new(target.original(), mapping), values))
+            .map(|(target, values)| (NameKey::new(target.original(), mapping), values))
             .collect();
         self.casemapping = mapping;
     }

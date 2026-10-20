@@ -1,6 +1,6 @@
 use super::{
-    Command, Event, Folded, HashMap, LineRef, MAX_METADATA_TARGETS, MetadataValue, Numeric, Outbox,
-    State, StateLimit, metadata_update,
+    Command, Event, HashMap, LineRef, MAX_METADATA_TARGETS, MetadataValue, NameKey, Numeric,
+    Outbox, State, StateLimit, metadata_update,
 };
 
 impl State {
@@ -73,7 +73,7 @@ impl State {
         max_keys: usize,
         outbox: &mut Outbox,
     ) {
-        let target_key = Folded::new(target, self.casemapping);
+        let target_key = NameKey::new(target, self.casemapping);
         if let Some(value) = value {
             if !self.metadata.contains_key(&target_key)
                 && self.metadata.len() >= MAX_METADATA_TARGETS

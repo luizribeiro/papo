@@ -66,6 +66,7 @@ mod keepalive;
 mod labels;
 mod metadata;
 mod monitor;
+mod name;
 mod outgoing;
 #[cfg(feature = "unstable")]
 mod persistence;
@@ -110,6 +111,7 @@ use keepalive::Keepalive;
 use labels::encode_label;
 pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue};
 use monitor::Monitor;
+pub(crate) use name::NameKey;
 pub use outgoing::TextKind;
 use ratelimit::RateLimiter;
 pub use ratelimit::{InvalidRateLimit, RateLimit};

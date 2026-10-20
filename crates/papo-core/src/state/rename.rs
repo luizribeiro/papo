@@ -1,4 +1,4 @@
-use super::{Command, Event, Folded, LineRef, Outbox, State};
+use super::{Command, Event, LineRef, NameKey, Outbox, State};
 
 impl State {
     pub(super) fn handle_channel_rename(
@@ -31,7 +31,7 @@ impl State {
         let old_target = self.casemapping.fold(old);
         if let Some(values) = self.metadata.remove(old_target.as_ref()) {
             self.metadata
-                .insert(Folded::new(new, self.casemapping), values);
+                .insert(NameKey::new(new, self.casemapping), values);
         }
         outbox.event(Event::ChannelRenamed {
             old: self.casemapping.channel(old),

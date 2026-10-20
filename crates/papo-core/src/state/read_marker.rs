@@ -1,5 +1,5 @@
 use super::{
-    Command, Event, Folded, LastSeen, LineRef, MAX_LAST_SEEN_TARGETS, Outbox, ReadMarker, Source,
+    Command, Event, LastSeen, LineRef, MAX_LAST_SEEN_TARGETS, NameKey, Outbox, ReadMarker, Source,
     State, time,
 };
 
@@ -24,7 +24,7 @@ impl State {
                 Some(time)
             }
         };
-        let key = Folded::new(target, self.casemapping);
+        let key = NameKey::new(target, self.casemapping);
         let advances = match (self.read_markers.get(&key), time) {
             (None, _) | (Some(ReadMarker { time: None, .. }), Some(_)) => true,
             (
@@ -63,7 +63,7 @@ impl State {
             };
             target = nick;
         }
-        let key = Folded::new(target, self.casemapping);
+        let key = NameKey::new(target, self.casemapping);
         if self
             .last_seen
             .get(&key)
@@ -78,7 +78,7 @@ impl State {
             && let Some(oldest) = self.last_seen_order.pop_front()
         {
             self.last_seen
-                .remove(&Folded::new(oldest, self.casemapping));
+                .remove(&NameKey::new(oldest, self.casemapping));
         }
         self.last_seen_order.push_back(target.to_owned());
         self.last_seen.insert(
