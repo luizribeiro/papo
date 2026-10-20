@@ -1254,6 +1254,9 @@ where
             crate::rt::now_wall(),
         ) {
             event::CoreEvent::Forward(event) => {
+                if let Event::Reacted(reaction) = &event {
+                    catchup::remember_live_reaction(catchups.values_mut(), reaction);
+                }
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);
                 }

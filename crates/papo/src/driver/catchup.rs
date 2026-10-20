@@ -20,6 +20,24 @@ pub(super) struct CatchupCursor {
     time: SystemTime,
 }
 
+pub(super) fn remember_live_reaction<'a>(
+    catchups: impl IntoIterator<Item = &'a mut Catchup>,
+    reaction: &crate::event::Reacted,
+) {
+    let Some(msgid) = &reaction.msgid else {
+        return;
+    };
+    for catchup in catchups {
+        let matches = match &reaction.conversation {
+            crate::Conversation::Channel(channel) => channel == catchup.target.as_str(),
+            _ => false,
+        };
+        if matches {
+            catchup.seen.insert(msgid.to_string());
+        }
+    }
+}
+
 impl CatchupCursor {
     fn reference(&self, supports_timestamp: bool) -> Option<papo_core::MsgRef> {
         self.msgid
@@ -202,6 +220,62 @@ mod tests {
 
     use papo_core::{Config, HistoryItem, HistoryLine, MsgRef, RateLimit, Session};
     use papo_proto::LineRef;
+
+    #[test]
+    fn gap_fill_deduplicates_a_live_reaction_by_msgid() {
+        let mapping = papo_proto::Casemapping::default();
+        let mut catchup = super::Catchup {
+            target: "#papo".into(),
+            items: Vec::new(),
+            seen: std::collections::HashSet::new(),
+        };
+        let live = crate::event::Reacted {
+            msgid: Some("RfcBTzyxY120010".into()),
+            time: SystemTime::UNIX_EPOCH,
+            account: Some(mapping.account("emily")),
+            actor: crate::Source::User {
+                nick: mapping.nick("emily"),
+                user: Some("~e".into()),
+                host: Some("cloak.example".into()),
+            },
+            authorship: crate::Authorship::Other,
+            conversation: crate::Conversation::Channel(mapping.channel("#papo")),
+            status: None,
+            message: "RfcBTzyxY120008".into(),
+            reaction: "👍".into(),
+            removed: false,
+        };
+        super::remember_live_reaction(std::iter::once(&mut catchup), &live);
+        super::extend_catchup(
+            &mut catchup,
+            [
+                "@time=2026-10-20T18:42:12.456Z;msgid=RfcBTzyxY120010;+draft/react=👍;+draft/reply=RfcBTzyxY120008 :emily!~e@cloak.example TAGMSG #papo",
+                "@time=2026-10-20T18:42:13.789Z;msgid=RfcBTzyxY120011;+draft/react=🎉;+draft/reply=RfcBTzyxY120009 :alice!~a@cloak.example TAGMSG #papo",
+            ]
+            .map(|line| papo_core::HistoryItem::Reacted(history_line(line))),
+        );
+
+        assert_eq!(catchup.items.len(), 1);
+        assert_eq!(
+            catchup.items[0]
+                .clone()
+                .into_line()
+                .line
+                .as_ref()
+                .tag("msgid")
+                .as_deref(),
+            Some("RfcBTzyxY120011")
+        );
+    }
+
+    fn history_line(line: &str) -> papo_core::HistoryLine {
+        papo_core::HistoryLine {
+            line: LineRef::parse(line).unwrap().to_owned(),
+            context: false,
+            authorship: papo_core::Authorship::Unknown,
+            subject_authorship: papo_core::Authorship::Unknown,
+        }
+    }
 
     #[test]
     fn activity_without_a_msgid_advances_the_timestamp_cursor() {
