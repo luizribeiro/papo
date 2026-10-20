@@ -1,6 +1,4 @@
-use papo::{
-    Error, Event, Fallback, Feature, MessageKind, Origin, Refusal, Source, UnsupportedReason,
-};
+use papo::{Error, Event, Fallback, Feature, MessageKind, Origin, Refusal, UnsupportedReason};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 use papo_testing::Peer;
@@ -60,7 +58,7 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(echo.origin(), Origin::Echo);
     assert_eq!(message.kind(), MessageKind::Privmsg);
     assert_eq!(
-        message.source().as_ref().and_then(Source::nick),
+        message.source().as_ref().and_then(crate::source_nick),
         Some(alice.nick().as_ref())
     );
     assert_eq!(
@@ -104,7 +102,7 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(echo.origin(), Origin::Echo);
     assert_eq!(message.kind(), MessageKind::Notice);
     assert_eq!(
-        message.source().as_ref().and_then(Source::nick),
+        message.source().as_ref().and_then(crate::source_nick),
         Some(alice.nick().as_ref())
     );
     assert_eq!(
@@ -445,7 +443,8 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event.as_message().filter(|message| {
                 message.kind() == MessageKind::CtcpReply
-                    && message.source().as_ref().and_then(Source::nick) == Some(bob.nick().as_ref())
+                    && message.source().as_ref().and_then(crate::source_nick)
+                        == Some(bob.nick().as_ref())
             })
         })
         .await?;
@@ -479,7 +478,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event.as_message().filter(|message| {
                 message.kind() == MessageKind::CtcpReply
-                    && message.source().as_ref().and_then(Source::nick)
+                    && message.source().as_ref().and_then(crate::source_nick)
                         == Some(carol.nick().as_ref())
                     && message.ctcp().map(|ctcp| ctcp.command()) == Some("PING")
             })
@@ -518,7 +517,8 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
             event.as_message().filter(|message| {
                 message.kind() == MessageKind::CtcpReply
                     && conversation_name(&message.conversation) == Some(bob_nick.as_ref())
-                    && message.source().as_ref().and_then(Source::nick) == Some(bob_nick.as_ref())
+                    && message.source().as_ref().and_then(crate::source_nick)
+                        == Some(bob_nick.as_ref())
             })
         })
         .await?;
@@ -604,7 +604,7 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(added.message, original_id);
     assert_eq!(added.reaction, "👍");
     assert!(!added.removed);
-    assert_eq!(added.actor.nick(), Some(bob.nick().as_ref()));
+    assert_eq!(crate::source_nick(&added.actor), Some(bob.nick().as_ref()));
 
     bob.unreact(&channel, original_id.clone(), "👍").await?;
     let removed = alice.wait_for(Event::as_reacted).await?;
@@ -633,7 +633,7 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     alice.typing(bob_nick.clone(), Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;
 
-    assert_eq!(typing.actor.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(crate::source_nick(&typing.actor), Some(alice_nick.as_ref()));
     assert_eq!(
         conversation_name(&typing.conversation),
         Some(alice_nick.as_ref())
@@ -676,7 +676,10 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     let target = format!("@{channel}");
     alice.typing(&target, Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;
-    assert_eq!(typing.actor.nick(), Some(alice.nick().as_ref()));
+    assert_eq!(
+        crate::source_nick(&typing.actor),
+        Some(alice.nick().as_ref())
+    );
     assert_eq!(
         conversation_name(&typing.conversation),
         Some(channel.as_ref())
@@ -771,7 +774,10 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(redacted.status, None);
     assert_eq!(redacted.message, id);
     assert_eq!(redacted.reason.as_deref(), Some("superseded"));
-    assert_eq!(redacted.actor.nick(), Some(alice.nick().as_ref()));
+    assert_eq!(
+        crate::source_nick(&redacted.actor),
+        Some(alice.nick().as_ref())
+    );
     bob.expect_none(Event::as_redacted).await?;
 
     let Error::Server(refusal) = alice

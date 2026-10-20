@@ -528,11 +528,14 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(target.channel.as_ref(), channel);
     assert_eq!(target.nick.as_ref(), carol_nick.as_ref());
-    assert_eq!(target.actor.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(crate::source_nick(&target.actor), Some(alice_nick.as_ref()));
     assert_eq!(target.subject_authorship, papo::Authorship::Own);
     assert_eq!(observer.channel.as_ref(), channel);
     assert_eq!(observer.nick.as_ref(), carol_nick.as_ref());
-    assert_eq!(observer.actor.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(
+        crate::source_nick(&observer.actor),
+        Some(alice_nick.as_ref())
+    );
     assert_eq!(observer.subject_authorship, papo::Authorship::Other);
     assert!(
         alice
@@ -773,7 +776,7 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
     for kicked in [&observed, &own] {
         assert_eq!(kicked.channel.as_ref(), channel);
         assert_eq!(kicked.nick, bob_nick);
-        assert_eq!(kicked.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(crate::source_nick(&kicked.actor), Some(alice_nick.as_ref()));
         assert_eq!(kicked.reason.as_deref(), Some(reason));
     }
     assert_eq!(observed.subject_authorship, papo::Authorship::Other);
@@ -839,8 +842,11 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
     for ((observed, own), nick) in observed.iter().zip(&own).zip(expected) {
         assert_eq!(&observed.nick, nick);
         assert_eq!(&own.nick, nick);
-        assert_eq!(observed.actor.nick(), Some(alice_nick.as_ref()));
-        assert_eq!(own.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(
+            crate::source_nick(&observed.actor),
+            Some(alice_nick.as_ref())
+        );
+        assert_eq!(crate::source_nick(&own.actor), Some(alice_nick.as_ref()));
         assert_eq!(observed.reason.as_deref(), Some(alice_nick.as_ref()));
         assert_eq!(own.reason, observed.reason);
         assert_eq!(observed.subject_authorship, papo::Authorship::Other);
@@ -1029,7 +1035,10 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     for changed in [&own, &observed] {
         assert_eq!(changed.channel.as_ref(), channel);
         assert_eq!(changed.topic.as_deref(), Some(text));
-        assert_eq!(changed.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(
+            crate::source_nick(&changed.actor),
+            Some(alice_nick.as_ref())
+        );
     }
     for peer in [&alice, &bob] {
         assert_eq!(peer.state().channel(&channel).unwrap().topic(), Some(text));
@@ -1054,7 +1063,10 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
         let changed = peer.wait_for(Event::as_topic_changed).await?;
         assert_eq!(changed.channel.as_ref(), channel);
         assert_eq!(changed.topic, None);
-        assert_eq!(changed.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(
+            crate::source_nick(&changed.actor),
+            Some(alice_nick.as_ref())
+        );
         assert_eq!(peer.state().channel(&channel).unwrap().topic(), None);
         peer.expect_none(Event::as_topic_changed).await?;
     }

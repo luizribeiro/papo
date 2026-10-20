@@ -65,7 +65,10 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     let on_bob = wait_channel_mode(&mut bob, &channel, letter).await?;
     let on_carol = wait_channel_mode(&mut carol, &channel, letter).await?;
     for changed in [&on_bob, &on_carol] {
-        assert_eq!(changed.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(
+            crate::source_nick(&changed.actor),
+            Some(alice_nick.as_ref())
+        );
         assert_eq!(changed.changes.len(), 1);
         let change = &changed.changes[0];
         assert_eq!(change.mode, letter);
@@ -91,7 +94,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
             crate::scenarios::support::conversation_name(&message.conversation),
             Some(channel.as_str())
         );
-        assert_eq!(message.actor.nick(), Some(bob_nick.as_ref()));
+        assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
         assert!(!message.is_private());
     }
     for peer in [&alice, &bob, &carol] {
@@ -107,7 +110,10 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     alice.mode(&channel).remove_with(letter, arg).await?;
     for peer in [&mut bob, &mut carol] {
         let removed = wait_channel_mode(peer, &channel, letter).await?;
-        assert_eq!(removed.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(
+            crate::source_nick(&removed.actor),
+            Some(alice_nick.as_ref())
+        );
         assert_eq!(removed.changes.len(), 1);
         let change = &removed.changes[0];
         assert_eq!(change.mode, letter);
@@ -119,6 +125,9 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     let again = "unmuted again";
     carol.privmsg(&channel, again).await?;
     let message = bob.wait_for(|event| message_text(event, again)).await?;
-    assert_eq!(message.actor.nick(), Some(carol_nick.as_ref()));
+    assert_eq!(
+        crate::source_nick(&message.actor),
+        Some(carol_nick.as_ref())
+    );
     Ok(())
 }

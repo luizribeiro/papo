@@ -118,7 +118,10 @@ async fn grant_rank(
         .add_with(prefix.mode, bob_nick.to_string())
         .await?;
     let changed = wait_channel_mode(bob, channel, prefix.mode).await?;
-    assert_eq!(changed.actor.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(
+        crate::source_nick(&changed.actor),
+        Some(alice_nick.as_ref())
+    );
     assert_eq!(changed.changes.len(), 1);
     let change = &changed.changes[0];
     assert!(change.set);

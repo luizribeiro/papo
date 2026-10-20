@@ -162,7 +162,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event.as_message().filter(|message| {
                 message.kind() == papo::MessageKind::Notice
-                    && message.source().as_ref().and_then(papo::Source::nick) == Some("NickServ")
+                    && message.source().as_ref().and_then(crate::source_nick) == Some("NickServ")
                     && message.text().contains(account.as_ref())
             })
         })
@@ -178,7 +178,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event.as_message().filter(|message| {
                 message.kind() == papo::MessageKind::Notice
-                    && message.source().as_ref().and_then(papo::Source::nick) == Some("ChanServ")
+                    && message.source().as_ref().and_then(crate::source_nick) == Some("ChanServ")
                     && message.text().contains(&channel)
             })
         })

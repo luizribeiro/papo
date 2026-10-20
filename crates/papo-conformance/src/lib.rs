@@ -31,6 +31,10 @@ type HarnessResult = Result<Completion, Failed>;
 type FixtureResult = papo_testing::Result<()>;
 type ScenarioFuture = Pin<Box<dyn Future<Output = FixtureResult>>>;
 
+fn source_nick(source: &papo::Source) -> Option<&str> {
+    source.nick().map(AsRef::<str>::as_ref)
+}
+
 #[derive(Clone, Copy)]
 struct ScenarioSpec {
     name: &'static str,

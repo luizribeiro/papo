@@ -25,7 +25,10 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         .await?;
 
     assert_eq!(message.text(), text);
-    assert_eq!(message.actor.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(
+        crate::source_nick(&message.actor),
+        Some(alice_nick.as_ref())
+    );
     assert_eq!(
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())
@@ -142,7 +145,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| event.as_message().filter(|message| message.text() == text))
         .await?;
 
-    assert_eq!(message.actor.nick(), Some(bob_nick.as_ref()));
+    assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
     assert_eq!(
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(bob_nick.as_ref())
@@ -373,7 +376,10 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| event.as_message().filter(|message| message.text() == text))
         .await?;
 
-    assert_eq!(message.actor.nick(), Some(alice_nick.as_ref()));
+    assert_eq!(
+        crate::source_nick(&message.actor),
+        Some(alice_nick.as_ref())
+    );
     assert_eq!(
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())

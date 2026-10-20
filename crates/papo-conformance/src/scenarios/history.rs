@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Error, Event, HistoryItem, MessageKind, Origin, Sent, Source};
+use papo::{Error, Event, HistoryItem, MessageKind, Origin, Sent};
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
@@ -69,7 +69,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(message.origin(), Origin::History);
         assert!(!message.is_live());
         assert_eq!(
-            message.source().as_ref().and_then(Source::nick),
+            message.source().as_ref().and_then(crate::source_nick),
             Some(writer.nick().as_ref())
         );
         assert!(message.tags().get("time").is_some());
@@ -281,7 +281,7 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(
-        notice.source().as_ref().and_then(Source::nick),
+        notice.source().as_ref().and_then(crate::source_nick),
         Some("BouncerServ")
     );
     let target = crate::scenarios::support::conversation_name(&notice.conversation)
@@ -335,7 +335,10 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
         .expect("history contains the topic change");
     assert_eq!(topic.channel.as_ref(), channel);
     assert_eq!(topic.topic.as_deref(), Some("incident response completed"));
-    assert_eq!(topic.actor.nick(), Some(writer.nick().as_ref()));
+    assert_eq!(
+        crate::source_nick(&topic.actor),
+        Some(writer.nick().as_ref())
+    );
     Ok(())
 }
 

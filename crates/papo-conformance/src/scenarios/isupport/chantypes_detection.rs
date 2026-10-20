@@ -53,7 +53,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         );
         assert!(!message.is_private());
         assert_eq!(message.return_address(), name);
-        assert_eq!(message.actor.nick(), Some(bob_nick.as_ref()));
+        assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
     }
 
     for c in UNADVERTISED_CHANTYPES_CANDIDATES {

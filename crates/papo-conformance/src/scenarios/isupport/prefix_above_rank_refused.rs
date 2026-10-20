@@ -68,7 +68,10 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     alice.mode(&channel).op(bob_nick.clone()).await?;
     for peer in [&mut alice, &mut bob, &mut carol] {
         let promoted = wait_channel_mode(peer, &channel, 'o').await?;
-        assert_eq!(promoted.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(
+            crate::source_nick(&promoted.actor),
+            Some(alice_nick.as_ref())
+        );
         assert_eq!(promoted.changes.len(), 1);
         let change = &promoted.changes[0];
         assert!(change.set);

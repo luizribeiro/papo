@@ -244,7 +244,7 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     for event in [&alice_rename, &bob_rename] {
         assert_eq!(event.old.as_ref(), channel);
         assert_eq!(event.new.as_ref(), renamed);
-        assert_eq!(event.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(crate::source_nick(&event.actor), Some(alice_nick.as_ref()));
         assert_eq!(event.reason.as_deref(), Some(reason));
     }
     for peer in [&alice, &bob] {
@@ -290,6 +290,6 @@ async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(message.actor.nick(), Some("matrix/alice"));
+    assert_eq!(crate::source_nick(&message.actor), Some("matrix/alice"));
     Ok(())
 }

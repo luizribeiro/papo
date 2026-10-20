@@ -133,6 +133,9 @@ async fn expect_delivery(
         Some(sender_nick.as_ref())
     );
     assert!(message.is_private());
-    assert_eq!(message.actor.nick(), Some(sender_nick.as_ref()));
+    assert_eq!(
+        crate::source_nick(&message.actor),
+        Some(sender_nick.as_ref())
+    );
     Ok(())
 }
