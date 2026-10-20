@@ -53,34 +53,6 @@ pub use user::{
     Netsplit, NickChanged, Quit, RealnameChanged, SplitServers,
 };
 
-/// A parsed Client-to-Client Protocol message body.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Ctcp<'a> {
-    command: &'a str,
-    params: Option<&'a str>,
-}
-
-impl<'a> Ctcp<'a> {
-    fn from_proto(value: ProtoCtcp<'a>) -> Self {
-        Self {
-            command: value.command,
-            params: value.params,
-        }
-    }
-
-    /// Returns the command with its original spelling.
-    #[must_use]
-    pub const fn command(&self) -> &'a str {
-        self.command
-    }
-
-    /// Returns the command parameters, when present.
-    #[must_use]
-    pub const fn params(&self) -> Option<&'a str> {
-        self.params
-    }
-}
-
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -518,14 +490,6 @@ impl Message {
     #[must_use]
     pub fn is_own(&self) -> bool {
         self.authorship == Authorship::Own
-    }
-
-    /// Parses the raw text as CTCP when it contains a CTCP command.
-    ///
-    /// `None` means the message text is not valid CTCP.
-    #[must_use]
-    pub fn ctcp(&self) -> Option<Ctcp<'_>> {
-        ProtoCtcp::parse(&self.raw_text).map(Ctcp::from_proto)
     }
 }
 
@@ -1359,7 +1323,9 @@ mod tests {
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
-    use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
+    use papo_proto::{
+        Casemapping, Ctcp as ProtoCtcp, Isupport, Line, LineRef, Typing,
+    };
 
     fn from_core(event: papo_core::Event) -> CoreEvent {
         from_core_with_mapping(event, Casemapping::default(), UNIX_EPOCH)
@@ -1393,17 +1359,16 @@ mod tests {
         );
         assert_eq!(chat("PRIVMSG", "\x01VERSION\x01").kind(), MessageKind::Ctcp);
         let version = chat("PRIVMSG", "\x01VERSION\x01");
-        assert_eq!(version.ctcp().unwrap().command(), "VERSION");
-        assert_eq!(version.ctcp().unwrap().params(), None);
+        let version = ProtoCtcp::parse(&version.raw_text).unwrap();
+        assert_eq!(version.command, "VERSION");
+        assert_eq!(version.params, None);
         assert_eq!(
             chat("NOTICE", "\x01VERSION papo-0.1\x01").kind(),
             MessageKind::CtcpReply
         );
+        let reply = chat("NOTICE", "\x01VERSION papo-0.1\x01");
         assert_eq!(
-            chat("NOTICE", "\x01VERSION papo-0.1\x01")
-                .ctcp()
-                .unwrap()
-                .params(),
+            ProtoCtcp::parse(&reply.raw_text).unwrap().params,
             Some("papo-0.1")
         );
         assert!(

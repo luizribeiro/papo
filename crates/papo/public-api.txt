@@ -1710,26 +1710,6 @@ impl core::marker::Unpin for papo::ConnectError
 impl core::marker::UnsafeUnpin for papo::ConnectError
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::ConnectError
 impl !core::panic::unwind_safe::UnwindSafe for papo::ConnectError
-pub struct papo::Ctcp<'a>
-impl<'a> papo::Ctcp<'a>
-pub const fn papo::Ctcp<'a>::command(&self) -> &'a str
-pub const fn papo::Ctcp<'a>::params(&self) -> core::option::Option<&'a str>
-impl<'a> core::clone::Clone for papo::Ctcp<'a>
-pub fn papo::Ctcp<'a>::clone(&self) -> Self
-impl<'a> core::cmp::Eq for papo::Ctcp<'a>
-impl<'a> core::cmp::PartialEq for papo::Ctcp<'a>
-pub fn papo::Ctcp<'a>::eq(&self, &Self) -> bool
-impl<'a> core::fmt::Debug for papo::Ctcp<'a>
-pub fn papo::Ctcp<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl<'a> core::marker::Copy for papo::Ctcp<'a>
-impl<'a> core::marker::StructuralPartialEq for papo::Ctcp<'a>
-impl<'a> core::marker::Freeze for papo::Ctcp<'a>
-impl<'a> core::marker::Send for papo::Ctcp<'a>
-impl<'a> core::marker::Sync for papo::Ctcp<'a>
-impl<'a> core::marker::Unpin for papo::Ctcp<'a>
-impl<'a> core::marker::UnsafeUnpin for papo::Ctcp<'a>
-impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::Ctcp<'a>
-impl<'a> core::panic::unwind_safe::UnwindSafe for papo::Ctcp<'a>
 #[non_exhaustive] pub struct papo::Disconnected
 pub papo::Disconnected::cause: papo::DisconnectCause
 pub papo::Disconnected::retry_in: core::option::Option<core::time::Duration>
@@ -2017,7 +1997,6 @@ pub papo::Message::text: alloc::string::String
 pub papo::Message::time: std::time::SystemTime
 impl papo::Message
 pub fn papo::Message::account(&self) -> core::option::Option<&str>
-pub fn papo::Message::ctcp(&self) -> core::option::Option<papo::Ctcp<'_>>
 pub fn papo::Message::id(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Message::is_bot(&self) -> bool
 pub fn papo::Message::is_live(&self) -> bool

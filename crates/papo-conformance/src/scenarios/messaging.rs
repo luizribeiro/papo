@@ -1,6 +1,6 @@
 use papo::{Error, Event, Fallback, Feature, MessageKind, Origin, Refusal, UnsupportedReason};
 use papo_conformance_macros::scenario;
-use papo_proto::Typing;
+use papo_proto::{Ctcp, Typing};
 use papo_testing::Peer;
 
 use super::support::{conversation_name, message_text};
@@ -420,9 +420,9 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
             Some(channel.as_str())
         );
         assert_eq!(message.raw_text(), "\u{1}ACTION waves hello\u{1}");
-        let ctcp = message.ctcp().expect("ACTION has a CTCP representation");
-        assert_eq!(ctcp.command(), "ACTION");
-        assert_eq!(ctcp.params(), Some("waves hello"));
+        let ctcp = Ctcp::parse(&message.raw_text).expect("ACTION has a CTCP representation");
+        assert_eq!(ctcp.command, "ACTION");
+        assert_eq!(ctcp.params, Some("waves hello"));
     }
 
     alice
@@ -438,7 +438,10 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|message| message.kind() == MessageKind::Ctcp)
         })
         .await?;
-    assert_eq!(query.ctcp().map(|ctcp| ctcp.command()), Some("VERSION"));
+    assert_eq!(
+        Ctcp::parse(&query.raw_text).map(|ctcp| ctcp.command),
+        Some("VERSION")
+    );
     let reply = alice
         .wait_for(|event| {
             event.as_message().filter(|message| {
@@ -448,11 +451,11 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    let version = reply.ctcp().expect("VERSION reply is CTCP");
-    assert_eq!(version.command(), "VERSION");
+    let version = Ctcp::parse(&reply.raw_text).expect("VERSION reply is CTCP");
+    assert_eq!(version.command, "VERSION");
     assert!(
         version
-            .params()
+            .params
             .is_some_and(|params| params.starts_with("papo "))
     );
 
@@ -471,7 +474,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(
-        query.ctcp().and_then(|ctcp| ctcp.params()),
+        Ctcp::parse(&query.raw_text).and_then(|ctcp| ctcp.params),
         Some("1735689600")
     );
     let reply = alice
@@ -480,12 +483,12 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
                 message.kind() == MessageKind::CtcpReply
                     && message.source().as_ref().and_then(crate::source_nick)
                         == Some(carol.nick().as_ref())
-                    && message.ctcp().map(|ctcp| ctcp.command()) == Some("PING")
+                    && Ctcp::parse(&message.raw_text).map(|ctcp| ctcp.command) == Some("PING")
             })
         })
         .await?;
     assert_eq!(
-        reply.ctcp().and_then(|ctcp| ctcp.params()),
+        Ctcp::parse(&reply.raw_text).and_then(|ctcp| ctcp.params),
         Some("1735689600")
     );
     Ok(())
@@ -507,7 +510,7 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event.as_message().filter(|message| {
                 conversation_name(&message.conversation) == Some(channel.as_str())
-                    && message.ctcp().map(|ctcp| ctcp.command()) == Some("VERSION")
+                    && Ctcp::parse(&message.raw_text).map(|ctcp| ctcp.command) == Some("VERSION")
             })
         })
         .await?;
@@ -541,7 +544,7 @@ async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| {
             event.as_message().filter(|message| {
                 conversation_name(&message.conversation) == Some(channel.as_str())
-                    && message.ctcp().map(|ctcp| ctcp.command()) == Some("VERSION")
+                    && Ctcp::parse(&message.raw_text).map(|ctcp| ctcp.command) == Some("VERSION")
             })
         })
         .await?;

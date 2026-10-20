@@ -62,7 +62,7 @@ pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
-pub use event_impl::{Authorship, Ctcp, Event, Message, MessageKind, Origin, Source, Tags};
+pub use event_impl::{Authorship, Event, Message, MessageKind, Origin, Source, Tags};
 pub use ext::accounts::{AccountCreation, NewAccount};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
