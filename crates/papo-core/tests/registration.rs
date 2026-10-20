@@ -262,6 +262,7 @@ fn completes_after_motd_with_capabilities_and_isupport() {
             event,
             Event::Registered(welcome)
                 if welcome.nick == "account"
+                    && welcome.nick.casemapping() == papo_proto::Casemapping::Ascii
                     && welcome.caps.get("server-time") == Some(&Some("iso8601".to_owned()))
                     && welcome.isupport.network() == Some("Ergo")
                     && welcome.isupport.utf8only()

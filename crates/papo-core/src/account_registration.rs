@@ -1,6 +1,6 @@
 use papo_proto::LineRef;
 
-use crate::{Event, Handled, Outbox, Secret};
+use crate::{Casemapping, Event, Handled, Outbox, Secret};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct PendingRegistration {
@@ -39,7 +39,12 @@ pub(super) struct AccountRegistration {
 }
 
 impl AccountRegistration {
-    pub(super) fn handle_message(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Handled {
+    pub(super) fn handle_message(
+        &mut self,
+        message: &LineRef<'_>,
+        casemapping: Casemapping,
+        outbox: &mut Outbox,
+    ) -> Handled {
         if self.waiting
             && (message.command_is("REGISTER") || message.command_is("VERIFY"))
             && message.param(0) == Some("SUCCESS")
@@ -50,7 +55,7 @@ impl AccountRegistration {
             self.account = Some(account.to_owned());
             self.waiting = false;
             outbox.event(Event::AccountRegistered {
-                account: account.to_owned(),
+                account: casemapping.account(account),
                 logged_in: true,
             });
             Handled::Yes
@@ -62,7 +67,7 @@ impl AccountRegistration {
                 return Handled::No;
             };
             outbox.event(Event::VerificationRequired {
-                account: account.to_owned(),
+                account: casemapping.account(account),
                 message: description.to_owned(),
             });
             Handled::Yes

@@ -1186,7 +1186,7 @@ where
                     *registered = true;
                 }
                 let event = Event::Registered(event::Registered {
-                    nick: session.isupport().casemapping().nick(welcome.nick),
+                    nick: welcome.nick,
                     text: welcome.text,
                     caps: welcome.caps,
                     reconnected,
@@ -1583,7 +1583,10 @@ fn after_registration(
         session
             .send(
                 now(),
-                Line::new("MODE", [welcome.nick.clone(), format!("+{mode}")]),
+                Line::new(
+                    "MODE",
+                    [welcome.nick.as_ref().to_owned(), format!("+{mode}")],
+                ),
             )
             .map_err(io::Error::other)?;
     }

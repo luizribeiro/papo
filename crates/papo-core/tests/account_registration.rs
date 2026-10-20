@@ -17,6 +17,8 @@ fn registered() -> Transcript {
     .welcome(":ergo.test 001 tester :Welcome to Ergo")
     .server(":ergo.test 422 tester :MOTD File is missing")
     .event(|event| matches!(event, Event::Registered(_)))
+    .server(":ergo.test 005 tester CASEMAPPING=ascii :are supported")
+    .event(|event| matches!(event, Event::CasemappingChanged { .. }))
 }
 
 fn early_registration_waiting() -> Transcript {
@@ -89,7 +91,7 @@ fn registers_an_account_with_a_labelled_response() {
         .client("@label=0 REGISTER alice alice@example.org :correct horse battery staple")
         .server("@label=0 :ergo.test REGISTER SUCCESS alice :Account successfully registered")
         .event(|event| {
-            matches!(event, Event::AccountRegistered { account, logged_in: true } if account == "alice")
+            matches!(event, Event::AccountRegistered { account, logged_in: true } if account == "alice" && account.casemapping() == papo_proto::Casemapping::Ascii)
         })
         .event(|event| matches!(event, Event::Response(_)))
         .inspect(|session| assert_eq!(session.account(), Some("alice")));
@@ -131,7 +133,7 @@ fn verifies_an_account_after_the_server_requires_it() {
         )
         .event(|event| {
             matches!(event, Event::VerificationRequired { account, message }
-                if account == "alice" && message == "Verification code sent")
+                if account == "alice" && account.casemapping() == papo_proto::Casemapping::Ascii && message == "Verification code sent")
         })
         .event(|event| matches!(event, Event::Response(_)))
         .update(|session| {

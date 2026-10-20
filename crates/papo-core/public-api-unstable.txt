@@ -361,7 +361,7 @@ pub papo_core::Event::AccountChanged
 pub papo_core::Event::AccountChanged::account: papo_core::Account
 pub papo_core::Event::AccountChanged::nick: papo::Nick
 pub papo_core::Event::AccountRegistered
-pub papo_core::Event::AccountRegistered::account: alloc::string::String
+pub papo_core::Event::AccountRegistered::account: papo::AccountName
 pub papo_core::Event::AccountRegistered::logged_in: bool
 pub papo_core::Event::AuthenticationFailed
 pub papo_core::Event::AuthenticationFailed::reason: alloc::string::String
@@ -489,7 +489,7 @@ pub papo_core::Event::TopicChanged::by: alloc::string::String
 pub papo_core::Event::TopicChanged::channel: papo::ChannelName
 pub papo_core::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
 pub papo_core::Event::VerificationRequired
-pub papo_core::Event::VerificationRequired::account: alloc::string::String
+pub papo_core::Event::VerificationRequired::account: papo::AccountName
 pub papo_core::Event::VerificationRequired::message: alloc::string::String
 impl core::clone::Clone for papo_core::Event
 pub fn papo_core::Event::clone(&self) -> Self
@@ -1836,7 +1836,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::WebIrc
 pub struct papo_core::Welcome
 pub papo_core::Welcome::caps: papo::Capabilities
 pub papo_core::Welcome::isupport: papo::isupport::Isupport
-pub papo_core::Welcome::nick: alloc::string::String
+pub papo_core::Welcome::nick: papo::Nick
 pub papo_core::Welcome::text: alloc::string::String
 impl core::clone::Clone for papo_core::Welcome
 pub fn papo_core::Welcome::clone(&self) -> Self

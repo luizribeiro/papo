@@ -207,7 +207,7 @@ impl Registration {
         self.welcome_deadline = None;
         self.registered = true;
         outbox.event(Event::Registered(Welcome {
-            nick: self.nick.clone(),
+            nick: isupport.casemapping().nick(&self.nick),
             text: self.welcome_text.take().unwrap_or_default(),
             caps: caps.clone(),
             isupport: isupport.clone(),

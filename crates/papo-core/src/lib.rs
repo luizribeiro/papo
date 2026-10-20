@@ -91,7 +91,7 @@ use std::{
 use web_time::Instant;
 
 use papo_proto::{
-    BuildError, Casemapping, ChannelName, Command, Ctcp, Line, LineRef, MAX_LINE_LEN,
+    AccountName, BuildError, Casemapping, ChannelName, Command, Ctcp, Line, LineRef, MAX_LINE_LEN,
     MAX_TAG_SECTION_LEN, ModeChange, ModeKind, Nick, Numeric, Source,
     StandardReply as StandardReplyView, StandardReplyKind,
 };
@@ -212,7 +212,7 @@ impl Default for CtcpReplies {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Welcome {
     /// The nickname assigned by the server.
-    pub nick: String,
+    pub nick: Nick,
     /// The human-readable text from the server's `001` welcome numeric.
     pub text: String,
     /// The enabled capabilities and their advertised values.
@@ -1457,14 +1457,14 @@ pub enum Event {
     /// Account creation completed and the session is authenticated.
     AccountRegistered {
         /// The registered account name.
-        account: String,
+        account: AccountName,
         /// Whether the server authenticated the session to the account.
         logged_in: bool,
     },
     /// Account creation requires a verification step.
     VerificationRequired {
         /// The account awaiting verification.
-        account: String,
+        account: AccountName,
         /// Human-readable instructions from the server.
         message: String,
     },
@@ -3075,10 +3075,11 @@ impl Session {
             &mut self.outbox,
         ) == Handled::Yes;
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
-        let account_registration_handled = self
-            .account_registration
-            .handle_message(message, &mut self.outbox)
-            == Handled::Yes;
+        let account_registration_handled = self.account_registration.handle_message(
+            message,
+            self.isupport.value().casemapping(),
+            &mut self.outbox,
+        ) == Handled::Yes;
         self.maybe_send_away_on_connect();
         let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
         if isupport_handled {
