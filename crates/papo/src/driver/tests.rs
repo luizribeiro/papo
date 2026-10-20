@@ -115,6 +115,7 @@ async fn write_deadline_interrupts_a_socket_that_never_accepts_data() {
     let mut pending = super::PendingWrite {
         buffer: b"QUIT\r\n".to_vec(),
         offset: 0,
+        token: None,
     };
     assert!(
         !super::write_before(&mut NeverWrite, &mut pending, Some(deadline))
@@ -586,6 +587,7 @@ async fn write_timeout_resumes_before_the_next_line() {
     let mut pending_events = VecDeque::new();
     let mut pending_write = None;
     let mut requests = std::collections::BTreeMap::new();
+    let mut transmits = std::collections::BTreeMap::new();
     let mut join_keys = std::collections::BTreeMap::new();
     let mut sync_waiters = Vec::new();
     let mut read_marker_waiters = Vec::new();
@@ -614,6 +616,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &channels.event_sink,
         &mut pending_events,
         &mut requests,
+        &mut transmits,
         &mut join_keys,
         &mut sync_waiters,
         &mut read_marker_waiters,
@@ -641,6 +644,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &channels.event_sink,
         &mut pending_events,
         &mut requests,
+        &mut transmits,
         &mut join_keys,
         &mut sync_waiters,
         &mut read_marker_waiters,
@@ -2240,27 +2244,73 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn client_send_raw_parses_and_obeys_the_rate_limit() {
-    let (mut server, client, _events, driver) = scripted(
-        config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500)).unwrap()),
-    );
+    let settings = config()
+        .ping_interval(Duration::from_secs(200))
+        .ping_timeout(Duration::from_secs(200))
+        .rate_limit(
+            papo_core::RateLimit::new(5, Duration::from_millis(500))
+                .unwrap()
+                .strict(),
+        );
+    let (mut server, client, mut events, driver) = scripted(settings);
     let task = tokio::spawn(driver);
-    registration_burst(&mut server).await;
-    client.send_raw("WHOIS emily").await.unwrap();
-    client.send_raw("WHOIS alice").await.unwrap();
-    client_line(&mut server, b"WHOIS emily\r\n").await;
-    assert!(
-        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
-            .await
-            .is_err()
+    complete_registration(&mut server, &mut events).await;
+    let started = crate::rt::now_mono();
+    for index in 0..200 {
+        let command = format!("WHOIS release-bot-{index}");
+        client.send_raw(&command).await.unwrap();
+        client_line(&mut server, format!("{command}\r\n").as_bytes()).await;
+    }
+    assert_eq!(
+        crate::rt::now_mono().duration_since(started),
+        Duration::from_millis(97_500)
     );
-    tokio::time::advance(Duration::from_millis(500)).await;
-    client_line(&mut server, b"WHOIS alice\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn command_builder_quotes_real_commands_and_obeys_the_rate_limit() {
+async fn queued_raw_sends_fail_when_the_connection_drops() {
+    let (mut server, client, _events, driver) = scripted(
+        config().rate_limit(
+            papo_core::RateLimit::new(1, Duration::from_hours(24))
+                .unwrap()
+                .strict(),
+        ),
+    );
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    client.send_raw("WHOIS release-bot").await.unwrap();
+    client_line(&mut server, b"WHOIS release-bot\r\n").await;
+
+    let queued: Vec<_> = (0..3)
+        .map(|index| {
+            let client = client.clone();
+            tokio::spawn(async move {
+                client
+                    .send_raw(format!("WHOIS queued-release-bot-{index}"))
+                    .await
+            })
+        })
+        .collect();
+    for _ in 0..4 {
+        tokio::task::yield_now().await;
+    }
+    within(server.shutdown()).await.unwrap();
+    for result in queued {
+        assert!(matches!(
+            within(result).await.unwrap(),
+            Err(disconnected!())
+        ));
+    }
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn command_builder_quotes_real_commands() {
     let (mut server, client, _events, driver) = scripted(
         config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500)).unwrap()),
     );
@@ -2276,22 +2326,14 @@ async fn command_builder_quotes_real_commands_and_obeys_the_rate_limit() {
         .await
         .unwrap();
     client_line(&mut server, b"KILL alice :policy violation\r\n").await;
-    assert!(
-        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
-            .await
-            .is_err()
-    );
-    tokio::time::advance(Duration::from_millis(500)).await;
     client_line(&mut server, b"WALLOPS :maintenance now\r\n").await;
 
     client.send_command("WHOWAS", ["emily", "2"]).await.unwrap();
-    tokio::time::advance(Duration::from_millis(500)).await;
     client_line(&mut server, b"WHOWAS emily 2\r\n").await;
     client
         .send_command("MOTD", std::iter::empty::<&str>())
         .await
         .unwrap();
-    tokio::time::advance(Duration::from_millis(500)).await;
     client_line(&mut server, b"MOTD\r\n").await;
 
     within(server.shutdown()).await.unwrap();

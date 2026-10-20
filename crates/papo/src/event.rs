@@ -716,6 +716,7 @@ pub(crate) enum CoreEvent {
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
     RequestAborted(RequestId),
+    TransmitAborted(papo_core::TransmitToken),
     StsUpgrade(u16),
     StsPolicy(StsAction),
     History {
@@ -798,6 +799,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::RequestUntracked { id } => return CoreEvent::RequestUntracked(id),
         papo_core::Event::RequestTimedOut { id } => return CoreEvent::RequestTimedOut(id),
         papo_core::Event::RequestAborted { id } => return CoreEvent::RequestAborted(id),
+        papo_core::Event::TransmitAborted { token } => return CoreEvent::TransmitAborted(token),
         papo_core::Event::RequestUnsupported { id, unsupported } => {
             return CoreEvent::RequestUnsupported { id, unsupported };
         }

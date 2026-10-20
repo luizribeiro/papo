@@ -30,7 +30,7 @@ use web_time::Instant;
 use futures_core::Stream;
 use papo_core::{
     Connection, HistoryQuery, RequestError, RequestId, Response, ResponseMatcher, Session,
-    TextKind, sts::StsStore,
+    TextKind, TransmitToken, sts::StsStore,
 };
 use papo_proto::{Command as ProtoCommand, Line, Numeric, Typing};
 use tokio::{
@@ -269,6 +269,8 @@ impl PendingRequest {
         }
     }
 }
+
+type PendingTransmit = oneshot::Sender<Result<(), Error>>;
 
 struct Quit {
     deadline: Instant,
@@ -658,6 +660,7 @@ struct StsActions {
 struct PendingWrite {
     buffer: Vec<u8>,
     offset: usize,
+    token: Option<TransmitToken>,
 }
 
 impl ConnectionEnd {
@@ -703,6 +706,7 @@ where
     let mut commands_open = true;
     let mut quit = None;
     let mut requests = BTreeMap::new();
+    let mut transmits = BTreeMap::new();
     let mut join_keys = BTreeMap::new();
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
@@ -728,6 +732,7 @@ where
             events,
             &mut pending_events,
             &mut requests,
+            &mut transmits,
             &mut join_keys,
             &mut sync_waiters,
             &mut read_marker_waiters,
@@ -797,7 +802,10 @@ where
             },
             command = commands.recv(), if commands_open => match command {
                 Some(Command::Send { message, result }) => {
-                    _ = result.send(session.send(now(), message).map_err(Error::build));
+                    match session.send_tracked(now(), message) {
+                        Ok(token) => { transmits.insert(token, result); }
+                        Err(error) => { _ = result.send(Err(Error::build(error))); }
+                    }
                 }
                 Some(Command::Request { message, matcher, result }) => {
                     let requested = match matcher {
@@ -917,19 +925,22 @@ where
                     if send && state == Typing::Active {
                         active_typing.insert(key, current);
                     }
-                    let response = if send {
+                    if send {
                         let value = match state {
                             Typing::Active => "active",
                             Typing::Paused => "paused",
                             Typing::Done => "done",
                         };
-                        session
-                            .send(current, Line::tagmsg(target).with_tag("+typing", value))
-                            .map_err(Error::build)
+                        match session.send_tracked(
+                            current,
+                            Line::tagmsg(target).with_tag("+typing", value),
+                        ) {
+                            Ok(token) => { transmits.insert(token, result); }
+                            Err(error) => { _ = result.send(Err(Error::build(error))); }
+                        }
                     } else {
-                        Ok(())
-                    };
-                    _ = result.send(response);
+                        _ = result.send(Ok(()));
+                    }
                 }
                 Some(Command::WaitChannelSync { channel, result }) => {
                     if session
@@ -978,6 +989,9 @@ where
         }
     };
     session.handle_disconnected(now());
+    for (_, result) in transmits {
+        _ = result.send(Err(Error::disconnected()));
+    }
     for (_, result) in requests {
         result.fail(Error::disconnected());
     }
@@ -1065,6 +1079,7 @@ async fn drain<S>(
     events: &EventSink,
     pending_events: &mut VecDeque<Event>,
     requests: &mut BTreeMap<RequestId, PendingRequest>,
+    transmits: &mut BTreeMap<TransmitToken, PendingTransmit>,
     join_keys: &mut BTreeMap<RequestId, (crate::ChannelName, Option<crate::Secret>)>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
     read_marker_waiters: &mut ReadMarkerWaiters,
@@ -1083,7 +1098,7 @@ where
     S: AsyncWrite + Unpin,
 {
     publish_state(events, session, true);
-    if !drain_transmit(stream, session, pending_write, deadline).await? {
+    if !drain_transmit(stream, session, pending_write, transmits, deadline).await? {
         return Ok(None);
     }
     let read_ahead = should_read_ahead(
@@ -1260,6 +1275,11 @@ where
                     result.fail(Error::disconnected());
                 }
             }
+            event::CoreEvent::TransmitAborted(token) => {
+                if let Some(result) = transmits.remove(&token) {
+                    _ = result.send(Err(Error::disconnected()));
+                }
+            }
             event::CoreEvent::StsUpgrade(port) => sts.upgrade = Some(port),
             event::CoreEvent::StsPolicy(action) => {
                 #[cfg(not(browser))]
@@ -1282,7 +1302,7 @@ where
             event::CoreEvent::Unknown => {}
         }
     }
-    drain_transmit(stream, session, pending_write, deadline).await?;
+    drain_transmit(stream, session, pending_write, transmits, deadline).await?;
     Ok(None)
 }
 
@@ -1306,6 +1326,7 @@ async fn drain_transmit<S>(
     stream: &mut S,
     session: &mut Session,
     pending: &mut Option<PendingWrite>,
+    transmits: &mut BTreeMap<TransmitToken, PendingTransmit>,
     deadline: Option<Instant>,
 ) -> io::Result<bool>
 where
@@ -1313,9 +1334,14 @@ where
 {
     loop {
         if pending.is_none() {
-            *pending = session
-                .poll_transmit()
-                .map(|buffer| PendingWrite { buffer, offset: 0 });
+            *pending = session.poll_transmit_tracked().map(|transmit| {
+                let (buffer, token) = transmit.into_parts();
+                PendingWrite {
+                    buffer,
+                    offset: 0,
+                    token,
+                }
+            });
         }
         let Some(write) = pending.as_mut() else {
             return Ok(true);
@@ -1323,7 +1349,12 @@ where
         if !write_before(stream, write, deadline).await? {
             return Ok(false);
         }
-        *pending = None;
+        let written = pending.take().expect("completed write remains pending");
+        if let Some(token) = written.token
+            && let Some(result) = transmits.remove(&token)
+        {
+            _ = result.send(Ok(()));
+        }
     }
 }
 
