@@ -151,7 +151,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(
         crate::scenarios::support::conversation_name(&message.conversation),
-        Some(alice_nick.as_ref())
+        Some(bob_nick.as_ref())
     );
     assert_eq!(message.text(), text);
     assert_eq!(message.id(), sent.id.as_ref());
