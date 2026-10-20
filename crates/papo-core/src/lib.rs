@@ -93,7 +93,7 @@ use web_time::Instant;
 
 use papo_proto::{
     AccountName, BuildError, Casemapping, ChannelName, Command, Ctcp, Line, LineRef, MAX_LINE_LEN,
-    MAX_TAG_SECTION_LEN, ModeChange, ModeKind, Nick, Numeric, Source,
+    MAX_TAG_SECTION_LEN, Mask, ModeChange, ModeKind, Nick, Numeric, Source,
     StandardReply as StandardReplyView, StandardReplyKind,
 };
 
@@ -175,6 +175,27 @@ pub use cap::DEFAULTS as DEFAULT_WANTED_CAPS;
 
 /// Enabled `IRCv3` capability names and their advertised values.
 pub type Capabilities = BTreeMap<String, Option<String>>;
+
+/// The IRC conversation to which a chat line belongs.
+///
+/// A conversation never includes a `STATUSMSG` prefix from its wire address.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
+pub enum Conversation {
+    /// Messages addressed to a channel.
+    Channel(ChannelName),
+    /// Messages exchanged with the named other party.
+    ///
+    /// The session's own nickname represents a notes-to-self conversation.
+    Private(Nick),
+    /// Messages sent by the server, including messages addressed to `*`.
+    Server,
+    /// Operator broadcasts addressed to a server mask.
+    ///
+    /// Ergo rewrites these messages to each recipient's nickname, so they appear as private
+    /// conversations when received from Ergo.
+    Broadcast(Mask),
+}
 
 /// Automatic replies to private CTCP queries.
 #[derive(Clone, Debug, Eq, PartialEq)]

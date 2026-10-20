@@ -335,6 +335,32 @@ impl core::marker::Unpin for papo_core::CloseKind
 impl core::marker::UnsafeUnpin for papo_core::CloseKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::CloseKind
 impl core::panic::unwind_safe::UnwindSafe for papo_core::CloseKind
+#[non_exhaustive] pub enum papo_core::Conversation
+pub papo_core::Conversation::Broadcast(papo::Mask)
+pub papo_core::Conversation::Channel(papo::ChannelName)
+pub papo_core::Conversation::Private(papo::Nick)
+pub papo_core::Conversation::Server
+impl core::clone::Clone for papo_core::Conversation
+pub fn papo_core::Conversation::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::Conversation
+impl core::cmp::Ord for papo_core::Conversation
+pub fn papo_core::Conversation::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_core::Conversation
+pub fn papo_core::Conversation::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_core::Conversation
+pub fn papo_core::Conversation::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo_core::Conversation
+pub fn papo_core::Conversation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::Conversation
+pub fn papo_core::Conversation::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_core::Conversation
+impl core::marker::Freeze for papo_core::Conversation
+impl core::marker::Send for papo_core::Conversation
+impl core::marker::Sync for papo_core::Conversation
+impl core::marker::Unpin for papo_core::Conversation
+impl core::marker::UnsafeUnpin for papo_core::Conversation
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Conversation
+impl core::panic::unwind_safe::UnwindSafe for papo_core::Conversation
 #[non_exhaustive] pub enum papo_core::Decoding
 pub papo_core::Decoding::Utf8
 pub papo_core::Decoding::Utf8OrLatin1
