@@ -121,6 +121,15 @@ impl Builder {
         self
     }
 
+    /// Chooses whether to reclaim the primary nickname after a connection-time collision.
+    ///
+    /// This is disabled by default. The client uses `MONITOR` when advertised and otherwise
+    /// polls one `ISON` request at a time.
+    pub const fn regain_nick(mut self, regain: bool) -> Self {
+        self.config.regain_nick = regain;
+        self
+    }
+
     /// Sets the username sent during registration.
     pub fn username(mut self, username: impl Into<String>) -> Self {
         self.config.username = username.into();
@@ -709,8 +718,12 @@ mod tests {
 
     use super::{Builder, apply_address, connect_input_error};
     use crate::{
-        ConnectErrorKind, Error, InvalidInput, NewAccount, address::Protocol,
-        driver::test_support::within, transport::TlsRoots,
+        ConnectErrorKind, Error, InvalidInput, NewAccount,
+        address::Protocol,
+        driver::test_support::{
+            abort_task, client_line, scripted, server_line, welcome_burst, within,
+        },
+        transport::TlsRoots,
     };
 
     #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -789,6 +802,7 @@ mod tests {
                 crate::Casemapping::default().nick("ping-bot_"),
                 crate::Casemapping::default().nick("ping-bot__"),
             ])
+            .regain_nick(true)
             .username("ping")
             .realname("papo ping bot")
             .password("network password")
@@ -799,6 +813,7 @@ mod tests {
         assert_eq!(config.casemapping, crate::Casemapping::Ascii);
         assert_eq!(config.nick, "ping-bot");
         assert_eq!(config.alt_nicks, ["ping-bot_", "ping-bot__"]);
+        assert!(config.regain_nick);
         assert_eq!(config.username, "ping");
         assert_eq!(config.realname, "papo ping bot");
         assert_eq!(config.password, Some(Secret::new("network password")));
@@ -809,6 +824,42 @@ mod tests {
             DEFAULT_WANTED_CAPS[..]
         );
         assert_eq!(config.wanted_caps.last().map(String::as_str), Some("sasl"));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn configured_nickname_regain_reaches_the_wire() {
+        let mut builder = Builder::new("irc.example.net")
+            .nick("papo-driver")
+            .username("papo")
+            .realname("papo driver test")
+            .alt_nicks(["papo-driver_"])
+            .regain_nick(true);
+        builder.config.wanted_caps.clear();
+        let (mut server, _client, mut events, driver) = scripted(builder.config);
+        let driver = tokio::spawn(driver);
+
+        welcome_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test 433 * papo-driver :Nickname is already in use\r\n",
+        )
+        .await;
+        client_line(&mut server, b"NICK papo-driver_\r\n").await;
+        server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(&mut server, b":ergo.test 001 papo-driver_ :Welcome to ErgoTest\r\n:ergo.test 005 papo-driver_ MONITOR=100 :are supported\r\n:ergo.test 422 papo-driver_ :MOTD File is missing\r\n").await;
+        assert!(matches!(
+            events.next().await,
+            Some(crate::Event::Connected(_))
+        ));
+        client_line(&mut server, b"MONITOR + papo-driver\r\n").await;
+        server_line(&mut server, b":ergo.test 731 papo-driver_ :papo-driver\r\n").await;
+        client_line(&mut server, b"NICK papo-driver\r\n").await;
+        assert!(matches!(
+            events.next().await,
+            Some(crate::Event::MonitorOffline(_))
+        ));
+        abort_task(driver).await;
     }
 
     #[test]

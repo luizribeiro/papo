@@ -1801,6 +1801,7 @@ pub fn papo::Builder::ping_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::rate_limit(self, papo::RateLimit) -> Self
 pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
+pub const fn papo::Builder::regain_nick(self, bool) -> Self
 pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
