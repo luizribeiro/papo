@@ -1752,6 +1752,10 @@ pub enum Event {
         nick: Nick,
         /// The user or server that issued the kick.
         actor: String,
+        /// Whether the actor is this session's user.
+        authorship: Authorship,
+        /// Whether the removed user is this session's user.
+        subject_authorship: Authorship,
         /// The optional kick reason.
         reason: Option<String>,
     },
@@ -1763,6 +1767,10 @@ pub enum Event {
         nick: Nick,
         /// The user or server prefix that sent the invitation.
         actor: String,
+        /// Whether the actor is this session's user.
+        authorship: Authorship,
+        /// Whether the invited user is this session's user.
+        subject_authorship: Authorship,
     },
     /// A user sharing channels with the session disconnected.
     Quit {
@@ -1792,6 +1800,8 @@ pub enum Event {
         new: ChannelName,
         /// The user or server prefix that renamed the channel.
         actor: String,
+        /// Whether the actor is this session's user.
+        authorship: Authorship,
         /// The server-supplied reason, when present and non-empty.
         reason: Option<String>,
     },
@@ -1831,6 +1841,10 @@ pub enum Event {
         subject: Subject,
         /// The user or server that changed the modes.
         actor: String,
+        /// Whether the actor is this session's user.
+        authorship: Authorship,
+        /// Whether the distinct subject is this session's user.
+        subject_authorship: Authorship,
         /// Parsed mode operations in wire order.
         changes: Vec<OwnedModeChange>,
     },
@@ -1842,6 +1856,8 @@ pub enum Event {
         topic: Option<String>,
         /// The user or server that changed the topic.
         actor: String,
+        /// Whether the actor is this session's user.
+        authorship: Authorship,
     },
 }
 

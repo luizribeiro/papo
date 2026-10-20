@@ -1478,6 +1478,8 @@ mod tests {
             channel: Casemapping::default().channel("#papo"),
             nick: Casemapping::default().nick("papo"),
             actor: "emily!~emily@localhost".to_owned(),
+            authorship: papo_core::Authorship::Other,
+            subject_authorship: papo_core::Authorship::Own,
         });
         let invited = event.as_invited().unwrap();
         assert_eq!(invited.channel, "#papo");
@@ -1748,6 +1750,7 @@ mod tests {
                 old: Casemapping::default().channel("#rust"),
                 new: Casemapping::default().channel("#rust-lang"),
                 actor: "alice!a@localhost".into(),
+                authorship: papo_core::Authorship::Other,
                 reason: Some("Project renamed".into()),
             }),
             Event::ChannelRenamed(renamed)
@@ -1762,6 +1765,7 @@ mod tests {
                 old: Casemapping::default().channel("#rust"),
                 new: Casemapping::default().channel("#rust-lang"),
                 actor: "ergo.test".into(),
+                authorship: papo_core::Authorship::Other,
                 reason: None,
             }),
             Event::ChannelRenamed(renamed)
@@ -1919,6 +1923,8 @@ mod tests {
                 channel: Casemapping::default().channel("#papo"),
                 nick: Casemapping::default().nick("emily"),
                 actor: "alice".into(),
+                authorship: papo_core::Authorship::Other,
+                subject_authorship: papo_core::Authorship::Other,
                 reason: Some("Flooding".into()),
             }),
             Event::Kicked(kicked)
@@ -2020,6 +2026,8 @@ mod tests {
             forwarded(papo_core::Event::ModeChanged {
                 subject: papo_core::Subject::Channel(Casemapping::default().channel("#papo")),
                 actor: "alice".into(),
+                authorship: papo_core::Authorship::Other,
+                subject_authorship: papo_core::Authorship::Other,
                 changes: mode_changes.clone(),
             }),
             Event::ModeChanged(mode)
@@ -2040,6 +2048,7 @@ mod tests {
                 channel: Casemapping::default().channel("#papo"),
                 topic: Some("Rust 1.90 is out".into()),
                 actor: "alice".into(),
+                authorship: papo_core::Authorship::Other,
             }),
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"

@@ -436,6 +436,7 @@ pub papo_core::Event::CasemappingChanged::new: papo::Casemapping
 pub papo_core::Event::CasemappingChanged::old: papo::Casemapping
 pub papo_core::Event::ChannelRenamed
 pub papo_core::Event::ChannelRenamed::actor: alloc::string::String
+pub papo_core::Event::ChannelRenamed::authorship: papo_core::Authorship
 pub papo_core::Event::ChannelRenamed::new: papo::ChannelName
 pub papo_core::Event::ChannelRenamed::old: papo::ChannelName
 pub papo_core::Event::ChannelRenamed::reason: core::option::Option<alloc::string::String>
@@ -459,17 +460,21 @@ pub papo_core::Event::HostChanged::nick: papo::Nick
 pub papo_core::Event::HostChanged::user: alloc::string::String
 pub papo_core::Event::Invited
 pub papo_core::Event::Invited::actor: alloc::string::String
+pub papo_core::Event::Invited::authorship: papo_core::Authorship
 pub papo_core::Event::Invited::channel: papo::ChannelName
 pub papo_core::Event::Invited::nick: papo::Nick
+pub papo_core::Event::Invited::subject_authorship: papo_core::Authorship
 pub papo_core::Event::Joined
 pub papo_core::Event::Joined::authorship: papo_core::Authorship
 pub papo_core::Event::Joined::channel: papo::ChannelName
 pub papo_core::Event::Joined::nick: papo::Nick
 pub papo_core::Event::Kicked
 pub papo_core::Event::Kicked::actor: alloc::string::String
+pub papo_core::Event::Kicked::authorship: papo_core::Authorship
 pub papo_core::Event::Kicked::channel: papo::ChannelName
 pub papo_core::Event::Kicked::nick: papo::Nick
 pub papo_core::Event::Kicked::reason: core::option::Option<alloc::string::String>
+pub papo_core::Event::Kicked::subject_authorship: papo_core::Authorship
 pub papo_core::Event::Line(papo_core::ReceivedLine)
 pub papo_core::Event::Malformed
 pub papo_core::Event::Malformed::line: alloc::vec::Vec<u8>
@@ -483,8 +488,10 @@ pub papo_core::Event::MetadataSyncLater::retry_after: core::option::Option<core:
 pub papo_core::Event::MetadataSyncLater::target: alloc::string::String
 pub papo_core::Event::ModeChanged
 pub papo_core::Event::ModeChanged::actor: alloc::string::String
+pub papo_core::Event::ModeChanged::authorship: papo_core::Authorship
 pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::OwnedModeChange>
 pub papo_core::Event::ModeChanged::subject: papo_core::Subject
+pub papo_core::Event::ModeChanged::subject_authorship: papo_core::Authorship
 pub papo_core::Event::MonitorListFull
 pub papo_core::Event::MonitorListFull::limit: usize
 pub papo_core::Event::MonitorListFull::nicks: alloc::vec::Vec<papo::Nick>
@@ -548,6 +555,7 @@ pub papo_core::Event::StsUpgrade::port: u16
 pub papo_core::Event::TagMessage(papo_core::TagMessage)
 pub papo_core::Event::TopicChanged
 pub papo_core::Event::TopicChanged::actor: alloc::string::String
+pub papo_core::Event::TopicChanged::authorship: papo_core::Authorship
 pub papo_core::Event::TopicChanged::channel: papo::ChannelName
 pub papo_core::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
 pub papo_core::Event::VerificationRequired

@@ -2,8 +2,47 @@
 
 mod support;
 
-use papo_core::{Authorship, Config, Event, HistoryItem, Sasl};
+use papo_core::{Authorship, Config, Event, HistoryItem, Sasl, Subject};
 use support::Transcript;
+
+#[test]
+fn live_subject_facts_are_exact() {
+    Transcript::new(Config::default())
+        .server(":emily!~emily@localhost KICK #papo papo :Requested")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Kicked {
+                    authorship: Authorship::Other,
+                    subject_authorship: Authorship::Own,
+                    ..
+                }
+            )
+        })
+        .server(":emily!~emily@localhost INVITE papo :#papo")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Invited {
+                    authorship: Authorship::Other,
+                    subject_authorship: Authorship::Own,
+                    ..
+                }
+            )
+        })
+        .server(":ergo.test MODE papo +i")
+        .event(|event| {
+            matches!(
+                event,
+                Event::ModeChanged {
+                    subject: Subject::User(nick),
+                    authorship: Authorship::Other,
+                    subject_authorship: Authorship::Own,
+                    ..
+                } if nick == "papo"
+            )
+        });
+}
 
 #[test]
 fn queued_event_keeps_authorship_across_a_nick_change() {

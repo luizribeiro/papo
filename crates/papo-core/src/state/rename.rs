@@ -41,6 +41,7 @@ impl State {
             old: self.casemapping.channel(old),
             new: self.casemapping.channel(new),
             actor: actor.to_owned(),
+            authorship: self.source_authorship(message),
             reason,
         });
         true

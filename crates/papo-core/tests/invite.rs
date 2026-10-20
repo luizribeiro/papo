@@ -12,7 +12,7 @@ fn reports_direct_and_notified_invitations() {
         .event(|event| {
             matches!(
                 event,
-                Event::Invited { channel, nick, actor }
+                Event::Invited { channel, nick, actor, .. }
                     if channel == "#papo" && nick == "papo"
                         && actor == "emily!~emily@localhost"
             )
@@ -21,7 +21,7 @@ fn reports_direct_and_notified_invitations() {
         .event(|event| {
             matches!(
                 event,
-                Event::Invited { channel, nick, actor }
+                Event::Invited { channel, nick, actor, .. }
                     if channel == "#staff" && nick == "bob"
                         && actor == "alice!~alice@staff.example"
             )

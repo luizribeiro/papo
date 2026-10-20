@@ -91,7 +91,7 @@ fn rekeys_channel_members_and_metadata() {
         .event(|event| matches!(event, Event::MetadataChanged { .. }))
         .server(":alice!a@localhost RENAME #rust #rust-lang :Project renamed")
         .event(|event| {
-            matches!(event, Event::ChannelRenamed { old, new, actor, reason }
+            matches!(event, Event::ChannelRenamed { old, new, actor, reason, .. }
             if old == "#rust" && new == "#rust-lang"
                 && old.casemapping() == papo_proto::Casemapping::Ascii
                 && new.casemapping() == papo_proto::Casemapping::Ascii

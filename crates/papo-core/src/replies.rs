@@ -1,5 +1,5 @@
 use crate::{
-    Event, LineRef, Redacted, Session, StandardReply, StandardReplyView, TagMessage,
+    Authorship, Event, LineRef, Redacted, Session, StandardReply, StandardReplyView, TagMessage,
     conversation::classify_line,
 };
 
@@ -63,6 +63,12 @@ impl Session {
             channel: casemapping.channel(channel),
             nick: casemapping.nick(nick),
             actor: by.to_owned(),
+            authorship: self.authorship(message),
+            subject_authorship: if crate::names_equal(casemapping, nick, self.nick()) {
+                Authorship::Own
+            } else {
+                Authorship::Other
+            },
         });
         true
     }

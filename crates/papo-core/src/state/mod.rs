@@ -209,6 +209,13 @@ impl State {
         }
     }
 
+    pub(super) fn source_authorship(&self, message: &LineRef<'_>) -> Authorship {
+        match message.source() {
+            Some(Source::User { nick, .. }) => self.nick_authorship(nick),
+            _ => Authorship::Other,
+        }
+    }
+
     pub(crate) fn snapshot_for(&self, message: &LineRef<'_>) -> StateSnapshot {
         if let Some((target, key, _, _)) = metadata_update(message) {
             let target = NameKey::new(target, self.casemapping);
@@ -413,10 +420,14 @@ impl State {
                 Source::Server(name) => name,
                 Source::User { nick, .. } => nick,
             };
+            let authorship = self.source_authorship(message);
+            let subject_authorship = self.nick_authorship(nick);
             outbox.event(Event::Kicked {
                 channel: mapping.channel(channel),
                 nick: mapping.nick(nick),
                 actor: actor.to_owned(),
+                authorship,
+                subject_authorship,
                 reason: message.param(2).map(str::to_owned),
             });
             if crate::names_equal(mapping, nick, &self.nick) {
@@ -456,7 +467,7 @@ impl State {
         if self.handle_channel_rename(message, outbox) {
             return Handled::Yes;
         }
-        let mode_reported = Self::report_mode_change(message, isupport, outbox);
+        let mode_reported = self.report_mode_change(message, isupport, outbox);
         if self.handle_channel_mode(message, isupport)
             || self.handle_channel_metadata(message, isupport)
             || self.handle_user_modes(message)
@@ -573,7 +584,12 @@ impl State {
         true
     }
 
-    fn report_mode_change(message: &LineRef<'_>, isupport: &Isupport, outbox: &mut Outbox) -> bool {
+    fn report_mode_change(
+        &self,
+        message: &LineRef<'_>,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> bool {
         let (Some(target), Some(modestring), Some(actor)) = (
             message
                 .param(0)
@@ -599,6 +615,11 @@ impl State {
                 Subject::User(isupport.casemapping().nick(target))
             },
             actor: actor.to_owned(),
+            authorship: self.source_authorship(message),
+            subject_authorship: match message.source() {
+                _ if isupport.is_channel(target) => Authorship::Other,
+                _ => self.nick_authorship(target),
+            },
             changes,
         });
         true
@@ -676,6 +697,7 @@ impl State {
                 channel: self.casemapping.channel(channel),
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
                 actor: actor.to_owned(),
+                authorship: self.source_authorship(message),
             });
         }
         let Some(channel) =

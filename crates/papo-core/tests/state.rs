@@ -802,7 +802,7 @@ fn tracks_live_topic_changes_and_clearing() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":alice!alice@staff.example TOPIC #papo :Rust 1.90 is out")
-        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor } if channel == "#papo" && topic.as_deref() == Some("Rust 1.90 is out") && actor == "alice"))
+        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor, .. } if channel == "#papo" && topic.as_deref() == Some("Rust 1.90 is out") && actor == "alice"))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), Some("Rust 1.90 is out"));
@@ -810,7 +810,7 @@ fn tracks_live_topic_changes_and_clearing() {
             assert_eq!(channel.topic_set_at(), None);
         })
         .server(":alice!alice@staff.example TOPIC #papo :")
-        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor } if channel == "#papo" && topic.is_none() && actor == "alice"))
+        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor, .. } if channel == "#papo" && topic.is_none() && actor == "alice"))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), None);
@@ -827,7 +827,7 @@ fn reports_mixed_channel_and_user_mode_changes() {
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":alice!alice@staff.example MODE #papo +o-b emily *!*@gateway/tor-sasl")
         .event(|event| match event {
-            Event::ModeChanged { subject, actor, changes } => {
+            Event::ModeChanged { subject, actor, changes, .. } => {
                 matches!(subject, Subject::Channel(channel) if channel == "#papo")
                     && actor == "alice"
                     && changes == &vec![
@@ -838,7 +838,7 @@ fn reports_mixed_channel_and_user_mode_changes() {
             _ => false,
         })
         .server(":ergo.test MODE emily +i")
-        .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor, changes } if nick == "emily" && actor == "ergo.test" && changes == &vec![OwnedModeChange { set: true, mode: 'i', arg: None, kind: ModeKind::Unknown }]))
+        .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor, changes, .. } if nick == "emily" && actor == "ergo.test" && changes == &vec![OwnedModeChange { set: true, mode: 'i', arg: None, kind: ModeKind::Unknown }]))
         .no_event();
 }
 
