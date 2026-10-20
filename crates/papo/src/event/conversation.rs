@@ -9,7 +9,7 @@ use super::{Source, Tags};
 #[non_exhaustive]
 pub struct Reacted {
     /// The user or server that changed the reaction.
-    pub source: Option<Source>,
+    pub actor: Source,
     /// The IRC conversation containing the message.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
@@ -29,7 +29,7 @@ pub struct Reacted {
 #[non_exhaustive]
 pub struct Redacted {
     /// The user or server that removed the message.
-    pub source: Option<Source>,
+    pub actor: Source,
     /// The IRC conversation containing the message.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
@@ -45,7 +45,7 @@ pub struct Redacted {
 #[non_exhaustive]
 pub struct TypingChanged {
     /// The user or server that sent the notification.
-    pub source: Option<Source>,
+    pub actor: Source,
     /// The IRC conversation where typing is occurring.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
@@ -58,8 +58,8 @@ pub struct TypingChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct TagMsg {
-    /// The message source, when supplied by the server.
-    pub source: Option<Source>,
+    /// The user or server that sent the message.
+    pub actor: Source,
     /// The IRC conversation addressed by the message.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.

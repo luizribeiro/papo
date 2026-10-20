@@ -136,9 +136,7 @@ fn reaction(
         .map(|value| (value, false))
         .or_else(|| reaction.unreact.map(|value| (value, true)))?;
     Some(HistoryItem::Reacted(Reacted {
-        source: message
-            .source()
-            .map(|source| Source::from_proto(source, mapping)),
+        actor: Source::from_proto(message.source()?, mapping),
         conversation,
         status,
         message: reply_to.into(),
@@ -156,9 +154,7 @@ fn redaction(
     let (status, conversation) =
         papo_core::classify_conversation(message, own_nick, isupport).ok()?;
     Some(HistoryItem::Redacted(Redacted {
-        source: message
-            .source()
-            .map(|source| Source::from_proto(source, mapping)),
+        actor: Source::from_proto(message.source()?, mapping),
         conversation,
         status,
         message: message.param(1)?.into(),
@@ -805,7 +801,7 @@ mod tests {
         assert!(matches!(
             reacted,
             HistoryItem::Reacted(event)
-                if event.source.as_ref().and_then(crate::Source::nick) == Some("emily")
+                if event.actor.nick() == Some("emily")
                     && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
                     && event.message == "RfcBTzyxY120004"
@@ -845,7 +841,7 @@ mod tests {
         ) else {
             panic!("reaction should be typed");
         };
-        let Some(crate::Source::User { nick, .. }) = event.source else {
+        let crate::Source::User { nick, .. } = event.actor else {
             panic!("reaction should have a user source");
         };
 

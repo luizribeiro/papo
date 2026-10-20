@@ -780,7 +780,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Other(message.message),
         papo_core::Event::TagMessage(message) => {
             let tag = TagMsg {
-                source: Some(Source::from_prefix(message.actor, casemapping)),
+                actor: Source::from_prefix(message.actor, casemapping),
                 conversation: message.conversation,
                 status: message.status,
                 tags: Tags::from_pairs(message.tags),
@@ -800,7 +800,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 });
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
-                    source: tag.source,
+                    actor: tag.actor,
                     conversation: tag.conversation,
                     status: tag.status,
                     message: msgid.into(),
@@ -814,7 +814,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 _ => None,
             }) {
                 Event::TypingChanged(TypingChanged {
-                    source: tag.source,
+                    actor: tag.actor,
                     conversation: tag.conversation,
                     status: tag.status,
                     state,
@@ -824,7 +824,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             }
         }
         papo_core::Event::Redacted(redacted) => Event::Redacted(Redacted {
-            source: Some(Source::from_prefix(redacted.actor, casemapping)),
+            actor: Source::from_prefix(redacted.actor, casemapping),
             conversation: redacted.conversation,
             status: redacted.status,
             message: redacted.msgid.into(),
@@ -1549,7 +1549,7 @@ mod tests {
         let Event::Reacted(reaction) = forwarded(papo_core::Event::TagMessage(tag)) else {
             panic!("expected reaction")
         };
-        assert!(matches!(reaction.source, Some(Source::User { ref nick, .. }) if nick == "alice"));
+        assert!(matches!(reaction.actor, Source::User { ref nick, .. } if nick == "alice"));
         assert!(
             matches!(&reaction.conversation, Conversation::Channel(channel) if channel == "#papo")
         );
@@ -1603,7 +1603,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::Redacted(redacted.clone())),
             Event::Redacted(mapped)
-                if matches!(mapped.source, Some(Source::User { ref nick, .. }) if nick == "alice")
+                if matches!(mapped.actor, Source::User { ref nick, .. } if nick == "alice")
                     && mapped.conversation == redacted.conversation
                     && mapped.status == redacted.status
                     && mapped.message.as_ref() == redacted.msgid

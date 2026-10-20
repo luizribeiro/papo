@@ -601,10 +601,7 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(added.message, original_id);
     assert_eq!(added.reaction, "👍");
     assert!(!added.removed);
-    assert_eq!(
-        added.source.as_ref().and_then(Source::nick),
-        Some(bob.nick().as_ref())
-    );
+    assert_eq!(added.actor.nick(), Some(bob.nick().as_ref()));
 
     bob.unreact(&channel, original_id.clone(), "👍").await?;
     let removed = alice.wait_for(Event::as_reacted).await?;
@@ -633,10 +630,7 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     alice.typing(bob_nick.clone(), Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;
 
-    assert_eq!(
-        typing.source.as_ref().and_then(Source::nick),
-        Some(alice_nick.as_ref())
-    );
+    assert_eq!(typing.actor.nick(), Some(alice_nick.as_ref()));
     assert_eq!(
         conversation_name(&typing.conversation),
         Some(alice_nick.as_ref())
@@ -679,10 +673,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     let target = format!("@{channel}");
     alice.typing(&target, Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;
-    assert_eq!(
-        typing.source.as_ref().and_then(Source::nick),
-        Some(alice.nick().as_ref())
-    );
+    assert_eq!(typing.actor.nick(), Some(alice.nick().as_ref()));
     assert_eq!(
         conversation_name(&typing.conversation),
         Some(channel.as_ref())
@@ -777,10 +768,7 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(redacted.status, None);
     assert_eq!(redacted.message, id);
     assert_eq!(redacted.reason.as_deref(), Some("superseded"));
-    assert_eq!(
-        redacted.source.as_ref().and_then(Source::nick),
-        Some(alice.nick().as_ref())
-    );
+    assert_eq!(redacted.actor.nick(), Some(alice.nick().as_ref()));
     bob.expect_none(Event::as_redacted).await?;
 
     let Error::Server(refusal) = alice
