@@ -17,11 +17,17 @@ pub fn user_source(
     username: Option<String>,
     host: Option<String>,
 ) -> Source {
-    Source::User {
-        nick: nick.into(),
-        username,
-        host,
-    }
+    let nick = nick.into();
+    let source = Source::from_proto(
+        papo_proto::Source::User {
+            nick: &nick,
+            username: username.as_deref(),
+            host: host.as_deref(),
+        },
+        nick.casemapping(),
+    );
+    drop((username, host));
+    source
 }
 
 /// Constructs owned message tags in wire order.
@@ -41,14 +47,20 @@ pub fn message(
     let text = text.into();
     let target = target.into();
     let conversation = if private {
-        let other = actor.as_ref().and_then(Source::nick).unwrap_or(&target);
+        let other: &str = match actor.as_ref().and_then(Source::nick) {
+            Some(nick) => AsRef::<str>::as_ref(nick),
+            None => &target,
+        };
         Conversation::Private(crate::Casemapping::default().nick(other))
     } else {
         Conversation::Channel(crate::Casemapping::default().channel(&target))
     };
     Message {
-        actor: actor.unwrap_or_else(|| Source::Server {
-            name: "irc.example".into(),
+        actor: actor.unwrap_or_else(|| {
+            Source::from_proto(
+                papo_proto::Source::Server("irc.example"),
+                crate::Casemapping::default(),
+            )
         }),
         authorship: Authorship::Other,
         conversation,
