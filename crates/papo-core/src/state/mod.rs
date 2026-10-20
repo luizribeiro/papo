@@ -664,32 +664,41 @@ impl State {
         if mapping == self.casemapping {
             return;
         }
+        self.nick = mapping.nick(self.nick.as_ref());
         self.channels = std::mem::take(&mut self.channels)
             .into_values()
             .map(|mut channel| {
                 channel.casemapping = mapping;
+                channel.name = mapping.channel(channel.name.as_ref());
                 channel.members = channel
                     .members
                     .into_values()
-                    .map(|member| (Folded::new(member.nick.as_ref(), mapping), member))
+                    .map(|mut member| {
+                        member.nick = mapping.nick(member.nick.as_ref());
+                        (Folded::new(&member.nick, mapping), member)
+                    })
                     .collect();
-                (Folded::new(channel.name.as_ref(), mapping), channel)
+                (Folded::new(&channel.name, mapping), channel)
             })
             .collect();
         self.users = std::mem::take(&mut self.users)
             .into_values()
             .map(|mut user| {
+                user.nick = mapping.nick(user.nick.as_ref());
+                if let Account::LoggedIn(account) = &mut user.account {
+                    *account = mapping.account(account.as_ref());
+                }
                 user.channels = user
                     .channels
                     .into_iter()
-                    .map(|channel| Folded::new(channel.original(), mapping))
+                    .map(|channel| Folded::new(mapping.channel(channel.original()), mapping))
                     .collect();
-                (Folded::new(user.nick.as_ref(), mapping), user)
+                (Folded::new(&user.nick, mapping), user)
             })
             .collect();
         self.who_sweeps = std::mem::take(&mut self.who_sweeps)
             .into_iter()
-            .map(|channel| Folded::new(channel.original(), mapping))
+            .map(|channel| Folded::new(mapping.channel(channel.original()), mapping))
             .collect();
         self.read_markers = std::mem::take(&mut self.read_markers)
             .into_values()

@@ -1192,17 +1192,29 @@ fn reconnect_clears_channel_and_user_state() {
 fn rekeys_existing_state_when_casemapping_changes() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")
-        .server(":emily!em@127.0.0.1 JOIN #Papo[dev]")
-        .server(":Alice[bot]!alice@users.example JOIN #Papo[dev]")
+        .server(":emily!em@127.0.0.1 JOIN #Papo[dev] emily :Emily Example")
+        .server(":Alice[bot]!alice@users.example JOIN #Papo[dev] Alice[bot] :Alice Bot")
         .inspect(|session| {
+            let channel = session.state().channel("#papo[dev]").unwrap();
+            let user = session.state().user("alice[bot]").unwrap();
+            assert_eq!(session.state().nick().casemapping(), Casemapping::Ascii);
+            assert_eq!(channel.name().casemapping(), Casemapping::Ascii);
+            assert_eq!(channel.member("alice[bot]").unwrap().nick().casemapping(), Casemapping::Ascii);
+            assert_eq!(user.nick().casemapping(), Casemapping::Ascii);
+            assert!(matches!(user.account(), Account::LoggedIn(account) if account.casemapping() == Casemapping::Ascii));
             assert!(session.state().channel("#papo{dev}").is_none());
             assert!(session.state().user("alice{bot}").is_none());
         })
         .server(":ergo.test 005 emily CASEMAPPING=rfc1459 :are supported")
         .inspect(|session| {
             let channel = session.state().channel("#papo{dev}").unwrap();
-            assert!(channel.member("alice{bot}").is_some());
-            assert!(session.state().user("alice{bot}").is_some());
+            let member = channel.member("alice{bot}").unwrap();
+            let user = session.state().user("alice{bot}").unwrap();
+            assert_eq!(session.state().nick().casemapping(), Casemapping::Rfc1459);
+            assert_eq!(channel.name().casemapping(), Casemapping::Rfc1459);
+            assert_eq!(member.nick().casemapping(), Casemapping::Rfc1459);
+            assert_eq!(user.nick().casemapping(), Casemapping::Rfc1459);
+            assert!(matches!(user.account(), Account::LoggedIn(account) if account.casemapping() == Casemapping::Rfc1459));
         })
         .ignore_rest();
 }
