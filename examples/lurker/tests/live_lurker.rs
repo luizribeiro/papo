@@ -25,7 +25,7 @@ async fn prints_channel_state_changes_in_wire_order() {
         );
 
         let (owner, mut owner_events) = Client::builder(endpoint.clone())
-            .nick(&owner_nick)
+            .nick(papo::Casemapping::default().nick(&owner_nick))
             .autojoin([&channel])
             .connect()
             .await
@@ -45,7 +45,7 @@ async fn prints_channel_state_changes_in_wire_order() {
         lurker.wait_for(&format!("synced {channel}:")).await;
 
         let (user, mut user_events) = Client::builder(endpoint)
-            .nick(&user_nick)
+            .nick(papo::Casemapping::default().nick(&user_nick))
             .autojoin([&channel])
             .connect()
             .await
@@ -53,17 +53,34 @@ async fn prints_channel_state_changes_in_wire_order() {
         wait_event(&mut user_events, |event| synced(event, &channel)).await;
         wait_event(&mut owner_events, |event| joined(event, &user_nick)).await;
 
-        owner.mode(&channel).op(&user_nick).await.unwrap();
+        owner
+            .mode(&channel)
+            .op(owner.state().casemapping().nick(&user_nick))
+            .await
+            .unwrap();
         wait_event(&mut owner_events, |event| mode(event, 'o')).await;
         user.set_away("testing away").await.unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::AwayChanged(changed) if changed.nick == user_nick.as_str())).await;
-        user.set_nick(&renamed).await.unwrap();
+        user.set_nick(user.state().casemapping().nick(&renamed))
+            .await
+            .unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::NickChanged(changed) if changed.new == renamed.as_str())).await;
-        user.mode(&channel).voice(&renamed).await.unwrap();
+        user.mode(&channel)
+            .voice(user.state().casemapping().nick(&renamed))
+            .await
+            .unwrap();
         wait_event(&mut owner_events, |event| mode(event, 'v')).await;
-        user.set_topic(&channel, "lurker topic").await.unwrap();
+        user.set_topic(
+            user.state().casemapping().channel(&channel),
+            "lurker topic",
+        )
+        .await
+        .unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::TopicChanged(changed) if changed.topic.as_deref() == Some("lurker topic"))).await;
-        user.part(&channel, "lurker test complete")
+        user.part(
+            user.state().casemapping().channel(&channel),
+            "lurker test complete",
+        )
             .await
             .unwrap();
         wait_event(&mut owner_events, |event| matches!(event, Event::Parted(parted) if parted.nick == renamed.as_str())).await;

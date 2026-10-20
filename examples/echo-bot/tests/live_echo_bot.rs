@@ -25,7 +25,7 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
             server.plaintext_addr().port(),
         );
         let (user, mut events) = Client::builder(endpoint)
-            .nick(&user_nick)
+            .nick(papo::Casemapping::default().nick(&user_nick))
             .autojoin([&channel])
             .connect()
             .await

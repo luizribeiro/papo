@@ -12,7 +12,7 @@ use papo::Client;
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let _ = Client::builder("custom-transport.invalid")
-        .nick("papo-custom")
+        .nick(papo::Casemapping::default().nick("papo-custom"))
         .stream(HostStream)
         .build();
 }

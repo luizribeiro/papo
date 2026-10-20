@@ -28,7 +28,7 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
             server.plaintext_addr().port(),
         );
         let (user, mut events) = Client::builder(endpoint)
-            .nick(&user_nick)
+            .nick(papo::Casemapping::default().nick(&user_nick))
             .autojoin([&channel])
             .connect()
             .await

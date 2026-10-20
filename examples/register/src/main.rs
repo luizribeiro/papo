@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let password = std::fs::read_to_string(required("IRC_PASSWORD_FILE")?)?;
     let email = env::var("IRC_EMAIL").ok();
     let mut builder = Client::builder(endpoint(server)?)
-        .nick(&account)
+        .nick(papo::Casemapping::default().nick(&account))
         .request_caps(["draft/account-registration"])
         .register_account(new_account(
             &account,
@@ -56,7 +56,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn new_account(account: &str, email: Option<&str>, password: &str) -> NewAccount {
-    let account = NewAccount::new(password).account(account);
+    let account = NewAccount::new(password).account(papo::Casemapping::default().account(account));
     match email {
         Some(email) => account.email(email),
         None => account,

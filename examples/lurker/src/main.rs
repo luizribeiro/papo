@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let channels = env::var("IRC_CHANNELS")?;
     let password = std::fs::read_to_string(password_file)?;
     let mut builder = Client::builder(endpoint(server)?)
-        .nick(&nick)
+        .nick(papo::Casemapping::default().nick(&nick))
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
         .autojoin(channels.split(',').map(str::trim));
     if let Some(ca_file) = env::var_os("IRC_CA_FILE") {

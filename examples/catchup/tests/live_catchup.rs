@@ -23,7 +23,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         register_account(&server, &account, PASSWORD).unwrap();
 
         let (persistent, mut persistent_events) = Client::builder(endpoint.clone())
-            .nick(&account)
+            .nick(papo::Casemapping::default().nick(&account))
             .sasl(Sasl::plain(&account, PASSWORD))
             .request_caps(["sasl", "draft/persistence", "labeled-response"])
             .autojoin([&channel])
@@ -38,7 +38,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             .unwrap();
 
         let (poster, mut poster_events) = Client::builder(endpoint.clone())
-            .nick(&poster_nick)
+            .nick(papo::Casemapping::default().nick(&poster_nick))
             .autojoin([&channel])
             .connect()
             .await
@@ -80,7 +80,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         );
 
         let (reader, mut reader_events) = Client::builder(endpoint)
-            .nick(&account)
+            .nick(papo::Casemapping::default().nick(&account))
             .sasl(Sasl::plain(&account, PASSWORD))
             .request_caps(["draft/read-marker"])
             .autojoin([&channel])

@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let password = std::fs::read_to_string(password_file)?;
 
     let mut builder = Client::builder(endpoint(server)?)
-        .nick(&nick)
+        .nick(papo::Casemapping::default().nick(&nick))
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
         .bot()
         .autojoin(channels.split(',').map(str::trim));
@@ -134,7 +134,11 @@ async fn handle(
             command
                 .client()
                 .mode(channel)
-                .op(command.args()[0].as_str())
+                .op(command
+                    .client()
+                    .state()
+                    .casemapping()
+                    .nick(command.args()[0].as_str()))
                 .await?;
         }
         _ => {}
