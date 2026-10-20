@@ -1,6 +1,6 @@
 use super::{
     Command, Event, HashMap, LineRef, MAX_METADATA_TARGETS, MetadataValue, NameKey, Numeric,
-    Outbox, State, StateLimit, metadata_update,
+    Outbox, State, StateLimit, Subject, metadata_update,
 };
 
 impl State {
@@ -102,7 +102,11 @@ impl State {
             }
         }
         outbox.event(Event::MetadataChanged {
-            target: target.to_owned(),
+            subject: if self.isupport.is_channel(target) {
+                Subject::Channel(self.casemapping.channel(target))
+            } else {
+                Subject::User(self.casemapping.nick(target))
+            },
             key: key.to_owned(),
             value: value.map(str::to_owned),
             visibility: visibility.to_owned(),

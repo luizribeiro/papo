@@ -878,12 +878,16 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             Event::BouncerNetwork(BouncerNetworkChanged { id, network })
         }
         papo_core::Event::MetadataChanged {
-            target,
+            subject,
             key,
             value,
             visibility,
         } => Event::MetadataChanged(MetadataChanged {
-            target,
+            target: match subject {
+                papo_core::Subject::Channel(channel) => channel.to_string(),
+                papo_core::Subject::User(nick) => nick.to_string(),
+                _ => return CoreEvent::Unknown,
+            },
             key: key.into(),
             value,
             visibility: if visibility == "*" {
@@ -1049,11 +1053,15 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             Event::RealnameChanged(RealnameChanged { nick, realname })
         }
         papo_core::Event::ModeChanged {
-            target,
+            subject,
             actor,
             changes,
         } => Event::ModeChanged(ModeChanged {
-            target,
+            target: match subject {
+                papo_core::Subject::Channel(channel) => channel.to_string(),
+                papo_core::Subject::User(nick) => nick.to_string(),
+                _ => return CoreEvent::Unknown,
+            },
             actor: Source::from_name(actor, casemapping),
             changes: changes
                 .into_iter()
@@ -1760,7 +1768,7 @@ mod tests {
     fn maps_metadata_events() {
         assert!(matches!(
             forwarded(papo_core::Event::MetadataChanged {
-                target: "#papo".into(),
+                subject: papo_core::Subject::Channel(Casemapping::default().channel("#papo")),
                 key: "pronouns".into(),
                 value: Some("they/them".into()),
                 visibility: "members".into(),
@@ -1772,7 +1780,7 @@ mod tests {
         ));
         assert!(matches!(
             forwarded(papo_core::Event::MetadataChanged {
-                target: "alice".into(),
+                subject: papo_core::Subject::User(Casemapping::default().nick("alice")),
                 key: "avatar".into(),
                 value: None,
                 visibility: "*".into(),
@@ -1971,7 +1979,7 @@ mod tests {
         }];
         assert!(matches!(
             forwarded(papo_core::Event::ModeChanged {
-                target: "#papo".into(),
+                subject: papo_core::Subject::Channel(Casemapping::default().channel("#papo")),
                 actor: "alice".into(),
                 changes: mode_changes.clone(),
             }),

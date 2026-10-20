@@ -26,7 +26,7 @@ use crate::{
 };
 use crate::{
     Config, Conversation, Event, Handled, LastSeen, MetadataValue, NameKey, Outbox,
-    OwnedModeChange, ReadMarker, StateLimit,
+    OwnedModeChange, ReadMarker, StateLimit, Subject,
     conversation::classify_target,
     monitor::{Monitor, presence_nicks},
 };
@@ -575,7 +575,11 @@ impl State {
                 .collect()
         };
         outbox.event(Event::ModeChanged {
-            target: target.to_owned(),
+            subject: if isupport.is_channel(target) {
+                Subject::Channel(isupport.casemapping().channel(target))
+            } else {
+                Subject::User(isupport.casemapping().nick(target))
+            },
             actor: actor.to_owned(),
             changes,
         });

@@ -439,7 +439,7 @@ pub papo_core::Event::Malformed
 pub papo_core::Event::Malformed::line: alloc::vec::Vec<u8>
 pub papo_core::Event::MetadataChanged
 pub papo_core::Event::MetadataChanged::key: alloc::string::String
-pub papo_core::Event::MetadataChanged::target: alloc::string::String
+pub papo_core::Event::MetadataChanged::subject: papo_core::Subject
 pub papo_core::Event::MetadataChanged::value: core::option::Option<alloc::string::String>
 pub papo_core::Event::MetadataChanged::visibility: alloc::string::String
 pub papo_core::Event::MetadataSyncLater
@@ -448,7 +448,7 @@ pub papo_core::Event::MetadataSyncLater::target: alloc::string::String
 pub papo_core::Event::ModeChanged
 pub papo_core::Event::ModeChanged::actor: alloc::string::String
 pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::OwnedModeChange>
-pub papo_core::Event::ModeChanged::target: alloc::string::String
+pub papo_core::Event::ModeChanged::subject: papo_core::Subject
 pub papo_core::Event::MonitorListFull
 pub papo_core::Event::MonitorListFull::limit: usize
 pub papo_core::Event::MonitorListFull::nicks: alloc::vec::Vec<papo::Nick>
@@ -926,6 +926,30 @@ impl core::marker::Unpin for papo_core::StateLimit
 impl core::marker::UnsafeUnpin for papo_core::StateLimit
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::StateLimit
 impl core::panic::unwind_safe::UnwindSafe for papo_core::StateLimit
+#[non_exhaustive] pub enum papo_core::Subject
+pub papo_core::Subject::Channel(papo::ChannelName)
+pub papo_core::Subject::User(papo::Nick)
+impl core::clone::Clone for papo_core::Subject
+pub fn papo_core::Subject::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::Subject
+impl core::cmp::Ord for papo_core::Subject
+pub fn papo_core::Subject::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_core::Subject
+pub fn papo_core::Subject::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_core::Subject
+pub fn papo_core::Subject::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo_core::Subject
+pub fn papo_core::Subject::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::Subject
+pub fn papo_core::Subject::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_core::Subject
+impl core::marker::Freeze for papo_core::Subject
+impl core::marker::Send for papo_core::Subject
+impl core::marker::Sync for papo_core::Subject
+impl core::marker::Unpin for papo_core::Subject
+impl core::marker::UnsafeUnpin for papo_core::Subject
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Subject
+impl core::panic::unwind_safe::UnwindSafe for papo_core::Subject
 pub enum papo_core::TextKind
 pub papo_core::TextKind::Notice
 pub papo_core::TextKind::Privmsg

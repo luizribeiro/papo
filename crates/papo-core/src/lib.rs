@@ -200,6 +200,16 @@ pub enum Conversation {
     Broadcast(Mask),
 }
 
+/// A user or channel acted on by an IRC event.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
+pub enum Subject {
+    /// A channel acted on by the event.
+    Channel(ChannelName),
+    /// A user acted on by the event.
+    User(Nick),
+}
+
 /// Classifies the IRC conversation and `STATUSMSG` prefixes addressed by a line.
 #[doc(hidden)]
 pub fn classify_conversation(
@@ -1537,8 +1547,8 @@ pub enum Event {
     },
     /// A target's cached metadata changed.
     MetadataChanged {
-        /// Nickname or channel reported by the server.
-        target: String,
+        /// User or channel whose metadata changed.
+        subject: Subject,
         /// Metadata key.
         key: String,
         /// New server-returned value, or `None` when cleared.
@@ -1766,8 +1776,8 @@ pub enum Event {
     },
     /// A user or channel mode changed.
     ModeChanged {
-        /// The mode target.
-        target: String,
+        /// User or channel whose modes changed.
+        subject: Subject,
         /// The user or server that changed the modes.
         actor: String,
         /// Parsed mode operations in wire order.

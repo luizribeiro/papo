@@ -3,10 +3,18 @@
 mod support;
 
 use papo_core::{
-    Config, Event, MetadataCommand, MetadataLimits, Refusal, RequestError, StateLimit,
+    Config, Event, MetadataCommand, MetadataLimits, Refusal, RequestError, StateLimit, Subject,
 };
 use std::time::Duration;
 use support::Transcript;
+
+fn subject_name(subject: &Subject) -> &str {
+    match subject {
+        Subject::Channel(channel) => channel,
+        Subject::User(nick) => nick,
+        _ => panic!("unexpected subject"),
+    }
+}
 
 fn registered(value: &str) -> Transcript {
     Transcript::new(Config::default().wanted_caps(["draft/metadata-2"]))
@@ -85,8 +93,8 @@ fn prefers_metadata_3_and_reads_known_limits() {
     })
     .client("@label=2 METADATA alice GET avatar pronouns")
     .server("@label=0 :ergo.test 761 alice ALICE avatar * :https://cdn.example.net/a.png")
-    .event(|event| matches!(event, Event::MetadataChanged { target, key, value: Some(value), visibility }
-        if target == "ALICE" && key == "avatar"
+    .event(|event| matches!(event, Event::MetadataChanged { subject, key, value: Some(value), visibility }
+        if subject_name(subject) == "ALICE" && key == "avatar"
             && value == "https://cdn.example.net/a.png" && visibility == "*"))
     .event(|event| matches!(event, Event::Response(_)))
     .server("@label=1 :ergo.test 761 alice ALICE pronouns * :they/them")
@@ -242,13 +250,13 @@ fn advertised_max_keys_does_not_limit_received_metadata() {
     registered("before-connect,max-subs=100,max-keys=0,max-value-bytes=1")
         .server(":soju.example METADATA #Papo soju.im/pinned * :1")
         .event(|event| {
-            matches!(event, Event::MetadataChanged { target, key, .. }
-            if target == "#Papo" && key == "soju.im/pinned")
+            matches!(event, Event::MetadataChanged { subject, key, .. }
+            if subject_name(subject) == "#Papo" && key == "soju.im/pinned")
         })
         .server(":soju.example METADATA #papo soju.im/muted * :1")
         .event(|event| {
-            matches!(event, Event::MetadataChanged { target, key, .. }
-            if target == "#papo" && key == "soju.im/muted")
+            matches!(event, Event::MetadataChanged { subject, key, .. }
+            if subject_name(subject) == "#papo" && key == "soju.im/muted")
         })
         .inspect(|session| {
             let metadata = session.state().metadata("#PAPO").unwrap();
@@ -306,12 +314,12 @@ fn applies_a_join_metadata_batch_only_when_it_closes() {
         .inspect(|session| assert!(session.state().metadata("#papo").is_none()))
         .server(":ergo.test BATCH -m")
         .event(|event| {
-            matches!(event, Event::MetadataChanged { target, .. }
-            if target == "#papo")
+            matches!(event, Event::MetadataChanged { subject, .. }
+            if subject_name(subject) == "#papo")
         })
         .event(|event| {
-            matches!(event, Event::MetadataChanged { target, .. }
-            if target == "bob")
+            matches!(event, Event::MetadataChanged { subject, .. }
+            if subject_name(subject) == "bob")
         })
         .inspect(|session| {
             assert_eq!(session.state().metadata("#PAPO").unwrap().len(), 1);

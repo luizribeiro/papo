@@ -6,7 +6,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
     Account, Away, Config, Conversation, Event, OwnedModeChange, RateLimit, ResponseMatcher,
-    StateLimit,
+    StateLimit, Subject,
 };
 use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, ModeKind, Nick};
 use support::Transcript;
@@ -827,8 +827,8 @@ fn reports_mixed_channel_and_user_mode_changes() {
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":alice!alice@staff.example MODE #papo +o-b emily *!*@gateway/tor-sasl")
         .event(|event| match event {
-            Event::ModeChanged { target, actor, changes } => {
-                target == "#papo"
+            Event::ModeChanged { subject, actor, changes } => {
+                matches!(subject, Subject::Channel(channel) if channel == "#papo")
                     && actor == "alice"
                     && changes == &vec![
                         OwnedModeChange { set: true, mode: 'o', arg: Some("emily".into()), kind: ModeKind::Prefix(0) },
@@ -838,7 +838,7 @@ fn reports_mixed_channel_and_user_mode_changes() {
             _ => false,
         })
         .server(":ergo.test MODE emily +i")
-        .event(|event| matches!(event, Event::ModeChanged { target, actor, changes } if target == "emily" && actor == "ergo.test" && changes == &vec![OwnedModeChange { set: true, mode: 'i', arg: None, kind: ModeKind::Unknown }]))
+        .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor, changes } if nick == "emily" && actor == "ergo.test" && changes == &vec![OwnedModeChange { set: true, mode: 'i', arg: None, kind: ModeKind::Unknown }]))
         .no_event();
 }
 
