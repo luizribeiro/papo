@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use papo_proto::{Casemapping, Folded, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
+use papo_proto::{Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
 use crate::{Event, Handled, Outbox};
 
 const MAX_DESIRED: usize = 10_000;
 const MONITOR_PAYLOAD_LEN: usize = MAX_LINE_LEN - "MONITOR + \r\n".len();
-type NickKey = Folded<Nick>;
+type NickKey = Nick;
 
 #[derive(Debug, Default)]
 pub(super) struct Monitor {
@@ -43,10 +43,7 @@ impl Monitor {
         nick: &str,
         isupport: &Isupport,
     ) -> Option<(Option<&str>, Option<&str>)> {
-        match self
-            .presence
-            .get(&NickKey::new(nick, isupport.casemapping()))?
-        {
+        match self.presence.get(&isupport.casemapping().nick(nick))? {
             Presence::Online { user, host, .. } => Some((user.as_deref(), host.as_deref())),
             Presence::Offline(_) => None,
         }
@@ -98,13 +95,9 @@ impl Monitor {
         let mut added = Vec::new();
         let mut unavailable = Vec::new();
         let mut full = Vec::new();
-        let mut known: HashSet<_> = self
-            .desired
-            .iter()
-            .map(|nick| NickKey::new(nick, mapping))
-            .collect();
+        let mut known: HashSet<_> = self.desired.iter().map(|nick| mapping.nick(nick)).collect();
         for nick in nicks.into_iter().map(Into::into) {
-            if !known.insert(NickKey::new(nick.as_str(), mapping)) {
+            if !known.insert(mapping.nick(nick.as_str())) {
                 continue;
             }
             if self.desired.len() == MAX_DESIRED {
@@ -164,7 +157,7 @@ impl Monitor {
                 .position(|known| mapping.eq(known, nick))
             {
                 self.desired.remove(index);
-                self.presence.remove(&NickKey::new(nick, mapping));
+                self.presence.remove(&mapping.nick(nick));
             }
         }
         if registered && isupport.monitor().is_some() {
@@ -211,7 +204,7 @@ impl Monitor {
                         let (was_online, userhost_changed) = {
                             let previous = self
                                 .presence
-                                .get(&NickKey::new(nick, isupport.casemapping()))
+                                .get(&isupport.casemapping().nick(nick))
                                 .and_then(|presence| {
                                     let Presence::Online {
                                         nick: _,
@@ -287,7 +280,7 @@ impl Monitor {
                 }
                 let mapping = isupport.casemapping();
                 for nick in &nicks {
-                    self.presence.remove(&NickKey::new(nick, mapping));
+                    self.presence.remove(&mapping.nick(nick));
                 }
                 outbox.event(Event::MonitorListFull { limit, nicks });
             }
@@ -298,7 +291,7 @@ impl Monitor {
 
     fn replace_presence(&mut self, nick: &str, next: Presence, isupport: &Isupport) -> bool {
         let mapping = isupport.casemapping();
-        let key = NickKey::new(nick, mapping);
+        let key = mapping.nick(nick);
         if let Some(current) = self.presence.get_mut(&key) {
             if *current == next {
                 return false;
@@ -319,7 +312,7 @@ impl Monitor {
         self.casemapping = mapping;
         self.presence = std::mem::take(&mut self.presence)
             .into_values()
-            .map(|presence| (NickKey::new(presence.nick(), mapping), presence))
+            .map(|presence| (mapping.nick(presence.nick()), presence))
             .collect();
     }
 
