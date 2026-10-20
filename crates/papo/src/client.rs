@@ -823,6 +823,9 @@ impl Client {
 
     /// Leaves a channel, omitting an empty `reason` from the wire.
     ///
+    /// While disconnected, this removes the channel from the automatic rejoin set and returns
+    /// [`Error::Disconnected`] without writing a `PART`.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
@@ -841,16 +844,17 @@ impl Client {
             channel
                 .check(client.state().isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
-            let mut params = vec![channel.to_string()];
-            if !reason.is_empty() {
-                params.push(reason);
-            }
-            let response = client
-                .correlated(
-                    Line::new("PART", params),
-                    Some(ResponseMatcher::Part(channel.to_string())),
-                )
-                .await?;
+            let (result, receiver) = oneshot::channel();
+            client
+                .commands
+                .send(Command::Part {
+                    channel,
+                    reason,
+                    result,
+                })
+                .await
+                .map_err(|_| Error::connection_lost())?;
+            let response = receiver.await.map_err(|_| Error::connection_lost())??;
             crate::requests::empty(&response)
         })
     }

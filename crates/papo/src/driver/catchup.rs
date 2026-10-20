@@ -242,6 +242,7 @@ mod tests {
         let defaults = super::super::PostConnect {
             bot: false,
             channels: vec!["#papo".into()],
+            parted_while_disconnected: Vec::new(),
             history_on_reconnect: true,
             disconnected_at: Some(SystemTime::UNIX_EPOCH),
         };

@@ -179,6 +179,11 @@ pub(crate) enum Command {
         key: Option<crate::Secret>,
         result: oneshot::Sender<Result<Response, Error>>,
     },
+    Part {
+        channel: crate::ChannelName,
+        reason: String,
+        result: oneshot::Sender<Result<Response, Error>>,
+    },
     CoreRequest {
         request: CoreRequest,
         result: oneshot::Sender<Result<Response, Error>>,
@@ -376,6 +381,7 @@ pub(crate) struct ConnectionPlan {
 pub(crate) struct PostConnect {
     pub(crate) bot: bool,
     pub(crate) channels: Vec<Autojoin>,
+    pub(crate) parted_while_disconnected: Vec<crate::ChannelName>,
     pub(crate) history_on_reconnect: bool,
     pub(crate) disconnected_at: Option<std::time::SystemTime>,
 }
@@ -928,6 +934,9 @@ where
                     }
                 }
                 Some(Command::Join { channel, key, result }) => {
+                    defaults
+                        .parted_while_disconnected
+                        .retain(|parted| parted != channel.as_ref());
                     let params = match &key {
                         Some(key) => {
                             let Some(key) = key.expose() else {
@@ -946,6 +955,22 @@ where
                         Ok(id) => {
                             requests.insert(id, PendingRequest::Response(result));
                             join_keys.insert(id, (channel, key));
+                        }
+                        Err(error) => { _ = result.send(Err(Error::request(error))); }
+                    }
+                }
+                Some(Command::Part { channel, reason, result }) => {
+                    let mut params = vec![channel.to_string()];
+                    if !reason.is_empty() {
+                        params.push(reason);
+                    }
+                    match session.request_with_matcher(
+                        now(),
+                        Line::new("PART", params),
+                        ResponseMatcher::Part(channel.to_string()),
+                    ) {
+                        Ok(id) => {
+                            requests.insert(id, PendingRequest::Response(result));
                         }
                         Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
@@ -1500,6 +1525,9 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
             defaults
                 .channels
                 .retain(|entry| parted.channel != entry.channel.as_str());
+            defaults
+                .parted_while_disconnected
+                .retain(|channel| parted.channel != channel.as_ref());
         }
         Event::Kicked(kicked) if kicked.is_self => {
             defaults

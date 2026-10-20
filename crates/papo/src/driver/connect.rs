@@ -93,6 +93,7 @@ pub(super) async fn run_plan(
             &mut commands,
             &events,
             &mut pending_events,
+            &mut defaults,
             registration.0.is_some(),
             sts_required,
             connect_timeout,
@@ -182,6 +183,7 @@ pub(super) async fn run_plan(
             &mut commands,
             &events.regular,
             &mut pending_events,
+            &mut defaults,
             disconnected,
         )
         .await
@@ -335,6 +337,7 @@ async fn connect_or_wait(
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
     pending_events: &mut VecDeque<Event>,
+    defaults: &mut PostConnect,
     fail_fast: bool,
     sts_required: bool,
     connect_timeout: Duration,
@@ -348,6 +351,7 @@ async fn connect_or_wait(
         commands,
         &events.regular,
         pending_events,
+        defaults,
         last_disconnect.as_ref(),
         connect_timeout,
     )
@@ -386,7 +390,15 @@ async fn connect_or_wait(
     ) {
         return ConnectionAttempt::SlowConsumer;
     }
-    if wait_before_retry(commands, &events.regular, pending_events, disconnected).await {
+    if wait_before_retry(
+        commands,
+        &events.regular,
+        pending_events,
+        defaults,
+        disconnected,
+    )
+    .await
+    {
         ConnectionAttempt::Retry
     } else {
         ConnectionAttempt::Stop
@@ -525,6 +537,7 @@ async fn connect_while_disconnected(
     commands: &mut mpsc::Receiver<Command>,
     events: &mpsc::Sender<Event>,
     pending_events: &mut VecDeque<Event>,
+    defaults: &mut PostConnect,
     last_cause: Option<&crate::DisconnectCause>,
     timeout: Duration,
 ) -> Option<Result<BoxConnection, Error>> {
@@ -550,7 +563,7 @@ async fn connect_while_disconnected(
                 Err(_) => pending_events.clear(),
             },
             command = commands.recv() => {
-                if !handle_disconnected_command(command, &disconnected) {
+                if !handle_disconnected_command(command, &disconnected, defaults) {
                     return None;
                 }
             }
@@ -562,6 +575,7 @@ async fn wait_before_retry(
     commands: &mut mpsc::Receiver<Command>,
     events: &mpsc::Sender<Event>,
     pending_events: &mut VecDeque<Event>,
+    defaults: &mut PostConnect,
     disconnected: crate::Disconnected,
 ) -> bool {
     let deadline = now() + disconnected.retry_in.unwrap_or_default();
@@ -585,7 +599,7 @@ async fn wait_before_retry(
                             disconnected.cause.clone(),
                             Some(deadline.saturating_duration_since(now())),
                         );
-                        if !handle_disconnected_command(command, &current) {
+                        if !handle_disconnected_command(command, &current, defaults) {
                             return false;
                         }
                     }
@@ -607,6 +621,7 @@ fn retry_delay(
 fn handle_disconnected_command(
     command: Option<Command>,
     disconnected: &crate::Disconnected,
+    defaults: &mut PostConnect,
 ) -> bool {
     match command {
         Some(
@@ -617,6 +632,22 @@ fn handle_disconnected_command(
             | Command::MarkRead { result, .. }
             | Command::ReadMarker { result, .. },
         ) => {
+            _ = result.send(Err(Error::disconnected(disconnected.clone())));
+            true
+        }
+        Some(Command::Part {
+            channel, result, ..
+        }) => {
+            defaults
+                .channels
+                .retain(|entry| channel != entry.channel.as_str());
+            if !defaults
+                .parted_while_disconnected
+                .iter()
+                .any(|parted| parted == channel.as_ref())
+            {
+                defaults.parted_while_disconnected.push(channel);
+            }
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
             true
         }

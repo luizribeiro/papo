@@ -607,6 +607,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             "#staff",
             Some("private-channel-key".into()),
         )],
+        parted_while_disconnected: Vec::new(),
         history_on_reconnect: true,
         disconnected_at: None,
     };
@@ -695,6 +696,7 @@ fn remembering_a_rejoin_replaces_only_the_same_channel() {
             super::Autojoin::new("#Papo", Some("old-channel-key".into())),
             super::Autojoin::new("#rust", None),
         ],
+        parted_while_disconnected: Vec::new(),
         history_on_reconnect: true,
         disconnected_at: None,
     };
@@ -738,6 +740,7 @@ async fn write_timeout_resumes_before_the_next_line() {
     let mut defaults = super::PostConnect {
         bot: false,
         channels: vec!["#papo".into(), "#rust".into()],
+        parted_while_disconnected: Vec::new(),
         history_on_reconnect: false,
         disconnected_at: None,
     };
@@ -909,6 +912,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
         super::PostConnect {
             bot: false,
             channels: vec!["#papo".into(), "#rust".into()],
+            parted_while_disconnected: Vec::new(),
             history_on_reconnect: true,
             disconnected_at: None,
         },
@@ -1052,6 +1056,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
         super::PostConnect {
             bot: false,
             channels: vec!["#papo".into()],
+            parted_while_disconnected: Vec::new(),
             history_on_reconnect: true,
             disconnected_at: None,
         },
@@ -1168,7 +1173,10 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
         Session::new(config()),
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
-        super::PostConnect::default(),
+        super::PostConnect {
+            channels: vec!["#papo".into()],
+            ..super::PostConnect::default()
+        },
         Reconnect::exponential(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
@@ -1189,6 +1197,10 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     ));
     assert!(matches!(
         within(client.whois(test_nick("emily"))).await,
+        Err(disconnected!())
+    ));
+    assert!(matches!(
+        within(client.part(test_channel("#papo"), "leaving while offline")).await,
         Err(disconnected!())
     ));
 
@@ -2186,6 +2198,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
                 super::Autojoin::new("#PAPO", Some("replacement-channel-key".into())),
                 super::Autojoin::new("#papo-bots", Some("private-channel-key".into())),
             ],
+            parted_while_disconnected: Vec::new(),
             history_on_reconnect: false,
             disconnected_at: None,
         },
@@ -2218,6 +2231,7 @@ async fn bot_default_without_advertised_mode_sends_no_mode() {
         super::PostConnect {
             bot: true,
             channels: Vec::new(),
+            parted_while_disconnected: Vec::new(),
             history_on_reconnect: false,
             disconnected_at: None,
         },
@@ -2243,6 +2257,7 @@ async fn empty_channel_defaults_send_no_join() {
         super::PostConnect {
             bot: true,
             channels: Vec::new(),
+            parted_while_disconnected: Vec::new(),
             history_on_reconnect: false,
             disconnected_at: None,
         },

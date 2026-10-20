@@ -568,6 +568,7 @@ impl Builder {
             PostConnect {
                 bot: self.bot,
                 channels: self.autojoin,
+                parted_while_disconnected: Vec::new(),
                 history_on_reconnect: self.history_on_reconnect,
                 disconnected_at: None,
             },
@@ -605,6 +606,7 @@ impl Builder {
         let defaults = PostConnect {
             bot: self.bot,
             channels: self.autojoin,
+            parted_while_disconnected: Vec::new(),
             history_on_reconnect: self.history_on_reconnect,
             disconnected_at: None,
         };
