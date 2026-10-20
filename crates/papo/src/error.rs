@@ -372,7 +372,10 @@ pub enum Error {
     /// The established connection ended.
     #[error(transparent)]
     Disconnected(Disconnected),
-    /// An operation did not complete before its deadline.
+    /// Every line was sent, but the expected reply did not arrive in time.
+    ///
+    /// The server may already have acted. Retrying an action such as `KICK` or
+    /// `MODE +b` can repeat its effect.
     #[error("the IRC operation timed out")]
     Timeout,
     /// The server's reply did not have the shape required by its command.

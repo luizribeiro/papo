@@ -275,7 +275,12 @@ impl Builder {
         self
     }
 
-    /// Sets how long an action waits for its server response.
+    /// Sets how long an action waits for its server response after all of its
+    /// lines have been sent.
+    ///
+    /// A timeout means no reply arrived in time, not that the server did
+    /// nothing. Retrying an action such as `KICK` or `MODE +b` can repeat its
+    /// effect.
     ///
     /// ```
     /// # use std::time::Duration;
