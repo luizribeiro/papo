@@ -2353,6 +2353,43 @@ async fn queued_raw_sends_fail_when_the_connection_drops() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn queued_raw_send_preserves_the_server_disconnect_cause() {
+    let (mut server, client, _events, driver) = scripted(
+        config().rate_limit(
+            papo_core::RateLimit::new(1, Duration::from_hours(24))
+                .unwrap()
+                .strict(),
+        ),
+    );
+    let driver = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    client.send_raw("WHOIS release-bot").await.unwrap();
+    client_line(&mut server, b"WHOIS release-bot\r\n").await;
+
+    let queued = tokio::spawn(async move { client.send_raw("WHOIS queued-release-bot").await });
+    for _ in 0..4 {
+        tokio::task::yield_now().await;
+    }
+    server_line(
+        &mut server,
+        b"ERROR :Closing Link: papo-driver (Server maintenance)\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        within(queued).await.unwrap(),
+        Err(Error::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Server { message },
+            retry_in: None,
+        })) if message == "Closing Link: papo-driver (Server maintenance)"
+    ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn command_builder_quotes_real_commands() {
     let (mut server, client, _events, driver) = scripted(
         config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500)).unwrap()),
