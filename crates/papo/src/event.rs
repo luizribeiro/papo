@@ -742,7 +742,7 @@ pub(crate) enum CoreEvent {
 
 // Keeping the exhaustive forwarding table together makes omissions visible when core grows.
 #[allow(clippy::too_many_lines)]
-pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
+pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Registered(welcome) => return CoreEvent::Registered(welcome),
         papo_core::Event::Line(message) => {
@@ -756,7 +756,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             let tag = TagMsg {
                 source: message
                     .source
-                    .map(|source| Source::from_prefix(source, Casemapping::default())),
+                    .map(|source| Source::from_prefix(source, casemapping)),
                 target: message.target.into(),
                 tags: Tags::from_pairs(message.tags),
             };
@@ -799,7 +799,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::Redacted(redacted) => Event::Redacted(Redacted {
             source: redacted
                 .source
-                .map(|source| Source::from_prefix(source, Casemapping::default())),
+                .map(|source| Source::from_prefix(source, casemapping)),
             target: redacted.target.into(),
             message: redacted.msgid.into(),
             reason: redacted.reason.filter(|reason| !reason.is_empty()),
@@ -828,12 +828,12 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         }),
         papo_core::Event::AccountRegistered { account, .. } => {
             Event::AccountRegistration(crate::AccountRegistration::Registered {
-                account: account.into(),
+                account: casemapping.account(account),
             })
         }
         papo_core::Event::VerificationRequired { account, message } => {
             Event::AccountRegistration(crate::AccountRegistration::VerificationRequired {
-                account: account.into(),
+                account: casemapping.account(account),
                 message,
             })
         }
@@ -886,7 +886,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                         papo_proto::Source::Server(_) => return None,
                     };
                     Some(Departed {
-                        nick: nick.into(),
+                        nick: casemapping.nick(nick),
                         reason: message.param(0).map(str::to_owned),
                     })
                 })
@@ -903,8 +903,8 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
                         papo_proto::Source::Server(_) => return None,
                     };
                     Some(Joined {
-                        channel: message.param(0)?.into(),
-                        nick: nick.into(),
+                        channel: casemapping.channel(message.param(0)?),
+                        nick: casemapping.nick(nick),
                         is_self: false,
                     })
                 })
@@ -939,20 +939,20 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined { channel, nick } => Event::Joined(Joined {
-            channel: channel.into(),
-            nick: nick.into(),
+            channel: casemapping.channel(channel),
+            nick: casemapping.nick(nick),
             is_self: false,
         }),
         papo_core::Event::ChannelSynced { channel } => Event::ChannelSynced(ChannelSynced {
-            channel: channel.into(),
+            channel: casemapping.channel(channel),
         }),
         papo_core::Event::Parted {
             channel,
             nick,
             reason,
         } => Event::Parted(Parted {
-            channel: channel.into(),
-            nick: nick.into(),
+            channel: casemapping.channel(channel),
+            nick: casemapping.nick(nick),
             reason,
             is_self: false,
         }),
@@ -962,16 +962,16 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             by,
             reason,
         } => Event::Kicked(Kicked {
-            channel: channel.into(),
-            nick: nick.into(),
-            by: Source::from_name(by, Casemapping::default()),
+            channel: casemapping.channel(channel),
+            nick: casemapping.nick(nick),
+            by: Source::from_name(by, casemapping),
             reason,
             is_self: false,
         }),
         papo_core::Event::Invited { channel, nick, by } => Event::Invited(Invited {
-            channel: channel.into(),
-            nick: nick.into(),
-            by: Source::from_prefix(by, Casemapping::default()),
+            channel: casemapping.channel(channel),
+            nick: casemapping.nick(nick),
+            by: Source::from_prefix(by, casemapping),
             is_self: false,
         }),
         papo_core::Event::Quit {
@@ -979,43 +979,46 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             reason,
             channels,
         } => Event::Quit(Quit {
-            nick: nick.into(),
+            nick: casemapping.nick(nick),
             reason,
-            channels: channels.into_iter().map(Into::into).collect(),
+            channels: channels
+                .into_iter()
+                .map(|channel| casemapping.channel(channel))
+                .collect(),
         }),
         papo_core::Event::NickChanged { old, new } => Event::NickChanged(NickChanged {
-            old: old.into(),
-            new: new.into(),
+            old: casemapping.nick(old),
+            new: casemapping.nick(new),
             is_self: false,
         }),
         papo_core::Event::ChannelRenamed { old, new, reason } => {
             Event::ChannelRenamed(ChannelRenamed {
-                old: old.into(),
-                new: new.into(),
+                old: casemapping.channel(old),
+                new: casemapping.channel(new),
                 reason,
             })
         }
         papo_core::Event::AccountChanged { nick, account } => {
             Event::AccountChanged(AccountChanged {
-                nick: nick.into(),
+                nick: casemapping.nick(nick),
                 account: match account {
-                    Account::LoggedIn(account) => Some(account.into_string().into()),
+                    Account::LoggedIn(account) => Some(account),
                     _ => None,
                 },
             })
         }
         papo_core::Event::AwayChanged { nick, message } => Event::AwayChanged(AwayChanged {
-            nick: nick.into(),
+            nick: casemapping.nick(nick),
             message,
         }),
         papo_core::Event::HostChanged { nick, user, host } => Event::HostChanged(HostChanged {
-            nick: nick.into(),
+            nick: casemapping.nick(nick),
             user,
             host,
         }),
         papo_core::Event::RealnameChanged { nick, realname } => {
             Event::RealnameChanged(RealnameChanged {
-                nick: nick.into(),
+                nick: casemapping.nick(nick),
                 realname,
             })
         }
@@ -1025,7 +1028,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             changes,
         } => Event::ModeChanged(ModeChanged {
             target: target.into(),
-            by: Source::from_name(by, Casemapping::default()),
+            by: Source::from_name(by, casemapping),
             changes: changes
                 .into_iter()
                 .map(|change| ModeChange {
@@ -1038,9 +1041,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         }),
         papo_core::Event::TopicChanged { channel, topic, by } => {
             Event::TopicChanged(TopicChanged {
-                channel: channel.into(),
+                channel: casemapping.channel(channel),
                 topic,
-                by: Source::from_name(by, Casemapping::default()),
+                by: Source::from_name(by, casemapping),
             })
         }
         papo_core::Event::StateLimitReached { limit } => {
@@ -1058,18 +1061,21 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         }
         papo_core::Event::MonitorOnline { nick, user, host } => {
             Event::MonitorOnline(MonitorOnline {
-                nick: nick.into(),
+                nick: casemapping.nick(nick),
                 user,
                 host,
             })
         }
-        papo_core::Event::MonitorOffline { nick } => {
-            Event::MonitorOffline(MonitorOffline { nick: nick.into() })
-        }
+        papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline {
+            nick: casemapping.nick(nick),
+        }),
         papo_core::Event::MonitorListFull { limit, nicks } => {
             Event::Warning(Warning::MonitorListFull {
                 limit,
-                nicks: nicks.into_iter().map(Into::into).collect(),
+                nicks: nicks
+                    .into_iter()
+                    .map(|nick| casemapping.nick(nick))
+                    .collect(),
             })
         }
         papo_core::Event::MonitorUnsupported => Event::Warning(Warning::MonitorUnsupported),
@@ -1085,13 +1091,17 @@ mod tests {
     use super::PersistenceSetting;
     use super::{
         CoreEvent, Event, Message as ChatMessage, MessageKind, MetadataChanged, ModeKind, Origin,
-        Source, StandardReplyKind, Visibility, Warning, from_core,
+        Source, StandardReplyKind, Visibility, Warning, from_core as from_core_with_mapping,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
-    use papo_proto::{Isupport, Line, LineRef, ModeKind as ProtoModeKind, Typing};
+    use papo_proto::{Casemapping, Isupport, Line, LineRef, ModeKind as ProtoModeKind, Typing};
+
+    fn from_core(event: papo_core::Event) -> CoreEvent {
+        from_core_with_mapping(event, Casemapping::default())
+    }
 
     fn event(
         message: Line,
@@ -1358,6 +1368,24 @@ mod tests {
                 if nick == "emily" && user == "~emily" && host == "localhost"
         ));
         assert!(!invited.is_self);
+    }
+
+    #[test]
+    fn forwarded_names_capture_the_supplied_casemapping() {
+        let CoreEvent::Forward(Event::Joined(joined)) = from_core_with_mapping(
+            papo_core::Event::Joined {
+                channel: "#Papo[dev]".into(),
+                nick: "Alice[bot]".into(),
+            },
+            Casemapping::Ascii,
+        ) else {
+            panic!("join was not forwarded");
+        };
+
+        assert_eq!(joined.channel.casemapping(), Casemapping::Ascii);
+        assert_eq!(joined.nick.casemapping(), Casemapping::Ascii);
+        assert_ne!(joined.channel, "#papo{dev}");
+        assert_ne!(joined.nick, "alice{bot}");
     }
 
     fn mapped_message(event: papo_core::Event) -> ChatMessage {

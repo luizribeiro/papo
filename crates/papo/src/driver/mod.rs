@@ -1029,7 +1029,8 @@ where
     };
     let disconnected = disconnected_event(&error, None);
     session.handle_disconnected(now());
-    while let Some(core_event) = session.poll_event().map(event::from_core) {
+    while let Some(core_event) = session.poll_event() {
+        let core_event = event::from_core(core_event, session.isupport().casemapping());
         if let event::CoreEvent::RequestAborted { id, transmitted } = core_event {
             join_keys.remove(&id);
             if let Some(result) = requests.remove(&id) {
@@ -1152,7 +1153,7 @@ where
     while (pending_events.is_empty() || read_ahead || after_timeout)
         && let Some(core_event) = session.poll_event()
     {
-        match event::from_core(core_event) {
+        match event::from_core(core_event, session.isupport().casemapping()) {
             event::CoreEvent::Forward(mut event) => {
                 event.mark_self(session.nick(), session.isupport().casemapping());
                 if let Event::ChannelSynced(synced) = &event {
@@ -1185,7 +1186,7 @@ where
                     *registered = true;
                 }
                 let event = Event::Registered(event::Registered {
-                    nick: welcome.nick.into(),
+                    nick: session.isupport().casemapping().nick(welcome.nick),
                     text: welcome.text,
                     caps: welcome.caps,
                     reconnected,
