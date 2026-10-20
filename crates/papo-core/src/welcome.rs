@@ -7,17 +7,17 @@ use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome};
 const WELCOME_BURST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 #[derive(Debug)]
-pub(super) struct Registration {
+pub(super) struct WelcomeState {
     nick: String,
     deadline: Option<Instant>,
     welcome_deadline: Option<Instant>,
     welcome_text: Option<String>,
     next_alt_nick: usize,
-    registered: bool,
+    connected: bool,
     webirc_pending: bool,
 }
 
-impl Registration {
+impl WelcomeState {
     pub(super) fn new(config: &Config) -> Self {
         Self {
             nick: config.nick.clone(),
@@ -25,7 +25,7 @@ impl Registration {
             welcome_deadline: None,
             welcome_text: None,
             next_alt_nick: 0,
-            registered: false,
+            connected: false,
             webirc_pending: false,
         }
     }
@@ -36,7 +36,7 @@ impl Registration {
         self.welcome_deadline = None;
         self.welcome_text = None;
         self.next_alt_nick = 0;
-        self.registered = false;
+        self.connected = false;
         self.webirc_pending = config.webirc.is_some();
         if let Some(webirc) = &config.webirc {
             let Some(password) = webirc.password.expose() else {
@@ -183,7 +183,7 @@ impl Registration {
         self.deadline = None;
         self.welcome_deadline = None;
         self.welcome_text = None;
-        self.registered = false;
+        self.connected = false;
         self.webirc_pending = false;
     }
 
@@ -191,8 +191,8 @@ impl Registration {
         &self.nick
     }
 
-    pub(super) const fn is_registered(&self) -> bool {
-        self.registered
+    pub(super) const fn is_connected(&self) -> bool {
+        self.connected
     }
 
     pub(super) const fn is_in_welcome_burst(&self) -> bool {
@@ -205,7 +205,7 @@ impl Registration {
 
     fn complete(&mut self, caps: &Capabilities, isupport: &Isupport, outbox: &mut Outbox) {
         self.welcome_deadline = None;
-        self.registered = true;
+        self.connected = true;
         outbox.event(Event::Connected(Welcome {
             nick: isupport.casemapping().nick(&self.nick),
             text: self.welcome_text.take().unwrap_or_default(),

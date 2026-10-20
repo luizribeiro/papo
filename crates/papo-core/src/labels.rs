@@ -100,7 +100,7 @@ impl Session {
                     .or_else(|| {
                         request
                             .matcher
-                            .matches(message, mapping, self.registration.nick(), &self.state)
+                            .matches(message, mapping, self.welcome_state.nick(), &self.state)
                             .map(|complete| complete && request.fence.is_none())
                     })
                     .map(|done| (index, done, join_started))

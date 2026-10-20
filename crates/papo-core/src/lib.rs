@@ -121,7 +121,7 @@ pub use sasl::{Entropy, Sasl};
 pub use state::{Account, Away, Channel, Member, State, User};
 use state::{MetadataContext, StateSnapshot};
 use sts::ConnectionSecurity;
-use welcome::Registration;
+use welcome::WelcomeState;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_LINE_LEN;
 const DEFAULT_WELCOME_TIMEOUT: Duration = Duration::from_secs(60);
@@ -1852,7 +1852,7 @@ pub struct Session {
     unlabelled_requests: VecDeque<UnlabelledRequest>,
     next_request_id: u64,
     next_transmit_token: u64,
-    registration: Registration,
+    welcome_state: WelcomeState,
     sasl: SaslSession,
     state: State,
     state_generation: u64,
@@ -1890,7 +1890,7 @@ impl std::fmt::Debug for Session {
             .field("unlabelled_requests", &self.unlabelled_requests)
             .field("next_request_id", &self.next_request_id)
             .field("next_transmit_token", &self.next_transmit_token)
-            .field("registration", &self.registration)
+            .field("welcome_state", &self.welcome_state)
             .field(cap::SASL, &self.sasl)
             .field("state", &self.state)
             .field("state_generation", &self.state_generation)
@@ -2076,7 +2076,7 @@ impl Session {
             host: config.host.clone(),
             security: config.connection_security,
         };
-        let registration = Registration::new(&config);
+        let welcome_state = WelcomeState::new(&config);
         let isupport = IsupportState::new(config.decoding);
         let sasl = SaslSession::new(&config, entropy);
         let rate_limit = RateLimiter::new(config.rate_limit);
@@ -2104,7 +2104,7 @@ impl Session {
             unlabelled_requests: VecDeque::new(),
             next_request_id: 0,
             next_transmit_token: 0,
-            registration,
+            welcome_state,
             sasl,
             state,
             state_generation: 0,
@@ -2147,7 +2147,7 @@ impl Session {
         self.state_generation = self.state_generation.wrapping_add(1);
         self.keepalive
             .handle_connected(now, self.config.ping_interval, self.config.ping_timeout);
-        self.registration
+        self.welcome_state
             .handle_connected(now, &self.config, &mut self.outbox);
     }
 
@@ -2249,14 +2249,14 @@ impl Session {
                 self.unlabelled_requests.push_back(request);
             }
         }
-        let was_registered = self.registration.is_registered();
-        self.registration.handle_timeout(
+        let was_registered = self.welcome_state.is_connected();
+        self.welcome_state.handle_timeout(
             now,
             self.caps.enabled(),
             self.isupport.value(),
             &mut self.outbox,
         );
-        if !was_registered && self.registration.is_registered() {
+        if !was_registered && self.welcome_state.is_connected() {
             self.monitor
                 .restore(self.isupport.value(), &mut self.outbox);
         }
@@ -2298,7 +2298,7 @@ impl Session {
             });
         }
         self.away_messages.clear();
-        self.registration.handle_disconnected();
+        self.welcome_state.handle_disconnected();
         self.account_registration.handle_disconnected();
         self.sasl.handle_disconnected();
         self.keepalive.handle_disconnected();
@@ -2634,7 +2634,7 @@ impl Session {
         self.monitor.add(
             nicks,
             self.isupport.value(),
-            self.registration.is_registered(),
+            self.welcome_state.is_connected(),
             &mut self.outbox,
         );
     }
@@ -2649,7 +2649,7 @@ impl Session {
         self.monitor.remove(
             nicks,
             self.isupport.value(),
-            self.registration.is_registered(),
+            self.welcome_state.is_connected(),
             &mut self.outbox,
         );
         self.sync_monitored_state();
@@ -2662,7 +2662,7 @@ impl Session {
     pub fn monitor_clear(&mut self) {
         let before = self.state.clone();
         let supported =
-            self.registration.is_registered() && self.isupport.value().monitor().is_some();
+            self.welcome_state.is_connected() && self.isupport.value().monitor().is_some();
         self.monitor.clear(supported, &mut self.outbox);
         self.sync_monitored_state();
         if before != self.state {
@@ -2755,7 +2755,7 @@ impl Session {
     #[must_use]
     pub fn poll_timeout(&self) -> Option<Instant> {
         [
-            self.registration.next_deadline(),
+            self.welcome_state.next_deadline(),
             self.sasl.next_deadline(),
             self.keepalive.next_deadline(),
             self.rate_limit.next_deadline(
@@ -2786,7 +2786,7 @@ impl Session {
     /// Returns the nickname currently assigned to this session.
     #[must_use]
     pub fn nick(&self) -> &str {
-        self.registration.nick()
+        self.welcome_state.nick()
     }
 
     /// Returns the `IRCv3` capabilities enabled on this connection.
@@ -2839,7 +2839,7 @@ impl Session {
     /// Reports whether connection registration has completed.
     #[must_use]
     pub const fn is_registered(&self) -> bool {
-        self.registration.is_registered()
+        self.welcome_state.is_connected()
     }
 
     /// Returns the account name reported by the server, when authenticated.
@@ -2866,7 +2866,7 @@ impl Session {
         email: Option<&str>,
         password: impl Into<Secret>,
     ) -> Result<(), RequestError> {
-        let registered = self.registration.is_registered();
+        let registered = self.welcome_state.is_connected();
         let value = if registered {
             self.caps
                 .enabled()
@@ -2939,7 +2939,7 @@ impl Session {
     /// failures are the same as [`Session::request`].
     pub fn verify(&mut self, now: Instant, account: &str, code: &str) -> Result<(), RequestError> {
         self.require_feature(Feature::AccountRegistration)?;
-        if !self.registration.is_registered()
+        if !self.welcome_state.is_connected()
             && !RegistrationPolicy::parse(
                 self.caps
                     .enabled()
@@ -3006,7 +3006,7 @@ impl Session {
             return;
         }
         let pre_away = self.caps.enabled().contains_key(cap::PRE_AWAY);
-        if !pre_away && !self.registration.is_registered() {
+        if !pre_away && !self.welcome_state.is_connected() {
             return;
         }
         let parameter = match &self.config.away_on_connect {
@@ -3058,9 +3058,9 @@ impl Session {
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
         let before = self.snapshot_values_for(message);
-        let was_registered = self.registration.is_registered();
+        let was_registered = self.welcome_state.is_connected();
         let before_features = was_registered.then(|| self.supported_features());
-        let registration_handled = self.registration.handle_message(
+        let registration_handled = self.welcome_state.handle_message(
             now,
             message,
             &self.config,
@@ -3087,7 +3087,7 @@ impl Session {
         if isupport_handled {
             self.remember_casemapping();
         }
-        let registration_finished = !was_registered && self.registration.is_registered();
+        let registration_finished = !was_registered && self.welcome_state.is_connected();
         if registration_finished {
             self.monitor
                 .restore(self.isupport.value(), &mut self.outbox);
@@ -3110,7 +3110,7 @@ impl Session {
         let state_handled = whoami
             || self.state.handle_message(
                 message,
-                self.registration.nick(),
+                self.welcome_state.nick(),
                 self.isupport.value(),
                 self.no_implicit_names(),
                 MetadataContext {
@@ -3186,9 +3186,9 @@ impl Session {
             self.outbox.event(Event::Line(received));
         }
         if message.command() == Command::Nick
-            && self.registration.nick() != self.state.nick().as_ref()
+            && self.welcome_state.nick() != self.state.nick().as_ref()
         {
-            self.registration.update_nick(self.state.nick());
+            self.welcome_state.update_nick(self.state.nick());
         }
         self.apply_close_request();
         self.report_feature_changes(before_features);
@@ -3264,10 +3264,10 @@ impl Session {
 
     fn handle_whoami(&mut self, message: &LineRef<'_>) -> bool {
         if !self.caps.enabled().contains_key(cap::WHOAMI)
-            || !self.registration.is_in_welcome_burst()
+            || !self.welcome_state.is_in_welcome_burst()
             || !self.state.handle_whoami(
                 message,
-                self.registration.nick(),
+                self.welcome_state.nick(),
                 self.isupport.value(),
                 &mut self.outbox,
             )
@@ -3275,7 +3275,7 @@ impl Session {
             return false;
         }
         if let Some(Source::User { nick, .. }) = message.source() {
-            self.registration.update_nick(nick);
+            self.welcome_state.update_nick(nick);
         }
         true
     }
@@ -3486,7 +3486,7 @@ impl Session {
         let event_count = self.outbox.events.len();
         self.state.handle_message(
             &message.as_ref(),
-            self.registration.nick(),
+            self.welcome_state.nick(),
             self.isupport.value(),
             self.no_implicit_names(),
             MetadataContext {
@@ -3521,7 +3521,7 @@ impl Session {
         let Some(limits) = self.metadata_limits() else {
             return;
         };
-        let registered = self.registration.is_registered();
+        let registered = self.welcome_state.is_connected();
         if !registered && !limits.before_connect {
             return;
         }

@@ -24,7 +24,7 @@ impl Session {
             crate::names_equal(
                 self.isupport.value().casemapping(),
                 nick,
-                self.registration.nick(),
+                self.welcome_state.nick(),
             )
         })
     }
