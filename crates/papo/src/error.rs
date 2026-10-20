@@ -633,6 +633,42 @@ mod tests {
     }
 
     #[test]
+    fn connection_error_equality_uses_kind_and_source_text() {
+        let refused = ConnectError::new(
+            ConnectErrorKind::Refused,
+            io::Error::new(
+                io::ErrorKind::ConnectionRefused,
+                "irc.example.net:6697 refused the connection",
+            ),
+        );
+        let same = ConnectError::new(
+            ConnectErrorKind::Refused,
+            io::Error::new(
+                io::ErrorKind::ConnectionRefused,
+                "irc.example.net:6697 refused the connection",
+            ),
+        );
+        let unreachable = ConnectError::new(
+            ConnectErrorKind::Unreachable,
+            io::Error::new(
+                io::ErrorKind::ConnectionRefused,
+                "irc.example.net:6697 refused the connection",
+            ),
+        );
+        let other_endpoint = ConnectError::new(
+            ConnectErrorKind::Refused,
+            io::Error::new(
+                io::ErrorKind::ConnectionRefused,
+                "irc.backup.example.net:6697 refused the connection",
+            ),
+        );
+
+        assert_eq!(refused, same);
+        assert_ne!(refused, unreachable);
+        assert_ne!(refused, other_endpoint);
+    }
+
+    #[test]
     fn close_kinds_retain_their_specific_categories() {
         assert!(matches!(
             Error::disconnected_close(
