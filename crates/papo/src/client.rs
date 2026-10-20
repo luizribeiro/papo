@@ -287,60 +287,6 @@ impl Client {
         })
     }
 
-    /// Builds and queues one IRC command for transmission.
-    ///
-    /// A final parameter is encoded as a trailing parameter when required.
-    /// Sending is subject to the client's normal outbound rate limit.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidInput`] when the command or a parameter cannot
-    /// be represented on the IRC wire, or [`Error::Disconnected`] if the
-    /// driver has stopped.
-    pub fn send_command<I, S>(
-        &self,
-        command: impl AsRef<str>,
-        params: I,
-    ) -> crate::RequestFuture<()>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        let client = self.clone();
-        let message = build_command(command.as_ref(), params);
-        crate::RequestFuture::new(async move { client.send_message(message?).await })
-    }
-
-    /// Sends one IRC command and waits for its labelled response.
-    ///
-    /// A final parameter is encoded as a trailing parameter when required.
-    /// Response lines are returned here rather than emitted by the event
-    /// stream. Their state changes are still applied before this future
-    /// completes.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidInput`] when the command or a parameter cannot
-    /// be represented on the IRC wire. Returns an error when labelled responses
-    /// are unavailable, the request limit is reached, the response times out,
-    /// or the driver stops.
-    pub fn request_command<I, S>(
-        &self,
-        command: impl AsRef<str>,
-        params: I,
-    ) -> crate::RequestFuture<Vec<Line>>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        let client = self.clone();
-        let message = build_command(command.as_ref(), params);
-        crate::RequestFuture::new(async move {
-            let response = client.correlated(message?, None).await?;
-            Ok(response.lines)
-        })
-    }
-
     /// Queues one IRC protocol line for transmission.
     ///
     /// The future resolves only after the entire line has been written.
@@ -1189,21 +1135,6 @@ impl Client {
             receiver.await.unwrap_or(Ok(()))
         })
     }
-}
-
-fn build_command<I, S>(command: &str, params: I) -> Result<Line, Error>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    let message = Line::new(
-        command,
-        params.into_iter().map(|param| param.as_ref().to_owned()),
-    );
-    message
-        .to_line()
-        .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
-    Ok(message)
 }
 
 impl std::fmt::Debug for Client {
