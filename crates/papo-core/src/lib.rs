@@ -1721,6 +1721,8 @@ pub enum Event {
         channel: ChannelName,
         /// The joining user's nickname.
         nick: Nick,
+        /// Whether the joining user is this session's user.
+        authorship: Authorship,
     },
     /// Initial channel membership synchronization completed.
     ChannelSynced {
@@ -1735,6 +1737,8 @@ pub enum Event {
         nick: Nick,
         /// The optional part reason.
         reason: Option<String>,
+        /// Whether the departing user is this session's user.
+        authorship: Authorship,
     },
     /// A user was removed from a shared channel with `KICK`.
     Kicked {
@@ -1764,6 +1768,8 @@ pub enum Event {
         reason: Option<String>,
         /// Shared channels captured before the user was removed.
         channels: Vec<ChannelName>,
+        /// Whether the disconnected user is this session's user.
+        authorship: Authorship,
     },
     /// A user changed nickname.
     NickChanged {
@@ -1771,6 +1777,8 @@ pub enum Event {
         old: Nick,
         /// The new nickname.
         new: Nick,
+        /// Whether the renamed user is this session's user.
+        authorship: Authorship,
     },
     /// A joined channel was renamed.
     ChannelRenamed {

@@ -20,15 +20,15 @@ use papo_proto::{
     Source, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
-#[cfg(feature = "unstable")]
 use crate::{
-    BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, bouncer::NetworkUpdate,
-};
-use crate::{
-    Config, Conversation, Event, Handled, LastSeen, MetadataValue, NameKey, Outbox,
+    Authorship, Config, Conversation, Event, Handled, LastSeen, MetadataValue, NameKey, Outbox,
     OwnedModeChange, ReadMarker, StateLimit, Subject,
     conversation::classify_target,
     monitor::{Monitor, presence_nicks},
+};
+#[cfg(feature = "unstable")]
+use crate::{
+    BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, bouncer::NetworkUpdate,
 };
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
@@ -201,6 +201,14 @@ fn metadata_update<'a>(
 }
 
 impl State {
+    pub(super) fn nick_authorship(&self, nick: &str) -> Authorship {
+        if crate::names_equal(self.casemapping, nick, &self.nick) {
+            Authorship::Own
+        } else {
+            Authorship::Other
+        }
+    }
+
     pub(crate) fn snapshot_for(&self, message: &LineRef<'_>) -> StateSnapshot {
         if let Some((target, key, _, _)) = metadata_update(message) {
             let target = NameKey::new(target, self.casemapping);
@@ -380,10 +388,12 @@ impl State {
                 return Handled::No;
             };
             for channel in channels.split(',') {
+                let authorship = self.nick_authorship(nick);
                 outbox.event(Event::Parted {
                     channel: mapping.channel(channel),
                     nick: mapping.nick(nick),
                     reason: message.param(1).map(str::to_owned),
+                    authorship,
                 });
                 if crate::names_equal(mapping, nick, &self.nick) {
                     self.remove_channel(channel);
@@ -425,6 +435,13 @@ impl State {
             else {
                 return Handled::No;
             };
+            let authorship = if self.nick_authorship(nick) == Authorship::Own
+                || self.nick_authorship(new_nick) == Authorship::Own
+            {
+                Authorship::Own
+            } else {
+                Authorship::Other
+            };
             self.rename_user(nick, new_nick);
             if crate::names_equal(mapping, nick, &self.nick) {
                 self.nick = mapping.nick(new_nick);
@@ -432,6 +449,7 @@ impl State {
             outbox.event(Event::NickChanged {
                 old: mapping.nick(nick),
                 new: mapping.nick(new_nick),
+                authorship,
             });
             return Handled::Yes;
         }

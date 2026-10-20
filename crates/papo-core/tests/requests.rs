@@ -1107,7 +1107,7 @@ fn labelled_join_waits_for_state_sync_before_resolving() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Joined { channel, nick }) if channel == "#Papo[" && nick == "papo"
+        Some(Event::Joined { channel, nick, .. }) if channel == "#Papo[" && nick == "papo"
     ));
     assert_eq!(session.poll_event(), None);
     session.handle_line(now, b":ergo.test 353 papo = #papo{ :@papo alice");
@@ -1344,7 +1344,7 @@ fn pending_non_history_batch_dispatches_protocol_state() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Joined { channel, nick }) if channel == "#papo" && nick == "papo"
+        Some(Event::Joined { channel, nick, .. }) if channel == "#papo" && nick == "papo"
     ));
     assert!(matches!(
         session.poll_event(),

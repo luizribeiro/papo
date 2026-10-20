@@ -162,7 +162,7 @@ fn session_nick_tracks_own_and_server_forced_changes_with_casemapping() {
         .welcome(":irc.example 001 emily[x] :Welcome to the network")
         .server(":EMILY[X]!em@localhost NICK :emily{ops}")
         .event(|event| {
-            matches!(event, Event::NickChanged { old, new } if old == "EMILY[X]" && new == "emily{ops}")
+            matches!(event, Event::NickChanged { old, new, .. } if old == "EMILY[X]" && new == "emily{ops}")
         })
         .inspect(|session| {
             assert_eq!(session.nick(), "emily{ops}");
@@ -170,7 +170,7 @@ fn session_nick_tracks_own_and_server_forced_changes_with_casemapping() {
         })
         .server(":EMILY{OPS}!em@localhost NICK :emily-forced")
         .event(|event| {
-            matches!(event, Event::NickChanged { old, new } if old == "EMILY{OPS}" && new == "emily-forced")
+            matches!(event, Event::NickChanged { old, new, .. } if old == "EMILY{OPS}" && new == "emily-forced")
         })
         .inspect(|session| {
             assert_eq!(session.nick(), "emily-forced");
@@ -257,7 +257,7 @@ fn wire_names_capture_the_advertised_ascii_casemapping() {
         .event(|event| {
             matches!(
                 event,
-                Event::Joined { channel, nick }
+                Event::Joined { channel, nick, .. }
                     if channel.casemapping() == Casemapping::Ascii
                         && nick.casemapping() == Casemapping::Ascii
                         && channel != "#papo{dev}"
@@ -315,7 +315,7 @@ fn utf8mapping_builds_names_with_precis_rules() {
         .event(|event| {
             matches!(
                 event,
-                Event::Joined { channel, nick }
+                Event::Joined { channel, nick, .. }
                     if channel.casemapping() == Casemapping::Precis
                         && nick.casemapping() == Casemapping::Precis
             )
@@ -336,7 +336,7 @@ fn names_received_before_isupport_are_refolded_under_announced_rules() {
         .event(|event| {
             matches!(
                 event,
-                Event::Joined { channel, nick }
+                Event::Joined { channel, nick, .. }
                     if channel.casemapping() == Casemapping::Rfc1459
                         && nick.casemapping() == Casemapping::Rfc1459
                         && channel == "#papo{dev}"
@@ -357,7 +357,7 @@ fn names_received_before_isupport_are_refolded_under_announced_rules() {
 fn exposes_our_host_and_original_channel_metadata() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #Papo")
-        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#Papo" && nick == "emily"))
+        .event(|event| matches!(event, Event::Joined { channel, nick, .. } if channel == "#Papo" && nick == "emily"))
         .inspect(|session| {
             assert_eq!(session.state().host(), Some("127.0.0.1"));
             let channel = session.state().channel("#papo").unwrap();
@@ -644,7 +644,7 @@ fn a_later_join_fills_a_bare_names_userhost() {
             assert_eq!(dan.host(), None);
         })
         .server(":dan!~dan@cloak.example JOIN #papo")
-        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "dan"))
+        .event(|event| matches!(event, Event::Joined { channel, nick, .. } if channel == "#papo" && nick == "dan"))
         .inspect(|session| {
             let dan = session.state().user("dan").unwrap();
             assert_eq!(dan.username(), Some("~dan"));
@@ -925,7 +925,7 @@ fn no_implicit_names_requests_names_before_marking_the_channel_synced() {
         .server(":ergo.test 005 papo WHOX :are supported")
         .server(":papo!papo@127.0.0.1 JOIN #papo")
         .client("NAMES #papo")
-        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "papo"))
+        .event(|event| matches!(event, Event::Joined { channel, nick, .. } if channel == "#papo" && nick == "papo"))
         .inspect(|session| assert!(!session.state().channel("#papo").unwrap().is_synced()))
         .server(":ergo.test 353 papo = #papo :@papo +emily")
         .server(":ergo.test 366 papo #papo :End of NAMES list")
@@ -974,7 +974,7 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
         .client("CAP END")
         .server(":solanum.example 005 papo CHANMODES=Ibe,k,fl,imnpst :are supported")
         .server(":papo!papo@127.0.0.1 JOIN #Papo")
-        .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#Papo" && nick == "papo"))
+        .event(|event| matches!(event, Event::Joined { channel, nick, .. } if channel == "#Papo" && nick == "papo"))
         .inspect(|session| assert!(!session.state().channel("#papo").unwrap().is_synced()))
         .server(":ergo.test 366 papo #Papo :End of NAMES list")
         .client("MODE #Papo")
@@ -1340,11 +1340,11 @@ fn reports_parts_and_kicks_for_other_users_and_ourselves() {
         .server(":dan!dan@cloak.example JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
         .server(":dan!dan@cloak.example PART #papo :Leaving")
-        .event(|event| matches!(event, Event::Parted { channel, nick, reason } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && reason.as_deref() == Some("Leaving")))
+        .event(|event| matches!(event, Event::Parted { channel, nick, reason, .. } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && reason.as_deref() == Some("Leaving")))
         .server(":dan!dan@cloak.example JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
         .server(":chanop!op@staff.example KICK #papo dan :Rule violation")
-        .event(|event| matches!(event, Event::Kicked { channel, nick, actor, reason } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && actor == "chanop" && reason.as_deref() == Some("Rule violation")))
+        .event(|event| matches!(event, Event::Kicked { channel, nick, actor, reason, .. } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && actor == "chanop" && reason.as_deref() == Some("Rule violation")))
         .server(":emily!em@127.0.0.1 PART #papo :Requested")
         .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "emily"))
         .server(":emily!em@127.0.0.1 JOIN #rust")
@@ -1368,12 +1368,12 @@ fn reports_nick_changes_and_quit_channels_before_removal() {
         .server(":dan!dan@cloak.example JOIN #rust")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":dan!dan@cloak.example NICK :dan-away")
-        .event(|event| matches!(event, Event::NickChanged { old, new } if old == "dan" && new == "dan-away" && old.casemapping() == Casemapping::Ascii && new.casemapping() == Casemapping::Ascii))
+        .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "dan" && new == "dan-away" && old.casemapping() == Casemapping::Ascii && new.casemapping() == Casemapping::Ascii))
         .server(":emily!em@127.0.0.1 NICK :emily_")
-        .event(|event| matches!(event, Event::NickChanged { old, new } if old == "emily" && new == "emily_"))
+        .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "emily" && new == "emily_"))
         .server(":dan-away!dan@cloak.example QUIT :Client exited")
         .event(|event| match event {
-            Event::Quit { nick, reason, channels } => {
+            Event::Quit { nick, reason, channels, .. } => {
                 let mut channels = channels.clone();
                 channels.sort();
                 nick == "dan-away" && reason.as_deref() == Some("Client exited")

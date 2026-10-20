@@ -362,7 +362,7 @@ fn failing_a_feature_request_keeps_other_join_tracking() {
     .event(|event| matches!(event, Event::FeaturesChanged { .. }))
     .event(|event| matches!(event, Event::RequestUnsupported { .. }))
     .server("@label=1 :papo!~papo@localhost JOIN #papo * :Papo Bot")
-    .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "papo"))
+    .event(|event| matches!(event, Event::Joined { channel, nick, .. } if channel == "#papo" && nick == "papo"))
     .no_event()
     .server(":ergo.test 353 papo = #papo :@papo alice")
     .server(":ergo.test 366 papo #papo :End of /NAMES list")

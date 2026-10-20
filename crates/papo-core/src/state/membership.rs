@@ -9,6 +9,7 @@ impl State {
             return Handled::No;
         };
         let ours = crate::names_equal(self.casemapping, nick, &self.nick);
+        let authorship = self.nick_authorship(nick);
         let channels = if ours {
             self.channels
                 .values()
@@ -24,6 +25,7 @@ impl State {
             nick: self.casemapping.nick(nick),
             reason: message.param(0).map(str::to_owned),
             channels,
+            authorship,
         });
         if ours {
             self.channels.clear();
@@ -49,6 +51,7 @@ impl State {
         outbox.event(Event::Joined {
             channel: self.casemapping.channel(join.channel),
             nick: self.casemapping.nick(nick),
+            authorship: self.nick_authorship(nick),
         });
         let ours = crate::names_equal(self.casemapping, nick, &self.nick);
         if ours {

@@ -6,6 +6,33 @@ use papo_core::{Authorship, Config, Event, HistoryItem, Sasl};
 use support::Transcript;
 
 #[test]
+fn queued_event_keeps_authorship_across_a_nick_change() {
+    Transcript::new(Config::default())
+        .server(":papo!papo@localhost JOIN #papo")
+        .server(":papo!papo@localhost NICK papo-away")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Joined {
+                    nick,
+                    authorship: Authorship::Own,
+                    ..
+                } if nick == "papo"
+            )
+        })
+        .event(|event| {
+            matches!(
+                event,
+                Event::NickChanged {
+                    old,
+                    new,
+                    authorship: Authorship::Own,
+                } if old == "papo" && new == "papo-away"
+            )
+        });
+}
+
+#[test]
 fn history_authorship_requires_an_account_tag() {
     Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
         .connect_default()

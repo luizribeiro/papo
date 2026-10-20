@@ -43,7 +43,7 @@ fn reclaims_the_primary_nick_when_ergo_reports_it_offline() {
         .server(":ergo.test 731 papo_ :papo")
         .no_client()
         .server(":papo_!~papo@user/papo NICK :papo")
-        .event(|event| matches!(event, Event::NickChanged { old, new } if old == "papo_" && new == "papo"))
+        .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "papo_" && new == "papo"))
         .client("MONITOR - papo")
         .no_client();
 }
@@ -80,7 +80,7 @@ fn unrelated_nick_changes_do_not_stop_monitor_regain() {
     registered_after_collision(config, true)
         .client("MONITOR + papo")
         .server(":alice!~alice@users.example NICK :alice_")
-        .event(|event| matches!(event, Event::NickChanged { old, new } if old == "alice" && new == "alice_"))
+        .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "alice" && new == "alice_"))
         .server(":ergo.test 731 papo_ :papo")
         .client("NICK papo")
         .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "papo"))

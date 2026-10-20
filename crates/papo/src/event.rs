@@ -1496,6 +1496,7 @@ mod tests {
             papo_core::Event::Joined {
                 channel: Casemapping::Ascii.channel("#Papo[dev]"),
                 nick: Casemapping::Ascii.nick("Alice[bot]"),
+                authorship: papo_core::Authorship::Other,
             },
             Casemapping::Rfc1459,
         ) else {
@@ -1879,6 +1880,7 @@ mod tests {
             forwarded(papo_core::Event::Joined {
                 channel: Casemapping::default().channel("#papo"),
                 nick: Casemapping::default().nick("emily")
+                ,authorship: papo_core::Authorship::Other
             }),
             Event::Joined(joined) if joined.channel == "#papo" && joined.nick == "emily"
         ));
@@ -1901,6 +1903,7 @@ mod tests {
                 channel: Casemapping::default().channel("#papo"),
                 nick: Casemapping::default().nick("emily"),
                 reason: Some("Leaving for lunch".into()),
+                authorship: papo_core::Authorship::Other,
             }),
             Event::Parted(parted)
                 if parted.channel == "#papo"
@@ -1936,6 +1939,7 @@ mod tests {
                     Casemapping::default().channel("#papo"),
                     Casemapping::default().channel("#rust"),
                 ],
+                authorship: papo_core::Authorship::Other,
             }),
             Event::Quit(quit)
                 if quit.nick == "emily" && quit.reason.as_deref() == Some("Client exited")
@@ -1949,6 +1953,7 @@ mod tests {
             forwarded(papo_core::Event::NickChanged {
                 old: Casemapping::default().nick("emily"),
                 new: Casemapping::default().nick("em"),
+                authorship: papo_core::Authorship::Other,
             }),
             Event::NickChanged(changed) if changed.old == "emily" && changed.new == "em"
         ));
