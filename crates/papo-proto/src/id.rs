@@ -97,8 +97,7 @@ macro_rules! identifier {
     ($name:ident, $description:literal) => {
         #[doc = $description]
         ///
-        /// Equality, ordering, and hashing use the exact received bytes. Use
-        /// [`crate::Casemapping`] or [`crate::Folded`] for IRC name comparison.
+        /// Equality, ordering, and hashing use the exact received bytes.
         #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
         pub struct $name(String);
 

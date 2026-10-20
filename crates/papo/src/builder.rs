@@ -1206,7 +1206,7 @@ mod tests {
         .unwrap();
         let (client, mut events) = within(connecting).await.unwrap().unwrap();
         assert!(client.state().is_connected());
-        assert!(client.state().is_me("papo-custom"));
+        assert_eq!(client.state().nick(), "papo-custom");
         assert!(matches!(
             events.next().await,
             Some(crate::Event::Registered(_))

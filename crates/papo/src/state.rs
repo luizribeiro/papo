@@ -100,12 +100,6 @@ impl State {
         self.casemapping().nick(text)
     }
 
-    /// Reports whether `nick` identifies this client under the server's casemapping.
-    #[must_use]
-    pub fn is_me(&self, nick: impl AsRef<str>) -> bool {
-        self.casemapping().eq(self.nick(), nick.as_ref())
-    }
-
     /// Returns the authenticated account name when known.
     #[must_use]
     pub fn account(&self) -> Option<&AccountName> {

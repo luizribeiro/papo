@@ -8,7 +8,6 @@ pub use papo::Casemapping
 pub use papo::Channel
 pub use papo::ChannelName
 pub use papo::Feature
-pub use papo::Folded
 pub use papo::InvalidIdentifier
 pub use papo::InvalidRateLimit
 pub use papo::Mask
@@ -2539,7 +2538,6 @@ pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterat
 pub fn papo::State::filehost(&self) -> core::option::Option<&str>
 pub fn papo::State::has_cap(&self, &str) -> bool
 pub const fn papo::State::is_connected(&self) -> bool
-pub fn papo::State::is_me(&self, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::isupport(&self) -> &papo::isupport::Isupport
 pub fn papo::State::mask(&self, impl core::convert::Into<alloc::string::String>) -> papo::Mask
 pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>>

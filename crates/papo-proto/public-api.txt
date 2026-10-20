@@ -56,9 +56,7 @@ pub papo_proto::Casemapping::Rfc1459Strict
 impl papo_proto::Casemapping
 pub fn papo_proto::Casemapping::account(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::AccountName
 pub fn papo_proto::Casemapping::channel(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::ChannelName
-pub fn papo_proto::Casemapping::eq(self, &str, &str) -> bool
 pub fn papo_proto::Casemapping::fold(self, &str) -> alloc::borrow::Cow<'_, str>
-pub fn papo_proto::Casemapping::key<T>(self, &T) -> papo_proto::Folded<T> where T: core::convert::AsRef<str> + core::clone::Clone
 pub fn papo_proto::Casemapping::mask(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::Mask
 pub fn papo_proto::Casemapping::nick(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::Nick
 pub fn papo_proto::Casemapping::parse(&str) -> core::option::Option<Self>
@@ -611,34 +609,6 @@ impl<'a> core::marker::Unpin for papo_proto::Extban<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Extban<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Extban<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Extban<'a>
-pub struct papo_proto::Folded<T>
-impl<T: core::convert::AsRef<str>> papo_proto::Folded<T>
-pub fn papo_proto::Folded<T>::folded(&self) -> &str
-pub fn papo_proto::Folded<T>::new(impl core::convert::Into<T>, papo_proto::Casemapping) -> Self
-pub fn papo_proto::Folded<T>::original(&self) -> &str
-pub const fn papo_proto::Folded<T>::value(&self) -> &T
-impl<T: core::clone::Clone> core::clone::Clone for papo_proto::Folded<T>
-pub fn papo_proto::Folded<T>::clone(&self) -> Self
-impl<T: core::fmt::Debug> core::fmt::Debug for papo_proto::Folded<T>
-pub fn papo_proto::Folded<T>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl<T> core::borrow::Borrow<str> for papo_proto::Folded<T>
-pub fn papo_proto::Folded<T>::borrow(&self) -> &str
-impl<T> core::cmp::Eq for papo_proto::Folded<T>
-impl<T> core::cmp::Ord for papo_proto::Folded<T>
-pub fn papo_proto::Folded<T>::cmp(&self, &Self) -> core::cmp::Ordering
-impl<T> core::cmp::PartialEq for papo_proto::Folded<T>
-pub fn papo_proto::Folded<T>::eq(&self, &Self) -> bool
-impl<T> core::cmp::PartialOrd for papo_proto::Folded<T>
-pub fn papo_proto::Folded<T>::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl<T> core::hash::Hash for papo_proto::Folded<T>
-pub fn papo_proto::Folded<T>::hash<H: core::hash::Hasher>(&self, &mut H)
-impl<T> core::marker::Freeze for papo_proto::Folded<T> where T: core::marker::Freeze
-impl<T> core::marker::Send for papo_proto::Folded<T> where T: core::marker::Send
-impl<T> core::marker::Sync for papo_proto::Folded<T> where T: core::marker::Sync
-impl<T> core::marker::Unpin for papo_proto::Folded<T> where T: core::marker::Unpin
-impl<T> core::marker::UnsafeUnpin for papo_proto::Folded<T> where T: core::marker::UnsafeUnpin
-impl<T> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Folded<T> where T: core::panic::unwind_safe::RefUnwindSafe
-impl<T> core::panic::unwind_safe::UnwindSafe for papo_proto::Folded<T> where T: core::panic::unwind_safe::UnwindSafe
 pub struct papo_proto::FormatBuilder
 impl papo_proto::FormatBuilder
 pub fn papo_proto::FormatBuilder::as_str(&self) -> &str

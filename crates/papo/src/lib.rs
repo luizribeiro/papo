@@ -103,8 +103,8 @@ pub use papo_core::{InvalidRateLimit, RateLimit, Sasl};
 pub use papo_core::{Unsupported, UnsupportedReason};
 #[doc(inline)]
 pub use papo_proto::{
-    AccountName, Casemapping, ChannelName, Folded, InvalidIdentifier, Mask, MessageId, MetadataKey,
-    Nick, Target, Typing,
+    AccountName, Casemapping, ChannelName, InvalidIdentifier, Mask, MessageId, MetadataKey, Nick,
+    Target, Typing,
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};

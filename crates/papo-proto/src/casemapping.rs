@@ -1,8 +1,4 @@
-use std::{
-    borrow::{Borrow, Cow},
-    cmp::Ordering,
-    hash::{Hash, Hasher},
-};
+use std::borrow::Cow;
 
 #[cfg(feature = "precis")]
 use precis_profiles::{UsernameCaseMapped, precis_core::profile::PrecisFastInvocation as _};
@@ -91,21 +87,6 @@ impl Casemapping {
         )
     }
 
-    /// Reports whether two IRC names are equal under this mapping.
-    #[must_use]
-    pub fn eq(self, left: &str, right: &str) -> bool {
-        self.fold(left) == self.fold(right)
-    }
-
-    /// Creates a casemapped key while retaining the typed original value.
-    #[must_use]
-    pub fn key<T>(self, value: &T) -> Folded<T>
-    where
-        T: AsRef<str> + Clone,
-    {
-        Folded::new(value.clone(), self)
-    }
-
     const fn fold_char(self, character: char) -> char {
         match character {
             'A'..='Z' => character.to_ascii_lowercase(),
@@ -115,73 +96,6 @@ impl Casemapping {
             '~' if matches!(self, Self::Rfc1459) => '^',
             _ => character,
         }
-    }
-}
-
-/// A typed IRC value retaining its spelling while comparing by its folded form.
-#[derive(Clone, Debug)]
-pub struct Folded<T> {
-    original: T,
-    folded: String,
-}
-
-impl<T: AsRef<str>> Folded<T> {
-    /// Creates a key using the server's casemapping.
-    #[must_use]
-    pub fn new(value: impl Into<T>, casemapping: Casemapping) -> Self {
-        let original = value.into();
-        let folded = casemapping.fold(original.as_ref()).into_owned();
-        Self { original, folded }
-    }
-
-    /// Returns the spelling received from the server or user.
-    #[must_use]
-    pub fn original(&self) -> &str {
-        self.original.as_ref()
-    }
-
-    /// Returns the typed value received from the server or user.
-    #[must_use]
-    pub const fn value(&self) -> &T {
-        &self.original
-    }
-
-    /// Returns the canonical spelling used for equality and hashing.
-    #[must_use]
-    pub fn folded(&self) -> &str {
-        &self.folded
-    }
-}
-
-impl<T> PartialEq for Folded<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.folded == other.folded
-    }
-}
-
-impl<T> Eq for Folded<T> {}
-
-impl<T> Hash for Folded<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.folded.hash(state);
-    }
-}
-
-impl<T> PartialOrd for Folded<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<T> Ord for Folded<T> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.folded.cmp(&other.folded)
-    }
-}
-
-impl<T> Borrow<str> for Folded<T> {
-    fn borrow(&self) -> &str {
-        &self.folded
     }
 }
 
