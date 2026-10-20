@@ -212,6 +212,17 @@ fn rejects_invalid_keys_values_and_subscription_counts_locally() {
             assert_eq!(
                 session.metadata(
                     now,
+                    MetadataCommand::Set {
+                        target: "alice".into(),
+                        key: "status".into(),
+                        value: Some(String::new()),
+                    },
+                ),
+                Err(RequestError::EmptyText)
+            );
+            assert_eq!(
+                session.metadata(
+                    now,
                     MetadataCommand::Get {
                         target: "alice".into(),
                         keys: vec!["Avatar".into()],

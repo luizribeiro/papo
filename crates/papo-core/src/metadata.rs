@@ -56,7 +56,7 @@ pub enum MetadataCommand {
         target: String,
         /// Key to change.
         key: String,
-        /// New value, or `None` to remove the key.
+        /// New nonempty value, or `None` to remove the key.
         value: Option<String>,
     },
     /// Removes every metadata key from a target.
@@ -127,13 +127,23 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::Unsupported`] when metadata was not negotiated, or an error
-    /// documented by [`Session::request`].
+    /// Returns [`RequestError::EmptyText`] for an empty value,
+    /// [`RequestError::Unsupported`] when metadata was not negotiated, or an error documented by
+    /// [`Session::request`].
     pub fn metadata(
         &mut self,
         now: Instant,
         command: MetadataCommand,
     ) -> Result<RequestId, RequestError> {
+        if matches!(
+            &command,
+            MetadataCommand::Set {
+                value: Some(value),
+                ..
+            } if value.is_empty()
+        ) {
+            return Err(RequestError::EmptyText);
+        }
         self.require_feature(Feature::Metadata)?;
         let Some(limits) = self.metadata_limits() else {
             return Err(RequestError::unsupported(Feature::Metadata));
