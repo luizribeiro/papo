@@ -1000,6 +1000,55 @@ mod tests {
             Ok(HistoryQuery::Between { limit: 53, .. })
         ));
     }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn history_page_revalidates_target_against_current_server_rules() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let request = client.history("#papo-history").latest(10);
+        let task = tokio::spawn(driver);
+        welcome_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(
+            &mut server,
+            b"CAP REQ :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response batch server-time\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(&mut server, b":ergo.test 005 papo-driver CHANTYPES=! CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Connected(_))));
+
+        let result = within(async { request.await }).await;
+        assert!(
+            matches!(
+                result,
+                Err(Error::InvalidInput(crate::InvalidInput::InvalidName { ref name, .. }))
+                if name == "#papo-history"
+            ),
+            "{result:?}"
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+        abort_task(task).await;
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn latest_history_resolves_with_history_messages() {
         let config = config().wanted_caps([
