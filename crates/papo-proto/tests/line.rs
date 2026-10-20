@@ -314,6 +314,37 @@ fn owned_lines_format_parameters_and_reject_invalid_content() {
 }
 
 #[test]
+fn owned_lines_expose_every_wire_component() {
+    let line: Line = "@bot;account=old;account=alice :ergo.test 372 papo :- Welcome to ErgoTest"
+        .parse()
+        .unwrap();
+
+    assert_eq!(line.command(), "372");
+    assert_eq!(line.numeric(), Some(372));
+    assert_eq!(line.params(), ["papo", "- Welcome to ErgoTest"]);
+    assert_eq!(line.param(0), Some("papo"));
+    assert_eq!(line.param(2), None);
+    assert_eq!(line.tag("bot"), Some(""));
+    assert_eq!(line.tag("account"), Some("alice"));
+    assert_eq!(
+        line.tags().collect::<Vec<_>>(),
+        [("bot", ""), ("account", "old"), ("account", "alice")]
+    );
+    assert_eq!(line.source(), Some(Source::Server("ergo.test")));
+    assert_eq!(
+        line.to_string(),
+        "@bot;account=old;account=alice :ergo.test 372 papo :- Welcome to ErgoTest"
+    );
+}
+
+#[test]
+fn owned_line_numeric_rejects_non_numeric_and_out_of_range_commands() {
+    assert_eq!(Line::new("WALLOPS", ["maintenance"]).numeric(), None);
+    assert_eq!(Line::new("1000", ["not numeric"]).numeric(), None);
+    assert_eq!(Line::new("000", ["numeric zero"]).numeric(), Some(0));
+}
+
+#[test]
 fn parses_literal_wire_commands() {
     let cases = [
         ("NICK papo-test", Command::Nick),
@@ -591,8 +622,9 @@ fn owns_parsed_lines_without_reparsing() {
     assert!(matches!(
         borrowed.tags().collect::<Vec<_>>().as_slice(),
         [
-            ("+draft/reply", Some(Cow::Borrowed("new value"))),
+            ("+draft/reply", Some(Cow::Borrowed("old"))),
             ("+typing", Some(Cow::Borrowed("active"))),
+            ("+draft/reply", Some(Cow::Borrowed("new value"))),
         ]
     ));
 }

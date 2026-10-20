@@ -764,13 +764,20 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Limit<'a>
 pub struct papo_proto::Line
 impl papo_proto::Line
 pub fn papo_proto::Line::as_ref(&self) -> papo_proto::LineRef<'_>
+pub fn papo_proto::Line::command(&self) -> &str
 pub fn papo_proto::Line::join(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::new<C, P, S>(C, P) -> Self where C: core::convert::Into<alloc::string::String>, P: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_proto::Line::notice(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::numeric(&self) -> core::option::Option<u16>
+pub fn papo_proto::Line::param(&self, usize) -> core::option::Option<&str>
+pub fn papo_proto::Line::params(&self) -> &[alloc::string::String]
 pub fn papo_proto::Line::part(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::part_with_reason(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::privmsg(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::source(&self) -> core::option::Option<papo_proto::Source<'_>>
+pub fn papo_proto::Line::tag(&self, &str) -> core::option::Option<&str>
 pub fn papo_proto::Line::tagmsg(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::tags(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, &str)>
 pub fn papo_proto::Line::to_line(&self) -> core::result::Result<alloc::string::String, papo_proto::BuildError>
 pub fn papo_proto::Line::with_source(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::with_tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self

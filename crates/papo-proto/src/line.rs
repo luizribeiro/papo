@@ -277,9 +277,10 @@ impl<'a> LineRef<'a> {
     pub fn to_owned(&self) -> Line {
         let mut line = Line::new(self.command, self.params());
         line.source = self.source.map(str::to_owned);
-        for (key, value) in self.tags() {
-            line.insert_tag(key.to_owned(), value.map(Cow::into_owned));
-        }
+        line.tags = self
+            .tags()
+            .map(|(key, value)| (key.to_owned(), value.map(Cow::into_owned)))
+            .collect();
         line
     }
 }
@@ -307,6 +308,61 @@ impl Line {
             command: command.into(),
             params: params.into_iter().map(Into::into).collect(),
         }
+    }
+
+    /// Returns the command with its original spelling.
+    #[must_use]
+    pub fn command(&self) -> &str {
+        &self.command
+    }
+
+    /// Returns the command as a three-digit numeric reply or error.
+    #[must_use]
+    pub fn numeric(&self) -> Option<u16> {
+        let Command::Numeric(numeric) = Command::parse(&self.command) else {
+            return None;
+        };
+        Some(numeric.code())
+    }
+
+    /// Returns the parameters in wire order.
+    #[must_use]
+    pub fn params(&self) -> &[String] {
+        &self.params
+    }
+
+    /// Returns the parameter at `index` in wire order.
+    #[must_use]
+    pub fn param(&self, index: usize) -> Option<&str> {
+        self.params.get(index).map(String::as_str)
+    }
+
+    /// Returns the last value for a case-sensitive tag key.
+    ///
+    /// A tag without a value returns `Some("")`. `None` means the key is absent.
+    #[must_use]
+    pub fn tag(&self, key: &str) -> Option<&str> {
+        self.tags
+            .iter()
+            .rev()
+            .find(|(candidate, _)| candidate == key)
+            .map(|(_, value)| value.as_deref().unwrap_or(""))
+    }
+
+    /// Iterates over tag keys and values in wire order.
+    ///
+    /// A tag without a value has an empty value. Duplicate keys remain visible.
+    #[must_use]
+    pub fn tags(&self) -> impl ExactSizeIterator<Item = (&str, &str)> {
+        self.tags
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_deref().unwrap_or("")))
+    }
+
+    /// Returns the parsed source, when supplied by the server.
+    #[must_use]
+    pub fn source(&self) -> Option<Source<'_>> {
+        self.source.as_deref().map(Source::parse)
     }
 
     /// Creates a `PRIVMSG` for a target.
