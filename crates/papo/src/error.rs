@@ -340,8 +340,6 @@ pub enum DisconnectCause {
     ConnectionLost,
     /// Opening a replacement connection failed.
     Connect(ConnectError),
-    /// Registration failed on a replacement connection.
-    Registration(RegistrationError),
     /// The server sent `ERROR` with bounded explanatory text.
     Server {
         /// The server's bounded explanation.
@@ -372,7 +370,6 @@ impl fmt::Display for DisconnectCause {
         match self {
             Self::ConnectionLost => formatter.write_str("the connection was lost"),
             Self::Connect(error) => error.fmt(formatter),
-            Self::Registration(error) => error.fmt(formatter),
             Self::Server { message } => write!(formatter, "the server disconnected: {message}"),
             Self::PingTimeout => formatter.write_str("the server stopped responding"),
             Self::Protocol { message } => write!(formatter, "protocol failure: {message}"),
@@ -416,7 +413,6 @@ impl std::error::Error for Disconnected {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.cause {
             DisconnectCause::Connect(error) => Some(error),
-            DisconnectCause::Registration(error) => Some(error),
             _ => None,
         }
     }
@@ -438,9 +434,6 @@ pub enum Error {
     /// The connection already has 256 requests awaiting replies.
     #[error("too many IRC requests are awaiting replies")]
     TooManyPendingRequests,
-    /// Registration ended before the server welcomed the client.
-    #[error(transparent)]
-    Registration(RegistrationError),
     /// The operation was not written because the connection ended.
     #[error(transparent)]
     Disconnected(Disconnected),
@@ -862,7 +855,6 @@ mod tests {
                 ConnectErrorKind::Refused,
                 io::Error::new(io::ErrorKind::ConnectionRefused, "connection refused"),
             )),
-            DisconnectCause::Registration(RegistrationError::Timeout),
             DisconnectCause::Server {
                 message: "maintenance".into(),
             },

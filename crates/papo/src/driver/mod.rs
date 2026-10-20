@@ -1622,7 +1622,6 @@ fn disconnected_event(error: &Error, retry_in: Option<Duration>) -> crate::Disco
     let cause = match error {
         Error::Disconnected(disconnected) => disconnected.cause.clone(),
         Error::Connect(error) => crate::DisconnectCause::Connect(error.clone()),
-        Error::Registration(error) => crate::DisconnectCause::Registration(error.clone()),
         _ => crate::DisconnectCause::ConnectionLost,
     };
     crate::Disconnected::new(cause, retry_in)

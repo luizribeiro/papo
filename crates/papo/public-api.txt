@@ -1233,7 +1233,6 @@ pub papo::DisconnectCause::ConnectionLost
 pub papo::DisconnectCause::PingTimeout
 pub papo::DisconnectCause::Protocol
 pub papo::DisconnectCause::Protocol::message: alloc::string::String
-pub papo::DisconnectCause::Registration(papo::RegistrationError)
 pub papo::DisconnectCause::Requested
 pub papo::DisconnectCause::Requested::quit_unacknowledged: bool
 pub papo::DisconnectCause::Server
@@ -1284,7 +1283,6 @@ pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected(papo::Disconnected)
 pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
-pub papo::Error::Registration(papo::RegistrationError)
 pub papo::Error::Server(papo::ServerError)
 pub papo::Error::Timeout
 pub papo::Error::TooManyPendingRequests

@@ -1,4 +1,4 @@
-use papo::{AccountRegistration, Event, NewAccount, event::Warning};
+use papo::{AccountRegistration, ConnectErrorKind, Event, NewAccount, event::Warning};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
 use papo_test_server::{DeploymentProfile, register_account, unique};
@@ -34,7 +34,7 @@ async fn sasl_scram_sha_256(s: Scenario) -> papo_testing::Result<()> {
     authenticate(s, true).await
 }
 
-/// reports invalid SASL credentials as a registration failure
+/// reports invalid SASL credentials as a connection failure
 #[scenario(
     requires(caps = ["sasl"]),
     covers = ["ircv3.sasl.fail-904"]
@@ -47,15 +47,17 @@ async fn sasl_failure(s: Scenario) -> papo_testing::Result<()> {
         )
         .await;
     let Err(error) = result else {
-        panic!("invalid SASL credentials must reject registration")
+        panic!("invalid SASL credentials must reject login")
     };
     let error = error
         .downcast_ref::<papo::Error>()
-        .expect("registration failure retains papo::Error");
+        .expect("connection failure retains papo::Error");
     assert!(matches!(
         error,
-        papo::Error::Registration(papo::RegistrationError::Sasl { message })
-            if message.contains("SASL")
+        papo::Error::Connect(error)
+            if error.kind() == ConnectErrorKind::Sasl
+                && std::error::Error::source(error)
+                    .is_some_and(|source| source.to_string().contains("SASL"))
     ));
     Ok(())
 }

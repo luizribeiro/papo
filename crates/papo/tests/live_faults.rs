@@ -10,7 +10,7 @@ use papo_test_server::{TestServer, register_account_at, unique};
 use support::within;
 
 #[tokio::test(flavor = "current_thread")]
-async fn stale_credentials_end_reconnect_with_a_registration_cause() {
+async fn stale_credentials_end_reconnect_with_a_connect_cause() {
     within(async {
         let server = TestServer::start_persistent().unwrap();
         let account = unique("papo-credential");
@@ -41,17 +41,14 @@ async fn stale_credentials_end_reconnect_with_a_registration_cause() {
             matches!(
                 event,
                 Event::Disconnected(disconnected)
-                    if matches!(disconnected.cause, DisconnectCause::Registration(_))
+                    if matches!(disconnected.cause, DisconnectCause::Connect(_))
             )
         })
         .await;
         let Event::Disconnected(disconnected) = disconnected else {
             unreachable!()
         };
-        assert!(matches!(
-            disconnected.cause,
-            DisconnectCause::Registration(_)
-        ));
+        assert!(matches!(disconnected.cause, DisconnectCause::Connect(_)));
     })
     .await;
 }
