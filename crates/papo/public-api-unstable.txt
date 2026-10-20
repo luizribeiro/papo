@@ -1835,7 +1835,7 @@ pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFut
 pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountCreation>
 impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<ConversationInput>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
-pub fn papo::Client::history(&self, impl core::convert::AsRef<str>) -> papo::History
+pub fn papo::Client::history(&self, impl core::convert::Into<ConversationInput>) -> papo::History
 pub fn papo::Client::mark_read(&self, impl core::convert::Into<ConversationInput>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::recent_conversations(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
 impl papo::Client
@@ -1995,8 +1995,8 @@ impl core::marker::Send for papo::History
 impl core::marker::Sync for papo::History
 impl core::marker::Unpin for papo::History
 impl core::marker::UnsafeUnpin for papo::History
-impl core::panic::unwind_safe::RefUnwindSafe for papo::History
-impl core::panic::unwind_safe::UnwindSafe for papo::History
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::History
+impl !core::panic::unwind_safe::UnwindSafe for papo::History
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::conversation: papo::Conversation
 pub papo::HistoryPage::end: bool

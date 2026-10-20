@@ -369,7 +369,7 @@ impl HistoryPage {
 /// Builds a history request for one channel or nickname.
 pub struct History {
     pub(crate) client: Client,
-    pub(crate) target: String,
+    pub(crate) target: Result<String, Error>,
 }
 
 impl History {
@@ -378,8 +378,8 @@ impl History {
     pub fn latest(self, limit: usize) -> HistoryRequest {
         HistoryRequest {
             client: self.client,
-            query: Ok(HistoryQuery::Latest {
-                target: self.target,
+            query: self.target.map(|target| HistoryQuery::Latest {
+                target,
                 after: None,
                 limit,
             }),
@@ -389,48 +389,66 @@ impl History {
     /// Requests messages before `reference`.
     #[must_use]
     pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let query = reference.into().0.ok_or(Error::InvalidInput(
-            crate::InvalidInput::UnusableMessageReference,
-        ));
+        let query = self.target.and_then(|target| {
+            reference
+                .into()
+                .0
+                .ok_or(Error::InvalidInput(
+                    crate::InvalidInput::UnusableMessageReference,
+                ))
+                .map(|before| HistoryQuery::Before {
+                    target,
+                    before,
+                    limit: 100,
+                })
+        });
         HistoryRequest {
             client: self.client,
-            query: query.map(|before| HistoryQuery::Before {
-                target: self.target,
-                before,
-                limit: 100,
-            }),
+            query,
         }
     }
 
     /// Requests messages after `reference`.
     #[must_use]
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let query = reference.into().0.ok_or(Error::InvalidInput(
-            crate::InvalidInput::UnusableMessageReference,
-        ));
+        let query = self.target.and_then(|target| {
+            reference
+                .into()
+                .0
+                .ok_or(Error::InvalidInput(
+                    crate::InvalidInput::UnusableMessageReference,
+                ))
+                .map(|after| HistoryQuery::After {
+                    target,
+                    after,
+                    limit: 100,
+                })
+        });
         HistoryRequest {
             client: self.client,
-            query: query.map(|after| HistoryQuery::After {
-                target: self.target,
-                after,
-                limit: 100,
-            }),
+            query,
         }
     }
 
     /// Requests messages surrounding `reference`.
     #[must_use]
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let query = reference.into().0.ok_or(Error::InvalidInput(
-            crate::InvalidInput::UnusableMessageReference,
-        ));
+        let query = self.target.and_then(|target| {
+            reference
+                .into()
+                .0
+                .ok_or(Error::InvalidInput(
+                    crate::InvalidInput::UnusableMessageReference,
+                ))
+                .map(|around| HistoryQuery::Around {
+                    target,
+                    around,
+                    limit: 100,
+                })
+        });
         HistoryRequest {
             client: self.client,
-            query: query.map(|around| HistoryQuery::Around {
-                target: self.target,
-                around,
-                limit: 100,
-            }),
+            query,
         }
     }
 
@@ -441,20 +459,25 @@ impl History {
         start: impl Into<HistoryReference>,
         end: impl Into<HistoryReference>,
     ) -> HistoryRequest {
-        let start = start.into().0.ok_or(Error::InvalidInput(
-            crate::InvalidInput::UnusableMessageReference,
-        ));
-        let query = start.and_then(|start| {
-            end.into()
+        let query = self.target.and_then(|target| {
+            start
+                .into()
                 .0
                 .ok_or(Error::InvalidInput(
                     crate::InvalidInput::UnusableMessageReference,
                 ))
-                .map(|end| HistoryQuery::Between {
-                    target: self.target,
-                    start,
-                    end,
-                    limit: 100,
+                .and_then(|start| {
+                    end.into()
+                        .0
+                        .ok_or(Error::InvalidInput(
+                            crate::InvalidInput::UnusableMessageReference,
+                        ))
+                        .map(|end| HistoryQuery::Between {
+                            target,
+                            start,
+                            end,
+                            limit: 100,
+                        })
                 })
         });
         HistoryRequest {
@@ -546,10 +569,10 @@ impl IntoFuture for HistoryRequest {
 impl Client {
     /// Starts a chat history request for `target`.
     #[must_use]
-    pub fn history(&self, target: impl AsRef<str>) -> crate::History {
+    pub fn history(&self, target: impl Into<ConversationInput>) -> crate::History {
         crate::History {
             client: self.clone(),
-            target: target.as_ref().to_owned(),
+            target: target.into().target(&self.state()),
         }
     }
 
@@ -981,14 +1004,32 @@ mod tests {
         )
         .await;
         client_line(&mut server, b"CAP END\r\n").await;
-        server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+        server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp STATUSMSG=@+ :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
         assert!(matches!(events.next().await, Some(Event::Connected(_))));
         assert!(matches!(
             client.history("#papo invalid").latest(10).await,
             Err(Error::InvalidInput(crate::InvalidInput::InvalidName { name, .. }))
                 if name == "#papo invalid"
         ));
-        let request = tokio::spawn(async move { client.history("#papo").latest(10).await });
+        assert!(matches!(
+            client.history("@#papo").latest(10).await,
+            Err(Error::InvalidInput(_))
+        ));
+        assert!(matches!(
+            client.history(crate::Conversation::Server).latest(10).await,
+            Err(Error::InvalidInput(_))
+        ));
+        assert!(matches!(
+            client
+                .history(crate::Conversation::Broadcast(
+                    client.state().mask("$opers")
+                ))
+                .latest(10)
+                .await,
+            Err(Error::InvalidInput(_))
+        ));
+        let conversation = crate::Conversation::Channel(client.state().channel_name("#papo"));
+        let request = tokio::spawn(async move { client.history(conversation).latest(10).await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 10\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
         let page = within(request).await.unwrap().unwrap();

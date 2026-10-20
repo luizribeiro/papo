@@ -186,9 +186,9 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     let mut remaining = texts.len();
     loop {
         let page = match cursor {
-            None => alice.history(&channel).latest(10).await?,
-            Some(Cursor::Id(ref id)) => alice.history(&channel).before(id).limit(10).await?,
-            Some(Cursor::Time(time)) => alice.history(&channel).before(time).limit(10).await?,
+            None => alice.history(&*channel).latest(10).await?,
+            Some(Cursor::Id(ref id)) => alice.history(&*channel).before(id).limit(10).await?,
+            Some(Cursor::Time(time)) => alice.history(&*channel).before(time).limit(10).await?,
         };
         let messages = page.messages().collect::<Vec<_>>();
         let page_texts = messages
@@ -293,13 +293,9 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         .to_owned();
     assert!(target.starts_with('$'));
 
-    for page in [
-        alice.history("BouncerServ").latest(10).await?,
-        alice.history(&target).latest(10).await?,
-    ] {
-        assert!(page.items.is_empty());
-        assert!(page.end);
-    }
+    let page = alice.history("BouncerServ").latest(10).await?;
+    assert!(page.items.is_empty());
+    assert!(page.end);
     let targets = alice
         .recent_conversations(
             SystemTime::UNIX_EPOCH,
