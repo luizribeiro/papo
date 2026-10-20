@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut builder = Client::builder(endpoint(server)?)
         .nick(papo::Casemapping::default().nick(&account))
         .request_caps(["draft/account-registration"])
-        .register_account(new_account(
+        .create_account(new_account(
             &account,
             email.as_deref(),
             password.trim_end_matches(['\r', '\n']),

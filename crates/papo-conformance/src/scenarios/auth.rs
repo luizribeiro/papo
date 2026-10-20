@@ -202,7 +202,7 @@ async fn draft_account_registration(s: Scenario) -> papo_testing::Result<()> {
     let nick = alice.state().nick().clone();
     let account = alice.state().casemapping().account(nick.as_ref());
     let outcome = alice
-        .register_account(NewAccount::new(PASSWORD).account(account.clone()))
+        .create_account(NewAccount::new(PASSWORD).account(account.clone()))
         .await?;
     assert!(matches!(
         &outcome,
@@ -233,7 +233,7 @@ async fn account_registration_error(s: Scenario) -> papo_testing::Result<()> {
         .casemapping()
         .account(alice.state().nick().as_ref());
     let registered = alice
-        .register_account(NewAccount::new(PASSWORD).account(account.clone()))
+        .create_account(NewAccount::new(PASSWORD).account(account.clone()))
         .await?;
     assert!(matches!(registered, AccountCreation::Created { .. }));
     assert_eq!(
@@ -241,7 +241,7 @@ async fn account_registration_error(s: Scenario) -> papo_testing::Result<()> {
         registered
     );
     let error = alice
-        .register_account(NewAccount::new(PASSWORD).account(account))
+        .create_account(NewAccount::new(PASSWORD).account(account))
         .await
         .expect_err("an existing account cannot be registered twice");
     assert!(

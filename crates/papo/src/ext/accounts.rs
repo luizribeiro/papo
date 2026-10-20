@@ -72,7 +72,7 @@ impl Client {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub fn register_account(&self, account: NewAccount) -> crate::RequestFuture<AccountCreation> {
+    pub fn create_account(&self, account: NewAccount) -> crate::RequestFuture<AccountCreation> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let response = client
@@ -179,7 +179,7 @@ mod tests {
             let client = client.clone();
             async move {
                 client
-                    .register_account(
+                    .create_account(
                         super::NewAccount::new("correct horse battery staple")
                             .account("alice")
                             .email("alice@example.org"),
@@ -252,7 +252,7 @@ mod tests {
 
         assert!(matches!(
             client
-                .register_account(super::NewAccount::new(crate::Secret::from_bytes([0xff])))
+                .create_account(super::NewAccount::new(crate::Secret::from_bytes([0xff])))
                 .await,
             Err(Error::InvalidInput(crate::InvalidInput::BinarySecret))
         ));

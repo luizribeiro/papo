@@ -28,7 +28,7 @@ async fn arbitrary_extension_input_is_rejected_or_emits_valid_lines() {
             crate::Casemapping::default().nick(a),
             crate::Casemapping::default().nick(b),
         ]));
-        probe!(client, a, b, c => client.register_account(
+        probe!(client, a, b, c => client.create_account(
             crate::NewAccount::new(c)
                 .account(crate::Casemapping::default().account(a))
                 .email(b)

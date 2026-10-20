@@ -64,7 +64,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     let account = alice.state().casemapping().account(alice_nick.as_ref());
 
     let outcome = alice
-        .register_account(NewAccount::new("q7Hx-2mZp_9vLcT4wRfB").account(account.clone()))
+        .create_account(NewAccount::new("q7Hx-2mZp_9vLcT4wRfB").account(account.clone()))
         .await?;
     assert!(matches!(
         outcome,

@@ -1756,6 +1756,7 @@ pub fn papo::Builder::bouncer_network(self, papo::NetworkId) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
 pub const fn papo::Builder::casemapping(self, papo::Casemapping) -> Self
 pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>
+pub fn papo::Builder::create_account(self, papo::NewAccount) -> Self
 pub fn papo::Builder::ctcp_source(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::ctcp_version(self, core::option::Option<&str>) -> Self
 pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
@@ -1769,7 +1770,6 @@ pub fn papo::Builder::ping_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::rate_limit(self, papo::RateLimit) -> Self
 pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
-pub fn papo::Builder::register_account(self, papo::NewAccount) -> Self
 pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
@@ -1827,6 +1827,9 @@ pub fn papo::Client::whois(&self, impl core::convert::AsRef<str>) -> papo::Reque
 impl papo::Client
 pub fn papo::Client::bouncer(&self) -> papo::Bouncer
 impl papo::Client
+pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
+pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountCreation>
+impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::history(&self, impl core::convert::AsRef<str>) -> papo::History
 pub fn papo::Client::history_targets(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::HistoryTarget>>
@@ -1839,9 +1842,6 @@ impl papo::Client
 pub fn papo::Client::monitor(&self) -> papo::Monitor
 impl papo::Client
 pub fn papo::Client::persistence(&self) -> papo::Persistence
-impl papo::Client
-pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
-pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountCreation>
 impl papo::Client
 pub fn papo::Client::relay(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::rename_channel(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>

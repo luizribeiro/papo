@@ -180,9 +180,9 @@ impl Builder {
     /// ```
     /// let account = papo::NewAccount::new("correct horse battery staple")
     ///     .account(papo::Casemapping::default().account("alice"));
-    /// # _ = papo::Client::builder("irc.example.net").register_account(account);
+    /// # _ = papo::Client::builder("irc.example.net").create_account(account);
     /// ```
-    pub fn register_account(mut self, account: NewAccount) -> Self {
+    pub fn create_account(mut self, account: NewAccount) -> Self {
         self.reject_binary_secret(&account.password);
         if !self
             .config
@@ -788,7 +788,7 @@ mod tests {
     fn account_registration_retains_one_default_capability() {
         let added = Builder::new("irc.example.net")
             .request_caps(["message-tags"])
-            .register_account(NewAccount::new("realistic secret"))
+            .create_account(NewAccount::new("realistic secret"))
             .config;
         assert_eq!(
             added
@@ -801,7 +801,7 @@ mod tests {
 
         let retained = Builder::new("irc.example.net")
             .request_caps(["server-time", "account-registration"])
-            .register_account(NewAccount::new("realistic secret"))
+            .create_account(NewAccount::new("realistic secret"))
             .config;
         assert!(
             retained
@@ -925,7 +925,7 @@ mod tests {
         let builder = Builder::new("irc.example.net")
             .password("unique-network-password-9134")
             .sasl(Sasl::plain("alice", "unique-sasl-password-8527"))
-            .register_account(NewAccount::new("unique-account-password-7416"))
+            .create_account(NewAccount::new("unique-account-password-7416"))
             .tls_client_cert(Vec::new(), "unique-tls-key-6305")
             .autojoin_with_key("#staff", "unique-channel-key-5294");
         let output = format!("{builder:?}");
@@ -982,7 +982,7 @@ mod tests {
                 "192.0.2.42",
             )),
             Builder::new("irc.example.net").sasl(Sasl::plain("alice", byte_secret())),
-            Builder::new("irc.example.net").register_account(
+            Builder::new("irc.example.net").create_account(
                 NewAccount::new(byte_secret())
                     .account(crate::Casemapping::default().account("alice")),
             ),

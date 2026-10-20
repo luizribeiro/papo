@@ -74,7 +74,7 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         #[cfg(feature = "unstable")]
         probe!(builder, a, _b, _c => builder.bouncer_network(crate::NetworkId::new(a)));
         probe!(builder, a, _b, _c => builder.device(a));
-        probe!(builder, a, b, c => builder.register_account(
+        probe!(builder, a, b, c => builder.create_account(
             crate::NewAccount::new(c)
                 .account(crate::Casemapping::default().account(a))
                 .email(b)

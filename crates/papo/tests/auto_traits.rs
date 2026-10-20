@@ -110,7 +110,7 @@ fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping
     assert_send_static(client.mark_read("#papo", SystemTime::UNIX_EPOCH));
     assert_send_static(client.fetch_read_marker("#papo"));
     assert_send_static(
-        client.register_account(
+        client.create_account(
             NewAccount::new("correct horse battery staple")
                 .account(mapping.account("alice"))
                 .email("alice@example.org"),
