@@ -733,6 +733,7 @@ pub papo_core::Refusal::NoSuchChannel
 pub papo_core::Refusal::NoSuchNick
 pub papo_core::Refusal::NoSuchServer
 pub papo_core::Refusal::NoTextToSend
+pub papo_core::Refusal::NotConnectedYet
 pub papo_core::Refusal::NotOnChannel
 pub papo_core::Refusal::Other
 pub papo_core::Refusal::PasswordIncorrect
@@ -740,8 +741,6 @@ pub papo_core::Refusal::RateLimited
 pub papo_core::Refusal::RealnameChangeForbidden
 pub papo_core::Refusal::RedactionForbidden
 pub papo_core::Refusal::RedactionWindowExpired
-pub papo_core::Refusal::RegisteredNicknameRequired
-pub papo_core::Refusal::RegistrationRequired
 pub papo_core::Refusal::SecureOnlyChannel
 pub papo_core::Refusal::TemporarilyUnavailable
 pub papo_core::Refusal::TooManyChannels

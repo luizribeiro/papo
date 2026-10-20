@@ -46,8 +46,6 @@ pub enum Refusal {
     BadChannelKey,
     /// A channel mask is malformed (`476`).
     BadChannelMask,
-    /// The channel requires a registered nickname (`477`).
-    RegisteredNicknameRequired,
     /// The action requires IRC operator privileges (`481`).
     NoPrivileges,
     /// The action requires channel operator privileges (`482`).
@@ -82,8 +80,8 @@ pub enum Refusal {
     InvalidEmail,
     /// The email address cannot be used for registration.
     UnacceptableEmail,
-    /// Connection registration must complete before retrying.
-    RegistrationRequired,
+    /// The connection must complete before retrying (`451`).
+    NotConnectedYet,
     /// The verification code is invalid or expired.
     InvalidVerificationCode,
     /// The target is invalid for the requested operation.
@@ -108,7 +106,7 @@ pub enum Refusal {
     ChannelNameInUse,
     /// The server does not permit the channel to be renamed.
     ChannelRenameForbidden,
-    /// Authentication is required for the requested operation.
+    /// Authentication is required for the requested operation, including numeric `477`.
     AccountRequired,
     /// One or more request parameters are invalid.
     InvalidParameters,
@@ -224,6 +222,7 @@ impl Refusal {
             437 => Self::TemporarilyUnavailable,
             442 => Self::NotOnChannel,
             443 => Self::UserOnChannel,
+            451 => Self::NotConnectedYet,
             464 => Self::PasswordIncorrect,
             471 => Self::ChannelIsFull,
             472 => Self::UnknownMode,
@@ -231,7 +230,7 @@ impl Refusal {
             474 => Self::BannedFromChannel,
             475 => Self::BadChannelKey,
             476 => Self::BadChannelMask,
-            477 => Self::RegisteredNicknameRequired,
+            477 => Self::AccountRequired,
             481 => Self::NoPrivileges,
             482 => Self::ChannelOperatorPrivilegesNeeded,
             489 => Self::SecureOnlyChannel,
@@ -260,7 +259,7 @@ impl Refusal {
             ("REGISTER", "UNACCEPTABLE_PASSWORD") => Self::UnacceptablePassword,
             ("REGISTER", "INVALID_EMAIL") => Self::InvalidEmail,
             ("REGISTER", "UNACCEPTABLE_EMAIL") => Self::UnacceptableEmail,
-            ("REGISTER" | "VERIFY", "COMPLETE_CONNECTION_REQUIRED") => Self::RegistrationRequired,
+            ("REGISTER" | "VERIFY", "COMPLETE_CONNECTION_REQUIRED") => Self::NotConnectedYet,
             ("VERIFY", "INVALID_CODE") => Self::InvalidVerificationCode,
             ("REGISTER" | "VERIFY", "TEMPORARILY_UNAVAILABLE") => Self::TemporarilyUnavailable,
             ("METADATA" | "CHATHISTORY" | "REDACT", "INVALID_TARGET") => Self::InvalidTarget,
@@ -357,9 +356,10 @@ mod tests {
             417 => InputTooLong,
             421 => UnknownCommand, 432 => ErroneousNickname, 433 => NicknameInUse,
             436 => NickCollision, 437 => TemporarilyUnavailable, 442 => NotOnChannel,
-            443 => UserOnChannel, 464 => PasswordIncorrect, 471 => ChannelIsFull,
+            443 => UserOnChannel, 451 => NotConnectedYet, 464 => PasswordIncorrect,
+            471 => ChannelIsFull,
             472 => UnknownMode, 473 => InviteOnlyChannel, 474 => BannedFromChannel,
-            475 => BadChannelKey, 476 => BadChannelMask, 477 => RegisteredNicknameRequired,
+            475 => BadChannelKey, 476 => BadChannelMask, 477 => AccountRequired,
             481 => NoPrivileges, 482 => ChannelOperatorPrivilegesNeeded, 489 => SecureOnlyChannel,
             491 => NoOperHost, 501 => UnknownUserMode, 502 => UsersDontMatch,
             696 => InvalidModeParameter, 263 => TryAgain, 999 => Other,
@@ -391,7 +391,7 @@ mod tests {
             "REGISTER" "UNACCEPTABLE_PASSWORD" => UnacceptablePassword,
             "REGISTER" "INVALID_EMAIL" => InvalidEmail,
             "REGISTER" "UNACCEPTABLE_EMAIL" => UnacceptableEmail,
-            "VERIFY" "COMPLETE_CONNECTION_REQUIRED" => RegistrationRequired,
+            "VERIFY" "COMPLETE_CONNECTION_REQUIRED" => NotConnectedYet,
             "VERIFY" "INVALID_CODE" => InvalidVerificationCode,
             "REGISTER" "TEMPORARILY_UNAVAILABLE" => TemporarilyUnavailable,
             "METADATA" "INVALID_TARGET" => InvalidTarget,

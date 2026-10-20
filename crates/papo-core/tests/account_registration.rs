@@ -210,7 +210,7 @@ fn types_every_registered_account_failure_code() {
         ),
         (
             "COMPLETE_CONNECTION_REQUIRED",
-            E::RegistrationRequired,
+            E::NotConnectedYet,
             &["REGISTER", "VERIFY"][..],
             "PERSISTENCE",
         ),
