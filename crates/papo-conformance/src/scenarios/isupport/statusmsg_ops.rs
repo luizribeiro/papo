@@ -1,19 +1,19 @@
 use papo::{Origin, Source};
 use papo_conformance_macros::scenario;
+use papo_testing::Peer;
 
 use crate::Scenario;
 use crate::scenarios::support::{join_seen_by, message_text, wait_channel_mode};
 
-/// an @-prefixed channel message reaches only channel operators
-#[scenario(
-    requires(caps = ["echo-message", "labeled-response"], isupport = ["STATUSMSG"]),
-    covers = [
-        "base.privmsg.statusmsg",
-        "base.isupport.statusmsg-token",
-        "base.privmsg.statusmsg-ops"
-    ]
-)]
-async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
+struct StatusmsgPeers {
+    alice: Peer,
+    bob: Peer,
+    carol: Peer,
+    dave: Peer,
+    channel: String,
+}
+
+async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
@@ -61,6 +61,34 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(members.member(&bob_nick).unwrap().prefixes(), &['@'][..]);
         assert_eq!(members.member(&carol_nick).unwrap().prefixes(), &['+'][..]);
     }
+
+    Ok(StatusmsgPeers {
+        alice,
+        bob,
+        carol,
+        dave,
+        channel,
+    })
+}
+
+/// an @-prefixed channel message reaches only channel operators
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response"], isupport = ["STATUSMSG"]),
+    covers = [
+        "base.privmsg.statusmsg",
+        "base.isupport.statusmsg-token",
+        "base.privmsg.statusmsg-ops"
+    ]
+)]
+async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
+    let StatusmsgPeers {
+        mut alice,
+        mut bob,
+        mut carol,
+        mut dave,
+        channel,
+    } = statusmsg_peers(&s).await?;
+    let alice_nick = alice.nick();
 
     let sent = alice
         .privmsg(format!("@{channel}"), "operators only")
