@@ -145,8 +145,10 @@ macro_rules! name_identifier {
     ($name:ident, $description:literal) => {
         #[doc = $description]
         ///
-        /// The original spelling is retained for display. Equality, ordering,
-        /// and hashing use the server-defined casemapping captured at creation.
+        /// The original spelling is retained for display. Equality, ordering, and hashing compare
+        /// folded text using the server-defined casemapping captured at creation. Build a name
+        /// from text with the matching [`Casemapping`](crate::Casemapping) method, or with a
+        /// `papo::State` name factory when using the high-level client.
         #[derive(Clone, Debug)]
         pub struct $name {
             original: String,

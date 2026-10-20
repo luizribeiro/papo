@@ -5,10 +5,16 @@ use precis_profiles::{UsernameCaseMapped, precis_core::profile::PrecisFastInvoca
 
 use crate::{AccountName, ChannelName, Mask, Nick};
 
-/// A server's rules for comparing IRC nicknames and channel names.
+/// A server's rules for comparing IRC names.
 ///
-/// The default is [`Rfc1459`](Self::Rfc1459), as required when a server has not
-/// advertised `CASEMAPPING` in `RPL_ISUPPORT`.
+/// Servers define these rules. The default is [`Rfc1459`](Self::Rfc1459), as required before a
+/// server advertises `CASEMAPPING` in `RPL_ISUPPORT`. Ergo advertises PRECIS through
+/// `UTF8MAPPING`; the `Precis` variant and support for that advertisement require the `precis`
+/// feature.
+///
+/// Applications using `papo` normally build names from text with the current or last-known rules
+/// through its `State` name factories. The methods on this type are useful with saved rules,
+/// offline data, and tests.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Casemapping {
