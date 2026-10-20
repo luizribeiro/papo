@@ -416,7 +416,15 @@ impl From<&ChannelName> for Target {
 
 #[cfg(test)]
 mod tests {
-    use std::{borrow::Borrow, collections::HashMap, fmt, hash::Hash, ops::Deref};
+    use std::{
+        borrow::Borrow,
+        collections::{HashMap, hash_map::DefaultHasher},
+        fmt,
+        hash::{Hash, Hasher},
+        ops::Deref,
+    };
+
+    use proptest::prelude::*;
 
     use crate::{Casemapping, Isupport, LineRef};
 
@@ -477,6 +485,49 @@ mod tests {
             Some(&7)
         );
         assert_eq!(Nick::from(&nick).into_string(), "Alice[bot]");
+    }
+
+    #[test]
+    fn names_use_every_literal_casemapping_rule() {
+        assert_eq!(Nick::new("[]\\~", Casemapping::Rfc1459), "{}|^");
+        assert_eq!(Nick::new("[]\\", Casemapping::Rfc1459Strict), "{}|");
+        assert_ne!(Nick::new("~", Casemapping::Rfc1459Strict), "^");
+        assert_eq!(Nick::new("BOB", Casemapping::Ascii), "bob");
+        assert_ne!(Nick::new("[]\\~", Casemapping::Ascii), "{}|^");
+
+        for mapping in [
+            Casemapping::Ascii,
+            Casemapping::Rfc1459,
+            Casemapping::Rfc1459Strict,
+        ] {
+            assert_eq!(Nick::new("bob", mapping), "BOB");
+        }
+        #[cfg(feature = "precis")]
+        assert_eq!(Nick::new("bob", Casemapping::Precis), "BOB");
+    }
+
+    proptest! {
+        #[test]
+        fn equal_names_always_hash_equally(
+            text in "[A-Za-z0-9\\[\\]\\\\~{}|^_-]{0,32}",
+            first in 0_u8..3,
+            second in 0_u8..3,
+        ) {
+            let mappings = [
+                Casemapping::Ascii,
+                Casemapping::Rfc1459,
+                Casemapping::Rfc1459Strict,
+            ];
+            let left = Nick::new(&text, mappings[usize::from(first)]);
+            let right = Nick::new(&text, mappings[usize::from(second)]);
+            if left == right {
+                let mut left_hash = DefaultHasher::new();
+                left.hash(&mut left_hash);
+                let mut right_hash = DefaultHasher::new();
+                right.hash(&mut right_hash);
+                prop_assert_eq!(left_hash.finish(), right_hash.finish());
+            }
+        }
     }
 
     #[test]
