@@ -3249,6 +3249,14 @@ async fn identity_and_away_actions_match_unlabelled_confirmations() {
         client.set_away("").await,
         Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
     ));
+    assert!(matches!(
+        client.set_realname("").await,
+        Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
+    ));
+    assert!(matches!(
+        client.set_nick("").await,
+        Err(Error::InvalidInput(_))
+    ));
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
             .await
@@ -3507,6 +3515,28 @@ async fn typed_requests_match_unlabelled_responses() {
     )
     .await;
     within(topic).await.unwrap().unwrap();
+
+    assert!(matches!(
+        client.set_topic(test_channel("#papo"), "").await,
+        Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    let clear_topic = tokio::spawn({
+        let client = client.clone();
+        async move { client.clear_topic(test_channel("#papo")).await }
+    });
+    client_line(&mut server, b"TOPIC #papo :\r\n").await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost TOPIC #papo :\r\n",
+    )
+    .await;
+    within(clear_topic).await.unwrap().unwrap();
 
     let part = tokio::spawn({
         let client = client.clone();

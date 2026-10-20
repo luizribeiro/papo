@@ -130,6 +130,8 @@ impl Metadata {
 
     /// Sets one metadata key for the current nickname.
     ///
+    /// An empty value is invalid input. Use [`Metadata::remove`] to remove the key.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
@@ -155,6 +157,8 @@ impl Metadata {
 
     /// Sets one metadata key on `target`.
     ///
+    /// An empty value is invalid input. Use [`Metadata::remove_on`] to remove the key.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
@@ -169,10 +173,23 @@ impl Metadata {
         key: impl Into<crate::MetadataKey>,
         value: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        self.action(MetadataCommand::Set {
-            target: target.as_ref().to_owned(),
-            key: key.into().into_string(),
-            value: Some(value.into()),
+        let metadata = Self {
+            client: self.client.clone(),
+        };
+        let target = target.as_ref().to_owned();
+        let key = key.into().into_string();
+        let value = value.into();
+        crate::RequestFuture::new(async move {
+            if value.is_empty() {
+                return Err(crate::InvalidInput::EmptyText.into());
+            }
+            metadata
+                .request(MetadataCommand::Set {
+                    target,
+                    key,
+                    value: Some(value),
+                })
+                .await
         })
     }
 
@@ -351,6 +368,20 @@ mod tests {
         )
         .await;
         assert!(within(set).await.unwrap().is_ok());
+
+        assert!(matches!(
+            client.metadata().set("status", "").await,
+            Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
+        ));
+        assert!(matches!(
+            client.metadata().set_on("bob", "timezone", "").await,
+            Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
+        ));
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
 
         let set_on = tokio::spawn(async move {
             client

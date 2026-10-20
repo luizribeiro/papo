@@ -184,12 +184,16 @@ impl Peer {
     }
 
     /// Changes this peer's nickname using its server rules.
+    ///
+    /// An empty nickname is invalid input.
     pub fn set_nick(&self, nick: impl AsRef<str>) -> papo::RequestFuture<()> {
         self.client
             .set_nick(self.client.state().casemapping().nick(nick.as_ref()))
     }
 
     /// Changes `channel`'s topic using this peer's server rules.
+    ///
+    /// An empty topic is invalid input. Use [`papo::Client::clear_topic`] to clear it.
     pub fn set_topic(
         &self,
         channel: impl AsRef<str>,

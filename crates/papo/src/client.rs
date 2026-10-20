@@ -934,6 +934,8 @@ impl Client {
 
     /// Changes this client's nickname.
     ///
+    /// An empty nickname is invalid input.
+    ///
     /// # Errors
     ///
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
@@ -993,6 +995,8 @@ impl Client {
 
     /// Changes this client's realname through the `setname` capability.
     ///
+    /// An empty realname is invalid input.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] when `setname` is unavailable, or a typed server refusal,
@@ -1001,6 +1005,9 @@ impl Client {
         let client = self.clone();
         let realname = realname.into();
         crate::RequestFuture::new(async move {
+            if realname.is_empty() {
+                return Err(InvalidInput::EmptyText.into());
+            }
             Self::require_feature(&client.state(), Feature::SetName)?;
             let response = client
                 .correlated(
@@ -1060,7 +1067,7 @@ impl Client {
 
     /// Sets the topic for `channel`.
     ///
-    /// An empty `topic` clears the topic, the same as [`Client::clear_topic`].
+    /// An empty `topic` is invalid input. Use [`Client::clear_topic`] to clear it.
     ///
     /// # Errors
     ///
@@ -1074,7 +1081,11 @@ impl Client {
         channel: impl AsRef<str>,
         topic: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        self.change_topic(self.state().channel_name(channel.as_ref()), topic.into())
+        self.change_topic(
+            self.state().channel_name(channel.as_ref()),
+            topic.into(),
+            false,
+        )
     }
 
     /// Clears the topic for `channel`.
@@ -1083,12 +1094,24 @@ impl Client {
     ///
     /// Returns the same errors as [`Client::set_topic`].
     pub fn clear_topic(&self, channel: impl AsRef<str>) -> crate::RequestFuture<()> {
-        self.change_topic(self.state().channel_name(channel.as_ref()), String::new())
+        self.change_topic(
+            self.state().channel_name(channel.as_ref()),
+            String::new(),
+            true,
+        )
     }
 
-    fn change_topic(&self, channel: crate::ChannelName, topic: String) -> crate::RequestFuture<()> {
+    fn change_topic(
+        &self,
+        channel: crate::ChannelName,
+        topic: String,
+        clear: bool,
+    ) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
+            if topic.is_empty() && !clear {
+                return Err(InvalidInput::EmptyText.into());
+            }
             channel
                 .check(client.state().isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
