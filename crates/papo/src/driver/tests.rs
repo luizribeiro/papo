@@ -607,7 +607,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             "#staff",
             Some("private-channel-key".into()),
         )],
-        parted_while_disconnected: Vec::new(),
+        parted_while_disconnected: vec![test_channel("#Papo"), test_channel("#rust")],
         history_on_reconnect: true,
         disconnected_at: None,
     };
@@ -669,6 +669,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             is_self: true,
         }),
     );
+    assert_eq!(defaults.parted_while_disconnected, ["#rust"]);
     super::update_rejoin_channels(
         &session,
         &mut defaults,
@@ -1275,6 +1276,80 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
     within(server.shutdown()).await.unwrap();
+    assert!(within(quit).await.unwrap().is_ok());
+    assert!(within(driver).await.unwrap().is_ok());
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
+    let (first_stream, mut first_server) = tokio::io::duplex(4096);
+    let (second_stream, mut second_server) = tokio::io::duplex(4096);
+    let results = Arc::new(Mutex::new(VecDeque::from([
+        Err(transport_failure("scripted connection failure")),
+        Ok(Box::new(first_stream) as super::BoxConnection),
+        Ok(Box::new(second_stream) as super::BoxConnection),
+    ])));
+    let connector: super::Connector = Arc::new(move |_| {
+        let result = results.lock().unwrap().pop_front().unwrap();
+        Box::pin(async move { result })
+    });
+    let (client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect {
+            channels: vec!["#papo".into(), "#rust".into()],
+            ..super::PostConnect::default()
+        },
+        Reconnect::exponential(),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+    ));
+    assert!(matches!(
+        within(client.part(test_channel("#papo"), "leaving while offline")).await,
+        Err(disconnected!())
+    ));
+    assert!(matches!(
+        within(client.part(test_channel("#rust"), "leaving while offline")).await,
+        Err(disconnected!())
+    ));
+
+    within(client.reconnect()).await.unwrap();
+    complete_connect(&mut first_server, &mut events).await;
+    server_line(
+        &mut first_server,
+        b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n",
+    )
+    .await;
+    client_line(&mut first_server, b"PART #papo\r\n").await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    server_line(
+        &mut first_server,
+        b":papo-driver!papo@localhost JOIN #rust * :Papo Client\r\n",
+    )
+    .await;
+    client_line(&mut first_server, b"PART #rust\r\n").await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    within(first_server.shutdown()).await.unwrap();
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+    ));
+
+    within(client.reconnect()).await.unwrap();
+    complete_connect(&mut second_server, &mut events).await;
+    let quit = tokio::spawn(async move { client.quit("").await });
+    client_line(&mut second_server, b"QUIT\r\n").await;
+    within(second_server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
 }
