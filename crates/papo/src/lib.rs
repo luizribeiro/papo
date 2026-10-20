@@ -104,8 +104,8 @@ pub use papo_core::{Unsupported, UnsupportedReason};
 pub use papo_proto::Address as Target;
 #[doc(inline)]
 pub use papo_proto::{
-    AccountName, Address, Casemapping, ChannelName, InvalidIdentifier, Line, Mask, MessageId,
-    MetadataKey, Nick, Typing,
+    AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Mask, MessageId, MetadataKey,
+    Nick, Typing,
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};
