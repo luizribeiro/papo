@@ -1,0 +1,1580 @@
+pub mod papo_proto
+pub mod papo_proto::time
+pub fn papo_proto::time::format(std::time::SystemTime) -> core::option::Option<alloc::string::String>
+pub fn papo_proto::time::parse(&str) -> core::option::Option<std::time::SystemTime>
+pub enum papo_proto::Advertised<'a>
+pub papo_proto::Advertised::Absent
+pub papo_proto::Advertised::Bare
+pub papo_proto::Advertised::Value(&'a str)
+impl<'a> core::clone::Clone for papo_proto::Advertised<'a>
+pub fn papo_proto::Advertised<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Advertised<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Advertised<'a>
+pub fn papo_proto::Advertised<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Advertised<'a>
+pub fn papo_proto::Advertised<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Advertised<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Advertised<'a>
+impl<'a> core::marker::Freeze for papo_proto::Advertised<'a>
+impl<'a> core::marker::Send for papo_proto::Advertised<'a>
+impl<'a> core::marker::Sync for papo_proto::Advertised<'a>
+impl<'a> core::marker::Unpin for papo_proto::Advertised<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Advertised<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Advertised<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Advertised<'a>
+#[non_exhaustive] pub enum papo_proto::BuildError
+pub papo_proto::BuildError::InvalidCommand
+pub papo_proto::BuildError::InvalidParam(usize)
+pub papo_proto::BuildError::InvalidSource
+pub papo_proto::BuildError::InvalidTagKey
+pub papo_proto::BuildError::InvalidTagValue
+pub papo_proto::BuildError::LineTooLong
+pub papo_proto::BuildError::TagsTooLong
+impl core::clone::Clone for papo_proto::BuildError
+pub fn papo_proto::BuildError::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::BuildError
+impl core::cmp::PartialEq for papo_proto::BuildError
+pub fn papo_proto::BuildError::eq(&self, &Self) -> bool
+impl core::error::Error for papo_proto::BuildError
+impl core::fmt::Debug for papo_proto::BuildError
+pub fn papo_proto::BuildError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::BuildError
+pub fn papo_proto::BuildError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::BuildError
+impl core::marker::StructuralPartialEq for papo_proto::BuildError
+impl core::marker::Freeze for papo_proto::BuildError
+impl core::marker::Send for papo_proto::BuildError
+impl core::marker::Sync for papo_proto::BuildError
+impl core::marker::Unpin for papo_proto::BuildError
+impl core::marker::UnsafeUnpin for papo_proto::BuildError
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::BuildError
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::BuildError
+#[non_exhaustive] pub enum papo_proto::Casemapping
+pub papo_proto::Casemapping::Ascii
+pub papo_proto::Casemapping::Rfc1459
+pub papo_proto::Casemapping::Rfc1459Strict
+impl papo_proto::Casemapping
+pub fn papo_proto::Casemapping::eq(self, &str, &str) -> bool
+pub fn papo_proto::Casemapping::fold(self, &str) -> alloc::borrow::Cow<'_, str>
+pub fn papo_proto::Casemapping::key<T>(self, &T) -> papo_proto::Folded<T> where T: core::convert::AsRef<str> + core::clone::Clone
+pub fn papo_proto::Casemapping::parse(&str) -> core::option::Option<Self>
+impl core::clone::Clone for papo_proto::Casemapping
+pub fn papo_proto::Casemapping::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Casemapping
+impl core::cmp::PartialEq for papo_proto::Casemapping
+pub fn papo_proto::Casemapping::eq(&self, &Self) -> bool
+impl core::default::Default for papo_proto::Casemapping
+pub fn papo_proto::Casemapping::default() -> Self
+impl core::fmt::Debug for papo_proto::Casemapping
+pub fn papo_proto::Casemapping::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::Casemapping
+impl core::marker::StructuralPartialEq for papo_proto::Casemapping
+impl core::marker::Freeze for papo_proto::Casemapping
+impl core::marker::Send for papo_proto::Casemapping
+impl core::marker::Sync for papo_proto::Casemapping
+impl core::marker::Unpin for papo_proto::Casemapping
+impl core::marker::UnsafeUnpin for papo_proto::Casemapping
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Casemapping
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Casemapping
+pub enum papo_proto::Color
+pub papo_proto::Color::Hex(u32)
+pub papo_proto::Color::Palette(u8)
+impl core::clone::Clone for papo_proto::Color
+pub fn papo_proto::Color::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Color
+impl core::cmp::PartialEq for papo_proto::Color
+pub fn papo_proto::Color::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::Color
+pub fn papo_proto::Color::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::Color
+impl core::marker::StructuralPartialEq for papo_proto::Color
+impl core::marker::Freeze for papo_proto::Color
+impl core::marker::Send for papo_proto::Color
+impl core::marker::Sync for papo_proto::Color
+impl core::marker::Unpin for papo_proto::Color
+impl core::marker::UnsafeUnpin for papo_proto::Color
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Color
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Color
+#[non_exhaustive] pub enum papo_proto::Command<'a>
+pub papo_proto::Command::Account
+pub papo_proto::Command::Admin
+pub papo_proto::Command::Authenticate
+pub papo_proto::Command::Away
+pub papo_proto::Command::Batch
+pub papo_proto::Command::Cap
+pub papo_proto::Command::Chathistory
+pub papo_proto::Command::Chghost
+pub papo_proto::Command::Connect
+pub papo_proto::Command::Error
+pub papo_proto::Command::Extjwt
+pub papo_proto::Command::Fail
+pub papo_proto::Command::Info
+pub papo_proto::Command::Invite
+pub papo_proto::Command::Ison
+pub papo_proto::Command::Isupport
+pub papo_proto::Command::Join
+pub papo_proto::Command::Kick
+pub papo_proto::Command::Kill
+pub papo_proto::Command::Links
+pub papo_proto::Command::List
+pub papo_proto::Command::Lusers
+pub papo_proto::Command::Markread
+pub papo_proto::Command::Metadata
+pub papo_proto::Command::Mode
+pub papo_proto::Command::Monitor
+pub papo_proto::Command::Motd
+pub papo_proto::Command::Names
+pub papo_proto::Command::Nick
+pub papo_proto::Command::Note
+pub papo_proto::Command::Notice
+pub papo_proto::Command::Numeric(papo_proto::Numeric)
+pub papo_proto::Command::Oper
+pub papo_proto::Command::Other(&'a str)
+pub papo_proto::Command::Part
+pub papo_proto::Command::Pass
+pub papo_proto::Command::Persistence
+pub papo_proto::Command::Ping
+pub papo_proto::Command::Pong
+pub papo_proto::Command::Privmsg
+pub papo_proto::Command::Quit
+pub papo_proto::Command::Redact
+pub papo_proto::Command::Register
+pub papo_proto::Command::Rehash
+pub papo_proto::Command::Relaymsg
+pub papo_proto::Command::Rename
+pub papo_proto::Command::Restart
+pub papo_proto::Command::Setname
+pub papo_proto::Command::Squit
+pub papo_proto::Command::Stats
+pub papo_proto::Command::Tagmsg
+pub papo_proto::Command::Time
+pub papo_proto::Command::Topic
+pub papo_proto::Command::Trace
+pub papo_proto::Command::User
+pub papo_proto::Command::Userhost
+pub papo_proto::Command::Verify
+pub papo_proto::Command::Version
+pub papo_proto::Command::Wallops
+pub papo_proto::Command::Warn
+pub papo_proto::Command::Webpush
+pub papo_proto::Command::Who
+pub papo_proto::Command::Whois
+pub papo_proto::Command::Whowas
+impl<'a> papo_proto::Command<'a>
+pub fn papo_proto::Command<'a>::parse(&'a str) -> Self
+impl core::fmt::Display for papo_proto::Command<'_>
+pub fn papo_proto::Command<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::clone::Clone for papo_proto::Command<'a>
+pub fn papo_proto::Command<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Command<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Command<'a>
+pub fn papo_proto::Command<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Command<'a>
+pub fn papo_proto::Command<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Command<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Command<'a>
+impl<'a> core::marker::Freeze for papo_proto::Command<'a>
+impl<'a> core::marker::Send for papo_proto::Command<'a>
+impl<'a> core::marker::Sync for papo_proto::Command<'a>
+impl<'a> core::marker::Unpin for papo_proto::Command<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Command<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Command<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Command<'a>
+#[non_exhaustive] pub enum papo_proto::InvalidIdentifier
+pub papo_proto::InvalidIdentifier::Empty
+pub papo_proto::InvalidIdentifier::InvalidCharacter(char)
+pub papo_proto::InvalidIdentifier::InvalidPrefix(char)
+pub papo_proto::InvalidIdentifier::TooLong
+pub papo_proto::InvalidIdentifier::TooLong::length: usize
+pub papo_proto::InvalidIdentifier::TooLong::maximum: usize
+impl core::clone::Clone for papo_proto::InvalidIdentifier
+pub fn papo_proto::InvalidIdentifier::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::InvalidIdentifier
+impl core::cmp::PartialEq for papo_proto::InvalidIdentifier
+pub fn papo_proto::InvalidIdentifier::eq(&self, &Self) -> bool
+impl core::error::Error for papo_proto::InvalidIdentifier
+impl core::fmt::Debug for papo_proto::InvalidIdentifier
+pub fn papo_proto::InvalidIdentifier::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::InvalidIdentifier
+pub fn papo_proto::InvalidIdentifier::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::InvalidIdentifier
+pub fn papo_proto::InvalidIdentifier::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_proto::InvalidIdentifier
+impl core::marker::StructuralPartialEq for papo_proto::InvalidIdentifier
+impl core::marker::Freeze for papo_proto::InvalidIdentifier
+impl core::marker::Send for papo_proto::InvalidIdentifier
+impl core::marker::Sync for papo_proto::InvalidIdentifier
+impl core::marker::Unpin for papo_proto::InvalidIdentifier
+impl core::marker::UnsafeUnpin for papo_proto::InvalidIdentifier
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::InvalidIdentifier
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::InvalidIdentifier
+pub enum papo_proto::LimitValue
+pub papo_proto::LimitValue::Limited(usize)
+pub papo_proto::LimitValue::Unlimited
+impl core::clone::Clone for papo_proto::LimitValue
+pub fn papo_proto::LimitValue::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::LimitValue
+impl core::cmp::PartialEq for papo_proto::LimitValue
+pub fn papo_proto::LimitValue::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::LimitValue
+pub fn papo_proto::LimitValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::LimitValue
+impl core::marker::StructuralPartialEq for papo_proto::LimitValue
+impl core::marker::Freeze for papo_proto::LimitValue
+impl core::marker::Send for papo_proto::LimitValue
+impl core::marker::Sync for papo_proto::LimitValue
+impl core::marker::Unpin for papo_proto::LimitValue
+impl core::marker::UnsafeUnpin for papo_proto::LimitValue
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::LimitValue
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::LimitValue
+pub enum papo_proto::ModeKind
+pub papo_proto::ModeKind::AlwaysArg
+pub papo_proto::ModeKind::ArgWhenSet
+pub papo_proto::ModeKind::List
+pub papo_proto::ModeKind::NoArg
+pub papo_proto::ModeKind::Prefix(usize)
+pub papo_proto::ModeKind::Unknown
+impl core::clone::Clone for papo_proto::ModeKind
+pub fn papo_proto::ModeKind::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::ModeKind
+impl core::cmp::PartialEq for papo_proto::ModeKind
+pub fn papo_proto::ModeKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::ModeKind
+pub fn papo_proto::ModeKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::ModeKind
+impl core::marker::StructuralPartialEq for papo_proto::ModeKind
+impl core::marker::Freeze for papo_proto::ModeKind
+impl core::marker::Send for papo_proto::ModeKind
+impl core::marker::Sync for papo_proto::ModeKind
+impl core::marker::Unpin for papo_proto::ModeKind
+impl core::marker::UnsafeUnpin for papo_proto::ModeKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ModeKind
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::ModeKind
+pub enum papo_proto::NameKind
+pub papo_proto::NameKind::Capability
+pub papo_proto::NameKind::Isupport
+pub papo_proto::NameKind::Tag
+impl core::clone::Clone for papo_proto::NameKind
+pub fn papo_proto::NameKind::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::NameKind
+impl core::cmp::PartialEq for papo_proto::NameKind
+pub fn papo_proto::NameKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::NameKind
+pub fn papo_proto::NameKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::NameKind
+impl core::marker::StructuralPartialEq for papo_proto::NameKind
+impl core::marker::Freeze for papo_proto::NameKind
+impl core::marker::Send for papo_proto::NameKind
+impl core::marker::Sync for papo_proto::NameKind
+impl core::marker::Unpin for papo_proto::NameKind
+impl core::marker::UnsafeUnpin for papo_proto::NameKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::NameKind
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::NameKind
+#[non_exhaustive] pub enum papo_proto::ParseError
+pub papo_proto::ParseError::EmptyLine
+pub papo_proto::ParseError::InvalidUtf8
+pub papo_proto::ParseError::MissingCommand
+pub papo_proto::ParseError::TooLong
+impl core::clone::Clone for papo_proto::ParseError
+pub fn papo_proto::ParseError::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::ParseError
+impl core::cmp::PartialEq for papo_proto::ParseError
+pub fn papo_proto::ParseError::eq(&self, &Self) -> bool
+impl core::convert::From<core::str::error::Utf8Error> for papo_proto::ParseError
+pub fn papo_proto::ParseError::from(core::str::error::Utf8Error) -> Self
+impl core::error::Error for papo_proto::ParseError
+impl core::fmt::Debug for papo_proto::ParseError
+pub fn papo_proto::ParseError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::ParseError
+pub fn papo_proto::ParseError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::ParseError
+impl core::marker::StructuralPartialEq for papo_proto::ParseError
+impl core::marker::Freeze for papo_proto::ParseError
+impl core::marker::Send for papo_proto::ParseError
+impl core::marker::Sync for papo_proto::ParseError
+impl core::marker::Unpin for papo_proto::ParseError
+impl core::marker::UnsafeUnpin for papo_proto::ParseError
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ParseError
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::ParseError
+pub enum papo_proto::Source<'a>
+pub papo_proto::Source::Server(&'a str)
+pub papo_proto::Source::User
+pub papo_proto::Source::User::host: core::option::Option<&'a str>
+pub papo_proto::Source::User::nick: &'a str
+pub papo_proto::Source::User::user: core::option::Option<&'a str>
+impl<'a> core::clone::Clone for papo_proto::Source<'a>
+pub fn papo_proto::Source<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Source<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Source<'a>
+pub fn papo_proto::Source<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Source<'a>
+pub fn papo_proto::Source<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Source<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Source<'a>
+impl<'a> core::marker::Freeze for papo_proto::Source<'a>
+impl<'a> core::marker::Send for papo_proto::Source<'a>
+impl<'a> core::marker::Sync for papo_proto::Source<'a>
+impl<'a> core::marker::Unpin for papo_proto::Source<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Source<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Source<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Source<'a>
+#[non_exhaustive] pub enum papo_proto::StandardReplyKind
+pub papo_proto::StandardReplyKind::Fail
+pub papo_proto::StandardReplyKind::Note
+pub papo_proto::StandardReplyKind::Warn
+impl core::clone::Clone for papo_proto::StandardReplyKind
+pub fn papo_proto::StandardReplyKind::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::StandardReplyKind
+impl core::cmp::PartialEq for papo_proto::StandardReplyKind
+pub fn papo_proto::StandardReplyKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::StandardReplyKind
+pub fn papo_proto::StandardReplyKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::StandardReplyKind
+impl core::marker::StructuralPartialEq for papo_proto::StandardReplyKind
+impl core::marker::Freeze for papo_proto::StandardReplyKind
+impl core::marker::Send for papo_proto::StandardReplyKind
+impl core::marker::Sync for papo_proto::StandardReplyKind
+impl core::marker::Unpin for papo_proto::StandardReplyKind
+impl core::marker::UnsafeUnpin for papo_proto::StandardReplyKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::StandardReplyKind
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::StandardReplyKind
+pub enum papo_proto::Typing
+pub papo_proto::Typing::Active
+pub papo_proto::Typing::Done
+pub papo_proto::Typing::Paused
+impl papo_proto::Typing
+pub fn papo_proto::Typing::parse(&papo_proto::LineRef<'_>) -> core::option::Option<Self>
+impl core::clone::Clone for papo_proto::Typing
+pub fn papo_proto::Typing::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Typing
+impl core::cmp::PartialEq for papo_proto::Typing
+pub fn papo_proto::Typing::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::Typing
+pub fn papo_proto::Typing::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::Typing
+impl core::marker::StructuralPartialEq for papo_proto::Typing
+impl core::marker::Freeze for papo_proto::Typing
+impl core::marker::Send for papo_proto::Typing
+impl core::marker::Sync for papo_proto::Typing
+impl core::marker::Unpin for papo_proto::Typing
+impl core::marker::UnsafeUnpin for papo_proto::Typing
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Typing
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Typing
+pub enum papo_proto::WhoxPresence
+pub papo_proto::WhoxPresence::Gone
+pub papo_proto::WhoxPresence::Here
+impl core::clone::Clone for papo_proto::WhoxPresence
+pub fn papo_proto::WhoxPresence::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::WhoxPresence
+impl core::cmp::PartialEq for papo_proto::WhoxPresence
+pub fn papo_proto::WhoxPresence::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::WhoxPresence
+pub fn papo_proto::WhoxPresence::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::WhoxPresence
+impl core::marker::StructuralPartialEq for papo_proto::WhoxPresence
+impl core::marker::Freeze for papo_proto::WhoxPresence
+impl core::marker::Send for papo_proto::WhoxPresence
+impl core::marker::Sync for papo_proto::WhoxPresence
+impl core::marker::Unpin for papo_proto::WhoxPresence
+impl core::marker::UnsafeUnpin for papo_proto::WhoxPresence
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::WhoxPresence
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::WhoxPresence
+pub struct papo_proto::Account<'a>
+pub papo_proto::Account::account: core::option::Option<&'a str>
+impl<'a> papo_proto::Account<'a>
+pub fn papo_proto::Account<'a>::parse(&papo_proto::LineRef<'a>) -> core::option::Option<Self>
+impl<'a> core::clone::Clone for papo_proto::Account<'a>
+pub fn papo_proto::Account<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Account<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Account<'a>
+pub fn papo_proto::Account<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Account<'a>
+pub fn papo_proto::Account<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Account<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Account<'a>
+impl<'a> core::marker::Freeze for papo_proto::Account<'a>
+impl<'a> core::marker::Send for papo_proto::Account<'a>
+impl<'a> core::marker::Sync for papo_proto::Account<'a>
+impl<'a> core::marker::Unpin for papo_proto::Account<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Account<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Account<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Account<'a>
+pub struct papo_proto::AccountName(_)
+impl papo_proto::AccountName
+pub fn papo_proto::AccountName::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+impl papo_proto::AccountName
+pub fn papo_proto::AccountName::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_proto::AccountName
+pub fn papo_proto::AccountName::borrow(&self) -> &str
+impl core::clone::Clone for papo_proto::AccountName
+pub fn papo_proto::AccountName::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::AccountName
+impl core::cmp::Ord for papo_proto::AccountName
+pub fn papo_proto::AccountName::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::AccountName
+pub fn papo_proto::AccountName::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::AccountName
+pub fn papo_proto::AccountName::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::AccountName
+pub fn papo_proto::AccountName::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::AccountName
+pub fn papo_proto::AccountName::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::AccountName
+pub fn papo_proto::AccountName::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::AccountName
+pub fn papo_proto::AccountName::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::AccountName> for papo_proto::AccountName
+pub fn papo_proto::AccountName::from(&Self) -> Self
+impl core::convert::From<&str> for papo_proto::AccountName
+pub fn papo_proto::AccountName::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::AccountName
+pub fn papo_proto::AccountName::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo_proto::AccountName
+pub fn papo_proto::AccountName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::AccountName
+pub fn papo_proto::AccountName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::AccountName
+pub fn papo_proto::AccountName::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_proto::AccountName
+impl core::ops::deref::Deref for papo_proto::AccountName
+pub type papo_proto::AccountName::Target = str
+pub fn papo_proto::AccountName::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::AccountName
+impl core::marker::Send for papo_proto::AccountName
+impl core::marker::Sync for papo_proto::AccountName
+impl core::marker::Unpin for papo_proto::AccountName
+impl core::marker::UnsafeUnpin for papo_proto::AccountName
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::AccountName
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::AccountName
+pub struct papo_proto::Away<'a>
+pub papo_proto::Away::message: core::option::Option<&'a str>
+impl<'a> papo_proto::Away<'a>
+pub fn papo_proto::Away<'a>::parse(&papo_proto::LineRef<'a>) -> core::option::Option<Self>
+impl<'a> core::clone::Clone for papo_proto::Away<'a>
+pub fn papo_proto::Away<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Away<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Away<'a>
+pub fn papo_proto::Away<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Away<'a>
+pub fn papo_proto::Away<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Away<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Away<'a>
+impl<'a> core::marker::Freeze for papo_proto::Away<'a>
+impl<'a> core::marker::Send for papo_proto::Away<'a>
+impl<'a> core::marker::Sync for papo_proto::Away<'a>
+impl<'a> core::marker::Unpin for papo_proto::Away<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Away<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Away<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Away<'a>
+pub struct papo_proto::ChanModes<'a>
+pub papo_proto::ChanModes::always: &'a str
+pub papo_proto::ChanModes::list: &'a str
+pub papo_proto::ChanModes::never: &'a str
+pub papo_proto::ChanModes::when_set: &'a str
+impl<'a> core::clone::Clone for papo_proto::ChanModes<'a>
+pub fn papo_proto::ChanModes<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::ChanModes<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::ChanModes<'a>
+pub fn papo_proto::ChanModes<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::ChanModes<'a>
+pub fn papo_proto::ChanModes<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::ChanModes<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::ChanModes<'a>
+impl<'a> core::marker::Freeze for papo_proto::ChanModes<'a>
+impl<'a> core::marker::Send for papo_proto::ChanModes<'a>
+impl<'a> core::marker::Sync for papo_proto::ChanModes<'a>
+impl<'a> core::marker::Unpin for papo_proto::ChanModes<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::ChanModes<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::ChanModes<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::ChanModes<'a>
+pub struct papo_proto::ChannelName(_)
+impl papo_proto::ChannelName
+pub fn papo_proto::ChannelName::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+impl papo_proto::ChannelName
+pub fn papo_proto::ChannelName::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::borrow(&self) -> &str
+impl core::clone::Clone for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::ChannelName
+impl core::cmp::Ord for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::ChannelName> for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::from(&Self) -> Self
+impl core::convert::From<&papo_proto::ChannelName> for papo_proto::Target
+pub fn papo_proto::Target::from(&papo_proto::ChannelName) -> Self
+impl core::convert::From<&str> for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::from(alloc::string::String) -> Self
+impl core::convert::From<papo_proto::ChannelName> for papo_proto::Target
+pub fn papo_proto::Target::from(papo_proto::ChannelName) -> Self
+impl core::fmt::Debug for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_proto::ChannelName
+impl core::ops::deref::Deref for papo_proto::ChannelName
+pub type papo_proto::ChannelName::Target = str
+pub fn papo_proto::ChannelName::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::ChannelName
+impl core::marker::Send for papo_proto::ChannelName
+impl core::marker::Sync for papo_proto::ChannelName
+impl core::marker::Unpin for papo_proto::ChannelName
+impl core::marker::UnsafeUnpin for papo_proto::ChannelName
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ChannelName
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::ChannelName
+pub struct papo_proto::Chghost<'a>
+pub papo_proto::Chghost::host: &'a str
+pub papo_proto::Chghost::user: &'a str
+impl<'a> papo_proto::Chghost<'a>
+pub fn papo_proto::Chghost<'a>::parse(&papo_proto::LineRef<'a>) -> core::option::Option<Self>
+impl<'a> core::clone::Clone for papo_proto::Chghost<'a>
+pub fn papo_proto::Chghost<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Chghost<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Chghost<'a>
+pub fn papo_proto::Chghost<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Chghost<'a>
+pub fn papo_proto::Chghost<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Chghost<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Chghost<'a>
+impl<'a> core::marker::Freeze for papo_proto::Chghost<'a>
+impl<'a> core::marker::Send for papo_proto::Chghost<'a>
+impl<'a> core::marker::Sync for papo_proto::Chghost<'a>
+impl<'a> core::marker::Unpin for papo_proto::Chghost<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Chghost<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Chghost<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Chghost<'a>
+pub struct papo_proto::ClientTagDeny<'a>
+impl papo_proto::ClientTagDeny<'_>
+pub fn papo_proto::ClientTagDeny<'_>::denies(&self, &str) -> bool
+impl<'a> core::clone::Clone for papo_proto::ClientTagDeny<'a>
+pub fn papo_proto::ClientTagDeny<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::ClientTagDeny<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::ClientTagDeny<'a>
+pub fn papo_proto::ClientTagDeny<'a>::eq(&self, &Self) -> bool
+impl<'a> core::default::Default for papo_proto::ClientTagDeny<'a>
+pub fn papo_proto::ClientTagDeny<'a>::default() -> Self
+impl<'a> core::fmt::Debug for papo_proto::ClientTagDeny<'a>
+pub fn papo_proto::ClientTagDeny<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for papo_proto::ClientTagDeny<'a>
+impl<'a> core::marker::Freeze for papo_proto::ClientTagDeny<'a>
+impl<'a> core::marker::Send for papo_proto::ClientTagDeny<'a>
+impl<'a> core::marker::Sync for papo_proto::ClientTagDeny<'a>
+impl<'a> core::marker::Unpin for papo_proto::ClientTagDeny<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::ClientTagDeny<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::ClientTagDeny<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::ClientTagDeny<'a>
+pub struct papo_proto::Ctcp<'a>
+pub papo_proto::Ctcp::command: &'a str
+pub papo_proto::Ctcp::params: core::option::Option<&'a str>
+impl<'a> papo_proto::Ctcp<'a>
+pub fn papo_proto::Ctcp<'a>::action(&str) -> core::option::Option<alloc::string::String>
+pub fn papo_proto::Ctcp<'a>::build(&str, core::option::Option<&str>) -> core::option::Option<alloc::string::String>
+pub fn papo_proto::Ctcp<'a>::parse(&'a str) -> core::option::Option<Self>
+impl<'a> core::clone::Clone for papo_proto::Ctcp<'a>
+pub fn papo_proto::Ctcp<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Ctcp<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Ctcp<'a>
+pub fn papo_proto::Ctcp<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Ctcp<'a>
+pub fn papo_proto::Ctcp<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Ctcp<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Ctcp<'a>
+impl<'a> core::marker::Freeze for papo_proto::Ctcp<'a>
+impl<'a> core::marker::Send for papo_proto::Ctcp<'a>
+impl<'a> core::marker::Sync for papo_proto::Ctcp<'a>
+impl<'a> core::marker::Unpin for papo_proto::Ctcp<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Ctcp<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Ctcp<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Ctcp<'a>
+pub struct papo_proto::Extban<'a>
+pub papo_proto::Extban::prefix: core::option::Option<char>
+pub papo_proto::Extban::types: &'a str
+impl<'a> core::clone::Clone for papo_proto::Extban<'a>
+pub fn papo_proto::Extban<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Extban<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Extban<'a>
+pub fn papo_proto::Extban<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Extban<'a>
+pub fn papo_proto::Extban<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Extban<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Extban<'a>
+impl<'a> core::marker::Freeze for papo_proto::Extban<'a>
+impl<'a> core::marker::Send for papo_proto::Extban<'a>
+impl<'a> core::marker::Sync for papo_proto::Extban<'a>
+impl<'a> core::marker::Unpin for papo_proto::Extban<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Extban<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Extban<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Extban<'a>
+pub struct papo_proto::Folded<T>
+impl<T: core::convert::AsRef<str>> papo_proto::Folded<T>
+pub fn papo_proto::Folded<T>::folded(&self) -> &str
+pub fn papo_proto::Folded<T>::new(impl core::convert::Into<T>, papo_proto::Casemapping) -> Self
+pub fn papo_proto::Folded<T>::original(&self) -> &str
+pub const fn papo_proto::Folded<T>::value(&self) -> &T
+impl<T: core::clone::Clone> core::clone::Clone for papo_proto::Folded<T>
+pub fn papo_proto::Folded<T>::clone(&self) -> Self
+impl<T: core::fmt::Debug> core::fmt::Debug for papo_proto::Folded<T>
+pub fn papo_proto::Folded<T>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<T> core::borrow::Borrow<str> for papo_proto::Folded<T>
+pub fn papo_proto::Folded<T>::borrow(&self) -> &str
+impl<T> core::cmp::Eq for papo_proto::Folded<T>
+impl<T> core::cmp::Ord for papo_proto::Folded<T>
+pub fn papo_proto::Folded<T>::cmp(&self, &Self) -> core::cmp::Ordering
+impl<T> core::cmp::PartialEq for papo_proto::Folded<T>
+pub fn papo_proto::Folded<T>::eq(&self, &Self) -> bool
+impl<T> core::cmp::PartialOrd for papo_proto::Folded<T>
+pub fn papo_proto::Folded<T>::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl<T> core::hash::Hash for papo_proto::Folded<T>
+pub fn papo_proto::Folded<T>::hash<H: core::hash::Hasher>(&self, &mut H)
+impl<T> core::marker::Freeze for papo_proto::Folded<T> where T: core::marker::Freeze
+impl<T> core::marker::Send for papo_proto::Folded<T> where T: core::marker::Send
+impl<T> core::marker::Sync for papo_proto::Folded<T> where T: core::marker::Sync
+impl<T> core::marker::Unpin for papo_proto::Folded<T> where T: core::marker::Unpin
+impl<T> core::marker::UnsafeUnpin for papo_proto::Folded<T> where T: core::marker::UnsafeUnpin
+impl<T> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Folded<T> where T: core::panic::unwind_safe::RefUnwindSafe
+impl<T> core::panic::unwind_safe::UnwindSafe for papo_proto::Folded<T> where T: core::panic::unwind_safe::UnwindSafe
+pub struct papo_proto::FormatBuilder
+impl papo_proto::FormatBuilder
+pub fn papo_proto::FormatBuilder::as_str(&self) -> &str
+pub fn papo_proto::FormatBuilder::bold(&mut self) -> &mut Self
+pub fn papo_proto::FormatBuilder::color(&mut self, u8, core::option::Option<u8>) -> &mut Self
+pub fn papo_proto::FormatBuilder::finish(self) -> alloc::string::String
+pub fn papo_proto::FormatBuilder::hex_color(&mut self, u32, core::option::Option<u32>) -> &mut Self
+pub fn papo_proto::FormatBuilder::italics(&mut self) -> &mut Self
+pub fn papo_proto::FormatBuilder::monospace(&mut self) -> &mut Self
+pub const fn papo_proto::FormatBuilder::new() -> Self
+pub fn papo_proto::FormatBuilder::reset(&mut self) -> &mut Self
+pub fn papo_proto::FormatBuilder::reset_colors(&mut self) -> &mut Self
+pub fn papo_proto::FormatBuilder::reverse(&mut self) -> &mut Self
+pub fn papo_proto::FormatBuilder::strikethrough(&mut self) -> &mut Self
+pub fn papo_proto::FormatBuilder::text(&mut self, impl core::convert::AsRef<str>) -> &mut Self
+pub fn papo_proto::FormatBuilder::underline(&mut self) -> &mut Self
+impl core::clone::Clone for papo_proto::FormatBuilder
+pub fn papo_proto::FormatBuilder::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::FormatBuilder
+impl core::cmp::PartialEq for papo_proto::FormatBuilder
+pub fn papo_proto::FormatBuilder::eq(&self, &Self) -> bool
+impl core::default::Default for papo_proto::FormatBuilder
+pub fn papo_proto::FormatBuilder::default() -> Self
+impl core::fmt::Debug for papo_proto::FormatBuilder
+pub fn papo_proto::FormatBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_proto::FormatBuilder
+impl core::marker::Freeze for papo_proto::FormatBuilder
+impl core::marker::Send for papo_proto::FormatBuilder
+impl core::marker::Sync for papo_proto::FormatBuilder
+impl core::marker::Unpin for papo_proto::FormatBuilder
+impl core::marker::UnsafeUnpin for papo_proto::FormatBuilder
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::FormatBuilder
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::FormatBuilder
+pub struct papo_proto::Formatted<'a>
+impl<'a> papo_proto::Formatted<'a>
+pub const fn papo_proto::Formatted<'a>::new(&'a str) -> Self
+impl core::iter::traits::marker::FusedIterator for papo_proto::Formatted<'_>
+impl<'a> core::clone::Clone for papo_proto::Formatted<'a>
+pub fn papo_proto::Formatted<'a>::clone(&self) -> Self
+impl<'a> core::fmt::Debug for papo_proto::Formatted<'a>
+pub fn papo_proto::Formatted<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::iter::traits::iterator::Iterator for papo_proto::Formatted<'a>
+pub type papo_proto::Formatted<'a>::Item = papo_proto::Span<'a>
+pub fn papo_proto::Formatted<'a>::next(&mut self) -> core::option::Option<Self::Item>
+impl<'a> core::marker::Freeze for papo_proto::Formatted<'a>
+impl<'a> core::marker::Send for papo_proto::Formatted<'a>
+impl<'a> core::marker::Sync for papo_proto::Formatted<'a>
+impl<'a> core::marker::Unpin for papo_proto::Formatted<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Formatted<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Formatted<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Formatted<'a>
+pub struct papo_proto::Isupport
+impl papo_proto::Isupport
+pub fn papo_proto::Isupport::account_required(&self) -> bool
+pub fn papo_proto::Isupport::accountextban(&self) -> alloc::vec::Vec<&str>
+pub fn papo_proto::Isupport::apply(&mut self, &papo_proto::LineRef<'_>)
+pub fn papo_proto::Isupport::apply_tokens<I, S>(&mut self, I) where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo_proto::Isupport::awaylen(&self) -> core::option::Option<usize>
+pub fn papo_proto::Isupport::bot_mode(&self) -> core::option::Option<char>
+pub fn papo_proto::Isupport::casemapping(&self) -> papo_proto::Casemapping
+pub fn papo_proto::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo_proto::Limit<'_>>
+pub fn papo_proto::Isupport::chanmodes(&self) -> core::option::Option<papo_proto::ChanModes<'_>>
+pub fn papo_proto::Isupport::channellen(&self) -> core::option::Option<usize>
+pub fn papo_proto::Isupport::chantypes(&self) -> &str
+pub fn papo_proto::Isupport::chathistory(&self) -> core::option::Option<papo_proto::LimitValue>
+pub fn papo_proto::Isupport::clienttagdeny(&self) -> papo_proto::ClientTagDeny<'_>
+pub fn papo_proto::Isupport::elist(&self) -> core::option::Option<&str>
+pub fn papo_proto::Isupport::excepts(&self) -> core::option::Option<char>
+pub fn papo_proto::Isupport::extban(&self) -> core::option::Option<papo_proto::Extban<'_>>
+pub fn papo_proto::Isupport::get(&self, &str) -> papo_proto::Advertised<'_>
+pub fn papo_proto::Isupport::icon(&self) -> core::option::Option<&str>
+pub fn papo_proto::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
+pub fn papo_proto::Isupport::invex(&self) -> core::option::Option<char>
+pub fn papo_proto::Isupport::is_channel(&self, &str) -> bool
+pub fn papo_proto::Isupport::kicklen(&self) -> core::option::Option<usize>
+pub fn papo_proto::Isupport::maxlist(&self) -> alloc::vec::Vec<papo_proto::Limit<'_>>
+pub fn papo_proto::Isupport::maxtargets(&self) -> core::option::Option<papo_proto::LimitValue>
+pub fn papo_proto::Isupport::modes(&self) -> core::option::Option<usize>
+pub fn papo_proto::Isupport::monitor(&self) -> core::option::Option<papo_proto::LimitValue>
+pub fn papo_proto::Isupport::msgreftypes(&self) -> alloc::vec::Vec<&str>
+pub fn papo_proto::Isupport::namelen(&self) -> core::option::Option<usize>
+pub fn papo_proto::Isupport::network(&self) -> core::option::Option<&str>
+pub fn papo_proto::Isupport::nicklen(&self) -> core::option::Option<usize>
+pub fn papo_proto::Isupport::prefix(&self) -> alloc::vec::Vec<papo_proto::Prefix>
+pub fn papo_proto::Isupport::safelist(&self) -> bool
+pub fn papo_proto::Isupport::saferate(&self) -> bool
+pub fn papo_proto::Isupport::statusmsg(&self) -> core::option::Option<&str>
+pub fn papo_proto::Isupport::targmax(&self) -> alloc::vec::Vec<papo_proto::Limit<'_>>
+pub fn papo_proto::Isupport::tokens(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, papo_proto::Advertised<'_>)>
+pub fn papo_proto::Isupport::topiclen(&self) -> core::option::Option<usize>
+pub fn papo_proto::Isupport::utf8only(&self) -> bool
+pub fn papo_proto::Isupport::vapid(&self) -> core::option::Option<&str>
+pub fn papo_proto::Isupport::whox(&self) -> bool
+impl core::clone::Clone for papo_proto::Isupport
+pub fn papo_proto::Isupport::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Isupport
+impl core::cmp::PartialEq for papo_proto::Isupport
+pub fn papo_proto::Isupport::eq(&self, &Self) -> bool
+impl core::default::Default for papo_proto::Isupport
+pub fn papo_proto::Isupport::default() -> Self
+impl core::fmt::Debug for papo_proto::Isupport
+pub fn papo_proto::Isupport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_proto::Isupport
+impl core::marker::Freeze for papo_proto::Isupport
+impl core::marker::Send for papo_proto::Isupport
+impl core::marker::Sync for papo_proto::Isupport
+impl core::marker::Unpin for papo_proto::Isupport
+impl core::marker::UnsafeUnpin for papo_proto::Isupport
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Isupport
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Isupport
+pub struct papo_proto::Join<'a>
+pub papo_proto::Join::account: core::option::Option<&'a str>
+pub papo_proto::Join::channel: &'a str
+pub papo_proto::Join::realname: core::option::Option<&'a str>
+impl<'a> papo_proto::Join<'a>
+pub fn papo_proto::Join<'a>::parse(&papo_proto::LineRef<'a>) -> core::option::Option<Self>
+impl<'a> core::clone::Clone for papo_proto::Join<'a>
+pub fn papo_proto::Join<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Join<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Join<'a>
+pub fn papo_proto::Join<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Join<'a>
+pub fn papo_proto::Join<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Join<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Join<'a>
+impl<'a> core::marker::Freeze for papo_proto::Join<'a>
+impl<'a> core::marker::Send for papo_proto::Join<'a>
+impl<'a> core::marker::Sync for papo_proto::Join<'a>
+impl<'a> core::marker::Unpin for papo_proto::Join<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Join<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Join<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Join<'a>
+pub struct papo_proto::Limit<'a>
+pub papo_proto::Limit::limit: core::option::Option<usize>
+pub papo_proto::Limit::name: &'a str
+impl<'a> core::clone::Clone for papo_proto::Limit<'a>
+pub fn papo_proto::Limit<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Limit<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Limit<'a>
+pub fn papo_proto::Limit<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Limit<'a>
+pub fn papo_proto::Limit<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Limit<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Limit<'a>
+impl<'a> core::marker::Freeze for papo_proto::Limit<'a>
+impl<'a> core::marker::Send for papo_proto::Limit<'a>
+impl<'a> core::marker::Sync for papo_proto::Limit<'a>
+impl<'a> core::marker::Unpin for papo_proto::Limit<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Limit<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Limit<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Limit<'a>
+pub struct papo_proto::Line
+impl papo_proto::Line
+pub fn papo_proto::Line::as_ref(&self) -> papo_proto::LineRef<'_>
+pub fn papo_proto::Line::join(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::new<C, P, S>(C, P) -> Self where C: core::convert::Into<alloc::string::String>, P: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo_proto::Line::notice(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::part(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::part_with_reason(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::privmsg(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::tagmsg(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::to_line(&self) -> core::result::Result<alloc::string::String, papo_proto::BuildError>
+pub fn papo_proto::Line::with_source(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_proto::Line::with_tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::clone::Clone for papo_proto::Line
+pub fn papo_proto::Line::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Line
+impl core::cmp::PartialEq for papo_proto::Line
+pub fn papo_proto::Line::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::Line
+pub fn papo_proto::Line::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_proto::Line
+impl core::marker::Freeze for papo_proto::Line
+impl core::marker::Send for papo_proto::Line
+impl core::marker::Sync for papo_proto::Line
+impl core::marker::Unpin for papo_proto::Line
+impl core::marker::UnsafeUnpin for papo_proto::Line
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Line
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Line
+pub struct papo_proto::LineRef<'a>
+impl<'a> papo_proto::LineRef<'a>
+pub fn papo_proto::LineRef<'a>::command(&self) -> papo_proto::Command<'a>
+pub fn papo_proto::LineRef<'a>::command_is(&self, &str) -> bool
+pub fn papo_proto::LineRef<'a>::is_empty(&self) -> bool
+pub fn papo_proto::LineRef<'a>::len(&self) -> usize
+pub fn papo_proto::LineRef<'a>::param(&self, usize) -> core::option::Option<&'a str>
+pub fn papo_proto::LineRef<'a>::params(&self) -> papo_proto::Params<'a>
+pub fn papo_proto::LineRef<'a>::parse(&'a str) -> core::result::Result<Self, papo_proto::ParseError>
+pub fn papo_proto::LineRef<'a>::parse_bytes(&'a [u8]) -> core::result::Result<Self, papo_proto::ParseError>
+pub const fn papo_proto::LineRef<'a>::raw_command(&self) -> &'a str
+pub const fn papo_proto::LineRef<'a>::raw_source(&self) -> core::option::Option<&'a str>
+pub fn papo_proto::LineRef<'a>::source(&self) -> core::option::Option<papo_proto::Source<'a>>
+pub fn papo_proto::LineRef<'a>::tag(&self, &str) -> core::option::Option<alloc::borrow::Cow<'a, str>>
+pub fn papo_proto::LineRef<'a>::tags(&self) -> papo_proto::Tags<'a>
+pub fn papo_proto::LineRef<'a>::to_owned(&self) -> papo_proto::Line
+impl<'a> core::clone::Clone for papo_proto::LineRef<'a>
+pub fn papo_proto::LineRef<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::LineRef<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::LineRef<'a>
+pub fn papo_proto::LineRef<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::LineRef<'a>
+pub fn papo_proto::LineRef<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::LineRef<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::LineRef<'a>
+impl<'a> core::marker::Freeze for papo_proto::LineRef<'a>
+impl<'a> core::marker::Send for papo_proto::LineRef<'a>
+impl<'a> core::marker::Sync for papo_proto::LineRef<'a>
+impl<'a> core::marker::Unpin for papo_proto::LineRef<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::LineRef<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::LineRef<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::LineRef<'a>
+pub struct papo_proto::Mask(_)
+impl papo_proto::Mask
+pub fn papo_proto::Mask::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+impl papo_proto::Mask
+pub fn papo_proto::Mask::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_proto::Mask
+pub fn papo_proto::Mask::borrow(&self) -> &str
+impl core::clone::Clone for papo_proto::Mask
+pub fn papo_proto::Mask::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Mask
+impl core::cmp::Ord for papo_proto::Mask
+pub fn papo_proto::Mask::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::Mask
+pub fn papo_proto::Mask::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::Mask
+pub fn papo_proto::Mask::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::Mask
+pub fn papo_proto::Mask::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::Mask
+pub fn papo_proto::Mask::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::Mask
+pub fn papo_proto::Mask::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::Mask
+pub fn papo_proto::Mask::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::Mask> for papo_proto::Mask
+pub fn papo_proto::Mask::from(&Self) -> Self
+impl core::convert::From<&str> for papo_proto::Mask
+pub fn papo_proto::Mask::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::Mask
+pub fn papo_proto::Mask::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo_proto::Mask
+pub fn papo_proto::Mask::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::Mask
+pub fn papo_proto::Mask::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Mask
+pub fn papo_proto::Mask::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_proto::Mask
+impl core::ops::deref::Deref for papo_proto::Mask
+pub type papo_proto::Mask::Target = str
+pub fn papo_proto::Mask::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::Mask
+impl core::marker::Send for papo_proto::Mask
+impl core::marker::Sync for papo_proto::Mask
+impl core::marker::Unpin for papo_proto::Mask
+impl core::marker::UnsafeUnpin for papo_proto::Mask
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Mask
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Mask
+pub struct papo_proto::MessageId(_)
+impl papo_proto::MessageId
+pub fn papo_proto::MessageId::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+impl papo_proto::MessageId
+pub fn papo_proto::MessageId::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_proto::MessageId
+pub fn papo_proto::MessageId::borrow(&self) -> &str
+impl core::clone::Clone for papo_proto::MessageId
+pub fn papo_proto::MessageId::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::MessageId
+impl core::cmp::Ord for papo_proto::MessageId
+pub fn papo_proto::MessageId::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::MessageId
+pub fn papo_proto::MessageId::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::MessageId
+pub fn papo_proto::MessageId::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::MessageId
+pub fn papo_proto::MessageId::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::MessageId
+pub fn papo_proto::MessageId::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::MessageId
+pub fn papo_proto::MessageId::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::MessageId
+pub fn papo_proto::MessageId::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::MessageId> for papo_proto::MessageId
+pub fn papo_proto::MessageId::from(&Self) -> Self
+impl core::convert::From<&str> for papo_proto::MessageId
+pub fn papo_proto::MessageId::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::MessageId
+pub fn papo_proto::MessageId::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo_proto::MessageId
+pub fn papo_proto::MessageId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::MessageId
+pub fn papo_proto::MessageId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::MessageId
+pub fn papo_proto::MessageId::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_proto::MessageId
+impl core::ops::deref::Deref for papo_proto::MessageId
+pub type papo_proto::MessageId::Target = str
+pub fn papo_proto::MessageId::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::MessageId
+impl core::marker::Send for papo_proto::MessageId
+impl core::marker::Sync for papo_proto::MessageId
+impl core::marker::Unpin for papo_proto::MessageId
+impl core::marker::UnsafeUnpin for papo_proto::MessageId
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::MessageId
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::MessageId
+pub struct papo_proto::MetadataKey(_)
+impl papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+impl papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::borrow(&self) -> &str
+impl core::clone::Clone for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::MetadataKey
+impl core::cmp::Ord for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::MetadataKey> for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::from(&Self) -> Self
+impl core::convert::From<&str> for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_proto::MetadataKey
+impl core::ops::deref::Deref for papo_proto::MetadataKey
+pub type papo_proto::MetadataKey::Target = str
+pub fn papo_proto::MetadataKey::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::MetadataKey
+impl core::marker::Send for papo_proto::MetadataKey
+impl core::marker::Sync for papo_proto::MetadataKey
+impl core::marker::Unpin for papo_proto::MetadataKey
+impl core::marker::UnsafeUnpin for papo_proto::MetadataKey
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::MetadataKey
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::MetadataKey
+pub struct papo_proto::ModeChange<'a>
+pub papo_proto::ModeChange::arg: core::option::Option<&'a str>
+pub papo_proto::ModeChange::kind: papo_proto::ModeKind
+pub papo_proto::ModeChange::mode: char
+pub papo_proto::ModeChange::set: bool
+impl<'a> core::clone::Clone for papo_proto::ModeChange<'a>
+pub fn papo_proto::ModeChange<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::ModeChange<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::ModeChange<'a>
+pub fn papo_proto::ModeChange<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::ModeChange<'a>
+pub fn papo_proto::ModeChange<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::ModeChange<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::ModeChange<'a>
+impl<'a> core::marker::Freeze for papo_proto::ModeChange<'a>
+impl<'a> core::marker::Send for papo_proto::ModeChange<'a>
+impl<'a> core::marker::Sync for papo_proto::ModeChange<'a>
+impl<'a> core::marker::Unpin for papo_proto::ModeChange<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::ModeChange<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::ModeChange<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::ModeChange<'a>
+pub struct papo_proto::ModeChanges
+impl papo_proto::ModeChanges
+pub fn papo_proto::ModeChanges::parse<'a, I>(&'a str, I, &'a papo_proto::Isupport) -> impl core::iter::traits::iterator::Iterator<Item = papo_proto::ModeChange<'a>> + 'a where I: core::iter::traits::collect::IntoIterator<Item = &'a str> + 'a, <I as core::iter::traits::collect::IntoIterator>::IntoIter: 'a
+impl core::marker::Freeze for papo_proto::ModeChanges
+impl core::marker::Send for papo_proto::ModeChanges
+impl core::marker::Sync for papo_proto::ModeChanges
+impl core::marker::Unpin for papo_proto::ModeChanges
+impl core::marker::UnsafeUnpin for papo_proto::ModeChanges
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ModeChanges
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::ModeChanges
+pub struct papo_proto::NamesEntry<'a>
+pub papo_proto::NamesEntry::host: core::option::Option<&'a str>
+pub papo_proto::NamesEntry::nick: &'a str
+pub papo_proto::NamesEntry::prefixes: alloc::vec::Vec<char>
+pub papo_proto::NamesEntry::user: core::option::Option<&'a str>
+impl<'a> papo_proto::NamesEntry<'a>
+pub fn papo_proto::NamesEntry<'a>::parse(&'a str, &papo_proto::Isupport) -> Self
+impl<'a> core::clone::Clone for papo_proto::NamesEntry<'a>
+pub fn papo_proto::NamesEntry<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::NamesEntry<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::NamesEntry<'a>
+pub fn papo_proto::NamesEntry<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::NamesEntry<'a>
+pub fn papo_proto::NamesEntry<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for papo_proto::NamesEntry<'a>
+impl<'a> core::marker::Freeze for papo_proto::NamesEntry<'a>
+impl<'a> core::marker::Send for papo_proto::NamesEntry<'a>
+impl<'a> core::marker::Sync for papo_proto::NamesEntry<'a>
+impl<'a> core::marker::Unpin for papo_proto::NamesEntry<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::NamesEntry<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::NamesEntry<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::NamesEntry<'a>
+pub struct papo_proto::Nick(_)
+impl papo_proto::Nick
+pub fn papo_proto::Nick::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+impl papo_proto::Nick
+pub fn papo_proto::Nick::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_proto::Nick
+pub fn papo_proto::Nick::borrow(&self) -> &str
+impl core::clone::Clone for papo_proto::Nick
+pub fn papo_proto::Nick::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Nick
+impl core::cmp::Ord for papo_proto::Nick
+pub fn papo_proto::Nick::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::Nick
+pub fn papo_proto::Nick::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::Nick
+pub fn papo_proto::Nick::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::Nick
+pub fn papo_proto::Nick::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::Nick
+pub fn papo_proto::Nick::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::Nick
+pub fn papo_proto::Nick::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::Nick
+pub fn papo_proto::Nick::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::Nick> for papo_proto::Nick
+pub fn papo_proto::Nick::from(&Self) -> Self
+impl core::convert::From<&papo_proto::Nick> for papo_proto::Target
+pub fn papo_proto::Target::from(&papo_proto::Nick) -> Self
+impl core::convert::From<&str> for papo_proto::Nick
+pub fn papo_proto::Nick::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::Nick
+pub fn papo_proto::Nick::from(alloc::string::String) -> Self
+impl core::convert::From<papo_proto::Nick> for papo_proto::Target
+pub fn papo_proto::Target::from(papo_proto::Nick) -> Self
+impl core::fmt::Debug for papo_proto::Nick
+pub fn papo_proto::Nick::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::Nick
+pub fn papo_proto::Nick::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Nick
+pub fn papo_proto::Nick::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_proto::Nick
+impl core::ops::deref::Deref for papo_proto::Nick
+pub type papo_proto::Nick::Target = str
+pub fn papo_proto::Nick::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::Nick
+impl core::marker::Send for papo_proto::Nick
+impl core::marker::Sync for papo_proto::Nick
+impl core::marker::Unpin for papo_proto::Nick
+impl core::marker::UnsafeUnpin for papo_proto::Nick
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Nick
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Nick
+pub struct papo_proto::Numeric(_)
+impl papo_proto::Numeric
+pub const papo_proto::Numeric::ERR_ALREADYREGISTERED: Self
+pub const papo_proto::Numeric::ERR_BADCHANMASK: Self
+pub const papo_proto::Numeric::ERR_BADCHANNELKEY: Self
+pub const papo_proto::Numeric::ERR_BANNEDFROMCHAN: Self
+pub const papo_proto::Numeric::ERR_CANNOTSENDTOCHAN: Self
+pub const papo_proto::Numeric::ERR_CANTKILLSERVER: Self
+pub const papo_proto::Numeric::ERR_CHANNELISFULL: Self
+pub const papo_proto::Numeric::ERR_CHANOPRIVSNEEDED: Self
+pub const papo_proto::Numeric::ERR_ERRONEUSNICKNAME: Self
+pub const papo_proto::Numeric::ERR_INPUTTOOLONG: Self
+pub const papo_proto::Numeric::ERR_INVALIDKEY: Self
+pub const papo_proto::Numeric::ERR_INVALIDMODEPARAM: Self
+pub const papo_proto::Numeric::ERR_INVITEONLYCHAN: Self
+pub const papo_proto::Numeric::ERR_LINKCHANNEL: Self
+pub const papo_proto::Numeric::ERR_MONLISTFULL: Self
+pub const papo_proto::Numeric::ERR_NEEDMOREPARAMS: Self
+pub const papo_proto::Numeric::ERR_NICKCOLLISION: Self
+pub const papo_proto::Numeric::ERR_NICKLOCKED: Self
+pub const papo_proto::Numeric::ERR_NICKNAMEINUSE: Self
+pub const papo_proto::Numeric::ERR_NOMOTD: Self
+pub const papo_proto::Numeric::ERR_NONICKNAMEGIVEN: Self
+pub const papo_proto::Numeric::ERR_NOOPERHOST: Self
+pub const papo_proto::Numeric::ERR_NOORIGIN: Self
+pub const papo_proto::Numeric::ERR_NOPRIVILEGES: Self
+pub const papo_proto::Numeric::ERR_NOPRIVS: Self
+pub const papo_proto::Numeric::ERR_NORECIPIENT: Self
+pub const papo_proto::Numeric::ERR_NOSUCHCHANNEL: Self
+pub const papo_proto::Numeric::ERR_NOSUCHNICK: Self
+pub const papo_proto::Numeric::ERR_NOSUCHSERVER: Self
+pub const papo_proto::Numeric::ERR_NOTEXTTOSEND: Self
+pub const papo_proto::Numeric::ERR_NOTONCHANNEL: Self
+pub const papo_proto::Numeric::ERR_NOTREGISTERED: Self
+pub const papo_proto::Numeric::ERR_PASSWDMISMATCH: Self
+pub const papo_proto::Numeric::ERR_SASLABORTED: Self
+pub const papo_proto::Numeric::ERR_SASLALREADY: Self
+pub const papo_proto::Numeric::ERR_SASLFAIL: Self
+pub const papo_proto::Numeric::ERR_SASLTOOLONG: Self
+pub const papo_proto::Numeric::ERR_SECUREONLYCHAN: Self
+pub const papo_proto::Numeric::ERR_TOOMANYCHANNELS: Self
+pub const papo_proto::Numeric::ERR_UMODEUNKNOWNFLAG: Self
+pub const papo_proto::Numeric::ERR_UNAVAILRESOURCE: Self
+pub const papo_proto::Numeric::ERR_UNKNOWNCOMMAND: Self
+pub const papo_proto::Numeric::ERR_UNKNOWNERROR: Self
+pub const papo_proto::Numeric::ERR_UNKNOWNMODE: Self
+pub const papo_proto::Numeric::ERR_USERNOTINCHANNEL: Self
+pub const papo_proto::Numeric::ERR_USERONCHANNEL: Self
+pub const papo_proto::Numeric::ERR_USERSDONTMATCH: Self
+pub const papo_proto::Numeric::ERR_WASNOSUCHNICK: Self
+pub const papo_proto::Numeric::ERR_YOUREBANNEDCREEP: Self
+pub const papo_proto::Numeric::RPL_ADMINEMAIL: Self
+pub const papo_proto::Numeric::RPL_ADMINLOC1: Self
+pub const papo_proto::Numeric::RPL_ADMINLOC2: Self
+pub const papo_proto::Numeric::RPL_ADMINME: Self
+pub const papo_proto::Numeric::RPL_AWAY: Self
+pub const papo_proto::Numeric::RPL_BANLIST: Self
+pub const papo_proto::Numeric::RPL_BOUNCE: Self
+pub const papo_proto::Numeric::RPL_CHANNELMODEIS: Self
+pub const papo_proto::Numeric::RPL_CREATED: Self
+pub const papo_proto::Numeric::RPL_CREATIONTIME: Self
+pub const papo_proto::Numeric::RPL_ENDOFBANLIST: Self
+pub const papo_proto::Numeric::RPL_ENDOFEXCEPTLIST: Self
+pub const papo_proto::Numeric::RPL_ENDOFINFO: Self
+pub const papo_proto::Numeric::RPL_ENDOFINVEXLIST: Self
+pub const papo_proto::Numeric::RPL_ENDOFINVITELIST: Self
+pub const papo_proto::Numeric::RPL_ENDOFLINKS: Self
+pub const papo_proto::Numeric::RPL_ENDOFMONLIST: Self
+pub const papo_proto::Numeric::RPL_ENDOFMOTD: Self
+pub const papo_proto::Numeric::RPL_ENDOFNAMES: Self
+pub const papo_proto::Numeric::RPL_ENDOFSTATS: Self
+pub const papo_proto::Numeric::RPL_ENDOFWHO: Self
+pub const papo_proto::Numeric::RPL_ENDOFWHOIS: Self
+pub const papo_proto::Numeric::RPL_ENDOFWHOWAS: Self
+pub const papo_proto::Numeric::RPL_EXCEPTLIST: Self
+pub const papo_proto::Numeric::RPL_GLOBALUSERS: Self
+pub const papo_proto::Numeric::RPL_INFO: Self
+pub const papo_proto::Numeric::RPL_INVEXLIST: Self
+pub const papo_proto::Numeric::RPL_INVITELIST: Self
+pub const papo_proto::Numeric::RPL_INVITING: Self
+pub const papo_proto::Numeric::RPL_ISON: Self
+pub const papo_proto::Numeric::RPL_ISUPPORT: Self
+pub const papo_proto::Numeric::RPL_KEYNOTSET: Self
+pub const papo_proto::Numeric::RPL_KEYVALUE: Self
+pub const papo_proto::Numeric::RPL_LINKS: Self
+pub const papo_proto::Numeric::RPL_LIST: Self
+pub const papo_proto::Numeric::RPL_LISTEND: Self
+pub const papo_proto::Numeric::RPL_LISTSTART: Self
+pub const papo_proto::Numeric::RPL_LOCALUSERS: Self
+pub const papo_proto::Numeric::RPL_LOGGEDIN: Self
+pub const papo_proto::Numeric::RPL_LOGGEDOUT: Self
+pub const papo_proto::Numeric::RPL_LUSERCHANNELS: Self
+pub const papo_proto::Numeric::RPL_LUSERCLIENT: Self
+pub const papo_proto::Numeric::RPL_LUSERME: Self
+pub const papo_proto::Numeric::RPL_LUSEROP: Self
+pub const papo_proto::Numeric::RPL_LUSERUNKNOWN: Self
+pub const papo_proto::Numeric::RPL_METADATASUBOK: Self
+pub const papo_proto::Numeric::RPL_METADATASUBS: Self
+pub const papo_proto::Numeric::RPL_METADATASYNCLATER: Self
+pub const papo_proto::Numeric::RPL_METADATAUNSUBOK: Self
+pub const papo_proto::Numeric::RPL_MONLIST: Self
+pub const papo_proto::Numeric::RPL_MONOFFLINE: Self
+pub const papo_proto::Numeric::RPL_MONONLINE: Self
+pub const papo_proto::Numeric::RPL_MOTD: Self
+pub const papo_proto::Numeric::RPL_MOTDSTART: Self
+pub const papo_proto::Numeric::RPL_MYINFO: Self
+pub const papo_proto::Numeric::RPL_NAMREPLY: Self
+pub const papo_proto::Numeric::RPL_NOTOPIC: Self
+pub const papo_proto::Numeric::RPL_NOWAWAY: Self
+pub const papo_proto::Numeric::RPL_REHASHING: Self
+pub const papo_proto::Numeric::RPL_REMOTEISUPPORT: Self
+pub const papo_proto::Numeric::RPL_SASLMECHS: Self
+pub const papo_proto::Numeric::RPL_SASLSUCCESS: Self
+pub const papo_proto::Numeric::RPL_STATSCOMMANDS: Self
+pub const papo_proto::Numeric::RPL_STATSUPTIME: Self
+pub const papo_proto::Numeric::RPL_TIME: Self
+pub const papo_proto::Numeric::RPL_TOPIC: Self
+pub const papo_proto::Numeric::RPL_TOPICWHOTIME: Self
+pub const papo_proto::Numeric::RPL_TRYAGAIN: Self
+pub const papo_proto::Numeric::RPL_UMODEIS: Self
+pub const papo_proto::Numeric::RPL_UNAWAY: Self
+pub const papo_proto::Numeric::RPL_USERHOST: Self
+pub const papo_proto::Numeric::RPL_VERSION: Self
+pub const papo_proto::Numeric::RPL_VISIBLEHOST: Self
+pub const papo_proto::Numeric::RPL_WELCOME: Self
+pub const papo_proto::Numeric::RPL_WHOISACCOUNT: Self
+pub const papo_proto::Numeric::RPL_WHOISACTUALLY: Self
+pub const papo_proto::Numeric::RPL_WHOISBOT: Self
+pub const papo_proto::Numeric::RPL_WHOISCERTFP: Self
+pub const papo_proto::Numeric::RPL_WHOISCHANNELS: Self
+pub const papo_proto::Numeric::RPL_WHOISHOST: Self
+pub const papo_proto::Numeric::RPL_WHOISIDLE: Self
+pub const papo_proto::Numeric::RPL_WHOISKEYVALUE: Self
+pub const papo_proto::Numeric::RPL_WHOISMODES: Self
+pub const papo_proto::Numeric::RPL_WHOISOPERATOR: Self
+pub const papo_proto::Numeric::RPL_WHOISREGNICK: Self
+pub const papo_proto::Numeric::RPL_WHOISSECURE: Self
+pub const papo_proto::Numeric::RPL_WHOISSERVER: Self
+pub const papo_proto::Numeric::RPL_WHOISSPECIAL: Self
+pub const papo_proto::Numeric::RPL_WHOISUSER: Self
+pub const papo_proto::Numeric::RPL_WHOREPLY: Self
+pub const papo_proto::Numeric::RPL_WHOSPCRPL: Self
+pub const papo_proto::Numeric::RPL_WHOWASUSER: Self
+pub const papo_proto::Numeric::RPL_YOUREOPER: Self
+pub const papo_proto::Numeric::RPL_YOURHOST: Self
+pub const fn papo_proto::Numeric::name(self) -> core::option::Option<&'static str>
+impl papo_proto::Numeric
+pub const fn papo_proto::Numeric::code(self) -> u16
+pub const fn papo_proto::Numeric::new(u16) -> core::option::Option<Self>
+impl papo_proto::Numeric
+pub const fn papo_proto::Numeric::is_error(self) -> bool
+impl core::clone::Clone for papo_proto::Numeric
+pub fn papo_proto::Numeric::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Numeric
+impl core::cmp::Ord for papo_proto::Numeric
+pub fn papo_proto::Numeric::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::Numeric
+pub fn papo_proto::Numeric::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_proto::Numeric
+pub fn papo_proto::Numeric::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo_proto::Numeric
+pub fn papo_proto::Numeric::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::Numeric
+pub fn papo_proto::Numeric::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Numeric
+pub fn papo_proto::Numeric::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_proto::Numeric
+impl core::marker::StructuralPartialEq for papo_proto::Numeric
+impl core::marker::Freeze for papo_proto::Numeric
+impl core::marker::Send for papo_proto::Numeric
+impl core::marker::Sync for papo_proto::Numeric
+impl core::marker::Unpin for papo_proto::Numeric
+impl core::marker::UnsafeUnpin for papo_proto::Numeric
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Numeric
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Numeric
+pub struct papo_proto::Params<'a>
+impl core::iter::traits::marker::FusedIterator for papo_proto::Params<'_>
+impl<'a> core::clone::Clone for papo_proto::Params<'a>
+pub fn papo_proto::Params<'a>::clone(&self) -> Self
+impl<'a> core::fmt::Debug for papo_proto::Params<'a>
+pub fn papo_proto::Params<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::iter::traits::iterator::Iterator for papo_proto::Params<'a>
+pub type papo_proto::Params<'a>::Item = &'a str
+pub fn papo_proto::Params<'a>::next(&mut self) -> core::option::Option<Self::Item>
+impl<'a> core::marker::Freeze for papo_proto::Params<'a>
+impl<'a> core::marker::Send for papo_proto::Params<'a>
+impl<'a> core::marker::Sync for papo_proto::Params<'a>
+impl<'a> core::marker::Unpin for papo_proto::Params<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Params<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Params<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Params<'a>
+pub struct papo_proto::Prefix
+pub papo_proto::Prefix::mode: char
+pub papo_proto::Prefix::rank: usize
+pub papo_proto::Prefix::symbol: char
+impl core::clone::Clone for papo_proto::Prefix
+pub fn papo_proto::Prefix::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Prefix
+impl core::cmp::PartialEq for papo_proto::Prefix
+pub fn papo_proto::Prefix::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::Prefix
+pub fn papo_proto::Prefix::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::Prefix
+impl core::marker::StructuralPartialEq for papo_proto::Prefix
+impl core::marker::Freeze for papo_proto::Prefix
+impl core::marker::Send for papo_proto::Prefix
+impl core::marker::Sync for papo_proto::Prefix
+impl core::marker::Unpin for papo_proto::Prefix
+impl core::marker::UnsafeUnpin for papo_proto::Prefix
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Prefix
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Prefix
+pub struct papo_proto::Reaction
+pub papo_proto::Reaction::react: core::option::Option<alloc::string::String>
+pub papo_proto::Reaction::reply_to: alloc::string::String
+pub papo_proto::Reaction::unreact: core::option::Option<alloc::string::String>
+impl papo_proto::Reaction
+pub fn papo_proto::Reaction::parse(&papo_proto::LineRef<'_>) -> core::option::Option<Self>
+impl core::clone::Clone for papo_proto::Reaction
+pub fn papo_proto::Reaction::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Reaction
+impl core::cmp::PartialEq for papo_proto::Reaction
+pub fn papo_proto::Reaction::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::Reaction
+pub fn papo_proto::Reaction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_proto::Reaction
+impl core::marker::Freeze for papo_proto::Reaction
+impl core::marker::Send for papo_proto::Reaction
+impl core::marker::Sync for papo_proto::Reaction
+impl core::marker::Unpin for papo_proto::Reaction
+impl core::marker::UnsafeUnpin for papo_proto::Reaction
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Reaction
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Reaction
+pub struct papo_proto::Segment<'a>
+pub papo_proto::Segment::concat: bool
+pub papo_proto::Segment::text: &'a str
+impl<'a> core::clone::Clone for papo_proto::Segment<'a>
+pub fn papo_proto::Segment<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Segment<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Segment<'a>
+pub fn papo_proto::Segment<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Segment<'a>
+pub fn papo_proto::Segment<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Segment<'a>
+impl<'a> core::marker::Freeze for papo_proto::Segment<'a>
+impl<'a> core::marker::Send for papo_proto::Segment<'a>
+impl<'a> core::marker::Sync for papo_proto::Segment<'a>
+impl<'a> core::marker::Unpin for papo_proto::Segment<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Segment<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Segment<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Segment<'a>
+pub struct papo_proto::Setname<'a>
+pub papo_proto::Setname::realname: &'a str
+impl<'a> papo_proto::Setname<'a>
+pub fn papo_proto::Setname<'a>::parse(&papo_proto::LineRef<'a>) -> core::option::Option<Self>
+impl<'a> core::clone::Clone for papo_proto::Setname<'a>
+pub fn papo_proto::Setname<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Setname<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Setname<'a>
+pub fn papo_proto::Setname<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Setname<'a>
+pub fn papo_proto::Setname<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Setname<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Setname<'a>
+impl<'a> core::marker::Freeze for papo_proto::Setname<'a>
+impl<'a> core::marker::Send for papo_proto::Setname<'a>
+impl<'a> core::marker::Sync for papo_proto::Setname<'a>
+impl<'a> core::marker::Unpin for papo_proto::Setname<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Setname<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Setname<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Setname<'a>
+pub struct papo_proto::Span<'a>
+pub papo_proto::Span::style: papo_proto::Style
+pub papo_proto::Span::text: &'a str
+impl<'a> core::clone::Clone for papo_proto::Span<'a>
+pub fn papo_proto::Span<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::Span<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::Span<'a>
+pub fn papo_proto::Span<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::Span<'a>
+pub fn papo_proto::Span<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::Span<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::Span<'a>
+impl<'a> core::marker::Freeze for papo_proto::Span<'a>
+impl<'a> core::marker::Send for papo_proto::Span<'a>
+impl<'a> core::marker::Sync for papo_proto::Span<'a>
+impl<'a> core::marker::Unpin for papo_proto::Span<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Span<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Span<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Span<'a>
+pub struct papo_proto::StandardReply<'a>
+pub papo_proto::StandardReply::code: &'a str
+pub papo_proto::StandardReply::command: &'a str
+pub papo_proto::StandardReply::context: alloc::vec::Vec<&'a str>
+pub papo_proto::StandardReply::description: &'a str
+pub papo_proto::StandardReply::kind: papo_proto::StandardReplyKind
+impl<'a> papo_proto::StandardReply<'a>
+pub fn papo_proto::StandardReply<'a>::parse(&papo_proto::LineRef<'a>) -> core::option::Option<Self>
+impl<'a> core::clone::Clone for papo_proto::StandardReply<'a>
+pub fn papo_proto::StandardReply<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::StandardReply<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::StandardReply<'a>
+pub fn papo_proto::StandardReply<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::StandardReply<'a>
+pub fn papo_proto::StandardReply<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for papo_proto::StandardReply<'a>
+impl<'a> core::marker::Freeze for papo_proto::StandardReply<'a>
+impl<'a> core::marker::Send for papo_proto::StandardReply<'a>
+impl<'a> core::marker::Sync for papo_proto::StandardReply<'a>
+impl<'a> core::marker::Unpin for papo_proto::StandardReply<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::StandardReply<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::StandardReply<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::StandardReply<'a>
+pub struct papo_proto::Style
+pub papo_proto::Style::bg: core::option::Option<papo_proto::Color>
+pub papo_proto::Style::bold: bool
+pub papo_proto::Style::fg: core::option::Option<papo_proto::Color>
+pub papo_proto::Style::italics: bool
+pub papo_proto::Style::monospace: bool
+pub papo_proto::Style::reverse: bool
+pub papo_proto::Style::strikethrough: bool
+pub papo_proto::Style::underline: bool
+impl core::clone::Clone for papo_proto::Style
+pub fn papo_proto::Style::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Style
+impl core::cmp::PartialEq for papo_proto::Style
+pub fn papo_proto::Style::eq(&self, &Self) -> bool
+impl core::default::Default for papo_proto::Style
+pub fn papo_proto::Style::default() -> Self
+impl core::fmt::Debug for papo_proto::Style
+pub fn papo_proto::Style::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::Style
+impl core::marker::StructuralPartialEq for papo_proto::Style
+impl core::marker::Freeze for papo_proto::Style
+impl core::marker::Send for papo_proto::Style
+impl core::marker::Sync for papo_proto::Style
+impl core::marker::Unpin for papo_proto::Style
+impl core::marker::UnsafeUnpin for papo_proto::Style
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Style
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Style
+pub struct papo_proto::Tags<'a>
+impl core::iter::traits::marker::FusedIterator for papo_proto::Tags<'_>
+impl<'a> core::clone::Clone for papo_proto::Tags<'a>
+pub fn papo_proto::Tags<'a>::clone(&self) -> Self
+impl<'a> core::fmt::Debug for papo_proto::Tags<'a>
+pub fn papo_proto::Tags<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::iter::traits::iterator::Iterator for papo_proto::Tags<'a>
+pub type papo_proto::Tags<'a>::Item = (&'a str, core::option::Option<alloc::borrow::Cow<'a, str>>)
+pub fn papo_proto::Tags<'a>::next(&mut self) -> core::option::Option<Self::Item>
+impl<'a> core::marker::Freeze for papo_proto::Tags<'a>
+impl<'a> core::marker::Send for papo_proto::Tags<'a>
+impl<'a> core::marker::Sync for papo_proto::Tags<'a>
+impl<'a> core::marker::Unpin for papo_proto::Tags<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::Tags<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Tags<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Tags<'a>
+pub struct papo_proto::Target(_)
+impl papo_proto::Target
+pub fn papo_proto::Target::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+impl papo_proto::Target
+pub fn papo_proto::Target::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_proto::Target
+pub fn papo_proto::Target::borrow(&self) -> &str
+impl core::clone::Clone for papo_proto::Target
+pub fn papo_proto::Target::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Target
+impl core::cmp::Ord for papo_proto::Target
+pub fn papo_proto::Target::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::Target
+pub fn papo_proto::Target::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::Target
+pub fn papo_proto::Target::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::Target
+pub fn papo_proto::Target::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::Target
+pub fn papo_proto::Target::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::Target
+pub fn papo_proto::Target::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::Target
+pub fn papo_proto::Target::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::ChannelName> for papo_proto::Target
+pub fn papo_proto::Target::from(&papo_proto::ChannelName) -> Self
+impl core::convert::From<&papo_proto::Nick> for papo_proto::Target
+pub fn papo_proto::Target::from(&papo_proto::Nick) -> Self
+impl core::convert::From<&papo_proto::Target> for papo_proto::Target
+pub fn papo_proto::Target::from(&Self) -> Self
+impl core::convert::From<&str> for papo_proto::Target
+pub fn papo_proto::Target::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::Target
+pub fn papo_proto::Target::from(alloc::string::String) -> Self
+impl core::convert::From<papo_proto::ChannelName> for papo_proto::Target
+pub fn papo_proto::Target::from(papo_proto::ChannelName) -> Self
+impl core::convert::From<papo_proto::Nick> for papo_proto::Target
+pub fn papo_proto::Target::from(papo_proto::Nick) -> Self
+impl core::fmt::Debug for papo_proto::Target
+pub fn papo_proto::Target::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::Target
+pub fn papo_proto::Target::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Target
+pub fn papo_proto::Target::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_proto::Target
+impl core::ops::deref::Deref for papo_proto::Target
+pub type papo_proto::Target::Target = str
+pub fn papo_proto::Target::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::Target
+impl core::marker::Send for papo_proto::Target
+impl core::marker::Sync for papo_proto::Target
+impl core::marker::Unpin for papo_proto::Target
+impl core::marker::UnsafeUnpin for papo_proto::Target
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Target
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Target
+pub struct papo_proto::WhoxFlags
+pub papo_proto::WhoxFlags::bot: bool
+pub papo_proto::WhoxFlags::oper: bool
+pub papo_proto::WhoxFlags::prefixes: alloc::vec::Vec<char>
+pub papo_proto::WhoxFlags::presence: core::option::Option<papo_proto::WhoxPresence>
+impl core::clone::Clone for papo_proto::WhoxFlags
+pub fn papo_proto::WhoxFlags::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::WhoxFlags
+impl core::cmp::PartialEq for papo_proto::WhoxFlags
+pub fn papo_proto::WhoxFlags::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::WhoxFlags
+pub fn papo_proto::WhoxFlags::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_proto::WhoxFlags
+impl core::marker::Freeze for papo_proto::WhoxFlags
+impl core::marker::Send for papo_proto::WhoxFlags
+impl core::marker::Sync for papo_proto::WhoxFlags
+impl core::marker::Unpin for papo_proto::WhoxFlags
+impl core::marker::UnsafeUnpin for papo_proto::WhoxFlags
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::WhoxFlags
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::WhoxFlags
+pub struct papo_proto::WhoxReply<'a>
+pub papo_proto::WhoxReply::account: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::channel: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::hopcount: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::host: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::idle: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::ip: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::nick: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::oplevel: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::raw_flags: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::realname: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::server: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::token: core::option::Option<&'a str>
+pub papo_proto::WhoxReply::user: core::option::Option<&'a str>
+impl<'a> papo_proto::WhoxReply<'a>
+pub fn papo_proto::WhoxReply<'a>::flags(&self, &papo_proto::Isupport) -> core::option::Option<papo_proto::WhoxFlags>
+pub fn papo_proto::WhoxReply<'a>::parse(&papo_proto::LineRef<'a>, &str) -> core::option::Option<Self>
+impl<'a> core::clone::Clone for papo_proto::WhoxReply<'a>
+pub fn papo_proto::WhoxReply<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::WhoxReply<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::WhoxReply<'a>
+pub fn papo_proto::WhoxReply<'a>::eq(&self, &Self) -> bool
+impl<'a> core::default::Default for papo_proto::WhoxReply<'a>
+pub fn papo_proto::WhoxReply<'a>::default() -> Self
+impl<'a> core::fmt::Debug for papo_proto::WhoxReply<'a>
+pub fn papo_proto::WhoxReply<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for papo_proto::WhoxReply<'a>
+impl<'a> core::marker::Freeze for papo_proto::WhoxReply<'a>
+impl<'a> core::marker::Send for papo_proto::WhoxReply<'a>
+impl<'a> core::marker::Sync for papo_proto::WhoxReply<'a>
+impl<'a> core::marker::Unpin for papo_proto::WhoxReply<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::WhoxReply<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::WhoxReply<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::WhoxReply<'a>
+pub const papo_proto::MAX_CLIENT_TAG_DATA_LEN: usize
+pub const papo_proto::MAX_LINE_LEN: usize
+pub const papo_proto::MAX_TAG_SECTION_LEN: usize
+pub const papo_proto::NAME_ALIASES: &[(papo_proto::NameKind, &str, &str)]
+pub fn papo_proto::canonical(&str) -> &str
+pub fn papo_proto::escape_tag_value(&str) -> alloc::borrow::Cow<'_, str>
+pub fn papo_proto::parse_353<'a>(&papo_proto::LineRef<'a>) -> core::option::Option<(&'a str, &'a str, impl core::iter::traits::iterator::Iterator<Item = &'a str>)>
+pub fn papo_proto::split_text(&str, usize) -> alloc::vec::Vec<papo_proto::Segment<'_>>
+pub fn papo_proto::strip_formatting(&str) -> alloc::borrow::Cow<'_, str>

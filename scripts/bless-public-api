@@ -22,22 +22,27 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 generate() {
-  local features=$1
-  local snapshot=$2
-  local target=$3
-  local actual="$work/$snapshot"
+  local package=$1
+  local crate=$2
+  local features=$3
+  local snapshot=$4
+  local target=$5
+  local actual="$work/actual"
   CARGO_INCREMENTAL=0 \
     RUSTC="$nightly_bin/rustc" \
     RUSTDOC="$nightly_bin/rustdoc" \
     "$nightly_cargo" rustdoc \
-      -p papo --no-default-features --features "$features" --lib --target-dir "$target" \
+      -p "$package" --no-default-features --features "$features" --lib --target-dir "$target" \
       -- -Z unstable-options --output-format json
   cargo public-api \
-    --rustdoc-json "$target/doc/papo.json" \
+    --rustdoc-json "$target/doc/$crate.json" \
     --color=never -s | bash nix/normalize-public-api.sh > "$actual"
-  mv "$actual" "crates/papo/$snapshot"
+  mv "$actual" "$snapshot"
 }
 
 stable=bot,sts-file,websocket,tls-aws-lc,tls-ring
-generate "$stable" public-api.txt "$work/stable"
-generate "$stable,unstable" public-api-unstable.txt "$work/unstable"
+generate papo-proto papo_proto '' crates/papo-proto/public-api.txt "$work/papo-proto"
+generate papo-core papo_core '' crates/papo-core/public-api.txt "$work/papo-core-stable"
+generate papo-core papo_core unstable crates/papo-core/public-api-unstable.txt "$work/papo-core-unstable"
+generate papo papo "$stable" crates/papo/public-api.txt "$work/papo-stable"
+generate papo papo "$stable,unstable" crates/papo/public-api-unstable.txt "$work/papo-unstable"

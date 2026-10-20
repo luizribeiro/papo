@@ -285,20 +285,22 @@
             runtimeInputs = [ pkgs.cargo-public-api ];
             text = ''
               check_api() {
-                features=$1
-                expected=$2
-                target=$3
+                package=$1
+                crate=$2
+                features=$3
+                expected=$4
+                target=$5
                 actual=$(mktemp)
                 CARGO_INCREMENTAL=0 \
                   RUSTC=${nightlyToolchain}/bin/rustc \
                   RUSTDOC=${nightlyToolchain}/bin/rustdoc \
                   ${nightlyToolchain}/bin/cargo rustdoc \
-                    -p papo --no-default-features --features "$features" --lib --target-dir "$target" \
+                    -p "$package" --no-default-features --features "$features" --lib --target-dir "$target" \
                     -- -Z unstable-options --output-format json
                 cargo public-api \
-                  --rustdoc-json "$target/doc/papo.json" \
+                  --rustdoc-json "$target/doc/$crate.json" \
                   --color=never -s | bash nix/normalize-public-api.sh > "$actual"
-                if grep -Eq 'papo_(core|proto)::' "$actual"; then
+                if [[ "$package" == papo ]] && grep -Eq 'papo_(core|proto)::' "$actual"; then
                   echo "public API contains a foreign papo-core or papo-proto path" >&2
                   grep -En 'papo_(core|proto)::' "$actual" >&2
                   return 1
@@ -307,8 +309,11 @@
                 rm -f "$actual"
               }
               stable=bot,sts-file,websocket,tls-aws-lc,tls-ring
-              check_api "$stable" crates/papo/public-api.txt target/public-api
-              check_api "$stable,unstable" crates/papo/public-api-unstable.txt target/public-api-unstable
+              check_api papo-proto papo_proto "" crates/papo-proto/public-api.txt target/public-api/papo-proto
+              check_api papo-core papo_core "" crates/papo-core/public-api.txt target/public-api/papo-core-stable
+              check_api papo-core papo_core unstable crates/papo-core/public-api-unstable.txt target/public-api/papo-core-unstable
+              check_api papo papo "$stable" crates/papo/public-api.txt target/public-api/papo-stable
+              check_api papo papo "$stable,unstable" crates/papo/public-api-unstable.txt target/public-api/papo-unstable
             '';
           };
           plain-tests = cargoHook {
