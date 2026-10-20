@@ -911,7 +911,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             conversation: marker.conversation,
             time: marker.time,
         }),
-        papo_core::Event::Netsplit { servers, quits } => Event::Netsplit(Netsplit {
+        papo_core::Event::Netsplit { servers, quits, .. } => Event::Netsplit(Netsplit {
             servers: servers.into(),
             quits: quits
                 .into_iter()
@@ -928,7 +928,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 })
                 .collect(),
         }),
-        papo_core::Event::Netjoin { servers, joins } => Event::Netjoin(Netjoin {
+        papo_core::Event::Netjoin { servers, joins, .. } => Event::Netjoin(Netjoin {
             servers: servers.into(),
             joins: joins
                 .into_iter()
@@ -977,7 +977,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         }
         papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
-        papo_core::Event::Joined { channel, nick } => Event::Joined(Joined {
+        papo_core::Event::Joined { channel, nick, .. } => Event::Joined(Joined {
             channel,
             nick,
             is_self: false,
@@ -989,6 +989,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             channel,
             nick,
             reason,
+            ..
         } => Event::Parted(Parted {
             channel,
             nick,
@@ -1000,6 +1001,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             nick,
             actor,
             reason,
+            ..
         } => Event::Kicked(Kicked {
             channel,
             nick,
@@ -1011,6 +1013,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             channel,
             nick,
             actor,
+            ..
         } => Event::Invited(Invited {
             channel,
             nick,
@@ -1021,12 +1024,13 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             nick,
             reason,
             channels,
+            ..
         } => Event::Quit(Quit {
             nick,
             reason,
             channels,
         }),
-        papo_core::Event::NickChanged { old, new } => Event::NickChanged(NickChanged {
+        papo_core::Event::NickChanged { old, new, .. } => Event::NickChanged(NickChanged {
             old,
             new,
             is_self: false,
@@ -1036,6 +1040,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             new,
             actor,
             reason,
+            ..
         } => Event::ChannelRenamed(ChannelRenamed {
             old,
             new,
@@ -1064,6 +1069,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             subject,
             actor,
             changes,
+            ..
         } => Event::ModeChanged(ModeChanged {
             subject: match subject {
                 papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
@@ -1085,6 +1091,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             channel,
             topic,
             actor,
+            ..
         } => Event::TopicChanged(TopicChanged {
             channel,
             topic,
