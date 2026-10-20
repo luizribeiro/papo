@@ -6,7 +6,7 @@ mod support;
 use support::within;
 
 use papo::{Client, Endpoint, Event, Message as ChatMessage, Origin, Sasl, Source};
-use papo_test_server::{from_env, register_account, unique};
+use papo_test_server::{create_account, from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
 async fn reply_between_two_clients_carries_the_original_msgid() {
@@ -69,7 +69,7 @@ async fn same_account_sessions_distinguish_echoes() {
         let account = unique("papo-multiclient");
         let channel = format!("#{}", unique("papo-multiclient"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
-        register_account(&server, &account, password).unwrap();
+        create_account(&server, &account, password).unwrap();
         let (client_a, mut events_a) =
             account_client(address.clone(), &account, password, &channel).await;
         let (client_b, mut events_b) = account_client(address, &account, password, &channel).await;

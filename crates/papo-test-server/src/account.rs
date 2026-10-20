@@ -12,7 +12,7 @@ use crate::{DeploymentProfile, ServerInfo};
 ///
 /// Returns an error when the credentials contain IRC line delimiters, the
 /// connection fails, or the selected server does not accept the account.
-pub fn register_account(server: &ServerInfo, name: &str, password: &str) -> io::Result<()> {
+pub fn create_account(server: &ServerInfo, name: &str, password: &str) -> io::Result<()> {
     if !credentials_valid(name, password) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,

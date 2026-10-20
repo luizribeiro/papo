@@ -6,7 +6,7 @@ mod support;
 use support::within;
 
 use papo::{Client, Endpoint, Event, Sasl};
-use papo_test_server::{from_env, register_account, unique};
+use papo_test_server::{create_account, from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
 async fn connects_with_sasl_and_applies_bot_defaults() {
@@ -15,7 +15,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
         let account = unique("papo-builder");
         let channel = format!("#{}", unique("papo-builder"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
-        register_account(&server, &account, password).unwrap();
+        create_account(&server, &account, password).unwrap();
 
         let (client, mut events) =
             Client::builder(Endpoint::tls("localhost", server.tls_addr().port()))

@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use papo::{Builder, Client, Endpoint, IntoEndpoint, Sasl};
-use papo_test_server::{ServerInfo, register_account};
+use papo_test_server::{ServerInfo, create_account};
 
 use crate::{Error, Peer, Result, skipped};
 
@@ -65,7 +65,7 @@ impl Scenario {
     /// authenticated client cannot connect.
     pub async fn connect_as_account(&self, label: &str) -> Result<Peer> {
         let account = unique_name(label);
-        register_account(&self.server, &account, ACCOUNT_PASSWORD)?;
+        create_account(&self.server, &account, ACCOUNT_PASSWORD)?;
         let address = self.server.plaintext_addr();
         let builder = self.configure_named_at(
             account.clone(),

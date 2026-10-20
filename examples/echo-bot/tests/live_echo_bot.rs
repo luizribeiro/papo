@@ -4,7 +4,7 @@
 use std::{path::PathBuf, time::Duration};
 
 use papo::{Client, Endpoint, Event, Message, Typing};
-use papo_test_server::{ServerInfo, from_env, register_account, unique};
+use papo_test_server::{ServerInfo, create_account, from_env, unique};
 use tokio::time::{sleep, timeout};
 
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -16,7 +16,7 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
         let bot_nick = unique("papo-echo-bot");
         let user_nick = unique("papo-echo-user");
         let channel = format!("#{}", unique("papo-echo"));
-        register_account(&server, &bot_nick, PASSWORD).unwrap();
+        create_account(&server, &bot_nick, PASSWORD).unwrap();
         let _bot = Bot::start(&server, &bot_nick, &channel);
         sleep(Duration::from_millis(500)).await;
 

@@ -1,7 +1,7 @@
 use papo::{AccountRegistration, ConnectErrorKind, Event, NewAccount, event::Warning};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
-use papo_test_server::{DeploymentProfile, register_account, unique};
+use papo_test_server::{DeploymentProfile, create_account, unique};
 
 use super::support::PASSWORD;
 use crate::Scenario;
@@ -106,7 +106,7 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let account = unique("reauth-account");
-    register_account(&s.server, &account, PASSWORD)?;
+    create_account(&s.server, &account, PASSWORD)?;
     let bob = s
         .connect_with(s.configure("bob")?.sasl(Sasl::plain(&account, PASSWORD)))
         .await?;
@@ -124,7 +124,7 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
 
 async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
     let account = unique("alice-account");
-    register_account(&s.server, &account, PASSWORD)?;
+    create_account(&s.server, &account, PASSWORD)?;
     let sasl = if scram {
         Sasl::scram_sha256(&account, PASSWORD)
     } else {

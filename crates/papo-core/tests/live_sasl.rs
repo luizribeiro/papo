@@ -9,7 +9,7 @@ mod support;
 use std::{net::TcpStream, time::Instant};
 
 use papo_core::{Config, Entropy, Event, RateLimit, Sasl, Session};
-use papo_test_server::{ServerInfo, from_env, register_account, unique};
+use papo_test_server::{ServerInfo, create_account, from_env, unique};
 use support::{drive_until, within};
 
 struct FixedEntropy;
@@ -25,7 +25,7 @@ fn authenticates_with_plain_and_scram_against_live_ergo() {
     let server = from_env();
     let account = unique("papo-sasl");
     let password = "q7Hx-2mZp_9vLcT4wRfB";
-    register_account(&server, &account, password).unwrap();
+    create_account(&server, &account, password).unwrap();
 
     for sasl in [
         Sasl::plain(&account, password),

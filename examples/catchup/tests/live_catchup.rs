@@ -4,7 +4,7 @@
 use std::{process::Command, time::Duration};
 
 use papo::{Client, Endpoint, Event, Line, Sasl};
-use papo_test_server::{from_env, register_account, unique};
+use papo_test_server::{create_account, from_env, unique};
 use tokio::time::timeout;
 
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -20,7 +20,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         let channel = format!("#{}", unique("papo-catchup"));
         let account = unique("papo-catchup");
         let poster_nick = unique("papo-poster");
-        register_account(&server, &account, PASSWORD).unwrap();
+        create_account(&server, &account, PASSWORD).unwrap();
 
         let (persistent, mut persistent_events) = Client::builder(endpoint.clone())
             .nick(papo::Casemapping::default().nick(&account))

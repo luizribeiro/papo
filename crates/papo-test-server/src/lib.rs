@@ -32,7 +32,7 @@ mod solanum_config;
 #[cfg(not(target_family = "wasm"))]
 mod unrealircd;
 
-pub use account::{change_account_password_at, register_account, register_account_at};
+pub use account::{change_account_password_at, create_account, register_account_at};
 pub use environment::{BouncerInfo, BouncerLogin, ServerInfo, from_env, unique};
 /// Password accepted by the managed Ergo WEBIRC gateway fixture.
 pub const WEBIRC_PASSWORD: &str = "papo-webirc-password";

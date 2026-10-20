@@ -6,7 +6,7 @@ mod support;
 use std::time::Duration;
 
 use papo::{Client, Endpoint, Event};
-use papo_test_server::{from_env, register_account, unique};
+use papo_test_server::{create_account, from_env, unique};
 use support::{Lurker, PASSWORD};
 use tokio::time::timeout;
 
@@ -39,7 +39,7 @@ async fn prints_channel_state_changes_in_wire_order() {
             .unwrap()
             .is_op());
 
-        register_account(&server, &lurker_nick, PASSWORD).unwrap();
+        create_account(&server, &lurker_nick, PASSWORD).unwrap();
         let mut lurker = Lurker::start(&server, &lurker_nick, &channel);
         wait_event(&mut owner_events, |event| joined(event, &lurker_nick)).await;
         lurker.wait_for(&format!("synced {channel}:")).await;

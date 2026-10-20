@@ -7,7 +7,7 @@
 use std::time::Duration;
 
 use papo::{Client, Endpoint, Event, Message};
-use papo_test_server::{ServerInfo, from_env, register_account, unique};
+use papo_test_server::{ServerInfo, create_account, from_env, unique};
 use tokio::time::{sleep, timeout};
 
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -19,7 +19,7 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
         let bot_nick = unique("papo-ping-bot");
         let user_nick = unique("papo-ping-user");
         let channel = format!("#{}", unique("papo-ping"));
-        register_account(&server, &bot_nick, PASSWORD).unwrap();
+        create_account(&server, &bot_nick, PASSWORD).unwrap();
         let mut bot = Bot::start(&server, &bot_nick, &channel).await;
         sleep(Duration::from_millis(500)).await;
 

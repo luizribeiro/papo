@@ -6,7 +6,7 @@ mod support;
 use std::time::Duration;
 
 use papo::MessageKind;
-use papo_test_server::{from_env, register_account, unique};
+use papo_test_server::{create_account, from_env, unique};
 use support::{AdminBot, PASSWORD, connect, wait_message, wait_op};
 use tokio::time::{sleep, timeout};
 
@@ -20,8 +20,8 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
         let channels: Vec<_> = ["commands", "mentions", "operators", "rate"]
             .map(|kind| format!("#{}-{kind}", unique("papo-admin")))
             .into();
-        register_account(&server, &bot_nick, PASSWORD).unwrap();
-        register_account(&server, &admin_nick, PASSWORD).unwrap();
+        create_account(&server, &bot_nick, PASSWORD).unwrap();
+        create_account(&server, &admin_nick, PASSWORD).unwrap();
         let mut bot = AdminBot::start(&server, &bot_nick, &channels.join(","), &admin_nick);
         sleep(Duration::from_millis(500)).await;
 

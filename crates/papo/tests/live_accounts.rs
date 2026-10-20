@@ -17,7 +17,7 @@ use papo::PersistenceSetting;
 use papo::Reconnect;
 use papo::{AccountRegistration, Client, Endpoint, Event, NewAccount, Sasl};
 #[cfg(not(target_family = "wasm"))]
-use papo_test_server::register_account;
+use papo_test_server::create_account;
 use papo_test_server::{from_env, unique};
 #[cfg(not(target_family = "wasm"))]
 use tokio::{
@@ -83,7 +83,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         let address = Endpoint::plaintext(proxy.ip().to_string(), proxy.port());
         let account = unique("papo-persistent");
         let channel = format!("#{}", unique("papo-persistent"));
-        register_account(&server, &account, PASSWORD).unwrap();
+        create_account(&server, &account, PASSWORD).unwrap();
         let (client, mut events) = Client::builder(address)
             .nick(support::nick(&account))
             .sasl(Sasl::plain(&account, PASSWORD))
