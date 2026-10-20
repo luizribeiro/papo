@@ -47,7 +47,8 @@ async fn subscriber_receives_another_clients_metadata() {
         loop {
             match reader_events.next().await {
                 Some(Event::MetadataChanged(changed))
-                    if changed.target == writer_nick.as_str() && changed.key == "status" =>
+                    if matches!(&changed.subject, papo::Subject::User(nick) if nick == writer_nick.as_str())
+                        && changed.key == "status" =>
                 {
                     assert_eq!(changed.value.as_deref(), Some("available for review"));
                     break;

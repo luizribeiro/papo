@@ -1,7 +1,7 @@
 use papo::{Event, event::Visibility};
 use papo_conformance_macros::scenario;
 
-use crate::Scenario;
+use crate::{Scenario, scenarios::support::subject_name};
 
 /// sets, gets, and removes client metadata
 #[scenario(
@@ -21,7 +21,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
 
     alice.metadata().set(key, value).await?;
     let changed = alice.wait_for(Event::as_metadata_changed).await?;
-    assert_eq!(changed.target.as_str(), nick.as_ref());
+    assert_eq!(subject_name(&changed.subject), nick.as_ref());
     assert_eq!(changed.key.as_ref(), key);
     assert_eq!(changed.value.as_deref(), Some(value));
     assert_eq!(changed.visibility, Visibility::Public);
@@ -42,7 +42,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|changed| changed.value.is_none())
         })
         .await?;
-    assert_eq!(removed.target.as_str(), nick.as_ref());
+    assert_eq!(subject_name(&removed.subject), nick.as_ref());
     assert_eq!(removed.key.as_ref(), key);
     assert_eq!(removed.value, None);
     assert_eq!(removed.visibility, Visibility::Public);
@@ -88,7 +88,7 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     let bob_change = bob
         .wait_for(|event| {
             event.as_metadata_changed().filter(|changed| {
-                changed.target.as_str() == alice_nick.as_ref() && changed.key.as_ref() == key
+                subject_name(&changed.subject) == alice_nick.as_ref() && changed.key.as_ref() == key
             })
         })
         .await?;
@@ -128,9 +128,9 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     alice.metadata().set_on(channel.clone(), key, value).await?;
     let bob_change = bob
         .wait_for(|event| {
-            event
-                .as_metadata_changed()
-                .filter(|changed| changed.target.as_str() == channel && changed.key.as_ref() == key)
+            event.as_metadata_changed().filter(|changed| {
+                subject_name(&changed.subject) == channel && changed.key.as_ref() == key
+            })
         })
         .await?;
     assert_eq!(bob_change.value.as_deref(), Some(value));
@@ -142,9 +142,9 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     charlie.join(channel.clone()).await?;
     let charlie_change = charlie
         .wait_for(|event| {
-            event
-                .as_metadata_changed()
-                .filter(|changed| changed.target.as_str() == channel && changed.key.as_ref() == key)
+            event.as_metadata_changed().filter(|changed| {
+                subject_name(&changed.subject) == channel && changed.key.as_ref() == key
+            })
         })
         .await?;
     assert_eq!(charlie_change, bob_change);

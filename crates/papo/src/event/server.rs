@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{MetadataKey, Nick};
+use crate::{MetadataKey, Nick, Subject};
 
 /// An upstream bouncer network was added, updated, or removed.
 #[cfg(feature = "unstable")]
@@ -28,8 +28,8 @@ pub enum Visibility {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct MetadataChanged {
-    /// Nickname or channel reported by the server.
-    pub target: String,
+    /// User or channel whose metadata changed.
+    pub subject: Subject,
     /// Metadata key.
     pub key: MetadataKey,
     /// New server-returned value, or `None` when cleared.

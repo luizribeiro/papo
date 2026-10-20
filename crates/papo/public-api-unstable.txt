@@ -588,7 +588,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Kicked
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Kicked
 #[non_exhaustive] pub struct papo::event::MetadataChanged
 pub papo::event::MetadataChanged::key: papo::MetadataKey
-pub papo::event::MetadataChanged::target: alloc::string::String
+pub papo::event::MetadataChanged::subject: papo::Subject
 pub papo::event::MetadataChanged::value: core::option::Option<alloc::string::String>
 pub papo::event::MetadataChanged::visibility: papo::event::Visibility
 impl core::clone::Clone for papo::event::MetadataChanged

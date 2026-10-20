@@ -883,9 +883,9 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             value,
             visibility,
         } => Event::MetadataChanged(MetadataChanged {
-            target: match subject {
-                papo_core::Subject::Channel(channel) => channel.to_string(),
-                papo_core::Subject::User(nick) => nick.to_string(),
+            subject: match subject {
+                papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
+                papo_core::Subject::User(nick) => crate::Subject::User(nick),
                 _ => return CoreEvent::Unknown,
             },
             key: key.into(),
@@ -1774,7 +1774,8 @@ mod tests {
                 visibility: "members".into(),
             }),
             Event::MetadataChanged(changed)
-                if changed.target == "#papo" && changed.key == "pronouns"
+                if matches!(changed.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
+                    && changed.key == "pronouns"
                     && changed.value.as_deref() == Some("they/them")
                     && matches!(changed.visibility, Visibility::Restricted(ref policy) if policy == "members")
         ));
