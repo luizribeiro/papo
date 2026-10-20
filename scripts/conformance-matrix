@@ -12,7 +12,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / "crates/papo-conformance/scripts"))
 
-from summary import summarize  # noqa: E402
+from summary import summarize_with_evidence  # noqa: E402
 
 
 PROFILES = (
@@ -63,20 +63,24 @@ def run_profile(profile):
         stdout=subprocess.PIPE,
         text=True,
     )
-    statuses = summarize(result.stdout.splitlines())
+    statuses, evidence = summarize_with_evidence(result.stdout.splitlines())
     if not statuses:
         raise RuntimeError(f"{profile} conformance run produced no scenario results")
-    return statuses
+    return statuses, evidence
 
 
-def render(results):
+def render(results, evidence=None):
     """Render a stable Markdown matrix with known-failure footnotes."""
+    evidence = evidence or {}
     scenarios = sorted(set().union(*(statuses.keys() for statuses in results.values())))
     footnotes = []
 
     def cell(profile, scenario):
         status = results[profile].get(scenario, "failed")
         if status == "passed":
+            if scenario in evidence.get(profile, {}):
+                footnotes.append((profile, scenario, None, evidence[profile][scenario]))
+                return f"✓ [^{len(footnotes)}]"
             return "✓"
         if status.startswith("ignored"):
             return "—"
@@ -105,10 +109,13 @@ def render(results):
         ]
     )
     for number, (profile, scenario, kind, reason) in enumerate(footnotes, 1):
-        lines.append(
-            f"[^{number}]: ⚠ {KIND_LABELS[kind]}: "
-            f"`{profile}` / `{scenario}` — {reason}"
-        )
+        if kind is None:
+            lines.append(f"[^{number}]: `{profile}` / `{scenario}` — {reason}")
+        else:
+            lines.append(
+                f"[^{number}]: ⚠ {KIND_LABELS[kind]}: "
+                f"`{profile}` / `{scenario}` — {reason}"
+            )
     return "\n".join(lines) + "\n"
 
 
@@ -139,9 +146,11 @@ def main():
         default=ROOT / "docs/conformance-matrix.md",
     )
     arguments = parser.parse_args()
-    results = {profile: run_profile(profile) for profile in PROFILES}
+    runs = {profile: run_profile(profile) for profile in PROFILES}
+    results = {profile: run[0] for profile, run in runs.items()}
+    evidence = {profile: run[1] for profile, run in runs.items()}
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
-    arguments.output.write_text(render(results))
+    arguments.output.write_text(render(results, evidence))
 
 
 if __name__ == "__main__":

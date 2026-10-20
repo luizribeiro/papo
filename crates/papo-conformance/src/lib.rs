@@ -66,9 +66,10 @@ struct CapRequirement {
 #[derive(Clone)]
 struct Scenario<S = ServerInfo> {
     server: S,
-    #[cfg(test)]
     name: &'static str,
     fixture: Option<papo_testing::Scenario>,
+    #[allow(dead_code, reason = "only evidence-producing scenarios read this")]
+    json: bool,
 }
 
 struct Connection {
@@ -185,8 +186,8 @@ fn trial(
             runtime().block_on((spec.run)(Scenario {
                 fixture: Some(papo_testing::Scenario::new(server.clone())),
                 server,
-                #[cfg(test)]
                 name: spec.name,
+                json,
             }))
         });
         let result = fixture_completion(result);
@@ -282,6 +283,17 @@ impl<S> Scenario<S> {
 }
 
 impl Scenario {
+    #[allow(dead_code, reason = "only evidence-producing scenarios call this")]
+    fn record_evidence(&self, value: &str) {
+        if self.json {
+            println!(
+                r#"{{ "type": "evidence", "name": {}, "value": {} }}"#,
+                json_string(self.name),
+                json_string(value)
+            );
+        }
+    }
+
     async fn quit_all(&self) -> FixtureResult {
         self.fixture
             .as_ref()
@@ -871,6 +883,7 @@ mod tests {
             server: (),
             name: "registration",
             fixture: None,
+            json: false,
         };
         let first = scenario.unique();
         let second = scenario.unique();

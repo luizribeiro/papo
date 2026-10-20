@@ -7,12 +7,20 @@ import sys
 
 def summarize(lines):
     """Return scenario statuses from libtest and papo scenario records."""
+    return summarize_with_evidence(lines)[0]
+
+
+def summarize_with_evidence(lines):
+    """Return scenario statuses and their recorded wire evidence."""
     statuses = {}
+    evidence = {}
     for line in lines:
         record = json.loads(line)
         name = record.get("name")
         event = record.get("event")
-        if record.get("type") == "scenario":
+        if record.get("type") == "evidence":
+            evidence[name] = record["value"]
+        elif record.get("type") == "scenario":
             if event == "ignored" and record.get("reason"):
                 event = f"ignored ({record['reason']})"
             statuses[name] = event
@@ -23,7 +31,7 @@ def summarize(lines):
         }:
             status = "passed" if event == "ok" else event
             statuses.setdefault(name, status)
-    return statuses
+    return statuses, evidence
 
 
 def render(statuses):
