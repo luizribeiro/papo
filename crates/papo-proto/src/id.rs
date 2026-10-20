@@ -165,6 +165,12 @@ macro_rules! name_identifier {
                     casemapping,
                 }
             }
+
+            /// Returns the server-defined rules captured when this name was created.
+            #[must_use]
+            pub const fn casemapping(&self) -> Casemapping {
+                self.casemapping
+            }
         }
 
         original_text!($name, original);
@@ -473,37 +479,39 @@ mod tests {
 
     #[test]
     fn names_preserve_spelling_and_compare_by_folded_text() {
-        let nick = Nick::new("Alice[bot]", Casemapping::Rfc1459);
+        let nick = Casemapping::Rfc1459.nick("Alice[bot]");
         let mut values = HashMap::new();
         values.insert(nick.clone(), 7);
 
         assert_eq!(nick, "Alice[bot]");
         assert_eq!(nick, "alice{bot}");
         assert_eq!(nick.to_string(), "Alice[bot]");
-        assert_eq!(
-            values.get(&Nick::new("alice{bot}", Casemapping::Ascii)),
-            Some(&7)
-        );
+        assert_eq!(values.get(&Casemapping::Ascii.nick("alice{bot}")), Some(&7));
+        assert_eq!(nick.casemapping(), Casemapping::Rfc1459);
         assert_eq!(Nick::from(&nick).into_string(), "Alice[bot]");
     }
 
     #[test]
     fn names_use_every_literal_casemapping_rule() {
-        assert_eq!(Nick::new("[]\\~", Casemapping::Rfc1459), "{}|^");
-        assert_eq!(Nick::new("[]\\", Casemapping::Rfc1459Strict), "{}|");
-        assert_ne!(Nick::new("~", Casemapping::Rfc1459Strict), "^");
-        assert_eq!(Nick::new("BOB", Casemapping::Ascii), "bob");
-        assert_ne!(Nick::new("[]\\~", Casemapping::Ascii), "{}|^");
+        assert_eq!(Casemapping::Rfc1459.nick("[]\\~"), "{}|^");
+        assert_eq!(Casemapping::Rfc1459Strict.nick("[]\\"), "{}|");
+        assert_ne!(Casemapping::Rfc1459Strict.nick("~"), "^");
+        assert_eq!(Casemapping::Ascii.nick("BOB"), "bob");
+        assert_ne!(Casemapping::Ascii.nick("[]\\~"), "{}|^");
 
         for mapping in [
             Casemapping::Ascii,
             Casemapping::Rfc1459,
             Casemapping::Rfc1459Strict,
         ] {
-            assert_eq!(Nick::new("bob", mapping), "BOB");
+            assert_eq!(mapping.nick("bob"), "BOB");
         }
         #[cfg(feature = "precis")]
-        assert_eq!(Nick::new("bob", Casemapping::Precis), "BOB");
+        assert_eq!(Casemapping::Precis.nick("bob"), "BOB");
+
+        assert_eq!(Casemapping::Ascii.channel("#PAPO"), "#papo");
+        assert_eq!(Casemapping::Ascii.account("EMILY"), "emily");
+        assert_eq!(Casemapping::Ascii.mask("$*.EXAMPLE"), "$*.example");
     }
 
     proptest! {
@@ -518,8 +526,8 @@ mod tests {
                 Casemapping::Rfc1459,
                 Casemapping::Rfc1459Strict,
             ];
-            let left = Nick::new(&text, mappings[usize::from(first)]);
-            let right = Nick::new(&text, mappings[usize::from(second)]);
+            let left = mappings[usize::from(first)].nick(&text);
+            let right = mappings[usize::from(second)].nick(&text);
             if left == right {
                 let mut left_hash = DefaultHasher::new();
                 left.hash(&mut left_hash);

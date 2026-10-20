@@ -7,6 +7,8 @@ use std::{
 #[cfg(feature = "precis")]
 use precis_profiles::{UsernameCaseMapped, precis_core::profile::PrecisFastInvocation as _};
 
+use crate::{AccountName, ChannelName, Mask, Nick};
+
 /// A server's rules for comparing IRC nicknames and channel names.
 ///
 /// The default is [`Rfc1459`](Self::Rfc1459), as required when a server has not
@@ -27,6 +29,30 @@ pub enum Casemapping {
 }
 
 impl Casemapping {
+    /// Creates a nickname carrying these server-defined comparison rules.
+    #[must_use]
+    pub fn nick(self, text: impl Into<String>) -> Nick {
+        Nick::new(text, self)
+    }
+
+    /// Creates a channel name carrying these server-defined comparison rules.
+    #[must_use]
+    pub fn channel(self, text: impl Into<String>) -> ChannelName {
+        ChannelName::new(text, self)
+    }
+
+    /// Creates an account name carrying these server-defined comparison rules.
+    #[must_use]
+    pub fn account(self, text: impl Into<String>) -> AccountName {
+        AccountName::new(text, self)
+    }
+
+    /// Creates a mask carrying these server-defined comparison rules.
+    #[must_use]
+    pub fn mask(self, text: impl Into<String>) -> Mask {
+        Mask::new(text, self)
+    }
+
     /// Parses a `CASEMAPPING` token value.
     #[must_use]
     pub fn parse(value: &str) -> Option<Self> {

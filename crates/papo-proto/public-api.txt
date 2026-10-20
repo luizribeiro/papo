@@ -54,9 +54,13 @@ pub papo_proto::Casemapping::Ascii
 pub papo_proto::Casemapping::Rfc1459
 pub papo_proto::Casemapping::Rfc1459Strict
 impl papo_proto::Casemapping
+pub fn papo_proto::Casemapping::account(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::AccountName
+pub fn papo_proto::Casemapping::channel(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::ChannelName
 pub fn papo_proto::Casemapping::eq(self, &str, &str) -> bool
 pub fn papo_proto::Casemapping::fold(self, &str) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::Casemapping::key<T>(self, &T) -> papo_proto::Folded<T> where T: core::convert::AsRef<str> + core::clone::Clone
+pub fn papo_proto::Casemapping::mask(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::Mask
+pub fn papo_proto::Casemapping::nick(self, impl core::convert::Into<alloc::string::String>) -> papo_proto::Nick
 pub fn papo_proto::Casemapping::parse(&str) -> core::option::Option<Self>
 impl core::clone::Clone for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::clone(&self) -> Self
@@ -401,6 +405,8 @@ impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Account<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Account<'a>
 pub struct papo_proto::AccountName
 impl papo_proto::AccountName
+pub const fn papo_proto::AccountName::casemapping(&self) -> papo_proto::Casemapping
+impl papo_proto::AccountName
 pub fn papo_proto::AccountName::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::AccountName
 pub fn papo_proto::AccountName::into_string(self) -> alloc::string::String
@@ -485,6 +491,8 @@ impl<'a> core::marker::UnsafeUnpin for papo_proto::ChanModes<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::ChanModes<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::ChanModes<'a>
 pub struct papo_proto::ChannelName
+impl papo_proto::ChannelName
+pub const fn papo_proto::ChannelName::casemapping(&self) -> papo_proto::Casemapping
 impl papo_proto::ChannelName
 pub fn papo_proto::ChannelName::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::ChannelName
@@ -856,6 +864,8 @@ impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::LineRef<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::LineRef<'a>
 pub struct papo_proto::Mask
 impl papo_proto::Mask
+pub const fn papo_proto::Mask::casemapping(&self) -> papo_proto::Casemapping
+impl papo_proto::Mask
 pub fn papo_proto::Mask::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::Mask
 pub fn papo_proto::Mask::into_string(self) -> alloc::string::String
@@ -1046,6 +1056,8 @@ impl<'a> core::marker::UnsafeUnpin for papo_proto::NamesEntry<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::NamesEntry<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::NamesEntry<'a>
 pub struct papo_proto::Nick
+impl papo_proto::Nick
+pub const fn papo_proto::Nick::casemapping(&self) -> papo_proto::Casemapping
 impl papo_proto::Nick
 pub fn papo_proto::Nick::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::Nick
