@@ -8,12 +8,15 @@ impl Session {
         if !message.command_is("TAGMSG") {
             return false;
         }
+        let Some(actor) = message.raw_source() else {
+            return false;
+        };
         let Ok((status, conversation)) = classify_line(message, self.nick(), self.isupport.value())
         else {
             return false;
         };
         self.outbox.event(Event::TagMessage(TagMessage {
-            source: message.raw_source().map(str::to_owned),
+            actor: actor.to_owned(),
             conversation,
             status,
             tags: message
@@ -25,7 +28,10 @@ impl Session {
     }
 
     pub(super) fn report_redaction(&mut self, message: &LineRef<'_>) -> bool {
-        let Some(msgid) = message.param(1).filter(|_| message.command_is("REDACT")) else {
+        let (Some(actor), Some(msgid)) = (
+            message.raw_source(),
+            message.param(1).filter(|_| message.command_is("REDACT")),
+        ) else {
             return false;
         };
         let Ok((status, conversation)) = classify_line(message, self.nick(), self.isupport.value())
@@ -33,7 +39,7 @@ impl Session {
             return false;
         };
         self.outbox.event(Event::Redacted(Redacted {
-            source: message.raw_source().map(str::to_owned),
+            actor: actor.to_owned(),
             conversation,
             status,
             msgid: msgid.to_owned(),

@@ -1344,10 +1344,10 @@ impl core::marker::UnsafeUnpin for papo_core::ReceivedLine
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ReceivedLine
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ReceivedLine
 pub struct papo_core::Redacted
+pub papo_core::Redacted::actor: alloc::string::String
 pub papo_core::Redacted::conversation: papo::Conversation
 pub papo_core::Redacted::msgid: alloc::string::String
 pub papo_core::Redacted::reason: core::option::Option<alloc::string::String>
-pub papo_core::Redacted::source: core::option::Option<alloc::string::String>
 pub papo_core::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
 impl core::clone::Clone for papo_core::Redacted
 pub fn papo_core::Redacted::clone(&self) -> Self
@@ -1589,8 +1589,8 @@ impl core::marker::UnsafeUnpin for papo_core::State
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::State
 impl core::panic::unwind_safe::UnwindSafe for papo_core::State
 pub struct papo_core::TagMessage
+pub papo_core::TagMessage::actor: alloc::string::String
 pub papo_core::TagMessage::conversation: papo::Conversation
-pub papo_core::TagMessage::source: core::option::Option<alloc::string::String>
 pub papo_core::TagMessage::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo_core::TagMessage::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
 impl core::clone::Clone for papo_core::TagMessage

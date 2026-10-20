@@ -1268,8 +1268,8 @@ pub struct MultilineMessage {
 /// A received `TAGMSG` and its client-only metadata.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TagMessage {
-    /// Source prefix without its leading colon.
-    pub source: Option<String>,
+    /// Actor prefix without its leading colon.
+    pub actor: String,
     /// IRC conversation addressed by the message.
     pub conversation: Conversation,
     /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
@@ -1281,8 +1281,8 @@ pub struct TagMessage {
 /// A server-relayed message redaction.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Redacted {
-    /// Source prefix without its leading colon.
-    pub source: Option<String>,
+    /// Actor prefix without its leading colon.
+    pub actor: String,
     /// IRC conversation containing the message.
     pub conversation: Conversation,
     /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.

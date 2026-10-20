@@ -32,9 +32,7 @@ fn as_message(tag: &papo_core::TagMessage) -> Line {
         _ => panic!("unexpected conversation kind"),
     };
     let mut message = Line::tagmsg(address);
-    if let Some(source) = &tag.source {
-        message = message.with_source(source);
-    }
+    message = message.with_source(&tag.actor);
     for (key, value) in &tag.tags {
         message = message.with_tag(key, value.as_deref().unwrap_or_default());
     }
@@ -49,7 +47,7 @@ fn reports_active_paused_and_done_typing() {
         ("done", Typing::Done),
     ] {
         let tag = tag_message(&format!("@+typing={value} :alice!~a@cloak TAGMSG #papo"));
-        assert_eq!(tag.source.as_deref(), Some("alice!~a@cloak"));
+        assert_eq!(tag.actor, "alice!~a@cloak");
         assert!(
             matches!(tag.conversation, Conversation::Channel(ref channel) if channel == "#papo")
         );
@@ -123,7 +121,7 @@ fn reports_redactions_with_and_without_a_reason() {
         let Some(Event::Redacted(redacted)) = session.poll_event() else {
             panic!("expected redaction")
         };
-        assert_eq!(redacted.source.as_deref(), Some("alice!~a@cloak"));
+        assert_eq!(redacted.actor, "alice!~a@cloak");
         assert!(
             matches!(redacted.conversation, Conversation::Channel(ref channel) if channel == "#papo")
         );
@@ -131,6 +129,15 @@ fn reports_redactions_with_and_without_a_reason() {
         assert!(matches!(redacted.msgid.as_str(), "RKi9Cw" | "8sKY2A"));
         assert_eq!(redacted.reason.as_deref(), expected_reason);
     }
+}
+
+#[test]
+fn leaves_actorless_activity_lines_untyped() {
+    Transcript::new(Config::default())
+        .server("@+typing=active TAGMSG #papo")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("TAGMSG")))
+        .server("REDACT #papo RKi9Cw :Removed by author")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("REDACT")));
 }
 
 fn wire(session: &mut Session) -> Option<String> {

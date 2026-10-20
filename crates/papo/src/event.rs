@@ -780,9 +780,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Other(message.message),
         papo_core::Event::TagMessage(message) => {
             let tag = TagMsg {
-                source: message
-                    .source
-                    .map(|source| Source::from_prefix(source, casemapping)),
+                source: Some(Source::from_prefix(message.actor, casemapping)),
                 conversation: message.conversation,
                 status: message.status,
                 tags: Tags::from_pairs(message.tags),
@@ -826,9 +824,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             }
         }
         papo_core::Event::Redacted(redacted) => Event::Redacted(Redacted {
-            source: redacted
-                .source
-                .map(|source| Source::from_prefix(source, casemapping)),
+            source: Some(Source::from_prefix(redacted.actor, casemapping)),
             conversation: redacted.conversation,
             status: redacted.status,
             message: redacted.msgid.into(),
@@ -1523,7 +1519,7 @@ mod tests {
     #[test]
     fn maps_tag_messages_with_typed_accessors() {
         let tag = papo_core::TagMessage {
-            source: Some("alice!~a@cloak".into()),
+            actor: "alice!~a@cloak".into(),
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             tags: vec![
@@ -1549,7 +1545,7 @@ mod tests {
     fn distinguishes_every_typing_tag_value() {
         let typing = |value: &str| {
             let tag = papo_core::TagMessage {
-                source: None,
+                actor: "alice!~a@cloak".into(),
                 conversation: papo_core::Conversation::Channel(
                     Casemapping::default().channel("#papo"),
                 ),
@@ -1567,7 +1563,7 @@ mod tests {
         assert_eq!(typing("composing"), None);
 
         let tag = papo_core::TagMessage {
-            source: Some("alice!~a@cloak".into()),
+            actor: "alice!~a@cloak".into(),
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             tags: vec![("+typing".into(), Some("active".into()))],
@@ -1580,7 +1576,7 @@ mod tests {
     #[test]
     fn maps_redactions() {
         let redacted = papo_core::Redacted {
-            source: Some("alice!~a@cloak".into()),
+            actor: "alice!~a@cloak".into(),
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             msgid: "RKi9Cw".into(),
