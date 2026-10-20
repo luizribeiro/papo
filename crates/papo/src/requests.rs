@@ -299,7 +299,11 @@ mod tests {
         assert_eq!(ListFilter::default().parameter(), None);
         assert_eq!(
             ListFilter::default()
-                .channels(["#papo", "#rust-*", "##chat"])
+                .channels([
+                    Casemapping::default().mask("#papo"),
+                    Casemapping::default().mask("#rust-*"),
+                    Casemapping::default().mask("##chat"),
+                ])
                 .parameter()
                 .as_deref(),
             Some("#papo,#rust-*,##chat")

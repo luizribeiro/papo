@@ -125,14 +125,23 @@ mod tests {
 
         let add = tokio::spawn({
             let client = client.clone();
-            async move { client.monitor().add(["alice", "bob"]).await }
+            async move {
+                let mapping = client.state().casemapping();
+                client
+                    .monitor()
+                    .add([mapping.nick("alice"), mapping.nick("bob")])
+                    .await
+            }
         });
         client_line(&mut server, b"MONITOR + alice,bob\r\n").await;
         assert!(within(add).await.unwrap().is_ok());
 
         let remove = tokio::spawn({
             let client = client.clone();
-            async move { client.monitor().remove(["bob"]).await }
+            async move {
+                let nick = client.state().casemapping().nick("bob");
+                client.monitor().remove([nick]).await
+            }
         });
         client_line(&mut server, b"MONITOR - bob\r\n").await;
         assert!(within(remove).await.unwrap().is_ok());
@@ -150,7 +159,10 @@ mod tests {
         complete_registration(&mut server, &mut events).await;
 
         assert!(matches!(
-            client.monitor().add(["alice"]).await,
+            client
+                .monitor()
+                .add([client.state().casemapping().nick("alice")])
+                .await,
             Err(Error::Unsupported(error)) if error.feature == Feature::Monitor
         ));
         assert!(

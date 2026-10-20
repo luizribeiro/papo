@@ -184,7 +184,7 @@ mod tests {
                 client
                     .register_account(
                         super::NewAccount::new("correct horse battery staple")
-                            .account("alice")
+                            .account(client.state().casemapping().account("alice"))
                             .email("alice@example.org"),
                     )
                     .await
@@ -206,7 +206,10 @@ mod tests {
 
         let verify = tokio::spawn({
             let client = client.clone();
-            async move { client.verify_account("alice", "392814").await }
+            async move {
+                let account = client.state().casemapping().account("alice");
+                client.verify_account(account, "392814").await
+            }
         });
         client_line(&mut server, b"@label=1 VERIFY alice 392814\r\n").await;
         server_line(
@@ -220,7 +223,10 @@ mod tests {
 
         let verify = tokio::spawn({
             let client = client.clone();
-            async move { client.verify_account("alice", "expired-code").await }
+            async move {
+                let account = client.state().casemapping().account("alice");
+                client.verify_account(account, "expired-code").await
+            }
         });
         client_line(&mut server, b"@label=2 VERIFY alice expired-code\r\n").await;
         server_line(
@@ -235,7 +241,10 @@ mod tests {
 
         let verify = tokio::spawn({
             let client = client.clone();
-            async move { client.verify_account("alice", "392814").await }
+            async move {
+                let account = client.state().casemapping().account("alice");
+                client.verify_account(account, "392814").await
+            }
         });
         client_line(&mut server, b"@label=3 VERIFY alice 392814\r\n").await;
         server_line(&mut server, b"@label=3 :ergo.test VERIFY SUCCESS\r\n").await;

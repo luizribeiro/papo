@@ -96,13 +96,12 @@ mod tests {
         )
         .await;
 
+        let mapping = client.state().casemapping();
         let rename = tokio::spawn({
             let client = client.clone();
-            async move {
-                client
-                    .rename_channel("#rust", "#rust-lang", "Project renamed")
-                    .await
-            }
+            let old = mapping.channel("#rust");
+            let new = mapping.channel("#rust-lang");
+            async move { client.rename_channel(old, new, "Project renamed").await }
         });
         client_line(
             &mut server,
@@ -114,11 +113,9 @@ mod tests {
 
         let rename = tokio::spawn({
             let client = client.clone();
-            async move {
-                client
-                    .rename_channel("#rust", "#rust-lang", "collision")
-                    .await
-            }
+            let old = mapping.channel("#rust");
+            let new = mapping.channel("#rust-lang");
+            async move { client.rename_channel(old, new, "collision").await }
         });
         client_line(
             &mut server,
@@ -137,11 +134,9 @@ mod tests {
 
         let relay = tokio::spawn({
             let client = client.clone();
-            async move {
-                client
-                    .relay("#bridged", "mx|alice", "Hello from Matrix")
-                    .await
-            }
+            let channel = mapping.channel("#bridged");
+            let nick = mapping.nick("mx|alice");
+            async move { client.relay(channel, nick, "Hello from Matrix").await }
         });
         client_line(
             &mut server,
@@ -151,9 +146,11 @@ mod tests {
         server_line(&mut server, b"@label=2 :ergo.test ACK\r\n").await;
         assert!(within(relay).await.unwrap().is_ok());
 
+        let channel = mapping.channel("#bridged");
+        let nick = mapping.nick("mx|alice");
         let relay = tokio::spawn(async move {
             client
-                .relay("#bridged", "mx|alice", "Blocked by channel policy")
+                .relay(channel, nick, "Blocked by channel policy")
                 .await
         });
         client_line(

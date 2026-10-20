@@ -283,7 +283,10 @@ pub(crate) async fn history_response(server: &mut DuplexStream, label: usize) {
 pub(crate) async fn assert_join_waits_for_sync(server: &mut DuplexStream, client: &super::Client) {
     let mut join = tokio::spawn({
         let client = client.clone();
-        async move { client.join("#papo").await }
+        async move {
+            let channel = client.state().casemapping().channel("#papo");
+            client.join(channel).await
+        }
     });
     client_line(server, b"@label=2 JOIN #papo\r\n").await;
     server_line(
@@ -321,7 +324,10 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
 
     let set = tokio::spawn({
         let client = client.clone();
-        async move { client.set_topic("#papo", "Requests in Rust").await }
+        async move {
+            let channel = client.state().casemapping().channel("#papo");
+            client.set_topic(channel, "Requests in Rust").await
+        }
     });
     client_line(server, b"@label=4 TOPIC #papo :Requests in Rust\r\n").await;
     server_line(
@@ -337,7 +343,10 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
 
     let part = tokio::spawn({
         let client = client.clone();
-        async move { client.part("#papo", "tests complete").await }
+        async move {
+            let channel = client.state().casemapping().channel("#papo");
+            client.part(channel, "tests complete").await
+        }
     });
     client_line(server, b"@label=5 PART #papo :tests complete\r\n").await;
     server_line(
