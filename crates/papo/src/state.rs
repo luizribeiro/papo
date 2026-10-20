@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use papo_core::{Capabilities, Channel, Feature, Session, UnsupportedReason, User};
-use papo_proto::{AccountName, Casemapping, Nick};
+use papo_proto::{AccountName, Casemapping, ChannelName, Mask, Nick};
 
 use crate::Isupport;
 
@@ -94,6 +94,12 @@ impl State {
         self.core.nick()
     }
 
+    /// Builds a nickname with the current or last-known server-defined comparison rules.
+    #[must_use]
+    pub fn nickname(&self, text: impl Into<String>) -> Nick {
+        self.casemapping().nick(text)
+    }
+
     /// Reports whether `nick` identifies this client under the server's casemapping.
     #[must_use]
     pub fn is_me(&self, nick: impl AsRef<str>) -> bool {
@@ -104,6 +110,12 @@ impl State {
     #[must_use]
     pub fn account(&self) -> Option<&AccountName> {
         self.account.as_ref()
+    }
+
+    /// Builds an account name with the current or last-known server-defined comparison rules.
+    #[must_use]
+    pub fn account_name(&self, text: impl Into<String>) -> AccountName {
+        self.casemapping().account(text)
     }
 
     /// Reports whether the client is marked away.
@@ -130,6 +142,12 @@ impl State {
     #[must_use]
     pub fn channel(&self, name: impl AsRef<str>) -> Option<&Channel> {
         self.core.channel(name)
+    }
+
+    /// Builds a channel name with the current or last-known server-defined comparison rules.
+    #[must_use]
+    pub fn channel_name(&self, text: impl Into<String>) -> ChannelName {
+        self.casemapping().channel(text)
     }
 
     /// Iterates over joined channels in unspecified order.
@@ -246,6 +264,12 @@ impl State {
     pub fn casemapping(&self) -> Casemapping {
         self.core.casemapping()
     }
+
+    /// Builds a mask with the current or last-known server-defined comparison rules.
+    #[must_use]
+    pub fn mask(&self, text: impl Into<String>) -> Mask {
+        self.casemapping().mask(text)
+    }
 }
 
 const FEATURES: &[Feature] = &[
@@ -275,6 +299,46 @@ const FEATURES: &[Feature] = &[
     Feature::AccountTracking,
     Feature::HostTracking,
 ];
+
+#[cfg(test)]
+mod name_tests {
+    use papo_core::{Config, Session};
+
+    use super::State;
+    use crate::Casemapping;
+
+    #[test]
+    fn builds_every_name_with_snapshot_rules() {
+        let session = Session::new(
+            Config::default()
+                .casemapping(Casemapping::Ascii)
+                .nick("papo[bot]"),
+        );
+        let state = State::from_session(&session, false);
+
+        let nick = state.nickname("Alice[bot]");
+        let channel = state.channel_name("#Papo[dev]");
+        let account = state.account_name("Alice[bot]");
+        let mask = state.mask("*!alice@[gateway]");
+
+        for mapping in [
+            nick.casemapping(),
+            channel.casemapping(),
+            account.casemapping(),
+            mask.casemapping(),
+        ] {
+            assert_eq!(mapping, Casemapping::Ascii);
+        }
+        assert_eq!(nick, "alice[bot]");
+        assert_ne!(nick, "alice{bot}");
+        assert_eq!(channel, "#papo[dev]");
+        assert_ne!(channel, "#papo{dev}");
+        assert_eq!(account, "alice[bot]");
+        assert_ne!(account, "alice{bot}");
+        assert_eq!(mask, "*!ALICE@[gateway]");
+        assert_ne!(mask, "*!alice@{gateway}");
+    }
+}
 
 #[cfg(all(test, feature = "unstable"))]
 mod tests {
