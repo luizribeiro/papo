@@ -2361,6 +2361,15 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
         Some(Event::AutoJoinFailed { channel, error })
             if channel == "#PAPO" && error.kind() == crate::Refusal::InviteOnlyChannel
     ));
+    server_line(
+        &mut server,
+        b":ergo.test NOTICE papo-driver :Autojoin refusal recorded\r\n",
+    )
+    .await;
+    assert_eq!(
+        next_message(&mut events).await.text(),
+        "Autojoin refusal recorded"
+    );
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
