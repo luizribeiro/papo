@@ -102,7 +102,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .member(&alice_folded_nick)
         .unwrap();
     assert_eq!(own_member.nick().as_ref(), alice_nick);
-    assert!(alice.state().casemapping().eq(&chan, &folded));
+    assert_eq!(alice.state().channel_name(&chan), folded.as_str());
 
     let text = "folded channel target";
     alice.privmsg(&folded, text).await?;

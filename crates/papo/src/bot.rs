@@ -193,11 +193,11 @@ impl Command {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        let casemapping = self.client.state().casemapping();
+        let state = self.client.state();
         self.account().is_some_and(|account| {
             accounts
                 .into_iter()
-                .any(|allowed| casemapping.eq(account, allowed.as_ref()))
+                .any(|allowed| state.account_name(account) == allowed.as_ref())
         })
     }
 
@@ -291,12 +291,7 @@ fn addressed_body<'a>(
     }
     let boundary = message.text().find([':', ','])?;
     let (address, body) = message.text().split_at(boundary);
-    client
-        .state()
-        .isupport()
-        .casemapping()
-        .eq(address.trim(), client.state().nick())
-        .then(|| body[1..].trim_start())
+    (client.state().nick() == address.trim()).then(|| body[1..].trim_start())
 }
 
 fn split_args(input: &str) -> Option<Vec<String>> {

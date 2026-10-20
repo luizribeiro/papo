@@ -56,10 +56,7 @@ pub(super) fn advance_catchup(
     let commands = events.commands.upgrade()?;
     if let Some(cursor) = newest_cursor(&catchup.items)
         && let Some(channel) = defaults.channels.iter_mut().find(|channel| {
-            session
-                .isupport()
-                .casemapping()
-                .eq(&channel.channel, &catchup.target)
+            session.isupport().casemapping().channel(&channel.channel) == catchup.target.as_str()
         })
         && channel
             .catchup_cursor

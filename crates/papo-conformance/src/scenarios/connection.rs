@@ -134,7 +134,7 @@ async fn isupport(s: Scenario) -> papo_testing::Result<()> {
     let support = state.isupport();
     assert!(matches!(support.get("NETWORK"), Advertised::Value(value) if !value.is_empty()));
     assert_eq!(support.get("PAPO_UNKNOWN_TOKEN"), Advertised::Absent);
-    assert!(support.casemapping().eq("Alice", "aLICE"));
+    assert_eq!(support.casemapping().nick("Alice"), "aLICE");
 
     let prefixes = support.prefix();
     assert!(!prefixes.is_empty());

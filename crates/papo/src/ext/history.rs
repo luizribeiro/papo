@@ -247,7 +247,7 @@ fn source_nick(message: &papo_proto::LineRef<'_>) -> Option<String> {
 
 fn is_self(client: &Client, nick: &str) -> bool {
     let state = client.state();
-    state.isupport().casemapping().eq(state.nick(), nick)
+    state.nick() == nick
 }
 
 /// A page of requested chat history.

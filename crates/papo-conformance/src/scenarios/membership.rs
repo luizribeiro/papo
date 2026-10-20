@@ -377,7 +377,7 @@ async fn whox(s: Scenario) -> papo_testing::Result<()> {
     let entries = alice.who(nick.as_ref()).await?;
     let entry = entries
         .iter()
-        .find(|entry| alice.state().casemapping().eq(&entry.nick, &nick))
+        .find(|entry| entry.nick == nick)
         .expect("WHO must include its exact target");
 
     assert_eq!(entry.nick, nick);
@@ -969,13 +969,7 @@ async fn nickname_collision_race(s: Scenario) -> papo_testing::Result<()> {
         ))
         .into());
     }
-    assert!(
-        alice
-            .state()
-            .casemapping()
-            .eq(alice.state().nick(), &claimed)
-            || bob.state().casemapping().eq(bob.state().nick(), &claimed)
-    );
+    assert!(alice.state().nick() == claimed.as_str() || bob.state().nick() == claimed.as_str());
     Ok(())
 }
 

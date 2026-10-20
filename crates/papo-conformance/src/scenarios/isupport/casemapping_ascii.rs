@@ -112,9 +112,9 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(found.name().as_ref(), chan);
     assert!(bob.state().channel(&chan).is_none());
 
-    let casemapping = alice.state().casemapping();
-    assert!(!casemapping.eq(&chan, &folded));
-    assert!(casemapping.eq(&chan, &chan.to_ascii_uppercase()));
+    let channel_name = alice.state().channel_name(&chan);
+    assert_ne!(channel_name, folded.as_str());
+    assert_eq!(channel_name, chan.to_ascii_uppercase().as_str());
 
     assert!(
         alice

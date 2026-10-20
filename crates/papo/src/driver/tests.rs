@@ -4482,8 +4482,8 @@ async fn public_state_accessors_report_the_registered_session() {
     let nick: crate::Nick = client.nick();
     assert_eq!(nick, "papo-driver");
     let state = client.state();
-    assert!(state.is_me(&nick));
-    assert!(!state.is_me("emily"));
+    assert_eq!(state.nick(), &nick);
+    assert!(state.nick() != "emily");
     assert_eq!(state.account().map(AsRef::as_ref), Some("emily"));
     assert!(state.away());
     assert_eq!(state.away_message(), Some("reviewing patches"));
@@ -4674,9 +4674,9 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert!(!state.has_cap("message-tags"));
     assert_eq!(state.isupport().nicklen(), Some(27));
     assert!(state.is_connected());
-    assert!(state.is_me("PAPO-DRIVER"));
-    assert!(state.casemapping().eq("#Papo", "#papo"));
-    assert!(!state.casemapping().eq("#PAPO[dev]", "#papo{dev}"));
+    assert_eq!(state.nick(), "PAPO-DRIVER");
+    assert_eq!(state.channel_name("#Papo"), "#papo");
+    assert!(state.channel_name("#PAPO[dev]") != "#papo{dev}");
     assert!(!state.supports(crate::Feature::History));
     assert!(
         !state
@@ -4707,7 +4707,7 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
 
     server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
     assert!(
-        matches!(events.next().await, Some(Event::MonitorOffline(offline)) if client.state().casemapping().eq(&offline.nick, "alice"))
+        matches!(events.next().await, Some(Event::MonitorOffline(offline)) if offline.nick == "alice")
     );
     let online: Vec<_> = client
         .state()

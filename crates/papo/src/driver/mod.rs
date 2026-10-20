@@ -1155,7 +1155,7 @@ where
     {
         match event::from_core(core_event, session.isupport().casemapping()) {
             event::CoreEvent::Forward(mut event) => {
-                event.mark_self(session.nick(), session.isupport().casemapping());
+                event.mark_self(session.nick());
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);
                 }
@@ -1220,10 +1220,7 @@ where
             }
             event::CoreEvent::History { target, items, end } => {
                 if catchups.values().any(|catchup| {
-                    session
-                        .isupport()
-                        .casemapping()
-                        .eq(&catchup.target, &target)
+                    session.isupport().casemapping().channel(&catchup.target) == target.as_str()
                 }) {
                     continue;
                 }
@@ -1440,14 +1437,13 @@ where
     Ok(true)
 }
 
-fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, event: &Event) {
-    let casemapping = session.isupport().casemapping();
+fn update_rejoin_channels(_session: &Session, defaults: &mut PostRegistration, event: &Event) {
     match event {
         Event::Joined(joined) if joined.is_self => {
             if !defaults
                 .channels
                 .iter()
-                .any(|entry| casemapping.eq(&entry.channel, &joined.channel))
+                .any(|entry| joined.channel == entry.channel.as_str())
             {
                 defaults
                     .channels
@@ -1457,12 +1453,12 @@ fn update_rejoin_channels(session: &Session, defaults: &mut PostRegistration, ev
         Event::Parted(parted) if parted.is_self => {
             defaults
                 .channels
-                .retain(|entry| !casemapping.eq(&entry.channel, &parted.channel));
+                .retain(|entry| parted.channel != entry.channel.as_str());
         }
         Event::Kicked(kicked) if kicked.is_self => {
             defaults
                 .channels
-                .retain(|entry| !casemapping.eq(&entry.channel, &kicked.channel));
+                .retain(|entry| kicked.channel != entry.channel.as_str());
         }
         _ => {}
     }
@@ -1472,7 +1468,7 @@ fn remember_rejoin(session: &Session, defaults: &mut PostRegistration, entry: Au
     let casemapping = session.isupport().casemapping();
     defaults
         .channels
-        .retain(|configured| !casemapping.eq(&configured.channel, &entry.channel));
+        .retain(|configured| casemapping.channel(&configured.channel) != entry.channel.as_str());
     defaults.channels.push(entry);
 }
 
@@ -1490,15 +1486,16 @@ fn drop_bad_rejoin_key(
     let casemapping = session.isupport().casemapping();
     defaults
         .channels
-        .retain(|entry| !casemapping.eq(&entry.channel, channel));
+        .retain(|entry| casemapping.channel(&entry.channel) != channel);
 }
 
 fn dedupe_autojoin(session: &Session, defaults: &mut PostRegistration) {
     let casemapping = session.isupport().casemapping();
     let mut deduplicated = Vec::with_capacity(defaults.channels.len());
     for entry in defaults.channels.drain(..) {
-        deduplicated
-            .retain(|configured: &Autojoin| !casemapping.eq(&configured.channel, &entry.channel));
+        deduplicated.retain(|configured: &Autojoin| {
+            casemapping.channel(&configured.channel) != entry.channel.as_str()
+        });
         deduplicated.push(entry);
     }
     defaults.channels = deduplicated;
@@ -1529,7 +1526,7 @@ fn resolve_sync_waiters(
     *waiters = std::mem::take(waiters)
         .into_iter()
         .filter_map(|(waiting, result)| {
-            if mapping.eq(&waiting, channel) {
+            if mapping.channel(&waiting) == channel {
                 _ = result.send(Ok(()));
                 None
             } else {
