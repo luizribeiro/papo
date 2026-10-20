@@ -188,7 +188,7 @@ fn extended_join_distinguishes_accounts_from_logged_out_users() {
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
-                &Account::LoggedIn("dan".into())
+                &Account::LoggedIn(Casemapping::default().account("dan"))
             );
             assert_eq!(
                 session.state().user("alice").unwrap().account(),
@@ -214,11 +214,11 @@ fn account_notify_tracks_login_and_logout() {
             );
         })
         .server(":dan!~dan@cloak.example ACCOUNT dan")
-        .event_until(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedIn("dan".into())))
+        .event_until(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedIn(Casemapping::default().account("dan"))))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
-                &Account::LoggedIn("dan".into())
+                &Account::LoggedIn(Casemapping::default().account("dan"))
             );
         })
         .server(":dan!~dan@cloak.example ACCOUNT *")
@@ -238,11 +238,11 @@ fn account_tag_fills_an_unknown_account() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server("@account=dan :dan!~dan@cloak.example PRIVMSG #papo :hello Emily")
-        .event_until(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedIn("dan".into())))
+        .event_until(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedIn(Casemapping::default().account("dan"))))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
-                &Account::LoggedIn("dan".into())
+                &Account::LoggedIn(Casemapping::default().account("dan"))
             );
         })
         .ignore_rest();
@@ -973,7 +973,10 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     .server(":ergo.test 315 emily #papo :End of WHO list")
     .inspect(|session| {
         let dan = session.state().user("dan").unwrap();
-        assert_eq!(dan.account(), &Account::LoggedIn("dan".into()));
+        assert_eq!(
+            dan.account(),
+            &Account::LoggedIn(Casemapping::default().account("dan"))
+        );
         assert_eq!(dan.username(), Some("~dan"));
         assert_eq!(dan.host(), Some("account/dan"));
         assert_eq!(dan.realname(), Some("Daniel Garcia"));

@@ -5,7 +5,7 @@ mod support;
 use std::{cell::Cell, time::Instant};
 
 use papo_core::{Account, Away, Config, Event};
-use papo_proto::Line;
+use papo_proto::{Casemapping, Line};
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -364,7 +364,7 @@ fn extended_monitor_updates_an_unshared_users_record() {
         .server(":alice!~alice@cloak.example AWAY :Gone to lunch")
         .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "alice" && message.as_deref() == Some("Gone to lunch")))
         .server(":alice!~alice@cloak.example ACCOUNT alice")
-        .event(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "alice" && account == &Account::LoggedIn("alice".into())))
+        .event(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "alice" && account == &Account::LoggedIn(Casemapping::default().account("alice"))))
         .server(":alice!~alice@cloak.example CHGHOST alice account/alice")
         .event(|event| matches!(event, Event::HostChanged { nick, .. } if nick == "alice"))
         .server(":alice!alice@account/alice SETNAME :Alice Smith")
@@ -378,7 +378,10 @@ fn extended_monitor_updates_an_unshared_users_record() {
                     message: Some("Gone to lunch".into())
                 }
             );
-            assert_eq!(alice.account(), &Account::LoggedIn("alice".into()));
+            assert_eq!(
+                alice.account(),
+                &Account::LoggedIn(Casemapping::default().account("alice"))
+            );
             assert_eq!(alice.host(), Some("account/alice"));
             assert_eq!(alice.realname(), Some("Alice Smith"));
         })

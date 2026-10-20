@@ -40,7 +40,7 @@ fn sends_each_bouncer_network_operation() {
         .name("Libera Chat")
         .port(6697)
         .tls(true)
-        .nickname("alice");
+        .nickname(Casemapping::default().nick("alice"));
     registered()
         .update(|session| {
             session
