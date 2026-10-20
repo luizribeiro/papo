@@ -195,16 +195,15 @@ fn validate_keys(keys: &[String]) -> Result<(), RequestError> {
     Ok(())
 }
 
-fn validate_subscriptions(
+fn validate_subscriptions<'a>(
     keys: &[String],
     limits: MetadataLimits,
-    current: &[String],
+    current: impl Iterator<Item = &'a MetadataKey>,
 ) -> Result<(), RequestError> {
     validate_keys(keys)?;
     let actual = current
-        .iter()
-        .map(String::as_str)
-        .chain(keys.iter().map(String::as_str))
+        .map(ToString::to_string)
+        .chain(keys.iter().cloned())
         .collect::<std::collections::HashSet<_>>()
         .len();
     if let Some(maximum) = limits.max_subscriptions

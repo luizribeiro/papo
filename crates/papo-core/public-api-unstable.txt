@@ -1834,8 +1834,8 @@ pub fn papo_core::State::channel(&self, impl core::convert::AsRef<str>) -> core:
 pub fn papo_core::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Channel>
 pub fn papo_core::State::host(&self) -> core::option::Option<&str>
 pub fn papo_core::State::last_seen(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::LastSeen>
-pub fn papo_core::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<alloc::string::String, papo_core::MetadataValue>>
-pub fn papo_core::State::metadata_subscriptions(&self) -> &[alloc::string::String]
+pub fn papo_core::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo_core::MetadataValue>>
+pub fn papo_core::State::metadata_subscriptions(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::MetadataKey>
 pub fn papo_core::State::metadata_target_count(&self) -> usize
 pub fn papo_core::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::User>
 pub fn papo_core::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>

@@ -76,7 +76,6 @@ impl State {
             metadata_subscriptions: session
                 .state()
                 .metadata_subscriptions()
-                .iter()
                 .map(crate::MetadataKey::from)
                 .collect(),
             #[cfg(feature = "unstable")]

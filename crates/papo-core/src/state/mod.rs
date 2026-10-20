@@ -16,8 +16,8 @@ use std::{
 
 use papo_proto::{
     Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
-    Command, Isupport, Join, LineRef, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Setname,
-    Source, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
+    Command, Isupport, Join, LineRef, MetadataKey, ModeChanges, ModeKind, NamesEntry, Nick,
+    Numeric, Setname, Source, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
 use crate::{
@@ -65,8 +65,8 @@ pub struct State {
     persistence: Option<PersistenceStatus>,
     #[cfg(feature = "unstable")]
     bouncer_networks: BTreeMap<NetworkId, BouncerNetwork>,
-    metadata: HashMap<NameKey<String>, HashMap<String, MetadataValue>>,
-    metadata_subscriptions: Vec<String>,
+    metadata: HashMap<NameKey<String>, HashMap<MetadataKey, MetadataValue>>,
+    metadata_subscriptions: Vec<MetadataKey>,
     limits_warned: HashSet<StateLimit>,
 }
 
@@ -893,7 +893,10 @@ impl State {
 
     /// Returns cached metadata using the server's current casemapping.
     #[must_use]
-    pub fn metadata(&self, target: impl AsRef<str>) -> Option<&HashMap<String, MetadataValue>> {
+    pub fn metadata(
+        &self,
+        target: impl AsRef<str>,
+    ) -> Option<&HashMap<MetadataKey, MetadataValue>> {
         let target = self.casemapping.fold(target.as_ref());
         self.metadata.get(target.as_ref())
     }
@@ -905,9 +908,8 @@ impl State {
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.
-    #[must_use]
-    pub fn metadata_subscriptions(&self) -> &[String] {
-        &self.metadata_subscriptions
+    pub fn metadata_subscriptions(&self) -> impl Iterator<Item = &MetadataKey> {
+        self.metadata_subscriptions.iter()
     }
 
     pub(crate) fn clear_metadata_subscriptions(&mut self) {

@@ -355,9 +355,12 @@ fn tracks_sub_subs_and_unsub_replies() {
         .client("METADATA * SUB avatar pronouns")
         .server(":ergo.test 770 alice avatar pronouns")
         .inspect(|session| {
-            assert_eq!(
-                session.state().metadata_subscriptions(),
-                ["avatar", "pronouns"]
+            assert!(
+                session
+                    .state()
+                    .metadata_subscriptions()
+                    .map(AsRef::as_ref)
+                    .eq(["avatar", "pronouns"])
             );
         })
         .update(|session| {
@@ -384,9 +387,12 @@ fn tracks_sub_subs_and_unsub_replies() {
         .server("@batch=s :ergo.test 772 alice status")
         .server(":ergo.test BATCH -s")
         .inspect(|session| {
-            assert_eq!(
-                session.state().metadata_subscriptions(),
-                ["avatar", "status"]
+            assert!(
+                session
+                    .state()
+                    .metadata_subscriptions()
+                    .map(AsRef::as_ref)
+                    .eq(["avatar", "status"])
             );
         })
         .update(|session| {
@@ -402,7 +408,9 @@ fn tracks_sub_subs_and_unsub_replies() {
         .event(|event| matches!(event, Event::RequestUntracked { .. }))
         .client("METADATA * UNSUB avatar status pronouns")
         .server(":ergo.test 771 alice avatar status")
-        .inspect(|session| assert!(session.state().metadata_subscriptions().is_empty()));
+        .inspect(|session| {
+            assert!(session.state().metadata_subscriptions().next().is_none());
+        });
 }
 
 #[test]
@@ -411,9 +419,12 @@ fn unsubscribe_reply_removes_only_the_acknowledged_key() {
         .server(":ergo.test 770 alice avatar pronouns status")
         .server(":ergo.test 771 alice pronouns")
         .inspect(|session| {
-            assert_eq!(
-                session.state().metadata_subscriptions(),
-                ["avatar", "status"]
+            assert!(
+                session
+                    .state()
+                    .metadata_subscriptions()
+                    .map(AsRef::as_ref)
+                    .eq(["avatar", "status"])
             );
         });
 }

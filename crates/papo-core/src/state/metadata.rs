@@ -35,14 +35,14 @@ impl State {
             Command::Numeric(Numeric::RPL_METADATASUBOK) => {
                 for key in message.params().skip(1) {
                     if !self.metadata_subscriptions.iter().any(|item| item == key) {
-                        self.metadata_subscriptions.push(key.to_owned());
+                        self.metadata_subscriptions.push(key.into());
                     }
                 }
                 return true;
             }
             Command::Numeric(Numeric::RPL_METADATAUNSUBOK) => {
                 self.metadata_subscriptions
-                    .retain(|key| !message.params().skip(1).any(|item| item == key));
+                    .retain(|key| !message.params().skip(1).any(|item| key.as_ref() == item));
                 return true;
             }
             Command::Numeric(Numeric::RPL_METADATASUBS) => {
@@ -51,7 +51,7 @@ impl State {
                 }
                 for key in message.params().skip(1) {
                     if !self.metadata_subscriptions.iter().any(|item| item == key) {
-                        self.metadata_subscriptions.push(key.to_owned());
+                        self.metadata_subscriptions.push(key.into());
                     }
                 }
                 return true;
@@ -91,7 +91,7 @@ impl State {
                 return;
             }
             self.metadata.entry(target_key).or_default().insert(
-                key.to_owned(),
+                key.into(),
                 MetadataValue {
                     value: value.to_owned(),
                     visibility: visibility.clone(),
