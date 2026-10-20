@@ -100,6 +100,12 @@ impl State {
         self.casemapping().nick(text)
     }
 
+    /// Reports whether `text` is a nickname accepted by the server's advertised rules.
+    #[must_use]
+    pub fn is_valid_nick(&self, text: &str) -> bool {
+        self.nickname(text).check(self.isupport.inner()).is_ok()
+    }
+
     /// Returns the authenticated account name when known.
     #[must_use]
     pub fn account(&self) -> Option<&AccountName> {
@@ -142,6 +148,12 @@ impl State {
     #[must_use]
     pub fn channel_name(&self, text: impl AsRef<str>) -> ChannelName {
         self.casemapping().channel(text)
+    }
+
+    /// Reports whether `text` is a channel name accepted by the server's advertised rules.
+    #[must_use]
+    pub fn is_valid_channel(&self, text: &str) -> bool {
+        self.channel_name(text).check(self.isupport.inner()).is_ok()
     }
 
     /// Iterates over joined channels in unspecified order.
@@ -301,6 +313,12 @@ mod name_tests {
     use super::State;
     use crate::Casemapping;
 
+    fn state_with_isupport(line: &str) -> State {
+        let mut session = Session::new(Config::default());
+        session.handle_line(crate::rt::now_mono(), line.as_bytes());
+        State::from_session(&session, false)
+    }
+
     #[test]
     fn builds_every_name_with_snapshot_rules() {
         let session = Session::new(
@@ -331,6 +349,30 @@ mod name_tests {
         assert_ne!(account, "alice{bot}");
         assert_eq!(mask, "*!ALICE@[gateway]");
         assert_ne!(mask, "*!alice@{gateway}");
+    }
+
+    #[test]
+    fn validates_names_with_ergo_isupport_boundaries() {
+        let state = state_with_isupport(
+            ":ergo.test 005 papo NICKLEN=32 CHANTYPES=# CHANNELLEN=64 :are supported by this server",
+        );
+
+        assert!(state.is_valid_nick(&"n".repeat(32)));
+        assert!(!state.is_valid_nick(&"n".repeat(33)));
+        assert!(state.is_valid_channel(&format!("#{}", "c".repeat(63))));
+        assert!(!state.is_valid_channel(&format!("#{}", "c".repeat(64))));
+        assert!(!state.is_valid_channel("&staff"));
+    }
+
+    #[test]
+    fn validates_solanum_channel_types() {
+        let state = state_with_isupport(
+            ":solanum.test 005 papo NICKLEN=30 CHANTYPES=&# CHANNELLEN=50 :are supported by this server",
+        );
+
+        assert!(state.is_valid_channel("&staff"));
+        assert!(state.is_valid_channel("#papo"));
+        assert!(!state.is_valid_channel("papo"));
     }
 }
 

@@ -487,8 +487,6 @@ pub struct papo_proto::ChannelName
 impl papo_proto::ChannelName
 pub const fn papo_proto::ChannelName::casemapping(&self) -> papo_proto::Casemapping
 impl papo_proto::ChannelName
-pub fn papo_proto::ChannelName::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
-impl papo_proto::ChannelName
 pub fn papo_proto::ChannelName::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::clone(&self) -> Self
@@ -1023,8 +1021,6 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::NamesEntry<'a>
 pub struct papo_proto::Nick
 impl papo_proto::Nick
 pub const fn papo_proto::Nick::casemapping(&self) -> papo_proto::Casemapping
-impl papo_proto::Nick
-pub fn papo_proto::Nick::check(&self, &papo_proto::Isupport) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::Nick
 pub fn papo_proto::Nick::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo_proto::Nick

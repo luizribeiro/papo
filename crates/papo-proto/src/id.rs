@@ -234,6 +234,7 @@ impl Nick {
     ///
     /// Returns an error when the nickname has an invalid character or prefix,
     /// or exceeds `NICKLEN` (nine characters when it is not advertised).
+    #[doc(hidden)]
     pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
         check_parameter(self)?;
         let first = self.chars().next().ok_or(InvalidIdentifier::Empty)?;
@@ -260,6 +261,7 @@ impl ChannelName {
     ///
     /// Returns an error when the name has no advertised channel prefix,
     /// contains a forbidden character, or exceeds the server's length limit.
+    #[doc(hidden)]
     pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
         let first = self.chars().next().ok_or(InvalidIdentifier::Empty)?;
         if !isupport.chantypes().contains(first) {
