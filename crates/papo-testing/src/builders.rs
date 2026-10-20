@@ -16,7 +16,7 @@ impl MessageBuilder {
         let target = target.into();
         let private = !target.starts_with(['#', '&']);
         Self {
-            message: papo::__testing::message(None, target, text, private),
+            message: papo::__testing::message(None, target.to_string(), text, private),
             tags: Vec::new(),
         }
     }

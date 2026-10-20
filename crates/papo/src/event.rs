@@ -1,4 +1,6 @@
-use papo_core::{Account, Capabilities, RequestId, Response, Welcome, sts::StsAction};
+use papo_core::{
+    Account, Capabilities, Conversation, RequestId, Response, Welcome, sts::StsAction,
+};
 use std::time::SystemTime;
 
 #[cfg(feature = "unstable")]
@@ -117,7 +119,9 @@ pub struct Message {
     pub sender: Option<Source>,
     /// The channel or nickname addressed by the message.
     pub target: Target,
-    /// `STATUSMSG` prefixes removed from [`Self::target`], in wire order.
+    /// The IRC conversation to which the message belongs.
+    pub conversation: Conversation,
+    /// `STATUSMSG` prefixes removed from the wire address, in wire order.
     pub status: Option<Vec<char>>,
     /// Display text with IRC formatting removed.
     pub text: String,
@@ -150,7 +154,6 @@ pub struct Message {
     pub origin: Origin,
     /// All message tags in wire order.
     pub tags: Tags,
-    pub(crate) private: bool,
 }
 
 impl Message {
@@ -168,11 +171,18 @@ impl Message {
             isupport.casemapping().nick(source) == nick
         });
         let other_session = echo && caps.contains_key(crate::cap::LABELED_RESPONSE);
+        let Ok((status, conversation)) =
+            papo_core::classify_conversation(&raw.as_ref(), nick, isupport)
+        else {
+            return Err(raw);
+        };
         Self::new_with_context(
             raw,
             None,
             echo && !other_session,
             other_session,
+            conversation,
+            status,
             isupport,
             received_at,
         )
@@ -183,12 +193,18 @@ impl Message {
         isupport: &Isupport,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
+        let Some(conversation) = received.conversation().cloned() else {
+            return Err(received.into_line());
+        };
+        let status = received.status().map(<[char]>::to_vec);
         let (raw, batch_type, echo, other_session) = received.into_context_parts();
         Self::new_with_context(
             raw,
             batch_type.as_deref(),
             echo,
             other_session,
+            conversation,
+            status,
             isupport,
             received_at,
         )
@@ -217,11 +233,20 @@ impl Message {
         origin: Origin,
     ) -> Result<Self, ProtoLine> {
         let snapshot = client.state();
+        let Ok((status, conversation)) = papo_core::classify_conversation(
+            &message.as_ref(),
+            snapshot.nick(),
+            snapshot.isupport().inner(),
+        ) else {
+            return Err(message);
+        };
         let mut event = Self::new_with_context(
             message,
             None,
             false,
             false,
+            conversation,
+            status,
             snapshot.isupport().inner(),
             received_at,
         )?;
@@ -235,6 +260,8 @@ impl Message {
         batch_type: Option<&str>,
         echo: bool,
         other_session: bool,
+        conversation: Conversation,
+        status: Option<Vec<char>>,
         isupport: &Isupport,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
@@ -261,24 +288,13 @@ impl Message {
         };
         let text = strip_formatting(displayed).into_owned();
         let raw_text = raw_text.to_owned();
-        let status_len = raw_target
-            .chars()
-            .take_while(|prefix| {
-                isupport
-                    .statusmsg()
-                    .is_some_and(|set| set.contains(*prefix))
-            })
-            .map(char::len_utf8)
-            .sum();
-        let (status, target) = raw_target.split_at(status_len);
-        let status = (!status.is_empty()).then(|| status.chars().collect());
-        let target = Target::from(target);
-        let private = !isupport.is_channel(&target);
+        let status_len = status.iter().flatten().copied().map(char::len_utf8).sum();
+        let target = Target::from(&raw_target[status_len..]);
         let sender = message
             .source()
             .map(|source| Source::from_proto(source, isupport.casemapping()));
         let tags = Tags::from_message(&message);
-        let channel_context = if private {
+        let channel_context = if matches!(conversation, Conversation::Private(_)) {
             tag_owned(&message, &["+channel-context", "+draft/channel-context"])
                 .map(|channel| isupport.casemapping().channel(channel))
         } else {
@@ -310,6 +326,7 @@ impl Message {
         Ok(Self {
             sender,
             target,
+            conversation,
             status,
             text,
             raw_text,
@@ -327,7 +344,6 @@ impl Message {
             oper,
             origin,
             tags,
-            private,
         })
     }
 
@@ -378,10 +394,10 @@ impl Message {
         &self.target
     }
 
-    /// Reports whether the target is not a channel under the captured `CHANTYPES` value.
+    /// Reports whether this message belongs to a private conversation.
     #[must_use]
     pub fn is_private(&self) -> bool {
-        self.private
+        matches!(self.conversation, Conversation::Private(_))
     }
 
     /// Returns the channel target, or the sender for a private message.
@@ -393,6 +409,27 @@ impl Message {
             nick
         } else {
             self.target()
+        }
+    }
+
+    /// Returns the plain-text IRC address that reaches the same recipients.
+    #[must_use]
+    pub fn return_address(&self) -> String {
+        match &self.conversation {
+            Conversation::Channel(channel) => self
+                .status
+                .iter()
+                .flatten()
+                .copied()
+                .chain(channel.chars())
+                .collect(),
+            Conversation::Private(nick) => nick.to_string(),
+            Conversation::Broadcast(mask) => mask.to_string(),
+            Conversation::Server => self
+                .sender
+                .as_ref()
+                .map_or_else(|| "*".to_owned(), ToString::to_string),
+            _ => "*".to_owned(),
         }
     }
 
@@ -1072,8 +1109,9 @@ mod tests {
     #[cfg(feature = "unstable")]
     use super::PersistenceSetting;
     use super::{
-        CoreEvent, Event, Message as ChatMessage, MessageKind, MetadataChanged, ModeKind, Origin,
-        Source, StandardReplyKind, Visibility, Warning, from_core as from_core_with_mapping,
+        Conversation, CoreEvent, Event, Message as ChatMessage, MessageKind, MetadataChanged,
+        ModeKind, Origin, Source, StandardReplyKind, Visibility, Warning,
+        from_core as from_core_with_mapping,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
@@ -1171,8 +1209,8 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(!channel.is_private());
-        assert_eq!(channel.target(), "#papo");
-        assert_eq!(channel.reply_target(), "#papo");
+        assert!(matches!(&channel.conversation, Conversation::Channel(name) if name == "#papo"));
+        assert_eq!(channel.return_address(), "#papo");
         assert_eq!(
             channel.source(),
             Some(Source::User {
@@ -1189,7 +1227,28 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(private.is_private());
-        assert_eq!(private.reply_target(), "emily");
+        assert!(matches!(&private.conversation, Conversation::Private(nick) if nick == "emily"));
+        assert_eq!(private.return_address(), "emily");
+
+        let server = event(
+            Line::notice("papo", "Server maintenance begins soon").with_source("irc.example"),
+            &isupport,
+            "papo",
+            UNIX_EPOCH,
+        );
+        assert_eq!(server.conversation, Conversation::Server);
+        assert_eq!(server.return_address(), "irc.example");
+
+        let broadcast = event(
+            Line::notice("$*.example.org", "Maintenance begins soon").with_source("irc.example"),
+            &isupport,
+            "papo",
+            UNIX_EPOCH,
+        );
+        assert!(
+            matches!(&broadcast.conversation, Conversation::Broadcast(mask) if mask == "$*.example.org")
+        );
+        assert_eq!(broadcast.return_address(), "$*.example.org");
     }
 
     #[test]
@@ -1218,7 +1277,7 @@ mod tests {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
         let message = event(
-            Line::privmsg("@+#papo", "operators and voiced members")
+            Line::privmsg("@#ops", "operators only")
                 .with_source("emily!~emily@localhost")
                 .with_tag("bot", ""),
             &isupport,
@@ -1226,8 +1285,9 @@ mod tests {
             UNIX_EPOCH,
         );
 
-        assert_eq!(message.status.as_deref(), Some(['@', '+'].as_slice()));
-        assert_eq!(message.target(), "#papo");
+        assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
+        assert!(matches!(&message.conversation, Conversation::Channel(name) if name == "#ops"));
+        assert_eq!(message.return_address(), "@#ops");
         assert!(!message.is_private());
         assert_eq!(message.tags.get("bot"), Some(""));
     }
@@ -1275,7 +1335,7 @@ mod tests {
     #[test]
     fn message_names_capture_the_active_casemapping() {
         let mut isupport = Isupport::default();
-        isupport.apply_tokens(["CASEMAPPING=ascii"]);
+        isupport.apply_tokens(["CASEMAPPING=ascii", "NICKLEN=30"]);
         let message = event(
             Line::privmsg("papo", "hello")
                 .with_source("Alice[bot]!alice@cloak.example")

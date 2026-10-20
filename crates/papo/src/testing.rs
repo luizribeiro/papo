@@ -5,7 +5,8 @@ use std::time::SystemTime;
 use papo_core::{Config, Session};
 
 use crate::{
-    Capabilities, ChannelName, Message, MessageKind, Nick, Origin, Source, State, Tags, Target,
+    Capabilities, ChannelName, Conversation, Message, MessageKind, Nick, Origin, Source, State,
+    Tags,
     event::{AwayChanged, Connected, Joined},
 };
 
@@ -29,14 +30,22 @@ pub fn tags(values: Vec<(String, Option<String>)>) -> Tags {
 #[must_use]
 pub fn message(
     sender: Option<Source>,
-    target: impl Into<Target>,
+    target: impl Into<String>,
     text: impl Into<String>,
     private: bool,
 ) -> Message {
     let text = text.into();
+    let target = target.into();
+    let conversation = if private {
+        let other = sender.as_ref().and_then(Source::nick).unwrap_or(&target);
+        Conversation::Private(crate::Casemapping::default().nick(other))
+    } else {
+        Conversation::Channel(crate::Casemapping::default().channel(&target))
+    };
     Message {
         sender,
         target: target.into(),
+        conversation,
         status: None,
         raw_text: text.clone(),
         text,
@@ -54,7 +63,6 @@ pub fn message(
         oper: None,
         origin: Origin::Live,
         tags: Tags::default(),
-        private,
     }
 }
 
@@ -107,7 +115,7 @@ mod tests {
             Some("cloak.example".into()),
         );
         let message = message(Some(source), "bob", "hello from alice", true);
-        assert_eq!(message.reply_target(), "alice");
+        assert_eq!(message.return_address(), "alice");
         assert_eq!(message.raw_text(), "hello from alice");
 
         let joined = joined(

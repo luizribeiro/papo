@@ -2058,6 +2058,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ListFilter
 #[non_exhaustive] pub struct papo::Message
 pub papo::Message::account: core::option::Option<papo::AccountName>
 pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
+pub papo::Message::conversation: papo::Conversation
 pub papo::Message::is_bot: bool
 pub papo::Message::is_oper: bool
 pub papo::Message::kind: papo::MessageKind
@@ -2089,6 +2090,7 @@ pub fn papo::Message::origin(&self) -> papo::Origin
 pub fn papo::Message::raw_text(&self) -> &str
 pub fn papo::Message::reply_target(&self) -> &str
 pub fn papo::Message::reply_to(&self) -> core::option::Option<&str>
+pub fn papo::Message::return_address(&self) -> alloc::string::String
 pub fn papo::Message::source(&self) -> core::option::Option<papo::Source>
 pub const fn papo::Message::tags(&self) -> &papo::Tags
 pub fn papo::Message::target(&self) -> &str
