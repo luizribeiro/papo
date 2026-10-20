@@ -113,7 +113,9 @@ fn reaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
         .map(|value| (value, false))
         .or_else(|| reaction.unreact.map(|value| (value, true)))?;
     Some(HistoryItem::Reacted(Reacted {
-        source: message.source().map(Source::from_proto),
+        source: message
+            .source()
+            .map(|source| Source::from_proto(source, crate::Casemapping::default())),
         target: target.into(),
         message: reply_to.into(),
         reaction,
@@ -123,7 +125,9 @@ fn reaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
 
 fn redaction(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
     Some(HistoryItem::Redacted(Redacted {
-        source: message.source().map(Source::from_proto),
+        source: message
+            .source()
+            .map(|source| Source::from_proto(source, crate::Casemapping::default())),
         target: message.param(0)?.into(),
         message: message.param(1)?.into(),
         reason: message
@@ -166,7 +170,7 @@ fn kicked(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryI
         channel: message.param(0)?.into(),
         is_self: is_self(client, &nick),
         nick: nick.into(),
-        by: Source::from_proto(message.source()?),
+        by: Source::from_proto(message.source()?, crate::Casemapping::default()),
         reason: message.param(2).map(str::to_owned),
     }))
 }
@@ -187,7 +191,7 @@ fn topic_changed(message: &papo_proto::LineRef<'_>) -> Option<HistoryItem> {
             .param(1)
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
-        by: Source::from_proto(message.source()?),
+        by: Source::from_proto(message.source()?, crate::Casemapping::default()),
     }))
 }
 
@@ -207,7 +211,7 @@ fn mode_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<Hi
     .collect();
     Some(HistoryItem::ModeChanged(ModeChanged {
         target: message.param(0)?.into(),
-        by: Source::from_proto(message.source()?),
+        by: Source::from_proto(message.source()?, crate::Casemapping::default()),
         changes,
     }))
 }

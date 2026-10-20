@@ -1,6 +1,6 @@
 use std::fmt;
 
-use papo_proto::Line;
+use papo_proto::{Casemapping, Line};
 
 use super::{Source, Tags};
 
@@ -68,7 +68,9 @@ impl RawLine {
             command: message.raw_command().to_owned(),
             params: message.params().map(str::to_owned).collect(),
             tags: Tags::from_message(&message),
-            source: message.source().map(Source::from_proto),
+            source: message
+                .source()
+                .map(|source| Source::from_proto(source, Casemapping::default())),
         }
     }
 }

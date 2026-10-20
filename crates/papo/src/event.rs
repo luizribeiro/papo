@@ -4,8 +4,8 @@ use std::time::SystemTime;
 #[cfg(feature = "unstable")]
 use papo_proto::Nick;
 use papo_proto::{
-    AccountName, ChannelName, Ctcp as ProtoCtcp, Isupport, Line as ProtoLine, LineRef, MessageId,
-    Target, strip_formatting, time,
+    AccountName, Casemapping, ChannelName, Ctcp as ProtoCtcp, Isupport, Line as ProtoLine, LineRef,
+    MessageId, Target, strip_formatting, time,
 };
 
 use crate::Client;
@@ -277,7 +277,9 @@ impl Message {
         let status = (!status.is_empty()).then(|| status.chars().collect());
         let target = Target::from(target);
         let private = !isupport.is_channel(&target);
-        let sender = message.source().map(Source::from_proto);
+        let sender = message
+            .source()
+            .map(|source| Source::from_proto(source, isupport.casemapping()));
         let tags = Tags::from_message(&message);
         let channel_context = if private {
             tag_owned(&message, &["+channel-context", "+draft/channel-context"])
@@ -752,7 +754,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Raw(message.message),
         papo_core::Event::TagMessage(message) => {
             let tag = TagMsg {
-                source: message.source.map(Source::from_prefix),
+                source: message
+                    .source
+                    .map(|source| Source::from_prefix(source, Casemapping::default())),
                 target: message.target.into(),
                 tags: Tags::from_pairs(message.tags),
             };
@@ -793,7 +797,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             }
         }
         papo_core::Event::Redacted(redacted) => Event::Redacted(Redacted {
-            source: redacted.source.map(Source::from_prefix),
+            source: redacted
+                .source
+                .map(|source| Source::from_prefix(source, Casemapping::default())),
             target: redacted.target.into(),
             message: redacted.msgid.into(),
             reason: redacted.reason.filter(|reason| !reason.is_empty()),
@@ -958,14 +964,14 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         } => Event::Kicked(Kicked {
             channel: channel.into(),
             nick: nick.into(),
-            by: Source::from_name(by),
+            by: Source::from_name(by, Casemapping::default()),
             reason,
             is_self: false,
         }),
         papo_core::Event::Invited { channel, nick, by } => Event::Invited(Invited {
             channel: channel.into(),
             nick: nick.into(),
-            by: Source::from_prefix(by),
+            by: Source::from_prefix(by, Casemapping::default()),
             is_self: false,
         }),
         papo_core::Event::Quit {
@@ -1019,7 +1025,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             changes,
         } => Event::ModeChanged(ModeChanged {
             target: target.into(),
-            by: Source::from_name(by),
+            by: Source::from_name(by, Casemapping::default()),
             changes: changes
                 .into_iter()
                 .map(|change| ModeChange {
@@ -1034,7 +1040,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
             Event::TopicChanged(TopicChanged {
                 channel: channel.into(),
                 topic,
-                by: Source::from_name(by),
+                by: Source::from_name(by, Casemapping::default()),
             })
         }
         papo_core::Event::StateLimitReached { limit } => {

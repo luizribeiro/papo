@@ -1,4 +1,4 @@
-use crate::Nick;
+use crate::{Casemapping, Nick};
 
 /// The source of an IRC event.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -41,30 +41,33 @@ impl Source {
         }
     }
 
-    pub(crate) fn from_proto(source: papo_proto::Source<'_>) -> Self {
+    pub(crate) fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemapping) -> Self {
         match source {
             papo_proto::Source::Server(name) => Self::Server {
                 name: name.to_owned(),
             },
             papo_proto::Source::User { nick, user, host } => Self::User {
-                nick: nick.into(),
+                nick: casemapping.nick(nick),
                 user: user.map(str::to_owned),
                 host: host.map(str::to_owned),
             },
         }
     }
 
-    pub(crate) fn from_prefix(prefix: String) -> Self {
+    pub(crate) fn from_prefix(prefix: String, casemapping: Casemapping) -> Self {
         let message = papo_proto::Line::new("NOTICE", ["*"]).with_source(prefix);
-        Self::from_proto(message.as_ref().source().expect("owned source is present"))
+        Self::from_proto(
+            message.as_ref().source().expect("owned source is present"),
+            casemapping,
+        )
     }
 
-    pub(crate) fn from_name(name: String) -> Self {
+    pub(crate) fn from_name(name: String, casemapping: Casemapping) -> Self {
         if name.contains('.') {
             Self::Server { name }
         } else {
             Self::User {
-                nick: name.into(),
+                nick: casemapping.nick(name),
                 user: None,
                 host: None,
             }
