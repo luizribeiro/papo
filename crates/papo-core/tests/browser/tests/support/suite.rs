@@ -58,7 +58,7 @@ async fn high_level_client_uses_the_browser_websocket() {
         .await
         .unwrap();
     wait_for(&mut events, |event| {
-        matches!(event, ClientEvent::Line(message) if message.text() == "hello from another browser client")
+        matches!(event, ClientEvent::Message(message) if message.text() == "hello from another browser client")
     })
     .await;
     let sent = client
