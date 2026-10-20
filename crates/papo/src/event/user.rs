@@ -68,8 +68,8 @@ pub struct AccountChanged {
 pub struct HostChanged {
     /// The affected user's nickname.
     pub nick: Nick,
-    /// The user's new username.
-    pub user: String,
+    /// The new username from `nick!user@host`.
+    pub username: String,
     /// The user's new hostname.
     pub host: String,
 }
@@ -90,8 +90,8 @@ pub struct RealnameChanged {
 pub struct MonitorOnline {
     /// The monitored nickname.
     pub nick: Nick,
-    /// The user's current username, when supplied by the server.
-    pub user: Option<String>,
+    /// The username from `nick!user@host`, when supplied by the server.
+    pub username: Option<String>,
     /// The user's current hostname, when supplied by the server.
     pub host: Option<String>,
 }

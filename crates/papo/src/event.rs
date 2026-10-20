@@ -1167,9 +1167,13 @@ pub(crate) fn from_core(
         }
         papo_core::Event::HostChanged {
             nick,
-            username: user,
+            username,
             host,
-        } => Event::HostChanged(HostChanged { nick, user, host }),
+        } => Event::HostChanged(HostChanged {
+            nick,
+            username,
+            host,
+        }),
         papo_core::Event::RealnameChanged { nick, realname } => {
             Event::RealnameChanged(RealnameChanged { nick, realname })
         }
@@ -1229,9 +1233,13 @@ pub(crate) fn from_core(
         }
         papo_core::Event::MonitorOnline {
             nick,
-            username: user,
+            username,
             host,
-        } => Event::MonitorOnline(MonitorOnline { nick, user, host }),
+        } => Event::MonitorOnline(MonitorOnline {
+            nick,
+            username,
+            host,
+        }),
         papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline { nick }),
         papo_core::Event::MonitorListFull { limit, nicks } => {
             Event::Warning(Warning::MonitorListFull { limit, nicks })
@@ -1362,7 +1370,7 @@ mod tests {
             channel.source(),
             Some(Source::User {
                 nick: Casemapping::default().nick("emily"),
-                user: Some("~emily".into()),
+                username: Some("~emily".into()),
                 host: Some("localhost".into())
             })
         );
@@ -1603,8 +1611,8 @@ mod tests {
         assert_eq!(invited.nick, "papo");
         assert!(matches!(
             &invited.actor,
-            Source::User { nick, user: Some(user), host: Some(host) }
-                if nick == "emily" && user == "~emily" && host == "localhost"
+            Source::User { nick, username: Some(username), host: Some(host) }
+                if nick == "emily" && username == "~emily" && host == "localhost"
         ));
         assert_eq!(invited.subject_authorship, Authorship::Own);
     }
@@ -2163,7 +2171,7 @@ mod tests {
                 host: "users/emily".into(),
             }),
             Event::HostChanged(changed)
-                if changed.nick == "emily" && changed.user == "~em" && changed.host == "users/emily"
+                if changed.nick == "emily" && changed.username == "~em" && changed.host == "users/emily"
         ));
     }
 
@@ -2256,7 +2264,7 @@ mod tests {
                 host: Some("cloak.example".into()),
             }),
             Event::MonitorOnline(online)
-                if online.nick == "alice" && online.user.as_deref() == Some("~alice")
+                if online.nick == "alice" && online.username.as_deref() == Some("~alice")
                     && online.host.as_deref() == Some("cloak.example")
         ));
         assert!(matches!(
@@ -2266,7 +2274,7 @@ mod tests {
                 host: None,
             }),
             Event::MonitorOnline(online)
-                if online.nick == "bob" && online.user.is_none() && online.host.is_none()
+                if online.nick == "bob" && online.username.is_none() && online.host.is_none()
         ));
     }
 

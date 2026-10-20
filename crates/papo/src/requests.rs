@@ -13,8 +13,8 @@ use crate::Error;
 pub struct Whois {
     /// Nickname reported by the server.
     pub nick: Nick,
-    /// Username reported by `RPL_WHOISUSER`.
-    pub user: Option<String>,
+    /// Username reported by `RPL_WHOISUSER`; it may start with `~`.
+    pub username: Option<String>,
     /// Hostname reported by `RPL_WHOISUSER`.
     pub host: Option<String>,
     /// Real name reported by `RPL_WHOISUSER`.
@@ -53,8 +53,8 @@ pub struct WhoEntry {
     pub channel: Option<ChannelName>,
     /// Nickname of the user.
     pub nick: Nick,
-    /// Username of the user.
-    pub user: String,
+    /// Username from `nick!user@host`; it may start with `~`.
+    pub username: String,
     /// Visible hostname of the user.
     pub host: String,
     /// Logged-in account name.
@@ -130,7 +130,7 @@ pub(crate) fn whois(
     let mapping = isupport.casemapping();
     let mut result = Whois {
         nick: mapping.nick(requested_nick),
-        user: None,
+        username: None,
         host: None,
         realname: None,
         account: None,
@@ -149,7 +149,7 @@ pub(crate) fn whois(
         match numeric {
             Numeric::RPL_WHOISUSER => {
                 result.nick = mapping.nick(message.param(1).unwrap_or(requested_nick));
-                result.user = message.param(2).map(str::to_owned);
+                result.username = message.param(2).map(str::to_owned);
                 result.host = message.param(3).map(str::to_owned);
                 result.realname = message.param(5).map(str::to_owned);
             }
@@ -216,7 +216,7 @@ pub(crate) fn who(
                 Some(WhoEntry {
                     channel: reply.channel.map(|channel| mapping.channel(channel)),
                     nick: mapping.nick(reply.nick?),
-                    user: reply.user?.to_owned(),
+                    username: reply.user?.to_owned(),
                     host: reply.host?.to_owned(),
                     account: reply.account.map(|account| mapping.account(account)),
                     realname: reply.realname?.to_owned(),
@@ -241,7 +241,7 @@ fn plain_who(message: &papo_proto::LineRef<'_>, isupport: &Isupport) -> Option<W
             .param(1)
             .filter(|value| *value != "*")
             .map(|channel| isupport.casemapping().channel(channel)),
-        user: message.param(2)?.to_owned(),
+        username: message.param(2)?.to_owned(),
         host: message.param(3)?.to_owned(),
         nick: isupport.casemapping().nick(message.param(5)?),
         account: None,

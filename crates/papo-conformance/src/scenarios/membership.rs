@@ -407,7 +407,7 @@ async fn whox(s: Scenario) -> papo_testing::Result<()> {
         .expect("WHO must include its exact target");
 
     assert_eq!(entry.nick, nick);
-    assert!(!entry.user.is_empty());
+    assert!(!entry.username.is_empty());
     assert!(!entry.host.is_empty());
     assert_eq!(entry.realname, "Alice Example");
     assert!(!entry.away);

@@ -26,14 +26,14 @@ impl MessageBuilder {
     pub fn actor(
         mut self,
         nick: impl Into<papo::Nick>,
-        user: Option<String>,
+        username: Option<String>,
         host: Option<String>,
     ) -> Self {
         let nick = nick.into();
         if matches!(self.message.conversation, papo::Conversation::Private(_)) {
             self.message.conversation = papo::Conversation::Private(nick.clone());
         }
-        self.message.actor = papo::__testing::user_source(nick, user, host);
+        self.message.actor = papo::__testing::user_source(nick, username, host);
         self
     }
 

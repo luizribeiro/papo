@@ -663,7 +663,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             nick: test_nick("alice"),
             actor: crate::Source::User {
                 nick: test_nick("chanserv"),
-                user: None,
+                username: None,
                 host: None,
             },
             authorship: crate::Authorship::Other,
@@ -698,7 +698,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             nick: test_nick("papo-driver"),
             actor: crate::Source::User {
                 nick: test_nick("chanserv"),
-                user: None,
+                username: None,
                 host: None,
             },
             authorship: crate::Authorship::Other,
@@ -3057,7 +3057,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     server_line(&mut server, b"@label=0 :ergo.test BATCH +whois-42 labeled-response\r\n@batch=whois-42 :ergo.test 311 papo-driver alice ~alice client.example * :Alice Example\r\n@batch=whois-42 :ergo.test 312 papo-driver alice ergo.test :Ergo Test Network\r\n@batch=whois-42 :ergo.test 317 papo-driver alice 42 1760544000 :seconds idle, signon time\r\n@batch=whois-42 :ergo.test 319 papo-driver alice :@#papo +#rust\r\n@batch=whois-42 :ergo.test 330 papo-driver alice alice :is logged in as\r\n@batch=whois-42 :ergo.test 301 papo-driver alice :away from keyboard\r\n@batch=whois-42 :ergo.test 335 papo-driver alice :is a bot\r\n@batch=whois-42 :ergo.test 671 papo-driver alice :is using a secure connection\r\n@batch=whois-42 :ergo.test 318 papo-driver alice :End of /WHOIS list\r\n:ergo.test BATCH -whois-42\r\n").await;
     let whois = within(whois).await.unwrap().unwrap();
     assert_eq!(
-        (whois.nick.as_ref(), whois.user.as_deref()),
+        (whois.nick.as_ref(), whois.username.as_deref()),
         ("alice", Some("~alice"))
     );
     assert_eq!(

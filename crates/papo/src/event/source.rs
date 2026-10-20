@@ -9,8 +9,8 @@ pub enum Source {
     User {
         /// The user's nickname.
         nick: Nick,
-        /// The username, when supplied by the server.
-        user: Option<String>,
+        /// The username from `nick!user@host`, when supplied by the server.
+        username: Option<String>,
         /// The hostname, when supplied by the server.
         host: Option<String>,
     },
@@ -52,7 +52,7 @@ impl Source {
                 host,
             } => Self::User {
                 nick: casemapping.nick(nick),
-                user: username.map(str::to_owned),
+                username: username.map(str::to_owned),
                 host: host.map(str::to_owned),
             },
         }
@@ -72,7 +72,7 @@ impl Source {
         } else {
             Self::User {
                 nick: casemapping.nick(name),
-                user: None,
+                username: None,
                 host: None,
             }
         }

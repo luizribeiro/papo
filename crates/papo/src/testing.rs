@@ -12,10 +12,14 @@ use crate::{
 
 /// Constructs a user event source.
 #[must_use]
-pub fn user_source(nick: impl Into<Nick>, user: Option<String>, host: Option<String>) -> Source {
+pub fn user_source(
+    nick: impl Into<Nick>,
+    username: Option<String>,
+    host: Option<String>,
+) -> Source {
     Source::User {
         nick: nick.into(),
-        user,
+        username,
         host,
     }
 }

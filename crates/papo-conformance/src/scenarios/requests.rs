@@ -16,7 +16,12 @@ async fn labeled_response(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let whois = alice.whois(alice.nick().clone()).await?;
     assert_eq!(whois.nick, alice.nick());
-    assert!(whois.user.as_deref().is_some_and(|user| !user.is_empty()));
+    assert!(
+        whois
+            .username
+            .as_deref()
+            .is_some_and(|username| !username.is_empty())
+    );
     assert!(
         whois
             .realname

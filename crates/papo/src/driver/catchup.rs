@@ -235,7 +235,7 @@ mod tests {
             account: Some(mapping.account("emily")),
             actor: crate::Source::User {
                 nick: mapping.nick("emily"),
-                user: Some("~e".into()),
+                username: Some("~e".into()),
                 host: Some("cloak.example".into()),
             },
             authorship: crate::Authorship::Other,

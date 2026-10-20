@@ -254,12 +254,12 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(own, observed);
     assert_eq!(own.nick, bob_nick);
-    assert!(!own.user.is_empty());
+    assert!(!own.username.is_empty());
     assert_eq!(own.host, "conformance.example");
     for peer in [&alice, &bob] {
         let state = peer.state();
         let user = state.user(&bob_nick).unwrap();
-        assert_eq!(user.username(), Some(own.user.as_str()));
+        assert_eq!(user.username(), Some(own.username.as_str()));
         assert_eq!(user.host(), Some("conformance.example"));
     }
     Ok(())
@@ -286,7 +286,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let monitored = state.monitor_online().collect::<Vec<_>>();
     assert_eq!(monitored.len(), 1);
     assert_eq!(monitored[0].nick(), &bob_nick);
-    assert_eq!(monitored[0].username(), online.user.as_deref());
+    assert_eq!(monitored[0].username(), online.username.as_deref());
     assert_eq!(monitored[0].host(), online.host.as_deref());
 
     let away = "reading the monitor specification";
@@ -357,7 +357,12 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
     let whois = bob.whois(alice_nick.clone()).await?;
 
     assert_eq!(whois.nick, alice_nick);
-    assert!(whois.user.as_ref().is_some_and(|user| !user.is_empty()));
+    assert!(
+        whois
+            .username
+            .as_ref()
+            .is_some_and(|username| !username.is_empty())
+    );
     assert!(whois.host.as_ref().is_some_and(|host| !host.is_empty()));
     assert!(whois.realname.as_ref().is_some_and(|name| !name.is_empty()));
     assert!(whois.is_bot);
@@ -407,7 +412,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let alice_who = who.iter().find(|entry| entry.nick == alice_nick).unwrap();
 
     assert_eq!(alice_who.channel.as_ref(), Some(&channel_name));
-    assert!(!alice_who.user.is_empty());
+    assert!(!alice_who.username.is_empty());
     assert!(!alice_who.host.is_empty());
     assert_eq!(alice_who.realname, "papo test peer");
     assert!(alice_who.away);
@@ -449,7 +454,12 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let whois = bob.whois(alice_nick.clone()).await?;
 
     assert_eq!(whois.nick, alice_nick);
-    assert!(whois.user.as_ref().is_some_and(|user| !user.is_empty()));
+    assert!(
+        whois
+            .username
+            .as_ref()
+            .is_some_and(|username| !username.is_empty())
+    );
     assert!(whois.host.as_ref().is_some_and(|host| !host.is_empty()));
     assert_eq!(whois.realname.as_deref(), Some("papo test peer"));
     assert!(whois.idle.is_some());

@@ -155,7 +155,7 @@ pub papo::event::Source::Server::name: alloc::string::String
 #[non_exhaustive] pub papo::event::Source::User
 pub papo::event::Source::User::host: core::option::Option<alloc::string::String>
 pub papo::event::Source::User::nick: papo::Nick
-pub papo::event::Source::User::user: core::option::Option<alloc::string::String>
+pub papo::event::Source::User::username: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
 impl core::clone::Clone for papo::Source
@@ -441,7 +441,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::FeaturesChanged
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::host: alloc::string::String
 pub papo::event::HostChanged::nick: papo::Nick
-pub papo::event::HostChanged::user: alloc::string::String
+pub papo::event::HostChanged::username: alloc::string::String
 impl core::clone::Clone for papo::event::HostChanged
 pub fn papo::event::HostChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::HostChanged
@@ -609,7 +609,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::MonitorOffline
 #[non_exhaustive] pub struct papo::event::MonitorOnline
 pub papo::event::MonitorOnline::host: core::option::Option<alloc::string::String>
 pub papo::event::MonitorOnline::nick: papo::Nick
-pub papo::event::MonitorOnline::user: core::option::Option<alloc::string::String>
+pub papo::event::MonitorOnline::username: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::event::MonitorOnline
 pub fn papo::event::MonitorOnline::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::MonitorOnline
@@ -1669,7 +1669,7 @@ pub papo::Source::Server::name: alloc::string::String
 #[non_exhaustive] pub papo::Source::User
 pub papo::Source::User::host: core::option::Option<alloc::string::String>
 pub papo::Source::User::nick: papo::Nick
-pub papo::Source::User::user: core::option::Option<alloc::string::String>
+pub papo::Source::User::username: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
 impl core::clone::Clone for papo::Source
@@ -2539,7 +2539,7 @@ pub papo::WhoEntry::is_oper: bool
 pub papo::WhoEntry::nick: papo::Nick
 pub papo::WhoEntry::prefixes: alloc::vec::Vec<char>
 pub papo::WhoEntry::realname: alloc::string::String
-pub papo::WhoEntry::user: alloc::string::String
+pub papo::WhoEntry::username: alloc::string::String
 impl core::clone::Clone for papo::WhoEntry
 pub fn papo::WhoEntry::clone(&self) -> Self
 impl core::cmp::Eq for papo::WhoEntry
@@ -2566,7 +2566,7 @@ pub papo::Whois::nick: papo::Nick
 pub papo::Whois::realname: core::option::Option<alloc::string::String>
 pub papo::Whois::secure: bool
 pub papo::Whois::server: core::option::Option<alloc::string::String>
-pub papo::Whois::user: core::option::Option<alloc::string::String>
+pub papo::Whois::username: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::Whois
 pub fn papo::Whois::clone(&self) -> Self
 impl core::cmp::Eq for papo::Whois
