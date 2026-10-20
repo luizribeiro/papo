@@ -37,12 +37,6 @@ pub use line::{
     ParseError, Tags, escape_tag_value,
 };
 
-#[doc(hidden)]
-pub type Message = Line;
-#[doc(hidden)]
-pub type MessageRef<'a> = LineRef<'a>;
-#[doc(hidden)]
-pub const MAX_MESSAGE_LEN: usize = MAX_LINE_LEN;
 pub use modes::{ModeChange, ModeChanges, ModeKind};
 pub use names::{NAME_ALIASES, NameKind, NamesEntry, canonical, parse_353};
 pub use numeric::Numeric;

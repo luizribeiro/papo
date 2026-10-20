@@ -2,8 +2,7 @@ use std::time::Duration;
 
 use papo_core::Response;
 use papo_proto::{
-    AccountName, ChannelName, Command, Isupport, Mask, Message, Nick, Numeric, WhoxPresence,
-    WhoxReply,
+    AccountName, ChannelName, Command, Isupport, Line, Mask, Nick, Numeric, WhoxPresence, WhoxReply,
 };
 
 use crate::Error;
@@ -263,7 +262,7 @@ pub(crate) fn list(response: Response) -> Result<Vec<ListEntry>, Error> {
     Ok(list_entries(response.lines))
 }
 
-fn list_entries(lines: impl IntoIterator<Item = Message>) -> Vec<ListEntry> {
+fn list_entries(lines: impl IntoIterator<Item = Line>) -> Vec<ListEntry> {
     lines
         .into_iter()
         .filter_map(|line| {

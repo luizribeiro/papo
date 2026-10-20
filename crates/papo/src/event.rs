@@ -4,8 +4,8 @@ use std::time::SystemTime;
 #[cfg(feature = "unstable")]
 use papo_proto::Nick;
 use papo_proto::{
-    AccountName, ChannelName, Ctcp as ProtoCtcp, Isupport, LineRef, Message as ProtoMessage,
-    MessageId, Target, strip_formatting, time,
+    AccountName, ChannelName, Ctcp as ProtoCtcp, Isupport, Line as ProtoLine, LineRef, MessageId,
+    Target, strip_formatting, time,
 };
 
 use crate::Client;
@@ -158,12 +158,12 @@ pub struct Message {
 
 impl Message {
     pub(crate) fn new(
-        raw: ProtoMessage,
+        raw: ProtoLine,
         isupport: &Isupport,
         nick: &str,
         caps: &Capabilities,
         received_at: SystemTime,
-    ) -> Result<Self, ProtoMessage> {
+    ) -> Result<Self, ProtoLine> {
         let echo = raw.as_ref().source().is_some_and(|source| {
             let papo_proto::Source::User { nick: source, .. } = source else {
                 return false;
@@ -185,7 +185,7 @@ impl Message {
         received: papo_core::ReceivedMessage,
         isupport: &Isupport,
         received_at: SystemTime,
-    ) -> Result<Self, ProtoMessage> {
+    ) -> Result<Self, ProtoLine> {
         let (raw, batch_type, echo, other_session) = received.into_context_parts();
         Self::new_with_context(
             raw,
@@ -198,27 +198,27 @@ impl Message {
     }
 
     pub(crate) fn from_history(
-        message: ProtoMessage,
+        message: ProtoLine,
         client: &Client,
         received_at: SystemTime,
-    ) -> Result<Self, ProtoMessage> {
+    ) -> Result<Self, ProtoLine> {
         Self::from_historical(message, client, received_at, Origin::History)
     }
 
     pub(crate) fn from_replay(
-        message: ProtoMessage,
+        message: ProtoLine,
         client: &Client,
         received_at: SystemTime,
-    ) -> Result<Self, ProtoMessage> {
+    ) -> Result<Self, ProtoLine> {
         Self::from_historical(message, client, received_at, Origin::Replay)
     }
 
     fn from_historical(
-        message: ProtoMessage,
+        message: ProtoLine,
         client: &Client,
         received_at: SystemTime,
         origin: Origin,
-    ) -> Result<Self, ProtoMessage> {
+    ) -> Result<Self, ProtoLine> {
         let snapshot = client.state();
         let mut event = Self::new_with_context(
             message,
@@ -234,13 +234,13 @@ impl Message {
 
     #[allow(clippy::too_many_arguments)]
     fn new_with_context(
-        raw: ProtoMessage,
+        raw: ProtoLine,
         batch_type: Option<&str>,
         echo: bool,
         other_session: bool,
         isupport: &Isupport,
         received_at: SystemTime,
-    ) -> Result<Self, ProtoMessage> {
+    ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
         let Some((raw_target, raw_text)) = message.param(0).zip(message.param(1)) else {
             return Err(raw);
@@ -711,7 +711,7 @@ pub(crate) enum CoreEvent {
     Forward(Event),
     Registered(Welcome),
     Message(papo_core::ReceivedMessage),
-    Raw(ProtoMessage),
+    Raw(ProtoLine),
     Response(Response),
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
