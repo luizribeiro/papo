@@ -9,15 +9,34 @@ async fn arbitrary_extension_input_is_rejected_or_emits_valid_lines() {
                 check_action(move |$client| action($request)).await;
             }};
         }
-        probe!(client, a, b, c => client.rename_channel(a, b, c));
-        #[cfg(feature = "unstable")]
-        probe!(client, a, b, c => client.relay(a, b, c));
-        probe!(client, a, b, _c => client.monitor().add([a, b]));
-        probe!(client, a, b, _c => client.monitor().remove([a, b]));
-        probe!(client, a, b, c => client.register_account(
-            crate::NewAccount::new(c).account(a).email(b)
+        probe!(client, a, b, c => client.rename_channel(
+            crate::Casemapping::default().channel(a),
+            crate::Casemapping::default().channel(b),
+            c
         ));
-        probe!(client, a, b, _c => client.verify_account(a, b));
+        #[cfg(feature = "unstable")]
+        probe!(client, a, b, c => client.relay(
+            crate::Casemapping::default().channel(a),
+            crate::Casemapping::default().nick(b),
+            c
+        ));
+        probe!(client, a, b, _c => client.monitor().add([
+            crate::Casemapping::default().nick(a),
+            crate::Casemapping::default().nick(b),
+        ]));
+        probe!(client, a, b, _c => client.monitor().remove([
+            crate::Casemapping::default().nick(a),
+            crate::Casemapping::default().nick(b),
+        ]));
+        probe!(client, a, b, c => client.register_account(
+            crate::NewAccount::new(c)
+                .account(crate::Casemapping::default().account(a))
+                .email(b)
+        ));
+        probe!(client, a, b, _c => client.verify_account(
+            crate::Casemapping::default().account(a),
+            b
+        ));
         probe!(client, a, b, _c => client.metadata().get(a, [b]));
         probe!(client, a, _b, _c => client.metadata().list(a));
         probe!(client, a, b, _c => client.metadata().set(a, b));

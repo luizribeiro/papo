@@ -56,8 +56,11 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
                 check_builder(move |$builder| $configured).await;
             }};
         }
-        probe!(builder, a, _b, _c => builder.nick(a));
-        probe!(builder, a, b, _c => builder.alt_nicks([a, b]));
+        probe!(builder, a, _b, _c => builder.nick(crate::Casemapping::default().nick(a)));
+        probe!(builder, a, b, _c => builder.alt_nicks([
+            crate::Casemapping::default().nick(a),
+            crate::Casemapping::default().nick(b),
+        ]));
         probe!(builder, a, _b, _c => builder.username(a));
         probe!(builder, a, _b, _c => builder.realname(a));
         probe!(builder, a, _b, _c => builder.password(a));
@@ -72,7 +75,9 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, a, _b, _c => builder.bouncer_network(crate::NetworkId::new(a)));
         probe!(builder, a, _b, _c => builder.device(a));
         probe!(builder, a, b, c => builder.register_account(
-            crate::NewAccount::new(c).account(a).email(b)
+            crate::NewAccount::new(c)
+                .account(crate::Casemapping::default().account(a))
+                .email(b)
         ));
         probe!(builder, a, b, _c => builder.request_caps([a, b]));
         probe!(builder, a, _b, _c => builder.without_caps([a]));

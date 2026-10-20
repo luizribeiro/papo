@@ -5,17 +5,26 @@ async fn arbitrary_action_builder_input_is_rejected_or_emits_valid_lines() {
     for (first, second, third) in inputs() {
         check_action({
             let (first, second) = (first.clone(), second.clone());
-            move |client| action(client.set_topic(first, second))
+            move |client| {
+                action(client.set_topic(crate::Casemapping::default().channel(first), second))
+            }
         })
         .await;
         check_action({
             let first = first.clone();
-            move |client| action(client.clear_topic(first))
+            move |client| action(client.clear_topic(crate::Casemapping::default().channel(first)))
         })
         .await;
         check_action({
             let first = first.clone();
-            move |client| action(client.list(crate::ListFilter::default().channels([first])))
+            move |client| {
+                action(
+                    client.list(
+                        crate::ListFilter::default()
+                            .channels([crate::Casemapping::default().mask(first)]),
+                    ),
+                )
+            }
         })
         .await;
         check_action({
@@ -43,6 +52,7 @@ async fn arbitrary_action_builder_input_is_rejected_or_emits_valid_lines() {
             let added = first.chars().next().unwrap_or('\0');
             let removed = second.chars().next().unwrap_or('\0');
             move |client| {
+                let mapping = crate::Casemapping::default();
                 action(
                     client
                         .mode(first)
@@ -50,12 +60,12 @@ async fn arbitrary_action_builder_input_is_rejected_or_emits_valid_lines() {
                         .remove(removed)
                         .add_with(added, second.clone())
                         .remove_with(removed, third.clone())
-                        .ban(second.clone())
-                        .unban(third.clone())
-                        .op(second.clone())
-                        .deop(third.clone())
-                        .voice(second)
-                        .devoice(third),
+                        .ban(mapping.mask(second.clone()))
+                        .unban(mapping.mask(third.clone()))
+                        .op(mapping.nick(second.clone()))
+                        .deop(mapping.nick(third.clone()))
+                        .voice(mapping.nick(second))
+                        .devoice(mapping.nick(third)),
                 )
             }
         })
