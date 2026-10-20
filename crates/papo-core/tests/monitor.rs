@@ -159,7 +159,10 @@ fn registration_clears_unconfirmed_monitor_presence() {
 #[test]
 fn honors_the_advertised_monitor_limit_before_chunking() {
     let nicks: Vec<_> = (0..150).map(|index| format!("user{index:03}")).collect();
-    let unavailable = nicks[100..].to_vec();
+    let unavailable = nicks[100..]
+        .iter()
+        .map(|nick| Casemapping::default().nick(nick))
+        .collect::<Vec<_>>();
     let lines = [0..62, 62..100].map(|range| format!("MONITOR + {}", nicks[range].join(",")));
     registered()
         .update(|session| session.monitor_add(nicks))
@@ -196,10 +199,12 @@ fn chunks_monitor_targets_at_the_literal_512_byte_boundary() {
 #[test]
 fn tracks_online_offline_and_list_full_replies() {
     registered()
+        .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .update(|session| session.monitor_add(["alice", "bob", "carol"]))
         .client("MONITOR + alice,bob,carol")
         .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob,carol!carol@staff.example")
-        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "alice" && user.as_deref() == Some("~alice") && host.as_deref() == Some("cloak.example")))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "alice" && nick.casemapping() == Casemapping::Ascii && user.as_deref() == Some("~alice") && host.as_deref() == Some("cloak.example")))
         .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "bob" && user.is_none() && host.is_none()))
         .event(|event| matches!(event, Event::MonitorOnline { nick, user, host } if nick == "carol" && user.as_deref() == Some("carol") && host.as_deref() == Some("staff.example")))
         .inspect(|session| {
@@ -225,13 +230,13 @@ fn tracks_online_offline_and_list_full_replies() {
         .server(":ergo.test 730 papo :ALICE!~alice@cloak.example")
         .no_event()
         .server(":ergo.test 731 papo :alice")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice" && nick.casemapping() == Casemapping::Ascii))
         .server(":ergo.test 731 papo :alice")
         .no_event()
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
         .server(":ergo.test 734 papo 100 carol :Monitor list is full")
-        .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks } if nicks == &["carol"]))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks } if nicks == &["carol"] && nicks[0].casemapping() == Casemapping::Ascii))
         .no_event();
 }
 

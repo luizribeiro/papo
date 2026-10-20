@@ -69,7 +69,10 @@ impl Monitor {
         if self.desired.len() > limit {
             outbox.event(Event::MonitorListFull {
                 limit,
-                nicks: self.desired[limit..].to_vec(),
+                nicks: self.desired[limit..]
+                    .iter()
+                    .map(|nick| isupport.casemapping().nick(nick))
+                    .collect(),
             });
         }
     }
@@ -120,13 +123,16 @@ impl Monitor {
         if !unavailable.is_empty() {
             outbox.event(Event::MonitorListFull {
                 limit,
-                nicks: unavailable,
+                nicks: unavailable
+                    .into_iter()
+                    .map(|nick| mapping.nick(nick))
+                    .collect(),
             });
         }
         if !full.is_empty() {
             outbox.event(Event::MonitorListFull {
                 limit: MAX_DESIRED,
-                nicks: full,
+                nicks: full.into_iter().map(|nick| mapping.nick(nick)).collect(),
             });
         }
     }
@@ -229,7 +235,7 @@ impl Monitor {
                         let changed = self.replace_presence(nick, next, isupport);
                         if !was_online && changed {
                             outbox.event(Event::MonitorOnline {
-                                nick: nick.to_owned(),
+                                nick: isupport.casemapping().nick(nick),
                                 user: user.map(str::to_owned),
                                 host: host.map(str::to_owned),
                             });
@@ -255,7 +261,7 @@ impl Monitor {
                     handled = true;
                     if self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport) {
                         outbox.event(Event::MonitorOffline {
-                            nick: nick.to_owned(),
+                            nick: isupport.casemapping().nick(nick),
                         });
                     }
                 }
@@ -282,7 +288,10 @@ impl Monitor {
                 for nick in &nicks {
                     self.presence.remove(&mapping.nick(nick));
                 }
-                outbox.event(Event::MonitorListFull { limit, nicks });
+                outbox.event(Event::MonitorListFull {
+                    limit,
+                    nicks: nicks.into_iter().map(|nick| mapping.nick(nick)).collect(),
+                });
             }
             _ => return Handled::No,
         }

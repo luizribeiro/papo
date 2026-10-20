@@ -1597,7 +1597,7 @@ pub enum Event {
     /// A monitored nickname came online.
     MonitorOnline {
         /// The monitored nickname.
-        nick: String,
+        nick: Nick,
         /// The user's current username, when supplied by the server.
         user: Option<String>,
         /// The user's current hostname, when supplied by the server.
@@ -1606,14 +1606,14 @@ pub enum Event {
     /// A monitored nickname went offline.
     MonitorOffline {
         /// The monitored nickname.
-        nick: String,
+        nick: Nick,
     },
     /// The server rejected nicknames because its monitor list was full.
     MonitorListFull {
         /// The server's advertised monitor-list limit.
         limit: usize,
         /// Nicknames the server did not add.
-        nicks: Vec<String>,
+        nicks: Vec<Nick>,
     },
     /// The server does not advertise MONITOR support.
     MonitorUnsupported,

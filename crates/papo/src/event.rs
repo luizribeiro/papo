@@ -1053,23 +1053,11 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             })
         }
         papo_core::Event::MonitorOnline { nick, user, host } => {
-            Event::MonitorOnline(MonitorOnline {
-                nick: casemapping.nick(nick),
-                user,
-                host,
-            })
+            Event::MonitorOnline(MonitorOnline { nick, user, host })
         }
-        papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline {
-            nick: casemapping.nick(nick),
-        }),
+        papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline { nick }),
         papo_core::Event::MonitorListFull { limit, nicks } => {
-            Event::Warning(Warning::MonitorListFull {
-                limit,
-                nicks: nicks
-                    .into_iter()
-                    .map(|nick| casemapping.nick(nick))
-                    .collect(),
-            })
+            Event::Warning(Warning::MonitorListFull { limit, nicks })
         }
         papo_core::Event::MonitorUnsupported => Event::Warning(Warning::MonitorUnsupported),
         _ => return CoreEvent::Unknown,
@@ -1960,7 +1948,7 @@ mod tests {
     fn maps_monitor_online_with_and_without_userhost() {
         assert!(matches!(
             forwarded(papo_core::Event::MonitorOnline {
-                nick: "alice".into(),
+                nick: Casemapping::default().nick("alice"),
                 user: Some("~alice".into()),
                 host: Some("cloak.example".into()),
             }),
@@ -1970,7 +1958,7 @@ mod tests {
         ));
         assert!(matches!(
             forwarded(papo_core::Event::MonitorOnline {
-                nick: "bob".into(),
+                nick: Casemapping::default().nick("bob"),
                 user: None,
                 host: None,
             }),
@@ -1983,7 +1971,7 @@ mod tests {
     fn maps_monitor_offline() {
         assert!(matches!(
             forwarded(papo_core::Event::MonitorOffline {
-                nick: "alice".into(),
+                nick: Casemapping::default().nick("alice"),
             }),
             Event::MonitorOffline(offline) if offline.nick == "alice"
         ));
@@ -1994,7 +1982,10 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::MonitorListFull {
                 limit: 100,
-                nicks: vec!["alice".into(), "bob".into()],
+                nicks: vec![
+                    Casemapping::default().nick("alice"),
+                    Casemapping::default().nick("bob"),
+                ],
             }),
             Event::Warning(Warning::MonitorListFull { limit, nicks })
                 if limit == 100 && nicks == ["alice", "bob"]

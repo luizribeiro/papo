@@ -431,12 +431,12 @@ pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::OwnedMode
 pub papo_core::Event::ModeChanged::target: alloc::string::String
 pub papo_core::Event::MonitorListFull
 pub papo_core::Event::MonitorListFull::limit: usize
-pub papo_core::Event::MonitorListFull::nicks: alloc::vec::Vec<alloc::string::String>
+pub papo_core::Event::MonitorListFull::nicks: alloc::vec::Vec<papo::Nick>
 pub papo_core::Event::MonitorOffline
-pub papo_core::Event::MonitorOffline::nick: alloc::string::String
+pub papo_core::Event::MonitorOffline::nick: papo::Nick
 pub papo_core::Event::MonitorOnline
 pub papo_core::Event::MonitorOnline::host: core::option::Option<alloc::string::String>
-pub papo_core::Event::MonitorOnline::nick: alloc::string::String
+pub papo_core::Event::MonitorOnline::nick: papo::Nick
 pub papo_core::Event::MonitorOnline::user: core::option::Option<alloc::string::String>
 pub papo_core::Event::MonitorUnsupported
 pub papo_core::Event::MultilineMessage(papo_core::MultilineMessage)
