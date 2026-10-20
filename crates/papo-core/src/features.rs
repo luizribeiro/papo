@@ -109,7 +109,7 @@ impl Feature {
             Self::Monitor => "monitoring",
             Self::SetName => "real-name changes",
             Self::BotMode => "bot mode",
-            Self::AccountCreation => cap::alias(cap::ACCOUNT_REGISTRATION, 0),
+            Self::AccountCreation => "account creation",
             #[cfg(feature = "unstable")]
             Self::Bouncer => "bouncer networks",
             #[cfg(feature = "unstable")]

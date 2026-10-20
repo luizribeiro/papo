@@ -41,7 +41,7 @@ The project is early in development; the API is not yet stable.
 | `sts` | — | never | — | `sts` |
 | `ergo.chat/nope` | — | never | — | `caps` |
 | `soju.im/account-required` | — | never | — | `caps` |
-| `draft/account-registration` | account-registration | default | account-registration | `account_registration` |
+| `draft/account-registration` | account-registration | default | account creation | `account_registration` |
 | `soju.im/bouncer-networks` | — | default | bouncer networks | `bouncer` |
 | `soju.im/bouncer-networks-notify` | — | default | — | `bouncer` |
 | `chathistory` | draft/chathistory | default | chathistory | `history`, `batch` |
