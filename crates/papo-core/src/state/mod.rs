@@ -731,6 +731,7 @@ impl State {
         if mapping == self.casemapping {
             return;
         }
+        TypingTable::refold(&mut self.typing, mapping);
         self.nick = mapping.nick(self.nick.as_ref());
         self.channels = std::mem::take(&mut self.channels)
             .into_values()

@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
-use papo_proto::{Command, LineRef, Nick, Source, Typing};
+use papo_proto::{Casemapping, Command, LineRef, Nick, Source, Typing};
 use web_time::Instant;
 
 use crate::{Authorship, Conversation, Event, Session, conversation::classify_line};
@@ -184,6 +184,58 @@ impl TypingTable {
         });
         removed
     }
+
+    fn rename(table: &mut Arc<Self>, old: &Nick, new: &Nick) {
+        let table = Arc::make_mut(table);
+        for (_, typer) in &mut table.entries {
+            if &typer.nick == old {
+                typer.nick = new.clone();
+            }
+        }
+        for deadline in &mut table.deadlines {
+            if &deadline.nick == old {
+                deadline.nick = new.clone();
+                let suffix = deadline
+                    .actor
+                    .find(['!', '@'])
+                    .map_or("", |index| &deadline.actor[index..]);
+                deadline.actor = format!("{new}{suffix}");
+            }
+        }
+        table.deduplicate();
+    }
+
+    pub(crate) fn refold(table: &mut Arc<Self>, mapping: Casemapping) {
+        let table = Arc::make_mut(table);
+        for (conversation, typer) in &mut table.entries {
+            *conversation = refold_conversation(conversation, mapping);
+            typer.nick = mapping.nick(typer.nick.as_ref());
+        }
+        for deadline in &mut table.deadlines {
+            deadline.conversation = refold_conversation(&deadline.conversation, mapping);
+            deadline.nick = mapping.nick(deadline.nick.as_ref());
+        }
+        table.deduplicate();
+    }
+
+    fn deduplicate(&mut self) {
+        let mut seen = Vec::new();
+        self.entries.retain(|(conversation, typer)| {
+            let key = (conversation.clone(), typer.nick.clone());
+            !seen.contains(&key) && {
+                seen.push(key);
+                true
+            }
+        });
+        let mut seen = Vec::new();
+        self.deadlines.retain(|deadline| {
+            let key = (deadline.conversation.clone(), deadline.nick.clone());
+            !seen.contains(&key) && {
+                seen.push(key);
+                true
+            }
+        });
+    }
 }
 
 impl PartialEq for TypingTable {
@@ -340,6 +392,31 @@ impl Session {
                 )));
             }
         }
+    }
+
+    pub(crate) fn carry_typing_for_nick(&mut self, message: &LineRef<'_>) {
+        let (Some(Source::User { nick, .. }), Some(new)) = (message.source(), message.param(0))
+        else {
+            return;
+        };
+        if message.command() != Command::Nick {
+            return;
+        }
+        let mapping = self.isupport.value().casemapping();
+        TypingTable::rename(
+            &mut self.state.typing,
+            &mapping.nick(nick),
+            &mapping.nick(new),
+        );
+    }
+}
+
+fn refold_conversation(conversation: &Conversation, mapping: Casemapping) -> Conversation {
+    match conversation {
+        Conversation::Channel(channel) => Conversation::Channel(mapping.channel(channel.as_ref())),
+        Conversation::Private(nick) => Conversation::Private(mapping.nick(nick.as_ref())),
+        Conversation::Server => Conversation::Server,
+        Conversation::Broadcast(mask) => Conversation::Broadcast(mapping.mask(mask.as_ref())),
     }
 }
 

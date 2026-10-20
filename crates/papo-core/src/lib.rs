@@ -3347,6 +3347,7 @@ impl Session {
         let typing_handled = self.report_typing(now, message, context.batch_type().is_some());
         self.stop_typing_for_message(message);
         self.stop_typing_for_departure(message);
+        self.carry_typing_for_nick(message);
         let state_handled = whoami
             || self.state.handle_message(
                 message,

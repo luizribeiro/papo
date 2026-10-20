@@ -190,6 +190,34 @@ fn own_departures_and_disconnect_clear_typing_silently() {
 }
 
 #[test]
+fn nick_changes_carry_typing_and_its_deadline() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_connected(now);
+    session.handle_line(now, b"@+typing=active :alice!~a@cloak TAGMSG #papo");
+    _ = session.poll_event();
+    session.handle_line(now, b":alice!~a@cloak NICK Alicia");
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::NickChanged { .. })
+    ));
+
+    let conversation = conversation(&session, "#papo");
+    let typer = session.state().typing(&conversation).next().unwrap();
+    assert_eq!(typer.nick, "Alicia");
+    assert_eq!(typer.state, Typing::Active);
+    assert_eq!(
+        session.poll_timeout(),
+        Some(now + std::time::Duration::from_secs(6))
+    );
+    session.handle_timeout(now + std::time::Duration::from_secs(6));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::TypingChanged(change)) if change.actor == "Alicia!~a@cloak"
+    ));
+}
+
+#[test]
 fn own_and_history_typing_are_not_stored() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
