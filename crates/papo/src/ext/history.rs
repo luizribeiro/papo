@@ -296,6 +296,69 @@ pub struct RecentConversation {
     pub latest: SystemTime,
 }
 
+/// Input accepted by history and read-marker operations.
+#[doc(hidden)]
+pub enum ConversationInput {
+    /// A wire address interpreted using the server's current rules.
+    Text(String),
+    /// An already classified conversation.
+    Conversation(crate::Conversation),
+}
+
+impl From<&str> for ConversationInput {
+    fn from(value: &str) -> Self {
+        Self::Text(value.to_owned())
+    }
+}
+
+impl From<String> for ConversationInput {
+    fn from(value: String) -> Self {
+        Self::Text(value)
+    }
+}
+
+impl From<&String> for ConversationInput {
+    fn from(value: &String) -> Self {
+        Self::Text(value.clone())
+    }
+}
+
+impl From<crate::Conversation> for ConversationInput {
+    fn from(value: crate::Conversation) -> Self {
+        Self::Conversation(value)
+    }
+}
+
+impl ConversationInput {
+    fn target(self, state: &crate::State) -> Result<String, Error> {
+        let conversation = match self {
+            Self::Text(target) => {
+                let (status, conversation) = state
+                    .parse_target(&target)
+                    .map_err(|reason| crate::InvalidInput::invalid_name(target, reason))?;
+                if status.is_some() {
+                    return Err(crate::InvalidInput::InvalidMessage(
+                        "history conversations cannot have a status prefix".into(),
+                    )
+                    .into());
+                }
+                conversation
+            }
+            Self::Conversation(conversation) => conversation,
+        };
+        match conversation {
+            crate::Conversation::Channel(channel) => Ok(channel.to_string()),
+            crate::Conversation::Private(nick) => Ok(nick.to_string()),
+            crate::Conversation::Server | crate::Conversation::Broadcast(_) | _ => {
+                Err(crate::InvalidInput::InvalidMessage(
+                    "history requires a channel or private conversation".into(),
+                )
+                .into())
+            }
+        }
+    }
+}
+
 impl HistoryPage {
     /// Iterates over chat messages, excluding replayed activity items.
     pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
@@ -587,16 +650,13 @@ impl Client {
     /// or [`Error::Disconnected`].
     pub fn mark_read(
         &self,
-        target: impl AsRef<str>,
+        target: impl Into<ConversationInput>,
         time: SystemTime,
     ) -> crate::RequestFuture<Option<SystemTime>> {
         let client = self.clone();
-        let target = target.as_ref().to_owned();
+        let target = target.into();
         crate::RequestFuture::new(async move {
-            client
-                .state()
-                .parse_target(&target)
-                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let target = target.target(&client.state())?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
@@ -1098,14 +1158,26 @@ mod tests {
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
         complete_connect_read_marker(&mut server, &mut events).await;
-        let request = tokio::spawn(async move {
+        let time = UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999);
+        assert!(matches!(
+            client.mark_read("@#papo", time).await,
+            Err(Error::InvalidInput(_))
+        ));
+        assert!(matches!(
+            client.mark_read(crate::Conversation::Server, time).await,
+            Err(Error::InvalidInput(_))
+        ));
+        assert!(matches!(
             client
                 .mark_read(
-                    "#papo",
-                    UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999),
+                    crate::Conversation::Broadcast(client.state().mask("$opers")),
+                    time,
                 )
-                .await
-        });
+                .await,
+            Err(Error::InvalidInput(_))
+        ));
+        let channel = crate::Conversation::Channel(client.state().channel_name("#papo"));
+        let request = tokio::spawn(async move { client.mark_read(channel, time).await });
         client_line(
             &mut server,
             b"@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",

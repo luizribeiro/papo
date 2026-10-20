@@ -1712,7 +1712,7 @@ pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl 
 impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::history(&self, impl core::convert::AsRef<str>) -> papo::History
-pub fn papo::Client::mark_read(&self, impl core::convert::AsRef<str>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
+pub fn papo::Client::mark_read(&self, impl core::convert::Into<ConversationInput>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::recent_conversations(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
 impl papo::Client
 pub fn papo::Client::metadata(&self) -> papo::Metadata

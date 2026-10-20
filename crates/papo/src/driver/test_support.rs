@@ -280,7 +280,7 @@ pub(crate) async fn complete_connect_read_marker(
     )
     .await;
     client_line(server, b"CAP END\r\n").await;
-    server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+    server_line(server, b":ergo.test 005 papo-driver CHANTYPES=# STATUSMSG=@+ :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 
