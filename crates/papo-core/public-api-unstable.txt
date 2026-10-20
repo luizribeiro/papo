@@ -1195,7 +1195,7 @@ pub fn papo_core::Channel::modes(&self) -> impl core::iter::traits::iterator::It
 pub fn papo_core::Channel::name(&self) -> &papo::ChannelName
 pub fn papo_core::Channel::topic(&self) -> core::option::Option<&str>
 pub const fn papo_core::Channel::topic_set_at(&self) -> core::option::Option<std::time::SystemTime>
-pub fn papo_core::Channel::topic_set_by(&self) -> core::option::Option<&str>
+pub const fn papo_core::Channel::topic_set_by(&self) -> core::option::Option<&papo_core::Source>
 impl core::clone::Clone for papo_core::Channel
 pub fn papo_core::Channel::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Channel

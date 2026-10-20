@@ -6,7 +6,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
     Account, Away, Config, Conversation, Event, OwnedModeChange, RateLimit, ResponseMatcher,
-    StateLimit, Subject,
+    Source, StateLimit, Subject,
 };
 use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, ModeKind, Nick};
 use support::Transcript;
@@ -775,7 +775,12 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
                 Some(UNIX_EPOCH + Duration::from_secs(1_723_501_539))
             );
             assert_eq!(channel.topic(), Some("Welcome to the papo channel"));
-            assert_eq!(channel.topic_set_by(), Some("alice"));
+            assert!(
+                channel
+                    .topic_set_by()
+                    .and_then(Source::nick)
+                    .is_some_and(|nick| nick == "alice")
+            );
             assert_eq!(
                 channel.topic_set_at(),
                 Some(UNIX_EPOCH + Duration::from_secs(1_723_501_612))
@@ -797,6 +802,36 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
 }
 
 #[test]
+fn parses_topic_setters_as_nicks_user_prefixes_and_servers() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":ergo.test 333 emily #papo alice 1723501612")
+        .inspect(|session| {
+            assert!(matches!(
+                session.state().channel("#papo").unwrap().topic_set_by(),
+                Some(Source::User { nick, username: None, host: None, .. }) if nick == "alice"
+            ));
+        })
+        .server(":ergo.test 333 emily #papo alice!~a@staff.example 1723501613")
+        .inspect(|session| {
+            assert!(matches!(
+                session.state().channel("#papo").unwrap().topic_set_by(),
+                Some(Source::User { nick, username: Some(username), host: Some(host), .. })
+                    if nick == "alice" && username == "~a" && host == "staff.example"
+            ));
+        })
+        .server(":solanum.example 333 emily #papo irc.libera.chat 1760529342")
+        .inspect(|session| {
+            assert!(matches!(
+                session.state().channel("#papo").unwrap().topic_set_by(),
+                Some(Source::Server { name, .. }) if name == "IRC.LIBERA.CHAT"
+            ));
+        })
+        .no_event();
+}
+
+#[test]
 fn tracks_live_topic_changes_and_clearing() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
@@ -806,7 +841,11 @@ fn tracks_live_topic_changes_and_clearing() {
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), Some("Rust 1.90 is out"));
-            assert_eq!(channel.topic_set_by(), Some("alice"));
+            assert!(matches!(
+                channel.topic_set_by(),
+                Some(Source::User { nick, username: Some(username), host: Some(host), .. })
+                    if nick == "alice" && username == "alice" && host == "staff.example"
+            ));
             assert_eq!(channel.topic_set_at(), None);
         })
         .server(":alice!alice@staff.example TOPIC #papo :")
@@ -814,7 +853,10 @@ fn tracks_live_topic_changes_and_clearing() {
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), None);
-            assert_eq!(channel.topic_set_by(), Some("alice"));
+            assert!(channel
+                .topic_set_by()
+                .and_then(Source::nick)
+                .is_some_and(|nick| nick == "alice"));
         })
         .no_event();
 }

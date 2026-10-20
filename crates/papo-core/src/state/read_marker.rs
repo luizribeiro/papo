@@ -1,6 +1,6 @@
 use super::{
-    Command, Event, LastSeen, LineRef, MAX_LAST_SEEN_TARGETS, NameKey, Outbox, ReadMarker, Source,
-    State, time,
+    Command, Event, LastSeen, LineRef, MAX_LAST_SEEN_TARGETS, NameKey, Outbox, ProtoSource,
+    ReadMarker, State, time,
 };
 
 impl State {
@@ -66,7 +66,7 @@ impl State {
             return;
         };
         if crate::names_equal(self.casemapping, target, own_nick) {
-            let Some(Source::User { nick, .. }) = message.source() else {
+            let Some(ProtoSource::User { nick, .. }) = message.source() else {
                 return;
             };
             target = nick;

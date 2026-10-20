@@ -1,11 +1,11 @@
 use super::{
     Account, Arc, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, Numeric,
-    Outbox, Source, State, StateLimit, User,
+    Outbox, ProtoSource, State, StateLimit, User,
 };
 
 impl State {
     pub(super) fn handle_quit(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Handled {
-        let Some(Source::User { nick, .. }) = message.source() else {
+        let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return Handled::No;
         };
         let ours = crate::names_equal(self.casemapping, nick, &self.nick);
@@ -46,7 +46,7 @@ impl State {
         no_implicit_names: bool,
         outbox: &mut Outbox,
     ) -> Handled {
-        let Some(Source::User {
+        let Some(ProtoSource::User {
             nick,
             username,
             host,

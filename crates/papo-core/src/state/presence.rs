@@ -1,12 +1,12 @@
 use super::{
     Account, AccountNotify, Away, AwayNotify, Casemapping, Chghost, Command, Event, Handled,
-    Isupport, LineRef, Numeric, Outbox, Setname, Source, State, WHOX_FIELDS, WHOX_TOKEN, WhoUser,
-    WhoxFlags, WhoxPresence, WhoxReply,
+    Isupport, LineRef, Numeric, Outbox, ProtoSource, Setname, State, WHOX_FIELDS, WHOX_TOKEN,
+    WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
 };
 
 impl State {
     fn apply_user_tags(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) {
-        let Some(Source::User { nick, .. }) = message.source() else {
+        let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return;
         };
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
@@ -56,7 +56,7 @@ impl State {
 
     fn handle_account(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Option<Handled> {
         let account = AccountNotify::parse(message)?;
-        let Some(Source::User { nick, .. }) = message.source() else {
+        let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return Some(Handled::No);
         };
         let account = Account::from_notify(account.account, self.casemapping);
@@ -79,7 +79,7 @@ impl State {
         outbox: &mut Outbox,
     ) -> Option<Handled> {
         if let Some(away) = AwayNotify::parse(message) {
-            let Source::User { nick, .. } = message.source()? else {
+            let ProtoSource::User { nick, .. } = message.source()? else {
                 return Some(Handled::No);
             };
             if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
@@ -188,7 +188,7 @@ impl State {
         message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
-        let Source::User { nick, .. } = message.source()? else {
+        let ProtoSource::User { nick, .. } = message.source()? else {
             return None;
         };
         if let Some(change) = Chghost::parse(message) {

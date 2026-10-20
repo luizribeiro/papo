@@ -17,12 +17,12 @@ use std::{
 use papo_proto::{
     Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
     Command, Isupport, Join, LineRef, MetadataKey, ModeChanges, ModeKind, NamesEntry, Nick,
-    Numeric, Setname, Source, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
+    Numeric, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
 use crate::{
     Authorship, Config, Conversation, Event, Handled, LastSeen, MetadataValue, NameKey, Outbox,
-    OwnedModeChange, ReadMarker, StateLimit, Subject,
+    OwnedModeChange, ReadMarker, Source, StateLimit, Subject,
     conversation::classify_target,
     monitor::{Monitor, presence_nicks},
 };
@@ -79,7 +79,7 @@ pub struct Channel {
     modes: HashMap<char, Option<String>>,
     created_at: Option<SystemTime>,
     topic: Option<String>,
-    topic_set_by: Option<String>,
+    topic_set_by: Option<Source>,
     topic_set_at: Option<SystemTime>,
     names_reply_seen: bool,
     synced: bool,
@@ -211,7 +211,7 @@ impl State {
 
     pub(super) fn source_authorship(&self, message: &LineRef<'_>) -> Authorship {
         match message.source() {
-            Some(Source::User { nick, .. }) => self.nick_authorship(nick),
+            Some(ProtoSource::User { nick, .. }) => self.nick_authorship(nick),
             _ => Authorship::Other,
         }
     }
@@ -388,7 +388,7 @@ impl State {
             return handled;
         }
         if message.command() == Command::Part {
-            let Some(Source::User { nick, .. }) = message.source() else {
+            let Some(ProtoSource::User { nick, .. }) = message.source() else {
                 return Handled::No;
             };
             let Some(channels) = message.param(0) else {
@@ -418,8 +418,8 @@ impl State {
                 return Handled::No;
             };
             let actor = match source {
-                Source::Server(name) => name,
-                Source::User { nick, .. } => nick,
+                ProtoSource::Server(name) => name,
+                ProtoSource::User { nick, .. } => nick,
             };
             let authorship = self.source_authorship(message);
             let subject_authorship = self.nick_authorship(nick);
@@ -443,7 +443,7 @@ impl State {
             return self.handle_quit(message, outbox);
         }
         if message.command() == Command::Nick {
-            let (Some(Source::User { nick, .. }), Some(new_nick)) =
+            let (Some(ProtoSource::User { nick, .. }), Some(new_nick)) =
                 (message.source(), message.param(0))
             else {
                 return Handled::No;
@@ -515,7 +515,7 @@ impl State {
         let Some(change) = Setname::parse(message) else {
             return false;
         };
-        let Some(Source::User {
+        let Some(ProtoSource::User {
             nick,
             username: Some(user),
             host: Some(host),
@@ -690,7 +690,9 @@ impl State {
                 else {
                     return false;
                 };
-                channel.topic_set_by = message.param(2).map(str::to_owned);
+                channel.topic_set_by = message
+                    .param(2)
+                    .map(|setter| Source::from_prefix(setter, self.casemapping));
                 channel.topic_set_at = message.param(3).and_then(parse_unix_seconds);
                 return true;
             }
@@ -712,10 +714,9 @@ impl State {
         };
         channel.topic = topic.filter(|topic| !topic.is_empty()).map(str::to_owned);
         channel.topic_set_by = if live {
-            message.source().map(|source| match source {
-                Source::Server(name) => name.to_owned(),
-                Source::User { nick, .. } => nick.to_owned(),
-            })
+            message
+                .source()
+                .map(|source| Source::from_proto(source, self.casemapping))
         } else {
             None
         };
@@ -953,8 +954,8 @@ impl State {
 
 fn source_name<'a>(message: &'a LineRef<'_>) -> Option<&'a str> {
     Some(match message.source()? {
-        Source::Server(name) => name,
-        Source::User { nick, .. } => nick,
+        ProtoSource::Server(name) => name,
+        ProtoSource::User { nick, .. } => nick,
     })
 }
 
@@ -1037,8 +1038,8 @@ impl Channel {
 
     /// Returns who set the current topic when known.
     #[must_use]
-    pub fn topic_set_by(&self) -> Option<&str> {
-        self.topic_set_by.as_deref()
+    pub const fn topic_set_by(&self) -> Option<&Source> {
+        self.topic_set_by.as_ref()
     }
 
     /// Returns when the current topic was set.

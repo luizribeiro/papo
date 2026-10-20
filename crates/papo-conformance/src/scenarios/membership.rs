@@ -1049,9 +1049,7 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     let synchronized = state.channel(&channel).unwrap();
     assert_eq!(synchronized.topic(), Some(text));
     assert_eq!(
-        synchronized
-            .topic_set_by()
-            .and_then(|source| source.split('!').next()),
+        synchronized.topic_set_by().and_then(crate::source_nick),
         Some(alice_nick.as_ref())
     );
     assert!(synchronized.topic_set_at().is_some());
