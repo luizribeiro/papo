@@ -152,6 +152,27 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
 }
 
 #[test]
+fn refolds_cached_network_nicknames_when_casemapping_changes() {
+    registered()
+        .server("BOUNCER NETWORK 42 nickname=Alice[bot]")
+        .event(|event| matches!(event, Event::BouncerNetwork { .. }))
+        .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported")
+        .inspect(|session| {
+            let nick = session
+                .state()
+                .bouncer_networks()
+                .next()
+                .unwrap()
+                .nickname
+                .as_ref()
+                .unwrap();
+            assert_eq!(nick.casemapping(), Casemapping::Ascii);
+            assert_ne!(nick, "alice{bot}");
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn bounds_the_server_driven_network_cache() {
     let mut transcript = registered();
     for index in 0..10_001 {

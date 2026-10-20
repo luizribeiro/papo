@@ -708,6 +708,12 @@ impl State {
             .into_values()
             .map(|seen| (Folded::new(&seen.target, mapping), seen))
             .collect();
+        #[cfg(feature = "unstable")]
+        for network in self.bouncer_networks.values_mut() {
+            if let Some(nick) = &mut network.nickname {
+                *nick = mapping.nick(nick.as_ref());
+            }
+        }
         self.metadata = std::mem::take(&mut self.metadata)
             .into_iter()
             .map(|(target, values)| (Folded::new(target.original(), mapping), values))
