@@ -218,6 +218,47 @@ fn nick_changes_carry_typing_and_its_deadline() {
 }
 
 #[test]
+fn endless_typers_stay_within_literal_bounds() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for index in 0..33 {
+        session.handle_line(
+            now,
+            format!("@+typing=active :user{index:02}!u@cloak TAGMSG #papo").as_bytes(),
+        );
+        while session.poll_event().is_some() {}
+    }
+    let channel = conversation(&session, "#papo");
+    let typers: Vec<_> = session.state().typing(&channel).collect();
+    assert_eq!(typers.len(), 32);
+    assert_eq!(typers[0].nick, "user01");
+    assert_eq!(typers[31].nick, "user32");
+
+    let mut session = Session::new(Config::default());
+    for index in 0..513 {
+        session.handle_line(
+            now,
+            format!("@+typing=active :user{index:03}!u@cloak TAGMSG #room{index:03}").as_bytes(),
+        );
+        while session.poll_event().is_some() {}
+    }
+    let retained: usize = (0..513)
+        .map(|index| {
+            let channel = conversation(&session, &format!("#room{index:03}"));
+            session.state().typing(&channel).count()
+        })
+        .sum();
+    assert_eq!(retained, 512);
+    assert_eq!(
+        session
+            .state()
+            .typing(&conversation(&session, "#room000"))
+            .count(),
+        0
+    );
+}
+
+#[test]
 fn own_and_history_typing_are_not_stored() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));

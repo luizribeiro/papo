@@ -5,6 +5,9 @@ use web_time::Instant;
 
 use crate::{Authorship, Conversation, Event, Session, conversation::classify_line};
 
+const MAX_TYPERS_PER_CONVERSATION: usize = 32;
+const MAX_TYPERS: usize = 512;
+
 /// Why a user's typing state changed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -84,21 +87,22 @@ impl TypingTable {
     fn notify(
         table: &mut Arc<Self>,
         now: Instant,
-        conversation: Conversation,
+        conversation: &Conversation,
         nick: Nick,
         actor: String,
         status: Option<Vec<char>>,
         state: Typing,
-    ) {
+    ) -> Vec<Deadline> {
         let table = Arc::make_mut(table);
+        let mut evicted = Vec::new();
         let entry = table
             .entries
             .iter()
-            .position(|(candidate, typer)| candidate == &conversation && typer.nick == nick);
+            .position(|(candidate, typer)| candidate == conversation && typer.nick == nick);
         let deadline = table
             .deadlines
             .iter()
-            .position(|item| item.conversation == conversation && item.nick == nick);
+            .position(|item| &item.conversation == conversation && item.nick == nick);
         if state == Typing::Done {
             entry.and_then(|position| table.entries.remove(position));
             deadline.and_then(|position| table.deadlines.remove(position));
@@ -114,7 +118,7 @@ impl TypingTable {
                 table.entries.push_back((conversation.clone(), typer));
             }
             let value = Deadline {
-                conversation,
+                conversation: conversation.clone(),
                 nick,
                 actor,
                 status,
@@ -125,7 +129,26 @@ impl TypingTable {
             } else {
                 table.deadlines.push_back(value);
             }
+            if table
+                .entries
+                .iter()
+                .filter(|(candidate, _)| candidate == conversation)
+                .count()
+                > MAX_TYPERS_PER_CONVERSATION
+                && let Some(position) = table
+                    .entries
+                    .iter()
+                    .position(|(candidate, _)| candidate == conversation)
+            {
+                table.entries.remove(position);
+                evicted.extend(table.deadlines.remove(position));
+            }
+            if table.entries.len() > MAX_TYPERS {
+                table.entries.pop_front();
+                evicted.extend(table.deadlines.pop_front());
+            }
         }
+        evicted
     }
 
     pub(crate) fn next_deadline(&self) -> Option<Instant> {
@@ -273,15 +296,21 @@ impl Session {
         };
         let authorship = self.authorship(message);
         if authorship == Authorship::Other {
-            TypingTable::notify(
+            let evicted = TypingTable::notify(
                 &mut self.state.typing,
                 now,
-                conversation.clone(),
+                &conversation,
                 self.isupport.value().casemapping().nick(nick),
                 actor.to_owned(),
                 status.clone(),
                 state,
             );
+            for deadline in evicted {
+                self.outbox.event(Event::TypingChanged(stopped(
+                    deadline,
+                    TypingReason::TimedOut,
+                )));
+            }
         }
         self.outbox.event(Event::TypingChanged(TypingChanged {
             actor: actor.to_owned(),
