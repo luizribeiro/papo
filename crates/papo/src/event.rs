@@ -1510,6 +1510,19 @@ mod tests {
     }
 
     #[test]
+    fn maps_transmit_aborted() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        let token = session
+            .send_tracked(now, Line::privmsg("#papo", "deployment queued"))
+            .unwrap();
+        session.handle_disconnected(now);
+        assert!(
+            matches!(from_core(session.poll_event().unwrap()), CoreEvent::TransmitAborted(mapped) if mapped == token)
+        );
+    }
+
+    #[test]
     fn maps_standard_reply() {
         for (core, public) in [
             (papo_proto::StandardReplyKind::Fail, StandardReplyKind::Fail),
