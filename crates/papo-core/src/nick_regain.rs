@@ -1,6 +1,11 @@
+use std::time::Duration;
+
 use papo_proto::{Isupport, LineRef};
+use web_time::Instant;
 
 use crate::{Config, Monitor, Outbox, names_equal};
+
+const ISON_INTERVAL: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Default)]
 pub(super) struct NickRegain {
@@ -16,6 +21,9 @@ enum Watch {
         added: bool,
         claim_pending: bool,
     },
+    Ison {
+        next_poll: Option<Instant>,
+    },
 }
 
 impl NickRegain {
@@ -27,12 +35,19 @@ impl NickRegain {
 
     pub(super) fn start(
         &mut self,
+        now: Instant,
         config: &Config,
         isupport: &Isupport,
         monitor: &Monitor,
         outbox: &mut Outbox,
     ) {
-        if !config.regain_nick || !self.primary_taken || isupport.monitor().is_none() {
+        if !config.regain_nick || !self.primary_taken {
+            return;
+        }
+        if isupport.monitor().is_none() {
+            self.watch = Watch::Ison {
+                next_poll: Some(now + ISON_INTERVAL),
+            };
             return;
         }
         let added = !monitor.desires(&config.nick, isupport);
@@ -88,6 +103,22 @@ impl NickRegain {
                 .is_some_and(|nick| names_equal(isupport.casemapping(), nick, &config.nick))
         {
             *claim_pending = false;
+        }
+    }
+
+    pub(super) fn handle_timeout(&mut self, now: Instant, nick: &str, outbox: &mut Outbox) {
+        if let Watch::Ison { next_poll, .. } = &mut self.watch
+            && next_poll.is_some_and(|deadline| now >= deadline)
+        {
+            *next_poll = None;
+            outbox.transmit("ISON", [nick]);
+        }
+    }
+
+    pub(super) fn next_deadline(&self) -> Option<Instant> {
+        match self.watch {
+            Watch::Ison { next_poll, .. } => next_poll,
+            Watch::Inactive | Watch::Monitor { .. } => None,
         }
     }
 

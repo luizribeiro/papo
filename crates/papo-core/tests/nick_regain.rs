@@ -1,10 +1,12 @@
 //! Nickname regain transcript tests.
 mod support;
 
+use std::time::Duration;
+
 use papo_core::{Config, Event};
 use support::Transcript;
 
-fn registered_after_collision(config: Config) -> Transcript {
+fn registered_after_collision(config: Config, monitor: bool) -> Transcript {
     Transcript::new(config.alt_nicks(["papo_"]))
         .connect_default()
         .server(":ergo.test 433 * papo :Nickname is already in use")
@@ -12,7 +14,11 @@ fn registered_after_collision(config: Config) -> Transcript {
         .server(":ergo.test CAP * LS :")
         .client("CAP END")
         .welcome(":ergo.test 001 papo_ :Welcome to Ergo")
-        .server(":ergo.test 005 papo_ MONITOR=100 :are supported by this server")
+        .server(if monitor {
+            ":ergo.test 005 papo_ MONITOR=100 :are supported by this server"
+        } else {
+            ":irc.solanum.example 005 papo_ CASEMAPPING=rfc1459 :are supported by this server"
+        })
         .server(":ergo.test 422 papo_ :MOTD File is missing")
         .event(|event| matches!(event, Event::Connected(_)))
 }
@@ -21,7 +27,7 @@ fn registered_after_collision(config: Config) -> Transcript {
 fn reclaims_the_primary_nick_when_ergo_reports_it_offline() {
     let mut config = Config::default();
     config.regain_nick = true;
-    registered_after_collision(config)
+    registered_after_collision(config, true)
         .client("MONITOR + papo")
         .server(":ergo.test 731 papo_ :papo")
         .client("NICK papo")
@@ -36,5 +42,18 @@ fn reclaims_the_primary_nick_when_ergo_reports_it_offline() {
 
 #[test]
 fn nickname_regain_is_disabled_by_default() {
-    registered_after_collision(Config::default()).no_client();
+    registered_after_collision(Config::default(), true).no_client();
+}
+
+#[test]
+fn polls_ison_with_only_one_request_in_flight() {
+    let mut config = Config::default()
+        .ping_interval(Duration::from_secs(300))
+        .ping_timeout(Duration::from_secs(600));
+    config.regain_nick = true;
+    registered_after_collision(config, false)
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .advance(Duration::from_secs(60))
+        .no_client();
 }

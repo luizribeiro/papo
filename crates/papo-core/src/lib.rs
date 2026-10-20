@@ -2328,6 +2328,7 @@ impl Session {
             self.monitor
                 .restore(self.isupport.value(), &mut self.outbox);
             self.nick_regain.start(
+                now,
                 &self.config,
                 self.isupport.value(),
                 &self.monitor,
@@ -2350,6 +2351,8 @@ impl Session {
             &mut self.outbox,
         );
         self.keepalive.handle_timeout(now, &mut self.outbox);
+        self.nick_regain
+            .handle_timeout(now, &self.config.nick, &mut self.outbox);
         self.apply_close_request();
     }
 
@@ -2845,6 +2848,7 @@ impl Session {
                 self.isupport.value().saferate(),
             ),
             self.batches.next_deadline(),
+            self.nick_regain.next_deadline(),
             self.requests
                 .values()
                 .filter_map(|(_, started, _, _, _)| {
@@ -3174,6 +3178,7 @@ impl Session {
             self.monitor
                 .restore(self.isupport.value(), &mut self.outbox);
             self.nick_regain.start(
+                now,
                 &self.config,
                 self.isupport.value(),
                 &self.monitor,
