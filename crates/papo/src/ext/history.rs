@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Line, Message as ChatMessage, Origin, Source,
+    Client, Error, Line, Message as ChatMessage, Origin,
     driver::Command,
     event::{
         Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,
@@ -270,7 +270,7 @@ fn reaction(
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
-        actor: Source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,
         conversation,
         status,
@@ -295,7 +295,7 @@ fn redaction(
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
-        actor: Source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,
         conversation,
         status,
@@ -378,7 +378,7 @@ fn kicked(
         authorship,
         subject_authorship,
         nick: mapping.nick(nick),
-        actor: Source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         reason: message.param(2).map(str::to_owned),
     }))
 }
@@ -418,7 +418,7 @@ fn topic_changed(
             .param(1)
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
-        actor: Source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,
     }))
 }
@@ -454,7 +454,7 @@ fn mode_changed(
         } else {
             crate::Subject::User(mapping.nick(message.param(0)?))
         },
-        actor: Source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,
         subject_authorship,
         changes,
@@ -1127,7 +1127,7 @@ mod tests {
         assert!(matches!(
             reacted,
             HistoryItem::Reacted(event)
-                if event.actor.nick() == Some("emily")
+                if event.actor.nick().is_some_and(|nick| nick == "emily")
                     && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
                     && event.message == "RfcBTzyxY120004"
@@ -1268,7 +1268,7 @@ mod tests {
             HistoryItem::Kicked(event)
                 if event.channel == "#papo" && event.nick == "emily"
                     && event.reason.as_deref() == Some("Requested by alice")
-                    && matches!(event.actor, crate::Source::Server { ref name } if name == "irc.example")
+                    && matches!(event.actor, crate::Source::Server { ref name, .. } if name == "irc.example")
                     && event.subject_authorship == crate::Authorship::Unknown
         ));
 
@@ -1296,7 +1296,7 @@ mod tests {
             HistoryItem::TopicChanged(event)
                 if event.channel == "#papo"
                     && event.topic.as_deref() == Some("Rust 1.90 is out")
-                    && event.actor.nick() == Some("emily")
+                    && event.actor.nick().is_some_and(|nick| nick == "emily")
         ));
 
         let mode = map(papo_core::HistoryItem::ModeChanged(core_item(
@@ -1306,7 +1306,7 @@ mod tests {
             mode,
             HistoryItem::ModeChanged(event)
                 if matches!(event.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
-                    && event.actor.nick() == Some("emily")
+                    && event.actor.nick().is_some_and(|nick| nick == "emily")
                     && event.changes.len() == 2
                     && event.changes.iter().all(|change| change.set)
                     && event.changes[0].mode == 'i' && event.changes[1].mode == 'm'

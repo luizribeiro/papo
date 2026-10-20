@@ -78,3 +78,15 @@ impl Source {
         }
     }
 }
+
+pub(crate) fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemapping) -> Source {
+    Source::from_proto(source, casemapping)
+}
+
+pub(crate) fn from_prefix(prefix: String, casemapping: Casemapping) -> Source {
+    Source::from_prefix(prefix, casemapping)
+}
+
+pub(crate) fn from_name(name: String, casemapping: Casemapping) -> Source {
+    Source::from_name(name, casemapping)
+}

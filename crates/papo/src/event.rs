@@ -21,7 +21,7 @@ mod conversation;
 #[path = "event/server.rs"]
 mod server;
 #[path = "event/source.rs"]
-mod source;
+pub(crate) mod source;
 #[path = "event/tags.rs"]
 mod tags;
 #[path = "event/user.rs"]
@@ -325,7 +325,7 @@ impl Message {
         let raw_text = raw_text.to_owned();
         let Some(actor) = message
             .source()
-            .map(|source| Source::from_proto(source, isupport.casemapping()))
+            .map(|source| source::from_proto(source, isupport.casemapping()))
         else {
             return Err(raw);
         };
@@ -379,7 +379,7 @@ impl Message {
     pub(crate) fn sender_nick(&self) -> Option<&str> {
         match &self.actor {
             Source::User { nick, .. } => Some(nick.as_ref()),
-            Source::Server { .. } => None,
+            _ => None,
         }
     }
 
@@ -571,7 +571,7 @@ pub(crate) fn joined_from_line(
         account,
         realname: join.realname.map(str::to_owned),
         channel: casemapping.channel(join.channel),
-        actor: Source::from_proto(source, casemapping),
+        actor: source::from_proto(source, casemapping),
         nick,
         authorship,
     })
@@ -855,7 +855,7 @@ pub(crate) fn from_core(
         papo_core::Event::TagMessage(message) => {
             let envelope = core_envelope(&message.envelope, casemapping, received_at);
             let tag = TagMsg {
-                actor: Source::from_prefix(message.actor, casemapping),
+                actor: source::from_prefix(message.actor, casemapping),
                 authorship: Authorship::from_core(message.authorship),
                 conversation: message.conversation,
                 status: message.status,
@@ -910,7 +910,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 account: envelope.account,
-                actor: Source::from_prefix(redacted.actor, casemapping),
+                actor: source::from_prefix(redacted.actor, casemapping),
                 authorship: Authorship::from_core(redacted.authorship),
                 conversation: redacted.conversation,
                 status: redacted.status,
@@ -1062,7 +1062,7 @@ pub(crate) fn from_core(
             authorship,
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
-            let actor = Source::from_prefix(actor, channel.casemapping());
+            let actor = source::from_prefix(actor, channel.casemapping());
             Event::Joined(Joined {
                 msgid: envelope.msgid,
                 time: envelope.time,
@@ -1112,7 +1112,7 @@ pub(crate) fn from_core(
                 account: envelope.account,
                 channel,
                 nick,
-                actor: Source::from_name(actor, casemapping),
+                actor: source::from_name(actor, casemapping),
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
                 reason,
@@ -1127,7 +1127,7 @@ pub(crate) fn from_core(
         } => Event::Invited(Invited {
             channel,
             nick,
-            actor: Source::from_prefix(actor, casemapping),
+            actor: source::from_prefix(actor, casemapping),
             authorship: Authorship::from_core(authorship),
             subject_authorship: Authorship::from_core(subject_authorship),
         }),
@@ -1175,7 +1175,7 @@ pub(crate) fn from_core(
         } => Event::ChannelRenamed(ChannelRenamed {
             old,
             new,
-            actor: Source::from_prefix(actor, casemapping),
+            actor: source::from_prefix(actor, casemapping),
             authorship: Authorship::from_core(authorship),
             reason,
         }),
@@ -1222,7 +1222,7 @@ pub(crate) fn from_core(
                     papo_core::Subject::User(nick) => crate::Subject::User(nick),
                     _ => return CoreEvent::Unknown,
                 },
-                actor: Source::from_name(actor, casemapping),
+                actor: source::from_name(actor, casemapping),
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
                 changes: changes
@@ -1250,7 +1250,7 @@ pub(crate) fn from_core(
                 account: envelope.account,
                 channel,
                 topic,
-                actor: Source::from_name(actor, casemapping),
+                actor: source::from_name(actor, casemapping),
                 authorship: Authorship::from_core(authorship),
             })
         }
@@ -1394,11 +1394,14 @@ mod tests {
         assert_eq!(channel.return_address(), "#papo");
         assert_eq!(
             channel.source(),
-            Some(Source::User {
-                nick: Casemapping::default().nick("emily"),
-                username: Some("~emily".into()),
-                host: Some("localhost".into())
-            })
+            Some(Source::from_proto(
+                papo_proto::Source::User {
+                    nick: "emily",
+                    username: Some("~emily"),
+                    host: Some("localhost")
+                },
+                Casemapping::default(),
+            ))
         );
 
         let private = event(
@@ -1637,7 +1640,7 @@ mod tests {
         assert_eq!(invited.nick, "papo");
         assert!(matches!(
             &invited.actor,
-            Source::User { nick, username: Some(username), host: Some(host) }
+            Source::User { nick, username: Some(username), host: Some(host), .. }
                 if nick == "emily" && username == "~emily" && host == "localhost"
         ));
         assert_eq!(invited.subject_authorship, Authorship::Own);
@@ -1945,7 +1948,7 @@ mod tests {
             Event::ChannelRenamed(renamed)
                 if renamed.old == "#rust"
                     && renamed.new == "#rust-lang"
-                    && renamed.actor.nick() == Some("alice")
+                    && renamed.actor.nick().is_some_and(|nick| nick == "alice")
                     && renamed.reason.as_deref() == Some("Project renamed")
         ));
 
@@ -1958,7 +1961,7 @@ mod tests {
                 reason: None,
             }),
             Event::ChannelRenamed(renamed)
-                if matches!(renamed.actor, Source::Server { ref name } if name == "ergo.test")
+                if matches!(renamed.actor, Source::Server { ref name, .. } if name == "ergo.test")
                     && renamed.reason.is_none()
         ));
     }
@@ -2134,7 +2137,7 @@ mod tests {
             Event::Kicked(kicked)
                 if kicked.channel == "#papo"
                     && kicked.nick == "emily"
-                    && kicked.actor.nick() == Some("alice")
+                    && kicked.actor.nick().is_some_and(|nick| nick == "alice")
                     && kicked.reason.as_deref() == Some("Flooding")
         ));
     }
@@ -2239,7 +2242,7 @@ mod tests {
             }),
             Event::ModeChanged(mode)
                 if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
-                    && mode.actor.nick() == Some("alice")
+                    && mode.actor.nick().is_some_and(|nick| nick == "alice")
                     && mode.changes.len() == 1
                     && mode.changes[0].set
                     && mode.changes[0].mode == 'o'
@@ -2261,7 +2264,7 @@ mod tests {
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")
-                    && changed.actor.nick() == Some("alice")
+                    && changed.actor.nick().is_some_and(|nick| nick == "alice")
         ));
     }
 
@@ -2454,10 +2457,16 @@ mod tests {
 
     #[test]
     fn identifies_self_membership_and_nick_events_with_server_casemapping() {
-        let actor = Source::Server {
-            name: "ergo.test".to_owned(),
-        };
         let mapping = Casemapping::Rfc1459;
+        let actor = Source::from_proto(papo_proto::Source::Server("ergo.test"), mapping);
+        let own_actor = Source::from_proto(
+            papo_proto::Source::User {
+                nick: "Papo[Bot]",
+                username: None,
+                host: None,
+            },
+            mapping,
+        );
         let events = [
             Event::Joined(super::Joined {
                 msgid: None,
@@ -2465,11 +2474,7 @@ mod tests {
                 account: Account::Unknown,
                 realname: None,
                 channel: mapping.channel("#papo"),
-                actor: Source::User {
-                    nick: mapping.nick("Papo[Bot]"),
-                    username: None,
-                    host: None,
-                },
+                actor: own_actor.clone(),
                 nick: mapping.nick("Papo[Bot]"),
                 authorship: Authorship::Own,
             }),
@@ -2519,11 +2524,7 @@ mod tests {
                     account: Account::Unknown,
                     realname: None,
                     channel: mapping.channel("#papo"),
-                    actor: Source::User {
-                        nick: mapping.nick("Papo[Bot]"),
-                        username: None,
-                        host: None,
-                    },
+                    actor: own_actor,
                     nick: mapping.nick("Papo[Bot]"),
                     authorship: Authorship::Own,
                 }],
