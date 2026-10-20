@@ -58,7 +58,7 @@ async fn high_level_client_uses_the_browser_websocket() {
         .await
         .unwrap();
     wait_for(&mut events, |event| {
-        matches!(event, ClientEvent::Message(message) if message.text() == "hello from another browser client")
+        matches!(event, ClientEvent::Message(message) | Event::Line(message) if message.text() == "hello from another browser client")
     })
     .await;
     let sent = client
@@ -122,7 +122,7 @@ fn drives_a_registration_transcript() {
 
     session.handle_line(now, b":ergo.test 001 papo-browser :Welcome to Ergo");
     assert_eq!(session.nick(), "papo-browser");
-    assert!(matches!(session.poll_event(), Some(Event::Message(message)) if message.as_ref().command_is("001")));
+    assert!(matches!(session.poll_event(), Some(Event::Message(message) | Event::Line(message)) if message.as_ref().command_is("001")));
 }
 
 #[wasm_bindgen_test]
