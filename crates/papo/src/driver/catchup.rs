@@ -210,6 +210,8 @@ mod tests {
                 .unwrap()
                 .to_owned(),
             context: false,
+            authorship: papo_core::Authorship::Own,
+            subject_authorship: papo_core::Authorship::Unknown,
         });
         let cursor = super::newest_cursor(&[item]).unwrap();
         assert_eq!(cursor.reference(true), Some(MsgRef::Timestamp(time)));

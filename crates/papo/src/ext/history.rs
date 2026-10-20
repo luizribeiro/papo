@@ -744,6 +744,8 @@ mod tests {
         HistoryLine {
             line: LineRef::parse(message).unwrap().to_owned(),
             context: false,
+            authorship: papo_core::Authorship::Unknown,
+            subject_authorship: papo_core::Authorship::Unknown,
         }
     }
 

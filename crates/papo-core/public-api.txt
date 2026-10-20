@@ -1160,8 +1160,10 @@ impl core::marker::UnsafeUnpin for papo_core::CtcpReplies
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::CtcpReplies
 impl core::panic::unwind_safe::UnwindSafe for papo_core::CtcpReplies
 pub struct papo_core::HistoryLine
+pub papo_core::HistoryLine::authorship: papo_core::Authorship
 pub papo_core::HistoryLine::context: bool
 pub papo_core::HistoryLine::line: papo::Line
+pub papo_core::HistoryLine::subject_authorship: papo_core::Authorship
 impl core::clone::Clone for papo_core::HistoryLine
 pub fn papo_core::HistoryLine::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::HistoryLine

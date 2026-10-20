@@ -1172,6 +1172,8 @@ fn reconnect_history_stops_at_the_literal_per_target_limit() {
                     line: Line::privmsg("#papo", format!("backlog message {index}"))
                         .with_tag("msgid", format!("RfcBTzyxY12{index:04}")),
                     context: false,
+                    authorship: papo_core::Authorship::Other,
+                    subject_authorship: papo_core::Authorship::Unknown,
                 })
             }),
         );

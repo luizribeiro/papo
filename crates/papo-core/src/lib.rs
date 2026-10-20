@@ -1176,6 +1176,10 @@ pub struct HistoryLine {
     pub line: Line,
     /// Whether the server supplied it as context outside the requested limit.
     pub context: bool,
+    /// Whether the line's actor is this session's user.
+    pub authorship: Authorship,
+    /// Whether the line's distinct subject is this session's user.
+    pub subject_authorship: Authorship,
 }
 
 impl std::ops::Deref for HistoryLine {
@@ -1219,6 +1223,23 @@ pub enum HistoryItem {
 }
 
 impl HistoryItem {
+    fn line_mut(&mut self) -> &mut HistoryLine {
+        match self {
+            Self::Message(line)
+            | Self::Reacted(line)
+            | Self::Redacted(line)
+            | Self::TagMsg(line)
+            | Self::Joined(line)
+            | Self::Parted(line)
+            | Self::Quit(line)
+            | Self::Kicked(line)
+            | Self::NickChanged(line)
+            | Self::TopicChanged(line)
+            | Self::ModeChanged(line)
+            | Self::Other(line) => line,
+        }
+    }
+
     /// Returns this item as a chat message.
     #[must_use]
     pub const fn message(&self) -> Option<&HistoryLine> {
@@ -3461,8 +3482,13 @@ impl Session {
     fn dispatch_batch_event(&mut self, now: Instant, event: BatchEvent) {
         match event {
             event @ BatchEvent::Response { .. } => self.dispatch_response_batch(now, event),
-            BatchEvent::History { target, items, end } => {
+            BatchEvent::History {
+                target,
+                mut items,
+                end,
+            } => {
                 if let Some(conversation) = self.history_conversation(&target) {
+                    self.mark_history_authorship(&mut items);
                     self.outbox.event(Event::History {
                         conversation,
                         items,
@@ -3542,6 +3568,41 @@ impl Session {
         .then_some(conversation)
     }
 
+    fn mark_history_authorship(&self, items: &mut [HistoryItem]) {
+        for item in items {
+            let subject_authorship = match item {
+                HistoryItem::ModeChanged(line)
+                    if line
+                        .line
+                        .as_ref()
+                        .param(0)
+                        .is_some_and(|target| self.isupport.value().is_channel(target)) =>
+                {
+                    Authorship::Other
+                }
+                _ => Authorship::Unknown,
+            };
+            let line = item.line_mut();
+            line.authorship = self.history_authorship(&line.line.as_ref());
+            line.subject_authorship = subject_authorship;
+        }
+    }
+
+    fn history_authorship(&self, message: &LineRef<'_>) -> Authorship {
+        let Some(papo_proto::Source::User { .. }) = message.source() else {
+            return Authorship::Unknown;
+        };
+        let (Some(actor), Some(own)) = (message.tag("account"), self.account()) else {
+            return Authorship::Unknown;
+        };
+        let mapping = self.isupport.value().casemapping();
+        if mapping.account(actor.as_ref()) == mapping.account(own) {
+            Authorship::Own
+        } else {
+            Authorship::Other
+        }
+    }
+
     fn history_targets(
         &self,
         targets: Vec<(String, std::time::SystemTime)>,
@@ -3571,7 +3632,7 @@ impl Session {
             echo,
             messages,
             batch_type,
-            history,
+            mut history,
             history_targets,
         } = response
         else {
@@ -3602,6 +3663,9 @@ impl Session {
         }
         if !emit_events {
             self.outbox.events.truncate(queued_events);
+        }
+        if let Some((_, items, _)) = &mut history {
+            self.mark_history_authorship(items);
         }
         if let Some((id, _, sent, _, _)) = request
             && !deferred

@@ -623,6 +623,8 @@ fn history_items(messages: Vec<Line>) -> Vec<HistoryItem> {
                 classify_history_item(HistoryLine {
                     line: message,
                     context,
+                    authorship: crate::Authorship::Unknown,
+                    subject_authorship: crate::Authorship::Unknown,
                 })
             })
         })

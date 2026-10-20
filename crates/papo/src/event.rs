@@ -2125,10 +2125,14 @@ mod tests {
                 papo_core::HistoryItem::Message(papo_core::HistoryLine {
                     line: message.clone(),
                     context: false,
+                    authorship: papo_core::Authorship::Other,
+                    subject_authorship: papo_core::Authorship::Unknown,
                 }),
                 papo_core::HistoryItem::Other(papo_core::HistoryLine {
                     line: Line::new("WALLOPS", ["Network maintenance begins soon"]),
                     context: false,
+                    authorship: papo_core::Authorship::Unknown,
+                    subject_authorship: papo_core::Authorship::Unknown,
                 }),
             ],
             end: true,
