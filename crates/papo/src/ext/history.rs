@@ -232,7 +232,9 @@ pub struct HistoryPage {
     pub target: crate::Target,
     /// Replayed entries in server delivery order.
     pub items: Vec<HistoryItem>,
-    /// Whether the server reported that no further page exists.
+    /// Whether this page was empty or the server reported that no further page exists.
+    ///
+    /// A page shorter than the requested limit does not imply the end.
     pub end: bool,
 }
 

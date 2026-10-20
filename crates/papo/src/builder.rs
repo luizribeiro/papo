@@ -466,8 +466,10 @@ impl Builder {
 
     /// Sets whether network reconnects fetch history missed while disconnected.
     ///
-    /// This fills gaps caused by network blips. It cannot recover in-memory history lost when
-    /// the IRC server itself restarts.
+    /// This emits one history event per channel joined during this process. It does not recover
+    /// direct messages, channels from an earlier process, or in-memory history lost when the IRC
+    /// server itself restarts. Full clients should use [`crate::Client::history_targets`] and
+    /// [`crate::Client::history`] with [`crate::History::after`] and a persisted cursor.
     pub const fn history_on_reconnect(mut self, enabled: bool) -> Self {
         self.history_on_reconnect = enabled;
         self

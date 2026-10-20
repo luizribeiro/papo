@@ -502,10 +502,11 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         "netsplit" => "QUIT",
         "netjoin" => "JOIN",
         _ => {
+            let items = history_items(std::mem::take(&mut batch.messages));
             return vec![BatchEvent::History {
                 target: batch.params.first().cloned().unwrap_or_default(),
-                items: history_items(std::mem::take(&mut batch.messages)),
-                end: batch.end,
+                end: batch.end || items.is_empty(),
+                items,
             }];
         }
     };

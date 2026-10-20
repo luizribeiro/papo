@@ -427,7 +427,7 @@ fn empty_and_draft_history_types_complete() {
         session.handle_line(now, b"BATCH -h");
         assert!(matches!(
             session.poll_event(),
-            Some(Event::History { target, items, end: false })
+            Some(Event::History { target, items, end: true })
                 if target == "#papo" && items.is_empty()
         ));
     }

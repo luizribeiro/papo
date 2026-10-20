@@ -295,6 +295,7 @@ fn assembles_deduplicated_context_aware_pages() {
     };
     let page = response.history.unwrap();
     assert_eq!(page.target, "#papo");
+    assert!(page.end);
     assert_eq!(
         page.items[0].message().unwrap().as_ref().param(1),
         Some("earlier")
@@ -303,6 +304,51 @@ fn assembles_deduplicated_context_aware_pages() {
     assert!(matches!(page.items[1], HistoryItem::TagMsg(_)));
     assert!(page.items[1].clone().into_line().context);
     assert_eq!(page.messages().count(), 1);
+}
+
+#[test]
+fn empty_page_is_the_end_but_a_short_untagged_page_is_not() {
+    let page = |lines: &[&str]| {
+        let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+        session
+            .chathistory(
+                now,
+                HistoryQuery::Latest {
+                    target: "#papo".into(),
+                    after: None,
+                    limit: 10,
+                },
+            )
+            .unwrap();
+        let _ = session.poll_transmit();
+        for line in lines {
+            session.handle_line(now, line.as_bytes());
+        }
+        loop {
+            if let Some(Event::Response(response)) = session.poll_event() {
+                break response.history.expect("history page");
+            }
+        }
+    };
+
+    let empty = page(&[
+        "@label=0 :ergo.test BATCH +reply labeled-response",
+        "@batch=reply :ergo.test BATCH +history chathistory #papo",
+        "@batch=reply :ergo.test BATCH -history",
+        ":ergo.test BATCH -reply",
+    ]);
+    assert!(empty.items.is_empty());
+    assert!(empty.end);
+
+    let short = page(&[
+        "@label=0 :ergo.test BATCH +reply labeled-response",
+        "@batch=reply :ergo.test BATCH +history chathistory #papo",
+        "@batch=history;time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw :alice!~a@localhost PRIVMSG #papo :deploy started",
+        "@batch=reply :ergo.test BATCH -history",
+        ":ergo.test BATCH -reply",
+    ]);
+    assert_eq!(short.items.len(), 1);
+    assert!(!short.end);
 }
 
 #[test]
