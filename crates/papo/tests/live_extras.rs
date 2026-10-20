@@ -22,7 +22,7 @@ async fn subscriber_receives_another_clients_metadata() {
         let writer_nick = unique("papo-metadata-writer");
         let reader_nick = unique("papo-metadata-reader");
         let (writer, mut writer_events) = Client::builder(address.clone())
-            .nick(&writer_nick)
+            .nick(support::nick(&writer_nick))
             .request_caps(["draft/metadata-2", "labeled-response"])
             .autojoin([&channel])
             .connect()
@@ -30,7 +30,7 @@ async fn subscriber_receives_another_clients_metadata() {
             .unwrap();
         wait_synced(&mut writer_events, &channel).await;
         let (reader, mut reader_events) = Client::builder(address)
-            .nick(&reader_nick)
+            .nick(support::nick(&reader_nick))
             .request_caps(["draft/metadata-2", "labeled-response"])
             .autojoin([&channel])
             .connect()
@@ -85,7 +85,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             "message-tags",
         ];
         let (operator, mut operator_events) = Client::builder(address.clone())
-            .nick(&operator_nick)
+            .nick(support::nick(&operator_nick))
             .request_caps(capabilities)
             .autojoin([&old_channel])
             .connect()
@@ -93,7 +93,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             .unwrap();
         wait_synced(&mut operator_events, &old_channel).await;
         let (member, mut member_events) = Client::builder(address)
-            .nick(&member_nick)
+            .nick(support::nick(&member_nick))
             .request_caps(capabilities)
             .autojoin([&old_channel])
             .connect()
@@ -101,7 +101,11 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             .unwrap();
         wait_synced(&mut member_events, &old_channel).await;
         operator
-            .rename_channel(&old_channel, &new_channel, "Project renamed")
+            .rename_channel(
+                support::channel(&old_channel),
+                support::channel(&new_channel),
+                "Project renamed",
+            )
             .await
             .unwrap();
         loop {
@@ -109,7 +113,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
                 Some(Event::ChannelRenamed(renamed)) if renamed.old == old_channel.as_str() => {
                     assert_eq!(
                         (renamed.new, renamed.reason),
-                        (new_channel.clone().into(), "Project renamed".into())
+                        (support::channel(&new_channel), "Project renamed".into())
                     );
                     break;
                 }
@@ -122,7 +126,11 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         }
 
         operator
-            .relay(&new_channel, "matrix/alice", "Hello from Matrix")
+            .relay(
+                support::channel(&new_channel),
+                support::nick("matrix/alice"),
+                "Hello from Matrix",
+            )
             .await
             .unwrap();
         loop {

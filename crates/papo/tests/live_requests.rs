@@ -19,7 +19,7 @@ async fn typed_requests_round_trip_against_ergo() {
         let nick = unique("papo-requests");
         let channel = format!("#{}", unique("papo-requests"));
         let (client, mut events) = Client::builder(address)
-            .nick(&nick)
+            .nick(support::nick(&nick))
             .connect()
             .await
             .unwrap();
@@ -34,17 +34,17 @@ async fn typed_requests_round_trip_against_ergo() {
             }
         }
 
-        let whois = client.whois(&nick).await.unwrap();
+        let whois = client.whois(support::nick(&nick)).await.unwrap();
         assert_eq!(whois.nick, nick.as_str());
 
-        client.join(&channel).await.unwrap();
+        client.join(support::channel(&channel)).await.unwrap();
         assert_eq!(
             client.state().channel(&channel).unwrap().members().count(),
             1
         );
         assert!(
             client
-                .who(&channel)
+                .who(support::mask(&channel))
                 .await
                 .unwrap()
                 .iter()
@@ -53,7 +53,7 @@ async fn typed_requests_round_trip_against_ergo() {
 
         client.mode(&channel).add('t').await.unwrap();
         client
-            .set_topic(&channel, "Typed requests on Ergo")
+            .set_topic(support::channel(&channel), "Typed requests on Ergo")
             .await
             .unwrap();
         assert_eq!(
@@ -73,7 +73,7 @@ async fn typed_requests_round_trip_against_ergo() {
 
         let missing = unique("papo-missing");
         assert!(matches!(
-            client.whois(&missing).await,
+            client.whois(support::nick(&missing)).await,
             Err(Error::Server(error)) if error.code() == "401"
         ));
         client.quit("live request test complete").await.unwrap();

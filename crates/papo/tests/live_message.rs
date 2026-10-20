@@ -21,7 +21,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         let nick_b = unique("papo-replier");
 
         let (client_a, mut events_a) = Client::builder(address.clone())
-            .nick(&nick_a)
+            .nick(support::nick(&nick_a))
             .autojoin([&channel])
             .connect()
             .await
@@ -29,7 +29,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         wait_ready(&mut events_a, &nick_a, &channel).await;
 
         let (client_b, mut events_b) = Client::builder(address)
-            .nick(&nick_b)
+            .nick(support::nick(&nick_b))
             .autojoin([&channel])
             .connect()
             .await
@@ -210,7 +210,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
 
 async fn client(address: Endpoint, nick: &str, channel: &str) -> (Client, papo::Events) {
     let (client, mut events) = Client::builder(address)
-        .nick(nick)
+        .nick(support::nick(nick))
         .autojoin([channel])
         .connect()
         .await
@@ -226,7 +226,7 @@ async fn account_client(
     channel: &str,
 ) -> (Client, papo::Events) {
     let (client, mut events) = Client::builder(address)
-        .nick(account)
+        .nick(support::nick(account))
         .sasl(Sasl::plain(account, password))
         .autojoin([channel])
         .connect()

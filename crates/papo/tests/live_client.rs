@@ -17,7 +17,7 @@ async fn registers_messages_itself_and_quits() {
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
         ))
-        .nick(&nick)
+        .nick(support::nick(&nick))
         .username("papo")
         .realname("papo live client test")
         .connect()

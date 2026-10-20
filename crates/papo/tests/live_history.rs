@@ -18,7 +18,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
         ))
-        .nick(&nick)
+        .nick(support::nick(&nick))
         .request_caps([
             "message-tags",
             "server-time",

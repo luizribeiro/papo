@@ -20,7 +20,7 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
         let password = "q7Hx-2mZp_9vLcT4wRfB";
         register_account_at(server.plaintext_addr(), &nick, password).unwrap();
         let builder = Client::builder(Endpoint::plaintext("localhost", proxy.address().port()))
-            .nick(&nick)
+            .nick(support::nick(&nick))
             .sasl(Sasl::plain(&nick, password))
             .request_caps([
                 "message-tags",
@@ -126,7 +126,7 @@ async fn connect_poster(server: &TestServer, channel: &str) -> Client {
         "localhost",
         server.plaintext_addr().port(),
     ))
-    .nick(&poster_nick)
+    .nick(support::nick(&poster_nick))
     .autojoin([channel])
     .connect()
     .await

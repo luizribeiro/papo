@@ -33,13 +33,13 @@ async fn retains_message(persistent: bool) -> bool {
     };
     register_account_at(server.plaintext_addr(), &account, password).unwrap();
     let (client, _events) = connect(&server, &account, password).await;
-    client.join(&channel).await.unwrap();
+    client.join(support::channel(&channel)).await.unwrap();
     client.privmsg(&channel, text).await.unwrap();
     client.quit("restart fixture prepared").await.unwrap();
 
     server.restart().unwrap();
     let (client, _events) = connect(&server, &account, password).await;
-    client.join(&channel).await.unwrap();
+    client.join(support::channel(&channel)).await.unwrap();
     let page = client.history(&channel).latest(10).await.unwrap();
     let retained = page
         .messages()
@@ -53,7 +53,7 @@ async fn connect(server: &TestServer, account: &str, password: &str) -> (Client,
         "localhost",
         server.plaintext_addr().port(),
     ))
-    .nick(account)
+    .nick(support::nick(account))
     .sasl(Sasl::plain(account, password))
     .request_caps([
         "message-tags",

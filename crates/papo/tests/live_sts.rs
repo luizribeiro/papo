@@ -17,7 +17,7 @@ async fn connect_waits_for_registration_after_an_sts_upgrade() {
             "localhost",
             server.plaintext_addr().port(),
         ))
-        .nick(&nick)
+        .nick(support::nick(&nick))
         .request_caps(["sts"])
         .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
         .connect()

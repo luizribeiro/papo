@@ -21,7 +21,7 @@ async fn stale_credentials_end_reconnect_with_a_registration_cause() {
             "localhost",
             server.plaintext_addr().port(),
         ))
-        .nick(&account)
+        .nick(support::nick(&account))
         .sasl(Sasl::plain(&account, first))
         .reconnect(
             Reconnect::exponential()
@@ -64,7 +64,7 @@ async fn quit_returns_within_its_bound_when_the_peer_stops_reading() {
         let nick = unique("papo-black-hole");
         let (client, mut events) =
             Client::builder(Endpoint::plaintext("localhost", proxy.address().port()))
-                .nick(&nick)
+                .nick(support::nick(&nick))
                 .connect()
                 .await
                 .unwrap();
