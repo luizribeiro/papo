@@ -68,6 +68,37 @@ impl TypingTable {
             .filter(move |(candidate, _)| candidate == conversation)
             .map(|(_, typer)| typer)
     }
+
+    fn notify(
+        table: &mut Arc<Self>,
+        conversation: Conversation,
+        nick: Nick,
+        status: Option<Vec<char>>,
+        state: Typing,
+    ) {
+        let table = Arc::make_mut(table);
+        let position = table
+            .entries
+            .iter()
+            .position(|(candidate, typer)| candidate == &conversation && typer.nick == nick);
+        if state == Typing::Done {
+            if let Some(position) = position {
+                table.entries.remove(position);
+            }
+        } else if let Some(position) = position {
+            table.entries[position].1.state = state;
+            table.entries[position].1.status = status;
+        } else {
+            table.entries.push_back((
+                conversation,
+                Typer {
+                    nick,
+                    state,
+                    status,
+                },
+            ));
+        }
+    }
 }
 
 impl Session {
@@ -81,7 +112,8 @@ impl Session {
             Some("done") => Typing::Done,
             _ => return false,
         };
-        let (Some(Source::User { .. }), Some(actor)) = (message.source(), message.raw_source())
+        let (Some(Source::User { nick, .. }), Some(actor)) =
+            (message.source(), message.raw_source())
         else {
             return false;
         };
@@ -89,9 +121,19 @@ impl Session {
         else {
             return false;
         };
+        let authorship = self.authorship(message);
+        if authorship == Authorship::Other {
+            TypingTable::notify(
+                &mut self.state.typing,
+                conversation.clone(),
+                self.isupport.value().casemapping().nick(nick),
+                status.clone(),
+                state,
+            );
+        }
         self.outbox.event(Event::TypingChanged(TypingChanged {
             actor: actor.to_owned(),
-            authorship: self.authorship(message),
+            authorship,
             conversation,
             status,
             state,
