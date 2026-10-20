@@ -302,9 +302,15 @@
                   ${nightlyToolchain}/bin/cargo rustdoc \
                     -p "$package" --no-default-features --features "$features" --lib --target-dir "$target" \
                     -- -Z unstable-options --output-format json
-                cargo public-api \
-                  --rustdoc-json "$target/doc/$crate.json" \
-                  --color=never -s | bash nix/normalize-public-api.sh > "$actual"
+                if [[ "$package" == papo ]]; then
+                  cargo public-api \
+                    --rustdoc-json "$target/doc/$crate.json" \
+                    --color=never -s | PAPO_PUBLIC_API_FACADE=1 bash nix/normalize-public-api.sh > "$actual"
+                else
+                  cargo public-api \
+                    --rustdoc-json "$target/doc/$crate.json" \
+                    --color=never -s | bash nix/normalize-public-api.sh > "$actual"
+                fi
                 if [[ "$package" == papo ]] && grep -Eq 'papo_(core|proto)::' "$actual"; then
                   echo "public API contains a foreign papo-core or papo-proto path" >&2
                   grep -En 'papo_(core|proto)::' "$actual" >&2
