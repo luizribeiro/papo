@@ -748,6 +748,7 @@ where
     let mut reconnect_now = false;
     let mut buffer = [0; 4096];
     let mut pending_write = None;
+    let mut drain_after_timeout = false;
     let (reason, error, close_kind, quit_timed_out) = loop {
         let write_deadline = [
             session.poll_timeout(),
@@ -776,6 +777,7 @@ where
             &mut sts_store,
             sts_port,
             quit.is_some(),
+            drain_after_timeout,
             write_deadline,
         )
         .await
@@ -794,6 +796,7 @@ where
                 break (reason, Error::connection_lost(), None, false);
             }
         }
+        drain_after_timeout = false;
         let read_ahead = should_read_ahead(
             &requests,
             &sync_waiters,
@@ -1021,6 +1024,7 @@ where
                     );
                 }
                 session.handle_timeout(current);
+                drain_after_timeout = !pending_events.is_empty();
             },
         }
     };
@@ -1138,6 +1142,7 @@ async fn drain<S>(
     sts_store: &mut Option<Box<dyn StsStore + Send>>,
     sts_port: u16,
     quitting: bool,
+    after_timeout: bool,
     deadline: Option<Instant>,
 ) -> io::Result<Option<(papo_core::CloseKind, String)>>
 where
@@ -1155,7 +1160,7 @@ where
         registration,
         quitting,
     );
-    while (pending_events.is_empty() || read_ahead)
+    while (pending_events.is_empty() || read_ahead || after_timeout)
         && let Some(core_event) = session.poll_event()
     {
         match event::from_core(core_event) {
@@ -1342,6 +1347,15 @@ where
                 {
                     _ = action;
                 }
+            }
+            event::CoreEvent::Close {
+                kind: papo_core::CloseKind::PingTimeout,
+                ..
+            } if after_timeout && !pending_events.is_empty() => {
+                return Ok(Some((
+                    papo_core::CloseKind::Other,
+                    SLOW_CONSUMER_REASON.to_owned(),
+                )));
             }
             event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),
             event::CoreEvent::RequestUnsupported { id, unsupported } => {

@@ -647,6 +647,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut sts_store,
         6697,
         false,
+        false,
         Some(deadline),
     )
     .await
@@ -674,6 +675,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut sts,
         &mut sts_store,
         6697,
+        false,
         false,
         None,
     )
@@ -4217,6 +4219,44 @@ async fn slow_consumer_reconnects_after_its_reported_delay() {
     }
     client.quit("test complete").await.unwrap();
     assert!(within(driver).await.unwrap().is_ok());
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn keepalive_expiry_while_events_are_stalled_is_a_slow_consumer() {
+    let settings = config()
+        .ping_interval(Duration::from_secs(30))
+        .ping_timeout(Duration::from_secs(120));
+    let (mut server, _client, mut events, driver) = scripted_with_capacity(settings, 1);
+    let driver = tokio::spawn(driver);
+    complete_registration(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test NOTICE papo-driver :maintenance one\r\n:ergo.test NOTICE papo-driver :maintenance two\r\n",
+    )
+    .await;
+    while events.receiver.len() != 1 {
+        tokio::task::yield_now().await;
+    }
+
+    tokio::time::advance(Duration::from_secs(30)).await;
+    client_line(&mut server, b"PING :papo-0\r\n").await;
+    tokio::time::advance(Duration::from_secs(90)).await;
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::SlowConsumer,
+            retry_in: None,
+        }))
+    ));
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::SlowConsumer,
+            retry_in: None,
+        }))
+    ));
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
