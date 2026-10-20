@@ -233,9 +233,12 @@ async fn a_closed_port_returns_connection_refused_body() {
         .await
         .unwrap_err();
     assert!(matches!(
-        error,
+        &error,
         ConnectError::Tcp(error) if error.kind() == io::ErrorKind::ConnectionRefused
     ));
+    let error = crate::ConnectError::from(error);
+    assert_eq!(error.kind(), crate::ConnectErrorKind::Refused);
+    assert!(std::error::Error::source(&error).is_some());
 }
 
 #[tokio::test(flavor = "current_thread")]

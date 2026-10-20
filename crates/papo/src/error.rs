@@ -300,7 +300,7 @@ impl std::error::Error for ServerError {}
 pub enum DisconnectCause {
     /// The transport reached EOF or otherwise vanished.
     ConnectionLost,
-    /// Opening a replacement connection failed.
+    /// Opening a replacement connection or completing its login failed.
     Connect(ConnectError),
     /// The server sent `ERROR` with bounded explanatory text.
     Server {
@@ -387,7 +387,7 @@ pub enum Error {
     /// An input value is invalid.
     #[error(transparent)]
     InvalidInput(#[from] InvalidInput),
-    /// Opening the connection failed.
+    /// Opening the connection or completing its login failed.
     #[error(transparent)]
     Connect(#[from] ConnectError),
     /// The requested optional IRC behavior is unavailable.
