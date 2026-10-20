@@ -502,6 +502,7 @@ impl core::marker::UnsafeUnpin for papo::event::Invited
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Invited
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Invited
 #[non_exhaustive] pub struct papo::event::Joined
+pub papo::event::Joined::authorship: papo::Authorship
 pub papo::event::Joined::channel: papo::ChannelName
 pub papo::event::Joined::is_self: bool
 pub papo::event::Joined::nick: papo::Nick
@@ -709,6 +710,7 @@ impl core::marker::UnsafeUnpin for papo::event::NickChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NickChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
 #[non_exhaustive] pub struct papo::event::Parted
+pub papo::event::Parted::authorship: papo::Authorship
 pub papo::event::Parted::channel: papo::ChannelName
 pub papo::event::Parted::is_self: bool
 pub papo::event::Parted::nick: papo::Nick

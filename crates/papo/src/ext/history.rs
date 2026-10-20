@@ -186,6 +186,7 @@ fn joined(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryI
     let mapping = client.state().casemapping();
     Some(HistoryItem::Joined(Joined {
         channel: mapping.channel(message.param(0)?),
+        authorship: crate::Authorship::Unknown,
         is_self: is_self(client, &nick),
         nick: mapping.nick(nick),
     }))
@@ -196,6 +197,7 @@ fn parted(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryI
     let mapping = client.state().casemapping();
     Some(HistoryItem::Parted(Parted {
         channel: mapping.channel(message.param(0)?),
+        authorship: crate::Authorship::Unknown,
         is_self: is_self(client, &nick),
         nick: mapping.nick(nick),
         reason: message.param(1).map(str::to_owned),

@@ -85,6 +85,11 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, is_self: b
     Joined {
         channel: channel.into(),
         nick: nick.into(),
+        authorship: if is_self {
+            Authorship::Own
+        } else {
+            Authorship::Other
+        },
         is_self,
     }
 }

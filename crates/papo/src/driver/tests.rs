@@ -618,6 +618,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Joined(crate::event::Joined {
             channel: test_channel("#papo"),
             nick: test_nick("papo-driver"),
+            authorship: crate::Authorship::Own,
             is_self: true,
         }),
     );
@@ -627,6 +628,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Joined(crate::event::Joined {
             channel: test_channel("#visitors"),
             nick: test_nick("alice"),
+            authorship: crate::Authorship::Other,
             is_self: false,
         }),
     );
@@ -639,6 +641,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel("#staff"),
             nick: test_nick("alice"),
             reason: Some("lunch".into()),
+            authorship: crate::Authorship::Other,
             is_self: false,
         }),
     );
@@ -666,6 +669,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel("#Papo"),
             nick: test_nick("papo-driver"),
             reason: None,
+            authorship: crate::Authorship::Own,
             is_self: true,
         }),
     );

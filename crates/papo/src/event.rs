@@ -972,11 +972,16 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 })
                 .collect(),
         }),
-        papo_core::Event::Netjoin { servers, joins, .. } => Event::Netjoin(Netjoin {
+        papo_core::Event::Netjoin {
+            servers,
+            joins,
+            authorship,
+        } => Event::Netjoin(Netjoin {
             servers: servers.into(),
             joins: joins
                 .into_iter()
-                .filter_map(|message| {
+                .zip(authorship)
+                .filter_map(|(message, authorship)| {
                     let message = message.as_ref();
                     let nick = match message.source()? {
                         papo_proto::Source::User { nick, .. } => nick.to_owned(),
@@ -985,6 +990,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                     Some(Joined {
                         channel: casemapping.channel(message.param(0)?),
                         nick: casemapping.nick(nick),
+                        authorship: Authorship::from_core(authorship),
                         is_self: false,
                     })
                 })
@@ -1021,9 +1027,14 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         }
         papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
-        papo_core::Event::Joined { channel, nick, .. } => Event::Joined(Joined {
+        papo_core::Event::Joined {
             channel,
             nick,
+            authorship,
+        } => Event::Joined(Joined {
+            channel,
+            nick,
+            authorship: Authorship::from_core(authorship),
             is_self: false,
         }),
         papo_core::Event::ChannelSynced { channel } => {
@@ -1033,11 +1044,12 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             channel,
             nick,
             reason,
-            ..
+            authorship,
         } => Event::Parted(Parted {
             channel,
             nick,
             reason,
+            authorship: Authorship::from_core(authorship),
             is_self: false,
         }),
         papo_core::Event::Kicked {
@@ -2295,12 +2307,14 @@ mod tests {
             Event::Joined(super::Joined {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
+                authorship: crate::Authorship::Own,
                 is_self: false,
             }),
             Event::Parted(super::Parted {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 reason: None,
+                authorship: crate::Authorship::Own,
                 is_self: false,
             }),
             Event::Kicked(super::Kicked {
@@ -2329,6 +2343,7 @@ mod tests {
                 joins: vec![super::Joined {
                     channel: mapping.channel("#papo"),
                     nick: mapping.nick("Papo[Bot]"),
+                    authorship: crate::Authorship::Own,
                     is_self: false,
                 }],
             }),

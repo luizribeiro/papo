@@ -1,4 +1,4 @@
-use crate::{ChannelName, Nick, Subject};
+use crate::{Authorship, ChannelName, Nick, Subject};
 
 use super::Source;
 
@@ -41,6 +41,8 @@ pub struct Joined {
     pub channel: ChannelName,
     /// The joining user's nickname.
     pub nick: Nick,
+    /// Whether the joining user is this client's user.
+    pub authorship: Authorship,
     /// Whether the joining user is this client.
     pub is_self: bool,
 }
@@ -63,6 +65,8 @@ pub struct Parted {
     pub nick: Nick,
     /// The optional part reason.
     pub reason: Option<String>,
+    /// Whether the departing user is this client's user.
+    pub authorship: Authorship,
     /// Whether the departing user is this client.
     pub is_self: bool,
 }
