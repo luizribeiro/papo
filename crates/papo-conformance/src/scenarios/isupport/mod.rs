@@ -40,6 +40,8 @@ pub(crate) use quiet_by_dialect::__papo_scenario_spec_quiet_by_dialect;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use statusmsg_ops::__papo_scenario_spec_statusmsg_ops;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
+pub(crate) use statusmsg_ops::__papo_scenario_spec_statusmsg_reply_ops;
+#[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use targmax_privmsg::__papo_scenario_spec_targmax_privmsg;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use unadvertised_mode_rejected::__papo_scenario_spec_unadvertised_mode_rejected;
