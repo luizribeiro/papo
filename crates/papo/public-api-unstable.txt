@@ -17,6 +17,7 @@ pub use papo::Member
 pub use papo::MessageId
 pub use papo::MetadataKey
 pub use papo::MetadataValue
+pub use papo::ModeAction
 pub use papo::NetworkConfig
 pub use papo::NetworkId
 pub use papo::NetworkState
@@ -148,31 +149,13 @@ pub const papo::cap::WEBPUSH: &str
 pub const papo::cap::WHOAMI: &str
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
+pub use papo::event::ModeAction
 pub use papo::event::PersistenceSetting
 pub use papo::event::PersistenceStatus
 pub use papo::event::Source
 pub use papo::event::StateLimit
 pub use papo::event::TypingReason
 pub use papo::event::Visibility
-pub enum papo::event::ModeAction
-pub papo::event::ModeAction::Add
-pub papo::event::ModeAction::Remove
-impl core::clone::Clone for papo::ModeAction
-pub fn papo::ModeAction::clone(&self) -> Self
-impl core::cmp::Eq for papo::ModeAction
-impl core::cmp::PartialEq for papo::ModeAction
-pub fn papo::ModeAction::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::ModeAction
-pub fn papo::ModeAction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::ModeAction
-impl core::marker::StructuralPartialEq for papo::ModeAction
-impl core::marker::Freeze for papo::ModeAction
-impl core::marker::Send for papo::ModeAction
-impl core::marker::Sync for papo::ModeAction
-impl core::marker::Unpin for papo::ModeAction
-impl core::marker::UnsafeUnpin for papo::ModeAction
-impl core::panic::unwind_safe::RefUnwindSafe for papo::ModeAction
-impl core::panic::unwind_safe::UnwindSafe for papo::ModeAction
 #[non_exhaustive] pub enum papo::event::ModeArg
 pub papo::event::ModeArg::Mask(papo::Mask)
 pub papo::event::ModeArg::Nick(papo::Nick)
@@ -565,7 +548,7 @@ impl core::marker::UnsafeUnpin for papo::event::MetadataChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MetadataChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::MetadataChanged
 #[non_exhaustive] pub struct papo::event::ModeChange
-pub papo::event::ModeChange::action: papo::ModeAction
+pub papo::event::ModeChange::action: papo::LegacyModeAction
 pub papo::event::ModeChange::arg: core::option::Option<alloc::string::String>
 pub papo::event::ModeChange::kind: papo::ModeKind
 pub papo::event::ModeChange::mode: char
@@ -1619,6 +1602,25 @@ impl core::marker::Unpin for papo::InvalidInput
 impl core::marker::UnsafeUnpin for papo::InvalidInput
 impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidInput
 impl core::panic::unwind_safe::UnwindSafe for papo::InvalidInput
+pub enum papo::LegacyModeAction
+pub papo::LegacyModeAction::Add
+pub papo::LegacyModeAction::Remove
+impl core::clone::Clone for papo::LegacyModeAction
+pub fn papo::LegacyModeAction::clone(&self) -> Self
+impl core::cmp::Eq for papo::LegacyModeAction
+impl core::cmp::PartialEq for papo::LegacyModeAction
+pub fn papo::LegacyModeAction::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::LegacyModeAction
+pub fn papo::LegacyModeAction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::LegacyModeAction
+impl core::marker::StructuralPartialEq for papo::LegacyModeAction
+impl core::marker::Freeze for papo::LegacyModeAction
+impl core::marker::Send for papo::LegacyModeAction
+impl core::marker::Sync for papo::LegacyModeAction
+impl core::marker::Unpin for papo::LegacyModeAction
+impl core::marker::UnsafeUnpin for papo::LegacyModeAction
+impl core::panic::unwind_safe::RefUnwindSafe for papo::LegacyModeAction
+impl core::panic::unwind_safe::UnwindSafe for papo::LegacyModeAction
 #[non_exhaustive] pub enum papo::MessageKind
 pub papo::MessageKind::Action
 pub papo::MessageKind::Ctcp
@@ -1641,25 +1643,6 @@ impl core::marker::Unpin for papo::MessageKind
 impl core::marker::UnsafeUnpin for papo::MessageKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::MessageKind
 impl core::panic::unwind_safe::UnwindSafe for papo::MessageKind
-pub enum papo::ModeAction
-pub papo::ModeAction::Add
-pub papo::ModeAction::Remove
-impl core::clone::Clone for papo::ModeAction
-pub fn papo::ModeAction::clone(&self) -> Self
-impl core::cmp::Eq for papo::ModeAction
-impl core::cmp::PartialEq for papo::ModeAction
-pub fn papo::ModeAction::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::ModeAction
-pub fn papo::ModeAction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::ModeAction
-impl core::marker::StructuralPartialEq for papo::ModeAction
-impl core::marker::Freeze for papo::ModeAction
-impl core::marker::Send for papo::ModeAction
-impl core::marker::Sync for papo::ModeAction
-impl core::marker::Unpin for papo::ModeAction
-impl core::marker::UnsafeUnpin for papo::ModeAction
-impl core::panic::unwind_safe::RefUnwindSafe for papo::ModeAction
-impl core::panic::unwind_safe::UnwindSafe for papo::ModeAction
 #[non_exhaustive] pub enum papo::ModeArg
 pub papo::ModeArg::Mask(papo::Mask)
 pub papo::ModeArg::Nick(papo::Nick)

@@ -6,16 +6,12 @@ use super::Source;
 
 /// The operation applied to an IRC mode.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ModeAction {
+pub enum LegacyModeAction {
     /// Add or enable the mode.
     Add,
     /// Remove or disable the mode.
     Remove,
 }
-
-/// Compatibility name used while mode events adopt the shared action type.
-#[doc(hidden)]
-pub type LegacyModeAction = ModeAction;
 
 /// A mode argument classified using the server's advertised rules.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -181,7 +177,7 @@ pub struct ModeChange {
     /// The raw mode argument, when supplied by the server.
     pub arg: Option<String>,
     /// Whether the mode was added or removed.
-    pub action: ModeAction,
+    pub action: LegacyModeAction,
     /// The argument classified using the server's advertised rules.
     pub typed_arg: Option<ModeArg>,
     /// The mode letter.
