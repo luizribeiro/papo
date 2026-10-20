@@ -27,6 +27,12 @@ enum Presence {
 }
 
 impl Monitor {
+    pub(super) fn desires(&self, nick: &str, isupport: &Isupport) -> bool {
+        self.desired
+            .iter()
+            .any(|known| crate::names_equal(isupport.casemapping(), known, nick))
+    }
+
     pub(super) fn desired(&self) -> impl Iterator<Item = &str> {
         self.desired.iter().map(String::as_str)
     }

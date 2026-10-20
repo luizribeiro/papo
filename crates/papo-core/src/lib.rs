@@ -328,6 +328,8 @@ pub struct Config {
     pub disabled_caps: Vec<String>,
     /// Alternative nicknames to try when registration collides.
     pub alt_nicks: Vec<String>,
+    /// Whether to reclaim the configured nickname after a registration collision.
+    pub regain_nick: bool,
     /// SASL mechanisms to try in preference order.
     pub sasl: Option<Sasl>,
     /// Ergo multiclient device identifier appended to the authentication identity.
@@ -377,6 +379,7 @@ impl std::fmt::Debug for Config {
             .field("wanted_caps", &self.wanted_caps)
             .field("disabled_caps", &self.disabled_caps)
             .field("alt_nicks", &self.alt_nicks)
+            .field("regain_nick", &self.regain_nick)
             .field(cap::SASL, &self.sasl)
             .field("device", &self.device)
             .field("max_channels", &self.max_channels)
@@ -427,6 +430,7 @@ impl Default for Config {
                 .collect(),
             disabled_caps: Vec::new(),
             alt_nicks: Vec::new(),
+            regain_nick: false,
             sasl: None,
             device: None,
             max_channels: DEFAULT_MAX_CHANNELS,
@@ -2323,6 +2327,12 @@ impl Session {
         if !was_connected && self.welcome_state.is_connected() {
             self.monitor
                 .restore(self.isupport.value(), &mut self.outbox);
+            self.nick_regain.start(
+                &self.config,
+                self.isupport.value(),
+                &self.monitor,
+                &mut self.outbox,
+            );
         }
         self.sasl.handle_timeout(now, &mut self.outbox);
         self.maybe_subscribe_metadata(now);
@@ -3163,6 +3173,12 @@ impl Session {
         if connection_finished {
             self.monitor
                 .restore(self.isupport.value(), &mut self.outbox);
+            self.nick_regain.start(
+                &self.config,
+                self.isupport.value(),
+                &self.monitor,
+                &mut self.outbox,
+            );
         }
         let monitor_handled =
             self.monitor
@@ -3192,10 +3208,14 @@ impl Session {
                 own_away_message.as_deref(),
                 &mut self.outbox,
             ) == Handled::Yes;
-        self.nick_regain.observe_collision(
+        self.nick_regain.handle_message(
             message,
             self.welcome_state.is_connected(),
-            &self.config.nick,
+            self.state.nick(),
+            &self.config,
+            self.isupport.value(),
+            &self.monitor,
+            &mut self.outbox,
         );
         self.handle_ctcp(now, message);
         let handled = registration_handled

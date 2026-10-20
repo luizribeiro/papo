@@ -1,19 +1,93 @@
-use papo_proto::LineRef;
+use papo_proto::{Isupport, LineRef};
+
+use crate::{Config, Monitor, Outbox, names_equal};
 
 #[derive(Debug, Default)]
 pub(super) struct NickRegain {
     primary_taken: bool,
+    watch: Watch,
+}
+
+#[derive(Debug, Default)]
+enum Watch {
+    #[default]
+    Inactive,
+    Monitor {
+        added: bool,
+        claim_pending: bool,
+    },
 }
 
 impl NickRegain {
-    pub(super) fn observe_collision(
+    fn observe_collision(&mut self, message: &LineRef<'_>, connected: bool, primary: &str) {
+        if !connected && nick_unavailable(message) && message.param(1) == Some(primary) {
+            self.primary_taken = true;
+        }
+    }
+
+    pub(super) fn start(
+        &mut self,
+        config: &Config,
+        isupport: &Isupport,
+        monitor: &Monitor,
+        outbox: &mut Outbox,
+    ) {
+        if !config.regain_nick || !self.primary_taken || isupport.monitor().is_none() {
+            return;
+        }
+        let added = !monitor.desires(&config.nick, isupport);
+        if added {
+            outbox.transmit("MONITOR", ["+", &config.nick]);
+        }
+        self.watch = Watch::Monitor {
+            added,
+            claim_pending: false,
+        };
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn handle_message(
         &mut self,
         message: &LineRef<'_>,
         connected: bool,
-        primary: &str,
+        current_nick: &str,
+        config: &Config,
+        isupport: &Isupport,
+        monitor: &Monitor,
+        outbox: &mut Outbox,
     ) {
-        if !connected && nick_unavailable(message) && message.param(1) == Some(primary) {
-            self.primary_taken = true;
+        self.observe_collision(message, connected, &config.nick);
+        let Watch::Monitor {
+            added,
+            claim_pending,
+        } = &mut self.watch
+        else {
+            return;
+        };
+        if message.command_is("NICK")
+            && names_equal(isupport.casemapping(), current_nick, &config.nick)
+        {
+            if *added && !monitor.desires(&config.nick, isupport) {
+                outbox.transmit("MONITOR", ["-", &config.nick]);
+            }
+            self.reset();
+        } else if message.command_is("731")
+            && message.param(1).is_some_and(|nicks| {
+                nicks
+                    .split(',')
+                    .any(|nick| names_equal(isupport.casemapping(), nick, &config.nick))
+            })
+            && !*claim_pending
+        {
+            *claim_pending = true;
+            outbox.transmit("NICK", [&config.nick]);
+        } else if *claim_pending
+            && nick_unavailable(message)
+            && message
+                .param(1)
+                .is_some_and(|nick| names_equal(isupport.casemapping(), nick, &config.nick))
+        {
+            *claim_pending = false;
         }
     }
 

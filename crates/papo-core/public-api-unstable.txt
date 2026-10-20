@@ -1117,6 +1117,7 @@ pub papo_core::Config::ping_interval: core::time::Duration
 pub papo_core::Config::ping_timeout: core::time::Duration
 pub papo_core::Config::rate_limit: papo_core::RateLimit
 pub papo_core::Config::realname: alloc::string::String
+pub papo_core::Config::regain_nick: bool
 pub papo_core::Config::request_timeout: core::time::Duration
 pub papo_core::Config::sasl: core::option::Option<papo_core::Sasl>
 pub papo_core::Config::username: alloc::string::String
