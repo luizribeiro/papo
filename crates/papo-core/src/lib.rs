@@ -1815,6 +1815,8 @@ pub enum Event {
     },
     /// A user sharing channels with the session disconnected.
     Quit {
+        /// Identity, time, and account tags from the line.
+        envelope: LineEnvelope,
         /// The disconnected user's nickname.
         nick: Nick,
         /// The optional quit reason.
@@ -1826,6 +1828,8 @@ pub enum Event {
     },
     /// A user changed nickname.
     NickChanged {
+        /// Identity, time, and account tags from the line.
+        envelope: LineEnvelope,
         /// The previous nickname.
         old: Nick,
         /// The new nickname.

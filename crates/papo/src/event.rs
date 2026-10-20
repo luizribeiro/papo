@@ -1098,25 +1098,39 @@ pub(crate) fn from_core(
             subject_authorship: Authorship::from_core(subject_authorship),
         }),
         papo_core::Event::Quit {
+            envelope,
             nick,
             reason,
             channels,
             authorship,
-        } => Event::Quit(Quit {
-            nick,
-            reason,
-            channels,
-            authorship: Authorship::from_core(authorship),
-        }),
+        } => {
+            let envelope = core_envelope(&envelope, casemapping, received_at);
+            Event::Quit(Quit {
+                msgid: envelope.msgid,
+                time: envelope.time,
+                account: envelope.account,
+                nick,
+                reason,
+                channels,
+                authorship: Authorship::from_core(authorship),
+            })
+        }
         papo_core::Event::NickChanged {
+            envelope,
             old,
             new,
             authorship,
-        } => Event::NickChanged(NickChanged {
-            old,
-            new,
-            authorship: Authorship::from_core(authorship),
-        }),
+        } => {
+            let envelope = core_envelope(&envelope, casemapping, received_at);
+            Event::NickChanged(NickChanged {
+                msgid: envelope.msgid,
+                time: envelope.time,
+                account: envelope.account,
+                old,
+                new,
+                authorship: Authorship::from_core(authorship),
+            })
+        }
         papo_core::Event::ChannelRenamed {
             old,
             new,
@@ -2055,6 +2069,7 @@ mod tests {
     fn maps_quit() {
         assert!(matches!(
             forwarded(papo_core::Event::Quit {
+                envelope: papo_core::LineEnvelope::default(),
                 nick: Casemapping::default().nick("emily"),
                 reason: Some("Client exited".into()),
                 channels: vec![
@@ -2073,6 +2088,7 @@ mod tests {
     fn maps_nick_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::NickChanged {
+                envelope: papo_core::LineEnvelope::default(),
                 old: Casemapping::default().nick("emily"),
                 new: Casemapping::default().nick("em"),
                 authorship: papo_core::Authorship::Other,
@@ -2397,6 +2413,9 @@ mod tests {
                 subject_authorship: Authorship::Own,
             }),
             Event::NickChanged(super::NickChanged {
+                msgid: None,
+                time: UNIX_EPOCH,
+                account: None,
                 old: mapping.nick("Papo[Bot]"),
                 new: mapping.nick("papo-away"),
                 authorship: Authorship::Own,

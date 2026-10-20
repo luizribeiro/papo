@@ -66,6 +66,7 @@ fn queued_event_keeps_authorship_across_a_nick_change() {
                     old,
                     new,
                     authorship: Authorship::Own,
+                    ..
                 } if old == "papo" && new == "papo-away"
             )
         });
@@ -174,6 +175,7 @@ fn live_mode_and_nick_authorship_distinguish_own_identity() {
                     old,
                     new,
                     authorship: Authorship::Own,
+                    ..
                 } if old == "papo-old" && new == "papo"
             )
         });

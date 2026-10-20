@@ -126,6 +126,7 @@ pub(crate) fn history_item(
                 crate::Authorship::from_core(item.authorship),
                 history_conversation,
                 mapping,
+                received_at,
             )
         }),
         papo_core::HistoryItem::Kicked(item) => typed_or_raw(&item.line, |message| {
@@ -141,6 +142,7 @@ pub(crate) fn history_item(
                 message,
                 crate::Authorship::from_core(item.authorship),
                 client,
+                received_at,
             )
         }),
         papo_core::HistoryItem::TopicChanged(item) => typed_or_raw(&item.line, |message| {
@@ -274,8 +276,13 @@ fn quit(
     authorship: crate::Authorship,
     history_conversation: Option<&crate::Conversation>,
     mapping: crate::Casemapping,
+    received_at: SystemTime,
 ) -> Option<HistoryItem> {
+    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(HistoryItem::Quit(Quit {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
         nick: mapping.nick(source_nick(message)?),
         reason: message.param(0).map(str::to_owned),
         channels: match history_conversation {
@@ -308,10 +315,15 @@ fn nick_changed(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     client: &Client,
+    received_at: SystemTime,
 ) -> Option<HistoryItem> {
     let old = source_nick(message)?;
     let mapping = client.state().casemapping();
+    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(HistoryItem::NickChanged(NickChanged {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
         authorship,
         old: mapping.nick(old),
         new: mapping.nick(message.param(0)?),

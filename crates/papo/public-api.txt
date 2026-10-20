@@ -644,9 +644,12 @@ impl core::marker::UnsafeUnpin for papo::event::Netsplit
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Netsplit
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Netsplit
 #[non_exhaustive] pub struct papo::event::NickChanged
+pub papo::event::NickChanged::account: core::option::Option<papo::AccountName>
 pub papo::event::NickChanged::authorship: papo::Authorship
+pub papo::event::NickChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::NickChanged::new: papo::Nick
 pub papo::event::NickChanged::old: papo::Nick
+pub papo::event::NickChanged::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::NickChanged
 pub fn papo::event::NickChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::NickChanged
@@ -686,10 +689,13 @@ impl core::marker::UnsafeUnpin for papo::event::Parted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Parted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Parted
 #[non_exhaustive] pub struct papo::event::Quit
+pub papo::event::Quit::account: core::option::Option<papo::AccountName>
 pub papo::event::Quit::authorship: papo::Authorship
 pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
+pub papo::event::Quit::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Quit::nick: papo::Nick
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
+pub papo::event::Quit::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Quit
 pub fn papo::event::Quit::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Quit

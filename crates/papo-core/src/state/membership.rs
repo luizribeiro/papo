@@ -22,6 +22,7 @@ impl State {
                 .unwrap_or_default()
         };
         outbox.event(Event::Quit {
+            envelope: crate::LineEnvelope::from_line(message),
             nick: self.casemapping.nick(nick),
             reason: message.param(0).map(str::to_owned),
             channels,

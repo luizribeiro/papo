@@ -459,6 +459,7 @@ impl State {
                 self.nick = mapping.nick(new_nick);
             }
             outbox.event(Event::NickChanged {
+                envelope: crate::LineEnvelope::from_line(message),
                 old: mapping.nick(nick),
                 new: mapping.nick(new_nick),
                 authorship,

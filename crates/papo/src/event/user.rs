@@ -1,4 +1,6 @@
-use crate::{AccountName, Authorship, ChannelName, Nick};
+use std::time::SystemTime;
+
+use crate::{AccountName, Authorship, ChannelName, MessageId, Nick};
 
 use super::Joined;
 
@@ -6,6 +8,12 @@ use super::Joined;
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Quit {
+    /// The server-assigned identifier of the quit line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
     /// The disconnected user's nickname.
     pub nick: Nick,
     /// The optional quit reason.
@@ -20,6 +28,12 @@ pub struct Quit {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct NickChanged {
+    /// The server-assigned identifier of the nick line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
     /// The previous nickname.
     pub old: Nick,
     /// The new nickname.
