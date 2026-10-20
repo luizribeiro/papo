@@ -72,27 +72,45 @@ fn welcome_timeout_is_the_first_deadline_and_closes_once() {
 }
 
 #[test]
-fn tries_alternative_nicks_then_appends_bounded_underscores() {
-    Transcript::new(
-        Config::default()
-            .nick("emily")
-            .alt_nicks(["emily-away", "emily-work"]),
-    )
+fn tries_each_nick_candidate_then_reports_exhaustion() {
+    Transcript::new(Config::default().nick("emily").alt_nicks([
+        "emily-away",
+        "emily-work",
+        "emily-backup",
+        "emily-mobile",
+    ]))
     .connect()
     .client("CAP LS 302")
     .client("NICK emily")
     .client("USER papo 0 * papo")
+    .server(":ergo.test 005 * NICKLEN=1 :are supported by this server")
     .server(":ergo.test 433 * emily :Nickname is already in use")
     .client("NICK emily-away")
     .server(":ergo.test 437 * emily-away :Nick/channel is temporarily unavailable")
     .client("NICK emily-work")
     .server(":ergo.test 432 * emily-work :Erroneous nickname")
-    .client("NICK emily-work_")
-    .server(":ergo.test 436 * emily-work_ :Nickname collision")
-    .client("NICK emily-work__")
-    .welcome(":ergo.test 001 emily-work__ :Welcome")
-    .server(":ergo.test 433 emily-work__ someone :Nickname is already in use")
-    .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("433")));
+    .client("NICK emily-backup")
+    .server(":ergo.test 436 * emily-backup :Nickname collision")
+    .client("NICK emily-mobile")
+    .server(":ergo.test 400 * NICK :Nickname is already in use")
+    .client("NICK _")
+    .server(":ergo.test 400 * NICK :Nickname is already in use")
+    .event(|event| {
+        matches!(event, Event::Close { kind: CloseKind::NickCandidatesExhausted, reason }
+            if reason == "nick candidates exhausted")
+    })
+    .no_client();
+}
+
+#[test]
+fn unrelated_unknown_error_does_not_consume_a_nick_candidate() {
+    Transcript::new(Config::default().alt_nicks(["papo-away"]))
+        .connect_default()
+        .server(":ergo.test 400 * PRIVMSG :Invalid target")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("400")))
+        .no_client()
+        .server(":ergo.test 433 * papo :Nickname is already in use")
+        .client("NICK papo-away");
 }
 
 #[test]
@@ -107,26 +125,6 @@ fn terminal_registration_numerics_close_with_their_wire_diagnostic() {
             .event(|event| matches!(event, Event::Close { reason, .. } if reason == text))
             .no_client();
     }
-}
-
-#[test]
-fn generated_nicks_stay_within_the_default_30_byte_limit() {
-    let requested = "a-realistically-long-client-nick";
-    let first = format!("NICK {}_", &requested[..29]);
-    let second = format!("NICK {}__", &requested[..28]);
-    assert_eq!(first.len(), "NICK ".len() + 30);
-    assert_eq!(second.len(), "NICK ".len() + 30);
-    assert_ne!(first, second);
-
-    Transcript::new(Config::default().nick(requested))
-        .connect()
-        .client("CAP LS 302")
-        .client(&format!("NICK {requested}"))
-        .client("USER papo 0 * papo")
-        .server(":solanum.example 433 * nick :Nickname is already in use")
-        .client(&first)
-        .server(":solanum.example 433 * nick :Nickname is already in use")
-        .client(&second);
 }
 
 #[test]

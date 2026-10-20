@@ -1862,8 +1862,10 @@ async fn server_error_before_welcome_is_a_connection_failure() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn nickname_collision_can_end_at_the_welcome_deadline() {
-    let settings = config().welcome_timeout(Duration::from_secs(23));
+async fn nick_candidates_exhaustion_ends_login_immediately() {
+    let settings = config()
+        .alt_nicks(["papo-away"])
+        .welcome_timeout(Duration::from_secs(23));
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
     let (_client, mut events, driver) = Driver::with_stream_and_connect(
@@ -1877,29 +1879,46 @@ async fn nickname_collision_can_end_at_the_welcome_deadline() {
     welcome_burst(&mut server).await;
     server_line(
         &mut server,
-        b":solanum.example 433 * papo-driver :Nickname is already in use\r\n",
+        b":ergo.test 005 * NICKLEN=1 :are supported by this server\r\n",
     )
     .await;
-    client_line(&mut server, b"NICK papo-driver_\r\n").await;
-    tokio::time::advance(Duration::from_secs(23)).await;
+    server_line(
+        &mut server,
+        b":ergo.test 400 * NICK :Nickname is already in use\r\n",
+    )
+    .await;
+    client_line(&mut server, b"NICK papo-away\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 400 * NICK :Nickname is already in use\r\n",
+    )
+    .await;
+    client_line(&mut server, b"NICK _\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 400 * NICK :Nickname is already in use\r\n",
+    )
+    .await;
 
     let Some(Event::Disconnected(disconnected)) = events.next().await else {
-        panic!("expected login timeout")
+        panic!("expected nick exhaustion")
     };
     assert!(matches!(
         &disconnected.cause,
         crate::DisconnectCause::Connect(error)
-            if error.kind() == crate::ConnectErrorKind::WelcomeTimedOut
+            if error.kind() == crate::ConnectErrorKind::Server
+                && std::error::Error::source(error)
+                    .is_some_and(|source| source.to_string() == "nick candidates exhausted")
     ));
     assert!(matches!(
         within(waiter).await.unwrap(),
         Err(Error::Connect(error))
-            if error.kind() == crate::ConnectErrorKind::WelcomeTimedOut
+            if error.kind() == crate::ConnectErrorKind::Server
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Connect(error))
-            if error.kind() == crate::ConnectErrorKind::WelcomeTimedOut
+            if error.kind() == crate::ConnectErrorKind::Server
     ));
 }
 

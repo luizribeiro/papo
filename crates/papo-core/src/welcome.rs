@@ -154,18 +154,23 @@ impl WelcomeState {
                 message.param(1).unwrap_or_default().to_owned(),
             );
             Handled::Yes
-        } else if self.deadline.is_some()
-            && ["432", "433", "436", "437"]
-                .iter()
-                .any(|numeric| message.command_is(numeric))
-        {
+        } else if self.deadline.is_some() && rejects_nick(message) {
             if let Some(nick) = config.alt_nicks.get(self.next_alt_nick) {
                 nick.clone_into(&mut self.nick);
                 self.next_alt_nick += 1;
+                outbox.transmit("NICK", [&self.nick]);
             } else {
-                self.nick = append_underscore(&self.nick, isupport.nicklen().unwrap_or(30));
+                let nick = append_underscore(&self.nick, isupport.nicklen().unwrap_or(30));
+                if nick == self.nick {
+                    outbox.close(
+                        CloseKind::NickCandidatesExhausted,
+                        "nick candidates exhausted".to_owned(),
+                    );
+                } else {
+                    self.nick = nick;
+                    outbox.transmit("NICK", [&self.nick]);
+                }
             }
-            outbox.transmit("NICK", [&self.nick]);
             Handled::Yes
         } else {
             Handled::No
@@ -236,6 +241,13 @@ impl WelcomeState {
             isupport: isupport.clone(),
         }));
     }
+}
+
+fn rejects_nick(message: &LineRef<'_>) -> bool {
+    ["432", "433", "436", "437"]
+        .iter()
+        .any(|numeric| message.command_is(numeric))
+        || (message.command_is("400") && message.param(1) == Some("NICK"))
 }
 
 fn append_underscore(nick: &str, limit: usize) -> String {

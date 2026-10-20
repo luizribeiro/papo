@@ -311,6 +311,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::BatchAbandonReason
 pub papo_core::CloseKind::AccountRequired
 pub papo_core::CloseKind::Banned
 pub papo_core::CloseKind::LineTooLong
+pub papo_core::CloseKind::NickCandidatesExhausted
 pub papo_core::CloseKind::Other
 pub papo_core::CloseKind::PasswordIncorrect
 pub papo_core::CloseKind::PingTimeout

@@ -1363,6 +1363,8 @@ pub enum CloseKind {
     PasswordIncorrect,
     /// The server banned the connection (`465`).
     Banned,
+    /// Every configured registration nickname was rejected.
+    NickCandidatesExhausted,
     /// Another protocol condition requires the connection to close.
     Other,
 }
