@@ -249,6 +249,7 @@
           };
           wasi-checks = cargoHook {
             name = "wasi-checks-hook";
+            stages = [ "pre-push" ];
             text = ''
               export CC_wasm32_wasip1=${wasiSdk}/bin/wasm32-wasip1-clang
               export CC_wasm32_wasip2=${wasiSdk}/bin/wasm32-wasip2-clang
@@ -269,6 +270,7 @@
           };
           wasip3-checks = cargoHook {
             name = "wasip3-checks-hook";
+            stages = [ "pre-push" ];
             text = ''
               export CC_wasm32_wasip3=${wasiSdk}/bin/wasm32-wasip3-clang
               export WASI_SDK_PATH=${wasiSdk}
