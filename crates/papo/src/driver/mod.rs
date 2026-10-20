@@ -393,7 +393,7 @@ impl From<&str> for Autojoin {
 /// Delivery is bounded. If events are not consumed, socket reads stall while
 /// client commands and session timers continue to be served. If the bounded
 /// overflow also fills, the connection ends with
-/// [`DisconnectCause::SlowConsumer`] and follows the configured reconnect
+/// [`DisconnectCause::SlowConsumer`](crate::DisconnectCause::SlowConsumer) and follows the configured reconnect
 /// policy. Move slow work out of the event loop or raise
 /// [`Builder::event_capacity`](crate::Builder::event_capacity) to avoid this.
 pub struct Events {
