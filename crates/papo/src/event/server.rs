@@ -203,7 +203,7 @@ mod tests {
             },
             Warning::MonitorListFull {
                 limit: 100,
-                nicks: vec!["alice".into()],
+                nicks: vec![crate::Casemapping::default().nick("alice")],
             },
             Warning::MonitorUnsupported,
         ];

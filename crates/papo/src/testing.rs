@@ -101,12 +101,20 @@ mod tests {
 
     #[test]
     fn constructs_payloads_and_state_without_network_io() {
-        let source = user_source("alice", Some("a".into()), Some("cloak.example".into()));
+        let source = user_source(
+            crate::Casemapping::default().nick("alice"),
+            Some("a".into()),
+            Some("cloak.example".into()),
+        );
         let message = message(Some(source), "bob", "hello from alice", true);
         assert_eq!(message.reply_target(), "alice");
         assert_eq!(message.raw_text(), "hello from alice");
 
-        let joined = joined("#papo", "bob", true);
+        let joined = joined(
+            crate::Casemapping::default().channel("#papo"),
+            crate::Casemapping::default().nick("bob"),
+            true,
+        );
         assert_eq!(joined.channel.as_ref(), "#papo");
         assert!(joined.is_self);
 

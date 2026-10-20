@@ -733,8 +733,11 @@ mod tests {
     #[test]
     fn fills_every_session_configuration_field() {
         let builder = Builder::new("irc.example.net")
-            .nick("ping-bot")
-            .alt_nicks(["ping-bot_", "ping-bot__"])
+            .nick(crate::Casemapping::default().nick("ping-bot"))
+            .alt_nicks([
+                crate::Casemapping::default().nick("ping-bot_"),
+                crate::Casemapping::default().nick("ping-bot__"),
+            ])
             .username("ping")
             .realname("papo ping bot")
             .password("network password")
@@ -828,7 +831,9 @@ mod tests {
 
     #[test]
     fn nick_supplies_only_implicit_username_and_realname_defaults() {
-        let implicit = Builder::new("irc.example.net").nick("ping-bot").config;
+        let implicit = Builder::new("irc.example.net")
+            .nick(crate::Casemapping::default().nick("ping-bot"))
+            .config;
         assert_eq!(
             (implicit.username.as_str(), implicit.realname.as_str()),
             ("ping-bot", "ping-bot")
@@ -836,7 +841,7 @@ mod tests {
         let explicit = Builder::new("irc.example.net")
             .username("service")
             .realname("Papo service")
-            .nick("ping-bot")
+            .nick(crate::Casemapping::default().nick("ping-bot"))
             .config;
         assert_eq!(
             (explicit.username.as_str(), explicit.realname.as_str()),
@@ -952,8 +957,10 @@ mod tests {
                 "192.0.2.42",
             )),
             Builder::new("irc.example.net").sasl(Sasl::plain("alice", byte_secret())),
-            Builder::new("irc.example.net")
-                .register_account(NewAccount::new(byte_secret()).account("alice")),
+            Builder::new("irc.example.net").register_account(
+                NewAccount::new(byte_secret())
+                    .account(crate::Casemapping::default().account("alice")),
+            ),
             Builder::new("irc.example.net").autojoin_with_key("#staff", byte_secret()),
         ];
         for builder in cases {
@@ -975,8 +982,10 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn rejects_invalid_registration_messages_before_connecting() {
         let cases = [
-            Builder::new("irc.example.net").nick("papo\rOPER root password"),
-            Builder::new("irc.example.net").alt_nicks(["papo-away\nQUIT"]),
+            Builder::new("irc.example.net")
+                .nick(crate::Casemapping::default().nick("papo\rOPER root password")),
+            Builder::new("irc.example.net")
+                .alt_nicks([crate::Casemapping::default().nick("papo-away\nQUIT")]),
             Builder::new("irc.example.net").username("papo\0admin"),
             Builder::new("irc.example.net").realname("Papo\rClient"),
             Builder::new("irc.example.net").password("network\npassword"),
@@ -1147,7 +1156,7 @@ mod tests {
         let lifecycle = Arc::new(AtomicUsize::new(0));
         let connecting = tokio::spawn(
             Builder::new("irc://custom.example")
-                .nick("papo-custom")
+                .nick(crate::Casemapping::default().nick("papo-custom"))
                 .stream(ObservedStream {
                     inner: crate::io_compat::TokioIo(stream),
                     lifecycle: Arc::clone(&lifecycle),

@@ -1196,7 +1196,7 @@ mod tests {
         assert_eq!(
             channel.source(),
             Some(Source::User {
-                nick: "emily".into(),
+                nick: Casemapping::default().nick("emily"),
                 user: Some("~emily".into()),
                 host: Some("localhost".into())
             })
@@ -1844,7 +1844,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::AccountChanged {
                 nick: "emily".into(),
-                account: Account::LoggedIn("emily".into()),
+                account: Account::LoggedIn(Casemapping::default().account("emily")),
             }),
             Event::AccountChanged(changed)
                 if changed.nick == "emily" && changed.account.as_deref() == Some("emily")
@@ -2097,34 +2097,35 @@ mod tests {
         let by = Source::Server {
             name: "ergo.test".to_owned(),
         };
+        let mapping = Casemapping::Rfc1459;
         let mut events = [
             Event::Joined(super::Joined {
-                channel: "#papo".into(),
-                nick: "Papo[Bot]".into(),
+                channel: mapping.channel("#papo"),
+                nick: mapping.nick("Papo[Bot]"),
                 is_self: false,
             }),
             Event::Parted(super::Parted {
-                channel: "#papo".into(),
-                nick: "Papo[Bot]".into(),
+                channel: mapping.channel("#papo"),
+                nick: mapping.nick("Papo[Bot]"),
                 reason: None,
                 is_self: false,
             }),
             Event::Kicked(super::Kicked {
-                channel: "#papo".into(),
-                nick: "Papo[Bot]".into(),
+                channel: mapping.channel("#papo"),
+                nick: mapping.nick("Papo[Bot]"),
                 by: by.clone(),
                 reason: None,
                 is_self: false,
             }),
             Event::Invited(super::Invited {
-                channel: "#papo".into(),
-                nick: "Papo[Bot]".into(),
+                channel: mapping.channel("#papo"),
+                nick: mapping.nick("Papo[Bot]"),
                 by,
                 is_self: false,
             }),
             Event::NickChanged(super::NickChanged {
-                old: "Papo[Bot]".into(),
-                new: "papo-away".into(),
+                old: mapping.nick("Papo[Bot]"),
+                new: mapping.nick("papo-away"),
                 is_self: false,
             }),
             Event::Netjoin(super::Netjoin {
@@ -2133,8 +2134,8 @@ mod tests {
                     second: "irc.remote".to_owned(),
                 },
                 joins: vec![super::Joined {
-                    channel: "#papo".into(),
-                    nick: "Papo[Bot]".into(),
+                    channel: mapping.channel("#papo"),
+                    nick: mapping.nick("Papo[Bot]"),
                     is_self: false,
                 }],
             }),

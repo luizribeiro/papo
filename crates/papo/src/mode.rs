@@ -285,16 +285,17 @@ mod tests {
 
     #[test]
     fn validates_and_chunks_advertised_modes() {
+        let support = isupport();
         let changes = [
             Change {
                 set: true,
                 mode: Selector::Prefix('o'),
-                arg: Some(Argument::Nick("alice".into())),
+                arg: Some(Argument::Nick(support.casemapping().nick("alice"))),
             },
             Change {
                 set: true,
                 mode: Selector::Prefix('v'),
-                arg: Some(Argument::Nick("carol".into())),
+                arg: Some(Argument::Nick(support.casemapping().nick("carol"))),
             },
             Change {
                 set: false,
@@ -302,7 +303,7 @@ mod tests {
                 arg: None,
             },
         ];
-        let lines: Vec<_> = encode(&isupport(), &Target::from("#papo"), &changes)
+        let lines: Vec<_> = encode(&support, &Target::from("#papo"), &changes)
             .unwrap()
             .into_iter()
             .map(|message| message.to_line().unwrap().trim_end().to_owned())
@@ -334,17 +335,19 @@ mod tests {
             Change {
                 set: true,
                 mode: Selector::Letter('b'),
-                arg: Some(Argument::Mask(":*!*@spam.example".into())),
+                arg: Some(Argument::Mask(
+                    support.casemapping().mask(":*!*@spam.example"),
+                )),
             },
             Change {
                 set: true,
                 mode: Selector::Prefix('o'),
-                arg: Some(Argument::Nick("bad,nick".into())),
+                arg: Some(Argument::Nick(support.casemapping().nick("bad,nick"))),
             },
             Change {
                 set: true,
                 mode: Selector::Prefix('y'),
-                arg: Some(Argument::Nick("alice".into())),
+                arg: Some(Argument::Nick(support.casemapping().nick("alice"))),
             },
         ] {
             assert!(encode(&support, &target, &[change]).is_err());
