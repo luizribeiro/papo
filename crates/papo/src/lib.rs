@@ -135,7 +135,7 @@ pub mod event {
     };
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    pub use crate::event_impl::{BouncerNetworkChanged, PersistenceChanged, PersistenceSetting};
+    pub use crate::event_impl::{BouncerNetworkChanged, PersistenceSetting};
 }
 
 /// Strict Transport Security policy stores.

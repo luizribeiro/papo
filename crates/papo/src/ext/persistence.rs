@@ -105,6 +105,11 @@ mod tests {
             b"@label=0 :ergo.test PERSISTENCE STATUS DEFAULT ON\r\n",
         )
         .await;
+        assert!(matches!(
+            events.next().await,
+            Some(Event::PersistenceChanged(status))
+                if status.setting == crate::PersistenceSetting::Default && status.effective
+        ));
         let status = within(get).await.unwrap().unwrap();
         assert_eq!(status.setting, crate::PersistenceSetting::Default);
         assert!(status.effective);

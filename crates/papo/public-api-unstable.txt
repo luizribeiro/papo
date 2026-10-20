@@ -749,24 +749,6 @@ impl core::marker::Unpin for papo::event::Parted
 impl core::marker::UnsafeUnpin for papo::event::Parted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Parted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Parted
-#[non_exhaustive] pub struct papo::event::PersistenceChanged
-pub papo::event::PersistenceChanged::effective: bool
-pub papo::event::PersistenceChanged::setting: papo::PersistenceSetting
-impl core::clone::Clone for papo::event::PersistenceChanged
-pub fn papo::event::PersistenceChanged::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::PersistenceChanged
-impl core::cmp::PartialEq for papo::event::PersistenceChanged
-pub fn papo::event::PersistenceChanged::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::PersistenceChanged
-pub fn papo::event::PersistenceChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::PersistenceChanged
-impl core::marker::Freeze for papo::event::PersistenceChanged
-impl core::marker::Send for papo::event::PersistenceChanged
-impl core::marker::Sync for papo::event::PersistenceChanged
-impl core::marker::Unpin for papo::event::PersistenceChanged
-impl core::marker::UnsafeUnpin for papo::event::PersistenceChanged
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::PersistenceChanged
-impl core::panic::unwind_safe::UnwindSafe for papo::event::PersistenceChanged
 #[non_exhaustive] pub struct papo::event::Quit
 pub papo::event::Quit::authorship: papo::Authorship
 pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
@@ -1417,7 +1399,7 @@ pub papo::Event::Netsplit(papo::event::Netsplit)
 pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Other(papo::Line)
 pub papo::Event::Parted(papo::event::Parted)
-pub papo::Event::PersistenceChanged(papo::event::PersistenceChanged)
+pub papo::Event::PersistenceChanged(papo::PersistenceStatus)
 pub papo::Event::Quit(papo::event::Quit)
 pub papo::Event::Reacted(papo::event::Reacted)
 pub papo::Event::ReadMarker(papo::event::ReadMarker)
@@ -1436,7 +1418,7 @@ impl papo::Event
 pub const fn papo::Event::as_away_changed(&self) -> core::option::Option<&papo::event::AwayChanged>
 impl papo::Event
 pub const fn papo::Event::as_bouncer_network(&self) -> core::option::Option<&papo::event::BouncerNetworkChanged>
-pub const fn papo::Event::as_persistence_changed(&self) -> core::option::Option<&papo::event::PersistenceChanged>
+pub const fn papo::Event::as_persistence_changed(&self) -> core::option::Option<&papo::PersistenceStatus>
 impl papo::Event
 pub const fn papo::Event::as_caps_changed(&self) -> core::option::Option<&papo::event::CapsChanged>
 impl papo::Event

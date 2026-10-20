@@ -28,18 +28,6 @@ pub struct MetadataChanged {
     pub visibility: Visibility,
 }
 
-/// The server reported the account's persistence state.
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub struct PersistenceChanged {
-    /// The configured persistence preference.
-    pub setting: crate::PersistenceSetting,
-    /// Whether persistence is currently effective.
-    pub effective: bool,
-}
-
 /// Why an incomplete server batch was released as individual messages.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]

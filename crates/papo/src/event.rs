@@ -41,10 +41,10 @@ pub use conversation::{
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::PersistenceSetting;
-pub use server::{BatchAbandonReason, MetadataChanged, StateLimit, Warning};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use server::{BouncerNetworkChanged, PersistenceChanged};
+pub use server::BouncerNetworkChanged;
+pub use server::{BatchAbandonReason, MetadataChanged, StateLimit, Warning};
 pub use source::Source;
 pub use tags::Tags;
 pub use user::{
@@ -578,7 +578,7 @@ pub enum Event {
     AccountCreation(crate::AccountCreation),
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
-    PersistenceChanged(PersistenceChanged),
+    PersistenceChanged(crate::PersistenceStatus),
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
     BouncerNetwork(BouncerNetworkChanged),
@@ -725,7 +725,7 @@ impl Event {
     /// Returns the payload when this is [`Event::PersistenceChanged`].
     #[must_use]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    pub const fn as_persistence_changed(&self) -> Option<&PersistenceChanged> {
+    pub const fn as_persistence_changed(&self) -> Option<&crate::PersistenceStatus> {
         if let Self::PersistenceChanged(payload) = self {
             Some(payload)
         } else {
@@ -879,12 +879,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             })
         }
         #[cfg(feature = "unstable")]
-        papo_core::Event::PersistenceStatus(status) => {
-            Event::PersistenceChanged(PersistenceChanged {
-                setting: status.setting,
-                effective: status.effective,
-            })
-        }
+        papo_core::Event::PersistenceStatus(status) => Event::PersistenceChanged(status),
         #[cfg(feature = "unstable")]
         papo_core::Event::BouncerNetwork { id, network } => {
             Event::BouncerNetwork(BouncerNetworkChanged { id, network })
