@@ -970,7 +970,7 @@ fn reconnect_history_stops_at_the_literal_per_target_limit() {
             &mut catchup,
             (0..count).map(|index| {
                 papo_core::HistoryItem::Message(papo_core::HistoryMessage {
-                    message: Message::privmsg("#papo", format!("backlog message {index}"))
+                    message: Line::privmsg("#papo", format!("backlog message {index}"))
                         .with_tag("msgid", format!("RfcBTzyxY12{index:04}")),
                     context: false,
                 })

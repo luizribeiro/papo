@@ -597,7 +597,7 @@ mod tests {
     use std::time::{Duration, UNIX_EPOCH};
 
     use papo_core::{HistoryMessage, HistoryQuery, MsgRef};
-    use papo_proto::{LineRef, Message};
+    use papo_proto::{Line, LineRef};
 
     use super::{HistoryItem, HistoryReference, history_item};
 
@@ -617,7 +617,7 @@ mod tests {
             matches!(HistoryReference::from(UNIX_EPOCH).0, Some(MsgRef::Timestamp(time)) if time == UNIX_EPOCH)
         );
         let event = crate::Message::from_history(
-            Message::privmsg("#papo", "earlier").with_tag("msgid", "RfcBTzyxY120004"),
+            Line::privmsg("#papo", "earlier").with_tag("msgid", "RfcBTzyxY120004"),
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
         )

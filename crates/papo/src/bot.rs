@@ -341,13 +341,13 @@ mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use papo_core::Capabilities;
-    use papo_proto::{Isupport, Message};
+    use papo_proto::{Isupport, Line};
 
     use super::{BotConfig, ChatMessage, Command, ReplyRateLimiter};
 
     fn message_as(command: &str, text: &str, nick: &str, source: &str) -> ChatMessage {
         ChatMessage::new(
-            Message::new(command, ["#papo", text]).with_source(source),
+            Line::new(command, ["#papo", text]).with_source(source),
             &Isupport::default(),
             nick,
             &Capabilities::new(),
@@ -366,7 +366,7 @@ mod tests {
 
     fn message_to(target: &str, text: &str, isupport: &Isupport) -> ChatMessage {
         ChatMessage::new(
-            Message::privmsg(target, text).with_source("emily!~emily@localhost"),
+            Line::privmsg(target, text).with_source("emily!~emily@localhost"),
             isupport,
             "papo{bot}",
             &Capabilities::new(),
@@ -386,7 +386,7 @@ mod tests {
     #[test]
     fn authorizes_only_known_accounts() {
         let tagged = ChatMessage::new(
-            Message::privmsg("#papo", "!op alice")
+            Line::privmsg("#papo", "!op alice")
                 .with_source("emily!~emily@localhost")
                 .with_tag("account", "Emily"),
             &Isupport::default(),
@@ -407,7 +407,7 @@ mod tests {
     #[test]
     fn authorizes_accounts_with_server_casemapping() {
         let tagged = ChatMessage::new(
-            Message::privmsg("#papo", "!op alice")
+            Line::privmsg("#papo", "!op alice")
                 .with_source("emily!~emily@localhost")
                 .with_tag("account", "admin{"),
             &Isupport::default(),
@@ -438,7 +438,7 @@ mod tests {
         );
         let client = crate::Client::from_session_for_test(&session);
         let message = ChatMessage::new(
-            Message::privmsg("#papo", "!op alice").with_source("emily!~emily@localhost"),
+            Line::privmsg("#papo", "!op alice").with_source("emily!~emily@localhost"),
             &Isupport::default(),
             "papo",
             &Capabilities::new(),

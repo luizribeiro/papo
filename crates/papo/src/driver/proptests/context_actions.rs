@@ -7,7 +7,7 @@ use super::*;
 
 fn referenced_message() -> ChatMessage {
     ChatMessage::new(
-        Message::privmsg("#papo", "deployment complete")
+        Line::privmsg("#papo", "deployment complete")
             .with_source("emily!~emily@localhost")
             .with_tag("msgid", "RfcBTzyxY120003"),
         &Isupport::default(),

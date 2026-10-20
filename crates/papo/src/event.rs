@@ -1078,10 +1078,10 @@ mod tests {
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
-    use papo_proto::{Isupport, LineRef, Message, ModeKind as ProtoModeKind, Typing};
+    use papo_proto::{Isupport, Line, LineRef, ModeKind as ProtoModeKind, Typing};
 
     fn event(
-        message: Message,
+        message: Line,
         isupport: &Isupport,
         nick: &str,
         received_at: std::time::SystemTime,
@@ -1091,7 +1091,7 @@ mod tests {
 
     fn chat(command: &str, text: &str) -> ChatMessage {
         event(
-            Message::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
+            Line::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
             &Isupport::default(),
             "papo",
             UNIX_EPOCH,
@@ -1123,7 +1123,7 @@ mod tests {
         );
         assert!(
             ChatMessage::new(
-                Message::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]),
+                Line::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]),
                 &Isupport::default(),
                 "papo",
                 &Capabilities::new(),
@@ -1160,7 +1160,7 @@ mod tests {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CHANTYPES=#"]);
         let channel = event(
-            Message::privmsg("#papo", "hello").with_source("emily!~emily@localhost"),
+            Line::privmsg("#papo", "hello").with_source("emily!~emily@localhost"),
             &isupport,
             "papo",
             UNIX_EPOCH,
@@ -1178,7 +1178,7 @@ mod tests {
         );
 
         let private = event(
-            Message::privmsg("papo", "hello").with_source("emily!~emily@localhost"),
+            Line::privmsg("papo", "hello").with_source("emily!~emily@localhost"),
             &isupport,
             "papo",
             UNIX_EPOCH,
@@ -1213,7 +1213,7 @@ mod tests {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
         let message = event(
-            Message::privmsg("@+#papo", "operators and voiced members")
+            Line::privmsg("@+#papo", "operators and voiced members")
                 .with_source("emily!~emily@localhost")
                 .with_tag("bot", ""),
             &isupport,
@@ -1231,7 +1231,7 @@ mod tests {
     fn exposes_message_tags_and_server_time() {
         let received = UNIX_EPOCH + Duration::from_secs(42);
         let tagged = event(
-            Message::privmsg("#papo", "hello")
+            Line::privmsg("#papo", "hello")
                 .with_tag("time", "2026-02-03T04:05:06.789Z")
                 .with_tag("msgid", "RfcBTzyxY120004")
                 .with_tag("account", "emily")
@@ -1256,7 +1256,7 @@ mod tests {
         assert!(!chat("PRIVMSG", "human message").is_bot());
 
         for time in [None, Some("not-a-time")] {
-            let mut message = Message::privmsg("#papo", "fallback");
+            let mut message = Line::privmsg("#papo", "fallback");
             if let Some(time) = time {
                 message = message.with_tag("time", time);
             }
@@ -1295,18 +1295,18 @@ mod tests {
     #[test]
     fn distinguishes_echoes_and_live_messages() {
         let classify = |message| event(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH);
-        let echo = classify(Message::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
+        let echo = classify(Line::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
         assert_eq!(echo.origin(), Origin::Echo);
         assert!(echo.is_own());
         assert!(!echo.is_live());
         let tagged = classify(
-            Message::privmsg("#papo", "earlier")
+            Line::privmsg("#papo", "earlier")
                 .with_source("emily!e@localhost")
                 .with_tag("batch", "history42"),
         );
         assert_eq!(tagged.origin(), Origin::Live);
         assert!(tagged.is_live());
-        let live = classify(Message::privmsg("#papo", "now").with_source("emily!e@localhost"));
+        let live = classify(Line::privmsg("#papo", "now").with_source("emily!e@localhost"));
         assert_eq!(live.origin(), Origin::Live);
         assert!(!live.is_own());
         assert!(live.is_live());
@@ -1378,9 +1378,7 @@ mod tests {
     fn maps_response() {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default());
-        let id = session
-            .request(now, Message::new("MODE", ["#papo"]))
-            .unwrap();
+        let id = session.request(now, Line::new("MODE", ["#papo"])).unwrap();
         session.handle_line(now, b"@label=0 :ergo.test ACK");
         assert!(
             matches!(from_core(session.poll_event().unwrap()), CoreEvent::Response(response) if response.id == id)
@@ -1390,7 +1388,7 @@ mod tests {
     #[test]
     fn maps_multiline_as_a_normal_message() {
         let multiline = papo_core::MultilineMessage {
-            message: Message::privmsg("#papo", "first\nsecond"),
+            message: Line::privmsg("#papo", "first\nsecond"),
         };
         assert!(matches!(
             from_core(papo_core::Event::MultilineMessage(multiline)),
@@ -1485,9 +1483,7 @@ mod tests {
     fn maps_request_timed_out() {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default().request_timeout(Duration::ZERO));
-        let id = session
-            .request(now, Message::new("MODE", ["#papo"]))
-            .unwrap();
+        let id = session.request(now, Line::new("MODE", ["#papo"])).unwrap();
         session.handle_timeout(now);
         assert!(
             matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestTimedOut(mapped) if mapped == id)
@@ -1498,9 +1494,7 @@ mod tests {
     fn maps_request_aborted() {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default());
-        let id = session
-            .request(now, Message::new("MODE", ["#papo"]))
-            .unwrap();
+        let id = session.request(now, Line::new("MODE", ["#papo"])).unwrap();
         session.handle_disconnected(now);
         assert!(
             matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestAborted(mapped) if mapped == id)
@@ -1920,7 +1914,7 @@ mod tests {
 
     #[test]
     fn maps_history() {
-        let message = Message::privmsg("#papo", "earlier");
+        let message = Line::privmsg("#papo", "earlier");
         let CoreEvent::History { target, items, end } = from_core(papo_core::Event::History {
             target: "#papo".into(),
             items: vec![
@@ -1929,7 +1923,7 @@ mod tests {
                     context: false,
                 }),
                 papo_core::HistoryItem::Other(papo_core::HistoryMessage {
-                    message: Message::new("WALLOPS", ["Network maintenance begins soon"]),
+                    message: Line::new("WALLOPS", ["Network maintenance begins soon"]),
                     context: false,
                 }),
             ],
@@ -1973,7 +1967,7 @@ mod tests {
     #[test]
     fn maps_netsplit() {
         let quit =
-            Message::new("QUIT", ["irc.example irc.remote"]).with_source("alice!~a@remote.example");
+            Line::new("QUIT", ["irc.example irc.remote"]).with_source("alice!~a@remote.example");
         let Event::Netsplit(netsplit) = forwarded(papo_core::Event::Netsplit {
             servers: ["irc.example".into(), "irc.remote".into()],
             quits: vec![quit],
@@ -1992,7 +1986,7 @@ mod tests {
 
     #[test]
     fn maps_netjoin() {
-        let join = Message::join("#papo").with_source("alice!~a@remote.example");
+        let join = Line::join("#papo").with_source("alice!~a@remote.example");
         let Event::Netjoin(netjoin) = forwarded(papo_core::Event::Netjoin {
             servers: ["irc.example".into(), "irc.remote".into()],
             joins: vec![join],

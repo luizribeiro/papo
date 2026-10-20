@@ -12,7 +12,7 @@ pub(crate) use std::{
 };
 
 pub(crate) use papo_core::{Config, Decoding, Sasl, Session, sts::ConnectionSecurity};
-pub(crate) use papo_proto::{Message, Typing};
+pub(crate) use papo_proto::{Line, Typing};
 pub(crate) use tokio::io::{
     AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf,
 };
