@@ -69,6 +69,51 @@ impl HistoryItem {
             _ => None,
         }
     }
+
+    /// Returns the server-assigned identifier of this history line, when supplied.
+    #[must_use]
+    pub const fn msgid(&self) -> Option<&crate::MessageId> {
+        match self {
+            Self::Message(event) => event.msgid.as_ref(),
+            Self::Reacted(event) => event.msgid.as_ref(),
+            Self::Redacted(event) => event.msgid.as_ref(),
+            Self::Joined(event) => event.msgid.as_ref(),
+            Self::Parted(event) => event.msgid.as_ref(),
+            Self::Quit(event) => event.msgid.as_ref(),
+            Self::Kicked(event) => event.msgid.as_ref(),
+            Self::NickChanged(event) => event.msgid.as_ref(),
+            Self::TopicChanged(event) => event.msgid.as_ref(),
+            Self::ModeChanged(event) => event.msgid.as_ref(),
+            Self::Other { msgid, .. } => msgid.as_ref(),
+        }
+    }
+
+    /// Returns the server time, or the local receipt time when none was supplied.
+    #[must_use]
+    pub const fn time(&self) -> SystemTime {
+        match self {
+            Self::Message(event) => event.time,
+            Self::Reacted(event) => event.time,
+            Self::Redacted(event) => event.time,
+            Self::Joined(event) => event.time,
+            Self::Parted(event) => event.time,
+            Self::Quit(event) => event.time,
+            Self::Kicked(event) => event.time,
+            Self::NickChanged(event) => event.time,
+            Self::TopicChanged(event) => event.time,
+            Self::ModeChanged(event) => event.time,
+            Self::Other { time, .. } => *time,
+        }
+    }
+
+    /// Returns the preferred exclusive cursor for paging after this line.
+    #[must_use]
+    pub fn reference(&self) -> HistoryReference {
+        self.msgid().map_or_else(
+            || HistoryReference::from(self.time()),
+            |msgid| HistoryReference(MsgRef::Msgid(msgid.to_string())),
+        )
+    }
 }
 
 fn other(line: Line, received_at: SystemTime) -> HistoryItem {
@@ -1009,6 +1054,47 @@ mod tests {
                 && changed.authorship == crate::Authorship::Own));
         assert!(matches!(&items[4], HistoryItem::Quit(quit)
             if quit.channels == ["#papo"] && quit.authorship == crate::Authorship::Other));
+        let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
+        assert_eq!(items[0].msgid().map(AsRef::as_ref), Some("RfcBTzyxY120004"));
+        assert_eq!(items[0].time(), first_time);
+        assert!(matches!(&items[0], HistoryItem::Message(message)
+            if message.account.as_deref() == Some("papo")));
+        assert!(matches!(&items[3], HistoryItem::NickChanged(changed)
+            if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
+                && changed.account.as_deref() == Some("papo")));
+    }
+
+    #[test]
+    fn soju_history_without_msgids_pages_by_time() {
+        let server_time = papo_proto::time::parse("2026-10-20T18:44:00.250Z").unwrap();
+        let client = crate::Client::disconnected_for_test();
+        let item = history_item(
+            papo_core::HistoryItem::Message(core_item(
+                "@time=2026-10-20T18:44:00.250Z :emily!~e@cloak.example PRIVMSG #papo :soju backlog",
+            )),
+            Some(&crate::Conversation::Channel(
+                Casemapping::default().channel("#papo"),
+            )),
+            &client,
+            UNIX_EPOCH,
+            crate::Origin::History,
+        );
+        assert_eq!(item.msgid(), None);
+        assert_eq!(item.time(), server_time);
+        assert!(matches!(item.reference().0, MsgRef::Timestamp(time) if time == server_time));
+        let HistoryItem::Message(message) = item else {
+            panic!("expected a chat message");
+        };
+        assert!(
+            matches!(HistoryReference::from(&message).0, MsgRef::Timestamp(time) if time == server_time)
+        );
+        assert!(matches!(
+            client.history("#papo").before(&message).query,
+            Ok(HistoryQuery::Before {
+                before: MsgRef::Timestamp(time),
+                ..
+            }) if time == server_time
+        ));
     }
 
     #[test]
