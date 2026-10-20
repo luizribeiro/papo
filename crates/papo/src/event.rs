@@ -202,6 +202,113 @@ struct MessageMetadata {
     tags: Tags,
 }
 
+impl Ctcp {
+    pub(crate) fn new(
+        raw: ProtoLine,
+        isupport: &Isupport,
+        nick: &str,
+        caps: &Capabilities,
+        received_at: SystemTime,
+    ) -> Result<Self, ProtoLine> {
+        let own_source = raw.as_ref().source().is_some_and(|source| {
+            matches!(source, papo_proto::Source::User { nick: source, .. }
+                if isupport.casemapping().nick(source) == nick)
+        });
+        let Ok((status, conversation)) =
+            papo_core::classify_conversation(&raw.as_ref(), nick, isupport)
+        else {
+            return Err(raw);
+        };
+        Self::from_line(
+            raw,
+            None,
+            own_source && !caps.contains_key(crate::cap::LABELED_RESPONSE),
+            if own_source {
+                Authorship::Own
+            } else {
+                Authorship::Other
+            },
+            conversation,
+            status,
+            isupport,
+            received_at,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn from_line(
+        raw: ProtoLine,
+        batch_type: Option<&str>,
+        echo: bool,
+        authorship: Authorship,
+        conversation: Conversation,
+        status: Option<Vec<char>>,
+        isupport: &Isupport,
+        received_at: SystemTime,
+    ) -> Result<Self, ProtoLine> {
+        let message = raw.as_ref();
+        let Some((command, params, reply)) = ctcp_parts(&message) else {
+            return Err(raw);
+        };
+        let Some(metadata) = message_metadata(
+            &message,
+            batch_type,
+            echo,
+            authorship,
+            conversation,
+            status,
+            isupport,
+            received_at,
+        ) else {
+            return Err(raw);
+        };
+        Ok(Self {
+            actor: metadata.actor,
+            authorship: metadata.authorship,
+            conversation: metadata.conversation,
+            status: metadata.status,
+            command,
+            params,
+            reply,
+            msgid: metadata.msgid,
+            time: metadata.time,
+            account: metadata.account,
+            origin: metadata.origin,
+            tags: metadata.tags,
+        })
+    }
+}
+
+fn ctcp_parts(message: &LineRef<'_>) -> Option<(String, Option<String>, bool)> {
+    let reply = match () {
+        () if message.command_is("PRIVMSG") => false,
+        () if message.command_is("NOTICE") => true,
+        () => return None,
+    };
+    let ctcp = ProtoCtcp::parse(message.param(1)?)?;
+    (reply || !ctcp.command.eq_ignore_ascii_case("ACTION")).then(|| {
+        (
+            ctcp.command.to_owned(),
+            ctcp.params.map(str::to_owned),
+            reply,
+        )
+    })
+}
+
+pub(crate) fn incoming(
+    line: ProtoLine,
+    isupport: &Isupport,
+    nick: &str,
+    caps: &Capabilities,
+    received_at: SystemTime,
+) -> Event {
+    match Ctcp::new(line, isupport, nick, caps, received_at) {
+        Ok(ctcp) => Event::Ctcp(ctcp),
+        Err(line) => Message::new(line, isupport, nick, caps, received_at)
+            .map_or_else(Event::Other, |message| Event::Message(Box::new(message))),
+    }
+}
+
 impl Message {
     pub(crate) fn new(
         raw: ProtoLine,
@@ -1350,15 +1457,14 @@ mod tests {
     use super::{
         Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageKind,
         MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Visibility,
-        Warning, from_core as from_core_with_mapping,
+        from_core as from_core_with_mapping, incoming,
+        Warning,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
-    use papo_proto::{
-        Casemapping, Ctcp as ProtoCtcp, Isupport, Line, LineRef, Typing,
-    };
+    use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
 
     fn from_core(event: papo_core::Event) -> CoreEvent {
         from_core_with_mapping(event, Casemapping::default(), UNIX_EPOCH)
@@ -1390,20 +1496,28 @@ mod tests {
             chat("PRIVMSG", "\x01ACTION waves\x01").kind(),
             MessageKind::Action
         );
-        assert_eq!(chat("PRIVMSG", "\x01VERSION\x01").kind(), MessageKind::Ctcp);
-        let version = chat("PRIVMSG", "\x01VERSION\x01");
-        let version = ProtoCtcp::parse(&version.raw_text).unwrap();
+        assert_eq!(
+            chat("PRIVMSG", "\x01ACTION tests a split message").kind(),
+            MessageKind::Action
+        );
+        let parse = |command, text| {
+            incoming(
+                Line::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
+                &Isupport::default(),
+                "papo",
+                &Capabilities::new(),
+                UNIX_EPOCH,
+            )
+        };
+        let version_event = parse("PRIVMSG", "\x01VERSION\x01");
+        let version = version_event.as_ctcp().unwrap();
         assert_eq!(version.command, "VERSION");
         assert_eq!(version.params, None);
-        assert_eq!(
-            chat("NOTICE", "\x01VERSION papo-0.1\x01").kind(),
-            MessageKind::CtcpReply
-        );
-        let reply = chat("NOTICE", "\x01VERSION papo-0.1\x01");
-        assert_eq!(
-            ProtoCtcp::parse(&reply.raw_text).unwrap().params,
-            Some("papo-0.1")
-        );
+        assert!(!version.reply);
+        let reply_event = parse("NOTICE", "\x01VERSION papo-0.1\x01");
+        let reply = reply_event.as_ctcp().unwrap();
+        assert_eq!(reply.params.as_deref(), Some("papo-0.1"));
+        assert!(reply.reply);
         assert!(
             ChatMessage::new(
                 Line::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]),

@@ -1355,14 +1355,13 @@ where
             }
             event::CoreEvent::Other(message) => {
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
-                let event = crate::Message::new(
+                let event = crate::event_impl::incoming(
                     message,
                     session.isupport(),
                     session.nick(),
                     session.caps(),
                     crate::rt::now_wall(),
-                )
-                .map_or_else(Event::Other, |message| Event::Message(Box::new(message)));
+                );
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,
