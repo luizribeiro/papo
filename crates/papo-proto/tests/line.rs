@@ -502,6 +502,52 @@ fn unescapes_tags_and_uses_the_last_duplicate() {
 }
 
 #[test]
+fn normalizes_empty_and_valueless_tags() {
+    let empty = LineRef::parse("@+example.com/foo=;msgid=abc :nick!u@h PRIVMSG #c :hi").unwrap();
+    assert!(matches!(
+        empty.tags().collect::<Vec<_>>().as_slice(),
+        [
+            ("+example.com/foo", None),
+            ("msgid", Some(Cow::Borrowed("abc"))),
+        ]
+    ));
+    assert_eq!(
+        empty.to_owned().to_string(),
+        "@+example.com/foo;msgid=abc :nick!u@h PRIVMSG #c hi"
+    );
+
+    let valueless = LineRef::parse("@foo :srv 001 me :hi").unwrap();
+    assert!(matches!(
+        valueless.tags().collect::<Vec<_>>().as_slice(),
+        [("foo", None)]
+    ));
+    assert_eq!(valueless.to_owned().to_string(), "@foo :srv 001 me hi");
+
+    let built = Line::tagmsg("#c").with_tag("+example.com/foo", "");
+    assert!(matches!(
+        built.as_ref().tags().collect::<Vec<_>>().as_slice(),
+        [("+example.com/foo", None)]
+    ));
+}
+
+#[test]
+fn minimized_tag_round_trip_preserves_unknown_command() {
+    let input = "@ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ=\\ +";
+    let owned = LineRef::parse(input).unwrap().to_owned();
+
+    assert_eq!(owned.command(), "+");
+    assert!(matches!(
+        owned.as_ref().tags().collect::<Vec<_>>().as_slice(),
+        [("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ", None)]
+    ));
+    assert_eq!(owned.to_string(), "@ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ +");
+    assert_eq!(
+        LineRef::parse(&owned.to_string()).unwrap().to_owned(),
+        owned
+    );
+}
+
+#[test]
 fn distinguishes_empty_lines_from_missing_commands() {
     assert_eq!(LineRef::parse(""), Err(ParseError::EmptyLine));
     assert_eq!(LineRef::parse("\r\n"), Err(ParseError::EmptyLine));

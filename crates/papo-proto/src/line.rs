@@ -559,9 +559,10 @@ impl<'a> Iterator for Tags<'a> {
             TagIter::Wire(tags) => {
                 let tag = tags.as_mut()?.next()?;
                 let (key, value) = tag.split_once('=').map_or((tag, None), |(key, value)| {
+                    let value = unescape_tag(value);
                     (key, (!value.is_empty()).then_some(value))
                 });
-                Some((key, value.map(unescape_tag)))
+                Some((key, value))
             }
             TagIter::Owned(tags) => tags
                 .next()
