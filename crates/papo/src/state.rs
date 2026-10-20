@@ -25,6 +25,13 @@ pub struct State {
 }
 
 impl State {
+    pub(crate) fn parse_target(
+        &self,
+        target: impl AsRef<str>,
+    ) -> Result<(Option<Vec<char>>, crate::Conversation), crate::InvalidIdentifier> {
+        self.core.parse_target(target)
+    }
+
     pub(crate) fn from_session(session: &Session, connected: bool) -> Self {
         let unsupported = FEATURES
             .iter()

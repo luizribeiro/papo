@@ -3471,7 +3471,10 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let sent = within(client.privmsg("#papo", "a".repeat(600)))
         .await
         .unwrap();
-    assert_eq!(sent.target, "#papo");
+    assert!(
+        matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
+    );
+    assert_eq!(sent.status, None);
     assert_eq!(sent.fallbacks, [crate::Fallback::SplitIntoLines]);
     let lines = format!(
         "PRIVMSG #papo {}\r\nPRIVMSG #papo {}\r\n",
@@ -3481,6 +3484,20 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     client_line(&mut server, lines.as_bytes()).await;
     client.notice("helper", "maintenance soon").await.unwrap();
     client_line(&mut server, b"NOTICE helper :maintenance soon\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
+    )
+    .await;
+    while client.state().isupport().statusmsg() != Some("@+") {
+        tokio::task::yield_now().await;
+    }
+    let sent = client.privmsg("@#ops", "operators only").await.unwrap();
+    client_line(&mut server, b"PRIVMSG @#ops :operators only\r\n").await;
+    assert!(
+        matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#ops")
+    );
+    assert_eq!(sent.status, Some(vec!['@']));
     let sent = client
         .privmsg("helper", "reviewed")
         .reply_to(crate::MessageId::from("RfcBTzyxY120004"))
@@ -3625,7 +3642,10 @@ async fn chat_text_returns_metadata_from_a_labelled_echo() {
     .await;
     let sent = within(sent).await.unwrap().unwrap();
     assert_eq!(sent.id.as_deref(), Some("RfcBTzyxY120004"));
-    assert_eq!(Some(sent.target.as_ref()), Some("#papo"));
+    assert!(
+        matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
+    );
+    assert_eq!(sent.status, None);
     assert_eq!(
         sent.time,
         Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))

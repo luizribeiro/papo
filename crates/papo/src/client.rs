@@ -41,6 +41,10 @@ pub struct Client {
 pub struct Sent {
     /// Target to which the message was sent.
     pub target: crate::Target,
+    /// IRC conversation to which the message was sent.
+    pub conversation: crate::Conversation,
+    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    pub status: Option<Vec<char>>,
     /// Server-assigned identifier from a labelled echo.
     pub id: Option<crate::MessageId>,
     /// Server time from a labelled echo.
@@ -65,7 +69,7 @@ pub enum Fallback {
 pub struct SendMessage {
     client: Client,
     kind: TextKind,
-    target: crate::Target,
+    target: String,
     text: String,
     reply_to: Option<crate::MessageId>,
     channel_context: Option<crate::ChannelName>,
@@ -137,9 +141,9 @@ impl IntoFuture for SendMessage {
                 return Err(error.into());
             }
             let state = self.client.state();
-            self.target
-                .check(state.isupport().inner())
-                .map_err(|reason| InvalidInput::invalid_name(self.target.to_string(), reason))?;
+            state
+                .parse_target(&self.target)
+                .map_err(|reason| InvalidInput::invalid_name(self.target.clone(), reason))?;
             if let Some(message) = &self.reply_to {
                 message
                     .check()
@@ -177,16 +181,23 @@ impl IntoFuture for SendMessage {
                 fallbacks.extend(self.channel_context.map(|_| Fallback::ContextTagDropped));
             }
             self.client
-                .send_text(self.kind, self.target.as_ref(), &self.text, tags, fallbacks)
+                .send_text(self.kind, &self.target, &self.text, tags, fallbacks)
                 .await
         })
     }
 }
 
 impl Sent {
-    pub(crate) fn without_echo(target: &str, fallbacks: Vec<Fallback>) -> Self {
+    pub(crate) fn without_echo(
+        target: &str,
+        conversation: crate::Conversation,
+        status: Option<Vec<char>>,
+        fallbacks: Vec<Fallback>,
+    ) -> Self {
         Self {
             target: target.into(),
+            conversation,
+            status,
             id: None,
             time: None,
             fallbacks,
@@ -196,16 +207,20 @@ impl Sent {
     pub(crate) fn from_response(
         response: &Response,
         target: &str,
+        conversation: crate::Conversation,
+        status: Option<Vec<char>>,
         fallbacks: Vec<Fallback>,
     ) -> Self {
         match response.sent() {
             Some(sent) => Self {
                 target: target.into(),
+                conversation,
+                status,
                 id: Some(sent.msgid.into()),
                 time: sent.time.and_then(|value| time::parse(&value)),
                 fallbacks,
             },
-            None => Self::without_echo(target, fallbacks),
+            None => Self::without_echo(target, conversation, status, fallbacks),
         }
     }
 }
@@ -376,7 +391,7 @@ impl Client {
         SendMessage {
             client: self.clone(),
             kind: TextKind::Privmsg,
-            target: crate::Target::from(target.as_ref()),
+            target: target.as_ref().to_owned(),
             text: text.into(),
             reply_to: None,
             channel_context: None,
@@ -403,7 +418,7 @@ impl Client {
         SendMessage {
             client: self.clone(),
             kind: TextKind::Notice,
-            target: crate::Target::from(target.as_ref()),
+            target: target.as_ref().to_owned(),
             text: text.into(),
             reply_to: None,
             channel_context: None,
@@ -490,7 +505,7 @@ impl Client {
         emoji: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         self.reaction(
-            crate::Target::from(target.as_ref()),
+            target.as_ref().to_owned(),
             message.into(),
             emoji.into(),
             "+draft/react",
@@ -514,7 +529,7 @@ impl Client {
         emoji: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         self.reaction(
-            crate::Target::from(target.as_ref()),
+            target.as_ref().to_owned(),
             message.into(),
             emoji.into(),
             "+draft/unreact",
@@ -544,7 +559,7 @@ impl Client {
 
     fn reaction(
         &self,
-        target: crate::Target,
+        target: String,
         message: crate::MessageId,
         emoji: String,
         reaction_tag: &'static str,
@@ -563,8 +578,9 @@ impl Client {
             }
             let state = client.state();
             Self::require_feature(&state, Feature::Reactions)?;
-            target
-                .check(state.isupport().inner())
+            state
+                .parse_target(&target)
+                .map(drop)
                 .and_then(|()| message.check())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let denied = state.isupport().clienttagdeny();
@@ -577,7 +593,7 @@ impl Client {
                     UnsupportedReason::TagDenied,
                 )));
             }
-            let message = Line::tagmsg(target.as_ref())
+            let message = Line::tagmsg(target)
                 .with_tag(reply_tag, message.as_ref())
                 .with_tag(reaction_tag, emoji);
             if state.supports(Feature::LabeledResponse) {
@@ -601,18 +617,18 @@ impl Client {
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
     pub fn typing(&self, target: impl AsRef<str>, state: Typing) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let target = crate::Target::from(target.as_ref());
+        let target = target.as_ref().to_owned();
         crate::RequestFuture::new(async move {
             let snapshot = client.state();
             Self::require_feature(&snapshot, Feature::Typing)?;
-            target
-                .check(snapshot.isupport().inner())
+            snapshot
+                .parse_target(&target)
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
                 .send(Command::Typing {
-                    target: target.into_string(),
+                    target,
                     state,
                     result,
                 })
@@ -638,17 +654,18 @@ impl Client {
         reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let target = crate::Target::from(target.as_ref());
+        let target = target.as_ref().to_owned();
         let message = message.into();
         let reason = reason.into();
         crate::RequestFuture::new(async move {
             let state = client.state();
             Self::require_feature(&state, Feature::Redaction)?;
-            target
-                .check(state.isupport().inner())
+            state
+                .parse_target(&target)
+                .map(drop)
                 .and_then(|()| message.check())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
-            let mut params = vec![target.to_string(), message.to_string()];
+            let mut params = vec![target.clone(), message.to_string()];
             if !reason.is_empty() {
                 params.push(reason);
             }
@@ -665,6 +682,10 @@ impl Client {
         tags: Vec<(String, String)>,
         fallbacks: Vec<Fallback>,
     ) -> Result<Sent, Error> {
+        let (status, conversation) = self
+            .state()
+            .parse_target(target)
+            .map_err(|reason| InvalidInput::invalid_name(target, reason))?;
         if !self.state().is_connected() {
             let mut message = match kind {
                 TextKind::Privmsg => Line::privmsg(target, text),
@@ -674,13 +695,15 @@ impl Client {
                 message = message.with_tag(key, value);
             }
             self.send_message(message).await?;
-            return Ok(Sent::without_echo(target, fallbacks));
+            return Ok(Sent::without_echo(target, conversation, status, fallbacks));
         }
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::SendText {
                 kind,
                 target: target.to_owned(),
+                conversation,
+                status,
                 text: text.to_owned(),
                 tags,
                 fallbacks,

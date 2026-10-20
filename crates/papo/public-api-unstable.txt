@@ -2416,8 +2416,10 @@ impl core::marker::UnsafeUnpin for papo::SendMessage
 impl core::panic::unwind_safe::RefUnwindSafe for papo::SendMessage
 impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
 #[non_exhaustive] pub struct papo::Sent
+pub papo::Sent::conversation: papo::Conversation
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
 pub papo::Sent::id: core::option::Option<papo::MessageId>
+pub papo::Sent::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::Sent::target: papo::Address
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::Sent
