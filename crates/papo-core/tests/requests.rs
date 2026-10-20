@@ -1552,6 +1552,28 @@ fn aborts_pending_requests_on_disconnect() {
 }
 
 #[test]
+fn labelled_join_aborts_once_before_any_bytes_are_transmitted() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::join("#papo"),
+            ResponseMatcher::Join("#papo".into()),
+        )
+        .unwrap();
+
+    session.handle_disconnected(now);
+    let aborted = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::RequestAborted { id, transmitted } => Some((id, transmitted)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(aborted, [(id, false)]);
+}
+
+#[test]
 fn abort_reports_when_a_labelled_privmsg_reached_the_transport() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
