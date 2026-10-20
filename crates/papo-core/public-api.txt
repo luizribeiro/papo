@@ -1454,7 +1454,7 @@ pub fn papo_core::Session::handle_connected_with(&mut self, std::time::Instant, 
 pub fn papo_core::Session::handle_disconnected(&mut self, std::time::Instant)
 pub fn papo_core::Session::handle_line(&mut self, std::time::Instant, &[u8])
 pub fn papo_core::Session::handle_timeout(&mut self, std::time::Instant)
-pub const fn papo_core::Session::is_registered(&self) -> bool
+pub const fn papo_core::Session::is_connected(&self) -> bool
 pub fn papo_core::Session::isupport(&self) -> &papo::isupport::Isupport
 pub const fn papo_core::Session::lag(&self) -> core::option::Option<core::time::Duration>
 pub fn papo_core::Session::metadata_limits(&self) -> core::option::Option<papo_core::MetadataLimits>

@@ -256,7 +256,7 @@ fn completes_after_motd_with_capabilities_and_isupport() {
     .event(|event| matches!(event, Event::CasemappingChanged { .. }))
     .server(":ergo.test 005 account NETWORK=Ergo UTF8ONLY :are supported by this server")
     .server(":ergo.test 376 account :End of MOTD")
-    .inspect(|session| assert!(session.is_registered()))
+    .inspect(|session| assert!(session.is_connected()))
     .event(|event| {
         matches!(
             event,
@@ -309,7 +309,7 @@ fn no_motd_numeric_completes_registration() {
                     if welcome.nick == "papo" && welcome.caps.is_empty()
             )
         })
-        .inspect(|session| assert!(session.is_registered()));
+        .inspect(|session| assert!(session.is_connected()));
 }
 
 #[test]
@@ -319,11 +319,11 @@ fn completes_ten_seconds_after_welcome_when_motd_never_finishes() {
         .welcome(":soju.example 001 papo :Welcome")
         .deadline(Some(Duration::from_secs(10)))
         .advance(Duration::from_secs(9))
-        .inspect(|session| assert!(!session.is_registered()))
+        .inspect(|session| assert!(!session.is_connected()))
         .no_event()
         .deadline(Some(Duration::from_secs(1)))
         .advance(Duration::from_secs(1))
-        .inspect(|session| assert!(session.is_registered()))
+        .inspect(|session| assert!(session.is_connected()))
         .event(|event| matches!(event, Event::Connected(_)))
         .deadline(Some(Duration::from_secs(50)));
 }
@@ -347,14 +347,14 @@ fn reconnect_resets_all_registration_state() {
     .server(":ergo.test 422 papo-away :MOTD File is missing")
     .event(|event| matches!(event, Event::Connected(_)))
     .inspect(|session| {
-        assert!(session.is_registered());
+        assert!(session.is_connected());
         assert!(session.caps().contains_key("server-time"));
         assert_eq!(session.isupport().network(), Some("ErgoTest"));
         assert_eq!(session.nick(), "papo-away");
     })
     .disconnect()
     .inspect(|session| {
-        assert!(!session.is_registered());
+        assert!(!session.is_connected());
         assert_eq!(session.poll_timeout(), None);
     })
     .connect_default()

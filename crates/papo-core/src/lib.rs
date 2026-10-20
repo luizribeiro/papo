@@ -2249,14 +2249,14 @@ impl Session {
                 self.unlabelled_requests.push_back(request);
             }
         }
-        let was_registered = self.welcome_state.is_connected();
+        let was_connected = self.welcome_state.is_connected();
         self.welcome_state.handle_timeout(
             now,
             self.caps.enabled(),
             self.isupport.value(),
             &mut self.outbox,
         );
-        if !was_registered && self.welcome_state.is_connected() {
+        if !was_connected && self.welcome_state.is_connected() {
             self.monitor
                 .restore(self.isupport.value(), &mut self.outbox);
         }
@@ -2838,7 +2838,7 @@ impl Session {
 
     /// Reports whether connection registration has completed.
     #[must_use]
-    pub const fn is_registered(&self) -> bool {
+    pub const fn is_connected(&self) -> bool {
         self.welcome_state.is_connected()
     }
 
@@ -3058,8 +3058,8 @@ impl Session {
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
         let before = self.snapshot_values_for(message);
-        let was_registered = self.welcome_state.is_connected();
-        let before_features = was_registered.then(|| self.supported_features());
+        let was_connected = self.welcome_state.is_connected();
+        let before_features = was_connected.then(|| self.supported_features());
         let registration_handled = self.welcome_state.handle_message(
             now,
             message,
@@ -3087,8 +3087,8 @@ impl Session {
         if isupport_handled {
             self.remember_casemapping();
         }
-        let registration_finished = !was_registered && self.welcome_state.is_connected();
-        if registration_finished {
+        let connection_finished = !was_connected && self.welcome_state.is_connected();
+        if connection_finished {
             self.monitor
                 .restore(self.isupport.value(), &mut self.outbox);
         }
@@ -3097,7 +3097,7 @@ impl Session {
                 .handle_message(message, self.isupport.value(), &mut self.outbox)
                 == Handled::Yes;
         self.send_pending_registration(now);
-        if registration_finished || isupport_handled {
+        if connection_finished || isupport_handled {
             self.sync_monitored_state();
         } else if monitor_handled {
             for nick in monitor::presence_nicks(message) {

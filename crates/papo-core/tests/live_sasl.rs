@@ -33,7 +33,7 @@ fn authenticates_with_plain_and_scram_against_live_ergo() {
     ] {
         let session = authenticate(&server, &account, sasl)
             .unwrap_or_else(|reason| panic!("valid credentials closed: {reason}"));
-        assert!(session.is_registered());
+        assert!(session.is_connected());
         assert_eq!(session.account(), Some(account.as_str()));
     }
 
