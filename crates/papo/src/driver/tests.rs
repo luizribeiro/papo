@@ -4606,6 +4606,58 @@ async fn only_pending_request_enables_read_ahead() {
     abort_task(driver).await;
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn quit_publishes_member_removal_while_reading_ahead() {
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 2);
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n:alice!~alice@staff.example JOIN #papo * :Alice Example\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(
+        client
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .member("alice")
+            .is_some()
+    );
+    saturate_events(&mut server, &events).await;
+
+    let requester = client.clone();
+    let whois = tokio::spawn(async move { requester.whois(test_nick("dan")).await });
+    client_line(&mut server, b"WHOIS dan\r\n").await;
+    server_line(
+        &mut server,
+        b":alice!~alice@staff.example QUIT :Client exited\r\n:ergo.test 311 papo-driver dan ~dan users.example * :Dan Example\r\n:ergo.test 318 papo-driver dan :End of /WHOIS list\r\n",
+    )
+    .await;
+    assert_eq!(within(whois).await.unwrap().unwrap().nick, "dan");
+
+    loop {
+        let event = within(events.next())
+            .await
+            .expect("event stream remains open");
+        if matches!(event, Event::Quit(_)) {
+            assert!(
+                client
+                    .state()
+                    .channel("#papo")
+                    .unwrap()
+                    .member("alice")
+                    .is_none()
+            );
+            break;
+        }
+    }
+
+    abort_task(driver).await;
+}
+
 #[test]
 fn registration_and_quit_independently_enable_read_ahead() {
     let requests = std::collections::BTreeMap::new();

@@ -1026,9 +1026,11 @@ fn removes_other_members_on_part_kick_and_multi_channel_quit() {
             assert!(session.state().user("alice").is_none());
             assert!(session.state().user("bob").is_none());
             assert_eq!(session.state().user("dan").unwrap().channels().count(), 2);
+            assert_eq!(session.state_generation(), 8);
         })
         .server(":dan!dan@cloak.example QUIT :Client exited")
         .inspect(|session| {
+            assert_eq!(session.state_generation(), 9);
             assert!(session.state().user("dan").is_none());
             assert!(
                 session
