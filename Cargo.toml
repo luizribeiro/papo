@@ -15,6 +15,7 @@ members = [
   "examples/catchup",
   "examples/register",
   "examples/browser-worker",
+  "examples/sts-store",
 ]
 exclude = ["fuzz"]
 
