@@ -1239,9 +1239,9 @@ pub(crate) fn from_core(
                     .map(|change| {
                         typed_mode_change(
                             if change.set {
-                                ModeAction::Add
+                                LegacyModeAction::Add
                             } else {
-                                ModeAction::Remove
+                                LegacyModeAction::Remove
                             },
                             change.mode,
                             change.arg.as_deref(),
@@ -1292,7 +1292,7 @@ pub(crate) fn from_core(
 }
 
 pub(crate) fn typed_mode_change(
-    action: ModeAction,
+    action: LegacyModeAction,
     mode: char,
     arg: Option<&str>,
     kind: papo_proto::ModeKind,
@@ -1307,7 +1307,7 @@ pub(crate) fn typed_mode_change(
         mode,
         action,
         typed_arg,
-        set: action == ModeAction::Add,
+        set: action == LegacyModeAction::Add,
         kind: ModeKind::from_proto(kind),
         arg: arg.map(str::to_owned),
     }
@@ -1318,9 +1318,9 @@ mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
-        Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageKind,
-        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Visibility,
-        Warning, from_core as from_core_with_mapping,
+        Authorship, Conversation, CoreEvent, Event, LegacyModeAction as ModeAction,
+        Message as ChatMessage, MessageKind, MetadataChanged, ModeArg, Origin, Source,
+        StandardReplyKind, Visibility, Warning, from_core as from_core_with_mapping,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,

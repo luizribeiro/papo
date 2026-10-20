@@ -1314,7 +1314,10 @@ mod tests {
                 if matches!(event.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && event.actor.nick().is_some_and(|nick| nick == "emily")
                     && event.changes.len() == 2
-                    && event.changes.iter().all(|change| change.action == crate::ModeAction::Add)
+                    && event
+                        .changes
+                        .iter()
+                        .all(|change| change.action == crate::LegacyModeAction::Add)
                     && event.changes[0].mode == 'i' && event.changes[1].mode == 'm'
         ));
 
