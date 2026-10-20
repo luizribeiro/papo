@@ -101,27 +101,57 @@ pub(crate) fn history_item(
                 state.isupport().inner(),
             )
         }),
-        papo_core::HistoryItem::Joined(item) => {
-            typed_or_raw(&item.line, |message| joined(message, client))
-        }
-        papo_core::HistoryItem::Parted(item) => {
-            typed_or_raw(&item.line, |message| parted(message, client))
-        }
-        papo_core::HistoryItem::Quit(item) => {
-            typed_or_raw(&item.line, |message| quit(message, mapping))
-        }
-        papo_core::HistoryItem::Kicked(item) => {
-            typed_or_raw(&item.line, |message| kicked(message, client))
-        }
-        papo_core::HistoryItem::NickChanged(item) => {
-            typed_or_raw(&item.line, |message| nick_changed(message, client))
-        }
-        papo_core::HistoryItem::TopicChanged(item) => {
-            typed_or_raw(&item.line, |message| topic_changed(message, mapping))
-        }
-        papo_core::HistoryItem::ModeChanged(item) => {
-            typed_or_raw(&item.line, |message| mode_changed(message, client))
-        }
+        papo_core::HistoryItem::Joined(item) => typed_or_raw(&item.line, |message| {
+            joined(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                client,
+            )
+        }),
+        papo_core::HistoryItem::Parted(item) => typed_or_raw(&item.line, |message| {
+            parted(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                client,
+            )
+        }),
+        papo_core::HistoryItem::Quit(item) => typed_or_raw(&item.line, |message| {
+            quit(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                mapping,
+            )
+        }),
+        papo_core::HistoryItem::Kicked(item) => typed_or_raw(&item.line, |message| {
+            kicked(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                crate::Authorship::from_core(item.subject_authorship),
+                client,
+            )
+        }),
+        papo_core::HistoryItem::NickChanged(item) => typed_or_raw(&item.line, |message| {
+            nick_changed(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                client,
+            )
+        }),
+        papo_core::HistoryItem::TopicChanged(item) => typed_or_raw(&item.line, |message| {
+            topic_changed(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                mapping,
+            )
+        }),
+        papo_core::HistoryItem::ModeChanged(item) => typed_or_raw(&item.line, |message| {
+            mode_changed(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                crate::Authorship::from_core(item.subject_authorship),
+                client,
+            )
+        }),
         item => {
             let raw = item.into_line().line;
             HistoryItem::Other(raw)
@@ -184,54 +214,75 @@ fn redaction(
     }))
 }
 
-fn joined(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn joined(
+    message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
+    client: &Client,
+) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
     let mapping = client.state().casemapping();
     Some(HistoryItem::Joined(Joined {
         channel: mapping.channel(message.param(0)?),
-        authorship: crate::Authorship::Unknown,
+        authorship,
         nick: mapping.nick(nick),
     }))
 }
 
-fn parted(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn parted(
+    message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
+    client: &Client,
+) -> Option<HistoryItem> {
     let nick = source_nick(message)?;
     let mapping = client.state().casemapping();
     Some(HistoryItem::Parted(Parted {
         channel: mapping.channel(message.param(0)?),
-        authorship: crate::Authorship::Unknown,
+        authorship,
         nick: mapping.nick(nick),
         reason: message.param(1).map(str::to_owned),
     }))
 }
 
-fn quit(message: &papo_proto::LineRef<'_>, mapping: crate::Casemapping) -> Option<HistoryItem> {
+fn quit(
+    message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
+    mapping: crate::Casemapping,
+) -> Option<HistoryItem> {
     Some(HistoryItem::Quit(Quit {
         nick: mapping.nick(source_nick(message)?),
         reason: message.param(0).map(str::to_owned),
         channels: Vec::new(),
-        authorship: crate::Authorship::Unknown,
+        authorship,
     }))
 }
 
-fn kicked(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn kicked(
+    message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
+    subject_authorship: crate::Authorship,
+    client: &Client,
+) -> Option<HistoryItem> {
     let nick = message.param(1)?.to_owned();
     let mapping = client.state().casemapping();
     Some(HistoryItem::Kicked(Kicked {
         channel: mapping.channel(message.param(0)?),
-        authorship: crate::Authorship::Unknown,
-        subject_authorship: crate::Authorship::Unknown,
+        authorship,
+        subject_authorship,
         nick: mapping.nick(nick),
         actor: Source::from_proto(message.source()?, mapping),
         reason: message.param(2).map(str::to_owned),
     }))
 }
 
-fn nick_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn nick_changed(
+    message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
+    client: &Client,
+) -> Option<HistoryItem> {
     let old = source_nick(message)?;
     let mapping = client.state().casemapping();
     Some(HistoryItem::NickChanged(NickChanged {
-        authorship: crate::Authorship::Unknown,
+        authorship,
         old: mapping.nick(old),
         new: mapping.nick(message.param(0)?),
     }))
@@ -239,6 +290,7 @@ fn nick_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<Hi
 
 fn topic_changed(
     message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
     mapping: crate::Casemapping,
 ) -> Option<HistoryItem> {
     Some(HistoryItem::TopicChanged(TopicChanged {
@@ -248,11 +300,16 @@ fn topic_changed(
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
         actor: Source::from_proto(message.source()?, mapping),
-        authorship: crate::Authorship::Unknown,
+        authorship,
     }))
 }
 
-fn mode_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryItem> {
+fn mode_changed(
+    message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
+    subject_authorship: crate::Authorship,
+    client: &Client,
+) -> Option<HistoryItem> {
     let state = client.state();
     let mapping = state.casemapping();
     let changes = ModeChanges::parse(
@@ -274,8 +331,8 @@ fn mode_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<Hi
             crate::Subject::User(mapping.nick(message.param(0)?))
         },
         actor: Source::from_proto(message.source()?, mapping),
-        authorship: crate::Authorship::Unknown,
-        subject_authorship: crate::Authorship::Unknown,
+        authorship,
+        subject_authorship,
         changes,
     }))
 }
