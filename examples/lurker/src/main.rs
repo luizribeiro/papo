@@ -57,9 +57,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .changes
                     .into_iter()
                     .map(|change| {
-                        let sign = match change.action {
-                            ModeAction::Add => '+',
-                            ModeAction::Remove => '-',
+                        let sign = if change.action == ModeAction::Add {
+                            '+'
+                        } else {
+                            '-'
                         };
                         let arg = match change.typed_arg {
                             Some(ModeArg::Nick(value)) => value.into_string(),
