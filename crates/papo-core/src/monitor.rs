@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use papo_proto::{Casemapping, Folded, Isupport, LimitValue, MAX_MESSAGE_LEN, MessageRef, Nick};
+use papo_proto::{Casemapping, Folded, Isupport, LimitValue, LineRef, MAX_MESSAGE_LEN, Nick};
 
 use crate::{Event, Handled, Outbox};
 
@@ -194,7 +194,7 @@ impl Monitor {
 
     pub(super) fn handle_message(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Handled {
@@ -331,7 +331,7 @@ impl Monitor {
     }
 }
 
-pub(super) fn presence_nicks<'a>(message: &MessageRef<'a>) -> Vec<&'a str> {
+pub(super) fn presence_nicks<'a>(message: &LineRef<'a>) -> Vec<&'a str> {
     match message.raw_command() {
         "730" => message
             .param(1)

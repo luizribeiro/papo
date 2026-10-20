@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use papo_proto::escape_tag_value;
-use papo_proto::{Message, MessageRef, Nick};
+use papo_proto::{LineRef, Message, Nick};
 use web_time::Instant;
 
 use crate::{Feature, RequestError, RequestId, Secret, Session};
@@ -77,7 +77,7 @@ pub(crate) struct NetworkUpdate {
 }
 
 impl NetworkUpdate {
-    pub(crate) fn parse(message: &MessageRef<'_>) -> Option<Self> {
+    pub(crate) fn parse(message: &LineRef<'_>) -> Option<Self> {
         if !message.command_is("BOUNCER") || !message.param(0)?.eq_ignore_ascii_case("NETWORK") {
             return None;
         }
@@ -91,7 +91,7 @@ impl NetworkUpdate {
             });
         }
         let tagged = format!("@{raw} ATTRS");
-        let parsed = MessageRef::parse(&tagged).ok()?;
+        let parsed = LineRef::parse(&tagged).ok()?;
         Some(Self {
             id,
             removed: false,
@@ -342,7 +342,7 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::MessageRef;
+    use papo_proto::LineRef;
 
     use super::{BouncerNetwork, NetworkConfig, NetworkState, NetworkUpdate};
 
@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn network_updates_preserve_unknown_attributes_and_removals() {
-        let message = MessageRef::parse(
+        let message = LineRef::parse(
             r"BOUNCER NETWORK 42 name=My\sNetwork;state=connected;port=6697;tls=1;vendor.example/color=blue",
         )
         .unwrap();
@@ -382,7 +382,7 @@ mod tests {
         assert_eq!((network.port, network.tls), (Some(6697), Some(true)));
         assert_eq!(network.other["vendor.example/color"], "blue");
 
-        let removal = MessageRef::parse("BOUNCER NETWORK 42 name;vendor.example/color").unwrap();
+        let removal = LineRef::parse("BOUNCER NETWORK 42 name;vendor.example/color").unwrap();
         network.apply(NetworkUpdate::parse(&removal).unwrap().attributes);
         assert_eq!(network.name, None);
         assert!(network.other.is_empty());
@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn network_deletion_uses_the_star_marker() {
-        let message = MessageRef::parse("BOUNCER NETWORK 42 *").unwrap();
+        let message = LineRef::parse("BOUNCER NETWORK 42 *").unwrap();
         assert!(NetworkUpdate::parse(&message).unwrap().removed);
     }
 }

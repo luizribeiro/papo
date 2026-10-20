@@ -1,4 +1,4 @@
-use papo_proto::{Isupport, Message, MessageRef};
+use papo_proto::{Isupport, LineRef, Message};
 
 use crate::{Decoding, Handled};
 
@@ -23,7 +23,7 @@ impl IsupportState {
         self.value = Isupport::default();
     }
 
-    pub(super) fn handle_message(&mut self, message: &MessageRef<'_>) -> Handled {
+    pub(super) fn handle_message(&mut self, message: &LineRef<'_>) -> Handled {
         if !message.command_is("005") {
             return Handled::No;
         }

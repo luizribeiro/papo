@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, VecDeque};
 use web_time::Instant;
 
-use papo_proto::{MAX_MESSAGE_LEN, MessageRef};
+use papo_proto::{LineRef, MAX_MESSAGE_LEN};
 
 use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
@@ -28,7 +28,7 @@ impl Caps {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         config: &Config,
         connection: &Connection,
         sasl: &mut SaslSession,
@@ -98,12 +98,7 @@ impl Caps {
         }
     }
 
-    fn handle_del(
-        &mut self,
-        message: &MessageRef<'_>,
-        sasl: &mut SaslSession,
-        outbox: &mut Outbox,
-    ) {
+    fn handle_del(&mut self, message: &LineRef<'_>, sasl: &mut SaslSession, outbox: &mut Outbox) {
         let mut removed = Capabilities::new();
         let mut sasl_removed = false;
         for name in message.param(2).unwrap_or("").split_whitespace() {
@@ -131,7 +126,7 @@ impl Caps {
 
     fn handle_new(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         config: &Config,
         connection: &Connection,
         outbox: &mut Outbox,
@@ -182,7 +177,7 @@ impl Caps {
 
     fn handle_ls(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         config: &Config,
         connection: &Connection,
         sasl: &mut SaslSession,

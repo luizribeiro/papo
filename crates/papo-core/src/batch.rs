@@ -4,7 +4,7 @@ use std::{
 };
 use web_time::Instant;
 
-use papo_proto::{Command, Message, MessageRef, Reaction, time};
+use papo_proto::{Command, LineRef, Message, Reaction, time};
 
 use crate::{BatchAbandonReason, Config, HistoryItem, HistoryMessage, HistoryPage, cap};
 
@@ -114,7 +114,7 @@ impl Batches {
     pub(crate) fn handle(
         &mut self,
         now: Instant,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         multiline_max_bytes: usize,
     ) -> BatchAction {
         if !message.command_is("BATCH") {
@@ -132,7 +132,7 @@ impl Batches {
         BatchAction::Dispatch(self.context(message))
     }
 
-    fn open(&mut self, now: Instant, message: &MessageRef<'_>, reference: &str) -> BatchAction {
+    fn open(&mut self, now: Instant, message: &LineRef<'_>, reference: &str) -> BatchAction {
         let Some(kind) = message.param(1) else {
             return BatchAction::Dispatch(self.context(message));
         };
@@ -173,7 +173,7 @@ impl Batches {
         BatchAction::Consumed
     }
 
-    fn close(&mut self, message: &MessageRef<'_>, reference: &str) -> BatchAction {
+    fn close(&mut self, message: &LineRef<'_>, reference: &str) -> BatchAction {
         let actual_parent = message.tag("batch");
         let valid = valid_reference(reference)
             && message.len() == 1
@@ -225,7 +225,7 @@ impl Batches {
         }
     }
 
-    fn member(&mut self, message: &MessageRef<'_>, multiline_max_bytes: usize) -> BatchAction {
+    fn member(&mut self, message: &LineRef<'_>, multiline_max_bytes: usize) -> BatchAction {
         let context = self.context(message);
         let Some(reference) = message.tag("batch") else {
             return BatchAction::Dispatch(context);
@@ -415,7 +415,7 @@ impl Batches {
         false
     }
 
-    fn context(&self, message: &MessageRef<'_>) -> DispatchContext {
+    fn context(&self, message: &LineRef<'_>) -> DispatchContext {
         let batch_type = message
             .tag("batch")
             .and_then(|reference| self.open.get(reference.as_ref()))
@@ -665,11 +665,11 @@ fn valid_reference(reference: &str) -> bool {
 mod tests {
     use super::{BatchAction, BatchEvent, Batches};
     use crate::Config;
-    use papo_proto::MessageRef;
+    use papo_proto::LineRef;
     use web_time::Instant;
 
     fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
-        let message = MessageRef::parse(line).unwrap();
+        let message = LineRef::parse(line).unwrap();
         match batches.handle(Instant::now(), &message, usize::MAX) {
             BatchAction::Consumed | BatchAction::Complete(_) => (false, None),
             BatchAction::Dispatch(context) => (true, context.batch_type().map(str::to_owned)),
@@ -719,7 +719,7 @@ mod tests {
             handle(&mut batches, "@batch=h :alice PRIVMSG #papo :hello"),
             (false, None)
         );
-        let close = MessageRef::parse("BATCH -h").unwrap();
+        let close = LineRef::parse("BATCH -h").unwrap();
         let BatchAction::Complete(events) = batches.handle(Instant::now(), &close, usize::MAX)
         else {
             panic!("history did not complete")

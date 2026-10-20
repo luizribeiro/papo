@@ -1,7 +1,7 @@
 use std::time::Duration;
 use web_time::Instant;
 
-use papo_proto::MessageRef;
+use papo_proto::LineRef;
 
 use crate::{CloseKind, Handled, Outbox};
 
@@ -37,7 +37,7 @@ impl Keepalive {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
         if message.command_is("PING") {

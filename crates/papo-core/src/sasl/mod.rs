@@ -4,7 +4,7 @@ use std::{collections::VecDeque, time::Duration};
 use web_time::Instant;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use papo_proto::MessageRef;
+use papo_proto::LineRef;
 
 use crate::{Config, Handled, Outbox, RedactedSecret, Secret};
 use scram::ScramClient;
@@ -329,7 +329,7 @@ impl SaslSession {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
         if self.handle_status(now, message, outbox) {
@@ -396,12 +396,7 @@ impl SaslSession {
         Handled::Yes
     }
 
-    fn handle_status(
-        &mut self,
-        now: Instant,
-        message: &MessageRef<'_>,
-        outbox: &mut Outbox,
-    ) -> bool {
+    fn handle_status(&mut self, now: Instant, message: &LineRef<'_>, outbox: &mut Outbox) -> bool {
         if message.command_is("900") {
             if let Some(account) = message.param(2) {
                 self.account = Some(account.to_owned());

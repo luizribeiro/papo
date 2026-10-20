@@ -1,7 +1,7 @@
-use crate::{Event, MessageRef, Redacted, Session, StandardReply, StandardReplyView, TagMessage};
+use crate::{Event, LineRef, Redacted, Session, StandardReply, StandardReplyView, TagMessage};
 
 impl Session {
-    pub(super) fn report_tag_message(&mut self, message: &MessageRef<'_>) -> bool {
+    pub(super) fn report_tag_message(&mut self, message: &LineRef<'_>) -> bool {
         let Some(target) = message.param(0).filter(|_| message.command_is("TAGMSG")) else {
             return false;
         };
@@ -16,7 +16,7 @@ impl Session {
         true
     }
 
-    pub(super) fn report_redaction(&mut self, message: &MessageRef<'_>) -> bool {
+    pub(super) fn report_redaction(&mut self, message: &LineRef<'_>) -> bool {
         let (Some(target), Some(msgid)) = (
             message.param(0).filter(|_| message.command_is("REDACT")),
             message.param(1),
@@ -32,7 +32,7 @@ impl Session {
         true
     }
 
-    pub(super) fn report_invite(&mut self, message: &MessageRef<'_>) -> bool {
+    pub(super) fn report_invite(&mut self, message: &LineRef<'_>) -> bool {
         let (Some(nick), Some(channel), Some(by)) = (
             message.param(0).filter(|_| message.command_is("INVITE")),
             message.param(1),
@@ -50,7 +50,7 @@ impl Session {
 }
 
 impl Session {
-    pub(super) fn report_standard_reply(&mut self, message: &MessageRef<'_>) -> bool {
+    pub(super) fn report_standard_reply(&mut self, message: &LineRef<'_>) -> bool {
         let Some(reply) = StandardReplyView::parse(message) else {
             return false;
         };

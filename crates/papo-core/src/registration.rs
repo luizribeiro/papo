@@ -1,6 +1,6 @@
 use web_time::Instant;
 
-use papo_proto::{Isupport, Message, MessageRef, escape_tag_value};
+use papo_proto::{Isupport, LineRef, Message, escape_tag_value};
 
 use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome};
 
@@ -89,7 +89,7 @@ impl Registration {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         config: &Config,
         caps: &Capabilities,
         isupport: &Isupport,

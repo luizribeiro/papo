@@ -90,7 +90,6 @@ use std::{
 };
 use web_time::Instant;
 
-use papo_proto::MessageRef;
 use papo_proto::{
     BuildError, Casemapping, Command, Ctcp, LineRef, MAX_MESSAGE_LEN, MAX_TAG_SECTION_LEN, Message,
     ModeChange, ModeKind, Numeric, Source, StandardReply as StandardReplyView, StandardReplyKind,

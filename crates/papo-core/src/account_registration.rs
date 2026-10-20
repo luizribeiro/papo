@@ -1,4 +1,4 @@
-use papo_proto::MessageRef;
+use papo_proto::LineRef;
 
 use crate::{Event, Handled, Outbox, Secret};
 
@@ -39,11 +39,7 @@ pub(super) struct AccountRegistration {
 }
 
 impl AccountRegistration {
-    pub(super) fn handle_message(
-        &mut self,
-        message: &MessageRef<'_>,
-        outbox: &mut Outbox,
-    ) -> Handled {
+    pub(super) fn handle_message(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Handled {
         if self.waiting
             && (message.command_is("REGISTER") || message.command_is("VERIFY"))
             && message.param(0) == Some("SUCCESS")

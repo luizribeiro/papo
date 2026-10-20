@@ -1,7 +1,7 @@
-use crate::{Event, Message, MessageRef, ReceivedMessage, Session, cap};
+use crate::{Event, LineRef, Message, ReceivedMessage, Session, cap};
 
 impl Session {
-    pub(super) fn enqueue_labelled_echo(&mut self, message: &MessageRef<'_>) {
+    pub(super) fn enqueue_labelled_echo(&mut self, message: &LineRef<'_>) {
         let response = self
             .outbox
             .events
@@ -16,7 +16,7 @@ impl Session {
 }
 
 impl Session {
-    pub(super) fn is_own_source(&self, message: &MessageRef<'_>) -> bool {
+    pub(super) fn is_own_source(&self, message: &LineRef<'_>) -> bool {
         message.source().is_some_and(|source| {
             let papo_proto::Source::User { nick, .. } = source else {
                 return false;

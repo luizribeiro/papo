@@ -1,11 +1,11 @@
 use crate::{
-    Command, Event, Feature, Instant, MAX_PENDING_REQUESTS, Message, MessageRef, Numeric,
+    Command, Event, Feature, Instant, LineRef, MAX_PENDING_REQUESTS, Message, Numeric,
     RequestError, RequestId, Response, ResponseMatcher, Session, cap, parse_whois_channels,
     sent_info,
 };
 
 impl Session {
-    pub(super) fn resolve_message(&mut self, message: &MessageRef<'_>) -> bool {
+    pub(super) fn resolve_message(&mut self, message: &LineRef<'_>) -> bool {
         let Some(label) = message.tag("label") else {
             return false;
         };
@@ -38,7 +38,7 @@ impl Session {
 
     pub(super) fn resolve_labelled_message(
         &mut self,
-        message: &MessageRef<'_>,
+        message: &LineRef<'_>,
         queued_events: usize,
         emit_events: bool,
     ) -> bool {
@@ -55,17 +55,14 @@ impl Session {
         resolved
     }
 
-    pub(super) fn response_emits_events(&self, message: &MessageRef<'_>) -> bool {
+    pub(super) fn response_emits_events(&self, message: &LineRef<'_>) -> bool {
         message
             .tag("label")
             .and_then(|label| self.requests.get(label.as_ref()))
             .is_none_or(|(_, _, _, _, emit_events)| *emit_events)
     }
 
-    pub(super) fn confirmed_away_message<'a>(
-        &'a self,
-        message: &MessageRef<'_>,
-    ) -> Option<&'a str> {
+    pub(super) fn confirmed_away_message<'a>(&'a self, message: &LineRef<'_>) -> Option<&'a str> {
         if message.command() != Command::Numeric(Numeric::RPL_NOWAWAY) {
             return None;
         }
@@ -79,7 +76,7 @@ impl Session {
         self.away_messages.get(&id).map(String::as_str)
     }
 
-    pub(super) fn resolve_unlabelled(&mut self, message: &MessageRef<'_>) -> bool {
+    pub(super) fn resolve_unlabelled(&mut self, message: &LineRef<'_>) -> bool {
         let mapping = self.isupport.value().casemapping();
         let Some((index, complete)) =
             self.unlabelled_requests
