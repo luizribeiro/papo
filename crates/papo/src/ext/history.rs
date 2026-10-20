@@ -552,18 +552,11 @@ impl History {
     /// Requests messages before `reference`.
     #[must_use]
     pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let query = self.target.and_then(|target| {
-            reference
-                .into()
-                .0
-                .ok_or(Error::InvalidInput(
-                    crate::InvalidInput::UnusableMessageReference,
-                ))
-                .map(|before| HistoryQuery::Before {
-                    target,
-                    before,
-                    limit: 100,
-                })
+        let before = reference.into().0;
+        let query = self.target.map(|target| HistoryQuery::Before {
+            target,
+            before,
+            limit: 100,
         });
         HistoryRequest {
             client: self.client,
@@ -574,18 +567,11 @@ impl History {
     /// Requests messages after `reference`.
     #[must_use]
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let query = self.target.and_then(|target| {
-            reference
-                .into()
-                .0
-                .ok_or(Error::InvalidInput(
-                    crate::InvalidInput::UnusableMessageReference,
-                ))
-                .map(|after| HistoryQuery::After {
-                    target,
-                    after,
-                    limit: 100,
-                })
+        let after = reference.into().0;
+        let query = self.target.map(|target| HistoryQuery::After {
+            target,
+            after,
+            limit: 100,
         });
         HistoryRequest {
             client: self.client,
@@ -596,18 +582,11 @@ impl History {
     /// Requests messages surrounding `reference`.
     #[must_use]
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let query = self.target.and_then(|target| {
-            reference
-                .into()
-                .0
-                .ok_or(Error::InvalidInput(
-                    crate::InvalidInput::UnusableMessageReference,
-                ))
-                .map(|around| HistoryQuery::Around {
-                    target,
-                    around,
-                    limit: 100,
-                })
+        let around = reference.into().0;
+        let query = self.target.map(|target| HistoryQuery::Around {
+            target,
+            around,
+            limit: 100,
         });
         HistoryRequest {
             client: self.client,
@@ -622,26 +601,13 @@ impl History {
         start: impl Into<HistoryReference>,
         end: impl Into<HistoryReference>,
     ) -> HistoryRequest {
-        let query = self.target.and_then(|target| {
-            start
-                .into()
-                .0
-                .ok_or(Error::InvalidInput(
-                    crate::InvalidInput::UnusableMessageReference,
-                ))
-                .and_then(|start| {
-                    end.into()
-                        .0
-                        .ok_or(Error::InvalidInput(
-                            crate::InvalidInput::UnusableMessageReference,
-                        ))
-                        .map(|end| HistoryQuery::Between {
-                            target,
-                            start,
-                            end,
-                            limit: 100,
-                        })
-                })
+        let start = start.into().0;
+        let end = end.into().0;
+        let query = self.target.map(|target| HistoryQuery::Between {
+            target,
+            start,
+            end,
+            limit: 100,
         });
         HistoryRequest {
             client: self.client,
@@ -654,23 +620,23 @@ impl History {
 ///
 /// Timestamp references are exclusive and can skip other lines carrying the same timestamp.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct HistoryReference(Option<MsgRef>);
+pub struct HistoryReference(MsgRef);
 
 impl From<crate::MessageId> for HistoryReference {
     fn from(value: crate::MessageId) -> Self {
-        Self(Some(MsgRef::Msgid(value.to_string())))
+        Self(MsgRef::Msgid(value.to_string()))
     }
 }
 
 impl From<&crate::MessageId> for HistoryReference {
     fn from(value: &crate::MessageId) -> Self {
-        Self(Some(MsgRef::Msgid(value.to_string())))
+        Self(MsgRef::Msgid(value.to_string()))
     }
 }
 
 impl From<&str> for HistoryReference {
     fn from(value: &str) -> Self {
-        Self(Some(MsgRef::Msgid(value.to_owned())))
+        Self(MsgRef::Msgid(value.to_owned()))
     }
 }
 
@@ -682,13 +648,13 @@ impl From<&String> for HistoryReference {
 
 impl From<String> for HistoryReference {
     fn from(value: String) -> Self {
-        Self(Some(MsgRef::Msgid(value)))
+        Self(MsgRef::Msgid(value))
     }
 }
 
 impl From<SystemTime> for HistoryReference {
     fn from(value: SystemTime) -> Self {
-        Self(Some(MsgRef::Timestamp(value)))
+        Self(MsgRef::Timestamp(value))
     }
 }
 
@@ -696,7 +662,7 @@ impl From<&ChatMessage> for HistoryReference {
     fn from(value: &ChatMessage) -> Self {
         value.msgid.as_ref().map_or_else(
             || Self::from(value.time),
-            |msgid| Self(Some(MsgRef::Msgid(msgid.to_string()))),
+            |msgid| Self(MsgRef::Msgid(msgid.to_string())),
         )
     }
 }
@@ -945,10 +911,10 @@ mod tests {
     #[test]
     fn converts_ids_timestamps_and_message_events() {
         assert!(
-            matches!(HistoryReference::from("2Zl7JeYG6I8fG9q1lJ55BQ").0, Some(MsgRef::Msgid(id)) if id == "2Zl7JeYG6I8fG9q1lJ55BQ")
+            matches!(HistoryReference::from("2Zl7JeYG6I8fG9q1lJ55BQ").0, MsgRef::Msgid(id) if id == "2Zl7JeYG6I8fG9q1lJ55BQ")
         );
         assert!(
-            matches!(HistoryReference::from(UNIX_EPOCH).0, Some(MsgRef::Timestamp(time)) if time == UNIX_EPOCH)
+            matches!(HistoryReference::from(UNIX_EPOCH).0, MsgRef::Timestamp(time) if time == UNIX_EPOCH)
         );
         let event = crate::Message::from_history(
             Line::privmsg("#papo", "earlier")
@@ -960,7 +926,7 @@ mod tests {
         )
         .unwrap();
         assert!(
-            matches!(HistoryReference::from(&event).0, Some(MsgRef::Msgid(id)) if id == "RfcBTzyxY120004")
+            matches!(HistoryReference::from(&event).0, MsgRef::Msgid(id) if id == "RfcBTzyxY120004")
         );
     }
 
