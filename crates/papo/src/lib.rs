@@ -103,7 +103,7 @@ pub use papo_core::{Unsupported, UnsupportedReason};
 #[doc(inline)]
 pub use papo_proto::{
     AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Mask, MessageId, MetadataKey,
-    Nick, Typing,
+    Nick, ServerName, Typing,
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};

@@ -1363,6 +1363,42 @@ impl<'a> core::marker::Unpin for papo_proto::Segment<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Segment<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Segment<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Segment<'a>
+pub struct papo_proto::ServerName
+impl papo_proto::ServerName
+pub fn papo_proto::ServerName::into_string(self) -> alloc::string::String
+impl core::clone::Clone for papo_proto::ServerName
+pub fn papo_proto::ServerName::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::ServerName
+impl core::cmp::Ord for papo_proto::ServerName
+pub fn papo_proto::ServerName::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::ServerName
+pub fn papo_proto::ServerName::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::ServerName
+pub fn papo_proto::ServerName::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::ServerName
+pub fn papo_proto::ServerName::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::ServerName
+pub fn papo_proto::ServerName::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::ServerName
+pub fn papo_proto::ServerName::as_ref(&self) -> &str
+impl core::convert::From<&str> for papo_proto::ServerName
+pub fn papo_proto::ServerName::from(&str) -> Self
+impl core::fmt::Debug for papo_proto::ServerName
+pub fn papo_proto::ServerName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::ServerName
+pub fn papo_proto::ServerName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::ServerName
+pub fn papo_proto::ServerName::hash<H: core::hash::Hasher>(&self, &mut H)
+impl core::ops::deref::Deref for papo_proto::ServerName
+pub type papo_proto::ServerName::Target = str
+pub fn papo_proto::ServerName::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::ServerName
+impl core::marker::Send for papo_proto::ServerName
+impl core::marker::Sync for papo_proto::ServerName
+impl core::marker::Unpin for papo_proto::ServerName
+impl core::marker::UnsafeUnpin for papo_proto::ServerName
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ServerName
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::ServerName
 pub struct papo_proto::Setname<'a>
 pub papo_proto::Setname::realname: &'a str
 impl<'a> papo_proto::Setname<'a>

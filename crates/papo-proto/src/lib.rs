@@ -15,6 +15,7 @@ mod line;
 mod modes;
 mod names;
 mod numeric;
+mod server_name;
 mod source;
 mod text;
 pub mod time;
@@ -40,6 +41,7 @@ pub use line::{
 pub use modes::{ModeChange, ModeChanges, ModeKind};
 pub use names::{NAME_ALIASES, NameKind, NamesEntry, canonical, parse_353};
 pub use numeric::Numeric;
+pub use server_name::ServerName;
 pub use source::Source;
 pub use text::{Segment, split_text};
 pub use views::{Account, Away, Chghost, Join, Setname, StandardReply, StandardReplyKind};
