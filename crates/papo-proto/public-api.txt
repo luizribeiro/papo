@@ -304,7 +304,7 @@ pub papo_proto::Source::Server(&'a str)
 pub papo_proto::Source::User
 pub papo_proto::Source::User::host: core::option::Option<&'a str>
 pub papo_proto::Source::User::nick: &'a str
-pub papo_proto::Source::User::user: core::option::Option<&'a str>
+pub papo_proto::Source::User::username: core::option::Option<&'a str>
 impl<'a> core::clone::Clone for papo_proto::Source<'a>
 pub fn papo_proto::Source<'a>::clone(&self) -> Self
 impl<'a> core::cmp::Eq for papo_proto::Source<'a>

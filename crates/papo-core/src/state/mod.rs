@@ -517,7 +517,7 @@ impl State {
         };
         let Some(Source::User {
             nick,
-            user: Some(user),
+            username: Some(user),
             host: Some(host),
         }) = message.source()
         else {

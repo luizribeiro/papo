@@ -46,9 +46,13 @@ impl Source {
             papo_proto::Source::Server(name) => Self::Server {
                 name: name.to_owned(),
             },
-            papo_proto::Source::User { nick, user, host } => Self::User {
+            papo_proto::Source::User {
+                nick,
+                username,
+                host,
+            } => Self::User {
                 nick: casemapping.nick(nick),
-                user: user.map(str::to_owned),
+                user: username.map(str::to_owned),
                 host: host.map(str::to_owned),
             },
         }

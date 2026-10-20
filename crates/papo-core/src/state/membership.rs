@@ -46,7 +46,12 @@ impl State {
         no_implicit_names: bool,
         outbox: &mut Outbox,
     ) -> Handled {
-        let Some(Source::User { nick, user, host }) = message.source() else {
+        let Some(Source::User {
+            nick,
+            username: user,
+            host,
+        }) = message.source()
+        else {
             return Handled::No;
         };
         outbox.event(Event::Joined {

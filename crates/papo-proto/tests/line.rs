@@ -97,7 +97,7 @@ fn passes_ircdocs_userhost_split_corpus() {
             line.source(),
             Some(Source::User {
                 nick: expected["nick"].as_str().unwrap(),
-                user: expected["user"].as_str(),
+                username: expected["user"].as_str(),
                 host: expected["host"].as_str(),
             }),
             "{raw:?}"
@@ -112,7 +112,7 @@ fn parses_ergo_user_sources_and_server_names() {
             "nick!~u@abc123.irc",
             Source::User {
                 nick: "nick",
-                user: Some("~u"),
+                username: Some("~u"),
                 host: Some("abc123.irc"),
             },
         ),
@@ -120,7 +120,7 @@ fn parses_ergo_user_sources_and_server_names() {
             "*name*!realnick@npc.fakeuser.invalid",
             Source::User {
                 nick: "*name*",
-                user: Some("realnick"),
+                username: Some("realnick"),
                 host: Some("npc.fakeuser.invalid"),
             },
         ),
@@ -128,7 +128,7 @@ fn parses_ergo_user_sources_and_server_names() {
             "nick/x!~u@cloak",
             Source::User {
                 nick: "nick/x",
-                user: Some("~u"),
+                username: Some("~u"),
                 host: Some("cloak"),
             },
         ),
@@ -150,7 +150,7 @@ fn normalizes_empty_user_source_parts() {
             "nick!",
             Source::User {
                 nick: "nick",
-                user: None,
+                username: None,
                 host: None,
             },
         ),
@@ -158,7 +158,7 @@ fn normalizes_empty_user_source_parts() {
             "nick!@host",
             Source::User {
                 nick: "nick",
-                user: None,
+                username: None,
                 host: Some("host"),
             },
         ),
@@ -166,7 +166,7 @@ fn normalizes_empty_user_source_parts() {
             "nick@",
             Source::User {
                 nick: "nick",
-                user: None,
+                username: None,
                 host: None,
             },
         ),
@@ -266,7 +266,7 @@ fn owned_lines_parse_real_ergo_messages() {
         borrowed.source(),
         Some(Source::User {
             nick: "alice",
-            user: Some("~a"),
+            username: Some("~a"),
             host: Some("cloak.example")
         })
     ));

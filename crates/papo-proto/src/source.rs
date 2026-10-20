@@ -7,8 +7,8 @@ pub enum Source<'a> {
     User {
         /// The user's nickname.
         nick: &'a str,
-        /// The username, when supplied by the server.
-        user: Option<&'a str>,
+        /// The username from `nick!user@host`, when supplied by the server.
+        username: Option<&'a str>,
         /// The hostname, when supplied by the server.
         host: Option<&'a str>,
     },
@@ -20,8 +20,12 @@ impl<'a> Source<'a> {
             return Self::Server(source);
         }
 
-        let (nick, user, host) = split_user(source);
-        Self::User { nick, user, host }
+        let (nick, username, host) = split_user(source);
+        Self::User {
+            nick,
+            username,
+            host,
+        }
     }
 }
 
