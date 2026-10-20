@@ -38,7 +38,7 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
     request.await?;
 
     let assert_ban_changes = |changed: &ModeChanged, expected: &[papo::Mask]| {
-        assert_eq!(changed.target.as_ref(), channel);
+        assert_eq!(changed.target.as_str(), channel);
         assert_eq!(changed.changes.len(), expected.len());
         for (change, mask) in changed.changes.iter().zip(expected) {
             assert_eq!(change.mode, 'b');

@@ -39,7 +39,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     ];
     let (writer, reader, channel, sent) = history_peers(&s, &texts).await?;
     let page = reader.history(&channel).latest(10).await?;
-    assert_eq!(page.target.as_ref(), channel);
+    assert_eq!(page.target.as_str(), channel);
     assert!(page.end);
     let messages = page
         .messages()
@@ -86,10 +86,7 @@ async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {
         .send_raw(papo::Line::new("HISTORY", [channel.as_str(), "10"]))
         .await?;
     let page = reader.wait_for(Event::as_history).await?;
-    assert_eq!(
-        reader.state().channel_name(page.target.as_ref()),
-        channel.as_str()
-    );
+    assert_eq!(page.target.as_str(), channel);
     let message = page
         .messages()
         .find(|message| message.text() == text)
@@ -250,7 +247,7 @@ async fn chathistory_targets(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let target = targets
         .iter()
-        .find(|target| target.target.as_ref() == channel)
+        .find(|target| target.target.as_str() == channel)
         .expect("the active channel is returned");
     assert_eq!(target.latest, time);
     Ok(())
@@ -281,8 +278,10 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         notice.source().as_ref().and_then(Source::nick),
         Some("BouncerServ")
     );
-    assert!(notice.target().starts_with('$'));
-    let target = notice.target().to_owned();
+    let target = crate::scenarios::support::conversation_name(&notice.conversation)
+        .expect("broadcast has an address")
+        .to_owned();
+    assert!(target.starts_with('$'));
 
     for page in [
         alice.history("BouncerServ").latest(10).await?,
@@ -301,7 +300,7 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
     assert!(
         targets
             .iter()
-            .all(|entry| { entry.target.as_ref() != target && bouncer != entry.target.as_ref() })
+            .all(|entry| { entry.target.as_str() != target && bouncer != entry.target.as_str() })
     );
     Ok(())
 }
@@ -369,13 +368,13 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     let initial = alice.wait_for(Event::as_read_marker).await?;
-    assert_eq!(initial.target.as_ref(), channel);
+    assert_eq!(initial.target.as_str(), channel);
     assert_eq!(initial.time, None);
 
     let time = read_marker_time();
     alice.mark_read(&channel, time).await?;
     let stored = alice.wait_for(Event::as_read_marker).await?;
-    assert_eq!(stored.target.as_ref(), channel);
+    assert_eq!(stored.target.as_str(), channel);
     assert_eq!(stored.time, Some(time));
 
     let mut phone = s.connect_account_session("alice-phone", account).await?;
@@ -384,7 +383,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             if let Some(marker) = event
                 .as_read_marker()
-                .filter(|marker| marker.target.as_ref() == channel)
+                .filter(|marker| marker.target.as_str() == channel)
             {
                 early_marker = Some(marker.clone());
             }
@@ -399,7 +398,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         Some(marker) => marker,
         None => phone.wait_for(Event::as_read_marker).await?,
     };
-    assert_eq!(replayed.target.as_ref(), channel);
+    assert_eq!(replayed.target.as_str(), channel);
     assert_eq!(replayed.time, Some(time));
     assert_eq!(phone.state().read_marker(&channel), Some(time));
     Ok(())

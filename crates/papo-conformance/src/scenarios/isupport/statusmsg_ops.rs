@@ -72,7 +72,10 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "operators only"))
         .await?;
     for message in [&echo, &received] {
-        assert_eq!(message.target(), channel);
+        assert_eq!(
+            crate::scenarios::support::conversation_name(&message.conversation),
+            Some(channel.as_str())
+        );
         assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
         assert_eq!(message.raw_text(), "operators only");
         assert_eq!(message.id(), sent.id.as_ref());

@@ -47,9 +47,12 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         let message = alice
             .wait_for(|event| event.as_message().filter(|message| message.text() == text))
             .await?;
-        assert_eq!(message.target(), name);
+        assert_eq!(
+            crate::scenarios::support::conversation_name(&message.conversation),
+            Some(name.as_str())
+        );
         assert!(!message.is_private());
-        assert_eq!(message.reply_target(), name);
+        assert_eq!(message.return_address(), name);
         assert_eq!(
             message.sender.as_ref().and_then(Source::nick),
             Some(bob_nick.as_ref())
@@ -88,8 +91,11 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert!(private.is_private());
-    assert_eq!(private.target(), alice_nick.as_ref());
-    assert_eq!(private.reply_target(), bob_nick.as_ref());
+    assert_eq!(
+        crate::scenarios::support::conversation_name(&private.conversation),
+        Some(bob_nick.as_ref())
+    );
+    assert_eq!(private.return_address(), bob_nick.as_ref());
 
     assert_eq!(alice.state().channels().count(), types.chars().count());
     alice.expect_none(Event::as_joined).await?;

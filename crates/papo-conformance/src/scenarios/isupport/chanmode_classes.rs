@@ -37,7 +37,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         .remove('n')
         .await?;
     let changed = wait_channel_mode(&mut bob, &channel, 'k').await?;
-    assert_eq!(changed.target.as_ref(), channel);
+    assert_eq!(changed.target.as_str(), channel);
     assert_eq!(changed.by.nick(), Some(alice_nick.as_ref()));
     assert_eq!(changed.changes.len(), 4);
 

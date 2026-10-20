@@ -87,7 +87,10 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     bob.privmsg(&channel, unmuted).await?;
     for peer in [&mut alice, &mut carol] {
         let message = peer.wait_for(|event| message_text(event, unmuted)).await?;
-        assert_eq!(message.target(), channel);
+        assert_eq!(
+            crate::scenarios::support::conversation_name(&message.conversation),
+            Some(channel.as_str())
+        );
         assert_eq!(
             message.sender.as_ref().and_then(Source::nick),
             Some(bob_nick.as_ref())

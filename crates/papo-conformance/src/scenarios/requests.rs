@@ -46,7 +46,7 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
     let reader = s.connect("reader").await?;
     reader.join(&channel).await?;
     let page = reader.history(&channel).latest(10).await?;
-    assert_eq!(page.target.as_ref(), channel);
+    assert_eq!(page.target.as_str(), channel);
     let message = page
         .messages()
         .find(|message| message.raw_text() == "batch correlation deployment")

@@ -900,7 +900,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             value,
             visibility,
         } => Event::MetadataChanged(MetadataChanged {
-            target: target.into(),
+            target,
             key: key.into(),
             value,
             visibility: if visibility == "*" {
@@ -1058,7 +1058,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             by,
             changes,
         } => Event::ModeChanged(ModeChanged {
-            target: target.into(),
+            target,
             by: Source::from_name(by, casemapping),
             changes: changes
                 .into_iter()

@@ -1,5 +1,5 @@
 use papo::event::ModeChanged;
-use papo::{Error, Event, Message, Refusal};
+use papo::{Conversation, Error, Event, Message, Refusal};
 use papo_testing::Peer;
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -11,6 +11,15 @@ pub(super) fn message_text<'event>(event: &'event Event, text: &str) -> Option<&
         .filter(|message| message.raw_text() == text)
 }
 
+pub(super) fn conversation_name(conversation: &Conversation) -> Option<&str> {
+    match conversation {
+        Conversation::Channel(name) => Some(name),
+        Conversation::Private(name) => Some(name),
+        Conversation::Broadcast(mask) => Some(mask),
+        _ => None,
+    }
+}
+
 /// Accepts any mode change on `channel`.
 pub(super) fn channel_mode<'event>(
     event: &'event Event,
@@ -18,7 +27,7 @@ pub(super) fn channel_mode<'event>(
 ) -> Option<&'event ModeChanged> {
     event
         .as_mode_changed()
-        .filter(|changed| changed.target.as_ref() == channel)
+        .filter(|changed| changed.target.as_str() == channel)
 }
 
 /// Accepts a mode change on `channel` that includes the mode `letter`.

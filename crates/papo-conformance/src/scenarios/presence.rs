@@ -29,7 +29,10 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         message.sender.as_ref().and_then(Source::nick),
         Some(alice_nick.as_ref())
     );
-    assert_eq!(message.target(), channel);
+    assert_eq!(
+        crate::scenarios::support::conversation_name(&message.conversation),
+        Some(channel.as_str())
+    );
     assert_eq!(message.id(), sent.id.as_ref());
     assert_eq!(message.server_time, sent.time);
     assert_eq!(message.account(), Some(account.as_ref()));
@@ -146,7 +149,10 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
         message.sender.as_ref().and_then(Source::nick),
         Some(bob_nick.as_ref())
     );
-    assert_eq!(message.target(), alice_nick.as_ref());
+    assert_eq!(
+        crate::scenarios::support::conversation_name(&message.conversation),
+        Some(alice_nick.as_ref())
+    );
     assert_eq!(message.text(), text);
     assert_eq!(message.id(), sent.id.as_ref());
     assert_eq!(message.server_time, sent.time);
@@ -337,13 +343,13 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
     let changed = alice
         .wait_for(|event| {
             event.as_mode_changed().filter(|changed| {
-                changed.target.as_ref() == alice_nick.as_ref()
+                changed.target.as_str() == alice_nick.as_ref()
                     && changed.changes.iter().any(|change| change.mode == 'B')
             })
         })
         .await?;
 
-    assert_eq!(changed.target.as_ref(), alice_nick.as_ref());
+    assert_eq!(changed.target.as_str(), alice_nick.as_ref());
     let bot_change = changed
         .changes
         .iter()
@@ -372,7 +378,10 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         message.sender.as_ref().and_then(Source::nick),
         Some(alice_nick.as_ref())
     );
-    assert_eq!(message.target(), channel);
+    assert_eq!(
+        crate::scenarios::support::conversation_name(&message.conversation),
+        Some(channel.as_str())
+    );
     assert_eq!(message.text(), text);
     assert!(message.is_bot());
     bob.expect_none(|event| event.as_message().filter(|message| message.text() == text))
@@ -588,12 +597,11 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     alice.oper(oper_name, password).await?;
     let bob_nick = bob.nick();
-    let mapping = bob.state().casemapping();
     bob.send_raw(papo::Line::new("MODE", [bob_nick.as_ref(), "+w"]))
         .await?;
     bob.wait_for(|event| {
         event.as_mode_changed().filter(|changed| {
-            mapping.nick(changed.target.as_ref()) == bob_nick
+            changed.target.as_str() == bob_nick.as_ref()
                 && changed
                     .changes
                     .iter()

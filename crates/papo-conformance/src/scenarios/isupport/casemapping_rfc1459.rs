@@ -2,7 +2,7 @@ use papo::{Casemapping, Error, Event, Refusal, Source, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::assert_refusal;
+use crate::scenarios::support::{assert_refusal, conversation_name as name};
 
 fn rfc1459_nick(value: &str) -> papo::Nick {
     Casemapping::Rfc1459.nick(value)
@@ -107,13 +107,12 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .unwrap();
     assert_eq!(own_member.nick().as_ref(), alice_nick);
     assert_eq!(alice.state().channel_name(&chan), folded.as_str());
-
     let text = "folded channel target";
     alice.privmsg(&folded, text).await?;
     let message = bob
         .wait_for(|event| event.as_message().filter(|message| message.text() == text))
         .await?;
-    assert_eq!(message.target(), chan);
+    assert_eq!(name(&message.conversation), Some(&*chan));
     assert_eq!(
         message.sender.as_ref().and_then(Source::nick),
         Some(alice_nick.as_str())

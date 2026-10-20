@@ -77,8 +77,8 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
             [targets.as_str(), at_limit_text],
         ))
         .await?;
-    for (recipient, nick) in within_limit.iter_mut().zip(within_nicks) {
-        expect_delivery(recipient, nick, &alice_nick, at_limit_text).await?;
+    for recipient in within_limit.iter_mut() {
+        expect_delivery(recipient, &alice_nick, at_limit_text).await?;
     }
     frank
         .expect_none(|event| message_text(event, at_limit_text))
@@ -95,8 +95,8 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
             [all_targets.as_str(), over_limit_text],
         ))
         .await?;
-    for (recipient, nick) in within_limit.iter_mut().zip(within_nicks) {
-        expect_delivery(recipient, nick, &alice_nick, over_limit_text).await?;
+    for recipient in within_limit.iter_mut() {
+        expect_delivery(recipient, &alice_nick, over_limit_text).await?;
     }
     let refusal = alice
         .wait_for(|event| {
@@ -121,7 +121,6 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
 
 async fn expect_delivery(
     recipient: &mut Peer,
-    target_nick: &Nick,
     sender_nick: &Nick,
     text: &str,
 ) -> papo_testing::Result<()> {
@@ -129,7 +128,10 @@ async fn expect_delivery(
         .wait_for(|event| message_text(event, text))
         .await?;
     assert_eq!(message.text(), text);
-    assert_eq!(message.target(), target_nick.as_ref());
+    assert_eq!(
+        crate::scenarios::support::conversation_name(&message.conversation),
+        Some(sender_nick.as_ref())
+    );
     assert!(message.is_private());
     assert_eq!(
         message.sender.as_ref().and_then(Source::nick),
