@@ -492,6 +492,7 @@ pub papo_core::Event::ModeChanged
 pub papo_core::Event::ModeChanged::actor: alloc::string::String
 pub papo_core::Event::ModeChanged::authorship: papo_core::Authorship
 pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::OwnedModeChange>
+pub papo_core::Event::ModeChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::ModeChanged::subject: papo_core::Subject
 pub papo_core::Event::ModeChanged::subject_authorship: papo_core::Authorship
 pub papo_core::Event::MonitorListFull
@@ -560,6 +561,7 @@ pub papo_core::Event::TopicChanged
 pub papo_core::Event::TopicChanged::actor: alloc::string::String
 pub papo_core::Event::TopicChanged::authorship: papo_core::Authorship
 pub papo_core::Event::TopicChanged::channel: papo::ChannelName
+pub papo_core::Event::TopicChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
 pub papo_core::Event::VerificationRequired
 pub papo_core::Event::VerificationRequired::account: papo::AccountName

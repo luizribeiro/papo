@@ -125,6 +125,12 @@ pub struct Invited {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct TopicChanged {
+    /// The server-assigned identifier of the topic line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
     /// The affected channel.
     pub channel: ChannelName,
     /// The new topic, or `None` when it was cleared.
@@ -153,6 +159,12 @@ pub struct ModeChange {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct ModeChanged {
+    /// The server-assigned identifier of the mode line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
     /// The user or channel whose modes changed.
     pub subject: Subject,
     /// The user or server that changed the modes.

@@ -1884,6 +1884,8 @@ pub enum Event {
     },
     /// A user or channel mode changed.
     ModeChanged {
+        /// Identity, time, and account tags from the line.
+        envelope: LineEnvelope,
         /// User or channel whose modes changed.
         subject: Subject,
         /// The user or server that changed the modes.
@@ -1897,6 +1899,8 @@ pub enum Event {
     },
     /// A channel topic changed live.
     TopicChanged {
+        /// Identity, time, and account tags from the line.
+        envelope: LineEnvelope,
         /// The affected channel.
         channel: ChannelName,
         /// The new topic, or `None` when it was cleared.

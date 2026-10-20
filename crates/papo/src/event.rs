@@ -1171,42 +1171,56 @@ pub(crate) fn from_core(
             Event::RealnameChanged(RealnameChanged { nick, realname })
         }
         papo_core::Event::ModeChanged {
+            envelope,
             subject,
             actor,
             authorship,
             subject_authorship,
             changes,
             ..
-        } => Event::ModeChanged(ModeChanged {
-            subject: match subject {
-                papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
-                papo_core::Subject::User(nick) => crate::Subject::User(nick),
-                _ => return CoreEvent::Unknown,
-            },
-            actor: Source::from_name(actor, casemapping),
-            authorship: Authorship::from_core(authorship),
-            subject_authorship: Authorship::from_core(subject_authorship),
-            changes: changes
-                .into_iter()
-                .map(|change| ModeChange {
-                    set: change.set,
-                    mode: change.mode,
-                    kind: ModeKind::from_proto(change.kind),
-                    arg: change.arg,
-                })
-                .collect(),
-        }),
+        } => {
+            let envelope = core_envelope(&envelope, casemapping, received_at);
+            Event::ModeChanged(ModeChanged {
+                msgid: envelope.msgid,
+                time: envelope.time,
+                account: envelope.account,
+                subject: match subject {
+                    papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
+                    papo_core::Subject::User(nick) => crate::Subject::User(nick),
+                    _ => return CoreEvent::Unknown,
+                },
+                actor: Source::from_name(actor, casemapping),
+                authorship: Authorship::from_core(authorship),
+                subject_authorship: Authorship::from_core(subject_authorship),
+                changes: changes
+                    .into_iter()
+                    .map(|change| ModeChange {
+                        set: change.set,
+                        mode: change.mode,
+                        kind: ModeKind::from_proto(change.kind),
+                        arg: change.arg,
+                    })
+                    .collect(),
+            })
+        }
         papo_core::Event::TopicChanged {
+            envelope,
             channel,
             topic,
             actor,
             authorship,
-        } => Event::TopicChanged(TopicChanged {
-            channel,
-            topic,
-            actor: Source::from_name(actor, casemapping),
-            authorship: Authorship::from_core(authorship),
-        }),
+        } => {
+            let envelope = core_envelope(&envelope, casemapping, received_at);
+            Event::TopicChanged(TopicChanged {
+                msgid: envelope.msgid,
+                time: envelope.time,
+                account: envelope.account,
+                channel,
+                topic,
+                actor: Source::from_name(actor, casemapping),
+                authorship: Authorship::from_core(authorship),
+            })
+        }
         papo_core::Event::StateLimitReached { limit } => {
             Event::Warning(Warning::StateLimitReached { limit })
         }
@@ -2164,6 +2178,7 @@ mod tests {
         }];
         assert!(matches!(
             forwarded(papo_core::Event::ModeChanged {
+                envelope: papo_core::LineEnvelope::default(),
                 subject: papo_core::Subject::Channel(Casemapping::default().channel("#papo")),
                 actor: "alice".into(),
                 authorship: papo_core::Authorship::Other,
@@ -2185,6 +2200,7 @@ mod tests {
     fn maps_topic_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::TopicChanged {
+                envelope: papo_core::LineEnvelope::default(),
                 channel: Casemapping::default().channel("#papo"),
                 topic: Some("Rust 1.90 is out".into()),
                 actor: "alice".into(),

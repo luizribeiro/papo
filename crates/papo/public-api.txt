@@ -537,11 +537,14 @@ impl core::marker::UnsafeUnpin for papo::event::ModeChange
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ModeChange
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ModeChange
 #[non_exhaustive] pub struct papo::event::ModeChanged
+pub papo::event::ModeChanged::account: core::option::Option<papo::AccountName>
 pub papo::event::ModeChanged::actor: papo::Source
 pub papo::event::ModeChanged::authorship: papo::Authorship
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
+pub papo::event::ModeChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::ModeChanged::subject: papo::Subject
 pub papo::event::ModeChanged::subject_authorship: papo::Authorship
+pub papo::event::ModeChanged::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::ModeChanged
 pub fn papo::event::ModeChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ModeChanged
@@ -864,9 +867,12 @@ impl core::marker::UnsafeUnpin for papo::event::TagMsg
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TagMsg
 impl core::panic::unwind_safe::UnwindSafe for papo::event::TagMsg
 #[non_exhaustive] pub struct papo::event::TopicChanged
+pub papo::event::TopicChanged::account: core::option::Option<papo::AccountName>
 pub papo::event::TopicChanged::actor: papo::Source
 pub papo::event::TopicChanged::authorship: papo::Authorship
 pub papo::event::TopicChanged::channel: papo::ChannelName
+pub papo::event::TopicChanged::msgid: core::option::Option<papo::MessageId>
+pub papo::event::TopicChanged::time: std::time::SystemTime
 pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::event::TopicChanged
 pub fn papo::event::TopicChanged::clone(&self) -> Self

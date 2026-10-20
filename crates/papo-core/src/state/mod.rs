@@ -612,6 +612,7 @@ impl State {
                 .collect()
         };
         outbox.event(Event::ModeChanged {
+            envelope: crate::LineEnvelope::from_line(message),
             subject: if isupport.is_channel(target) {
                 Subject::Channel(isupport.casemapping().channel(target))
             } else {
@@ -697,6 +698,7 @@ impl State {
         };
         if live && let (Some(channel), Some(actor)) = (channel_name, source_name(message)) {
             outbox.event(Event::TopicChanged {
+                envelope: crate::LineEnvelope::from_line(message),
                 channel: self.casemapping.channel(channel),
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
                 actor: actor.to_owned(),

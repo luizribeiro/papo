@@ -151,6 +151,7 @@ pub(crate) fn history_item(
                 message,
                 crate::Authorship::from_core(item.authorship),
                 mapping,
+                received_at,
             )
         }),
         papo_core::HistoryItem::ModeChanged(item) => typed_or_raw(&item.line, |message| {
@@ -159,6 +160,7 @@ pub(crate) fn history_item(
                 crate::Authorship::from_core(item.authorship),
                 crate::Authorship::from_core(item.subject_authorship),
                 client,
+                received_at,
             )
         }),
         item => {
@@ -340,8 +342,13 @@ fn topic_changed(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     mapping: crate::Casemapping,
+    received_at: SystemTime,
 ) -> Option<HistoryItem> {
+    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(HistoryItem::TopicChanged(TopicChanged {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
         channel: mapping.channel(message.param(0)?),
         topic: message
             .param(1)
@@ -357,9 +364,11 @@ fn mode_changed(
     authorship: crate::Authorship,
     subject_authorship: crate::Authorship,
     client: &Client,
+    received_at: SystemTime,
 ) -> Option<HistoryItem> {
     let state = client.state();
     let mapping = state.casemapping();
+    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     let changes = ModeChanges::parse(
         message.param(1)?,
         message.params().skip(2),
@@ -373,6 +382,9 @@ fn mode_changed(
     })
     .collect();
     Some(HistoryItem::ModeChanged(ModeChanged {
+        msgid: envelope.msgid,
+        time: envelope.time,
+        account: envelope.account,
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
             crate::Subject::Channel(mapping.channel(message.param(0)?))
         } else {
