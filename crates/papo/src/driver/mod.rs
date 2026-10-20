@@ -270,7 +270,34 @@ impl PendingRequest {
     }
 }
 
-type PendingTransmit = oneshot::Sender<Result<(), Error>>;
+enum PendingTransmit {
+    Empty(oneshot::Sender<Result<(), Error>>),
+    Text {
+        target: String,
+        fallbacks: Vec<crate::Fallback>,
+        result: oneshot::Sender<Result<Sent, Error>>,
+    },
+}
+
+impl PendingTransmit {
+    fn complete(self) {
+        match self {
+            Self::Empty(result) => _ = result.send(Ok(())),
+            Self::Text {
+                target,
+                fallbacks,
+                result,
+            } => _ = result.send(Ok(Sent::without_echo(&target, fallbacks))),
+        }
+    }
+
+    fn fail(self, error: Error) {
+        match self {
+            Self::Empty(result) => _ = result.send(Err(error)),
+            Self::Text { result, .. } => _ = result.send(Err(error)),
+        }
+    }
+}
 
 struct Quit {
     deadline: Instant,
@@ -803,7 +830,7 @@ where
             command = commands.recv(), if commands_open => match command {
                 Some(Command::Send { message, result }) => {
                     match session.send_tracked(now(), message) {
-                        Ok(token) => { transmits.insert(token, result); }
+                        Ok(token) => { transmits.insert(token, PendingTransmit::Empty(result)); }
                         Err(error) => { _ = result.send(Err(Error::build(error))); }
                     }
                 }
@@ -905,8 +932,8 @@ where
                             }
                             if let Some(id) = sent.request {
                                 requests.insert(id, PendingRequest::Text { target, fallbacks, result });
-                            } else {
-                                _ = result.send(Ok(Sent::without_echo(&target, fallbacks)));
+                            } else if let Some(token) = sent.transmit {
+                                transmits.insert(token, PendingTransmit::Text { target, fallbacks, result });
                             }
                         }
                         Err(error) => {
@@ -935,7 +962,7 @@ where
                             current,
                             Line::tagmsg(target).with_tag("+typing", value),
                         ) {
-                            Ok(token) => { transmits.insert(token, result); }
+                            Ok(token) => { transmits.insert(token, PendingTransmit::Empty(result)); }
                             Err(error) => { _ = result.send(Err(Error::build(error))); }
                         }
                     } else {
@@ -990,7 +1017,7 @@ where
     };
     session.handle_disconnected(now());
     for (_, result) in transmits {
-        _ = result.send(Err(Error::disconnected()));
+        result.fail(Error::disconnected());
     }
     for (_, result) in requests {
         result.fail(Error::disconnected());
@@ -1277,7 +1304,7 @@ where
             }
             event::CoreEvent::TransmitAborted(token) => {
                 if let Some(result) = transmits.remove(&token) {
-                    _ = result.send(Err(Error::disconnected()));
+                    result.fail(Error::disconnected());
                 }
             }
             event::CoreEvent::StsUpgrade(port) => sts.upgrade = Some(port),
@@ -1353,7 +1380,7 @@ where
         if let Some(token) = written.token
             && let Some(result) = transmits.remove(&token)
         {
-            _ = result.send(Ok(()));
+            result.complete();
         }
     }
 }
