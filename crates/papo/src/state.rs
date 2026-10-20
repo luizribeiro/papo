@@ -42,7 +42,7 @@ impl State {
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             account: session
                 .account()
-                .map(|account| session.isupport().casemapping().account(account)),
+                .map(|account| session.state().casemapping().account(account)),
             metadata_subscriptions: session
                 .state()
                 .metadata_subscriptions()
@@ -238,10 +238,13 @@ impl State {
         self.isupport.filehost()
     }
 
-    /// Returns the server's nickname and channel casemapping.
+    /// Returns the server-defined name comparison rules.
+    ///
+    /// While disconnected, these are the last advertised rules or the builder's seed if no
+    /// connection has advertised rules yet.
     #[must_use]
     pub fn casemapping(&self) -> Casemapping {
-        self.isupport.casemapping()
+        self.core.casemapping()
     }
 }
 

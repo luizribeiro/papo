@@ -83,6 +83,15 @@ impl Builder {
         builder
     }
 
+    /// Seeds the server-defined name comparison rules used before registration.
+    ///
+    /// A server advertisement replaces these rules for the active connection. The most recently
+    /// advertised rules remain available while disconnected.
+    pub const fn casemapping(mut self, casemapping: crate::Casemapping) -> Self {
+        self.config.casemapping = casemapping;
+        self
+    }
+
     /// Sets the primary nickname.
     pub fn nick(mut self, nick: impl Into<crate::Nick>) -> Self {
         let nick = nick.into().into_string();
@@ -734,6 +743,7 @@ mod tests {
     #[test]
     fn fills_every_session_configuration_field() {
         let builder = Builder::new("irc.example.net")
+            .casemapping(crate::Casemapping::Ascii)
             .nick(crate::Casemapping::default().nick("ping-bot"))
             .alt_nicks([
                 crate::Casemapping::default().nick("ping-bot_"),
@@ -746,6 +756,7 @@ mod tests {
             .device("phone")
             .request_caps(["message-tags", "sasl"]);
         let config = &builder.config;
+        assert_eq!(config.casemapping, crate::Casemapping::Ascii);
         assert_eq!(config.nick, "ping-bot");
         assert_eq!(config.alt_nicks, ["ping-bot_", "ping-bot__"]);
         assert_eq!(config.username, "ping");
@@ -758,6 +769,20 @@ mod tests {
             DEFAULT_WANTED_CAPS[..]
         );
         assert_eq!(config.wanted_caps.last().map(String::as_str), Some("sasl"));
+    }
+
+    #[test]
+    fn seeds_offline_state_name_rules() {
+        let (client, _events, _driver) = Builder::new("irc.example.net")
+            .casemapping(crate::Casemapping::Ascii)
+            .nick(crate::Casemapping::Ascii.nick("papo[bot]"))
+            .build();
+
+        let state = client.state();
+        assert!(!state.is_connected());
+        assert_eq!(state.casemapping(), crate::Casemapping::Ascii);
+        assert_eq!(state.nick().casemapping(), crate::Casemapping::Ascii);
+        assert_ne!(state.nick(), "papo{bot}");
     }
 
     #[test]

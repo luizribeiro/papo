@@ -1652,6 +1652,7 @@ pub fn papo::Builder::autojoin_with_key(self, impl core::convert::Into<alloc::st
 pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::bot(self) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
+pub const fn papo::Builder::casemapping(self, papo::Casemapping) -> Self
 pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>
 pub fn papo::Builder::ctcp_source(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::ctcp_version(self, core::option::Option<&str>) -> Self
