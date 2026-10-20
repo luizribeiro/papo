@@ -41,7 +41,7 @@ pub use conversation::{
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::PersistenceSetting;
-pub use papo_core::{BatchAbandonReason, StateLimit};
+pub use papo_core::{BatchAbandonReason, StateLimit, TypingReason};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use server::BouncerNetworkChanged;
@@ -858,6 +858,7 @@ pub(crate) fn from_core(
             conversation: change.conversation,
             status: change.status,
             state: change.state,
+            reason: change.reason,
         }),
         papo_core::Event::TagMessage(message) => {
             let envelope = core_envelope(&message.envelope, casemapping, received_at);
@@ -906,6 +907,7 @@ pub(crate) fn from_core(
                     conversation: tag.conversation,
                     status: tag.status,
                     state,
+                    reason: TypingReason::Notified,
                 })
             } else {
                 Event::TagMsg(tag)

@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::{AccountName, Conversation, MessageId, Typing};
 
-use super::{Authorship, Source, Tags};
+use super::{Authorship, Source, Tags, TypingReason};
 
 /// A reaction was added to or removed from a message.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -70,6 +70,8 @@ pub struct TypingChanged {
     pub status: Option<Vec<char>>,
     /// The new typing state.
     pub state: Typing,
+    /// Why the state changed.
+    pub reason: TypingReason,
 }
 
 /// A tag-only message with no more specific typed event.

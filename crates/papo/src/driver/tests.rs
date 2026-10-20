@@ -4324,6 +4324,67 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn typing_events_report_every_transition_reason() {
+    use crate::event::TypingReason;
+
+    let (mut server, _client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    server_line(
+        &mut server,
+        b"@+typing=active :alice!~alice@cloak.example TAGMSG #papo\r\n",
+    )
+    .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::TypingChanged(change)) if change.reason == TypingReason::Notified
+    ));
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example PRIVMSG #papo :the build is green\r\n",
+    )
+    .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::TypingChanged(change)) if change.reason == TypingReason::Messaged
+    ));
+    assert!(matches!(events.next().await, Some(Event::Message(_))));
+
+    server_line(
+        &mut server,
+        b"@+typing=paused :bob!~bob@users.example TAGMSG #papo\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::TypingChanged(_))));
+    server_line(
+        &mut server,
+        b":bob!~bob@users.example PART #papo :Leaving\r\n",
+    )
+    .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::TypingChanged(change)) if change.reason == TypingReason::Departed
+    ));
+    assert!(matches!(events.next().await, Some(Event::Parted(_))));
+
+    server_line(
+        &mut server,
+        b"@+typing=active :carol!~carol@users.example TAGMSG #papo\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::TypingChanged(_))));
+    tokio::time::advance(Duration::from_secs(6)).await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::TypingChanged(change)) if change.reason == TypingReason::TimedOut
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn redaction_requires_its_capability_and_propagates_fail() {
     let caps = ["draft/message-redaction", "labeled-response"];

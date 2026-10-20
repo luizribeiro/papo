@@ -152,6 +152,7 @@ pub use papo::event::PersistenceSetting
 pub use papo::event::PersistenceStatus
 pub use papo::event::Source
 pub use papo::event::StateLimit
+pub use papo::event::TypingReason
 pub use papo::event::Visibility
 #[non_exhaustive] pub enum papo::event::StandardReplyKind
 pub papo::event::StandardReplyKind::Fail
@@ -902,6 +903,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::TopicChanged
 pub papo::event::TypingChanged::actor: papo::Source
 pub papo::event::TypingChanged::authorship: papo::Authorship
 pub papo::event::TypingChanged::conversation: papo::Conversation
+pub papo::event::TypingChanged::reason: papo::event::TypingReason
 pub papo::event::TypingChanged::state: papo::Typing
 pub papo::event::TypingChanged::status: core::option::Option<alloc::vec::Vec<char>>
 impl core::clone::Clone for papo::event::TypingChanged
