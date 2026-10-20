@@ -228,17 +228,7 @@ impl State {
         &self,
         target: impl AsRef<str>,
     ) -> Option<HashMap<crate::MetadataKey, crate::MetadataValue>> {
-        self.core.metadata(target).map(|values| {
-            values
-                .iter()
-                .map(|(key, value)| {
-                    (
-                        crate::MetadataKey::from(key),
-                        crate::MetadataValue::from_core(value),
-                    )
-                })
-                .collect()
-        })
+        self.core.metadata(target).cloned()
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.

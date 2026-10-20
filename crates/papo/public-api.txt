@@ -15,6 +15,7 @@ pub use papo::Mask
 pub use papo::Member
 pub use papo::MessageId
 pub use papo::MetadataKey
+pub use papo::MetadataValue
 pub use papo::Nick
 pub use papo::RateLimit
 pub use papo::Refusal
@@ -1036,6 +1037,7 @@ impl core::marker::UnsafeUnpin for papo::isupport::Isupport
 impl core::panic::unwind_safe::RefUnwindSafe for papo::isupport::Isupport
 impl core::panic::unwind_safe::UnwindSafe for papo::isupport::Isupport
 pub mod papo::metadata
+pub use papo::metadata::MetadataValue
 pub use papo::metadata::Visibility
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
@@ -1049,8 +1051,8 @@ pub struct papo::metadata::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
 pub fn papo::Metadata::clear_on(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::remove_on(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -1065,24 +1067,6 @@ impl core::marker::Unpin for papo::Metadata
 impl core::marker::UnsafeUnpin for papo::Metadata
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
 impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
-#[non_exhaustive] pub struct papo::metadata::MetadataValue
-pub papo::metadata::MetadataValue::value: alloc::string::String
-pub papo::metadata::MetadataValue::visibility: papo::Visibility
-impl core::clone::Clone for papo::metadata::MetadataValue
-pub fn papo::metadata::MetadataValue::clone(&self) -> Self
-impl core::cmp::Eq for papo::metadata::MetadataValue
-impl core::cmp::PartialEq for papo::metadata::MetadataValue
-pub fn papo::metadata::MetadataValue::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::metadata::MetadataValue
-pub fn papo::metadata::MetadataValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::metadata::MetadataValue
-impl core::marker::Freeze for papo::metadata::MetadataValue
-impl core::marker::Send for papo::metadata::MetadataValue
-impl core::marker::Sync for papo::metadata::MetadataValue
-impl core::marker::Unpin for papo::metadata::MetadataValue
-impl core::marker::UnsafeUnpin for papo::metadata::MetadataValue
-impl core::panic::unwind_safe::RefUnwindSafe for papo::metadata::MetadataValue
-impl core::panic::unwind_safe::UnwindSafe for papo::metadata::MetadataValue
 pub mod papo::numeric
 pub const papo::numeric::ERR_BADCHANMASK: u16
 pub const papo::numeric::ERR_BADCHANNELKEY: u16
@@ -2149,8 +2133,8 @@ pub struct papo::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
 pub fn papo::Metadata::clear_on(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>>
+pub fn papo::Metadata::get<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::list(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::remove_on(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -2165,24 +2149,6 @@ impl core::marker::Unpin for papo::Metadata
 impl core::marker::UnsafeUnpin for papo::Metadata
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
 impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
-#[non_exhaustive] pub struct papo::MetadataValue
-pub papo::MetadataValue::value: alloc::string::String
-pub papo::MetadataValue::visibility: papo::Visibility
-impl core::clone::Clone for papo::metadata::MetadataValue
-pub fn papo::metadata::MetadataValue::clone(&self) -> Self
-impl core::cmp::Eq for papo::metadata::MetadataValue
-impl core::cmp::PartialEq for papo::metadata::MetadataValue
-pub fn papo::metadata::MetadataValue::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::metadata::MetadataValue
-pub fn papo::metadata::MetadataValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::metadata::MetadataValue
-impl core::marker::Freeze for papo::metadata::MetadataValue
-impl core::marker::Send for papo::metadata::MetadataValue
-impl core::marker::Sync for papo::metadata::MetadataValue
-impl core::marker::Unpin for papo::metadata::MetadataValue
-impl core::marker::UnsafeUnpin for papo::metadata::MetadataValue
-impl core::panic::unwind_safe::RefUnwindSafe for papo::metadata::MetadataValue
-impl core::panic::unwind_safe::UnwindSafe for papo::metadata::MetadataValue
 pub struct papo::Monitor
 impl papo::Monitor
 pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
@@ -2373,7 +2339,7 @@ pub fn papo::State::is_valid_channel(&self, &str) -> bool
 pub fn papo::State::is_valid_nick(&self, &str) -> bool
 pub fn papo::State::isupport(&self) -> &papo::isupport::Isupport
 pub fn papo::State::mask(&self, impl core::convert::AsRef<str>) -> papo::Mask
-pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::collections::hash::map::HashMap<papo::MetadataKey, papo::metadata::MetadataValue>>
+pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> &[papo::MetadataKey]
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
 pub fn papo::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>

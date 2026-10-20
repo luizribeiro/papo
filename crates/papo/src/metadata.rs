@@ -1,26 +1,7 @@
 //! Metadata APIs and registered key names.
 
 pub use crate::ext::metadata::Metadata;
-pub use papo_core::Visibility;
-
-/// One server-returned metadata value.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub struct MetadataValue {
-    /// Server-returned value.
-    pub value: String,
-    /// Visibility policy reported with the value.
-    pub visibility: Visibility,
-}
-
-impl MetadataValue {
-    pub(crate) fn from_core(value: &papo_core::MetadataValue) -> Self {
-        Self {
-            value: value.value.clone(),
-            visibility: value.visibility.clone(),
-        }
-    }
-}
+pub use papo_core::{MetadataValue, Visibility};
 
 /// Registered metadata keys.
 pub mod keys {
