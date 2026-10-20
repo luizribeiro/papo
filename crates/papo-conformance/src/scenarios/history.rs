@@ -72,7 +72,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
             message.source().as_ref().and_then(Source::nick),
             Some(writer.nick().as_ref())
         );
-        assert!(message.server_time.is_some());
+        assert!(message.tags().get("time").is_some());
     }
     Ok(())
 }
@@ -205,11 +205,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
         let oldest = messages.first().expect("nonempty page");
         cursor = Some(match oldest.id() {
             Some(id) => Cursor::Id(id.as_ref().to_owned()),
-            None => Cursor::Time(
-                oldest
-                    .server_time
-                    .expect("history without a message ID has server time"),
-            ),
+            None => Cursor::Time(oldest.time),
         });
         remaining = start;
     }

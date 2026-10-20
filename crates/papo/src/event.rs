@@ -158,10 +158,8 @@ pub struct Message {
     pub kind: MessageKind,
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Local wall-clock time when the message was received.
-    pub received_at: SystemTime,
+    /// Valid server time, or the local receipt time when none was supplied.
+    pub time: SystemTime,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// The identifier referenced by a reply tag.
@@ -338,11 +336,7 @@ impl Message {
         } else {
             None
         };
-        let msgid = tag_owned(&message, &["msgid"]).map(MessageId::from);
-        let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
-            .and_then(|value| time::parse(&value));
-        let account = tag_owned(&message, &["account"])
-            .map(|account| isupport.casemapping().account(account));
+        let envelope = line_envelope(&message, isupport.casemapping(), received_at);
         let is_bot = tags.contains("bot");
         let reply_to = tag_owned(&message, &["+reply", "+draft/reply"]).map(MessageId::from);
         #[cfg(feature = "unstable")]
@@ -367,10 +361,9 @@ impl Message {
             text,
             raw_text,
             kind,
-            msgid,
-            server_time,
-            received_at,
-            account,
+            msgid: envelope.msgid,
+            time: envelope.time,
+            account: envelope.account,
             reply_to,
             channel_context,
             #[cfg(feature = "unstable")]
@@ -465,7 +458,7 @@ impl Message {
     /// Returns server time when valid, or the local receipt time.
     #[must_use]
     pub fn time(&self) -> SystemTime {
-        self.server_time.unwrap_or(self.received_at)
+        self.time
     }
 
     /// Returns the actor's authenticated account, when tagged.
@@ -532,6 +525,26 @@ impl Message {
     #[must_use]
     pub fn ctcp(&self) -> Option<Ctcp<'_>> {
         ProtoCtcp::parse(&self.raw_text).map(Ctcp::from_proto)
+    }
+}
+
+pub(crate) struct EventEnvelope {
+    pub(crate) msgid: Option<MessageId>,
+    pub(crate) time: SystemTime,
+    pub(crate) account: Option<AccountName>,
+}
+
+pub(crate) fn line_envelope(
+    line: &LineRef<'_>,
+    casemapping: Casemapping,
+    received_at: SystemTime,
+) -> EventEnvelope {
+    EventEnvelope {
+        msgid: tag_owned(line, &["msgid"]).map(MessageId::from),
+        time: tag_owned(line, &["time", "znc.in/server-time-iso"])
+            .and_then(|value| time::parse(&value))
+            .unwrap_or(received_at),
+        account: tag_owned(line, &["account"]).map(|account| casemapping.account(account)),
     }
 }
 

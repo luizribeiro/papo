@@ -56,7 +56,7 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(echo.raw_text(), "hello from alice");
     assert_eq!(echo.id(), sent.id.as_ref());
-    assert_eq!(echo.server_time, sent.time);
+    assert_eq!(Some(echo.time), sent.time);
     assert_eq!(echo.origin(), Origin::Echo);
     assert_eq!(message.kind(), MessageKind::Privmsg);
     assert_eq!(
@@ -70,9 +70,9 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.raw_text(), "hello from alice");
     assert_eq!(message.text(), "hello from alice");
     assert_eq!(message.id(), sent.id.as_ref());
-    assert_eq!(message.server_time, sent.time);
+    assert_eq!(Some(message.time), sent.time);
     assert_eq!(message.id(), echo.id());
-    assert_eq!(message.server_time, echo.server_time);
+    assert_eq!(message.time, echo.time);
     assert_eq!(message.origin(), Origin::Live);
     assert!(!message.is_private());
     assert!(sent.fallbacks.is_empty());
@@ -100,7 +100,7 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(echo.kind(), MessageKind::Notice);
     assert_eq!(echo.id(), sent.id.as_ref());
-    assert_eq!(echo.server_time, sent.time);
+    assert_eq!(Some(echo.time), sent.time);
     assert_eq!(echo.origin(), Origin::Echo);
     assert_eq!(message.kind(), MessageKind::Notice);
     assert_eq!(
@@ -113,9 +113,9 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(message.raw_text(), "maintenance at midnight");
     assert_eq!(message.id(), sent.id.as_ref());
-    assert_eq!(message.server_time, sent.time);
+    assert_eq!(Some(message.time), sent.time);
     assert_eq!(message.id(), echo.id());
-    assert_eq!(message.server_time, echo.server_time);
+    assert_eq!(message.time, echo.time);
     assert!(message.tags().contains("time"));
     assert_eq!(message.origin(), Origin::Live);
     assert!(sent.fallbacks.is_empty());
@@ -163,7 +163,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert!(received.is_private());
     assert_eq!(received.id(), sent.id.as_ref());
     assert_eq!(received.id(), echo.id());
-    assert_eq!(received.server_time, sent.time);
+    assert_eq!(Some(received.time), sent.time);
 
     let sent = bob.notice(alice.nick(), "private notice").await?;
     let echo = bob
@@ -184,7 +184,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert!(received.is_private());
     assert_eq!(received.id(), sent.id.as_ref());
     assert_eq!(received.id(), echo.id());
-    assert_eq!(received.server_time, sent.time);
+    assert_eq!(Some(received.time), sent.time);
 
     let sent = alice.privmsg(alice.nick(), "note to self").await?;
     let first = alice
@@ -712,7 +712,7 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.raw_text(), text);
     assert_eq!(received.text(), text);
     assert_eq!(received.id(), sent.id.as_ref());
-    assert_eq!(received.server_time, sent.time);
+    assert_eq!(Some(received.time), sent.time);
     assert_eq!(received.origin(), Origin::Live);
     bob.expect_none(|event| message_text(event, text)).await?;
     Ok(())

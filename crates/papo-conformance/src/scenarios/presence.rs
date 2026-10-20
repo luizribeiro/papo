@@ -31,7 +31,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.as_str())
     );
     assert_eq!(message.id(), sent.id.as_ref());
-    assert_eq!(message.server_time, sent.time);
+    assert_eq!(Some(message.time), sent.time);
     assert_eq!(message.account(), Some(account.as_ref()));
     assert_eq!(message.origin(), Origin::Live);
     assert!(sent.fallbacks.is_empty());
@@ -149,7 +149,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(message.text(), text);
     assert_eq!(message.id(), sent.id.as_ref());
-    assert_eq!(message.server_time, sent.time);
+    assert_eq!(Some(message.time), sent.time);
     assert_eq!(message.origin(), Origin::Live);
     assert!(alice.state().away());
     assert_eq!(alice.state().away_message(), Some(away));
