@@ -142,6 +142,27 @@ pub struct SendTextResult {
     /// Whether the text was divided into multiple message lines.
     pub split: bool,
 }
+
+/// Opaque identifier for one user-originated transmission.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct TransmitToken(u64);
+
+/// One line ready for the transport and its optional completion identifier.
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Transmit {
+    line: Vec<u8>,
+    token: Option<TransmitToken>,
+}
+
+impl Transmit {
+    /// Consumes the transmission into its wire line and completion identifier.
+    #[must_use]
+    pub fn into_parts(self) -> (Vec<u8>, Option<TransmitToken>) {
+        (self.line, self.token)
+    }
+}
 const CTCP_REPLY_INTERVAL: Duration = Duration::from_secs(2);
 
 /// Capabilities requested by a default session when the server advertises them.
@@ -1396,6 +1417,12 @@ pub enum Event {
         /// Identifier assigned to the request.
         id: RequestId,
     },
+    /// A user-originated line was discarded before reaching the transport.
+    #[doc(hidden)]
+    TransmitAborted {
+        /// Identifier assigned when the line was queued.
+        token: TransmitToken,
+    },
     /// A pending request's required feature became unavailable.
     RequestUnsupported {
         /// Identifier assigned to the request.
@@ -1788,6 +1815,7 @@ pub struct Session {
     requests: BTreeMap<String, (RequestId, Instant, bool, Option<Feature>, bool)>,
     unlabelled_requests: VecDeque<UnlabelledRequest>,
     next_request_id: u64,
+    next_transmit_token: u64,
     registration: Registration,
     sasl: SaslSession,
     state: State,
@@ -1819,6 +1847,7 @@ impl std::fmt::Debug for Session {
             .field("requests", &self.requests)
             .field("unlabelled_requests", &self.unlabelled_requests)
             .field("next_request_id", &self.next_request_id)
+            .field("next_transmit_token", &self.next_transmit_token)
             .field("registration", &self.registration)
             .field(cap::SASL, &self.sasl)
             .field("state", &self.state)
@@ -1837,18 +1866,24 @@ enum Handled {
 #[derive(Debug, Default)]
 struct Outbox {
     transmits: VecDeque<Transmission>,
-    immediate: VecDeque<Vec<u8>>,
+    immediate: VecDeque<QueuedLine>,
     events: VecDeque<Event>,
     close_requested: bool,
 }
 
 #[derive(Debug)]
 enum Transmission {
-    Line(Vec<u8>),
+    Line(QueuedLine),
     Batch {
         lines: VecDeque<Vec<u8>>,
         started: bool,
     },
+}
+
+#[derive(Debug)]
+struct QueuedLine {
+    line: Vec<u8>,
+    token: Option<TransmitToken>,
 }
 
 impl Transmission {
@@ -1862,10 +1897,18 @@ impl Transmission {
 
 impl Outbox {
     fn transmit_raw(&mut self, line: Vec<u8>) {
+        self.transmit_tagged(line, None);
+    }
+
+    fn transmit_tagged(&mut self, line: Vec<u8>, token: Option<TransmitToken>) {
         if self.close_requested {
+            if let Some(token) = token {
+                self.event(Event::TransmitAborted { token });
+            }
             return;
         }
-        if bypasses_rate_limit(&line) {
+        let line = QueuedLine { line, token };
+        if bypasses_rate_limit(&line.line) {
             self.immediate.push_back(line);
         } else {
             self.transmits.push_back(Transmission::Line(line));
@@ -1896,7 +1939,10 @@ impl Outbox {
             return;
         }
         match Line::new(command, params).to_line() {
-            Ok(line) => self.immediate.push_back(line.into()),
+            Ok(line) => self.immediate.push_back(QueuedLine {
+                line: line.into(),
+                token: None,
+            }),
             Err(error) => self.close(
                 CloseKind::Other,
                 format!("invalid outbound message: {error}"),
@@ -1914,15 +1960,32 @@ impl Outbox {
     }
 
     fn close_and_discard(&mut self, kind: CloseKind, reason: String) {
-        self.transmits.clear();
-        self.immediate.clear();
+        self.abort_transmits();
         self.close(kind, reason);
     }
 
     fn reset_connection(&mut self) {
-        self.transmits.clear();
-        self.immediate.clear();
+        self.abort_transmits();
         self.close_requested = false;
+    }
+
+    fn abort_transmits(&mut self) {
+        let tokens = self
+            .immediate
+            .drain(..)
+            .filter_map(|line| line.token)
+            .chain(
+                self.transmits
+                    .drain(..)
+                    .filter_map(|transmit| match transmit {
+                        Transmission::Line(line) => line.token,
+                        Transmission::Batch { .. } => None,
+                    }),
+            )
+            .collect::<Vec<_>>();
+        for token in tokens {
+            self.event(Event::TransmitAborted { token });
+        }
     }
 }
 
@@ -1968,6 +2031,7 @@ impl Session {
             requests: BTreeMap::new(),
             unlabelled_requests: VecDeque::new(),
             next_request_id: 0,
+            next_transmit_token: 0,
             registration,
             sasl,
             state,
@@ -2173,11 +2237,23 @@ impl Session {
     ///
     /// Returns [`BuildError`] if `message` cannot be represented as a valid IRC wire line.
     pub fn send(&mut self, now: Instant, message: Line) -> Result<(), BuildError> {
+        self.send_tracked(now, message).map(drop)
+    }
+
+    /// Queues a user-originated line with a write-completion identifier.
+    #[doc(hidden)]
+    pub fn send_tracked(
+        &mut self,
+        now: Instant,
+        message: Line,
+    ) -> Result<TransmitToken, BuildError> {
         self.rate_limit.advance(now);
         let line = message.to_line()?;
         drop(message);
-        self.outbox.transmit_raw(line.into());
-        Ok(())
+        let token = TransmitToken(self.next_transmit_token);
+        self.next_transmit_token = self.next_transmit_token.wrapping_add(1);
+        self.outbox.transmit_tagged(line.into(), Some(token));
+        Ok(token)
     }
 
     fn text_budget(&self, kind: TextKind, target: &str) -> usize {
@@ -2489,12 +2565,22 @@ impl Session {
 
     /// Returns the next CRLF-terminated wire line to transmit.
     pub fn poll_transmit(&mut self) -> Option<Vec<u8>> {
+        self.poll_transmit_tracked()
+            .map(|transmit| transmit.into_parts().0)
+    }
+
+    /// Returns the next wire line with its optional write-completion identifier.
+    #[doc(hidden)]
+    pub fn poll_transmit_tracked(&mut self) -> Option<Transmit> {
         let batch_open = matches!(
             self.outbox.transmits.front(),
             Some(Transmission::Batch { started: true, .. })
         );
         if !batch_open && let Some(line) = self.outbox.immediate.pop_front() {
-            return Some(line);
+            return Some(Transmit {
+                line: line.line,
+                token: line.token,
+            });
         }
         if self.outbox.transmits.is_empty()
             || !self.rate_limit.take(self.isupport.value().saferate())
@@ -2502,7 +2588,10 @@ impl Session {
             return None;
         }
         match self.outbox.transmits.pop_front()? {
-            Transmission::Line(line) => Some(line),
+            Transmission::Line(line) => Some(Transmit {
+                line: line.line,
+                token: line.token,
+            }),
             Transmission::Batch { mut lines, .. } => {
                 let line = lines.pop_front();
                 if !lines.is_empty() {
@@ -2511,7 +2600,7 @@ impl Session {
                         started: true,
                     });
                 }
-                line
+                line.map(|line| Transmit { line, token: None })
             }
         }
     }

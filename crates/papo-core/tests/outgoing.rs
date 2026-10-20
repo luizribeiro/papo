@@ -85,6 +85,32 @@ fn detailed_send_reports_only_actual_text_splitting() {
 }
 
 #[test]
+fn closing_aborts_queued_and_later_user_transmissions() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let queued = session
+        .send_tracked(now, Line::privmsg("#papo", "deployment queued"))
+        .unwrap();
+    session.handle_line(now, b":ergo.test ERROR :Server maintenance");
+    let closing = session
+        .send_tracked(now, Line::notice("alice", "maintenance acknowledged"))
+        .unwrap();
+    session.handle_disconnected(now);
+
+    let mut aborted = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::TransmitAborted { token } => Some(token),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    aborted.sort_unstable();
+    let mut expected = vec![queued, closing];
+    expected.sort_unstable();
+    assert_eq!(aborted, expected);
+    assert_eq!(session.poll_transmit_tracked(), None);
+}
+
+#[test]
 fn repeats_client_tags_except_context_on_fallback_lines() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
