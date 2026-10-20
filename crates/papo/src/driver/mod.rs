@@ -1015,18 +1015,32 @@ where
             },
         }
     };
+    let disconnected = disconnected_event(&error, None);
     session.handle_disconnected(now());
+    while let Some(core_event) = session.poll_event().map(event::from_core) {
+        if let event::CoreEvent::RequestAborted { id, transmitted } = core_event {
+            join_keys.remove(&id);
+            if let Some(result) = requests.remove(&id) {
+                let error = if transmitted {
+                    Error::Interrupted(disconnected.clone())
+                } else {
+                    Error::disconnected(disconnected.clone())
+                };
+                result.fail(error);
+            }
+        }
+    }
     for (_, result) in transmits {
-        result.fail(Error::connection_lost());
+        result.fail(Error::disconnected(disconnected.clone()));
     }
     for (_, result) in requests {
-        result.fail(Error::connection_lost());
+        result.fail(Error::disconnected(disconnected.clone()));
     }
     for (_, result) in sync_waiters {
-        _ = result.send(Err(Error::connection_lost()));
+        _ = result.send(Err(Error::disconnected(disconnected.clone())));
     }
     for (_, result) in read_marker_waiters {
-        _ = result.send(Err(Error::connection_lost()));
+        _ = result.send(Err(Error::disconnected(disconnected.clone())));
     }
     connected.store(false, Ordering::Relaxed);
     publish_state(events, session, false);
@@ -1296,10 +1310,16 @@ where
                     result.fail(Error::Timeout);
                 }
             }
-            event::CoreEvent::RequestAborted(id) => {
+            event::CoreEvent::RequestAborted { id, transmitted } => {
                 join_keys.remove(&id);
                 if let Some(result) = requests.remove(&id) {
-                    result.fail(Error::connection_lost());
+                    let disconnected =
+                        crate::Disconnected::new(crate::DisconnectCause::ConnectionLost, None);
+                    result.fail(if transmitted {
+                        Error::Interrupted(disconnected)
+                    } else {
+                        Error::disconnected(disconnected)
+                    });
                 }
             }
             event::CoreEvent::TransmitAborted(token) => {

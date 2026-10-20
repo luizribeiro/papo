@@ -2523,7 +2523,10 @@ async fn structured_requests_resolve_fail_time_out_and_abort() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(aborted).await.unwrap(),
-        Err(disconnected!())
+        Err(Error::Interrupted(crate::Disconnected {
+            cause: crate::DisconnectCause::ConnectionLost,
+            retry_in: None,
+        }))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -3355,6 +3358,42 @@ async fn chat_text_returns_metadata_from_a_labelled_echo() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn written_labelled_privmsg_is_interrupted_by_the_server_disconnect() {
+    let config = config().wanted_caps(["echo-message", "labeled-response"]);
+    let (mut server, client, _events, driver) = scripted(config);
+    let task = tokio::spawn(driver);
+    registration_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b":ergo.test CAP * LS :echo-message labeled-response\r\n",
+    )
+    .await;
+    client_line(&mut server, b"CAP REQ :echo-message labeled-response\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test CAP * ACK :echo-message labeled-response\r\n",
+    )
+    .await;
+    client_line(&mut server, b"CAP END\r\n").await;
+
+    let sent = tokio::spawn(async move { client.privmsg("#papo", "deploy complete").await });
+    client_line(&mut server, b"@label=0 PRIVMSG #papo :deploy complete\r\n").await;
+    server_line(
+        &mut server,
+        b"ERROR :Closing Link: papo-driver (Server maintenance)\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(sent).await.unwrap(),
+        Err(Error::Interrupted(crate::Disconnected {
+            cause: crate::DisconnectCause::Server { message },
+            retry_in: None,
+        })) if message == "Closing Link: papo-driver (Server maintenance)"
+    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn actions_reject_every_ctcp_delimiter_without_panicking() {
     let (_server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
@@ -4018,7 +4057,13 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
     )
     .await;
 
-    assert!(matches!(within(whois).await.unwrap(), Err(disconnected!())));
+    assert!(matches!(
+        within(whois).await.unwrap(),
+        Err(Error::Interrupted(crate::Disconnected {
+            cause: crate::DisconnectCause::Server { .. },
+            retry_in: None,
+        }))
+    ));
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())
@@ -4050,7 +4095,13 @@ async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
     )
     .await;
 
-    assert!(matches!(within(whois).await.unwrap(), Err(disconnected!())));
+    assert!(matches!(
+        within(whois).await.unwrap(),
+        Err(Error::Interrupted(crate::Disconnected {
+            cause: crate::DisconnectCause::SlowConsumer,
+            retry_in: None,
+        }))
+    ));
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())
@@ -4069,16 +4120,24 @@ async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn session_deadline_sends_keepalive_ping() {
     let config = config()
+        .registration_timeout(Duration::from_secs(300))
         .ping_interval(Duration::from_secs(30))
         .ping_timeout(Duration::from_secs(120));
-    let (mut server, _client, _events, driver) = scripted(config);
+    let (mut server, _client, mut events, driver) = scripted(config);
     let task = tokio::spawn(driver);
     registration_burst(&mut server).await;
     tokio::time::advance(Duration::from_secs(30)).await;
     let mut ping = [0; 14];
     within(server.read_exact(&mut ping)).await.unwrap();
     assert_eq!(&ping, b"PING :papo-0\r\n");
-    within(server.shutdown()).await.unwrap();
+    tokio::time::advance(Duration::from_secs(90)).await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::PingTimeout,
+            retry_in: None,
+        }))
+    ));
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 

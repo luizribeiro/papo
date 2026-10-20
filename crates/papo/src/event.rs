@@ -715,7 +715,10 @@ pub(crate) enum CoreEvent {
     Response(Response),
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
-    RequestAborted(RequestId),
+    RequestAborted {
+        id: RequestId,
+        transmitted: bool,
+    },
     TransmitAborted(papo_core::TransmitToken),
     StsUpgrade(u16),
     StsPolicy(StsAction),
@@ -798,7 +801,9 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
         papo_core::Event::Response(response) => return CoreEvent::Response(response),
         papo_core::Event::RequestUntracked { id } => return CoreEvent::RequestUntracked(id),
         papo_core::Event::RequestTimedOut { id } => return CoreEvent::RequestTimedOut(id),
-        papo_core::Event::RequestAborted { id, .. } => return CoreEvent::RequestAborted(id),
+        papo_core::Event::RequestAborted { id, transmitted } => {
+            return CoreEvent::RequestAborted { id, transmitted };
+        }
         papo_core::Event::TransmitAborted { token } => return CoreEvent::TransmitAborted(token),
         papo_core::Event::RequestUnsupported { id, unsupported } => {
             return CoreEvent::RequestUnsupported { id, unsupported };
@@ -1500,7 +1505,7 @@ mod tests {
         let id = session.request(now, Line::new("MODE", ["#papo"])).unwrap();
         session.handle_disconnected(now);
         assert!(
-            matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestAborted(mapped) if mapped == id)
+            matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestAborted { id: mapped, .. } if mapped == id)
         );
     }
 
