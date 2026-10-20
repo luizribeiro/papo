@@ -81,6 +81,8 @@ fn requires_the_channel_rename_capability() {
 #[test]
 fn rekeys_channel_members_and_metadata() {
     registered()
+        .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .server(":alice!a@localhost JOIN #rust * :Alice Example")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":bob!b@localhost JOIN #rust * :Bob Example")
@@ -90,7 +92,10 @@ fn rekeys_channel_members_and_metadata() {
         .server(":alice!a@localhost RENAME #rust #rust-lang :Project renamed")
         .event(|event| {
             matches!(event, Event::ChannelRenamed { old, new, reason }
-            if old == "#rust" && new == "#rust-lang" && reason == "Project renamed")
+            if old == "#rust" && new == "#rust-lang"
+                && old.casemapping() == papo_proto::Casemapping::Ascii
+                && new.casemapping() == papo_proto::Casemapping::Ascii
+                && reason == "Project renamed")
         })
         .inspect(|session| {
             assert!(session.state().channel("#rust").is_none());
