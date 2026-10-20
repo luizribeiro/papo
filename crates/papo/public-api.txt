@@ -1310,7 +1310,7 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::Error
 impl !core::panic::unwind_safe::UnwindSafe for papo::Error
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
-pub papo::Event::AccountRegistration(papo::AccountRegistration)
+pub papo::Event::AccountRegistration(papo::AccountCreation)
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
 pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::CasemappingChanged(papo::event::CasemappingChanged)
@@ -1347,7 +1347,7 @@ pub papo::Event::Warning(papo::event::Warning)
 impl papo::Event
 pub const fn papo::Event::as_account_changed(&self) -> core::option::Option<&papo::event::AccountChanged>
 impl papo::Event
-pub const fn papo::Event::as_account_registration(&self) -> core::option::Option<&papo::AccountRegistration>
+pub const fn papo::Event::as_account_registration(&self) -> core::option::Option<&papo::AccountCreation>
 impl papo::Event
 pub const fn papo::Event::as_away_changed(&self) -> core::option::Option<&papo::event::AwayChanged>
 impl papo::Event
@@ -1714,8 +1714,8 @@ pub fn papo::Client::mode(&self, impl core::convert::AsRef<str>) -> papo::SetMod
 impl papo::Client
 pub fn papo::Client::monitor(&self) -> papo::Monitor
 impl papo::Client
-pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountRegistration>
-pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
+pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
+pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountCreation>
 impl papo::Client
 pub fn papo::Client::rename_channel(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 impl core::clone::Clone for papo::Client
@@ -2450,4 +2450,3 @@ pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String
 impl papo::IntoEndpoint for papo::Endpoint
-pub type papo::AccountRegistration = papo::AccountCreation

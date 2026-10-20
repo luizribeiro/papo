@@ -61,9 +61,6 @@ pub enum AccountCreation {
     },
 }
 
-/// Account creation outcome.
-pub type AccountRegistration = AccountCreation;
-
 impl Client {
     /// Creates an account through `draft/account-registration`.
     ///
@@ -75,10 +72,7 @@ impl Client {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub fn register_account(
-        &self,
-        account: NewAccount,
-    ) -> crate::RequestFuture<AccountRegistration> {
+    pub fn register_account(&self, account: NewAccount) -> crate::RequestFuture<AccountCreation> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let response = client
@@ -105,7 +99,7 @@ impl Client {
         &self,
         account: impl AsRef<str>,
         code: impl Into<String>,
-    ) -> crate::RequestFuture<AccountRegistration> {
+    ) -> crate::RequestFuture<AccountCreation> {
         let client = self.clone();
         let account = self.state().account_name(account.as_ref());
         let code = code.into();
@@ -128,7 +122,7 @@ fn account_registration_result(
     response: &Response,
     command: &'static str,
     casemapping: crate::Casemapping,
-) -> Result<AccountRegistration, Error> {
+) -> Result<AccountCreation, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));
     }
@@ -143,8 +137,8 @@ fn account_registration_result(
             .ok_or_else(|| Error::unexpected_reply(command))?,
     );
     match message.param(0) {
-        Some("SUCCESS") => Ok(AccountRegistration::Created { account }),
-        Some("VERIFICATION_REQUIRED") => Ok(AccountRegistration::VerificationRequired {
+        Some("SUCCESS") => Ok(AccountCreation::Created { account }),
+        Some("VERIFICATION_REQUIRED") => Ok(AccountCreation::VerificationRequired {
             account,
             message: message.param(2).unwrap_or_default().to_owned(),
         }),
@@ -204,7 +198,7 @@ mod tests {
         )
         .await;
         assert!(
-            matches!(within(register).await.unwrap().unwrap(), super::AccountRegistration::VerificationRequired { account, .. } if account == "alice")
+            matches!(within(register).await.unwrap().unwrap(), super::AccountCreation::VerificationRequired { account, .. } if account == "alice")
         );
 
         let verify = tokio::spawn({
@@ -221,7 +215,7 @@ mod tests {
         )
         .await;
         assert!(
-            matches!(within(verify).await.unwrap().unwrap(), super::AccountRegistration::Created { account } if account == "alice")
+            matches!(within(verify).await.unwrap().unwrap(), super::AccountCreation::Created { account } if account == "alice")
         );
 
         let verify = tokio::spawn({

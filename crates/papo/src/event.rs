@@ -522,7 +522,7 @@ pub enum Event {
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
     /// Account creation completed and the connection is authenticated.
-    AccountRegistration(crate::AccountRegistration),
+    AccountRegistration(crate::AccountCreation),
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
     PersistenceChanged(PersistenceChanged),
@@ -654,7 +654,7 @@ event_accessors! {
     (Netsplit, as_netsplit, Netsplit),
     (Netjoin, as_netjoin, Netjoin),
     (MetadataChanged, as_metadata_changed, MetadataChanged),
-    (AccountRegistration, as_account_registration, crate::AccountRegistration),
+    (AccountRegistration, as_account_registration, crate::AccountCreation),
     (Warning, as_warning, Warning),
     (Other, as_other, ProtoLine),
 }
@@ -825,10 +825,10 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             description: reply.description,
         }),
         papo_core::Event::AccountCreated { account, .. } => {
-            Event::AccountRegistration(crate::AccountRegistration::Created { account })
+            Event::AccountRegistration(crate::AccountCreation::Created { account })
         }
         papo_core::Event::VerificationRequired { account, message } => {
-            Event::AccountRegistration(crate::AccountRegistration::VerificationRequired {
+            Event::AccountRegistration(crate::AccountCreation::VerificationRequired {
                 account,
                 message,
             })
@@ -1610,7 +1610,7 @@ mod tests {
                 account: Casemapping::default().account("alice"),
                 logged_in: true,
             }),
-            Event::AccountRegistration(crate::AccountRegistration::Created { account })
+            Event::AccountRegistration(crate::AccountCreation::Created { account })
                 if account == "alice"
         ));
         assert!(matches!(
@@ -1618,7 +1618,7 @@ mod tests {
                 account: Casemapping::default().account("alice"),
                 message: "Verification code sent".into(),
             }),
-            Event::AccountRegistration(crate::AccountRegistration::VerificationRequired {
+            Event::AccountRegistration(crate::AccountCreation::VerificationRequired {
                 account,
                 message,
             })

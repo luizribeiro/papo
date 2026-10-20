@@ -1161,9 +1161,7 @@ where
                 update_rejoin_channels(session, defaults, &event);
                 if matches!(
                     event,
-                    Event::AccountRegistration(
-                        crate::AccountRegistration::VerificationRequired { .. }
-                    )
+                    Event::AccountRegistration(crate::AccountCreation::VerificationRequired { .. })
                 ) {
                     registration.succeeded();
                 }

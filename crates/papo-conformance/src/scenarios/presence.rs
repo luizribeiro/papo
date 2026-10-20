@@ -1,4 +1,4 @@
-use papo::{Account, AccountRegistration, Away, Error, Event, NewAccount, Origin, Refusal, Source};
+use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Origin, Refusal, Source};
 use papo_conformance_macros::scenario;
 
 use super::support::assert_refusal;
@@ -68,7 +68,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(matches!(
         outcome,
-        AccountRegistration::Created { account: ref registered } if registered == &account
+        AccountCreation::Created { account: ref registered } if registered == &account
     ));
     let changed = bob.wait_for(Event::as_account_changed).await?;
 

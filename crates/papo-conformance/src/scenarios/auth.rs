@@ -1,4 +1,4 @@
-use papo::{AccountRegistration, ConnectErrorKind, Event, NewAccount, event::Warning};
+use papo::{AccountCreation, ConnectErrorKind, Event, NewAccount, event::Warning};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
 use papo_test_server::{DeploymentProfile, create_account, unique};
@@ -206,7 +206,7 @@ async fn draft_account_registration(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(matches!(
         &outcome,
-        AccountRegistration::Created { account: registered } if registered == &account
+        AccountCreation::Created { account: registered } if registered == &account
     ));
     assert_eq!(
         alice.wait_for(Event::as_account_registration).await?,
@@ -235,7 +235,7 @@ async fn account_registration_error(s: Scenario) -> papo_testing::Result<()> {
     let registered = alice
         .register_account(NewAccount::new(PASSWORD).account(account.clone()))
         .await?;
-    assert!(matches!(registered, AccountRegistration::Created { .. }));
+    assert!(matches!(registered, AccountCreation::Created { .. }));
     assert_eq!(
         alice.wait_for(Event::as_account_registration).await?,
         registered

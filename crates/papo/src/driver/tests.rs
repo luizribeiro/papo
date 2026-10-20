@@ -1967,7 +1967,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
     assert!(within(waiter).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
-        Some(Event::AccountRegistration(crate::AccountRegistration::VerificationRequired { account, message }))
+        Some(Event::AccountRegistration(crate::AccountCreation::VerificationRequired { account, message }))
             if account == "alice" && message == "Verification code sent"
     ));
     within(server.shutdown()).await.unwrap();

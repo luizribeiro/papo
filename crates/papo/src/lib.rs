@@ -66,7 +66,7 @@ pub use error::{
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use event_impl::PersistenceSetting;
 pub use event_impl::{Ctcp, Event, Message, MessageKind, ModeKind, Origin, Source, Tags};
-pub use ext::accounts::{AccountCreation, AccountRegistration, NewAccount};
+pub use ext::accounts::{AccountCreation, NewAccount};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::bouncer::Bouncer;
