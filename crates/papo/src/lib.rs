@@ -88,7 +88,7 @@ pub use ext::persistence::PersistenceStatus;
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport::Isupport;
-pub use metadata::MetadataValue;
+pub use metadata::{MetadataValue, Visibility};
 pub use mode::SetModes;
 #[doc(inline)]
 pub use papo_core::Refusal;

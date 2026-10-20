@@ -24,6 +24,7 @@ pub use papo::Typing
 pub use papo::Unsupported
 pub use papo::UnsupportedReason
 pub use papo::User
+pub use papo::Visibility
 pub mod papo::bot
 #[non_exhaustive] pub enum papo::bot::ReplyStatus
 pub papo::bot::ReplyStatus::Dropped
@@ -133,6 +134,7 @@ pub const papo::cap::STS: &str
 pub const papo::cap::USERHOST_IN_NAMES: &str
 pub const papo::cap::WHOAMI: &str
 pub mod papo::event
+pub use papo::event::Visibility
 #[non_exhaustive] pub enum papo::event::BatchAbandonReason
 pub papo::event::BatchAbandonReason::ByteLimit
 pub papo::event::BatchAbandonReason::LineLimit
@@ -221,24 +223,6 @@ impl core::marker::Unpin for papo::event::StateLimit
 impl core::marker::UnsafeUnpin for papo::event::StateLimit
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::StateLimit
 impl core::panic::unwind_safe::UnwindSafe for papo::event::StateLimit
-#[non_exhaustive] pub enum papo::event::Visibility
-pub papo::event::Visibility::Public
-pub papo::event::Visibility::Restricted(alloc::string::String)
-impl core::clone::Clone for papo::event::Visibility
-pub fn papo::event::Visibility::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::Visibility
-impl core::cmp::PartialEq for papo::event::Visibility
-pub fn papo::event::Visibility::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::Visibility
-pub fn papo::event::Visibility::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::Visibility
-impl core::marker::Freeze for papo::event::Visibility
-impl core::marker::Send for papo::event::Visibility
-impl core::marker::Sync for papo::event::Visibility
-impl core::marker::Unpin for papo::event::Visibility
-impl core::marker::UnsafeUnpin for papo::event::Visibility
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Visibility
-impl core::panic::unwind_safe::UnwindSafe for papo::event::Visibility
 #[non_exhaustive] pub enum papo::event::Warning
 #[non_exhaustive] pub papo::event::Warning::AuthenticationFailed
 pub papo::event::Warning::AuthenticationFailed::reason: alloc::string::String
@@ -549,7 +533,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Kicked
 pub papo::event::MetadataChanged::key: papo::MetadataKey
 pub papo::event::MetadataChanged::subject: papo::Subject
 pub papo::event::MetadataChanged::value: core::option::Option<alloc::string::String>
-pub papo::event::MetadataChanged::visibility: papo::event::Visibility
+pub papo::event::MetadataChanged::visibility: papo::Visibility
 impl core::clone::Clone for papo::event::MetadataChanged
 pub fn papo::event::MetadataChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::MetadataChanged
@@ -1052,6 +1036,7 @@ impl core::marker::UnsafeUnpin for papo::isupport::Isupport
 impl core::panic::unwind_safe::RefUnwindSafe for papo::isupport::Isupport
 impl core::panic::unwind_safe::UnwindSafe for papo::isupport::Isupport
 pub mod papo::metadata
+pub use papo::metadata::Visibility
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
 pub const papo::metadata::keys::BOT: &str
@@ -1082,7 +1067,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
 impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
 #[non_exhaustive] pub struct papo::metadata::MetadataValue
 pub papo::metadata::MetadataValue::value: alloc::string::String
-pub papo::metadata::MetadataValue::visibility: alloc::string::String
+pub papo::metadata::MetadataValue::visibility: papo::Visibility
 impl core::clone::Clone for papo::metadata::MetadataValue
 pub fn papo::metadata::MetadataValue::clone(&self) -> Self
 impl core::cmp::Eq for papo::metadata::MetadataValue
@@ -2182,7 +2167,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
 impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
 #[non_exhaustive] pub struct papo::MetadataValue
 pub papo::MetadataValue::value: alloc::string::String
-pub papo::MetadataValue::visibility: alloc::string::String
+pub papo::MetadataValue::visibility: papo::Visibility
 impl core::clone::Clone for papo::metadata::MetadataValue
 pub fn papo::metadata::MetadataValue::clone(&self) -> Self
 impl core::cmp::Eq for papo::metadata::MetadataValue

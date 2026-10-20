@@ -31,7 +31,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
         .get(key)
         .expect("the requested metadata key is cached");
     assert_eq!(stored.value, value);
-    assert_eq!(stored.visibility, "*");
+    assert_eq!(stored.visibility, Visibility::Public);
     assert_eq!(alice.state().metadata(&nick), Some(values));
 
     alice.metadata().remove(key).await?;
@@ -154,7 +154,7 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
             .metadata(&channel)
             .expect("channel metadata is synchronized");
         assert_eq!(values[key].value, value);
-        assert_eq!(values[key].visibility, "*");
+        assert_eq!(values[key].visibility, Visibility::Public);
     }
     Ok(())
 }

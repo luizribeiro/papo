@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{MetadataKey, Nick, Subject};
+use crate::{MetadataKey, Nick, Subject, Visibility};
 
 /// An upstream bouncer network was added, updated, or removed.
 #[cfg(feature = "unstable")]
@@ -12,16 +12,6 @@ pub struct BouncerNetworkChanged {
     pub id: crate::NetworkId,
     /// Complete cached network state, or `None` when removed.
     pub network: Option<crate::BouncerNetwork>,
-}
-
-/// Visibility of a metadata value.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum Visibility {
-    /// The value is public.
-    Public,
-    /// The server restricts the value according to the named policy.
-    Restricted(String),
 }
 
 /// A target's cached metadata changed.

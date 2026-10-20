@@ -27,6 +27,7 @@ mod tags;
 #[path = "event/user.rs"]
 mod user;
 
+pub use crate::metadata::Visibility;
 pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChange, ModeChanged, ModeKind,
     Parted, TopicChanged,
@@ -37,7 +38,7 @@ pub use connection::{
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
-pub use server::{BatchAbandonReason, MetadataChanged, StateLimit, Visibility, Warning};
+pub use server::{BatchAbandonReason, MetadataChanged, StateLimit, Warning};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use server::{BouncerNetworkChanged, PersistenceChanged, PersistenceSetting};
@@ -903,11 +904,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             },
             key: key.into(),
             value,
-            visibility: match visibility {
-                papo_core::Visibility::Public => Visibility::Public,
-                papo_core::Visibility::Restricted(policy) => Visibility::Restricted(policy),
-                _ => return CoreEvent::Unknown,
-            },
+            visibility,
         }),
         papo_core::Event::History {
             conversation,
@@ -1875,7 +1872,7 @@ mod tests {
                 subject: papo_core::Subject::Channel(Casemapping::default().channel("#papo")),
                 key: "pronouns".into(),
                 value: Some("they/them".into()),
-                visibility: papo_core::Visibility::Restricted("members".into()),
+                visibility: Visibility::Restricted("members".into()),
             }),
             Event::MetadataChanged(changed)
                 if matches!(changed.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
@@ -1888,7 +1885,7 @@ mod tests {
                 subject: papo_core::Subject::User(Casemapping::default().nick("alice")),
                 key: "avatar".into(),
                 value: None,
-                visibility: papo_core::Visibility::Public,
+                visibility: Visibility::Public,
             }),
             Event::MetadataChanged(MetadataChanged {
                 visibility: Visibility::Public,

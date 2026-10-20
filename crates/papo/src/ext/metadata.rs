@@ -314,7 +314,7 @@ mod tests {
         );
         assert_eq!(
             client.state().metadata("ALICE").unwrap()["avatar"].visibility,
-            "*"
+            crate::Visibility::Public
         );
 
         let list = tokio::spawn({
@@ -324,11 +324,15 @@ mod tests {
         client_line(&mut server, b"@label=1 METADATA alice LIST\r\n").await;
         server_line(
             &mut server,
-            b"@label=1 :ergo.test BATCH +list labeled-response\r\n@batch=list :ergo.test 761 papo-driver alice pronouns * :they/them\r\n:ergo.test BATCH -list\r\n",
+            b"@label=1 :ergo.test BATCH +list labeled-response\r\n@batch=list :ergo.test 761 papo-driver alice pronouns channel :they/them\r\n:ergo.test BATCH -list\r\n",
         )
         .await;
         let metadata = within(list).await.unwrap().unwrap();
         assert_eq!(metadata["pronouns"].value, "they/them");
+        assert_eq!(
+            metadata["pronouns"].visibility,
+            crate::Visibility::Restricted("channel".to_owned())
+        );
 
         let set = tokio::spawn({
             let client = client.clone();
