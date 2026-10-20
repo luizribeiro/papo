@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::{Conversation, MessageId, Typing};
 
-use super::{Source, Tags};
+use super::{Authorship, Source, Tags};
 
 /// A reaction was added to or removed from a message.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,6 +10,8 @@ use super::{Source, Tags};
 pub struct Reacted {
     /// The user or server that changed the reaction.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
     /// The IRC conversation containing the message.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
@@ -30,6 +32,8 @@ pub struct Reacted {
 pub struct Redacted {
     /// The user or server that removed the message.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
     /// The IRC conversation containing the message.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
@@ -46,6 +50,8 @@ pub struct Redacted {
 pub struct TypingChanged {
     /// The user or server that sent the notification.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
     /// The IRC conversation where typing is occurring.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
@@ -60,6 +66,8 @@ pub struct TypingChanged {
 pub struct TagMsg {
     /// The user or server that sent the message.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
     /// The IRC conversation addressed by the message.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.

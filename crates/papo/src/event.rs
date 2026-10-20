@@ -821,6 +821,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         papo_core::Event::TagMessage(message) => {
             let tag = TagMsg {
                 actor: Source::from_prefix(message.actor, casemapping),
+                authorship: Authorship::from_core(message.authorship),
                 conversation: message.conversation,
                 status: message.status,
                 tags: Tags::from_pairs(message.tags),
@@ -841,6 +842,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
                     actor: tag.actor,
+                    authorship: tag.authorship,
                     conversation: tag.conversation,
                     status: tag.status,
                     message: msgid.into(),
@@ -855,6 +857,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             }) {
                 Event::TypingChanged(TypingChanged {
                     actor: tag.actor,
+                    authorship: tag.authorship,
                     conversation: tag.conversation,
                     status: tag.status,
                     state,
@@ -865,6 +868,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         }
         papo_core::Event::Redacted(redacted) => Event::Redacted(Redacted {
             actor: Source::from_prefix(redacted.actor, casemapping),
+            authorship: Authorship::from_core(redacted.authorship),
             conversation: redacted.conversation,
             status: redacted.status,
             message: redacted.msgid.into(),

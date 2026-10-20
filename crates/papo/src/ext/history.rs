@@ -81,10 +81,22 @@ pub(crate) fn history_item(
             message.map_or_else(HistoryItem::Other, HistoryItem::Message)
         }
         papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, |message| {
-            reaction(message, mapping, state.nick(), state.isupport().inner())
+            reaction(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                mapping,
+                state.nick(),
+                state.isupport().inner(),
+            )
         }),
         papo_core::HistoryItem::Redacted(item) => typed_or_raw(&item.line, |message| {
-            redaction(message, mapping, state.nick(), state.isupport().inner())
+            redaction(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                mapping,
+                state.nick(),
+                state.isupport().inner(),
+            )
         }),
         papo_core::HistoryItem::Joined(item) => {
             typed_or_raw(&item.line, |message| joined(message, client))
@@ -123,6 +135,7 @@ where
 
 fn reaction(
     message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
     mapping: crate::Casemapping,
     own_nick: &str,
     isupport: &papo_proto::Isupport,
@@ -137,6 +150,7 @@ fn reaction(
         .or_else(|| reaction.unreact.map(|value| (value, true)))?;
     Some(HistoryItem::Reacted(Reacted {
         actor: Source::from_proto(message.source()?, mapping),
+        authorship,
         conversation,
         status,
         message: reply_to.into(),
@@ -147,6 +161,7 @@ fn reaction(
 
 fn redaction(
     message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
     mapping: crate::Casemapping,
     own_nick: &str,
     isupport: &papo_proto::Isupport,
@@ -155,6 +170,7 @@ fn redaction(
         papo_core::classify_conversation(message, own_nick, isupport).ok()?;
     Some(HistoryItem::Redacted(Redacted {
         actor: Source::from_proto(message.source()?, mapping),
+        authorship,
         conversation,
         status,
         message: message.param(1)?.into(),
@@ -841,6 +857,7 @@ mod tests {
         .unwrap();
         let Some(HistoryItem::Reacted(event)) = reaction(
             &line,
+            crate::Authorship::Unknown,
             Casemapping::Ascii,
             "papo",
             &papo_proto::Isupport::default(),
