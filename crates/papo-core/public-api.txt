@@ -1314,11 +1314,13 @@ pub struct papo_core::ReceivedLine
 impl papo_core::ReceivedLine
 pub fn papo_core::ReceivedLine::as_ref(&self) -> papo::LineRef<'_>
 pub fn papo_core::ReceivedLine::batch_type(&self) -> core::option::Option<&str>
+pub const fn papo_core::ReceivedLine::conversation(&self) -> core::option::Option<&papo_core::Conversation>
 pub fn papo_core::ReceivedLine::into_context_parts(self) -> (papo::Line, core::option::Option<alloc::string::String>, bool, bool)
 pub fn papo_core::ReceivedLine::into_line(self) -> papo::Line
 pub fn papo_core::ReceivedLine::into_parts(self) -> (papo::Line, core::option::Option<alloc::string::String>, bool)
 pub const fn papo_core::ReceivedLine::is_echo(&self) -> bool
 pub const fn papo_core::ReceivedLine::is_other_session(&self) -> bool
+pub fn papo_core::ReceivedLine::status(&self) -> core::option::Option<&[char]>
 impl core::clone::Clone for papo_core::ReceivedLine
 pub fn papo_core::ReceivedLine::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::ReceivedLine

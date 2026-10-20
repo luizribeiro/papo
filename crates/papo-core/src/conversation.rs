@@ -1,6 +1,19 @@
-use papo_proto::{InvalidIdentifier, Isupport, Source};
+use papo_proto::{InvalidIdentifier, Isupport, LineRef, Source};
 
 use crate::{Conversation, names_equal};
+
+pub(crate) fn classify_line(
+    line: &LineRef<'_>,
+    own_nick: &str,
+    isupport: &Isupport,
+) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
+    classify_target(
+        line.param(0).unwrap_or(""),
+        line.source(),
+        own_nick,
+        isupport,
+    )
+}
 
 pub(crate) fn classify_target(
     target: &str,

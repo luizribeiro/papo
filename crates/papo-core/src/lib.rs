@@ -1778,6 +1778,8 @@ pub struct ReceivedLine {
     batch_type: Option<String>,
     echo: bool,
     other_session: bool,
+    conversation: Option<Conversation>,
+    status: Option<Vec<char>>,
 }
 
 impl ReceivedLine {
@@ -1803,6 +1805,18 @@ impl ReceivedLine {
     #[must_use]
     pub const fn is_other_session(&self) -> bool {
         self.other_session
+    }
+
+    /// Returns the conversation addressed by this line, when its address is valid.
+    #[must_use]
+    pub const fn conversation(&self) -> Option<&Conversation> {
+        self.conversation.as_ref()
+    }
+
+    /// Returns the advertised `STATUSMSG` prefixes removed from the line's address.
+    #[must_use]
+    pub fn status(&self) -> Option<&[char]> {
+        self.status.as_deref()
     }
 
     /// Removes the dispatch annotation and returns the parsed IRC line.

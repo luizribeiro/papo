@@ -1,4 +1,4 @@
-use crate::{Event, Line, LineRef, ReceivedLine, Session, cap};
+use crate::{Event, Line, LineRef, ReceivedLine, Session, cap, conversation::classify_line};
 
 impl Session {
     pub(super) fn enqueue_labelled_echo(&mut self, message: &LineRef<'_>) {
@@ -37,11 +37,18 @@ impl Session {
     ) -> ReceivedLine {
         let own_source = self.is_own_source(&line.as_ref());
         let labels = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
+        let (status, conversation) =
+            classify_line(&line.as_ref(), self.nick(), self.isupport.value())
+                .map_or((None, None), |(status, conversation)| {
+                    (status, Some(conversation))
+                });
         ReceivedLine {
             line,
             batch_type,
             echo: own_source && (labelled_echo || !labels),
             other_session: own_source && !labelled_echo && labels,
+            conversation,
+            status,
         }
     }
 }
