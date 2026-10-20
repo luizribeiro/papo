@@ -1881,7 +1881,6 @@ pub struct ReceivedLine {
     line: Line,
     batch_type: Option<String>,
     echo: bool,
-    other_session: bool,
     authorship: Authorship,
     conversation: Option<Conversation>,
     status: Option<Vec<char>>,
@@ -1904,12 +1903,6 @@ impl ReceivedLine {
     #[must_use]
     pub const fn is_echo(&self) -> bool {
         self.echo
-    }
-
-    /// Reports whether the line came from another session using our nickname.
-    #[must_use]
-    pub const fn is_other_session(&self) -> bool {
-        self.other_session
     }
 
     /// Returns whether the line's actor is this session's user.
@@ -1940,12 +1933,6 @@ impl ReceivedLine {
     #[must_use]
     pub fn into_parts(self) -> (Line, Option<String>, bool) {
         (self.line, self.batch_type, self.echo)
-    }
-
-    /// Splits the line into its wire value and all dispatch annotations.
-    #[must_use]
-    pub fn into_context_parts(self) -> (Line, Option<String>, bool, bool) {
-        (self.line, self.batch_type, self.echo, self.other_session)
     }
 }
 

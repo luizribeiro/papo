@@ -48,7 +48,6 @@ impl Session {
             line,
             batch_type,
             echo: own_source && (labelled_echo || !labels),
-            other_session: own_source && !labelled_echo && labels,
             authorship: if own_source {
                 Authorship::Own
             } else {
