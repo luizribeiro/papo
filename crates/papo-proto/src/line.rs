@@ -2,7 +2,7 @@ use std::{borrow::Cow, error::Error, fmt, iter::FusedIterator, slice, str::Utf8E
 
 use crate::{Command, Source};
 
-/// Maximum byte length of an IRC message excluding its tag section but including CRLF.
+/// Maximum byte length of an IRC line excluding its tag section but including CRLF.
 ///
 /// This limit is defined by the [Modern IRC client protocol].
 ///
@@ -23,7 +23,7 @@ pub const MAX_TAG_SECTION_LEN: usize = 8191;
 /// [IRCv3 message-tags specification]: https://ircv3.net/specs/extensions/message-tags#size-limit
 pub const MAX_CLIENT_TAG_DATA_LEN: usize = 4094;
 
-/// A failure to parse an IRC message.
+/// A failure to parse an IRC line.
 ///
 /// New variants may be added as more protocol validation is introduced.
 ///
@@ -46,7 +46,7 @@ pub enum ParseError {
     MissingCommand,
     /// The byte input is not valid UTF-8.
     InvalidUtf8,
-    /// The tag section or the rest of the message exceeds its wire limit.
+    /// The tag section or the rest of the line exceeds its wire limit.
     TooLong,
 }
 
@@ -69,7 +69,7 @@ impl From<Utf8Error> for ParseError {
     }
 }
 
-/// A failure to build a valid IRC wire message.
+/// A failure to build a valid IRC wire line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum BuildError {
@@ -85,8 +85,8 @@ pub enum BuildError {
     InvalidTagValue,
     /// Client-supplied tag data exceeds its wire limit.
     TagsTooLong,
-    /// The message body exceeds its wire limit.
-    MessageTooLong,
+    /// The line body exceeds its wire limit.
+    LineTooLong,
 }
 
 impl fmt::Display for BuildError {
@@ -98,14 +98,14 @@ impl fmt::Display for BuildError {
             Self::InvalidTagKey => formatter.write_str("IRC tag key is invalid"),
             Self::InvalidTagValue => formatter.write_str("IRC tag value is invalid"),
             Self::TagsTooLong => formatter.write_str("IRC client tag data exceeds its wire limit"),
-            Self::MessageTooLong => formatter.write_str("IRC message body exceeds its wire limit"),
+            Self::LineTooLong => formatter.write_str("IRC line body exceeds its wire limit"),
         }
     }
 }
 
 impl Error for BuildError {}
 
-/// A zero-copy view of one IRC message.
+/// A zero-copy view of one IRC line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LineRef<'a> {
     tags: TagStorage<'a>,
@@ -176,7 +176,7 @@ impl<'a> LineRef<'a> {
         Self::parse(std::str::from_utf8(input)?)
     }
 
-    /// Returns the message tags in wire order.
+    /// Returns the line tags in wire order.
     ///
     /// Values are unescaped lazily. Tags without values yield `None`.
     #[must_use]
@@ -200,7 +200,7 @@ impl<'a> LineRef<'a> {
             .flatten()
     }
 
-    /// Returns the parsed message source, when present.
+    /// Returns the parsed line source, when present.
     ///
     /// Nicknames never contain `.`, so a bare name containing `.` and no `!` or `@` is
     /// classified as a server name. All other sources are classified as users.
@@ -256,25 +256,25 @@ impl<'a> LineRef<'a> {
         self.params().count()
     }
 
-    /// Reports whether the message has no parameters.
+    /// Reports whether the line has no parameters.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.params().next().is_none()
     }
 
-    /// Copies this borrowed view into an owned message without re-parsing it.
+    /// Copies this borrowed view into an owned line without re-parsing it.
     #[must_use]
     pub fn to_owned(&self) -> Line {
-        let mut message = Line::new(self.command, self.params());
-        message.source = self.source.map(str::to_owned);
+        let mut line = Line::new(self.command, self.params());
+        line.source = self.source.map(str::to_owned);
         for (key, value) in self.tags() {
-            message.insert_tag(key.to_owned(), value.map(Cow::into_owned));
+            line.insert_tag(key.to_owned(), value.map(Cow::into_owned));
         }
-        message
+        line
     }
 }
 
-/// An owned IRC message that can be validated and serialized for the wire.
+/// An owned IRC line that can be validated and serialized for the wire.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Line {
     tags: Vec<(String, Option<String>)>,
@@ -284,7 +284,7 @@ pub struct Line {
 }
 
 impl Line {
-    /// Creates a message from a command and its parameters.
+    /// Creates a line from a command and its parameters.
     pub fn new<C, P, S>(command: C, params: P) -> Self
     where
         C: Into<String>,
@@ -338,7 +338,7 @@ impl Line {
         self
     }
 
-    /// Sets the optional message source for tests and server-side use.
+    /// Sets the optional line source for tests and server-side use.
     ///
     /// IRC clients must not send a source.
     #[must_use]
@@ -347,7 +347,7 @@ impl Line {
         self
     }
 
-    /// Borrows this message as a [`LineRef`] without re-parsing it.
+    /// Borrows this line as a [`LineRef`] without re-parsing it.
     #[must_use]
     pub fn as_ref(&self) -> LineRef<'_> {
         LineRef {
@@ -358,7 +358,7 @@ impl Line {
         }
     }
 
-    /// Serializes this message with its terminating CRLF.
+    /// Serializes this line with its terminating CRLF.
     ///
     /// A colon is added to the final parameter only when required by the wire grammar.
     ///
@@ -404,7 +404,7 @@ impl Line {
         }
         line.push_str("\r\n");
         if line.len() - body_start > MAX_LINE_LEN {
-            return Err(BuildError::MessageTooLong);
+            return Err(BuildError::LineTooLong);
         }
         Ok(line)
     }
@@ -455,7 +455,7 @@ fn needs_trailing_prefix(param: &str) -> bool {
     param.is_empty() || param.contains(' ') || param.starts_with(':')
 }
 
-/// An iterator over the tags of a borrowed IRC message.
+/// An iterator over the tags of a borrowed IRC line.
 #[derive(Clone, Debug)]
 pub struct Tags<'a> {
     inner: TagIter<'a>,
@@ -488,7 +488,7 @@ impl<'a> Iterator for Tags<'a> {
 
 impl FusedIterator for Tags<'_> {}
 
-/// An iterator over the parameters of a borrowed IRC message.
+/// An iterator over the parameters of a borrowed IRC line.
 #[derive(Clone, Debug)]
 pub struct Params<'a> {
     inner: ParamIter<'a>,

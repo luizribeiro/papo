@@ -734,7 +734,7 @@ fn enforces_serialized_body_length_at_the_byte_boundary() {
 
     let over_limit = Message::privmsg("#papo", "x".repeat(512 - 2 - prefix.len() + 1))
         .with_tag("+typing", "active");
-    assert_eq!(over_limit.to_line(), Err(BuildError::MessageTooLong));
+    assert_eq!(over_limit.to_line(), Err(BuildError::LineTooLong));
 }
 
 #[test]
@@ -764,7 +764,7 @@ fn displays_each_build_error() {
         "IRC client tag data exceeds its wire limit"
     );
     assert_eq!(
-        BuildError::MessageTooLong.to_string(),
-        "IRC message body exceeds its wire limit"
+        BuildError::LineTooLong.to_string(),
+        "IRC line body exceeds its wire limit"
     );
 }
