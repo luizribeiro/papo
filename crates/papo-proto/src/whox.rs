@@ -1,4 +1,4 @@
-use crate::{Command, Isupport, MessageRef, Numeric};
+use crate::{Command, Isupport, LineRef, Numeric};
 
 const FIELDS: &str = "tcuihsnfdlaor";
 
@@ -61,8 +61,8 @@ impl<'a> WhoxReply<'a> {
     /// The selector may include its leading `%` and `,<token>` suffix. Unknown
     /// or repeated field letters and mismatched reply arity are rejected.
     #[must_use]
-    pub fn parse(message: &MessageRef<'a>, fields: &str) -> Option<Self> {
-        if message.command() != Command::Numeric(Numeric::RPL_WHOSPCRPL) {
+    pub fn parse(line: &LineRef<'a>, fields: &str) -> Option<Self> {
+        if line.command() != Command::Numeric(Numeric::RPL_WHOSPCRPL) {
             return None;
         }
         let requested = fields.strip_prefix('%').unwrap_or(fields);
@@ -73,7 +73,7 @@ impl<'a> WhoxReply<'a> {
             return None;
         }
 
-        let mut values = message.params();
+        let mut values = line.params();
         values.next()?;
         let mut reply = Self::default();
         for field in FIELDS.chars().filter(|field| requested.contains(*field)) {

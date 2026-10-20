@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use crate::{Casemapping, Command, MessageRef, Numeric, canonical};
+use crate::{Casemapping, Command, LineRef, Numeric, canonical};
 
 /// Whether an ISUPPORT token is absent, bare, or carries a value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -114,14 +114,14 @@ macro_rules! flag_accessors {
 }
 
 impl Isupport {
-    /// Applies the tokens in an `RPL_ISUPPORT` message.
+    /// Applies the tokens in an `RPL_ISUPPORT` line.
     ///
     /// Other commands, including `RPL_REMOTEISUPPORT` (`105`), are ignored.
-    pub fn apply(&mut self, message: &MessageRef<'_>) {
-        if message.command() != Command::Numeric(Numeric::RPL_ISUPPORT) {
+    pub fn apply(&mut self, line: &LineRef<'_>) {
+        if line.command() != Command::Numeric(Numeric::RPL_ISUPPORT) {
             return;
         }
-        let mut params = message.params();
+        let mut params = line.params();
         params.next();
         let Some(mut pending) = params.next() else {
             return;

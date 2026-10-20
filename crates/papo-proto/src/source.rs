@@ -1,4 +1,4 @@
-/// The source of an IRC message.
+/// The source of an IRC line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Source<'a> {
     /// A server name.

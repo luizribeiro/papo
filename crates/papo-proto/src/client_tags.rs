@@ -1,4 +1,4 @@
-use crate::MessageRef;
+use crate::LineRef;
 
 /// A sender's current typing state.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -12,10 +12,10 @@ pub enum Typing {
 }
 
 impl Typing {
-    /// Parses the `+typing` tag from a message.
+    /// Parses the `+typing` tag from a line.
     #[must_use]
-    pub fn parse(message: &MessageRef<'_>) -> Option<Self> {
-        match message.tag("+typing")?.as_ref() {
+    pub fn parse(line: &LineRef<'_>) -> Option<Self> {
+        match line.tag("+typing")?.as_ref() {
             "active" => Some(Self::Active),
             "paused" => Some(Self::Paused),
             "done" => Some(Self::Done),
@@ -24,7 +24,7 @@ impl Typing {
     }
 }
 
-/// Reaction tags attached to an IRC message.
+/// Reaction tags attached to an IRC line.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Reaction {
     /// Reaction being added, when present.
@@ -36,21 +36,15 @@ pub struct Reaction {
 }
 
 impl Reaction {
-    /// Parses reaction and reply tags from a message.
+    /// Parses reaction and reply tags from a line.
     #[must_use]
-    pub fn parse(message: &MessageRef<'_>) -> Option<Self> {
-        let react = message
-            .tag("+draft/react")
-            .map(std::borrow::Cow::into_owned);
-        let unreact = message
-            .tag("+draft/unreact")
-            .map(std::borrow::Cow::into_owned);
+    pub fn parse(line: &LineRef<'_>) -> Option<Self> {
+        let react = line.tag("+draft/react").map(std::borrow::Cow::into_owned);
+        let unreact = line.tag("+draft/unreact").map(std::borrow::Cow::into_owned);
         if react.is_none() && unreact.is_none() {
             return None;
         }
-        let reply_to = message
-            .tag("+reply")
-            .or_else(|| message.tag("+draft/reply"))?;
+        let reply_to = line.tag("+reply").or_else(|| line.tag("+draft/reply"))?;
         Some(Self {
             react,
             unreact,

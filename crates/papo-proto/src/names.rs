@@ -1,4 +1,4 @@
-use crate::{Command, Isupport, MessageRef, Numeric, source::split_user};
+use crate::{Command, Isupport, LineRef, Numeric, source::split_user};
 
 /// The namespace containing a protocol name.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -79,12 +79,12 @@ impl<'a> NamesEntry<'a> {
 /// Parses an `RPL_NAMREPLY` (`353`) into its type, channel, and raw entries.
 #[must_use]
 pub fn parse_353<'a>(
-    message: &MessageRef<'a>,
+    line: &LineRef<'a>,
 ) -> Option<(&'a str, &'a str, impl Iterator<Item = &'a str>)> {
-    if message.command() != Command::Numeric(Numeric::RPL_NAMREPLY) || message.len() != 4 {
+    if line.command() != Command::Numeric(Numeric::RPL_NAMREPLY) || line.len() != 4 {
         return None;
     }
-    let mut params = message.params();
+    let mut params = line.params();
     params.next()?;
     let channel_type = params.next()?;
     let channel = params.next()?;

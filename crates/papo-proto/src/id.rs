@@ -321,7 +321,7 @@ impl From<&ChannelName> for Target {
 mod tests {
     use std::{borrow::Borrow, collections::HashMap, fmt, hash::Hash, ops::Deref};
 
-    use crate::{Isupport, MessageRef};
+    use crate::{Isupport, LineRef};
 
     use super::{
         AccountName, ChannelName, InvalidIdentifier, Mask, MessageId, MetadataKey, Nick, Target,
@@ -453,7 +453,7 @@ mod tests {
     }
 
     fn libera_isupport() -> Isupport {
-        let line = MessageRef::parse(
+        let line = LineRef::parse(
             ":irc.libera.chat 005 papo CASEMAPPING=rfc1459 CHANTYPES=# PREFIX=(ov)@+ NICKLEN=16 CHANNELLEN=50 STATUSMSG=@+ :are supported",
         )
         .unwrap();

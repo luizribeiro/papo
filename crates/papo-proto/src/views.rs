@@ -1,4 +1,4 @@
-use crate::{Command, MessageRef, Params};
+use crate::{Command, LineRef, Params};
 
 /// Severity of an `IRCv3` standard reply.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -30,14 +30,14 @@ pub struct StandardReply<'a> {
 impl<'a> StandardReply<'a> {
     /// Parses a `FAIL`, `WARN`, or `NOTE` with at least three parameters.
     #[must_use]
-    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
-        let kind = match message.command() {
+    pub fn parse(line: &LineRef<'a>) -> Option<Self> {
+        let kind = match line.command() {
             Command::Fail => StandardReplyKind::Fail,
             Command::Warn => StandardReplyKind::Warn,
             Command::Note => StandardReplyKind::Note,
             _ => return None,
         };
-        let mut params: Vec<_> = message.params().collect();
+        let mut params: Vec<_> = line.params().collect();
         if params.len() < 3 {
             return None;
         }
@@ -54,7 +54,7 @@ impl<'a> StandardReply<'a> {
     }
 }
 
-/// A typed view of a plain or extended `JOIN` message.
+/// A typed view of a plain or extended `JOIN` line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Join<'a> {
     /// The joined channel.
@@ -68,11 +68,11 @@ pub struct Join<'a> {
 impl<'a> Join<'a> {
     /// Parses a `JOIN` with either one plain parameter or three extended parameters.
     #[must_use]
-    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
-        if message.command() != Command::Join {
+    pub fn parse(line: &LineRef<'a>) -> Option<Self> {
+        if line.command() != Command::Join {
             return None;
         }
-        let mut params = message.params();
+        let mut params = line.params();
         let channel = params.next()?;
         let account = params.next();
         let realname = params.next();
@@ -95,7 +95,7 @@ impl<'a> Join<'a> {
     }
 }
 
-/// A typed view of an account-notify `ACCOUNT` message.
+/// A typed view of an account-notify `ACCOUNT` line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Account<'a> {
     /// The new account name, or `None` when the user logged out.
@@ -103,10 +103,10 @@ pub struct Account<'a> {
 }
 
 impl<'a> Account<'a> {
-    /// Parses an `ACCOUNT` message with exactly one parameter.
+    /// Parses an `ACCOUNT` line with exactly one parameter.
     #[must_use]
-    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
-        let mut params = exact_params(message, Command::Account, 1)?;
+    pub fn parse(line: &LineRef<'a>) -> Option<Self> {
+        let mut params = exact_params(line, Command::Account, 1)?;
         let account = params.next()?;
         Some(Self {
             account: (account != "*").then_some(account),
@@ -114,7 +114,7 @@ impl<'a> Account<'a> {
     }
 }
 
-/// A typed view of an away-notify `AWAY` message.
+/// A typed view of an away-notify `AWAY` line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Away<'a> {
     /// The away message, or `None` when the user returned.
@@ -122,19 +122,19 @@ pub struct Away<'a> {
 }
 
 impl<'a> Away<'a> {
-    /// Parses an `AWAY` message with zero or one parameter.
+    /// Parses an `AWAY` line with zero or one parameter.
     #[must_use]
-    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
-        if message.command() != Command::Away {
+    pub fn parse(line: &LineRef<'a>) -> Option<Self> {
+        if line.command() != Command::Away {
             return None;
         }
-        let mut params = message.params();
+        let mut params = line.params();
         let message = params.next();
         params.next().is_none().then_some(Self { message })
     }
 }
 
-/// A typed view of a `CHGHOST` message.
+/// A typed view of a `CHGHOST` line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Chghost<'a> {
     /// The user's new username, including a possible `~` prefix.
@@ -144,10 +144,10 @@ pub struct Chghost<'a> {
 }
 
 impl<'a> Chghost<'a> {
-    /// Parses a `CHGHOST` message with exactly two parameters.
+    /// Parses a `CHGHOST` line with exactly two parameters.
     #[must_use]
-    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
-        let mut params = exact_params(message, Command::Chghost, 2)?;
+    pub fn parse(line: &LineRef<'a>) -> Option<Self> {
+        let mut params = exact_params(line, Command::Chghost, 2)?;
         Some(Self {
             user: params.next()?,
             host: params.next()?,
@@ -155,7 +155,7 @@ impl<'a> Chghost<'a> {
     }
 }
 
-/// A typed view of a `SETNAME` message.
+/// A typed view of a `SETNAME` line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Setname<'a> {
     /// The user's new real name.
@@ -163,20 +163,16 @@ pub struct Setname<'a> {
 }
 
 impl<'a> Setname<'a> {
-    /// Parses a `SETNAME` message with exactly one parameter.
+    /// Parses a `SETNAME` line with exactly one parameter.
     #[must_use]
-    pub fn parse(message: &MessageRef<'a>) -> Option<Self> {
-        let mut params = exact_params(message, Command::Setname, 1)?;
+    pub fn parse(line: &LineRef<'a>) -> Option<Self> {
+        let mut params = exact_params(line, Command::Setname, 1)?;
         Some(Self {
             realname: params.next()?,
         })
     }
 }
 
-fn exact_params<'a>(
-    message: &MessageRef<'a>,
-    command: Command<'a>,
-    length: usize,
-) -> Option<Params<'a>> {
-    (message.command() == command && message.len() == length).then(|| message.params())
+fn exact_params<'a>(line: &LineRef<'a>, command: Command<'a>, length: usize) -> Option<Params<'a>> {
+    (line.command() == command && line.len() == length).then(|| line.params())
 }
