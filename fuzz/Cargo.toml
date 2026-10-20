@@ -12,8 +12,8 @@ libfuzzer-sys = "0.4"
 papo-proto = { path = "../crates/papo-proto" }
 
 [[bin]]
-name = "message"
-path = "fuzz_targets/message.rs"
+name = "line"
+path = "fuzz_targets/line.rs"
 test = false
 doc = false
 bench = false

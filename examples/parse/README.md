@@ -1,8 +1,8 @@
-# Parse IRC messages
+# Parse IRC lines
 
-This example reads one IRC message per line from standard input and prints its typed command,
+This example reads one IRC line per line from standard input and prints its typed command,
 parsed source, unescaped tags, and parameters. `PRIVMSG` and `NOTICE` output identifies CTCP
-messages; other text is printed with IRC formatting controls removed.
+lines; other text is printed with IRC formatting controls removed.
 
 Run it from the repository root:
 
