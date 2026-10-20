@@ -630,6 +630,58 @@ fn join_sync_and_errors_use_the_named_concurrent_channel() {
 }
 
 #[test]
+fn join_refusals_resolve_the_matching_channel() {
+    let now = Instant::now();
+    let cases = [
+        (
+            "#full",
+            ":ergo.test 471 papo #full :Cannot join channel (+l)",
+            Refusal::ChannelIsFull,
+        ),
+        (
+            "#invite",
+            ":ergo.test 473 papo #invite :Cannot join channel (+i)",
+            Refusal::InviteOnlyChannel,
+        ),
+        (
+            "#banned",
+            ":irc.example.org 474 papo #banned :Cannot join channel (+b)",
+            Refusal::BannedFromChannel,
+        ),
+        (
+            "#keyed",
+            ":ergo.test 475 papo #keyed :Cannot join channel (+k)",
+            Refusal::BadChannelKey,
+        ),
+        (
+            "#registered",
+            ":irc.example.org 477 papo #registered :Cannot join channel (+r) - you need to be identified with services",
+            Refusal::AccountRequired,
+        ),
+    ];
+
+    for (channel, line, refusal) in cases {
+        let mut session = Session::new(Config::default().nick("papo"));
+        let id = session
+            .request_with_matcher(
+                now,
+                Line::join(channel),
+                ResponseMatcher::Join(channel.into()),
+            )
+            .unwrap();
+        session.handle_line(now, line.as_bytes());
+
+        let Some(Event::Response(response)) = session.poll_event() else {
+            panic!("expected a response for {channel}")
+        };
+        assert_eq!(response.id, id);
+        assert_eq!(response.error().unwrap().refusal(), refusal);
+        assert_eq!(response.lines[0].as_ref().param(1), Some(channel));
+        assert_eq!(session.poll_event(), None);
+    }
+}
+
+#[test]
 fn part_echoes_require_our_source_and_the_named_concurrent_channel() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
