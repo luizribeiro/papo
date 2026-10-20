@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Error, Event, HistoryItem, Origin, Sent, Source};
+use papo::{Error, Event, HistoryItem, MessageKind, Origin, Sent, Source};
 use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
@@ -248,6 +248,57 @@ async fn chathistory_targets(s: Scenario) -> papo_testing::Result<()> {
         .find(|target| target.target.as_ref() == channel)
         .expect("the active channel is returned");
     assert_eq!(target.latest, time);
+    Ok(())
+}
+
+/// soju excludes its server notices from history pages and target listings
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory"]),
+    covers = ["soju.server-notice-history"]
+)]
+async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
+    if std::env::var("PAPO_TEST_PROFILE").as_deref() != Ok("soju-ergo") {
+        return s.skip("the selected profile does not expose soju's BouncerServ");
+    }
+    let mut alice = s.connect("alice").await?;
+    let text = papo_test_server::unique("history-notice");
+    alice
+        .privmsg("BouncerServ", format!("server notice {text}"))
+        .await?;
+    let notice = alice
+        .wait_for(|event| {
+            event
+                .as_message()
+                .filter(|message| message.kind() == MessageKind::Notice && message.text() == text)
+        })
+        .await?;
+    assert_eq!(
+        notice.source().as_ref().and_then(Source::nick),
+        Some("BouncerServ")
+    );
+    assert!(notice.target().starts_with('$'));
+    let target = notice.target().to_owned();
+
+    for page in [
+        alice.history("BouncerServ").latest(10).await?,
+        alice.history(&target).latest(10).await?,
+    ] {
+        assert!(page.items.is_empty());
+        assert!(page.end);
+    }
+    let targets = alice
+        .history_targets(
+            SystemTime::UNIX_EPOCH,
+            SystemTime::now() + Duration::from_secs(60),
+        )
+        .await?;
+    assert!(targets.iter().all(|entry| {
+        entry.target.as_ref() != target
+            && !alice
+                .state()
+                .casemapping()
+                .eq(entry.target.as_ref(), "BouncerServ")
+    }));
     Ok(())
 }
 
