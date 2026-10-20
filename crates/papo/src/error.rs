@@ -311,7 +311,10 @@ pub enum DisconnectCause {
     /// The event consumer remained full past its bounded overflow.
     SlowConsumer,
     /// The client deliberately ended the connection.
-    Requested,
+    Requested {
+        /// Whether the peer failed to acknowledge `QUIT` within ten seconds.
+        quit_unacknowledged: bool,
+    },
 }
 
 impl fmt::Display for DisconnectCause {
@@ -324,7 +327,7 @@ impl fmt::Display for DisconnectCause {
             Self::PingTimeout => formatter.write_str("the server stopped responding"),
             Self::Protocol { message } => write!(formatter, "protocol failure: {message}"),
             Self::SlowConsumer => formatter.write_str("the event consumer was too slow"),
-            Self::Requested => formatter.write_str("the client disconnected"),
+            Self::Requested { .. } => formatter.write_str("the client disconnected"),
         }
     }
 }
@@ -470,7 +473,12 @@ impl Error {
     }
 
     pub(crate) const fn disconnected_requested() -> Self {
-        Self::Disconnected(Disconnected::new(DisconnectCause::Requested, None))
+        Self::Disconnected(Disconnected::new(
+            DisconnectCause::Requested {
+                quit_unacknowledged: false,
+            },
+            None,
+        ))
     }
 
     #[allow(dead_code)]
@@ -762,7 +770,9 @@ mod tests {
                 message: "overlong line".into(),
             },
             DisconnectCause::SlowConsumer,
-            DisconnectCause::Requested,
+            DisconnectCause::Requested {
+                quit_unacknowledged: false,
+            },
         ] {
             assert!(!cause.to_string().is_empty());
         }

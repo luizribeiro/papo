@@ -1122,7 +1122,9 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::Requested,
+            cause: crate::DisconnectCause::Requested {
+                quit_unacknowledged: false,
+            },
             retry_in: None,
         }))
     ));
@@ -3758,18 +3760,27 @@ async fn client_send_raw_rejects_malformed_or_delimited_input() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn quit_resolves_after_server_eof() {
+async fn quit_resolves_when_the_server_closed_first() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
     registration_burst(&mut server).await;
-    let quit = tokio::spawn(async move { client.quit("leaving for maintenance").await });
-    let mut line = [0; 31];
-    within(server.read_exact(&mut line)).await.unwrap();
-    assert_eq!(&line, b"QUIT :leaving for maintenance\r\n");
     within(server.shutdown()).await.unwrap();
-    assert!(within(quit).await.unwrap().is_ok());
-    assert!(within(driver).await.unwrap().is_ok());
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+    assert!(client.quit("leaving for maintenance").await.is_ok());
+    assert!(matches!(
+        client.quit("maintenance\nQUIT").await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+    ));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::ConnectionLost,
+            retry_in: None,
+        }))
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -3796,7 +3807,9 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::Requested,
+            cause: crate::DisconnectCause::Requested {
+                quit_unacknowledged: false,
+            },
             retry_in: None,
         }))
     ));
@@ -3814,12 +3827,14 @@ async fn quit_times_out_after_ten_seconds() {
     tokio::time::advance(Duration::from_secs(9)).await;
     assert!(!quit.is_finished());
     tokio::time::advance(Duration::from_secs(1)).await;
-    assert!(matches!(within(quit).await.unwrap(), Err(Error::Timeout)));
+    assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::Requested,
+            cause: crate::DisconnectCause::Requested {
+                quit_unacknowledged: true,
+            },
             retry_in: None,
         }))
     ));
@@ -3851,7 +3866,7 @@ async fn quit_deadline_bounds_final_flush_for_a_peer_that_never_drains() {
         .await
         .expect("final flush exceeded the quit deadline")
         .unwrap();
-    assert!(matches!(quit, Err(Error::Timeout)));
+    assert!(quit.is_ok());
     assert!(
         tokio::time::timeout(Duration::from_secs(1), driver)
             .await
@@ -3892,7 +3907,7 @@ async fn full_event_channel_still_serves_quit_and_its_timer() {
     assert_eq!(&line, b"QUIT\r\n");
     tokio::time::advance(Duration::from_secs(10)).await;
 
-    assert!(matches!(within(quit).await.unwrap(), Err(Error::Timeout)));
+    assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
     assert_eq!(events.receiver.len(), 1);
 }

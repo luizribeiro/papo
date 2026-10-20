@@ -187,7 +187,9 @@ pub(super) async fn run_plan(
 
 fn finish_requested(events: EventSink, mut pending_events: VecDeque<Event>) {
     pending_events.push_back(Event::Disconnected(crate::Disconnected::new(
-        crate::DisconnectCause::Requested,
+        crate::DisconnectCause::Requested {
+            quit_unacknowledged: false,
+        },
         None,
     )));
     events.finish(pending_events);

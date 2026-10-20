@@ -230,7 +230,7 @@ pub(crate) enum Command {
         result: oneshot::Sender<Result<(), Error>>,
     },
     Quit {
-        reason: Option<String>,
+        message: Line,
         result: oneshot::Sender<Result<(), Error>>,
     },
 }
@@ -993,12 +993,17 @@ where
                     }
                     _ = result.send(Err(Error::connection_lost()));
                 }
-                Some(Command::Quit { reason, result }) => {
-                    request_quit(session, &mut quit, reason, Some(result));
+                Some(Command::Quit { message, result }) => {
+                    request_quit(session, &mut quit, message, Some(result));
                 }
                 None => {
                     commands_open = false;
-                    request_quit(session, &mut quit, None, None);
+                    request_quit(
+                        session,
+                        &mut quit,
+                        Line::new("QUIT", Vec::<String>::new()),
+                        None,
+                    );
                 }
             },
             () = wait_until(deadline) => {
@@ -1062,7 +1067,7 @@ where
 fn request_quit(
     session: &mut Session,
     quit: &mut Option<Quit>,
-    reason: Option<String>,
+    message: Line,
     result: Option<oneshot::Sender<Result<(), Error>>>,
 ) {
     if let Some(quit) = quit {
@@ -1071,10 +1076,6 @@ fn request_quit(
         }
         return;
     }
-    let message = reason.map_or_else(
-        || Line::new("QUIT", Vec::<String>::new()),
-        |reason| Line::new("QUIT", [reason]),
-    );
     let current = now();
     match session.send(current, message) {
         Ok(()) => {
@@ -1607,7 +1608,12 @@ fn should_rejoin(session: &Session) -> bool {
 fn finish(events: EventSink, end: ConnectionEnd, _will_retry: bool) -> Result<(), Error> {
     let mut pending = end.pending_events;
     let disconnected = if end.quit.is_some() {
-        crate::Disconnected::new(crate::DisconnectCause::Requested, None)
+        crate::Disconnected::new(
+            crate::DisconnectCause::Requested {
+                quit_unacknowledged: end.quit_timed_out,
+            },
+            None,
+        )
     } else {
         disconnected_event(&end.error, None)
     };
@@ -1615,11 +1621,7 @@ fn finish(events: EventSink, end: ConnectionEnd, _will_retry: bool) -> Result<()
     events.finish(pending);
     if let Some(quit) = end.quit {
         for response in quit.results {
-            _ = response.send(if end.quit_timed_out {
-                Err(Error::Timeout)
-            } else {
-                Ok(())
-            });
+            _ = response.send(Ok(()));
         }
         Ok(())
     } else {

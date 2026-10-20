@@ -1161,25 +1161,32 @@ impl Client {
     ///
     /// The wait is limited to ten seconds. The driver still completes cleanly
     /// when that limit is reached. An I/O failure while waiting for closure
-    /// also resolves to `Ok(())`; its cause is available in the `reason`
-    /// field of [`crate::Event::Disconnected`].
+    /// also resolves to `Ok(())`. A timed-out acknowledgement is recorded in
+    /// the final [`crate::Event::Disconnected`].
     ///
     /// # Errors
     ///
-    /// Returns an error if the QUIT message is invalid, the driver has already
-    /// stopped, or the peer does not close within ten seconds.
+    /// Returns an error only if the QUIT message is invalid.
     pub fn quit(&self, reason: impl Into<String>) -> crate::RequestFuture<()> {
         let client = self.clone();
         let reason = reason.into();
-        let reason = (!reason.is_empty()).then_some(reason);
         crate::RequestFuture::new(async move {
+            let message = if reason.is_empty() {
+                Line::new("QUIT", Vec::<String>::new())
+            } else {
+                Line::new("QUIT", [reason])
+            };
+            message.to_line().map_err(Error::build)?;
             let (result, receiver) = oneshot::channel();
-            client
+            if client
                 .commands
-                .send(Command::Quit { reason, result })
+                .send(Command::Quit { message, result })
                 .await
-                .map_err(|_| Error::connection_lost())?;
-            receiver.await.map_err(|_| Error::connection_lost())?
+                .is_err()
+            {
+                return Ok(());
+            }
+            receiver.await.unwrap_or(Ok(()))
         })
     }
 }
