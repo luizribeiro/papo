@@ -1412,8 +1412,8 @@ impl From<ModeChange<'_>> for OwnedModeChange {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Event {
-    /// Connection registration completed.
-    Registered(Welcome),
+    /// The IRC connection is ready for use.
+    Connected(Welcome),
     /// A parsed protocol line not consumed by session protocol behavior.
     Line(ReceivedLine),
     /// A completed `draft/multiline` batch.

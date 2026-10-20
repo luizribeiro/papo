@@ -17,7 +17,7 @@ fn registered(value: &str) -> Transcript {
         .client("CAP END")
         .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn prefers_metadata_3_and_reads_known_limits() {
     })
     .welcome(":ergo.test 001 alice :Welcome to Ergo")
     .server(":ergo.test 422 alice :MOTD File is missing")
-    .event(|event| matches!(event, Event::Registered(_)))
+    .event(|event| matches!(event, Event::Connected(_)))
     .update(|session| {
         session
             .metadata(
@@ -486,7 +486,7 @@ fn subscribes_before_cap_end_and_resubscribes_with_an_empty_cache() {
         .client("CAP END")
         .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .server("@label=0 :ergo.test 770 alice avatar pronouns")
         .event(|event| matches!(event, Event::Response(_)))
         .server(":bob!b@example.test METADATA alice avatar * :https://example.test/a.png")
@@ -518,7 +518,7 @@ fn subscribes_after_registration_without_before_connect() {
         .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .no_client()
         .server(":ergo.test 422 alice :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .client("@label=0 METADATA * SUB avatar");
 }
 

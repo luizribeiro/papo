@@ -742,7 +742,7 @@ pub(crate) enum CoreEvent {
 #[allow(clippy::too_many_lines)]
 pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> CoreEvent {
     CoreEvent::Forward(match event {
-        papo_core::Event::Registered(welcome) => return CoreEvent::Registered(welcome),
+        papo_core::Event::Connected(welcome) => return CoreEvent::Registered(welcome),
         papo_core::Event::Line(message) => {
             if message.as_ref().command_is("001") {
                 return CoreEvent::Unknown;

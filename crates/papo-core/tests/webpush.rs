@@ -19,7 +19,7 @@ fn registered(cap: &str) -> Transcript {
         .client("CAP END")
         .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
 }
 
 #[test]

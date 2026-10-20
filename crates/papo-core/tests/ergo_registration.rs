@@ -17,7 +17,7 @@ fn replays_recorded_ergo_registration() {
         .load("tests/data/ergo-registration.irc")
         .event_until(|event| match event {
             Event::Line(_) | Event::CasemappingChanged { .. } => false,
-            Event::Registered(welcome) => {
+            Event::Connected(welcome) => {
                 assert_eq!(welcome.nick, "papo-fixture");
                 assert!(welcome.caps.contains_key("server-time"));
                 assert_eq!(welcome.isupport.network(), Some("ErgoTest"));

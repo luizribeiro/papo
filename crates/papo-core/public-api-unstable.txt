@@ -390,6 +390,7 @@ pub papo_core::Event::ChannelSynced::channel: papo::ChannelName
 pub papo_core::Event::Close
 pub papo_core::Event::Close::kind: papo_core::CloseKind
 pub papo_core::Event::Close::reason: alloc::string::String
+pub papo_core::Event::Connected(papo_core::Welcome)
 pub papo_core::Event::FeaturesChanged
 pub papo_core::Event::FeaturesChanged::added: alloc::vec::Vec<papo_core::Feature>
 pub papo_core::Event::FeaturesChanged::removed: alloc::vec::Vec<papo_core::Feature>
@@ -465,7 +466,6 @@ pub papo_core::Event::RealnameChanged
 pub papo_core::Event::RealnameChanged::nick: papo::Nick
 pub papo_core::Event::RealnameChanged::realname: alloc::string::String
 pub papo_core::Event::Redacted(papo_core::Redacted)
-pub papo_core::Event::Registered(papo_core::Welcome)
 pub papo_core::Event::RequestAborted
 pub papo_core::Event::RequestAborted::id: papo_core::RequestId
 pub papo_core::Event::RequestAborted::transmitted: bool

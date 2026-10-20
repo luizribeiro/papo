@@ -172,7 +172,7 @@ fn requests_and_applies_extended_isupport_before_welcome() {
     .welcome(":ergo.test 001 long-client_ :Welcome to Ergo")
     .server(":ergo.test 422 long-client_ :MOTD File is missing")
     .event(|event| {
-        matches!(event, Event::Registered(welcome)
+        matches!(event, Event::Connected(welcome)
         if welcome.isupport.network() == Some("ErgoTest"))
     });
 }
@@ -260,7 +260,7 @@ fn completes_after_motd_with_capabilities_and_isupport() {
     .event(|event| {
         matches!(
             event,
-            Event::Registered(welcome)
+            Event::Connected(welcome)
                 if welcome.nick == "account"
                     && welcome.nick.casemapping() == papo_proto::Casemapping::Ascii
                     && welcome.caps.get("server-time") == Some(&Some("iso8601".to_owned()))
@@ -290,7 +290,7 @@ fn emits_the_welcome_burst_in_wire_order_before_registration() {
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("372")))
         .server(":ergo.test 376 emily :End of MOTD")
         .event(|event| {
-            matches!(event, Event::Registered(welcome)
+            matches!(event, Event::Connected(welcome)
                 if welcome.text == "Welcome to the Ergo test network")
         })
         .no_event();
@@ -305,7 +305,7 @@ fn no_motd_numeric_completes_registration() {
         .event(|event| {
             matches!(
                 event,
-                Event::Registered(welcome)
+                Event::Connected(welcome)
                     if welcome.nick == "papo" && welcome.caps.is_empty()
             )
         })
@@ -324,7 +324,7 @@ fn completes_ten_seconds_after_welcome_when_motd_never_finishes() {
         .deadline(Some(Duration::from_secs(1)))
         .advance(Duration::from_secs(1))
         .inspect(|session| assert!(session.is_registered()))
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .deadline(Some(Duration::from_secs(50)));
 }
 
@@ -345,7 +345,7 @@ fn reconnect_resets_all_registration_state() {
     .server(":ergo.test 005 * NICKLEN=32 NETWORK=ErgoTest :are supported by this server")
     .welcome(":ergo.test 001 papo-away :Welcome to Ergo")
     .server(":ergo.test 422 papo-away :MOTD File is missing")
-    .event(|event| matches!(event, Event::Registered(_)))
+    .event(|event| matches!(event, Event::Connected(_)))
     .inspect(|session| {
         assert!(session.is_registered());
         assert!(session.caps().contains_key("server-time"));

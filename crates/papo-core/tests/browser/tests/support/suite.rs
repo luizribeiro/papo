@@ -80,7 +80,7 @@ async fn high_level_client_uses_the_browser_websocket() {
     })
     .await;
     wait_for(&mut events, |event| {
-        matches!(event, ClientEvent::Registered(registered) if registered.reconnected)
+        matches!(event, ClientEvent::Connected(registered) if registered.reconnected)
     })
     .await;
     peer.quit("browser peer test complete").await.unwrap();

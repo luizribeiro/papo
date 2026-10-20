@@ -347,7 +347,7 @@ fn authenticates_when_sasl_arrives_after_registration() {
         .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
         .welcome(":ergo.test 001 papo :Welcome")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .server("CAP papo NEW :sasl=PLAIN")
         .client("CAP REQ :sasl")
         .server("CAP papo ACK :sasl")
@@ -372,7 +372,7 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
         .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
         .welcome(":ergo.test 001 papo :Welcome")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .server("CAP papo NEW :sasl=PLAIN")
         .client("CAP REQ :sasl")
         .server("CAP papo ACK :sasl")
@@ -511,7 +511,7 @@ fn informational_account_required_cap_accepts_a_server_password() {
         .client("CAP END")
         .welcome(":soju.test 001 papo :Welcome to soju, papo")
         .server(":soju.test 422 papo :No MOTD")
-        .event(|event| matches!(event, Event::Registered(_)));
+        .event(|event| matches!(event, Event::Connected(_)));
 }
 
 #[test]

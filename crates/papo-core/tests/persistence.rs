@@ -15,7 +15,7 @@ fn registered(caps: &[&str]) -> Transcript {
         .client("CAP END")
         .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn stores_a_persistence_push_before_motd() {
             assert!(session.server_rejoins_channels());
         })
         .server(":ergo.test 376 alice :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)));
+        .event(|event| matches!(event, Event::Connected(_)));
 }
 
 #[test]

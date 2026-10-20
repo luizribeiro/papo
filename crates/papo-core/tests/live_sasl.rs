@@ -59,12 +59,12 @@ fn authenticate(server: &ServerInfo, account: &str, sasl: Sasl) -> Result<Sessio
 
     let event = within(&mut stream, |stream| {
         drive_until(&mut session, stream, 128, |event| {
-            matches!(event, Event::Registered(_) | Event::Close { .. })
+            matches!(event, Event::Connected(_) | Event::Close { .. })
         })
     })
     .unwrap_or_else(|| panic!("Ergo did not finish SASL for {account}"));
     match event {
-        Event::Registered(_) => Ok(session),
+        Event::Connected(_) => Ok(session),
         Event::Close { reason, .. } => Err(reason),
         _ => unreachable!("drive predicate only accepts terminal events"),
     }

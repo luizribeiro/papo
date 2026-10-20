@@ -16,7 +16,7 @@ fn registered() -> Transcript {
     .client("CAP END")
     .welcome(":ergo.test 001 tester :Welcome to Ergo")
     .server(":ergo.test 422 tester :MOTD File is missing")
-    .event(|event| matches!(event, Event::Registered(_)))
+    .event(|event| matches!(event, Event::Connected(_)))
     .server(":ergo.test 005 tester CASEMAPPING=ascii :are supported")
     .event(|event| matches!(event, Event::CasemappingChanged { .. }))
 }
@@ -278,7 +278,7 @@ fn enforces_account_registration_capability_values_locally() {
         .client("CAP END")
         .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| {
             assert_eq!(
                 session.register(std::time::Instant::now(), None, None, "hunter2"),

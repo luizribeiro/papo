@@ -81,7 +81,7 @@ fn setname_without_whoami_does_not_supply_connection_identity() {
 fn setname_after_welcome_burst_does_not_act_as_whoami() {
     welcomed("Alice Example")
         .server(":ergo.test 422 alice :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .server(":Alice!~alice@users/alice SETNAME :Alice Example")
         .event(|event| matches!(event, Event::RealnameChanged { .. }))
         .inspect(|session| {

@@ -241,7 +241,7 @@ fn reports_capability_and_isupport_feature_changes_after_registration() {
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 005 papo MONITOR=100 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .server("CAP papo DEL :message-tags")
         .event(|event| matches!(event, Event::CapsChanged { .. }))
         .event(|event| {
@@ -292,7 +292,7 @@ fn fails_a_pending_request_when_its_feature_disappears() {
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 005 papo CHATHISTORY=100 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| {
             session
                 .chathistory(
@@ -335,7 +335,7 @@ fn failing_a_feature_request_keeps_other_join_tracking() {
     .welcome(":ergo.test 001 papo :Welcome to Ergo")
     .server(":ergo.test 005 papo CHATHISTORY=100 :are supported")
     .server(":ergo.test 376 papo :End of MOTD")
-    .event(|event| matches!(event, Event::Registered(_)))
+    .event(|event| matches!(event, Event::Connected(_)))
     .update(|session| {
         session
             .chathistory(

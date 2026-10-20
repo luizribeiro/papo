@@ -206,7 +206,7 @@ impl Registration {
     fn complete(&mut self, caps: &Capabilities, isupport: &Isupport, outbox: &mut Outbox) {
         self.welcome_deadline = None;
         self.registered = true;
-        outbox.event(Event::Registered(Welcome {
+        outbox.event(Event::Connected(Welcome {
             nick: isupport.casemapping().nick(&self.nick),
             text: self.welcome_text.take().unwrap_or_default(),
             caps: caps.clone(),

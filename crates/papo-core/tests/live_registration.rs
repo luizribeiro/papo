@@ -29,7 +29,7 @@ fn registers_with_live_ergo() {
 
     let event = within(&mut stream, |stream| {
         drive_until(&mut session, stream, 64, |event| {
-            matches!(event, Event::Registered(_) | Event::Close { .. })
+            matches!(event, Event::Connected(_) | Event::Close { .. })
         })
     })
     .expect("registration did not complete");

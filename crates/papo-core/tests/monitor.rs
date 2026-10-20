@@ -14,7 +14,7 @@ fn registered() -> Transcript {
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 005 papo MONITOR=100 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, papo_core::Event::Registered(_)))
+        .event(|event| matches!(event, papo_core::Event::Connected(_)))
 }
 
 fn extended_registered() -> Transcript {
@@ -27,7 +27,7 @@ fn extended_registered() -> Transcript {
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 005 papo MONITOR=100 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn removing_a_monitored_nick_fills_the_advertised_slot() {
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 005 papo MONITOR=2 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| session.monitor_add(["alice", "bob", "carol"]))
         .client("MONITOR + alice,bob")
         .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks } if nicks == &["carol"]))
@@ -98,7 +98,7 @@ fn removal_distinguishes_unknown_active_and_unsent_nicks() {
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 005 papo MONITOR=1 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| session.monitor_add(["alice", "bob"]))
         .client("MONITOR + alice")
         .event(|event| matches!(event, Event::MonitorListFull { limit: 1, nicks } if nicks == &["bob"]))
@@ -132,7 +132,7 @@ fn removing_before_registration_or_without_support_sends_nothing() {
         .connect_default()
         .welcome(":solanum.example 001 papo :Welcome")
         .server(":solanum.example 422 papo :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| session.monitor_add(["alice"]))
         .event(|event| matches!(event, Event::MonitorUnsupported))
         .update(|session| session.monitor_remove(["alice"]))
@@ -151,7 +151,7 @@ fn registration_clears_unconfirmed_monitor_presence() {
         .welcome(":ergo.test 001 papo :Welcome")
         .server(":ergo.test 376 papo :End of MOTD")
         .client("MONITOR + alice")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .inspect(|session| assert_eq!(session.state().monitor_online().count(), 0))
         .no_event();
 }
@@ -296,7 +296,7 @@ fn restores_the_desired_list_and_resets_presence_after_reconnect() {
         .welcome(":ergo.test 001 papo :Welcome back to Ergo")
         .server(":ergo.test 005 papo MONITOR=100 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .client("MONITOR + alice,bob,carol")
         .server(":ergo.test 731 papo :alice")
         .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
@@ -315,7 +315,7 @@ fn disconnect_resets_a_confirmed_online_state() {
         .welcome(":ergo.test 001 papo :Welcome back")
         .server(":ergo.test 005 papo MONITOR=100 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .client("MONITOR + alice")
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
@@ -330,7 +330,7 @@ fn restore_distinguishes_the_literal_monitor_limit_boundary() {
             .welcome(":ergo.test 001 papo :Welcome")
             .server(":ergo.test 005 papo MONITOR=2 :are supported")
             .server(":ergo.test 376 papo :End of MOTD")
-            .event(|event| matches!(event, Event::Registered(_)))
+            .event(|event| matches!(event, Event::Connected(_)))
             .update(|session| session.monitor_add(nicks))
     };
 
@@ -341,7 +341,7 @@ fn restore_distinguishes_the_literal_monitor_limit_boundary() {
         .welcome(":ergo.test 001 papo :Welcome back")
         .server(":ergo.test 005 papo MONITOR=2 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .client("MONITOR + alice,bob")
         .no_event();
 
@@ -353,7 +353,7 @@ fn restore_distinguishes_the_literal_monitor_limit_boundary() {
         .welcome(":ergo.test 001 papo :Welcome back")
         .server(":ergo.test 005 papo MONITOR=2 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .client("MONITOR + alice,bob")
         .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks } if nicks == &["carol"]))
         .no_event();
@@ -466,7 +466,7 @@ fn timeout_restores_only_when_registration_becomes_complete() {
         .advance(std::time::Duration::from_secs(9))
         .no_client()
         .advance(std::time::Duration::from_secs(1))
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .client("MONITOR + alice")
         .no_client();
 }
@@ -489,7 +489,7 @@ fn monitor_clear_requires_registration_and_server_support() {
         .connect_default()
         .welcome(":solanum.example 001 papo :Welcome")
         .server(":solanum.example 422 papo :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .update(papo_core::Session::monitor_clear)
         .no_client()
         .update(|session| session.monitor_add(["alice"]))
@@ -521,7 +521,7 @@ fn reports_unsupported_monitor_only_once() {
         .connect_default()
         .welcome(":solanum.example 001 papo :Welcome")
         .server(":solanum.example 422 papo :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| session.monitor_add(["alice"]))
         .event(|event| matches!(event, Event::MonitorUnsupported))
         .no_client()
@@ -538,7 +538,7 @@ fn caps_the_desired_monitor_list_at_ten_thousand() {
         .welcome(":ergo.test 001 papo :Welcome")
         .server(":ergo.test 005 papo MONITOR :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| session.monitor_add(nicks))
         .event(|event| matches!(event, Event::MonitorListFull { limit: 10_000, nicks } if nicks == &["user10000"]))
         .ignore_rest();

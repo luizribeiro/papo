@@ -127,7 +127,7 @@ fn silent_labelled_response_updates_state_without_a_state_event() {
         .client("CAP END")
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 422 papo :MOTD File is missing")
-        .event(|event| matches!(event, Event::Registered(_)))
+        .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| {
             session
                 .request_silent(
