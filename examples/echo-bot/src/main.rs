@@ -52,11 +52,10 @@ async fn handle(client: &Client, event: &Event, config: &BotConfig) -> Result<()
             text.len()
         );
         client.reply(message, &summary).await?;
-        client
-            .typing(message.reply_target(), Typing::Active)
-            .await?;
+        let address = message.return_address();
+        client.typing(&address, Typing::Active).await?;
         let reply = client.reply(message, text).await;
-        client.typing(message.reply_target(), Typing::Done).await?;
+        client.typing(address, Typing::Done).await?;
         reply?;
         return Ok(());
     }

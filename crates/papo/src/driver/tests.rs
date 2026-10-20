@@ -174,9 +174,11 @@ async fn message_accessors_use_captured_session_facts() {
     assert_eq!(message.kind(), MessageKind::Privmsg);
     assert_eq!(message.text(), "hello from Ergo");
     assert_eq!(message.raw_text(), "hello \x02from Ergo\x02");
-    assert_eq!(message.target(), "#papo");
+    assert!(
+        matches!(&message.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
+    );
     assert!(!message.is_private());
-    assert_eq!(message.reply_target(), "#papo");
+    assert_eq!(message.return_address(), "#papo");
     assert_eq!(message.msgid(), Some("RfcBTzyxY120004"));
     assert_eq!(message.account(), Some("emily"));
     assert!(message.is_bot());
@@ -192,7 +194,7 @@ async fn message_accessors_use_captured_session_facts() {
     let notice = next_message(&mut events).await;
     assert_eq!(notice.kind(), MessageKind::Notice);
     assert!(notice.is_private());
-    assert_eq!(notice.reply_target(), "emily");
+    assert_eq!(notice.return_address(), "emily");
     let action = next_message(&mut events).await;
     assert_eq!(action.kind(), MessageKind::Action);
     assert_eq!(action.text(), "waves");
@@ -3458,6 +3460,14 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
         ":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply :are supported\r\n",
         tagged,
         b"@+draft/reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
+        ReplyKind::Reply,
+    )
+    .await;
+    assert_reply_wire(
+        true,
+        ":ergo.test 005 papo-driver CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
+        b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG @#ops :!ping\r\n",
+        b"@+reply=RfcBTzyxY120003 PRIVMSG @#ops pong\r\n",
         ReplyKind::Reply,
     )
     .await;

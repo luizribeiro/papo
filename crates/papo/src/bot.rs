@@ -218,7 +218,10 @@ impl Command {
     /// Returns the channel where the command was sent, if it was not private.
     #[must_use]
     pub fn channel(&self) -> Option<&str> {
-        (!self.message.is_private()).then(|| self.message.target())
+        match &self.message.conversation {
+            crate::Conversation::Channel(channel) => Some(channel),
+            _ => None,
+        }
     }
 
     /// Sends a threaded reply unless the target has exhausted its reply budget.
@@ -240,7 +243,7 @@ impl Command {
             let target = client
                 .state()
                 .casemapping()
-                .fold(message.reply_target())
+                .fold(&message.return_address())
                 .into_owned();
             if !replies.check(&target) {
                 return Ok(ReplyStatus::Dropped);
