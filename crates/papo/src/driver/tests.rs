@@ -221,6 +221,26 @@ async fn message_accessors_use_captured_session_facts() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn wallops_is_a_server_notice() {
+    let (mut server, _client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    server_line(
+        &mut server,
+        b":ergo.test WALLOPS :Network maintenance begins soon\r\n",
+    )
+    .await;
+    let message = next_message(&mut events).await;
+    assert_eq!(message.kind(), MessageKind::Notice);
+    assert_eq!(message.conversation, crate::Conversation::Server);
+    assert_eq!(message.text(), "Network maintenance begins soon");
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn registration_is_forwarded() {
     let (mut server, client, mut events, driver) = scripted(config());
     assert!(!client.state().is_connected());

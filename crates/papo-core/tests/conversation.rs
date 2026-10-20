@@ -31,6 +31,11 @@ fn classifies_server_broadcast_and_private_conversations() {
             matches!(event, Event::Line(line)
                 if matches!(line.conversation(), Some(Conversation::Broadcast(mask)) if mask == "$*.example.org"))
         })
+        .server(":ergo.test WALLOPS :Network maintenance begins soon")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.conversation() == Some(&Conversation::Server))
+        })
         .server(":bob!~bob@users.example PRIVMSG papo :Are you around?")
         .event(|event| {
             matches!(event, Event::Line(line)

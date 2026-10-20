@@ -264,17 +264,18 @@ impl Message {
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
-        let Some(raw_text) = message.param(1) else {
-            return Err(raw);
-        };
+        let wallops = message.command_is("WALLOPS");
         let plain = if message.command_is("PRIVMSG") {
             MessageKind::Privmsg
-        } else if message.command_is("NOTICE") {
+        } else if message.command_is("NOTICE") || wallops {
             MessageKind::Notice
         } else {
             return Err(raw);
         };
-        let (kind, displayed) = match ProtoCtcp::parse(raw_text) {
+        let Some(raw_text) = message.param(usize::from(!wallops)) else {
+            return Err(raw);
+        };
+        let (kind, displayed) = match (!wallops).then(|| ProtoCtcp::parse(raw_text)).flatten() {
             Some(ctcp)
                 if plain == MessageKind::Privmsg && ctcp.command.eq_ignore_ascii_case("ACTION") =>
             {
