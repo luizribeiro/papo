@@ -1619,7 +1619,19 @@ async fn required_sasl_failure_rejects_connect_waiter() {
     welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
-    server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
+    server_line(&mut server, b":ergo.test CAP * ACK :sasl\r\n").await;
+    client_line(&mut server, b"AUTHENTICATE PLAIN\r\n").await;
+    server_line(&mut server, b"AUTHENTICATE +\r\n").await;
+    client_line(
+        &mut server,
+        b"AUTHENTICATE AGFsaWNlAGNvcnJlY3QgaG9yc2UgYmF0dGVyeSBzdGFwbGU=\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":ergo.test 904 alice :SASL authentication failed\r\n",
+    )
+    .await;
 
     assert!(matches!(
         within(waiter).await.unwrap(),
@@ -1666,12 +1678,54 @@ async fn account_required_cap_rejects_registration_without_sasl() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn password_numeric_has_its_own_connect_error() {
+async fn terminal_numerics_have_specific_connect_errors() {
+    for (line, expected, diagnostic) in [
+        (
+            ":ergo.test 464 papo-driver :Password incorrect\r\n",
+            crate::ConnectErrorKind::PasswordIncorrect,
+            "Password incorrect",
+        ),
+        (
+            ":ergo.test 465 papo-driver :You are banned from this server\r\n",
+            crate::ConnectErrorKind::Banned,
+            "You are banned from this server",
+        ),
+    ] {
+        let (client_stream, mut server) = tokio::io::duplex(4096);
+        let (registration, waiter) = tokio::sync::oneshot::channel();
+        let (_client, _events, driver) = Driver::with_stream_and_connect(
+            client_stream,
+            Session::new(config()),
+            super::DEFAULT_CHANNEL_CAPACITY,
+            Some(registration),
+            super::PostConnect::default(),
+        );
+        let driver = tokio::spawn(driver);
+        welcome_burst(&mut server).await;
+        server_line(&mut server, line.as_bytes()).await;
+
+        assert!(matches!(
+            within(waiter).await.unwrap(),
+            Err(Error::Connect(error))
+                if error.kind() == expected
+                    && std::error::Error::source(&error)
+                        .is_some_and(|source| source.to_string() == diagnostic)
+        ));
+        assert!(matches!(
+            within(driver).await.unwrap(),
+            Err(Error::Connect(error)) if error.kind() == expected
+        ));
+    }
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn nickname_collision_can_end_at_the_welcome_deadline() {
+    let settings = config().welcome_timeout(Duration::from_secs(23));
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
-    let (_client, _events, driver) = Driver::with_stream_and_connect(
+    let (_client, mut events, driver) = Driver::with_stream_and_connect(
         client_stream,
-        Session::new(config()),
+        Session::new(settings),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
         super::PostConnect::default(),
@@ -1680,21 +1734,29 @@ async fn password_numeric_has_its_own_connect_error() {
     welcome_burst(&mut server).await;
     server_line(
         &mut server,
-        b":ergo.test 464 papo-driver :Password incorrect\r\n",
+        b":solanum.example 433 * papo-driver :Nickname is already in use\r\n",
     )
     .await;
+    client_line(&mut server, b"NICK papo-driver_\r\n").await;
+    tokio::time::advance(Duration::from_secs(23)).await;
 
+    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+        panic!("expected login timeout")
+    };
+    assert!(matches!(
+        &disconnected.cause,
+        crate::DisconnectCause::Connect(error)
+            if error.kind() == crate::ConnectErrorKind::WelcomeTimedOut
+    ));
     assert!(matches!(
         within(waiter).await.unwrap(),
         Err(Error::Connect(error))
-            if error.kind() == crate::ConnectErrorKind::PasswordIncorrect
-                && std::error::Error::source(&error)
-                    .is_some_and(|source| source.to_string() == "Password incorrect")
+            if error.kind() == crate::ConnectErrorKind::WelcomeTimedOut
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Connect(error))
-            if error.kind() == crate::ConnectErrorKind::PasswordIncorrect
+            if error.kind() == crate::ConnectErrorKind::WelcomeTimedOut
     ));
 }
 
