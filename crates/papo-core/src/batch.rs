@@ -4,7 +4,7 @@ use std::{
 };
 use web_time::Instant;
 
-use papo_proto::{Command, LineRef, Message, Reaction, time};
+use papo_proto::{Command, Line, LineRef, Reaction, time};
 
 use crate::{BatchAbandonReason, Config, HistoryItem, HistoryMessage, HistoryPage, cap};
 
@@ -18,13 +18,13 @@ pub(crate) struct Batches {
 
 #[derive(Debug)]
 struct OpenBatch {
-    opening: Message,
+    opening: Line,
     kind: String,
     label: Option<String>,
     parent: Option<String>,
     params: Vec<String>,
     end: bool,
-    messages: Vec<Message>,
+    messages: Vec<Line>,
     completed: Vec<BatchEvent>,
     lines: usize,
     bytes: usize,
@@ -58,8 +58,8 @@ pub(crate) enum BatchAction {
 pub(crate) enum BatchEvent {
     Response {
         label: String,
-        echo: Option<Message>,
-        messages: Vec<Message>,
+        echo: Option<Line>,
+        messages: Vec<Line>,
         batch_type: String,
         history: Option<HistoryPage>,
         history_targets: Option<Vec<(String, std::time::SystemTime)>>,
@@ -72,11 +72,11 @@ pub(crate) enum BatchEvent {
     HistoryTargets(Vec<(String, std::time::SystemTime)>),
     Netsplit {
         servers: [String; 2],
-        quits: Vec<Message>,
+        quits: Vec<Line>,
     },
     Netjoin {
         servers: [String; 2],
-        joins: Vec<Message>,
+        joins: Vec<Line>,
     },
     Abandoned {
         reference: String,
@@ -84,17 +84,17 @@ pub(crate) enum BatchEvent {
         reason: BatchAbandonReason,
     },
     Message {
-        message: Message,
+        message: Line,
         batch_type: Option<String>,
     },
-    Multiline(Message),
+    Multiline(Line),
     Metadata {
         kind: String,
-        messages: Vec<Message>,
+        messages: Vec<Line>,
     },
     #[cfg(feature = "unstable")]
-    Bouncer(Vec<Message>),
-    Isupport(Vec<Message>),
+    Bouncer(Vec<Line>),
+    Isupport(Vec<Line>),
 }
 
 impl Batches {
@@ -531,7 +531,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         .collect()
 }
 
-fn multiline(batch: &mut OpenBatch) -> Option<Message> {
+fn multiline(batch: &mut OpenBatch) -> Option<Line> {
     let first = batch.messages.first()?.as_ref();
     let command = first.raw_command();
     let target = batch
@@ -557,7 +557,7 @@ fn multiline(batch: &mut OpenBatch) -> Option<Message> {
     }
     let opening = batch.opening.as_ref();
     let source = opening.raw_source().or_else(|| first.raw_source());
-    let mut message = Message::new(command, [target, &text]);
+    let mut message = Line::new(command, [target, &text]);
     if let Some(source) = source {
         message = message.with_source(source);
     }
@@ -584,7 +584,7 @@ fn history_from_event(event: &BatchEvent) -> Option<HistoryPage> {
     })
 }
 
-fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
+fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {
     match event {
         BatchEvent::Response {
             messages: batch, ..
@@ -612,7 +612,7 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Message>) {
     }
 }
 
-fn history_items(messages: Vec<Message>) -> Vec<HistoryItem> {
+fn history_items(messages: Vec<Line>) -> Vec<HistoryItem> {
     let mut msgids = HashSet::new();
     messages
         .into_iter()
