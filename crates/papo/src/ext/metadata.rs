@@ -62,12 +62,12 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let target = crate::Target::from(target.as_ref());
+        let target = target.as_ref().to_owned();
         let keys = keys.into_iter().map(Into::into).collect::<Vec<_>>();
         crate::RequestFuture::new(async move {
             let state = metadata.client.state();
-            target
-                .check(state.isupport().inner())
+            state
+                .parse_target(&target)
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             for key in &keys {
                 key.check()
@@ -75,7 +75,7 @@ impl Metadata {
             }
             metadata
                 .request(MetadataCommand::Get {
-                    target: target.to_string(),
+                    target: target.clone(),
                     keys: keys
                         .into_iter()
                         .map(crate::MetadataKey::into_string)
@@ -106,14 +106,16 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let target = crate::Target::from(target.as_ref());
+        let target = target.as_ref().to_owned();
         crate::RequestFuture::new(async move {
-            target
-                .check(metadata.client.state().isupport().inner())
+            metadata
+                .client
+                .state()
+                .parse_target(&target)
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             metadata
                 .request(MetadataCommand::List {
-                    target: target.to_string(),
+                    target: target.clone(),
                 })
                 .await?;
             Ok(metadata
@@ -266,16 +268,14 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let target = crate::Target::from(target.as_ref());
+        let target = target.as_ref().to_owned();
         crate::RequestFuture::new(async move {
-            target
-                .check(metadata.client.state().isupport().inner())
-                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             metadata
-                .request(MetadataCommand::Sync {
-                    target: target.into_string(),
-                })
-                .await
+                .client
+                .state()
+                .parse_target(&target)
+                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            metadata.request(MetadataCommand::Sync { target }).await
         })
     }
 }

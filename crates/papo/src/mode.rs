@@ -1,14 +1,14 @@
 use std::future::IntoFuture;
 
 use papo_core::ResponseMatcher;
-use papo_proto::{Address as Target, Isupport, Line, Mask, ModeKind, Nick};
+use papo_proto::{Isupport, Line, Mask, ModeKind, Nick};
 
 use crate::{Client, Error, InvalidInput, RequestFuture};
 
 /// Builds one or more validated mode-change commands.
 pub struct SetModes {
     client: Client,
-    target: Target,
+    target: String,
     changes: Vec<Change>,
 }
 
@@ -101,6 +101,10 @@ impl IntoFuture for SetModes {
 
     fn into_future(self) -> Self::IntoFuture {
         RequestFuture::new(async move {
+            self.client
+                .state()
+                .parse_target(&self.target)
+                .map_err(|error| invalid(error.to_string()))?;
             let messages = encode(
                 self.client.state().isupport().inner(),
                 &self.target,
@@ -109,10 +113,7 @@ impl IntoFuture for SetModes {
             for message in messages {
                 let response = self
                     .client
-                    .correlated(
-                        message,
-                        Some(ResponseMatcher::Mode(self.target.to_string())),
-                    )
+                    .correlated(message, Some(ResponseMatcher::Mode(self.target.clone())))
                     .await?;
                 crate::requests::empty(&response)?;
             }
@@ -127,7 +128,7 @@ impl Client {
     pub fn mode(&self, target: impl AsRef<str>) -> SetModes {
         SetModes {
             client: self.clone(),
-            target: Target::from(target.as_ref()),
+            target: target.as_ref().to_owned(),
             changes: Vec::new(),
         }
     }
@@ -172,12 +173,9 @@ impl Argument {
 
 pub(crate) fn encode(
     isupport: &Isupport,
-    target: &Target,
+    target: &str,
     changes: &[Change],
 ) -> Result<Vec<Line>, Error> {
-    target
-        .check(isupport)
-        .map_err(|error| invalid(error.to_string()))?;
     if changes.is_empty() {
         return Err(invalid("a mode request needs at least one change"));
     }
@@ -261,7 +259,7 @@ fn invalid(message: impl Into<String>) -> Error {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use papo_proto::{Address as Target, Isupport, LineRef};
+    use papo_proto::{Isupport, LineRef};
 
     use super::{Argument, Change, Selector, encode};
 
@@ -294,7 +292,7 @@ mod tests {
                 arg: None,
             },
         ];
-        let lines: Vec<_> = encode(&support, &Target::from("#papo"), &changes)
+        let lines: Vec<_> = encode(&support, "#papo", &changes)
             .unwrap()
             .into_iter()
             .map(|message| message.to_line().unwrap().trim_end().to_owned())
@@ -305,8 +303,8 @@ mod tests {
     #[test]
     fn rejects_empty_unknown_and_mismatched_modes() {
         let support = isupport();
-        let target = Target::from("#papo");
-        assert!(encode(&support, &target, &[]).is_err());
+        let target = "#papo";
+        assert!(encode(&support, target, &[]).is_err());
         for change in [
             Change {
                 set: true,
@@ -341,7 +339,7 @@ mod tests {
                 arg: Some(Argument::Nick(support.casemapping().nick("alice"))),
             },
         ] {
-            assert!(encode(&support, &target, &[change]).is_err());
+            assert!(encode(&support, target, &[change]).is_err());
         }
     }
 }
