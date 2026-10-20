@@ -3099,7 +3099,7 @@ impl Session {
             && self.is_own_source(message);
         let labelled_response =
             self.resolve_labelled_message(message, queued_events, emit_response_events);
-        let response = self.resolve_unlabelled(message) || labelled_response;
+        let response = self.resolve_unlabelled(now, message) || labelled_response;
         if response && labelled_echo && emit_response_events {
             self.enqueue_labelled_echo(message);
         }

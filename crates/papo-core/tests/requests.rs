@@ -1058,12 +1058,16 @@ fn labelled_join_times_out_once_when_sync_never_finishes() {
         .unwrap();
     _ = session.poll_transmit();
     session.handle_line(
-        now,
+        now + std::time::Duration::from_secs(29),
         b"@label=0 :papo!~papo@localhost JOIN #papo * :Papo Bot",
     );
     while session.poll_event().is_some() {}
 
     session.handle_timeout(now + std::time::Duration::from_secs(30));
+    assert!(std::iter::from_fn(|| session.poll_event()).all(
+        |event| !matches!(event, Event::RequestTimedOut { id: timed_out } if timed_out == id)
+    ));
+    session.handle_timeout(now + std::time::Duration::from_secs(59));
     assert_eq!(
         std::iter::from_fn(|| session.poll_event())
             .filter(|event| matches!(event, Event::RequestTimedOut { id: timed_out } if *timed_out == id))

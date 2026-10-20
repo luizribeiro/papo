@@ -75,31 +75,41 @@ impl Session {
         self.away_messages.get(&id).map(String::as_str)
     }
 
-    pub(super) fn resolve_unlabelled(&mut self, message: &LineRef<'_>) -> bool {
+    pub(super) fn resolve_unlabelled(&mut self, now: Instant, message: &LineRef<'_>) -> bool {
         let mapping = self.isupport.value().casemapping();
-        let Some((index, complete)) =
-            self.unlabelled_requests
-                .iter()
-                .enumerate()
-                .find_map(|(index, request)| {
-                    let fence = request.fence.as_ref().and_then(|token| {
-                        (message.command() == Command::Pong
-                            && message.params().last() == Some(token.as_str()))
-                        .then_some(true)
-                    });
-                    fence
-                        .or_else(|| {
-                            request
-                                .matcher
-                                .matches(message, mapping, self.registration.nick(), &self.state)
-                                .map(|complete| complete && request.fence.is_none())
-                        })
-                        .map(|done| (index, done))
-                })
+        let Some((index, complete, join_started)) = self
+            .unlabelled_requests
+            .iter()
+            .enumerate()
+            .find_map(|(index, request)| {
+                let join_started = matches!(
+                    &request.matcher,
+                    ResponseMatcher::Join(channel)
+                        if message.command() == Command::Join
+                            && message.param(0).is_some_and(|target| mapping.eq(target, channel))
+                            && self.is_own_source(message)
+                );
+                let fence = request.fence.as_ref().and_then(|token| {
+                    (message.command() == Command::Pong
+                        && message.params().last() == Some(token.as_str()))
+                    .then_some(true)
+                });
+                fence
+                    .or_else(|| {
+                        request
+                            .matcher
+                            .matches(message, mapping, self.registration.nick(), &self.state)
+                            .map(|complete| complete && request.fence.is_none())
+                    })
+                    .map(|done| (index, done, join_started))
+            })
         else {
             return false;
         };
         let request = self.unlabelled_requests.get_mut(index).unwrap();
+        if join_started {
+            request.started = Some(now);
+        }
         request.lines.push(message.to_owned());
         if complete {
             let request = self.unlabelled_requests.remove(index).unwrap();
