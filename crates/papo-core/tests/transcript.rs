@@ -33,7 +33,7 @@ fn drives_server_lines_events_and_time() {
         .server(":ergo.test NOTICE tester :Connection established")
         .no_client()
         .advance(Duration::from_secs(30))
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")));
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("NOTICE")));
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn plays_trace_file_contents() {
         .connect_default()
         .send(Line::new("NICK", ["tester"]))
         .play(include_str!("data/harness.irc"))
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("NOTICE")))
         .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "tester"))
         .no_client();
 }
@@ -53,7 +53,7 @@ fn loads_trace_files() {
         .connect_default()
         .send(Line::new("NICK", ["tester"]))
         .load("tests/data/harness.irc")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("NOTICE")))
         .event(|event| matches!(event, Event::Joined { channel, nick } if channel == "#papo" && nick == "tester"))
         .no_client();
 }

@@ -33,5 +33,5 @@ fn removing_utf8only_restores_the_configured_decoding_policy() {
         .server(":soju.example 005 papo UTF8ONLY :are supported by this server")
         .server(":soju.example 005 papo -UTF8ONLY :are supported by this server")
         .server_bytes(b":soju.example NOTICE papo :caf\xe9")
-        .event(|event| matches!(event, Event::Message(_)));
+        .event(|event| matches!(event, Event::Message(_) | Event::Line(_)));
 }

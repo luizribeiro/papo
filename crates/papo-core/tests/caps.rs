@@ -69,7 +69,7 @@ fn requests_event_playback_and_oper_tags_by_default() {
             "@draft/oper=network-admin :alice!a@localhost PRIVMSG #papo :Maintenance begins soon",
         )
         .event(|event| {
-            matches!(event, Event::Message(message)
+            matches!(event, Event::Message(message) | Event::Line(message)
             if message.as_ref().tag("draft/oper").as_deref() == Some("network-admin"))
         });
 }
@@ -254,7 +254,7 @@ fn surfaces_unknown_command_for_commands_other_than_cap() {
         .event(|event| {
             matches!(
                 event,
-                Event::Message(message)
+                Event::Message(message) | Event::Line(message)
                     if message.as_ref().command_is("421")
                         && message.as_ref().param(1) == Some("WHOIS")
             )

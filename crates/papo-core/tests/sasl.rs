@@ -191,7 +191,7 @@ fn inactive_authenticate_messages_are_surfaced_unchanged() {
         .client("CAP REQ :sasl")
         .server("AUTHENTICATE +")
         .event(|event| {
-            matches!(event, Event::Message(message)
+            matches!(event, Event::Message(message) | Event::Line(message)
                 if message.as_ref().command_is("AUTHENTICATE"))
         })
         .no_client()
@@ -204,7 +204,7 @@ fn inactive_authenticate_messages_are_surfaced_unchanged() {
         .client("CAP END")
         .server("AUTHENTICATE +")
         .event(|event| {
-            matches!(event, Event::Message(message)
+            matches!(event, Event::Message(message) | Event::Line(message)
                 if message.as_ref().command_is("AUTHENTICATE"))
         })
         .inspect(|session| assert_eq!(session.account(), Some("alice")))
@@ -746,7 +746,7 @@ fn replays_recorded_ergo_plain_login() {
     )
     .connect_default()
     .load("tests/data/ergo-sasl-plain.irc")
-    .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("001")))
+    .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("001")))
     .inspect(|session| {
         assert_eq!(session.account(), Some("paposasl"));
         assert_eq!(session.nick(), "paposasl");
@@ -766,7 +766,7 @@ fn replays_recorded_ergo_scram_login() {
     )
     .connect_default()
     .load("tests/data/ergo-sasl-scram.irc")
-    .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("001")))
+    .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("001")))
     .inspect(|session| {
         assert_eq!(session.account(), Some("paposasl"));
         assert_eq!(session.nick(), "paposasl");

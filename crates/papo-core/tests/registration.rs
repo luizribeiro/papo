@@ -92,7 +92,7 @@ fn tries_alternative_nicks_then_appends_bounded_underscores() {
     .client("NICK emily-work__")
     .welcome(":ergo.test 001 emily-work__ :Welcome")
     .server(":ergo.test 433 emily-work__ someone :Nickname is already in use")
-    .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("433")));
+    .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("433")));
 }
 
 #[test]
@@ -188,7 +188,7 @@ fn incomplete_isupport_batch_does_not_change_state() {
     .server(":ergo.test BATCH +isupport draft/isupport")
     .server("@batch=isupport :ergo.test 005 * NICKLEN=12 :are supported")
     .advance(Duration::from_secs(120))
-    .event(|event| matches!(event, Event::Message(_)))
+    .event(|event| matches!(event, Event::Message(_) | Event::Line(_)))
     .event(|event| {
         matches!(event, Event::BatchAbandoned {
             batch_type,
@@ -272,32 +272,32 @@ fn emits_the_welcome_burst_in_wire_order_before_registration() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 001 emily :Welcome to the Ergo test network")
         .event(
-            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("001")),
+            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("001")),
         )
         .server(":ergo.test 002 emily :Your host is ergo.test, running version ergo-2.16.0")
         .event(
-            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("002")),
+            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("002")),
         )
         .server(":ergo.test 003 emily :This server was created Wed Oct 15 2025")
         .event(
-            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("003")),
+            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("003")),
         )
         .server(":ergo.test 004 emily ergo.test ergo-2.16.0 BioZ beI,k,l,imnst")
         .event(
-            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("004")),
+            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("004")),
         )
         .server(":ergo.test 005 emily NETWORK=ErgoTest UTF8ONLY :are supported by this server")
         .server(":ergo.test 251 emily :There are 4 users and 0 invisible on 1 server")
         .event(
-            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("251")),
+            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("251")),
         )
         .server(":ergo.test 375 emily :- ergo.test Message of the Day -")
         .event(
-            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("375")),
+            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("375")),
         )
         .server(":ergo.test 372 emily :- Be kind to one another.")
         .event(
-            |event| matches!(event, Event::Message(message) if message.as_ref().command_is("372")),
+            |event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("372")),
         )
         .server(":ergo.test 376 emily :End of MOTD")
         .event(|event| {

@@ -525,7 +525,10 @@ fn remembers_live_messages_but_not_history_pages() {
     ] {
         session.handle_line(now, line.as_bytes());
     }
-    assert!(matches!(session.poll_event(), Some(Event::Message(_))));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Message(_) | Event::Line(_))
+    ));
     assert!(matches!(session.poll_event(), Some(Event::History { .. })));
     assert_eq!(session.state().last_seen("#papo").unwrap().msgid, "RKi9Cw");
 

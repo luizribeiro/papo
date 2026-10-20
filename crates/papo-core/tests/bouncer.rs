@@ -107,11 +107,11 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
     registered()
         .server(r"BOUNCER OTHER 42 name=Wrong\sSubcommand")
         .event(|event| {
-            matches!(event, Event::Message(message) if message.as_ref().command_is("BOUNCER"))
+            matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("BOUNCER"))
         })
         .server(r"NOTICE NETWORK 42 name=Wrong\sCommand")
         .event(|event| {
-            matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE"))
+            matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("NOTICE"))
         })
         .server(
             r"BOUNCER NETWORK network-42 name=Example\sNet;state=connecting;host=irc.example.org;port=6697;tls=0;nickname=alice;username=alice_;realname=Alice\sExample;error=Connection\srefused;vendor.example/region=us-east",

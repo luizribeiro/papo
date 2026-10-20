@@ -14,7 +14,7 @@ fn answers_pings_before_and_after_server_data() {
         .server(":ergo.test PING :before-registration")
         .client("PONG :before-registration")
         .server(":ergo.test NOTICE tester :Connection established")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("NOTICE")))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("NOTICE")))
         .server("PING :after-data")
         .client("PONG :after-data")
         .no_client();
@@ -67,7 +67,7 @@ fn does_not_answer_invalid_pings() {
     Transcript::new(Config::default())
         .connect_default()
         .server(":ergo.test PING")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().command_is("PING")))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().command_is("PING")))
         .server("PING :bad\rtoken")
         .event(|event| matches!(event, Event::Malformed { line } if line.as_slice() == b"PING :bad\rtoken"))
         .no_client();

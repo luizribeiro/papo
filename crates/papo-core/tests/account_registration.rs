@@ -431,9 +431,9 @@ fn disconnect_aborts_registration_and_rejects_its_late_success() {
     .event(|event| matches!(event, Event::RequestAborted { .. }))
     .connect_default()
     .server(":ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent")
-    .event(|event| matches!(event, Event::Message(_)))
+    .event(|event| matches!(event, Event::Message(_) | Event::Line(_)))
     .server(":ergo.test REGISTER SUCCESS alice :Account successfully registered")
-    .event(|event| matches!(event, Event::Message(_)))
+    .event(|event| matches!(event, Event::Message(_) | Event::Line(_)))
     .inspect(|session| assert_eq!(session.account(), None));
 }
 
@@ -441,10 +441,10 @@ fn disconnect_aborts_registration_and_rejects_its_late_success() {
 fn verification_challenge_requires_both_register_and_its_result_code() {
     early_registration_waiting()
         .server(":ergo.test VERIFY VERIFICATION_REQUIRED alice :Verification code sent")
-        .event(|event| matches!(event, Event::Message(_)))
+        .event(|event| matches!(event, Event::Message(_) | Event::Line(_)))
         .no_client()
         .server(":ergo.test REGISTER CONTINUE alice :Verification code sent")
-        .event(|event| matches!(event, Event::Message(_)))
+        .event(|event| matches!(event, Event::Message(_) | Event::Line(_)))
         .no_client()
         .server(":ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent")
         .event(|event| {

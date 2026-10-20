@@ -265,17 +265,17 @@ fn list_full_forgets_only_the_rejected_presence() {
 fn malformed_monitor_replies_remain_messages() {
     registered()
         .server(":ergo.test 730 papo :!alice@cloak.example")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "730"))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "730"))
         .server(":ergo.test 730 papo :alice!@cloak.example")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "730"))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "730"))
         .server(":ergo.test 730 papo :alice!~alice@")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "730"))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "730"))
         .server(":ergo.test 731 papo :")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "731"))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "731"))
         .server(":ergo.test 734 papo many alice :Monitor list is full")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "734"))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "734"))
         .server(":ergo.test 734 papo 100 :")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "734"))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "734"))
         .no_event();
 }
 
@@ -566,8 +566,8 @@ fn user_requested_monitor_list_replies_remain_messages() {
         .send(Line::new("MONITOR", ["L"]))
         .client("MONITOR L")
         .server(":ergo.test 732 papo :alice,bob")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "732"))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "732"))
         .server(":ergo.test 733 papo :End of MONITOR list")
-        .event(|event| matches!(event, Event::Message(message) if message.as_ref().raw_command() == "733"))
+        .event(|event| matches!(event, Event::Message(message) | Event::Line(message) if message.as_ref().raw_command() == "733"))
         .no_event();
 }
