@@ -40,6 +40,13 @@ async fn connect_line_lengths(s: Scenario) -> papo_testing::Result<()> {
         let bytes = read_bounded_line(&mut connection)?
             .ok_or_else(|| io::Error::other("server closed while connecting"))?;
         let measured = measure(&bytes)?;
+        if measured.command == "PING" {
+            let (_, argument) = command_parts(&bytes, measured.tags)?;
+            connection.get_mut().write_all(b"PONG ")?;
+            connection.get_mut().write_all(argument)?;
+            connection.get_mut().write_all(b"\r\n")?;
+            connection.get_mut().flush()?;
+        }
         saw_cap |= measured.command == "CAP";
         saw_connect_end |= matches!(measured.command.as_str(), "376" | "422");
         if !measured.fits_wire_limits() {
@@ -116,14 +123,7 @@ fn measure(bytes: &[u8]) -> io::Result<Measurement> {
     } else {
         0
     };
-    let mut rest = &bytes[tags..bytes.len() - 2];
-    if rest.first() == Some(&b':') {
-        rest = rest
-            .iter()
-            .position(|byte| *byte == b' ')
-            .map_or(&[], |separator| &rest[separator + 1..]);
-    }
-    let command = rest.split(|byte| *byte == b' ').next().unwrap_or_default();
+    let (command, _) = command_parts(bytes, tags)?;
     let command = std::str::from_utf8(command)
         .map_err(|_| io::Error::other("server command was not UTF-8"))?
         .to_owned();
@@ -133,6 +133,26 @@ fn measure(bytes: &[u8]) -> io::Result<Measurement> {
         line: bytes.len() - tags,
         command,
     })
+}
+
+fn command_parts(bytes: &[u8], tags: usize) -> io::Result<(&[u8], &[u8])> {
+    let mut rest = &bytes[tags..bytes.len() - 2];
+    if rest.first() == Some(&b':') {
+        rest = rest
+            .iter()
+            .position(|byte| *byte == b' ')
+            .map_or(&[], |separator| &rest[separator + 1..]);
+    }
+    let separator = rest
+        .iter()
+        .position(|byte| *byte == b' ')
+        .unwrap_or(rest.len());
+    let command = &rest[..separator];
+    if command.is_empty() {
+        return Err(io::Error::other("server line omitted its command"));
+    }
+    let arguments = rest.get(separator + 1..).unwrap_or_default();
+    Ok((command, arguments))
 }
 
 fn format_measurement(measured: &Measurement) -> String {
@@ -146,7 +166,7 @@ fn format_measurement(measured: &Measurement) -> String {
 mod tests {
     use std::io::{BufReader, Cursor};
 
-    use super::{measure, read_bounded_line};
+    use super::{command_parts, measure, read_bounded_line};
 
     fn padded_line(prefix: &str, length: usize) -> String {
         format!("{prefix}{}\r\n", "x".repeat(length - 2 - prefix.len()))
@@ -185,5 +205,14 @@ mod tests {
         let input = vec![b'x'; 8191 + 512 + 1];
         let mut reader = BufReader::new(Cursor::new(input));
         assert!(read_bounded_line(&mut reader).is_err());
+    }
+
+    #[test]
+    fn finds_an_unrealircd_registration_ping_argument() {
+        let wire = b":irc.papo.test PING :9A7F0132\r\n";
+        let measured = measure(wire).unwrap();
+        let (_, argument) = command_parts(wire, measured.tags).unwrap();
+        assert_eq!(measured.command, "PING");
+        assert_eq!(argument, b":9A7F0132");
     }
 }
