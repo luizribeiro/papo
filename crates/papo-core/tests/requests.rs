@@ -900,6 +900,7 @@ fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
             ResponseMatcher::Whois("alice".into()),
         )
         .unwrap();
+    _ = session.poll_transmit();
     assert_eq!(
         session.poll_timeout(),
         Some(now + std::time::Duration::from_secs(30))
@@ -1055,6 +1056,7 @@ fn labelled_join_times_out_once_when_sync_never_finishes() {
             ResponseMatcher::Join("#papo".into()),
         )
         .unwrap();
+    _ = session.poll_transmit();
     session.handle_line(
         now,
         b"@label=0 :papo!~papo@localhost JOIN #papo * :Papo Bot",
@@ -1081,6 +1083,7 @@ fn labelled_join_without_an_echo_times_out_once() {
             ResponseMatcher::Join("#papo".into()),
         )
         .unwrap();
+    _ = session.poll_transmit();
 
     session.handle_timeout(now + std::time::Duration::from_secs(30));
     assert_eq!(
@@ -1181,6 +1184,34 @@ fn resolves_a_recorded_ergo_whois_batch_once() {
     assert!(response.lines[0].as_ref().command_is("311"));
     assert!(response.lines[2].as_ref().command_is("318"));
     assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn request_deadline_starts_when_its_rate_limited_line_is_transmitted() {
+    let now = Instant::now();
+    let rate = RateLimit::new(1, std::time::Duration::from_secs(60))
+        .unwrap()
+        .strict();
+    let config = Config::default().rate_limit(rate);
+    let mut session = Session::new(config);
+    session.handle_connected(now);
+    session.handle_line(now, b":ergo.test CAP * LS :labeled-response");
+    session.handle_line(now, b":ergo.test CAP * ACK :labeled-response");
+    while session.poll_transmit().is_some() {}
+    let alice = request(&mut session, now, Line::new("WHOIS", ["alice"]));
+    let bob = request(&mut session, now, Line::new("WHOIS", ["bob"]));
+    assert!(session.poll_transmit().is_some());
+    assert_eq!(session.poll_transmit(), None);
+    session.handle_timeout(now + std::time::Duration::from_secs(30));
+    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id }) if id == alice));
+    assert_eq!(session.poll_event(), None);
+    session.handle_timeout(now + std::time::Duration::from_secs(60));
+    assert_eq!(session.poll_transmit().unwrap(), b"@label=1 WHOIS bob\r\n");
+    session.handle_timeout(now + std::time::Duration::from_secs(90));
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::RequestTimedOut { id } if id == bob))
+    );
 }
 
 #[test]
@@ -1425,6 +1456,7 @@ fn times_out_and_releases_a_label_for_late_delivery() {
     let now = Instant::now();
     let mut session = labelled_session(now);
     let id = request(&mut session, now, Line::new("WHOIS", ["alice"]));
+    _ = session.poll_transmit();
     assert_eq!(
         session.poll_timeout(),
         Some(now + std::time::Duration::from_secs(30))

@@ -145,11 +145,11 @@ impl Session {
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
             self.requests
-                .insert(label, (id, now, sent, feature, emit_events));
+                .insert(label, (id, None, sent, feature, emit_events));
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
-        self.outbox.transmit_raw(line.into());
+        self.outbox.transmit_tracked(line.into(), None, Some(id));
         Ok(id)
     }
 }

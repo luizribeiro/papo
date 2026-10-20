@@ -903,7 +903,7 @@ impl ResponseMatcher {
 #[derive(Debug)]
 struct UnlabelledRequest {
     id: RequestId,
-    started: Instant,
+    started: Option<Instant>,
     matcher: ResponseMatcher,
     fence: Option<String>,
     lines: Vec<Line>,
@@ -1798,6 +1798,8 @@ pub enum StateLimit {
     BouncerNetworks,
 }
 
+type PendingRequests = BTreeMap<String, (RequestId, Option<Instant>, bool, Option<Feature>, bool)>;
+
 /// Sans-I/O state for one IRC client session.
 pub struct Session {
     account_registration: AccountRegistration,
@@ -1814,7 +1816,7 @@ pub struct Session {
     monitor: Monitor,
     metadata_subscriptions_sent: bool,
     rate_limit: RateLimiter,
-    requests: BTreeMap<String, (RequestId, Instant, bool, Option<Feature>, bool)>,
+    requests: PendingRequests,
     unlabelled_requests: VecDeque<UnlabelledRequest>,
     next_request_id: u64,
     next_transmit_token: u64,
@@ -1880,6 +1882,7 @@ enum Transmission {
         lines: VecDeque<Vec<u8>>,
         started: bool,
         token: Option<TransmitToken>,
+        request: Option<RequestId>,
     },
 }
 
@@ -1887,6 +1890,7 @@ enum Transmission {
 struct QueuedLine {
     line: Vec<u8>,
     token: Option<TransmitToken>,
+    request: Option<RequestId>,
 }
 
 impl Transmission {
@@ -1904,13 +1908,26 @@ impl Outbox {
     }
 
     fn transmit_tagged(&mut self, line: Vec<u8>, token: Option<TransmitToken>) {
+        self.transmit_tracked(line, token, None);
+    }
+
+    fn transmit_tracked(
+        &mut self,
+        line: Vec<u8>,
+        token: Option<TransmitToken>,
+        request: Option<RequestId>,
+    ) {
         if self.close_requested {
             if let Some(token) = token {
                 self.event(Event::TransmitAborted { token });
             }
             return;
         }
-        let line = QueuedLine { line, token };
+        let line = QueuedLine {
+            line,
+            token,
+            request,
+        };
         if bypasses_rate_limit(&line.line) {
             self.immediate.push_back(line);
         } else {
@@ -1918,12 +1935,18 @@ impl Outbox {
         }
     }
 
-    fn transmit_batch(&mut self, lines: Vec<Vec<u8>>, token: Option<TransmitToken>) {
+    fn transmit_tracked_batch(
+        &mut self,
+        lines: Vec<Vec<u8>>,
+        token: Option<TransmitToken>,
+        request: Option<RequestId>,
+    ) {
         if !self.close_requested && !lines.is_empty() {
             self.transmits.push_back(Transmission::Batch {
                 lines: lines.into(),
                 started: false,
                 token,
+                request,
             });
         } else if let Some(token) = token {
             self.event(Event::TransmitAborted { token });
@@ -1948,6 +1971,7 @@ impl Outbox {
             Ok(line) => self.immediate.push_back(QueuedLine {
                 line: line.into(),
                 token: None,
+                request: None,
             }),
             Err(error) => self.close(
                 CloseKind::Other,
@@ -2156,7 +2180,7 @@ impl Session {
             .iter()
             .filter(|(_, (_, started, _, _, _))| {
                 started
-                    .checked_add(self.config.request_timeout)
+                    .and_then(|started| started.checked_add(self.config.request_timeout))
                     .is_some_and(|deadline| now >= deadline)
             })
             .map(|(label, _)| label.clone())
@@ -2172,7 +2196,7 @@ impl Session {
         for request in pending {
             if request
                 .started
-                .checked_add(self.config.request_timeout)
+                .and_then(|started| started.checked_add(self.config.request_timeout))
                 .is_some_and(|deadline| now >= deadline)
             {
                 self.away_messages.remove(&request.id);
@@ -2385,9 +2409,10 @@ impl Session {
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
             let sent = self.caps.enabled().contains_key(cap::ECHO_MESSAGE);
-            self.requests.insert(label, (id, now, sent, None, true));
+            self.requests.insert(label, (id, None, sent, None, true));
         }
-        let transmit = self.queue_text_lines(lines, batch_count > 0, !labelled);
+        let transmit =
+            self.queue_text_lines(lines, batch_count > 0, !labelled, labelled.then_some(id));
         Ok(SendTextResult {
             request: labelled.then_some(id),
             transmit,
@@ -2400,6 +2425,7 @@ impl Session {
         lines: Vec<Vec<u8>>,
         batched: bool,
         tracked: bool,
+        request: Option<RequestId>,
     ) -> Option<TransmitToken> {
         let token = tracked.then(|| {
             let token = TransmitToken(self.next_transmit_token);
@@ -2407,12 +2433,15 @@ impl Session {
             token
         });
         if batched {
-            self.outbox.transmit_batch(lines, token);
+            self.outbox.transmit_tracked_batch(lines, token, request);
         } else {
             let last = lines.len() - 1;
             for (index, line) in lines.into_iter().enumerate() {
-                self.outbox
-                    .transmit_tagged(line, (index == last).then_some(token).flatten());
+                self.outbox.transmit_tracked(
+                    line,
+                    (index == last).then_some(token).flatten(),
+                    (index == last).then_some(request).flatten(),
+                );
             }
         }
         token
@@ -2507,7 +2536,7 @@ impl Session {
             if track_sync {
                 self.unlabelled_requests.push_back(UnlabelledRequest {
                     id,
-                    started: now,
+                    started: None,
                     matcher,
                     fence: None,
                     lines: Vec::new(),
@@ -2526,7 +2555,7 @@ impl Session {
         self.next_request_id = self.next_request_id.wrapping_add(1);
         self.unlabelled_requests.push_back(UnlabelledRequest {
             id,
-            started: now,
+            started: None,
             matcher,
             fence: fence.clone(),
             lines: Vec::new(),
@@ -2534,10 +2563,12 @@ impl Session {
         if let Some(message) = away_message {
             self.away_messages.insert(id, message);
         }
-        self.outbox.transmit_raw(line.into());
         if let Some(fence) = fence {
+            self.outbox.transmit_raw(line.into());
             self.outbox
-                .transmit_raw(format!("PING :{fence}\r\n").into_bytes());
+                .transmit_tracked(format!("PING :{fence}\r\n").into_bytes(), None, Some(id));
+        } else {
+            self.outbox.transmit_tracked(line.into(), None, Some(id));
         }
         Ok(id)
     }
@@ -2601,6 +2632,7 @@ impl Session {
             Some(Transmission::Batch { started: true, .. })
         );
         if !batch_open && let Some(line) = self.outbox.immediate.pop_front() {
+            self.mark_request_started(line.request);
             return Some(Transmit {
                 line: line.line,
                 token: line.token,
@@ -2612,12 +2644,18 @@ impl Session {
             return None;
         }
         match self.outbox.transmits.pop_front()? {
-            Transmission::Line(line) => Some(Transmit {
-                line: line.line,
-                token: line.token,
-            }),
+            Transmission::Line(line) => {
+                self.mark_request_started(line.request);
+                Some(Transmit {
+                    line: line.line,
+                    token: line.token,
+                })
+            }
             Transmission::Batch {
-                mut lines, token, ..
+                mut lines,
+                token,
+                request,
+                ..
             } => {
                 let line = lines.pop_front();
                 let last = lines.is_empty();
@@ -2626,12 +2664,32 @@ impl Session {
                         lines,
                         started: true,
                         token,
+                        request,
                     });
+                }
+                if last {
+                    self.mark_request_started(request);
                 }
                 line.map(|line| Transmit {
                     line,
                     token: last.then_some(token).flatten(),
                 })
+            }
+        }
+    }
+
+    fn mark_request_started(&mut self, request: Option<RequestId>) {
+        let (Some(id), Some(now)) = (request, self.rate_limit.now) else {
+            return;
+        };
+        for (request_id, started, _, _, _) in self.requests.values_mut() {
+            if *request_id == id && started.is_none() {
+                *started = Some(now);
+            }
+        }
+        for pending in &mut self.unlabelled_requests {
+            if pending.id == id && pending.started.is_none() {
+                pending.started = Some(now);
             }
         }
     }
@@ -2656,12 +2714,16 @@ impl Session {
             self.requests
                 .values()
                 .filter_map(|(_, started, _, _, _)| {
-                    started.checked_add(self.config.request_timeout)
+                    started.and_then(|started| started.checked_add(self.config.request_timeout))
                 })
                 .min(),
             self.unlabelled_requests
                 .iter()
-                .filter_map(|request| request.started.checked_add(self.config.request_timeout))
+                .filter_map(|request| {
+                    request
+                        .started
+                        .and_then(|started| started.checked_add(self.config.request_timeout))
+                })
                 .min(),
         ]
         .into_iter()
@@ -3513,12 +3575,13 @@ mod tests {
     #[test]
     fn batch_queue_rejects_empty_and_closed_transmissions() {
         let mut outbox = Outbox::default();
-        outbox.transmit_batch(Vec::new(), None);
+        outbox.transmit_tracked_batch(Vec::new(), None, None);
         assert!(outbox.transmits.is_empty());
 
         outbox.close_requested = true;
-        outbox.transmit_batch(
+        outbox.transmit_tracked_batch(
             vec![b"BATCH +papo draft/multiline #papo\r\n".to_vec()],
+            None,
             None,
         );
         assert!(outbox.transmits.is_empty());

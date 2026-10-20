@@ -1486,6 +1486,7 @@ mod tests {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default().request_timeout(Duration::ZERO));
         let id = session.request(now, Line::new("MODE", ["#papo"])).unwrap();
+        _ = session.poll_transmit();
         session.handle_timeout(now);
         assert!(
             matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestTimedOut(mapped) if mapped == id)

@@ -86,7 +86,7 @@ pub(super) struct RateLimiter {
     config: RateLimit,
     tokens: usize,
     next_token: Option<Instant>,
-    now: Option<Instant>,
+    pub(super) now: Option<Instant>,
 }
 
 impl RateLimiter {
