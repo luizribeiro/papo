@@ -38,13 +38,14 @@ pub use connection::{
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
+pub use papo_core::BatchAbandonReason;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::PersistenceSetting;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use server::BouncerNetworkChanged;
-pub use server::{BatchAbandonReason, MetadataChanged, StateLimit, Warning};
+pub use server::{MetadataChanged, StateLimit, Warning};
 pub use source::Source;
 pub use tags::Tags;
 pub use user::{
@@ -967,13 +968,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         } => Event::Warning(Warning::BatchAbandoned {
             id: reference,
             batch_type,
-            reason: match reason {
-                papo_core::BatchAbandonReason::OpenBatchLimit => BatchAbandonReason::OpenBatchLimit,
-                papo_core::BatchAbandonReason::LineLimit => BatchAbandonReason::LineLimit,
-                papo_core::BatchAbandonReason::ByteLimit => BatchAbandonReason::ByteLimit,
-                papo_core::BatchAbandonReason::Timeout => BatchAbandonReason::Timeout,
-                _ => return CoreEvent::Unknown,
-            },
+            reason,
         }),
         papo_core::Event::Malformed { line } => Event::Warning(Warning::Malformed { line }),
         papo_core::Event::Close { kind, reason } => return CoreEvent::Close { kind, reason },

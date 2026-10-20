@@ -135,28 +135,8 @@ pub const papo::cap::STS: &str
 pub const papo::cap::USERHOST_IN_NAMES: &str
 pub const papo::cap::WHOAMI: &str
 pub mod papo::event
+pub use papo::event::BatchAbandonReason
 pub use papo::event::Visibility
-#[non_exhaustive] pub enum papo::event::BatchAbandonReason
-pub papo::event::BatchAbandonReason::ByteLimit
-pub papo::event::BatchAbandonReason::LineLimit
-pub papo::event::BatchAbandonReason::OpenBatchLimit
-pub papo::event::BatchAbandonReason::Timeout
-impl core::clone::Clone for papo::event::BatchAbandonReason
-pub fn papo::event::BatchAbandonReason::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::BatchAbandonReason
-impl core::cmp::PartialEq for papo::event::BatchAbandonReason
-pub fn papo::event::BatchAbandonReason::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::BatchAbandonReason
-pub fn papo::event::BatchAbandonReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::event::BatchAbandonReason
-impl core::marker::StructuralPartialEq for papo::event::BatchAbandonReason
-impl core::marker::Freeze for papo::event::BatchAbandonReason
-impl core::marker::Send for papo::event::BatchAbandonReason
-impl core::marker::Sync for papo::event::BatchAbandonReason
-impl core::marker::Unpin for papo::event::BatchAbandonReason
-impl core::marker::UnsafeUnpin for papo::event::BatchAbandonReason
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::BatchAbandonReason
-impl core::panic::unwind_safe::UnwindSafe for papo::event::BatchAbandonReason
 #[non_exhaustive] pub enum papo::event::Source
 #[non_exhaustive] pub papo::event::Source::Server
 pub papo::event::Source::Server::name: alloc::string::String
@@ -230,7 +210,7 @@ pub papo::event::Warning::AuthenticationFailed::reason: alloc::string::String
 #[non_exhaustive] pub papo::event::Warning::BatchAbandoned
 pub papo::event::Warning::BatchAbandoned::batch_type: alloc::string::String
 pub papo::event::Warning::BatchAbandoned::id: alloc::string::String
-pub papo::event::Warning::BatchAbandoned::reason: papo::event::BatchAbandonReason
+pub papo::event::Warning::BatchAbandoned::reason: papo::BatchAbandonReason
 #[non_exhaustive] pub papo::event::Warning::Malformed
 pub papo::event::Warning::Malformed::line: alloc::vec::Vec<u8>
 #[non_exhaustive] pub papo::event::Warning::MonitorListFull

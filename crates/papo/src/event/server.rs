@@ -1,6 +1,7 @@
 use std::fmt;
 
 use crate::{MetadataKey, Nick, Subject, Visibility};
+use papo_core::BatchAbandonReason;
 
 /// An upstream bouncer network was added, updated, or removed.
 #[cfg(feature = "unstable")]
@@ -26,20 +27,6 @@ pub struct MetadataChanged {
     pub value: Option<String>,
     /// Visibility policy reported by the server.
     pub visibility: Visibility,
-}
-
-/// Why an incomplete server batch was released as individual messages.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum BatchAbandonReason {
-    /// The server opened more batches than configured.
-    OpenBatchLimit,
-    /// A batch exceeded its configured retained-line limit.
-    LineLimit,
-    /// A multiline batch exceeded its negotiated text-byte limit.
-    ByteLimit,
-    /// A batch did not close before its deadline.
-    Timeout,
 }
 
 /// A bounded server-controlled state collection.
@@ -135,7 +122,10 @@ impl fmt::Display for Warning {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use super::{BatchAbandonReason, StateLimit, Warning};
+    use super::Warning;
+    use papo_core::BatchAbandonReason;
+
+    use super::StateLimit;
 
     #[test]
     fn warnings_have_human_readable_diagnostics() {
