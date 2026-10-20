@@ -7,6 +7,10 @@ fn ascii_nick(value: &str) -> papo::Nick {
     Casemapping::Ascii.nick(value)
 }
 
+fn assert_same_channel(state: &papo::State, left: &str, right: &str) {
+    assert_eq!(state.channel_name(left), right);
+}
+
 /// folds only ASCII letters for nicknames, channels and state lookups under ascii
 #[scenario(
     requires(isupport = ["CASEMAPPING"]),
@@ -41,7 +45,7 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     };
     assert_eq!(square.state().nick().as_ref(), square_nick);
     assert_eq!(curly.state().nick().as_ref(), curly_nick);
-    assert!(!square.state().casemapping().eq(&square_nick, &curly_nick));
+    assert_ne!(square.state().nick(), curly_nick.as_str());
 
     let mixed_channel = format!("#Papo-{stem}");
     let lowercase_channel = format!("#papo-{stem}");
@@ -55,6 +59,7 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(joined.channel.as_ref(), mixed_channel);
+    assert_same_channel(&square.state(), &mixed_channel, &lowercase_channel);
     assert!(square.state().channel(&lowercase_channel).is_some());
     assert!(curly.state().channel(&mixed_channel).is_some());
 

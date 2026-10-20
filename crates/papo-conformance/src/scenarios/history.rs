@@ -164,7 +164,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let alice = s.connect("alice").await?;
-    let channel = s.channel_name();
+    let channel = alice.state().channel_name(s.channel_name());
     alice.join(&channel).await?;
     let texts = (1..=25)
         .map(|number| format!("deployment log entry {number:02}"))
@@ -292,13 +292,12 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
             SystemTime::now() + Duration::from_secs(60),
         )
         .await?;
-    assert!(targets.iter().all(|entry| {
-        entry.target.as_ref() != target
-            && !alice
-                .state()
-                .casemapping()
-                .eq(entry.target.as_ref(), "BouncerServ")
-    }));
+    let bouncer = alice.state().nickname("BouncerServ");
+    assert!(
+        targets
+            .iter()
+            .all(|entry| { entry.target.as_ref() != target && bouncer != entry.target.as_ref() })
+    );
     Ok(())
 }
 

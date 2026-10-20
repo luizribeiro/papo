@@ -332,7 +332,7 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let mut dave = s.connect("dave").await?;
-    let channel = s.channel_name();
+    let channel = alice.state().channel_name(s.channel_name());
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     carol.join(&channel).await?;
@@ -353,7 +353,7 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "voiced members only"))
         .await?;
     for message in [&echo, &received_by_bob, &received_by_alice] {
-        assert_eq!(message.target(), channel);
+        assert_eq!(message.target(), channel.as_ref());
         assert_eq!(message.status.as_deref(), Some(['+'].as_slice()));
         assert_eq!(message.raw_text(), "voiced members only");
         assert_eq!(message.id(), sent.id.as_ref());
@@ -625,7 +625,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let mut dave = s.connect("dave").await?;
-    let channel = s.channel_name();
+    let channel = alice.state().channel_name(s.channel_name());
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     carol.join(&channel).await?;
@@ -633,7 +633,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     alice.mode(&channel).op(bob.nick()).await?;
 
     let target = format!("@{channel}");
-    alice.typing(target.clone(), Typing::Active).await?;
+    alice.typing(&target, Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;
     assert_eq!(
         typing.source.as_ref().and_then(Source::nick),

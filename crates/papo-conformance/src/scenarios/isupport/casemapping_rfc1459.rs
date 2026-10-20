@@ -36,7 +36,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(square.state().nick().as_ref(), square_nick);
     assert_ne!(curly.state().nick().as_ref(), curly_nick);
-    assert!(square.state().casemapping().eq(&square_nick, &curly_nick));
+    assert_eq!(square.state().nick(), curly_nick.as_str());
     let Error::Server(refusal) = curly.set_nick(curly_nick.clone()).await.unwrap_err() else {
         panic!("rfc1459-equivalent nickname did not return a server refusal");
     };
@@ -55,6 +55,10 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(joined.channel.as_ref(), mixed_channel);
+    assert_eq!(
+        square.state().channel_name(&mixed_channel),
+        lowercase_channel.as_str()
+    );
     assert!(square.state().channel(&lowercase_channel).is_some());
     assert!(curly.state().channel(&mixed_channel).is_some());
 
