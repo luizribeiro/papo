@@ -1,6 +1,6 @@
 use web_time::Instant;
 
-use papo_proto::{Message, MetadataKey};
+use papo_proto::{Line, MetadataKey};
 
 use crate::{Capabilities, Feature, RequestError, RequestId, Session, cap};
 
@@ -152,7 +152,7 @@ impl Session {
             MetadataCommand::Subs => params.extend(["*".into(), "SUBS".into()]),
             MetadataCommand::Sync { target } => params.extend([target, "SYNC".into()]),
         }
-        self.request_for_feature(now, Message::new("METADATA", params), Feature::Metadata)
+        self.request_for_feature(now, Line::new("METADATA", params), Feature::Metadata)
     }
 }
 

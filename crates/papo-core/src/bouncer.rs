@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use papo_proto::escape_tag_value;
-use papo_proto::{LineRef, Message, Nick};
+use papo_proto::{Line, LineRef, Nick};
 use web_time::Instant;
 
 use crate::{Feature, RequestError, RequestId, Secret, Session};
@@ -277,7 +277,7 @@ impl Session {
     pub fn bouncer_networks(&mut self, now: Instant) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Message::new("BOUNCER", ["LISTNETWORKS"]),
+            Line::new("BOUNCER", ["LISTNETWORKS"]),
             Feature::Bouncer,
         )
     }
@@ -295,7 +295,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Message::new("BOUNCER", ["ADDNETWORK", &config.attributes()?]),
+            Line::new("BOUNCER", ["ADDNETWORK", &config.attributes()?]),
             Feature::Bouncer,
         )
     }
@@ -314,7 +314,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Message::new(
+            Line::new(
                 "BOUNCER",
                 ["CHANGENETWORK", id.as_str(), &config.attributes()?],
             ),
@@ -334,7 +334,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Message::new("BOUNCER", ["DELNETWORK", id.as_str()]),
+            Line::new("BOUNCER", ["DELNETWORK", id.as_str()]),
             Feature::Bouncer,
         )
     }

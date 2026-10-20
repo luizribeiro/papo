@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 use web_time::Instant;
 
-use papo_proto::{LimitValue, Message, time};
+use papo_proto::{LimitValue, Line, time};
 
 use crate::{Feature, RequestError, RequestId, Session};
 
@@ -125,7 +125,7 @@ impl Session {
             requested.min(advertised).min(LOCAL_HISTORY_LIMIT),
             &supported,
         )?;
-        self.request_for_feature(now, Message::new("CHATHISTORY", params), Feature::History)
+        self.request_for_feature(now, Line::new("CHATHISTORY", params), Feature::History)
     }
 
     /// Sets the read marker for `target` to a UTC timestamp.
@@ -142,7 +142,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Message::new(
+            Line::new(
                 "MARKREAD",
                 [
                     target.to_owned(),
@@ -164,7 +164,7 @@ impl Session {
     /// or [`RequestError::Build`] when the target cannot be encoded.
     pub fn read_marker(&mut self, target: &str) -> Result<(), RequestError> {
         self.require_feature(Feature::ReadMarkers)?;
-        let line = Message::new("MARKREAD", [target]).to_line()?;
+        let line = Line::new("MARKREAD", [target]).to_line()?;
         self.outbox.transmit_raw(line.into());
         Ok(())
     }

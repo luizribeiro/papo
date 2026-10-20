@@ -4,7 +4,7 @@ use base64::{
     Engine as _,
     engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD},
 };
-use papo_proto::Message;
+use papo_proto::Line;
 
 use crate::{Feature, RequestError, RequestId, Session};
 
@@ -31,7 +31,7 @@ impl Session {
         let keys = format!("p256dh={p256dh};auth={auth}");
         self.request_for_feature(
             now,
-            Message::new("WEBPUSH", ["REGISTER", endpoint, &keys]),
+            Line::new("WEBPUSH", ["REGISTER", endpoint, &keys]),
             Feature::WebPush,
         )
     }
@@ -51,7 +51,7 @@ impl Session {
         validate_endpoint(endpoint)?;
         self.request_for_feature(
             now,
-            Message::new("WEBPUSH", ["UNREGISTER", endpoint]),
+            Line::new("WEBPUSH", ["UNREGISTER", endpoint]),
             Feature::WebPush,
         )
     }

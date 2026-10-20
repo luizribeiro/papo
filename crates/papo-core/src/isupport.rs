@@ -1,4 +1,4 @@
-use papo_proto::{Isupport, LineRef, Message};
+use papo_proto::{Isupport, Line, LineRef};
 
 use crate::{Decoding, Handled};
 
@@ -36,7 +36,7 @@ impl IsupportState {
         Handled::Yes
     }
 
-    pub(super) fn handle_batch(&mut self, messages: &[Message]) {
+    pub(super) fn handle_batch(&mut self, messages: &[Line]) {
         let mut value = self.value.clone();
         for message in messages {
             value.apply(&message.as_ref());

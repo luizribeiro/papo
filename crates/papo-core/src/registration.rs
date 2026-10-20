@@ -1,6 +1,6 @@
 use web_time::Instant;
 
-use papo_proto::{Isupport, LineRef, Message, escape_tag_value};
+use papo_proto::{Isupport, Line, LineRef, escape_tag_value};
 
 use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome};
 
@@ -65,7 +65,7 @@ impl Registration {
             if !options.is_empty() {
                 params.push(&options);
             }
-            let Ok(line) = Message::new("WEBIRC", params).to_line() else {
+            let Ok(line) = Line::new("WEBIRC", params).to_line() else {
                 outbox.close(CloseKind::Other, "invalid WEBIRC configuration".to_owned());
                 return;
             };

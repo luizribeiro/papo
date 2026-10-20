@@ -1,6 +1,6 @@
 use web_time::Instant;
 
-use papo_proto::Message;
+use papo_proto::Line;
 
 use crate::{Feature, RequestError, RequestId, Session};
 
@@ -22,6 +22,6 @@ impl Session {
         if !reason.is_empty() {
             params.push(reason);
         }
-        self.request_for_feature(now, Message::new("RENAME", params), Feature::ChannelRename)
+        self.request_for_feature(now, Line::new("RENAME", params), Feature::ChannelRename)
     }
 }

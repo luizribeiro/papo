@@ -1,6 +1,6 @@
 use web_time::Instant;
 
-use papo_proto::Message;
+use papo_proto::Line;
 
 use crate::{Feature, RequestError, RequestId, Session, cap};
 
@@ -34,7 +34,7 @@ impl Session {
         }
         self.request_for_feature(
             now,
-            Message::new("RELAYMSG", [channel, nick_with_separator, text]),
+            Line::new("RELAYMSG", [channel, nick_with_separator, text]),
             Feature::Relay,
         )
     }
