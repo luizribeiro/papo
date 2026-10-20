@@ -81,11 +81,11 @@ pub fn connected(nick: impl Into<Nick>) -> Connected {
 
 /// Constructs a channel-join event payload.
 #[must_use]
-pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, is_self: bool) -> Joined {
+pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool) -> Joined {
     Joined {
         channel: channel.into(),
         nick: nick.into(),
-        authorship: if is_self {
+        authorship: if own {
             Authorship::Own
         } else {
             Authorship::Other

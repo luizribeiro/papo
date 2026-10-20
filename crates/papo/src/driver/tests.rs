@@ -656,7 +656,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             authorship: crate::Authorship::Other,
             subject_authorship: crate::Authorship::Other,
             reason: Some("idle".into()),
-            is_self: false,
         }),
     );
     assert_eq!(defaults.channels.len(), 2);
@@ -686,7 +685,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             authorship: crate::Authorship::Other,
             subject_authorship: crate::Authorship::Own,
             reason: Some("access removed".into()),
-            is_self: true,
         }),
     );
     assert!(defaults.channels.is_empty());
@@ -3288,7 +3286,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
         .unwrap()
         .clone();
     assert_eq!(changed.new, "papo-renamed");
-    assert!(changed.is_self);
+    assert_eq!(changed.authorship, crate::Authorship::Own);
 
     server_line(
         &mut server,

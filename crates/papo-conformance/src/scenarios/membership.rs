@@ -529,11 +529,11 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(target.channel.as_ref(), channel);
     assert_eq!(target.nick.as_ref(), carol_nick.as_ref());
     assert_eq!(target.actor.nick(), Some(alice_nick.as_ref()));
-    assert!(target.is_self);
+    assert_eq!(target.subject_authorship, papo::Authorship::Own);
     assert_eq!(observer.channel.as_ref(), channel);
     assert_eq!(observer.nick.as_ref(), carol_nick.as_ref());
     assert_eq!(observer.actor.nick(), Some(alice_nick.as_ref()));
-    assert!(!observer.is_self);
+    assert_eq!(observer.subject_authorship, papo::Authorship::Other);
     assert!(
         alice
             .state()
@@ -594,7 +594,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     let invited = carol.wait_for(Event::as_invited).await?;
     assert_eq!(invited.channel.as_ref(), channel);
     assert_eq!(invited.nick, carol_nick);
-    assert!(invited.is_self);
+    assert_eq!(invited.subject_authorship, papo::Authorship::Own);
     carol.join(&channel).await?;
     let joined = alice
         .wait_for(|event| event.as_joined().filter(|joined| joined.nick == carol_nick))
@@ -776,8 +776,8 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(kicked.actor.nick(), Some(alice_nick.as_ref()));
         assert_eq!(kicked.reason.as_deref(), Some(reason));
     }
-    assert!(!observed.is_self);
-    assert!(own.is_self);
+    assert_eq!(observed.subject_authorship, papo::Authorship::Other);
+    assert_eq!(own.subject_authorship, papo::Authorship::Own);
     assert!(
         alice
             .state()
@@ -843,8 +843,8 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(own.actor.nick(), Some(alice_nick.as_ref()));
         assert_eq!(observed.reason.as_deref(), Some(alice_nick.as_ref()));
         assert_eq!(own.reason, observed.reason);
-        assert!(!observed.is_self);
-        assert!(own.is_self);
+        assert_eq!(observed.subject_authorship, papo::Authorship::Other);
+        assert_eq!(own.subject_authorship, papo::Authorship::Own);
         assert!(
             alice
                 .state()
@@ -909,8 +909,8 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(changed.old, old_nick);
         assert_eq!(changed.new.as_ref(), new_nick);
     }
-    assert!(own.is_self);
-    assert!(!observed.is_self);
+    assert_eq!(own.authorship, papo::Authorship::Own);
+    assert_eq!(observed.authorship, papo::Authorship::Other);
     assert_eq!(alice.state().nick(), new_nick.as_str());
     assert!(
         alice

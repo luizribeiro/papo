@@ -487,7 +487,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::HostChanged
 pub papo::event::Invited::actor: papo::Source
 pub papo::event::Invited::authorship: papo::Authorship
 pub papo::event::Invited::channel: papo::ChannelName
-pub papo::event::Invited::is_self: bool
 pub papo::event::Invited::nick: papo::Nick
 pub papo::event::Invited::subject_authorship: papo::Authorship
 impl core::clone::Clone for papo::event::Invited
@@ -528,7 +527,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Joined
 pub papo::event::Kicked::actor: papo::Source
 pub papo::event::Kicked::authorship: papo::Authorship
 pub papo::event::Kicked::channel: papo::ChannelName
-pub papo::event::Kicked::is_self: bool
 pub papo::event::Kicked::nick: papo::Nick
 pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
 pub papo::event::Kicked::subject_authorship: papo::Authorship
@@ -699,7 +697,6 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Netsplit
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Netsplit
 #[non_exhaustive] pub struct papo::event::NickChanged
 pub papo::event::NickChanged::authorship: papo::Authorship
-pub papo::event::NickChanged::is_self: bool
 pub papo::event::NickChanged::new: papo::Nick
 pub papo::event::NickChanged::old: papo::Nick
 impl core::clone::Clone for papo::event::NickChanged

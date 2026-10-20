@@ -26,8 +26,6 @@ pub struct NickChanged {
     pub new: Nick,
     /// Whether the renamed user is this client's user.
     pub authorship: Authorship,
-    /// Whether the renamed user is this client.
-    pub is_self: bool,
 }
 
 /// A user's away state changed.

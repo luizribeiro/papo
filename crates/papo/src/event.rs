@@ -751,20 +751,6 @@ impl Event {
     }
 }
 
-impl Event {
-    pub(crate) fn mark_self(&mut self, nick: &str) {
-        if let Self::NickChanged(changed) = self {
-            changed.is_self = changed.old == nick || changed.new == nick;
-            return;
-        }
-        match self {
-            Self::Kicked(kicked) => kicked.is_self = kicked.nick == nick,
-            Self::Invited(invited) => invited.is_self = invited.nick == nick,
-            _ => {}
-        }
-    }
-}
-
 // This transient mapping keeps forwarding allocation-free for every event kind.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum CoreEvent {
@@ -1063,7 +1049,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             authorship: Authorship::from_core(authorship),
             subject_authorship: Authorship::from_core(subject_authorship),
             reason,
-            is_self: false,
         }),
         papo_core::Event::Invited {
             channel,
@@ -1077,7 +1062,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             actor: Source::from_prefix(actor, casemapping),
             authorship: Authorship::from_core(authorship),
             subject_authorship: Authorship::from_core(subject_authorship),
-            is_self: false,
         }),
         papo_core::Event::Quit {
             nick,
@@ -1098,7 +1082,6 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             old,
             new,
             authorship: Authorship::from_core(authorship),
-            is_self: false,
         }),
         papo_core::Event::ChannelRenamed {
             old,
@@ -1201,8 +1184,8 @@ mod tests {
     #[cfg(feature = "unstable")]
     use super::PersistenceSetting;
     use super::{
-        Conversation, CoreEvent, Event, Message as ChatMessage, MessageKind, MetadataChanged,
-        ModeKind, Origin, Source, StandardReplyKind, Visibility, Warning,
+        Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageKind,
+        MetadataChanged, ModeKind, Origin, Source, StandardReplyKind, Visibility, Warning,
         from_core as from_core_with_mapping,
     };
     use papo_core::{
@@ -1561,7 +1544,7 @@ mod tests {
             Source::User { nick, user: Some(user), host: Some(host) }
                 if nick == "emily" && user == "~emily" && host == "localhost"
         ));
-        assert!(!invited.is_self);
+        assert_eq!(invited.subject_authorship, Authorship::Own);
     }
 
     #[test]
@@ -2319,40 +2302,37 @@ mod tests {
             name: "ergo.test".to_owned(),
         };
         let mapping = Casemapping::Rfc1459;
-        let mut events = [
+        let events = [
             Event::Joined(super::Joined {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
-                authorship: crate::Authorship::Own,
+                authorship: Authorship::Own,
             }),
             Event::Parted(super::Parted {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 reason: None,
-                authorship: crate::Authorship::Own,
+                authorship: Authorship::Own,
             }),
             Event::Kicked(super::Kicked {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 actor: actor.clone(),
-                authorship: crate::Authorship::Other,
-                subject_authorship: crate::Authorship::Own,
+                authorship: Authorship::Other,
+                subject_authorship: Authorship::Own,
                 reason: None,
-                is_self: false,
             }),
             Event::Invited(super::Invited {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 actor,
-                authorship: crate::Authorship::Other,
-                subject_authorship: crate::Authorship::Own,
-                is_self: false,
+                authorship: Authorship::Other,
+                subject_authorship: Authorship::Own,
             }),
             Event::NickChanged(super::NickChanged {
                 old: mapping.nick("Papo[Bot]"),
                 new: mapping.nick("papo-away"),
-                authorship: crate::Authorship::Own,
-                is_self: false,
+                authorship: Authorship::Own,
             }),
             Event::Netjoin(super::Netjoin {
                 servers: super::SplitServers {
@@ -2362,36 +2342,28 @@ mod tests {
                 joins: vec![super::Joined {
                     channel: mapping.channel("#papo"),
                     nick: mapping.nick("Papo[Bot]"),
-                    authorship: crate::Authorship::Own,
+                    authorship: Authorship::Own,
                 }],
             }),
         ];
 
-        for event in &mut events {
-            event.mark_self("papo{bot}");
-        }
+        assert_eq!(events[0].as_joined().unwrap().authorship, Authorship::Own);
+        assert_eq!(events[1].as_parted().unwrap().authorship, Authorship::Own);
         assert_eq!(
-            events[0].as_joined().unwrap().authorship,
-            crate::Authorship::Own
+            events[2].as_kicked().unwrap().subject_authorship,
+            Authorship::Own
         );
         assert_eq!(
-            events[1].as_parted().unwrap().authorship,
-            crate::Authorship::Own
+            events[3].as_invited().unwrap().subject_authorship,
+            Authorship::Own
         );
-        assert!(events[2].as_kicked().unwrap().is_self);
-        assert!(events[3].as_invited().unwrap().is_self);
-        assert!(events[4].as_nick_changed().unwrap().is_self);
+        assert_eq!(
+            events[4].as_nick_changed().unwrap().authorship,
+            Authorship::Own
+        );
         assert_eq!(
             events[5].as_netjoin().unwrap().joins[0].authorship,
-            crate::Authorship::Own
-        );
-
-        events[4].mark_self("PAPO-AWAY");
-        assert!(events[4].as_nick_changed().unwrap().is_self);
-
-        assert_eq!(
-            events[0].as_joined().unwrap().authorship,
-            crate::Authorship::Own
+            Authorship::Own
         );
     }
 

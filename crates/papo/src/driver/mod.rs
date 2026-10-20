@@ -1245,8 +1245,7 @@ where
         && let Some(core_event) = session.poll_event()
     {
         match event::from_core(core_event, session.isupport().casemapping()) {
-            event::CoreEvent::Forward(mut event) => {
-                event.mark_self(session.nick());
+            event::CoreEvent::Forward(event) => {
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);
                 }
@@ -1555,7 +1554,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
                 .parted_while_disconnected
                 .retain(|channel| parted.channel != channel.as_ref());
         }
-        Event::Kicked(kicked) if kicked.is_self => {
+        Event::Kicked(kicked) if kicked.subject_authorship == crate::Authorship::Own => {
             defaults
                 .channels
                 .retain(|entry| kicked.channel != entry.channel.as_str());

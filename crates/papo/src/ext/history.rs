@@ -218,7 +218,6 @@ fn kicked(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryI
         channel: mapping.channel(message.param(0)?),
         authorship: crate::Authorship::Unknown,
         subject_authorship: crate::Authorship::Unknown,
-        is_self: is_self(client, &nick),
         nick: mapping.nick(nick),
         actor: Source::from_proto(message.source()?, mapping),
         reason: message.param(2).map(str::to_owned),
@@ -230,7 +229,6 @@ fn nick_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<Hi
     let mapping = client.state().casemapping();
     Some(HistoryItem::NickChanged(NickChanged {
         authorship: crate::Authorship::Unknown,
-        is_self: is_self(client, &old),
         old: mapping.nick(old),
         new: mapping.nick(message.param(0)?),
     }))
@@ -284,11 +282,6 @@ fn source_nick(message: &papo_proto::LineRef<'_>) -> Option<String> {
         papo_proto::Source::User { nick, .. } => Some(nick.to_owned()),
         papo_proto::Source::Server(_) => None,
     }
-}
-
-fn is_self(client: &Client, nick: &str) -> bool {
-    let state = client.state();
-    state.nick() == nick
 }
 
 /// A page of requested chat history.
@@ -956,7 +949,7 @@ mod tests {
                 if event.channel == "#papo" && event.nick == "emily"
                     && event.reason.as_deref() == Some("Requested by alice")
                     && matches!(event.actor, crate::Source::Server { ref name } if name == "irc.example")
-                    && !event.is_self
+                    && event.subject_authorship == crate::Authorship::Unknown
         ));
 
         let renamed = map(papo_core::HistoryItem::NickChanged(core_item(
@@ -965,7 +958,8 @@ mod tests {
         assert!(matches!(
             renamed,
             HistoryItem::NickChanged(event)
-                if event.old == "emily" && event.new == "emily_" && !event.is_self
+                if event.old == "emily" && event.new == "emily_"
+                    && event.authorship == crate::Authorship::Unknown
         ));
     }
 

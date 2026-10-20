@@ -68,7 +68,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let changed = alice.wait_for(Event::as_nick_changed).await?;
     assert_eq!(changed.old.as_ref(), base);
     assert_eq!(changed.new.as_ref(), alice_nick);
-    assert!(changed.is_self);
+    assert_eq!(changed.authorship, papo::Authorship::Own);
 
     // ALICE-<n>{X} folds to the same name as alice-<n>[x], so this claim must collide.
     let collision = bob

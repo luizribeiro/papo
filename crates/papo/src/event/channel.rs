@@ -83,8 +83,6 @@ pub struct Kicked {
     pub subject_authorship: Authorship,
     /// The optional kick reason.
     pub reason: Option<String>,
-    /// Whether the removed user is this client.
-    pub is_self: bool,
 }
 
 /// A user was invited to a channel.
@@ -101,8 +99,6 @@ pub struct Invited {
     pub authorship: Authorship,
     /// Whether the invited user is this client's user.
     pub subject_authorship: Authorship,
-    /// Whether the invited user is this client.
-    pub is_self: bool,
 }
 
 /// A channel topic changed.
