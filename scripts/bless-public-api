@@ -34,7 +34,7 @@ generate() {
       -- -Z unstable-options --output-format json
   cargo public-api \
     --rustdoc-json "$target/doc/papo.json" \
-    --color=never -sss | bash nix/normalize-public-api.sh > "$actual"
+    --color=never -s | bash nix/normalize-public-api.sh > "$actual"
   mv "$actual" "crates/papo/$snapshot"
 }
 

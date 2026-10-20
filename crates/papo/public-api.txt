@@ -28,12 +28,39 @@ pub mod papo::bot
 #[non_exhaustive] pub enum papo::bot::ReplyStatus
 pub papo::bot::ReplyStatus::Dropped
 pub papo::bot::ReplyStatus::Sent
+impl core::clone::Clone for papo::bot::ReplyStatus
+pub fn papo::bot::ReplyStatus::clone(&self) -> Self
+impl core::cmp::Eq for papo::bot::ReplyStatus
+impl core::cmp::PartialEq for papo::bot::ReplyStatus
+pub fn papo::bot::ReplyStatus::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::bot::ReplyStatus
+pub fn papo::bot::ReplyStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::bot::ReplyStatus
+impl core::marker::StructuralPartialEq for papo::bot::ReplyStatus
+impl core::marker::Freeze for papo::bot::ReplyStatus
+impl core::marker::Send for papo::bot::ReplyStatus
+impl core::marker::Sync for papo::bot::ReplyStatus
+impl core::marker::Unpin for papo::bot::ReplyStatus
+impl core::marker::UnsafeUnpin for papo::bot::ReplyStatus
+impl core::panic::unwind_safe::RefUnwindSafe for papo::bot::ReplyStatus
+impl core::panic::unwind_safe::UnwindSafe for papo::bot::ReplyStatus
 pub struct papo::bot::BotConfig
 impl papo::bot::BotConfig
 pub fn papo::bot::BotConfig::command(&self, &papo::Client, &papo::Message) -> core::option::Option<papo::bot::Command>
 pub const fn papo::bot::BotConfig::mention(self, bool) -> Self
 pub fn papo::bot::BotConfig::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::bot::BotConfig::reply_limiter(self, papo::bot::ReplyRateLimiter) -> Self
+impl core::clone::Clone for papo::bot::BotConfig
+pub fn papo::bot::BotConfig::clone(&self) -> Self
+impl core::fmt::Debug for papo::bot::BotConfig
+pub fn papo::bot::BotConfig::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::bot::BotConfig
+impl core::marker::Send for papo::bot::BotConfig
+impl core::marker::Sync for papo::bot::BotConfig
+impl core::marker::Unpin for papo::bot::BotConfig
+impl core::marker::UnsafeUnpin for papo::bot::BotConfig
+impl core::panic::unwind_safe::RefUnwindSafe for papo::bot::BotConfig
+impl core::panic::unwind_safe::UnwindSafe for papo::bot::BotConfig
 pub struct papo::bot::Command
 impl papo::bot::Command
 pub fn papo::bot::Command::account(&self) -> core::option::Option<&str>
@@ -46,10 +73,32 @@ pub fn papo::bot::Command::name(&self) -> &str
 pub fn papo::bot::Command::private_notice(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::bot::ReplyStatus>
 pub fn papo::bot::Command::reply(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::bot::ReplyStatus>
 pub fn papo::bot::Command::sender_nick(&self) -> core::option::Option<&str>
+impl core::clone::Clone for papo::bot::Command
+pub fn papo::bot::Command::clone(&self) -> Self
+impl core::fmt::Debug for papo::bot::Command
+pub fn papo::bot::Command::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::bot::Command
+impl core::marker::Send for papo::bot::Command
+impl core::marker::Sync for papo::bot::Command
+impl core::marker::Unpin for papo::bot::Command
+impl core::marker::UnsafeUnpin for papo::bot::Command
+impl core::panic::unwind_safe::RefUnwindSafe for papo::bot::Command
+impl core::panic::unwind_safe::UnwindSafe for papo::bot::Command
 pub struct papo::bot::ReplyRateLimiter
 impl papo::bot::ReplyRateLimiter
 pub fn papo::bot::ReplyRateLimiter::check(&self, &str) -> bool
 pub fn papo::bot::ReplyRateLimiter::new(usize, core::time::Duration) -> core::result::Result<Self, papo::InvalidInput>
+impl core::clone::Clone for papo::bot::ReplyRateLimiter
+pub fn papo::bot::ReplyRateLimiter::clone(&self) -> Self
+impl core::fmt::Debug for papo::bot::ReplyRateLimiter
+pub fn papo::bot::ReplyRateLimiter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::bot::ReplyRateLimiter
+impl core::marker::Send for papo::bot::ReplyRateLimiter
+impl core::marker::Sync for papo::bot::ReplyRateLimiter
+impl core::marker::Unpin for papo::bot::ReplyRateLimiter
+impl core::marker::UnsafeUnpin for papo::bot::ReplyRateLimiter
+impl core::panic::unwind_safe::RefUnwindSafe for papo::bot::ReplyRateLimiter
+impl core::panic::unwind_safe::UnwindSafe for papo::bot::ReplyRateLimiter
 pub mod papo::cap
 pub const papo::cap::ACCOUNT_NOTIFY: &str
 pub const papo::cap::ACCOUNT_REGISTRATION: &str
@@ -89,6 +138,22 @@ pub papo::event::BatchAbandonReason::ByteLimit
 pub papo::event::BatchAbandonReason::LineLimit
 pub papo::event::BatchAbandonReason::OpenBatchLimit
 pub papo::event::BatchAbandonReason::Timeout
+impl core::clone::Clone for papo::event::BatchAbandonReason
+pub fn papo::event::BatchAbandonReason::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::BatchAbandonReason
+impl core::cmp::PartialEq for papo::event::BatchAbandonReason
+pub fn papo::event::BatchAbandonReason::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::BatchAbandonReason
+pub fn papo::event::BatchAbandonReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::event::BatchAbandonReason
+impl core::marker::StructuralPartialEq for papo::event::BatchAbandonReason
+impl core::marker::Freeze for papo::event::BatchAbandonReason
+impl core::marker::Send for papo::event::BatchAbandonReason
+impl core::marker::Sync for papo::event::BatchAbandonReason
+impl core::marker::Unpin for papo::event::BatchAbandonReason
+impl core::marker::UnsafeUnpin for papo::event::BatchAbandonReason
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::BatchAbandonReason
+impl core::panic::unwind_safe::UnwindSafe for papo::event::BatchAbandonReason
 #[non_exhaustive] pub enum papo::event::Source
 #[non_exhaustive] pub papo::event::Source::Server
 pub papo::event::Source::Server::name: alloc::string::String
@@ -98,20 +163,82 @@ pub papo::event::Source::User::nick: papo::Nick
 pub papo::event::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
+impl core::clone::Clone for papo::Source
+pub fn papo::Source::clone(&self) -> Self
+impl core::cmp::Eq for papo::Source
+impl core::cmp::PartialEq for papo::Source
+pub fn papo::Source::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Source
+pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::Source
 pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Source
+impl core::marker::Freeze for papo::Source
+impl core::marker::Send for papo::Source
+impl core::marker::Sync for papo::Source
+impl core::marker::Unpin for papo::Source
+impl core::marker::UnsafeUnpin for papo::Source
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Source
+impl core::panic::unwind_safe::UnwindSafe for papo::Source
 #[non_exhaustive] pub enum papo::event::StandardReplyKind
 pub papo::event::StandardReplyKind::Fail
 pub papo::event::StandardReplyKind::Note
 pub papo::event::StandardReplyKind::Warn
+impl core::clone::Clone for papo::event::StandardReplyKind
+pub fn papo::event::StandardReplyKind::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::StandardReplyKind
+impl core::cmp::PartialEq for papo::event::StandardReplyKind
+pub fn papo::event::StandardReplyKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::StandardReplyKind
+pub fn papo::event::StandardReplyKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::event::StandardReplyKind
+impl core::marker::StructuralPartialEq for papo::event::StandardReplyKind
+impl core::marker::Freeze for papo::event::StandardReplyKind
+impl core::marker::Send for papo::event::StandardReplyKind
+impl core::marker::Sync for papo::event::StandardReplyKind
+impl core::marker::Unpin for papo::event::StandardReplyKind
+impl core::marker::UnsafeUnpin for papo::event::StandardReplyKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::StandardReplyKind
+impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReplyKind
 #[non_exhaustive] pub enum papo::event::StateLimit
 pub papo::event::StateLimit::Channels
 pub papo::event::StateLimit::Members
 pub papo::event::StateLimit::MetadataKeys
 pub papo::event::StateLimit::MetadataTargets
+impl core::clone::Clone for papo::event::StateLimit
+pub fn papo::event::StateLimit::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::StateLimit
+impl core::cmp::PartialEq for papo::event::StateLimit
+pub fn papo::event::StateLimit::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::StateLimit
+pub fn papo::event::StateLimit::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::event::StateLimit
+impl core::marker::StructuralPartialEq for papo::event::StateLimit
+impl core::marker::Freeze for papo::event::StateLimit
+impl core::marker::Send for papo::event::StateLimit
+impl core::marker::Sync for papo::event::StateLimit
+impl core::marker::Unpin for papo::event::StateLimit
+impl core::marker::UnsafeUnpin for papo::event::StateLimit
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::StateLimit
+impl core::panic::unwind_safe::UnwindSafe for papo::event::StateLimit
 #[non_exhaustive] pub enum papo::event::Visibility
 pub papo::event::Visibility::Public
 pub papo::event::Visibility::Restricted(alloc::string::String)
+impl core::clone::Clone for papo::event::Visibility
+pub fn papo::event::Visibility::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Visibility
+impl core::cmp::PartialEq for papo::event::Visibility
+pub fn papo::event::Visibility::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Visibility
+pub fn papo::event::Visibility::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Visibility
+impl core::marker::Freeze for papo::event::Visibility
+impl core::marker::Send for papo::event::Visibility
+impl core::marker::Sync for papo::event::Visibility
+impl core::marker::Unpin for papo::event::Visibility
+impl core::marker::UnsafeUnpin for papo::event::Visibility
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Visibility
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Visibility
 #[non_exhaustive] pub enum papo::event::Warning
 #[non_exhaustive] pub papo::event::Warning::AuthenticationFailed
 pub papo::event::Warning::AuthenticationFailed::reason: alloc::string::String
@@ -127,141 +254,636 @@ pub papo::event::Warning::MonitorListFull::nicks: alloc::vec::Vec<papo::Nick>
 pub papo::event::Warning::MonitorUnsupported
 #[non_exhaustive] pub papo::event::Warning::StateLimitReached
 pub papo::event::Warning::StateLimitReached::limit: papo::event::StateLimit
+impl core::clone::Clone for papo::event::Warning
+pub fn papo::event::Warning::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Warning
+impl core::cmp::PartialEq for papo::event::Warning
+pub fn papo::event::Warning::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Warning
+pub fn papo::event::Warning::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::event::Warning
 pub fn papo::event::Warning::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Warning
+impl core::marker::Freeze for papo::event::Warning
+impl core::marker::Send for papo::event::Warning
+impl core::marker::Sync for papo::event::Warning
+impl core::marker::Unpin for papo::event::Warning
+impl core::marker::UnsafeUnpin for papo::event::Warning
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Warning
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Warning
 #[non_exhaustive] pub struct papo::event::AccountChanged
 pub papo::event::AccountChanged::account: core::option::Option<papo::AccountName>
 pub papo::event::AccountChanged::nick: papo::Nick
+impl core::clone::Clone for papo::event::AccountChanged
+pub fn papo::event::AccountChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::AccountChanged
+impl core::cmp::PartialEq for papo::event::AccountChanged
+pub fn papo::event::AccountChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::AccountChanged
+pub fn papo::event::AccountChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::AccountChanged
+impl core::marker::Freeze for papo::event::AccountChanged
+impl core::marker::Send for papo::event::AccountChanged
+impl core::marker::Sync for papo::event::AccountChanged
+impl core::marker::Unpin for papo::event::AccountChanged
+impl core::marker::UnsafeUnpin for papo::event::AccountChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountChanged
 #[non_exhaustive] pub struct papo::event::AwayChanged
 pub papo::event::AwayChanged::message: core::option::Option<alloc::string::String>
 pub papo::event::AwayChanged::nick: papo::Nick
+impl core::clone::Clone for papo::event::AwayChanged
+pub fn papo::event::AwayChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::AwayChanged
+impl core::cmp::PartialEq for papo::event::AwayChanged
+pub fn papo::event::AwayChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::AwayChanged
+pub fn papo::event::AwayChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::AwayChanged
+impl core::marker::Freeze for papo::event::AwayChanged
+impl core::marker::Send for papo::event::AwayChanged
+impl core::marker::Sync for papo::event::AwayChanged
+impl core::marker::Unpin for papo::event::AwayChanged
+impl core::marker::UnsafeUnpin for papo::event::AwayChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AwayChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::AwayChanged
 #[non_exhaustive] pub struct papo::event::CapsChanged
 pub papo::event::CapsChanged::added: papo::Capabilities
 pub papo::event::CapsChanged::removed: papo::Capabilities
+impl core::clone::Clone for papo::event::CapsChanged
+pub fn papo::event::CapsChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::CapsChanged
+impl core::cmp::PartialEq for papo::event::CapsChanged
+pub fn papo::event::CapsChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::CapsChanged
+pub fn papo::event::CapsChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::CapsChanged
+impl core::marker::Freeze for papo::event::CapsChanged
+impl core::marker::Send for papo::event::CapsChanged
+impl core::marker::Sync for papo::event::CapsChanged
+impl core::marker::Unpin for papo::event::CapsChanged
+impl core::marker::UnsafeUnpin for papo::event::CapsChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::CapsChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::CapsChanged
 #[non_exhaustive] pub struct papo::event::ChannelRenamed
 pub papo::event::ChannelRenamed::new: papo::ChannelName
 pub papo::event::ChannelRenamed::old: papo::ChannelName
 pub papo::event::ChannelRenamed::reason: alloc::string::String
+impl core::clone::Clone for papo::event::ChannelRenamed
+pub fn papo::event::ChannelRenamed::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ChannelRenamed
+impl core::cmp::PartialEq for papo::event::ChannelRenamed
+pub fn papo::event::ChannelRenamed::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ChannelRenamed
+pub fn papo::event::ChannelRenamed::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::ChannelRenamed
+impl core::marker::Freeze for papo::event::ChannelRenamed
+impl core::marker::Send for papo::event::ChannelRenamed
+impl core::marker::Sync for papo::event::ChannelRenamed
+impl core::marker::Unpin for papo::event::ChannelRenamed
+impl core::marker::UnsafeUnpin for papo::event::ChannelRenamed
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ChannelRenamed
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ChannelRenamed
 #[non_exhaustive] pub struct papo::event::ChannelSynced
 pub papo::event::ChannelSynced::channel: papo::ChannelName
+impl core::clone::Clone for papo::event::ChannelSynced
+pub fn papo::event::ChannelSynced::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ChannelSynced
+impl core::cmp::PartialEq for papo::event::ChannelSynced
+pub fn papo::event::ChannelSynced::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ChannelSynced
+pub fn papo::event::ChannelSynced::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::ChannelSynced
+impl core::marker::Freeze for papo::event::ChannelSynced
+impl core::marker::Send for papo::event::ChannelSynced
+impl core::marker::Sync for papo::event::ChannelSynced
+impl core::marker::Unpin for papo::event::ChannelSynced
+impl core::marker::UnsafeUnpin for papo::event::ChannelSynced
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ChannelSynced
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ChannelSynced
 #[non_exhaustive] pub struct papo::event::Departed
 pub papo::event::Departed::nick: papo::Nick
 pub papo::event::Departed::reason: core::option::Option<alloc::string::String>
+impl core::clone::Clone for papo::event::Departed
+pub fn papo::event::Departed::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Departed
+impl core::cmp::PartialEq for papo::event::Departed
+pub fn papo::event::Departed::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Departed
+pub fn papo::event::Departed::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Departed
+impl core::marker::Freeze for papo::event::Departed
+impl core::marker::Send for papo::event::Departed
+impl core::marker::Sync for papo::event::Departed
+impl core::marker::Unpin for papo::event::Departed
+impl core::marker::UnsafeUnpin for papo::event::Departed
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Departed
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Departed
 #[non_exhaustive] pub struct papo::event::Disconnected
 pub papo::event::Disconnected::cause: papo::DisconnectCause
 pub papo::event::Disconnected::retry_in: core::option::Option<core::time::Duration>
 impl papo::Disconnected
 pub const fn papo::Disconnected::is_retrying(&self) -> bool
 pub const fn papo::Disconnected::new(papo::DisconnectCause, core::option::Option<core::time::Duration>) -> Self
+impl core::clone::Clone for papo::Disconnected
+pub fn papo::Disconnected::clone(&self) -> Self
+impl core::cmp::Eq for papo::Disconnected
+impl core::cmp::PartialEq for papo::Disconnected
+pub fn papo::Disconnected::eq(&self, &Self) -> bool
 impl core::error::Error for papo::Disconnected
+impl core::fmt::Debug for papo::Disconnected
+pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::Disconnected
 pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Disconnected
+impl core::marker::Freeze for papo::Disconnected
+impl core::marker::Send for papo::Disconnected
+impl core::marker::Sync for papo::Disconnected
+impl core::marker::Unpin for papo::Disconnected
+impl core::marker::UnsafeUnpin for papo::Disconnected
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
+impl core::panic::unwind_safe::UnwindSafe for papo::Disconnected
 #[non_exhaustive] pub struct papo::event::FeaturesChanged
 pub papo::event::FeaturesChanged::added: alloc::vec::Vec<papo::Feature>
 pub papo::event::FeaturesChanged::removed: alloc::vec::Vec<papo::Feature>
+impl core::clone::Clone for papo::event::FeaturesChanged
+pub fn papo::event::FeaturesChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::FeaturesChanged
+impl core::cmp::PartialEq for papo::event::FeaturesChanged
+pub fn papo::event::FeaturesChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::FeaturesChanged
+pub fn papo::event::FeaturesChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::FeaturesChanged
+impl core::marker::Freeze for papo::event::FeaturesChanged
+impl core::marker::Send for papo::event::FeaturesChanged
+impl core::marker::Sync for papo::event::FeaturesChanged
+impl core::marker::Unpin for papo::event::FeaturesChanged
+impl core::marker::UnsafeUnpin for papo::event::FeaturesChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::FeaturesChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::FeaturesChanged
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::host: alloc::string::String
 pub papo::event::HostChanged::nick: papo::Nick
 pub papo::event::HostChanged::user: alloc::string::String
+impl core::clone::Clone for papo::event::HostChanged
+pub fn papo::event::HostChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::HostChanged
+impl core::cmp::PartialEq for papo::event::HostChanged
+pub fn papo::event::HostChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::HostChanged
+pub fn papo::event::HostChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::HostChanged
+impl core::marker::Freeze for papo::event::HostChanged
+impl core::marker::Send for papo::event::HostChanged
+impl core::marker::Sync for papo::event::HostChanged
+impl core::marker::Unpin for papo::event::HostChanged
+impl core::marker::UnsafeUnpin for papo::event::HostChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::HostChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::HostChanged
 #[non_exhaustive] pub struct papo::event::Invited
 pub papo::event::Invited::by: papo::Source
 pub papo::event::Invited::channel: papo::ChannelName
 pub papo::event::Invited::is_self: bool
 pub papo::event::Invited::nick: papo::Nick
+impl core::clone::Clone for papo::event::Invited
+pub fn papo::event::Invited::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Invited
+impl core::cmp::PartialEq for papo::event::Invited
+pub fn papo::event::Invited::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Invited
+pub fn papo::event::Invited::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Invited
+impl core::marker::Freeze for papo::event::Invited
+impl core::marker::Send for papo::event::Invited
+impl core::marker::Sync for papo::event::Invited
+impl core::marker::Unpin for papo::event::Invited
+impl core::marker::UnsafeUnpin for papo::event::Invited
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Invited
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Invited
 #[non_exhaustive] pub struct papo::event::Joined
 pub papo::event::Joined::channel: papo::ChannelName
 pub papo::event::Joined::is_self: bool
 pub papo::event::Joined::nick: papo::Nick
+impl core::clone::Clone for papo::event::Joined
+pub fn papo::event::Joined::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Joined
+impl core::cmp::PartialEq for papo::event::Joined
+pub fn papo::event::Joined::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Joined
+pub fn papo::event::Joined::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Joined
+impl core::marker::Freeze for papo::event::Joined
+impl core::marker::Send for papo::event::Joined
+impl core::marker::Sync for papo::event::Joined
+impl core::marker::Unpin for papo::event::Joined
+impl core::marker::UnsafeUnpin for papo::event::Joined
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Joined
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Joined
 #[non_exhaustive] pub struct papo::event::Kicked
 pub papo::event::Kicked::by: papo::Source
 pub papo::event::Kicked::channel: papo::ChannelName
 pub papo::event::Kicked::is_self: bool
 pub papo::event::Kicked::nick: papo::Nick
 pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
+impl core::clone::Clone for papo::event::Kicked
+pub fn papo::event::Kicked::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Kicked
+impl core::cmp::PartialEq for papo::event::Kicked
+pub fn papo::event::Kicked::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Kicked
+pub fn papo::event::Kicked::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Kicked
+impl core::marker::Freeze for papo::event::Kicked
+impl core::marker::Send for papo::event::Kicked
+impl core::marker::Sync for papo::event::Kicked
+impl core::marker::Unpin for papo::event::Kicked
+impl core::marker::UnsafeUnpin for papo::event::Kicked
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Kicked
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Kicked
 #[non_exhaustive] pub struct papo::event::MetadataChanged
 pub papo::event::MetadataChanged::key: papo::MetadataKey
 pub papo::event::MetadataChanged::target: papo::Target
 pub papo::event::MetadataChanged::value: core::option::Option<alloc::string::String>
 pub papo::event::MetadataChanged::visibility: papo::event::Visibility
+impl core::clone::Clone for papo::event::MetadataChanged
+pub fn papo::event::MetadataChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::MetadataChanged
+impl core::cmp::PartialEq for papo::event::MetadataChanged
+pub fn papo::event::MetadataChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::MetadataChanged
+pub fn papo::event::MetadataChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::MetadataChanged
+impl core::marker::Freeze for papo::event::MetadataChanged
+impl core::marker::Send for papo::event::MetadataChanged
+impl core::marker::Sync for papo::event::MetadataChanged
+impl core::marker::Unpin for papo::event::MetadataChanged
+impl core::marker::UnsafeUnpin for papo::event::MetadataChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MetadataChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::MetadataChanged
 #[non_exhaustive] pub struct papo::event::ModeChange
 pub papo::event::ModeChange::arg: core::option::Option<alloc::string::String>
 pub papo::event::ModeChange::kind: papo::ModeKind
 pub papo::event::ModeChange::mode: char
 pub papo::event::ModeChange::set: bool
+impl core::clone::Clone for papo::event::ModeChange
+pub fn papo::event::ModeChange::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ModeChange
+impl core::cmp::PartialEq for papo::event::ModeChange
+pub fn papo::event::ModeChange::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ModeChange
+pub fn papo::event::ModeChange::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::ModeChange
+impl core::marker::Freeze for papo::event::ModeChange
+impl core::marker::Send for papo::event::ModeChange
+impl core::marker::Sync for papo::event::ModeChange
+impl core::marker::Unpin for papo::event::ModeChange
+impl core::marker::UnsafeUnpin for papo::event::ModeChange
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ModeChange
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ModeChange
 #[non_exhaustive] pub struct papo::event::ModeChanged
 pub papo::event::ModeChanged::by: papo::Source
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
 pub papo::event::ModeChanged::target: papo::Target
+impl core::clone::Clone for papo::event::ModeChanged
+pub fn papo::event::ModeChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ModeChanged
+impl core::cmp::PartialEq for papo::event::ModeChanged
+pub fn papo::event::ModeChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ModeChanged
+pub fn papo::event::ModeChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::ModeChanged
+impl core::marker::Freeze for papo::event::ModeChanged
+impl core::marker::Send for papo::event::ModeChanged
+impl core::marker::Sync for papo::event::ModeChanged
+impl core::marker::Unpin for papo::event::ModeChanged
+impl core::marker::UnsafeUnpin for papo::event::ModeChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ModeChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ModeChanged
 #[non_exhaustive] pub struct papo::event::MonitorOffline
 pub papo::event::MonitorOffline::nick: papo::Nick
+impl core::clone::Clone for papo::event::MonitorOffline
+pub fn papo::event::MonitorOffline::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::MonitorOffline
+impl core::cmp::PartialEq for papo::event::MonitorOffline
+pub fn papo::event::MonitorOffline::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::MonitorOffline
+pub fn papo::event::MonitorOffline::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::MonitorOffline
+impl core::marker::Freeze for papo::event::MonitorOffline
+impl core::marker::Send for papo::event::MonitorOffline
+impl core::marker::Sync for papo::event::MonitorOffline
+impl core::marker::Unpin for papo::event::MonitorOffline
+impl core::marker::UnsafeUnpin for papo::event::MonitorOffline
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MonitorOffline
+impl core::panic::unwind_safe::UnwindSafe for papo::event::MonitorOffline
 #[non_exhaustive] pub struct papo::event::MonitorOnline
 pub papo::event::MonitorOnline::host: core::option::Option<alloc::string::String>
 pub papo::event::MonitorOnline::nick: papo::Nick
 pub papo::event::MonitorOnline::user: core::option::Option<alloc::string::String>
+impl core::clone::Clone for papo::event::MonitorOnline
+pub fn papo::event::MonitorOnline::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::MonitorOnline
+impl core::cmp::PartialEq for papo::event::MonitorOnline
+pub fn papo::event::MonitorOnline::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::MonitorOnline
+pub fn papo::event::MonitorOnline::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::MonitorOnline
+impl core::marker::Freeze for papo::event::MonitorOnline
+impl core::marker::Send for papo::event::MonitorOnline
+impl core::marker::Sync for papo::event::MonitorOnline
+impl core::marker::Unpin for papo::event::MonitorOnline
+impl core::marker::UnsafeUnpin for papo::event::MonitorOnline
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MonitorOnline
+impl core::panic::unwind_safe::UnwindSafe for papo::event::MonitorOnline
 #[non_exhaustive] pub struct papo::event::Netjoin
 pub papo::event::Netjoin::joins: alloc::vec::Vec<papo::event::Joined>
 pub papo::event::Netjoin::servers: papo::event::SplitServers
+impl core::clone::Clone for papo::event::Netjoin
+pub fn papo::event::Netjoin::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Netjoin
+impl core::cmp::PartialEq for papo::event::Netjoin
+pub fn papo::event::Netjoin::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Netjoin
+pub fn papo::event::Netjoin::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Netjoin
+impl core::marker::Freeze for papo::event::Netjoin
+impl core::marker::Send for papo::event::Netjoin
+impl core::marker::Sync for papo::event::Netjoin
+impl core::marker::Unpin for papo::event::Netjoin
+impl core::marker::UnsafeUnpin for papo::event::Netjoin
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Netjoin
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Netjoin
 #[non_exhaustive] pub struct papo::event::Netsplit
 pub papo::event::Netsplit::quits: alloc::vec::Vec<papo::event::Departed>
 pub papo::event::Netsplit::servers: papo::event::SplitServers
+impl core::clone::Clone for papo::event::Netsplit
+pub fn papo::event::Netsplit::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Netsplit
+impl core::cmp::PartialEq for papo::event::Netsplit
+pub fn papo::event::Netsplit::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Netsplit
+pub fn papo::event::Netsplit::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Netsplit
+impl core::marker::Freeze for papo::event::Netsplit
+impl core::marker::Send for papo::event::Netsplit
+impl core::marker::Sync for papo::event::Netsplit
+impl core::marker::Unpin for papo::event::Netsplit
+impl core::marker::UnsafeUnpin for papo::event::Netsplit
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Netsplit
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Netsplit
 #[non_exhaustive] pub struct papo::event::NickChanged
 pub papo::event::NickChanged::is_self: bool
 pub papo::event::NickChanged::new: papo::Nick
 pub papo::event::NickChanged::old: papo::Nick
+impl core::clone::Clone for papo::event::NickChanged
+pub fn papo::event::NickChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::NickChanged
+impl core::cmp::PartialEq for papo::event::NickChanged
+pub fn papo::event::NickChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::NickChanged
+pub fn papo::event::NickChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::NickChanged
+impl core::marker::Freeze for papo::event::NickChanged
+impl core::marker::Send for papo::event::NickChanged
+impl core::marker::Sync for papo::event::NickChanged
+impl core::marker::Unpin for papo::event::NickChanged
+impl core::marker::UnsafeUnpin for papo::event::NickChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NickChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
 #[non_exhaustive] pub struct papo::event::Parted
 pub papo::event::Parted::channel: papo::ChannelName
 pub papo::event::Parted::is_self: bool
 pub papo::event::Parted::nick: papo::Nick
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
+impl core::clone::Clone for papo::event::Parted
+pub fn papo::event::Parted::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Parted
+impl core::cmp::PartialEq for papo::event::Parted
+pub fn papo::event::Parted::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Parted
+pub fn papo::event::Parted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Parted
+impl core::marker::Freeze for papo::event::Parted
+impl core::marker::Send for papo::event::Parted
+impl core::marker::Sync for papo::event::Parted
+impl core::marker::Unpin for papo::event::Parted
+impl core::marker::UnsafeUnpin for papo::event::Parted
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Parted
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Parted
 #[non_exhaustive] pub struct papo::event::Quit
 pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo::event::Quit::nick: papo::Nick
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
+impl core::clone::Clone for papo::event::Quit
+pub fn papo::event::Quit::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Quit
+impl core::cmp::PartialEq for papo::event::Quit
+pub fn papo::event::Quit::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Quit
+pub fn papo::event::Quit::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Quit
+impl core::marker::Freeze for papo::event::Quit
+impl core::marker::Send for papo::event::Quit
+impl core::marker::Sync for papo::event::Quit
+impl core::marker::Unpin for papo::event::Quit
+impl core::marker::UnsafeUnpin for papo::event::Quit
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Quit
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Quit
 #[non_exhaustive] pub struct papo::event::Reacted
 pub papo::event::Reacted::message: papo::MessageId
 pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::source: core::option::Option<papo::Source>
 pub papo::event::Reacted::target: papo::Target
+impl core::clone::Clone for papo::event::Reacted
+pub fn papo::event::Reacted::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Reacted
+impl core::cmp::PartialEq for papo::event::Reacted
+pub fn papo::event::Reacted::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Reacted
+pub fn papo::event::Reacted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Reacted
+impl core::marker::Freeze for papo::event::Reacted
+impl core::marker::Send for papo::event::Reacted
+impl core::marker::Sync for papo::event::Reacted
+impl core::marker::Unpin for papo::event::Reacted
+impl core::marker::UnsafeUnpin for papo::event::Reacted
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Reacted
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Reacted
 #[non_exhaustive] pub struct papo::event::ReadMarker
 pub papo::event::ReadMarker::target: papo::Target
 pub papo::event::ReadMarker::time: core::option::Option<std::time::SystemTime>
+impl core::clone::Clone for papo::event::ReadMarker
+pub fn papo::event::ReadMarker::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ReadMarker
+impl core::cmp::PartialEq for papo::event::ReadMarker
+pub fn papo::event::ReadMarker::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ReadMarker
+pub fn papo::event::ReadMarker::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::ReadMarker
+impl core::marker::Freeze for papo::event::ReadMarker
+impl core::marker::Send for papo::event::ReadMarker
+impl core::marker::Sync for papo::event::ReadMarker
+impl core::marker::Unpin for papo::event::ReadMarker
+impl core::marker::UnsafeUnpin for papo::event::ReadMarker
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ReadMarker
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ReadMarker
 #[non_exhaustive] pub struct papo::event::RealnameChanged
 pub papo::event::RealnameChanged::nick: papo::Nick
 pub papo::event::RealnameChanged::realname: alloc::string::String
+impl core::clone::Clone for papo::event::RealnameChanged
+pub fn papo::event::RealnameChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::RealnameChanged
+impl core::cmp::PartialEq for papo::event::RealnameChanged
+pub fn papo::event::RealnameChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::RealnameChanged
+pub fn papo::event::RealnameChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::RealnameChanged
+impl core::marker::Freeze for papo::event::RealnameChanged
+impl core::marker::Send for papo::event::RealnameChanged
+impl core::marker::Sync for papo::event::RealnameChanged
+impl core::marker::Unpin for papo::event::RealnameChanged
+impl core::marker::UnsafeUnpin for papo::event::RealnameChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::RealnameChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::RealnameChanged
 #[non_exhaustive] pub struct papo::event::Redacted
 pub papo::event::Redacted::message: papo::MessageId
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::source: core::option::Option<papo::Source>
 pub papo::event::Redacted::target: papo::Target
+impl core::clone::Clone for papo::event::Redacted
+pub fn papo::event::Redacted::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Redacted
+impl core::cmp::PartialEq for papo::event::Redacted
+pub fn papo::event::Redacted::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Redacted
+pub fn papo::event::Redacted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Redacted
+impl core::marker::Freeze for papo::event::Redacted
+impl core::marker::Send for papo::event::Redacted
+impl core::marker::Sync for papo::event::Redacted
+impl core::marker::Unpin for papo::event::Redacted
+impl core::marker::UnsafeUnpin for papo::event::Redacted
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Redacted
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Redacted
 #[non_exhaustive] pub struct papo::event::Registered
 pub papo::event::Registered::caps: papo::Capabilities
 pub papo::event::Registered::nick: papo::Nick
 pub papo::event::Registered::reconnected: bool
 pub papo::event::Registered::text: alloc::string::String
+impl core::clone::Clone for papo::event::Registered
+pub fn papo::event::Registered::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Registered
+impl core::cmp::PartialEq for papo::event::Registered
+pub fn papo::event::Registered::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Registered
+pub fn papo::event::Registered::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Registered
+impl core::marker::Freeze for papo::event::Registered
+impl core::marker::Send for papo::event::Registered
+impl core::marker::Sync for papo::event::Registered
+impl core::marker::Unpin for papo::event::Registered
+impl core::marker::UnsafeUnpin for papo::event::Registered
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Registered
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Registered
 #[non_exhaustive] pub struct papo::event::SplitServers
 pub papo::event::SplitServers::first: alloc::string::String
 pub papo::event::SplitServers::second: alloc::string::String
+impl core::clone::Clone for papo::event::SplitServers
+pub fn papo::event::SplitServers::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::SplitServers
+impl core::cmp::PartialEq for papo::event::SplitServers
+pub fn papo::event::SplitServers::eq(&self, &Self) -> bool
 impl core::convert::From<[alloc::string::String; 2]> for papo::event::SplitServers
 pub fn papo::event::SplitServers::from([alloc::string::String; 2]) -> Self
+impl core::fmt::Debug for papo::event::SplitServers
+pub fn papo::event::SplitServers::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::SplitServers
+impl core::marker::Freeze for papo::event::SplitServers
+impl core::marker::Send for papo::event::SplitServers
+impl core::marker::Sync for papo::event::SplitServers
+impl core::marker::Unpin for papo::event::SplitServers
+impl core::marker::UnsafeUnpin for papo::event::SplitServers
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::SplitServers
+impl core::panic::unwind_safe::UnwindSafe for papo::event::SplitServers
 #[non_exhaustive] pub struct papo::event::StandardReply
 pub papo::event::StandardReply::code: alloc::string::String
 pub papo::event::StandardReply::command: alloc::string::String
 pub papo::event::StandardReply::context: alloc::vec::Vec<alloc::string::String>
 pub papo::event::StandardReply::description: alloc::string::String
 pub papo::event::StandardReply::kind: papo::event::StandardReplyKind
+impl core::clone::Clone for papo::event::StandardReply
+pub fn papo::event::StandardReply::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::StandardReply
+impl core::cmp::PartialEq for papo::event::StandardReply
+pub fn papo::event::StandardReply::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::StandardReply
+pub fn papo::event::StandardReply::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::StandardReply
+impl core::marker::Freeze for papo::event::StandardReply
+impl core::marker::Send for papo::event::StandardReply
+impl core::marker::Sync for papo::event::StandardReply
+impl core::marker::Unpin for papo::event::StandardReply
+impl core::marker::UnsafeUnpin for papo::event::StandardReply
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::StandardReply
+impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReply
 #[non_exhaustive] pub struct papo::event::TagMsg
 pub papo::event::TagMsg::source: core::option::Option<papo::Source>
 pub papo::event::TagMsg::tags: papo::Tags
 pub papo::event::TagMsg::target: papo::Target
+impl core::clone::Clone for papo::event::TagMsg
+pub fn papo::event::TagMsg::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::TagMsg
+impl core::cmp::PartialEq for papo::event::TagMsg
+pub fn papo::event::TagMsg::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::TagMsg
+pub fn papo::event::TagMsg::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::TagMsg
+impl core::marker::Freeze for papo::event::TagMsg
+impl core::marker::Send for papo::event::TagMsg
+impl core::marker::Sync for papo::event::TagMsg
+impl core::marker::Unpin for papo::event::TagMsg
+impl core::marker::UnsafeUnpin for papo::event::TagMsg
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TagMsg
+impl core::panic::unwind_safe::UnwindSafe for papo::event::TagMsg
 #[non_exhaustive] pub struct papo::event::TopicChanged
 pub papo::event::TopicChanged::by: papo::Source
 pub papo::event::TopicChanged::channel: papo::ChannelName
 pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
+impl core::clone::Clone for papo::event::TopicChanged
+pub fn papo::event::TopicChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::TopicChanged
+impl core::cmp::PartialEq for papo::event::TopicChanged
+pub fn papo::event::TopicChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::TopicChanged
+pub fn papo::event::TopicChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::TopicChanged
+impl core::marker::Freeze for papo::event::TopicChanged
+impl core::marker::Send for papo::event::TopicChanged
+impl core::marker::Sync for papo::event::TopicChanged
+impl core::marker::Unpin for papo::event::TopicChanged
+impl core::marker::UnsafeUnpin for papo::event::TopicChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TopicChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::TopicChanged
 #[non_exhaustive] pub struct papo::event::TypingChanged
 pub papo::event::TypingChanged::source: core::option::Option<papo::Source>
 pub papo::event::TypingChanged::state: papo::Typing
 pub papo::event::TypingChanged::target: papo::Target
+impl core::clone::Clone for papo::event::TypingChanged
+pub fn papo::event::TypingChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::TypingChanged
+impl core::cmp::PartialEq for papo::event::TypingChanged
+pub fn papo::event::TypingChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::TypingChanged
+pub fn papo::event::TypingChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::TypingChanged
+impl core::marker::Freeze for papo::event::TypingChanged
+impl core::marker::Send for papo::event::TypingChanged
+impl core::marker::Sync for papo::event::TypingChanged
+impl core::marker::Unpin for papo::event::TypingChanged
+impl core::marker::UnsafeUnpin for papo::event::TypingChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TypingChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::TypingChanged
 pub mod papo::fail
 pub const papo::fail::ACCOUNT_EXISTS: &str
 pub const papo::fail::ACCOUNT_NAME_MUST_BE_NICK: &str
@@ -358,6 +980,23 @@ pub fn papo::isupport::Isupport::tokens(&self) -> impl core::iter::traits::exact
 pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::utf8only(&self) -> bool
 pub fn papo::isupport::Isupport::whox(&self) -> bool
+impl core::clone::Clone for papo::isupport::Isupport
+pub fn papo::isupport::Isupport::clone(&self) -> Self
+impl core::cmp::Eq for papo::isupport::Isupport
+impl core::cmp::PartialEq for papo::isupport::Isupport
+pub fn papo::isupport::Isupport::eq(&self, &Self) -> bool
+impl core::default::Default for papo::isupport::Isupport
+pub fn papo::isupport::Isupport::default() -> Self
+impl core::fmt::Debug for papo::isupport::Isupport
+pub fn papo::isupport::Isupport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::isupport::Isupport
+impl core::marker::Freeze for papo::isupport::Isupport
+impl core::marker::Send for papo::isupport::Isupport
+impl core::marker::Sync for papo::isupport::Isupport
+impl core::marker::Unpin for papo::isupport::Isupport
+impl core::marker::UnsafeUnpin for papo::isupport::Isupport
+impl core::panic::unwind_safe::RefUnwindSafe for papo::isupport::Isupport
+impl core::panic::unwind_safe::UnwindSafe for papo::isupport::Isupport
 pub mod papo::metadata
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
@@ -380,9 +1019,31 @@ pub fn papo::Metadata::set_on(&self, impl core::convert::Into<papo::Target>, imp
 pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+impl core::marker::Freeze for papo::Metadata
+impl core::marker::Send for papo::Metadata
+impl core::marker::Sync for papo::Metadata
+impl core::marker::Unpin for papo::Metadata
+impl core::marker::UnsafeUnpin for papo::Metadata
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
+impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
 #[non_exhaustive] pub struct papo::metadata::MetadataValue
 pub papo::metadata::MetadataValue::value: alloc::string::String
 pub papo::metadata::MetadataValue::visibility: alloc::string::String
+impl core::clone::Clone for papo::metadata::MetadataValue
+pub fn papo::metadata::MetadataValue::clone(&self) -> Self
+impl core::cmp::Eq for papo::metadata::MetadataValue
+impl core::cmp::PartialEq for papo::metadata::MetadataValue
+pub fn papo::metadata::MetadataValue::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::metadata::MetadataValue
+pub fn papo::metadata::MetadataValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::metadata::MetadataValue
+impl core::marker::Freeze for papo::metadata::MetadataValue
+impl core::marker::Send for papo::metadata::MetadataValue
+impl core::marker::Sync for papo::metadata::MetadataValue
+impl core::marker::Unpin for papo::metadata::MetadataValue
+impl core::marker::UnsafeUnpin for papo::metadata::MetadataValue
+impl core::panic::unwind_safe::RefUnwindSafe for papo::metadata::MetadataValue
+impl core::panic::unwind_safe::UnwindSafe for papo::metadata::MetadataValue
 pub mod papo::numeric
 pub const papo::numeric::ERR_BADCHANMASK: u16
 pub const papo::numeric::ERR_BADCHANNELKEY: u16
@@ -467,10 +1128,19 @@ impl papo::sts::FileStsStore
 pub fn papo::sts::FileStsStore::default_path() -> core::option::Option<std::path::PathBuf>
 pub fn papo::sts::FileStsStore::last_error(&self) -> core::option::Option<&core::io::error::Error>
 pub fn papo::sts::FileStsStore::open(impl core::convert::Into<std::path::PathBuf>) -> Self
+impl core::fmt::Debug for papo::sts::FileStsStore
+pub fn papo::sts::FileStsStore::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl papo::sts::StsStore for papo::sts::FileStsStore
 pub fn papo::sts::FileStsStore::get(&self, &str) -> core::option::Option<papo::sts::StsPolicy>
 pub fn papo::sts::FileStsStore::put(&mut self, papo::sts::StsPolicy)
 pub fn papo::sts::FileStsStore::remove(&mut self, &str)
+impl core::marker::Freeze for papo::sts::FileStsStore
+impl core::marker::Send for papo::sts::FileStsStore
+impl core::marker::Sync for papo::sts::FileStsStore
+impl core::marker::Unpin for papo::sts::FileStsStore
+impl core::marker::UnsafeUnpin for papo::sts::FileStsStore
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::sts::FileStsStore
+impl !core::panic::unwind_safe::UnwindSafe for papo::sts::FileStsStore
 pub mod papo::tags
 pub mod papo::tags::keys
 pub const papo::tags::keys::CHANNEL_CONTEXT: &str
@@ -488,6 +1158,21 @@ pub papo::AccountRegistration::Registered::account: papo::AccountName
 pub papo::AccountRegistration::VerificationRequired
 pub papo::AccountRegistration::VerificationRequired::account: papo::AccountName
 pub papo::AccountRegistration::VerificationRequired::message: alloc::string::String
+impl core::clone::Clone for papo::AccountRegistration
+pub fn papo::AccountRegistration::clone(&self) -> Self
+impl core::cmp::Eq for papo::AccountRegistration
+impl core::cmp::PartialEq for papo::AccountRegistration
+pub fn papo::AccountRegistration::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::AccountRegistration
+pub fn papo::AccountRegistration::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::AccountRegistration
+impl core::marker::Freeze for papo::AccountRegistration
+impl core::marker::Send for papo::AccountRegistration
+impl core::marker::Sync for papo::AccountRegistration
+impl core::marker::Unpin for papo::AccountRegistration
+impl core::marker::UnsafeUnpin for papo::AccountRegistration
+impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountRegistration
+impl core::panic::unwind_safe::UnwindSafe for papo::AccountRegistration
 #[non_exhaustive] pub enum papo::ConnectErrorKind
 pub papo::ConnectErrorKind::CertificateRejected
 pub papo::ConnectErrorKind::HandshakeFailed
@@ -496,6 +1181,22 @@ pub papo::ConnectErrorKind::Other
 pub papo::ConnectErrorKind::Refused
 pub papo::ConnectErrorKind::Unavailable
 pub papo::ConnectErrorKind::Unreachable
+impl core::clone::Clone for papo::ConnectErrorKind
+pub fn papo::ConnectErrorKind::clone(&self) -> Self
+impl core::cmp::Eq for papo::ConnectErrorKind
+impl core::cmp::PartialEq for papo::ConnectErrorKind
+pub fn papo::ConnectErrorKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::ConnectErrorKind
+pub fn papo::ConnectErrorKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::ConnectErrorKind
+impl core::marker::StructuralPartialEq for papo::ConnectErrorKind
+impl core::marker::Freeze for papo::ConnectErrorKind
+impl core::marker::Send for papo::ConnectErrorKind
+impl core::marker::Sync for papo::ConnectErrorKind
+impl core::marker::Unpin for papo::ConnectErrorKind
+impl core::marker::UnsafeUnpin for papo::ConnectErrorKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ConnectErrorKind
+impl core::panic::unwind_safe::UnwindSafe for papo::ConnectErrorKind
 #[non_exhaustive] pub enum papo::DisconnectCause
 pub papo::DisconnectCause::Connect(papo::ConnectErrorKind)
 pub papo::DisconnectCause::ConnectionLost
@@ -507,13 +1208,46 @@ pub papo::DisconnectCause::Requested
 pub papo::DisconnectCause::Server
 pub papo::DisconnectCause::Server::message: alloc::string::String
 pub papo::DisconnectCause::SlowConsumer
+impl core::clone::Clone for papo::DisconnectCause
+pub fn papo::DisconnectCause::clone(&self) -> Self
+impl core::cmp::Eq for papo::DisconnectCause
+impl core::cmp::PartialEq for papo::DisconnectCause
+pub fn papo::DisconnectCause::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::DisconnectCause
+pub fn papo::DisconnectCause::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::DisconnectCause
 pub fn papo::DisconnectCause::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::DisconnectCause
+impl core::marker::Freeze for papo::DisconnectCause
+impl core::marker::Send for papo::DisconnectCause
+impl core::marker::Sync for papo::DisconnectCause
+impl core::marker::Unpin for papo::DisconnectCause
+impl core::marker::UnsafeUnpin for papo::DisconnectCause
+impl core::panic::unwind_safe::RefUnwindSafe for papo::DisconnectCause
+impl core::panic::unwind_safe::UnwindSafe for papo::DisconnectCause
 #[non_exhaustive] pub enum papo::EndpointKind
 pub papo::EndpointKind::Plaintext
 pub papo::EndpointKind::SecureWebSocket
 pub papo::EndpointKind::Tls
 pub papo::EndpointKind::WebSocket
+impl core::clone::Clone for papo::EndpointKind
+pub fn papo::EndpointKind::clone(&self) -> Self
+impl core::cmp::Eq for papo::EndpointKind
+impl core::cmp::PartialEq for papo::EndpointKind
+pub fn papo::EndpointKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::EndpointKind
+pub fn papo::EndpointKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::EndpointKind
+pub fn papo::EndpointKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::EndpointKind
+impl core::marker::StructuralPartialEq for papo::EndpointKind
+impl core::marker::Freeze for papo::EndpointKind
+impl core::marker::Send for papo::EndpointKind
+impl core::marker::Sync for papo::EndpointKind
+impl core::marker::Unpin for papo::EndpointKind
+impl core::marker::UnsafeUnpin for papo::EndpointKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo::EndpointKind
+impl core::panic::unwind_safe::UnwindSafe for papo::EndpointKind
 #[non_exhaustive] pub enum papo::Error
 pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected(papo::Disconnected)
@@ -525,6 +1259,25 @@ pub papo::Error::TooManyPendingRequests
 pub papo::Error::UnexpectedReply
 pub papo::Error::UnexpectedReply::command: alloc::string::String
 pub papo::Error::Unsupported(papo::Unsupported)
+impl core::clone::Clone for papo::Error
+pub fn papo::Error::clone(&self) -> Self
+impl core::convert::From<papo::ConnectError> for papo::Error
+pub fn papo::Error::from(papo::ConnectError) -> Self
+impl core::convert::From<papo::InvalidInput> for papo::Error
+pub fn papo::Error::from(papo::InvalidInput) -> Self
+impl core::error::Error for papo::Error
+pub fn papo::Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for papo::Error
+pub fn papo::Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::Error
+pub fn papo::Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::Error
+impl core::marker::Send for papo::Error
+impl core::marker::Sync for papo::Error
+impl core::marker::Unpin for papo::Error
+impl core::marker::UnsafeUnpin for papo::Error
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::Error
+impl !core::panic::unwind_safe::UnwindSafe for papo::Error
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
 pub papo::Event::AccountRegistration(papo::AccountRegistration)
@@ -628,10 +1381,41 @@ impl papo::Event
 pub const fn papo::Event::as_typing_changed(&self) -> core::option::Option<&papo::event::TypingChanged>
 impl papo::Event
 pub const fn papo::Event::as_warning(&self) -> core::option::Option<&papo::event::Warning>
+impl core::clone::Clone for papo::Event
+pub fn papo::Event::clone(&self) -> Self
+impl core::cmp::Eq for papo::Event
+impl core::cmp::PartialEq for papo::Event
+pub fn papo::Event::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Event
+pub fn papo::Event::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Event
+impl core::marker::Freeze for papo::Event
+impl core::marker::Send for papo::Event
+impl core::marker::Sync for papo::Event
+impl core::marker::Unpin for papo::Event
+impl core::marker::UnsafeUnpin for papo::Event
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Event
+impl core::panic::unwind_safe::UnwindSafe for papo::Event
 #[non_exhaustive] pub enum papo::Fallback
 pub papo::Fallback::ContextTagDropped
 pub papo::Fallback::ReplyTagDropped
 pub papo::Fallback::SplitIntoLines
+impl core::clone::Clone for papo::Fallback
+pub fn papo::Fallback::clone(&self) -> Self
+impl core::cmp::Eq for papo::Fallback
+impl core::cmp::PartialEq for papo::Fallback
+pub fn papo::Fallback::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Fallback
+pub fn papo::Fallback::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::Fallback
+impl core::marker::StructuralPartialEq for papo::Fallback
+impl core::marker::Freeze for papo::Fallback
+impl core::marker::Send for papo::Fallback
+impl core::marker::Sync for papo::Fallback
+impl core::marker::Unpin for papo::Fallback
+impl core::marker::UnsafeUnpin for papo::Fallback
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Fallback
+impl core::panic::unwind_safe::UnwindSafe for papo::Fallback
 #[non_exhaustive] pub enum papo::HistoryItem
 pub papo::HistoryItem::Joined(papo::event::Joined)
 pub papo::HistoryItem::Kicked(papo::event::Kicked)
@@ -646,6 +1430,21 @@ pub papo::HistoryItem::Redacted(papo::event::Redacted)
 pub papo::HistoryItem::TopicChanged(papo::event::TopicChanged)
 impl papo::HistoryItem
 pub const fn papo::HistoryItem::message(&self) -> core::option::Option<&papo::Message>
+impl core::clone::Clone for papo::HistoryItem
+pub fn papo::HistoryItem::clone(&self) -> Self
+impl core::cmp::Eq for papo::HistoryItem
+impl core::cmp::PartialEq for papo::HistoryItem
+pub fn papo::HistoryItem::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::HistoryItem
+pub fn papo::HistoryItem::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::HistoryItem
+impl core::marker::Freeze for papo::HistoryItem
+impl core::marker::Send for papo::HistoryItem
+impl core::marker::Sync for papo::HistoryItem
+impl core::marker::Unpin for papo::HistoryItem
+impl core::marker::UnsafeUnpin for papo::HistoryItem
+impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryItem
+impl core::panic::unwind_safe::UnwindSafe for papo::HistoryItem
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::AccountNameMustMatchNick
 pub papo::InvalidInput::BinarySecret
@@ -675,12 +1474,51 @@ pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
 pub papo::InvalidInput::UnusableMessageReference
 pub papo::InvalidInput::ZeroEventCapacity
+impl core::clone::Clone for papo::InvalidInput
+pub fn papo::InvalidInput::clone(&self) -> Self
+impl core::cmp::Eq for papo::InvalidInput
+impl core::cmp::PartialEq for papo::InvalidInput
+pub fn papo::InvalidInput::eq(&self, &Self) -> bool
+impl core::convert::From<papo::InvalidInput> for papo::Error
+pub fn papo::Error::from(papo::InvalidInput) -> Self
+impl core::error::Error for papo::InvalidInput
+pub fn papo::InvalidInput::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for papo::InvalidInput
+pub fn papo::InvalidInput::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::InvalidInput
+pub fn papo::InvalidInput::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::InvalidInput
+pub fn papo::InvalidInput::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::InvalidInput
+impl core::marker::Freeze for papo::InvalidInput
+impl core::marker::Send for papo::InvalidInput
+impl core::marker::Sync for papo::InvalidInput
+impl core::marker::Unpin for papo::InvalidInput
+impl core::marker::UnsafeUnpin for papo::InvalidInput
+impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidInput
+impl core::panic::unwind_safe::UnwindSafe for papo::InvalidInput
 #[non_exhaustive] pub enum papo::MessageKind
 pub papo::MessageKind::Action
 pub papo::MessageKind::Ctcp
 pub papo::MessageKind::CtcpReply
 pub papo::MessageKind::Notice
 pub papo::MessageKind::Privmsg
+impl core::clone::Clone for papo::MessageKind
+pub fn papo::MessageKind::clone(&self) -> Self
+impl core::cmp::Eq for papo::MessageKind
+impl core::cmp::PartialEq for papo::MessageKind
+pub fn papo::MessageKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::MessageKind
+pub fn papo::MessageKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::MessageKind
+impl core::marker::StructuralPartialEq for papo::MessageKind
+impl core::marker::Freeze for papo::MessageKind
+impl core::marker::Send for papo::MessageKind
+impl core::marker::Sync for papo::MessageKind
+impl core::marker::Unpin for papo::MessageKind
+impl core::marker::UnsafeUnpin for papo::MessageKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo::MessageKind
+impl core::panic::unwind_safe::UnwindSafe for papo::MessageKind
 #[non_exhaustive] pub enum papo::ModeKind
 pub papo::ModeKind::AlwaysArg
 pub papo::ModeKind::ArgWhenSet
@@ -688,12 +1526,44 @@ pub papo::ModeKind::List
 pub papo::ModeKind::NoArg
 pub papo::ModeKind::Prefix(usize)
 pub papo::ModeKind::Unknown
+impl core::clone::Clone for papo::ModeKind
+pub fn papo::ModeKind::clone(&self) -> Self
+impl core::cmp::Eq for papo::ModeKind
+impl core::cmp::PartialEq for papo::ModeKind
+pub fn papo::ModeKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::ModeKind
+pub fn papo::ModeKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::ModeKind
+impl core::marker::StructuralPartialEq for papo::ModeKind
+impl core::marker::Freeze for papo::ModeKind
+impl core::marker::Send for papo::ModeKind
+impl core::marker::Sync for papo::ModeKind
+impl core::marker::Unpin for papo::ModeKind
+impl core::marker::UnsafeUnpin for papo::ModeKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ModeKind
+impl core::panic::unwind_safe::UnwindSafe for papo::ModeKind
 #[non_exhaustive] pub enum papo::Origin
 pub papo::Origin::Echo
 pub papo::Origin::History
 pub papo::Origin::Live
 pub papo::Origin::OtherSession
 pub papo::Origin::Replay
+impl core::clone::Clone for papo::Origin
+pub fn papo::Origin::clone(&self) -> Self
+impl core::cmp::Eq for papo::Origin
+impl core::cmp::PartialEq for papo::Origin
+pub fn papo::Origin::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Origin
+pub fn papo::Origin::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::Origin
+impl core::marker::StructuralPartialEq for papo::Origin
+impl core::marker::Freeze for papo::Origin
+impl core::marker::Send for papo::Origin
+impl core::marker::Sync for papo::Origin
+impl core::marker::Unpin for papo::Origin
+impl core::marker::UnsafeUnpin for papo::Origin
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Origin
+impl core::panic::unwind_safe::UnwindSafe for papo::Origin
 #[non_exhaustive] pub enum papo::RegistrationError
 pub papo::RegistrationError::AccountRequired
 pub papo::RegistrationError::Banned
@@ -705,6 +1575,24 @@ pub papo::RegistrationError::Sasl::message: alloc::string::String
 pub papo::RegistrationError::StsUpgradeLoop
 pub papo::RegistrationError::StsUpgradeLoop::host: alloc::string::String
 pub papo::RegistrationError::Timeout
+impl core::clone::Clone for papo::RegistrationError
+pub fn papo::RegistrationError::clone(&self) -> Self
+impl core::cmp::Eq for papo::RegistrationError
+impl core::cmp::PartialEq for papo::RegistrationError
+pub fn papo::RegistrationError::eq(&self, &Self) -> bool
+impl core::error::Error for papo::RegistrationError
+impl core::fmt::Debug for papo::RegistrationError
+pub fn papo::RegistrationError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::RegistrationError
+pub fn papo::RegistrationError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::RegistrationError
+impl core::marker::Freeze for papo::RegistrationError
+impl core::marker::Send for papo::RegistrationError
+impl core::marker::Sync for papo::RegistrationError
+impl core::marker::Unpin for papo::RegistrationError
+impl core::marker::UnsafeUnpin for papo::RegistrationError
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RegistrationError
+impl core::panic::unwind_safe::UnwindSafe for papo::RegistrationError
 #[non_exhaustive] pub enum papo::Source
 #[non_exhaustive] pub papo::Source::Server
 pub papo::Source::Server::name: alloc::string::String
@@ -714,8 +1602,23 @@ pub papo::Source::User::nick: papo::Nick
 pub papo::Source::User::user: core::option::Option<alloc::string::String>
 impl papo::Source
 pub fn papo::Source::nick(&self) -> core::option::Option<&str>
+impl core::clone::Clone for papo::Source
+pub fn papo::Source::clone(&self) -> Self
+impl core::cmp::Eq for papo::Source
+impl core::cmp::PartialEq for papo::Source
+pub fn papo::Source::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Source
+pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::Source
 pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Source
+impl core::marker::Freeze for papo::Source
+impl core::marker::Send for papo::Source
+impl core::marker::Sync for papo::Source
+impl core::marker::Unpin for papo::Source
+impl core::marker::UnsafeUnpin for papo::Source
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Source
+impl core::panic::unwind_safe::UnwindSafe for papo::Source
 pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Nick>
@@ -753,6 +1656,13 @@ pub fn papo::Builder::webirc(self, papo::WebIrc) -> Self
 pub fn papo::Builder::without_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::Builder
+impl core::marker::Send for papo::Builder
+impl !core::marker::Sync for papo::Builder
+impl core::marker::Unpin for papo::Builder
+impl core::marker::UnsafeUnpin for papo::Builder
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::Builder
+impl !core::panic::unwind_safe::UnwindSafe for papo::Builder
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::action(&self, impl core::convert::Into<papo::Target>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
@@ -804,33 +1714,93 @@ pub fn papo::Client::register_account(&self, papo::NewAccount) -> papo::RequestF
 pub fn papo::Client::verify_account(&self, impl core::convert::Into<papo::AccountName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::AccountRegistration>
 impl papo::Client
 pub fn papo::Client::rename_channel(&self, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<papo::ChannelName>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+impl core::clone::Clone for papo::Client
+pub fn papo::Client::clone(&self) -> Self
 impl core::fmt::Debug for papo::Client
 pub fn papo::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::Client
+impl core::marker::Send for papo::Client
+impl core::marker::Sync for papo::Client
+impl core::marker::Unpin for papo::Client
+impl core::marker::UnsafeUnpin for papo::Client
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Client
+impl core::panic::unwind_safe::UnwindSafe for papo::Client
 pub struct papo::ConnectError
 impl papo::ConnectError
 pub fn papo::ConnectError::kind(&self) -> papo::ConnectErrorKind
 pub fn papo::ConnectError::new(papo::ConnectErrorKind, impl core::convert::Into<alloc::boxed::Box<(dyn core::error::Error + core::marker::Send + core::marker::Sync)>>) -> Self
+impl core::clone::Clone for papo::ConnectError
+pub fn papo::ConnectError::clone(&self) -> Self
+impl core::convert::From<papo::ConnectError> for papo::Error
+pub fn papo::Error::from(papo::ConnectError) -> Self
 impl core::error::Error for papo::ConnectError
 pub fn papo::ConnectError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for papo::ConnectError
+pub fn papo::ConnectError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::ConnectError
 pub fn papo::ConnectError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::ConnectError
+impl core::marker::Send for papo::ConnectError
+impl core::marker::Sync for papo::ConnectError
+impl core::marker::Unpin for papo::ConnectError
+impl core::marker::UnsafeUnpin for papo::ConnectError
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::ConnectError
+impl !core::panic::unwind_safe::UnwindSafe for papo::ConnectError
 pub struct papo::Ctcp<'a>
 impl<'a> papo::Ctcp<'a>
 pub const fn papo::Ctcp<'a>::command(&self) -> &'a str
 pub const fn papo::Ctcp<'a>::params(&self) -> core::option::Option<&'a str>
+impl<'a> core::clone::Clone for papo::Ctcp<'a>
+pub fn papo::Ctcp<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo::Ctcp<'a>
+impl<'a> core::cmp::PartialEq for papo::Ctcp<'a>
+pub fn papo::Ctcp<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo::Ctcp<'a>
+pub fn papo::Ctcp<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo::Ctcp<'a>
+impl<'a> core::marker::StructuralPartialEq for papo::Ctcp<'a>
+impl<'a> core::marker::Freeze for papo::Ctcp<'a>
+impl<'a> core::marker::Send for papo::Ctcp<'a>
+impl<'a> core::marker::Sync for papo::Ctcp<'a>
+impl<'a> core::marker::Unpin for papo::Ctcp<'a>
+impl<'a> core::marker::UnsafeUnpin for papo::Ctcp<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::Ctcp<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo::Ctcp<'a>
 #[non_exhaustive] pub struct papo::Disconnected
 pub papo::Disconnected::cause: papo::DisconnectCause
 pub papo::Disconnected::retry_in: core::option::Option<core::time::Duration>
 impl papo::Disconnected
 pub const fn papo::Disconnected::is_retrying(&self) -> bool
 pub const fn papo::Disconnected::new(papo::DisconnectCause, core::option::Option<core::time::Duration>) -> Self
+impl core::clone::Clone for papo::Disconnected
+pub fn papo::Disconnected::clone(&self) -> Self
+impl core::cmp::Eq for papo::Disconnected
+impl core::cmp::PartialEq for papo::Disconnected
+pub fn papo::Disconnected::eq(&self, &Self) -> bool
 impl core::error::Error for papo::Disconnected
+impl core::fmt::Debug for papo::Disconnected
+pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::Disconnected
 pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Disconnected
+impl core::marker::Freeze for papo::Disconnected
+impl core::marker::Send for papo::Disconnected
+impl core::marker::Sync for papo::Disconnected
+impl core::marker::Unpin for papo::Disconnected
+impl core::marker::UnsafeUnpin for papo::Disconnected
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
+impl core::panic::unwind_safe::UnwindSafe for papo::Disconnected
 pub struct papo::Driver
 impl core::future::future::Future for papo::Driver
 pub type papo::Driver::Output = core::result::Result<(), papo::Error>
 pub fn papo::Driver::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
+impl core::marker::Freeze for papo::Driver
+impl core::marker::Send for papo::Driver
+impl !core::marker::Sync for papo::Driver
+impl core::marker::Unpin for papo::Driver
+impl core::marker::UnsafeUnpin for papo::Driver
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::Driver
+impl !core::panic::unwind_safe::UnwindSafe for papo::Driver
 pub struct papo::Endpoint(_)
 impl papo::Endpoint
 pub fn papo::Endpoint::host(&self) -> core::option::Option<&str>
@@ -839,15 +1809,39 @@ pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>
 pub fn papo::Endpoint::port(&self) -> core::option::Option<u16>
 pub fn papo::Endpoint::tls(impl core::convert::Into<alloc::string::String>, u16) -> Self
 pub fn papo::Endpoint::websocket(impl core::convert::AsRef<str>) -> Self
+impl core::clone::Clone for papo::Endpoint
+pub fn papo::Endpoint::clone(&self) -> Self
+impl core::cmp::Eq for papo::Endpoint
+impl core::cmp::PartialEq for papo::Endpoint
+pub fn papo::Endpoint::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Endpoint
+pub fn papo::Endpoint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::Endpoint
 pub fn papo::Endpoint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::Endpoint
+pub fn papo::Endpoint::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::Endpoint
 impl papo::IntoEndpoint for papo::Endpoint
+impl core::marker::Freeze for papo::Endpoint
+impl core::marker::Send for papo::Endpoint
+impl core::marker::Sync for papo::Endpoint
+impl core::marker::Unpin for papo::Endpoint
+impl core::marker::UnsafeUnpin for papo::Endpoint
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Endpoint
+impl core::panic::unwind_safe::UnwindSafe for papo::Endpoint
 pub struct papo::Events
 impl papo::Events
 pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::Event>
 impl futures_core::stream::Stream for papo::Events
 pub type papo::Events::Item = papo::Event
 pub fn papo::Events::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
+impl core::marker::Freeze for papo::Events
+impl core::marker::Send for papo::Events
+impl core::marker::Sync for papo::Events
+impl core::marker::Unpin for papo::Events
+impl core::marker::UnsafeUnpin for papo::Events
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::Events
+impl !core::panic::unwind_safe::UnwindSafe for papo::Events
 pub struct papo::History
 impl papo::History
 pub fn papo::History::after(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
@@ -855,12 +1849,34 @@ pub fn papo::History::around(self, impl core::convert::Into<papo::HistoryReferen
 pub fn papo::History::before(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
 pub fn papo::History::between(self, impl core::convert::Into<papo::HistoryReference>, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
 pub fn papo::History::latest(self, usize) -> papo::HistoryRequest
+impl core::marker::Freeze for papo::History
+impl core::marker::Send for papo::History
+impl core::marker::Sync for papo::History
+impl core::marker::Unpin for papo::History
+impl core::marker::UnsafeUnpin for papo::History
+impl core::panic::unwind_safe::RefUnwindSafe for papo::History
+impl core::panic::unwind_safe::UnwindSafe for papo::History
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::end: bool
 pub papo::HistoryPage::items: alloc::vec::Vec<papo::HistoryItem>
 pub papo::HistoryPage::target: papo::Target
 impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
+impl core::clone::Clone for papo::HistoryPage
+pub fn papo::HistoryPage::clone(&self) -> Self
+impl core::cmp::Eq for papo::HistoryPage
+impl core::cmp::PartialEq for papo::HistoryPage
+pub fn papo::HistoryPage::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::HistoryPage
+pub fn papo::HistoryPage::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::HistoryPage
+impl core::marker::Freeze for papo::HistoryPage
+impl core::marker::Send for papo::HistoryPage
+impl core::marker::Sync for papo::HistoryPage
+impl core::marker::Unpin for papo::HistoryPage
+impl core::marker::UnsafeUnpin for papo::HistoryPage
+impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryPage
+impl core::panic::unwind_safe::UnwindSafe for papo::HistoryPage
 pub struct papo::HistoryReference(_)
 impl core::convert::From<&alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&alloc::string::String) -> Self
@@ -872,6 +1888,13 @@ impl core::convert::From<alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(alloc::string::String) -> Self
 impl core::convert::From<std::time::SystemTime> for papo::HistoryReference
 pub fn papo::HistoryReference::from(std::time::SystemTime) -> Self
+impl core::marker::Freeze for papo::HistoryReference
+impl core::marker::Send for papo::HistoryReference
+impl core::marker::Sync for papo::HistoryReference
+impl core::marker::Unpin for papo::HistoryReference
+impl core::marker::UnsafeUnpin for papo::HistoryReference
+impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryReference
+impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReference
 pub struct papo::HistoryRequest
 impl papo::HistoryRequest
 pub fn papo::HistoryRequest::limit(self, usize) -> Self
@@ -879,9 +1902,31 @@ impl core::future::into_future::IntoFuture for papo::HistoryRequest
 pub type papo::HistoryRequest::IntoFuture = papo::RequestFuture<papo::HistoryPage>
 pub type papo::HistoryRequest::Output = core::result::Result<papo::HistoryPage, papo::Error>
 pub fn papo::HistoryRequest::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::HistoryRequest
+impl core::marker::Send for papo::HistoryRequest
+impl core::marker::Sync for papo::HistoryRequest
+impl core::marker::Unpin for papo::HistoryRequest
+impl core::marker::UnsafeUnpin for papo::HistoryRequest
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::HistoryRequest
+impl !core::panic::unwind_safe::UnwindSafe for papo::HistoryRequest
 #[non_exhaustive] pub struct papo::HistoryTarget
 pub papo::HistoryTarget::latest: std::time::SystemTime
 pub papo::HistoryTarget::target: papo::Target
+impl core::clone::Clone for papo::HistoryTarget
+pub fn papo::HistoryTarget::clone(&self) -> Self
+impl core::cmp::Eq for papo::HistoryTarget
+impl core::cmp::PartialEq for papo::HistoryTarget
+pub fn papo::HistoryTarget::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::HistoryTarget
+pub fn papo::HistoryTarget::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::HistoryTarget
+impl core::marker::Freeze for papo::HistoryTarget
+impl core::marker::Send for papo::HistoryTarget
+impl core::marker::Sync for papo::HistoryTarget
+impl core::marker::Unpin for papo::HistoryTarget
+impl core::marker::UnsafeUnpin for papo::HistoryTarget
+impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryTarget
+impl core::panic::unwind_safe::UnwindSafe for papo::HistoryTarget
 pub struct papo::Isupport
 impl papo::isupport::Isupport
 pub fn papo::isupport::Isupport::account_required(&self) -> bool
@@ -921,20 +1966,78 @@ pub fn papo::isupport::Isupport::tokens(&self) -> impl core::iter::traits::exact
 pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub fn papo::isupport::Isupport::utf8only(&self) -> bool
 pub fn papo::isupport::Isupport::whox(&self) -> bool
+impl core::clone::Clone for papo::isupport::Isupport
+pub fn papo::isupport::Isupport::clone(&self) -> Self
+impl core::cmp::Eq for papo::isupport::Isupport
+impl core::cmp::PartialEq for papo::isupport::Isupport
+pub fn papo::isupport::Isupport::eq(&self, &Self) -> bool
+impl core::default::Default for papo::isupport::Isupport
+pub fn papo::isupport::Isupport::default() -> Self
+impl core::fmt::Debug for papo::isupport::Isupport
+pub fn papo::isupport::Isupport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::isupport::Isupport
+impl core::marker::Freeze for papo::isupport::Isupport
+impl core::marker::Send for papo::isupport::Isupport
+impl core::marker::Sync for papo::isupport::Isupport
+impl core::marker::Unpin for papo::isupport::Isupport
+impl core::marker::UnsafeUnpin for papo::isupport::Isupport
+impl core::panic::unwind_safe::RefUnwindSafe for papo::isupport::Isupport
+impl core::panic::unwind_safe::UnwindSafe for papo::isupport::Isupport
 pub struct papo::JoinChannel
 impl papo::JoinChannel
 pub fn papo::JoinChannel::key(self, impl core::convert::Into<papo::Secret>) -> Self
+impl core::fmt::Debug for papo::JoinChannel
+pub fn papo::JoinChannel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::JoinChannel
 pub type papo::JoinChannel::IntoFuture = papo::RequestFuture<()>
 pub type papo::JoinChannel::Output = core::result::Result<(), papo::Error>
 pub fn papo::JoinChannel::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::JoinChannel
+impl core::marker::Send for papo::JoinChannel
+impl core::marker::Sync for papo::JoinChannel
+impl core::marker::Unpin for papo::JoinChannel
+impl core::marker::UnsafeUnpin for papo::JoinChannel
+impl core::panic::unwind_safe::RefUnwindSafe for papo::JoinChannel
+impl core::panic::unwind_safe::UnwindSafe for papo::JoinChannel
 #[non_exhaustive] pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
 pub papo::ListEntry::name: papo::ChannelName
 pub papo::ListEntry::topic: alloc::string::String
+impl core::clone::Clone for papo::ListEntry
+pub fn papo::ListEntry::clone(&self) -> Self
+impl core::cmp::Eq for papo::ListEntry
+impl core::cmp::PartialEq for papo::ListEntry
+pub fn papo::ListEntry::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::ListEntry
+pub fn papo::ListEntry::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::ListEntry
+impl core::marker::Freeze for papo::ListEntry
+impl core::marker::Send for papo::ListEntry
+impl core::marker::Sync for papo::ListEntry
+impl core::marker::Unpin for papo::ListEntry
+impl core::marker::UnsafeUnpin for papo::ListEntry
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ListEntry
+impl core::panic::unwind_safe::UnwindSafe for papo::ListEntry
 pub struct papo::ListFilter
 impl papo::ListFilter
 pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Mask>
+impl core::clone::Clone for papo::ListFilter
+pub fn papo::ListFilter::clone(&self) -> Self
+impl core::cmp::Eq for papo::ListFilter
+impl core::cmp::PartialEq for papo::ListFilter
+pub fn papo::ListFilter::eq(&self, &Self) -> bool
+impl core::default::Default for papo::ListFilter
+pub fn papo::ListFilter::default() -> Self
+impl core::fmt::Debug for papo::ListFilter
+pub fn papo::ListFilter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::ListFilter
+impl core::marker::Freeze for papo::ListFilter
+impl core::marker::Send for papo::ListFilter
+impl core::marker::Sync for papo::ListFilter
+impl core::marker::Unpin for papo::ListFilter
+impl core::marker::UnsafeUnpin for papo::ListFilter
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ListFilter
+impl core::panic::unwind_safe::UnwindSafe for papo::ListFilter
 #[non_exhaustive] pub struct papo::Message
 pub papo::Message::account: core::option::Option<papo::AccountName>
 pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
@@ -974,8 +2077,23 @@ pub const fn papo::Message::tags(&self) -> &papo::Tags
 pub fn papo::Message::target(&self) -> &str
 pub fn papo::Message::text(&self) -> &str
 pub fn papo::Message::time(&self) -> std::time::SystemTime
+impl core::clone::Clone for papo::Message
+pub fn papo::Message::clone(&self) -> Self
+impl core::cmp::Eq for papo::Message
+impl core::cmp::PartialEq for papo::Message
+pub fn papo::Message::eq(&self, &Self) -> bool
 impl core::convert::From<&papo::Message> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::Message) -> Self
+impl core::fmt::Debug for papo::Message
+pub fn papo::Message::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Message
+impl core::marker::Freeze for papo::Message
+impl core::marker::Send for papo::Message
+impl core::marker::Sync for papo::Message
+impl core::marker::Unpin for papo::Message
+impl core::marker::UnsafeUnpin for papo::Message
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Message
+impl core::panic::unwind_safe::UnwindSafe for papo::Message
 pub struct papo::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
@@ -989,19 +2107,63 @@ pub fn papo::Metadata::set_on(&self, impl core::convert::Into<papo::Target>, imp
 pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 pub fn papo::Metadata::sync(&self, impl core::convert::Into<papo::Target>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+impl core::marker::Freeze for papo::Metadata
+impl core::marker::Send for papo::Metadata
+impl core::marker::Sync for papo::Metadata
+impl core::marker::Unpin for papo::Metadata
+impl core::marker::UnsafeUnpin for papo::Metadata
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
+impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
 #[non_exhaustive] pub struct papo::MetadataValue
 pub papo::MetadataValue::value: alloc::string::String
 pub papo::MetadataValue::visibility: alloc::string::String
+impl core::clone::Clone for papo::metadata::MetadataValue
+pub fn papo::metadata::MetadataValue::clone(&self) -> Self
+impl core::cmp::Eq for papo::metadata::MetadataValue
+impl core::cmp::PartialEq for papo::metadata::MetadataValue
+pub fn papo::metadata::MetadataValue::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::metadata::MetadataValue
+pub fn papo::metadata::MetadataValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::metadata::MetadataValue
+impl core::marker::Freeze for papo::metadata::MetadataValue
+impl core::marker::Send for papo::metadata::MetadataValue
+impl core::marker::Sync for papo::metadata::MetadataValue
+impl core::marker::Unpin for papo::metadata::MetadataValue
+impl core::marker::UnsafeUnpin for papo::metadata::MetadataValue
+impl core::panic::unwind_safe::RefUnwindSafe for papo::metadata::MetadataValue
+impl core::panic::unwind_safe::UnwindSafe for papo::metadata::MetadataValue
 pub struct papo::Monitor
 impl papo::Monitor
 pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Nick>
 pub fn papo::Monitor::clear(&self) -> papo::RequestFuture<()>
 pub fn papo::Monitor::remove<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::Nick>
+impl core::marker::Freeze for papo::Monitor
+impl core::marker::Send for papo::Monitor
+impl core::marker::Sync for papo::Monitor
+impl core::marker::Unpin for papo::Monitor
+impl core::marker::UnsafeUnpin for papo::Monitor
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Monitor
+impl core::panic::unwind_safe::UnwindSafe for papo::Monitor
 pub struct papo::NewAccount
 impl papo::NewAccount
 pub fn papo::NewAccount::account(self, impl core::convert::Into<papo::AccountName>) -> Self
 pub fn papo::NewAccount::email(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::NewAccount::new(impl core::convert::Into<papo::Secret>) -> Self
+impl core::clone::Clone for papo::NewAccount
+pub fn papo::NewAccount::clone(&self) -> Self
+impl core::cmp::Eq for papo::NewAccount
+impl core::cmp::PartialEq for papo::NewAccount
+pub fn papo::NewAccount::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::NewAccount
+pub fn papo::NewAccount::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::NewAccount
+impl core::marker::Freeze for papo::NewAccount
+impl core::marker::Send for papo::NewAccount
+impl core::marker::Sync for papo::NewAccount
+impl core::marker::Unpin for papo::NewAccount
+impl core::marker::UnsafeUnpin for papo::NewAccount
+impl core::panic::unwind_safe::RefUnwindSafe for papo::NewAccount
+impl core::panic::unwind_safe::UnwindSafe for papo::NewAccount
 pub struct papo::RawLine
 impl papo::RawLine
 pub fn papo::RawLine::command(&self) -> &str
@@ -1011,20 +2173,58 @@ pub fn papo::RawLine::params(&self) -> &[alloc::string::String]
 pub fn papo::RawLine::source(&self) -> core::option::Option<papo::Source>
 pub fn papo::RawLine::tag(&self, &str) -> core::option::Option<&str>
 pub const fn papo::RawLine::tags(&self) -> &papo::Tags
+impl core::clone::Clone for papo::RawLine
+pub fn papo::RawLine::clone(&self) -> Self
+impl core::cmp::Eq for papo::RawLine
+impl core::cmp::PartialEq for papo::RawLine
+pub fn papo::RawLine::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::RawLine
+pub fn papo::RawLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::RawLine
 pub fn papo::RawLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::RawLine
+impl core::marker::Freeze for papo::RawLine
+impl core::marker::Send for papo::RawLine
+impl core::marker::Sync for papo::RawLine
+impl core::marker::Unpin for papo::RawLine
+impl core::marker::UnsafeUnpin for papo::RawLine
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RawLine
+impl core::panic::unwind_safe::UnwindSafe for papo::RawLine
 pub struct papo::Reconnect
 impl papo::Reconnect
 pub const fn papo::Reconnect::exponential() -> Self
 pub const fn papo::Reconnect::max_attempts(self, usize) -> Self
 pub const fn papo::Reconnect::max_delay(self, core::time::Duration) -> Self
 pub const fn papo::Reconnect::never() -> Self
+impl core::clone::Clone for papo::Reconnect
+pub fn papo::Reconnect::clone(&self) -> Self
+impl core::cmp::Eq for papo::Reconnect
+impl core::cmp::PartialEq for papo::Reconnect
+pub fn papo::Reconnect::eq(&self, &Self) -> bool
 impl core::default::Default for papo::Reconnect
 pub fn papo::Reconnect::default() -> Self
+impl core::fmt::Debug for papo::Reconnect
+pub fn papo::Reconnect::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::Reconnect
+impl core::marker::StructuralPartialEq for papo::Reconnect
+impl core::marker::Freeze for papo::Reconnect
+impl core::marker::Send for papo::Reconnect
+impl core::marker::Sync for papo::Reconnect
+impl core::marker::Unpin for papo::Reconnect
+impl core::marker::UnsafeUnpin for papo::Reconnect
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Reconnect
+impl core::panic::unwind_safe::UnwindSafe for papo::Reconnect
 pub struct papo::RequestFuture<T>
 impl<T> core::future::future::Future for papo::RequestFuture<T>
 pub type papo::RequestFuture<T>::Output = core::result::Result<T, papo::Error>
 pub fn papo::RequestFuture<T>::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
+impl<T> core::marker::Freeze for papo::RequestFuture<T> where core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<T, papo::Error>> + core::marker::Send)>>: core::marker::Freeze
+impl<T> core::marker::Send for papo::RequestFuture<T> where core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<T, papo::Error>> + core::marker::Send)>>: core::marker::Send
+impl<T> !core::marker::Sync for papo::RequestFuture<T>
+impl<T> core::marker::Unpin for papo::RequestFuture<T> where core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<T, papo::Error>> + core::marker::Send)>>: core::marker::Unpin
+impl<T> core::marker::UnsafeUnpin for papo::RequestFuture<T> where core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<T, papo::Error>> + core::marker::Send)>>: core::marker::UnsafeUnpin
+impl<T> !core::panic::unwind_safe::RefUnwindSafe for papo::RequestFuture<T>
+impl<T> !core::panic::unwind_safe::UnwindSafe for papo::RequestFuture<T>
 pub struct papo::SendMessage
 impl papo::SendMessage
 pub fn papo::SendMessage::channel_context(self, &papo::ChannelName) -> Self
@@ -1034,11 +2234,33 @@ impl core::future::into_future::IntoFuture for papo::SendMessage
 pub type papo::SendMessage::IntoFuture = papo::RequestFuture<papo::Sent>
 pub type papo::SendMessage::Output = core::result::Result<papo::Sent, papo::Error>
 pub fn papo::SendMessage::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::SendMessage
+impl core::marker::Send for papo::SendMessage
+impl core::marker::Sync for papo::SendMessage
+impl core::marker::Unpin for papo::SendMessage
+impl core::marker::UnsafeUnpin for papo::SendMessage
+impl core::panic::unwind_safe::RefUnwindSafe for papo::SendMessage
+impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
 #[non_exhaustive] pub struct papo::Sent
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
 pub papo::Sent::id: core::option::Option<papo::MessageId>
 pub papo::Sent::target: papo::Target
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>
+impl core::clone::Clone for papo::Sent
+pub fn papo::Sent::clone(&self) -> Self
+impl core::cmp::Eq for papo::Sent
+impl core::cmp::PartialEq for papo::Sent
+pub fn papo::Sent::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Sent
+pub fn papo::Sent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Sent
+impl core::marker::Freeze for papo::Sent
+impl core::marker::Send for papo::Sent
+impl core::marker::Sync for papo::Sent
+impl core::marker::Unpin for papo::Sent
+impl core::marker::UnsafeUnpin for papo::Sent
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Sent
+impl core::panic::unwind_safe::UnwindSafe for papo::Sent
 pub struct papo::ServerError
 impl papo::ServerError
 pub fn papo::ServerError::code(&self) -> &str
@@ -1048,9 +2270,24 @@ pub const fn papo::ServerError::kind(&self) -> papo::Refusal
 pub fn papo::ServerError::numeric(u16, alloc::vec::Vec<alloc::string::String>) -> Self
 pub fn papo::ServerError::params(&self) -> &[alloc::string::String]
 pub fn papo::ServerError::standard(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>, alloc::vec::Vec<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::clone::Clone for papo::ServerError
+pub fn papo::ServerError::clone(&self) -> Self
+impl core::cmp::Eq for papo::ServerError
+impl core::cmp::PartialEq for papo::ServerError
+pub fn papo::ServerError::eq(&self, &Self) -> bool
 impl core::error::Error for papo::ServerError
+impl core::fmt::Debug for papo::ServerError
+pub fn papo::ServerError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::ServerError
 pub fn papo::ServerError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::ServerError
+impl core::marker::Freeze for papo::ServerError
+impl core::marker::Send for papo::ServerError
+impl core::marker::Sync for papo::ServerError
+impl core::marker::Unpin for papo::ServerError
+impl core::marker::UnsafeUnpin for papo::ServerError
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ServerError
+impl core::panic::unwind_safe::UnwindSafe for papo::ServerError
 pub struct papo::SetModes
 impl papo::SetModes
 pub fn papo::SetModes::add(self, char) -> Self
@@ -1067,6 +2304,13 @@ impl core::future::into_future::IntoFuture for papo::SetModes
 pub type papo::SetModes::IntoFuture = papo::RequestFuture<()>
 pub type papo::SetModes::Output = core::result::Result<(), papo::Error>
 pub fn papo::SetModes::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::SetModes
+impl core::marker::Send for papo::SetModes
+impl core::marker::Sync for papo::SetModes
+impl core::marker::Unpin for papo::SetModes
+impl core::marker::UnsafeUnpin for papo::SetModes
+impl core::panic::unwind_safe::RefUnwindSafe for papo::SetModes
+impl core::panic::unwind_safe::UnwindSafe for papo::SetModes
 pub struct papo::State
 impl papo::State
 pub fn papo::State::account(&self) -> core::option::Option<&papo::AccountName>
@@ -1089,23 +2333,60 @@ pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::
 pub fn papo::State::supports(&self, papo::Feature) -> bool
 pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
+impl core::clone::Clone for papo::State
+pub fn papo::State::clone(&self) -> Self
+impl core::fmt::Debug for papo::State
+pub fn papo::State::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::State
+impl core::marker::Send for papo::State
+impl core::marker::Sync for papo::State
+impl core::marker::Unpin for papo::State
+impl core::marker::UnsafeUnpin for papo::State
+impl core::panic::unwind_safe::RefUnwindSafe for papo::State
+impl core::panic::unwind_safe::UnwindSafe for papo::State
 pub struct papo::Tags(_)
 impl papo::Tags
 pub fn papo::Tags::contains(&self, &str) -> bool
 pub fn papo::Tags::get(&self, &str) -> core::option::Option<&str>
 pub const fn papo::Tags::is_empty(&self) -> bool
 pub fn papo::Tags::iter(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, &str)>
+impl core::clone::Clone for papo::Tags
+pub fn papo::Tags::clone(&self) -> Self
 impl core::cmp::Eq for papo::Tags
 impl core::cmp::PartialEq for papo::Tags
 pub fn papo::Tags::eq(&self, &Self) -> bool
+impl core::default::Default for papo::Tags
+pub fn papo::Tags::default() -> Self
 impl core::fmt::Debug for papo::Tags
 pub fn papo::Tags::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::Tags
+impl core::marker::Send for papo::Tags
+impl core::marker::Sync for papo::Tags
+impl core::marker::Unpin for papo::Tags
+impl core::marker::UnsafeUnpin for papo::Tags
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Tags
+impl core::panic::unwind_safe::UnwindSafe for papo::Tags
 pub struct papo::WebIrc
 impl papo::WebIrc
 pub fn papo::WebIrc::flag(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::WebIrc::hostname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::WebIrc::new(impl core::convert::Into<papo::Secret>, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::WebIrc::option(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::clone::Clone for papo::WebIrc
+pub fn papo::WebIrc::clone(&self) -> Self
+impl core::cmp::Eq for papo::WebIrc
+impl core::cmp::PartialEq for papo::WebIrc
+pub fn papo::WebIrc::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::WebIrc
+pub fn papo::WebIrc::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::WebIrc
+impl core::marker::Freeze for papo::WebIrc
+impl core::marker::Send for papo::WebIrc
+impl core::marker::Sync for papo::WebIrc
+impl core::marker::Unpin for papo::WebIrc
+impl core::marker::UnsafeUnpin for papo::WebIrc
+impl core::panic::unwind_safe::RefUnwindSafe for papo::WebIrc
+impl core::panic::unwind_safe::UnwindSafe for papo::WebIrc
 #[non_exhaustive] pub struct papo::WhoEntry
 pub papo::WhoEntry::account: core::option::Option<papo::AccountName>
 pub papo::WhoEntry::away: bool
@@ -1117,6 +2398,21 @@ pub papo::WhoEntry::nick: papo::Nick
 pub papo::WhoEntry::prefixes: alloc::vec::Vec<char>
 pub papo::WhoEntry::realname: alloc::string::String
 pub papo::WhoEntry::user: alloc::string::String
+impl core::clone::Clone for papo::WhoEntry
+pub fn papo::WhoEntry::clone(&self) -> Self
+impl core::cmp::Eq for papo::WhoEntry
+impl core::cmp::PartialEq for papo::WhoEntry
+pub fn papo::WhoEntry::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::WhoEntry
+pub fn papo::WhoEntry::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::WhoEntry
+impl core::marker::Freeze for papo::WhoEntry
+impl core::marker::Send for papo::WhoEntry
+impl core::marker::Sync for papo::WhoEntry
+impl core::marker::Unpin for papo::WhoEntry
+impl core::marker::UnsafeUnpin for papo::WhoEntry
+impl core::panic::unwind_safe::RefUnwindSafe for papo::WhoEntry
+impl core::panic::unwind_safe::UnwindSafe for papo::WhoEntry
 #[non_exhaustive] pub struct papo::Whois
 pub papo::Whois::account: core::option::Option<papo::AccountName>
 pub papo::Whois::away: core::option::Option<alloc::string::String>
@@ -1129,9 +2425,39 @@ pub papo::Whois::realname: core::option::Option<alloc::string::String>
 pub papo::Whois::secure: bool
 pub papo::Whois::server: core::option::Option<alloc::string::String>
 pub papo::Whois::user: core::option::Option<alloc::string::String>
+impl core::clone::Clone for papo::Whois
+pub fn papo::Whois::clone(&self) -> Self
+impl core::cmp::Eq for papo::Whois
+impl core::cmp::PartialEq for papo::Whois
+pub fn papo::Whois::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Whois
+pub fn papo::Whois::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Whois
+impl core::marker::Freeze for papo::Whois
+impl core::marker::Send for papo::Whois
+impl core::marker::Sync for papo::Whois
+impl core::marker::Unpin for papo::Whois
+impl core::marker::UnsafeUnpin for papo::Whois
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Whois
+impl core::panic::unwind_safe::UnwindSafe for papo::Whois
 #[non_exhaustive] pub struct papo::WhoisChannel
 pub papo::WhoisChannel::name: papo::ChannelName
 pub papo::WhoisChannel::prefixes: alloc::vec::Vec<char>
+impl core::clone::Clone for papo::WhoisChannel
+pub fn papo::WhoisChannel::clone(&self) -> Self
+impl core::cmp::Eq for papo::WhoisChannel
+impl core::cmp::PartialEq for papo::WhoisChannel
+pub fn papo::WhoisChannel::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::WhoisChannel
+pub fn papo::WhoisChannel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::WhoisChannel
+impl core::marker::Freeze for papo::WhoisChannel
+impl core::marker::Send for papo::WhoisChannel
+impl core::marker::Sync for papo::WhoisChannel
+impl core::marker::Unpin for papo::WhoisChannel
+impl core::marker::UnsafeUnpin for papo::WhoisChannel
+impl core::panic::unwind_safe::RefUnwindSafe for papo::WhoisChannel
+impl core::panic::unwind_safe::UnwindSafe for papo::WhoisChannel
 pub const papo::VERSION: &str
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
