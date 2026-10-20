@@ -60,8 +60,7 @@ pub use builder::Builder;
 pub use client::{Client, Fallback, JoinChannel, SendMessage, Sent};
 pub use driver::{Driver, Events};
 pub use error::{
-    ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, RegistrationError,
-    ServerError,
+    ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]

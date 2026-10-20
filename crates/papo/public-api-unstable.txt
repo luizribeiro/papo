@@ -1706,35 +1706,6 @@ impl core::marker::Unpin for papo::PersistenceSetting
 impl core::marker::UnsafeUnpin for papo::PersistenceSetting
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PersistenceSetting
 impl core::panic::unwind_safe::UnwindSafe for papo::PersistenceSetting
-#[non_exhaustive] pub enum papo::RegistrationError
-pub papo::RegistrationError::AccountRequired
-pub papo::RegistrationError::Banned
-pub papo::RegistrationError::Banned::message: alloc::string::String
-pub papo::RegistrationError::Rejected
-pub papo::RegistrationError::Rejected::message: alloc::string::String
-pub papo::RegistrationError::Sasl
-pub papo::RegistrationError::Sasl::message: alloc::string::String
-pub papo::RegistrationError::StsUpgradeLoop
-pub papo::RegistrationError::StsUpgradeLoop::host: alloc::string::String
-pub papo::RegistrationError::Timeout
-impl core::clone::Clone for papo::RegistrationError
-pub fn papo::RegistrationError::clone(&self) -> Self
-impl core::cmp::Eq for papo::RegistrationError
-impl core::cmp::PartialEq for papo::RegistrationError
-pub fn papo::RegistrationError::eq(&self, &Self) -> bool
-impl core::error::Error for papo::RegistrationError
-impl core::fmt::Debug for papo::RegistrationError
-pub fn papo::RegistrationError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::RegistrationError
-pub fn papo::RegistrationError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::RegistrationError
-impl core::marker::Freeze for papo::RegistrationError
-impl core::marker::Send for papo::RegistrationError
-impl core::marker::Sync for papo::RegistrationError
-impl core::marker::Unpin for papo::RegistrationError
-impl core::marker::UnsafeUnpin for papo::RegistrationError
-impl core::panic::unwind_safe::RefUnwindSafe for papo::RegistrationError
-impl core::panic::unwind_safe::UnwindSafe for papo::RegistrationError
 #[non_exhaustive] pub enum papo::Source
 #[non_exhaustive] pub papo::Source::Server
 pub papo::Source::Server::name: alloc::string::String

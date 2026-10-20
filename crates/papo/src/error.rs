@@ -294,44 +294,6 @@ impl fmt::Display for ServerError {
 
 impl std::error::Error for ServerError {}
 
-/// A failure while registering an IRC connection.
-#[derive(Clone, Debug, Eq, Error, PartialEq)]
-#[non_exhaustive]
-pub enum RegistrationError {
-    /// Required SASL authentication failed.
-    #[error("SASL authentication failed: {message}")]
-    Sasl {
-        /// The bounded diagnostic reported by the server.
-        message: String,
-    },
-    /// The server requires authentication but no account credentials were configured.
-    ///
-    /// [`crate::State::isupport`] exposes the corresponding ISUPPORT indication when supplied.
-    #[error("the server requires an authenticated account")]
-    AccountRequired,
-    /// The server banned this connection.
-    #[error("the server banned this connection: {message}")]
-    Banned {
-        /// The bounded diagnostic reported by the server.
-        message: String,
-    },
-    /// The server rejected registration for another reason.
-    #[error("the server rejected the connection: {message}")]
-    Rejected {
-        /// The bounded diagnostic reported by the server.
-        message: String,
-    },
-    /// Registration did not finish before its deadline.
-    #[error("IRC registration timed out")]
-    Timeout,
-    /// A server requested consecutive STS upgrades without registering.
-    #[error("repeated STS upgrade for {host} without registration")]
-    StsUpgradeLoop {
-        /// The hostname whose server repeated the upgrade.
-        host: String,
-    },
-}
-
 /// Why an established or pending IRC connection ended.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -578,17 +540,12 @@ mod tests {
     use std::{io, time::Duration};
 
     use super::{
-        ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal,
-        RegistrationError, ServerError,
+        ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal, ServerError,
     };
     use crate::InvalidInput;
 
     #[test]
     fn terminal_payloads_preserve_bounded_diagnostics() {
-        let registration = RegistrationError::Banned {
-            message: "K-lined: open proxy".into(),
-        };
-        assert!(registration.to_string().contains("K-lined: open proxy"));
         let disconnected = Disconnected {
             cause: DisconnectCause::Server {
                 message: "Closing Link: maintenance".into(),
@@ -828,25 +785,6 @@ mod tests {
             let error = ConnectError::new(kind, io::Error::other("recorded cause"));
             assert_eq!(error.kind(), kind);
             assert!(std::error::Error::source(&error).is_some());
-        }
-
-        for error in [
-            RegistrationError::Sasl {
-                message: "Invalid credentials".into(),
-            },
-            RegistrationError::AccountRequired,
-            RegistrationError::Banned {
-                message: "K-lined".into(),
-            },
-            RegistrationError::Rejected {
-                message: "Too many connections".into(),
-            },
-            RegistrationError::Timeout,
-            RegistrationError::StsUpgradeLoop {
-                host: "irc.example.net".into(),
-            },
-        ] {
-            assert!(!error.to_string().is_empty());
         }
 
         for cause in [
