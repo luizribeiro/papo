@@ -1052,12 +1052,16 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             channel,
             nick,
             actor,
+            authorship,
+            subject_authorship,
             reason,
             ..
         } => Event::Kicked(Kicked {
             channel,
             nick,
             actor: Source::from_name(actor, casemapping),
+            authorship: Authorship::from_core(authorship),
+            subject_authorship: Authorship::from_core(subject_authorship),
             reason,
             is_self: false,
         }),
@@ -1065,11 +1069,14 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             channel,
             nick,
             actor,
-            ..
+            authorship,
+            subject_authorship,
         } => Event::Invited(Invited {
             channel,
             nick,
             actor: Source::from_prefix(actor, casemapping),
+            authorship: Authorship::from_core(authorship),
+            subject_authorship: Authorship::from_core(subject_authorship),
             is_self: false,
         }),
         papo_core::Event::Quit {
@@ -1097,12 +1104,14 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             old,
             new,
             actor,
+            authorship,
             reason,
             ..
         } => Event::ChannelRenamed(ChannelRenamed {
             old,
             new,
             actor: Source::from_prefix(actor, casemapping),
+            authorship: Authorship::from_core(authorship),
             reason,
         }),
         papo_core::Event::AccountChanged { nick, account } => {
@@ -1126,6 +1135,8 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
         papo_core::Event::ModeChanged {
             subject,
             actor,
+            authorship,
+            subject_authorship,
             changes,
             ..
         } => Event::ModeChanged(ModeChanged {
@@ -1135,6 +1146,8 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
                 _ => return CoreEvent::Unknown,
             },
             actor: Source::from_name(actor, casemapping),
+            authorship: Authorship::from_core(authorship),
+            subject_authorship: Authorship::from_core(subject_authorship),
             changes: changes
                 .into_iter()
                 .map(|change| ModeChange {
@@ -1149,11 +1162,12 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             channel,
             topic,
             actor,
-            ..
+            authorship,
         } => Event::TopicChanged(TopicChanged {
             channel,
             topic,
             actor: Source::from_name(actor, casemapping),
+            authorship: Authorship::from_core(authorship),
         }),
         papo_core::Event::StateLimitReached { limit } => {
             Event::Warning(Warning::StateLimitReached {
@@ -2321,6 +2335,8 @@ mod tests {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 actor: actor.clone(),
+                authorship: crate::Authorship::Other,
+                subject_authorship: crate::Authorship::Own,
                 reason: None,
                 is_self: false,
             }),
@@ -2328,6 +2344,8 @@ mod tests {
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 actor,
+                authorship: crate::Authorship::Other,
+                subject_authorship: crate::Authorship::Own,
                 is_self: false,
             }),
             Event::NickChanged(super::NickChanged {

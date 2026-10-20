@@ -77,6 +77,10 @@ pub struct Kicked {
     pub nick: Nick,
     /// The user or server that issued the kick.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
+    /// Whether the removed user is this client's user.
+    pub subject_authorship: Authorship,
     /// The optional kick reason.
     pub reason: Option<String>,
     /// Whether the removed user is this client.
@@ -93,6 +97,10 @@ pub struct Invited {
     pub nick: Nick,
     /// The user or server that sent the invitation.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
+    /// Whether the invited user is this client's user.
+    pub subject_authorship: Authorship,
     /// Whether the invited user is this client.
     pub is_self: bool,
 }
@@ -107,6 +115,8 @@ pub struct TopicChanged {
     pub topic: Option<String>,
     /// The user or server that changed the topic.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
 }
 
 /// An owned operation from an IRC mode string.
@@ -131,6 +141,10 @@ pub struct ModeChanged {
     pub subject: Subject,
     /// The user or server that changed the modes.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
+    /// Whether the distinct subject is this client's user.
+    pub subject_authorship: Authorship,
     /// Parsed mode operations in wire order.
     pub changes: Vec<ModeChange>,
 }
@@ -145,6 +159,8 @@ pub struct ChannelRenamed {
     pub new: ChannelName,
     /// The user or server that renamed the channel.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
     /// The server-supplied reason, when present and non-empty.
     pub reason: Option<String>,
 }

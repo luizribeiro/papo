@@ -216,6 +216,8 @@ fn kicked(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<HistoryI
     let mapping = client.state().casemapping();
     Some(HistoryItem::Kicked(Kicked {
         channel: mapping.channel(message.param(0)?),
+        authorship: crate::Authorship::Unknown,
+        subject_authorship: crate::Authorship::Unknown,
         is_self: is_self(client, &nick),
         nick: mapping.nick(nick),
         actor: Source::from_proto(message.source()?, mapping),
@@ -245,6 +247,7 @@ fn topic_changed(
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
         actor: Source::from_proto(message.source()?, mapping),
+        authorship: crate::Authorship::Unknown,
     }))
 }
 
@@ -270,6 +273,8 @@ fn mode_changed(message: &papo_proto::LineRef<'_>, client: &Client) -> Option<Hi
             crate::Subject::User(mapping.nick(message.param(0)?))
         },
         actor: Source::from_proto(message.source()?, mapping),
+        authorship: crate::Authorship::Unknown,
+        subject_authorship: crate::Authorship::Unknown,
         changes,
     }))
 }
