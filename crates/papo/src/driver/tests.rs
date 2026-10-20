@@ -1602,7 +1602,7 @@ async fn sasl_nak_forwards_authentication_failure() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn required_sasl_failure_rejects_registration_waiter() {
+async fn required_sasl_failure_rejects_connect_waiter() {
     let settings = config()
         .wanted_caps(["sasl"])
         .sasl(Sasl::plain("alice", "correct horse battery staple"));
@@ -1623,12 +1623,14 @@ async fn required_sasl_failure_rejects_registration_waiter() {
 
     assert!(matches!(
         within(waiter).await.unwrap(),
-        Err(Error::Registration(crate::RegistrationError::Sasl { message }))
-            if message.contains("SASL")
+        Err(Error::Connect(error))
+            if error.kind() == crate::ConnectErrorKind::Sasl
+                && std::error::Error::source(&error)
+                    .is_some_and(|source| source.to_string().contains("SASL"))
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Registration(crate::RegistrationError::Sasl { .. }))
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Sasl
     ));
 }
 
@@ -1653,20 +1655,18 @@ async fn account_required_cap_rejects_registration_without_sasl() {
 
     assert!(matches!(
         within(waiter).await.unwrap(),
-        Err(Error::Registration(
-            crate::RegistrationError::AccountRequired
-        ))
+        Err(Error::Connect(error))
+            if error.kind() == crate::ConnectErrorKind::AccountRequired
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Registration(
-            crate::RegistrationError::AccountRequired
-        ))
+        Err(Error::Connect(error))
+            if error.kind() == crate::ConnectErrorKind::AccountRequired
     ));
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn password_numeric_is_a_generic_registration_rejection() {
+async fn password_numeric_has_its_own_connect_error() {
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
     let (_client, _events, driver) = Driver::with_stream_and_connect(
@@ -1686,14 +1686,15 @@ async fn password_numeric_is_a_generic_registration_rejection() {
 
     assert!(matches!(
         within(waiter).await.unwrap(),
-        Err(Error::Registration(crate::RegistrationError::Rejected { message }))
-            if message == "Password incorrect"
+        Err(Error::Connect(error))
+            if error.kind() == crate::ConnectErrorKind::PasswordIncorrect
+                && std::error::Error::source(&error)
+                    .is_some_and(|source| source.to_string() == "Password incorrect")
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Registration(
-            crate::RegistrationError::Rejected { .. }
-        ))
+        Err(Error::Connect(error))
+            if error.kind() == crate::ConnectErrorKind::PasswordIncorrect
     ));
 }
 
@@ -1735,14 +1736,14 @@ async fn required_sasl_failure_does_not_reconnect() {
     server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
 
     let Some(Event::Disconnected(disconnected)) = events.next().await else {
-        panic!("expected registration disconnect")
+        panic!("expected login disconnect")
     };
     assert!(matches!(
         &disconnected,
         crate::Disconnected {
-            cause: crate::DisconnectCause::Registration(crate::RegistrationError::Sasl { .. }),
+            cause: crate::DisconnectCause::Connect(error),
             retry_in: None,
-        }
+        } if error.kind() == crate::ConnectErrorKind::Sasl
     ));
     assert!(matches!(
         std::error::Error::source(&disconnected),
@@ -1750,7 +1751,7 @@ async fn required_sasl_failure_does_not_reconnect() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Registration(crate::RegistrationError::Sasl { .. }))
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Sasl
     ));
     tokio::time::advance(Duration::from_secs(10)).await;
     assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -2117,8 +2118,10 @@ fn consecutive_sts_upgrades_are_a_typed_error() {
     assert!(super::record_sts_upgrade(&mut last_host, "irc.example.net").is_ok());
     assert!(matches!(
         super::record_sts_upgrade(&mut last_host, "irc.example.net"),
-        Err(Error::Registration(crate::RegistrationError::StsUpgradeLoop { host }))
-            if host == "irc.example.net"
+        Err(Error::Connect(error))
+            if error.kind() == crate::ConnectErrorKind::StsUpgradeLoop
+                && std::error::Error::source(&error)
+                    .is_some_and(|source| source.to_string().contains("irc.example.net"))
     ));
 }
 

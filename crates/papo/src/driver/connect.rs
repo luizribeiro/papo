@@ -375,11 +375,10 @@ async fn connect_or_wait(
 
 pub(super) fn record_sts_upgrade(last_host: &mut Option<String>, host: &str) -> Result<(), Error> {
     if last_host.as_deref() == Some(host) {
-        return Err(Error::Registration(
-            crate::RegistrationError::StsUpgradeLoop {
-                host: host.to_owned(),
-            },
-        ));
+        return Err(Error::Connect(crate::ConnectError::login(
+            crate::ConnectErrorKind::StsUpgradeLoop,
+            format!("repeated STS upgrade for {host} without completing login"),
+        )));
     }
     *last_host = Some(host.to_owned());
     Ok(())

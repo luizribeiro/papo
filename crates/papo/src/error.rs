@@ -113,7 +113,18 @@ impl ConnectError {
             }
         }
     }
+
+    pub(crate) fn login(kind: ConnectErrorKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            source: Arc::new(ConnectFailure(message.into())),
+        }
+    }
 }
+
+#[derive(Debug, Error)]
+#[error("{0}")]
+struct ConnectFailure(String);
 
 impl From<crate::transport::ConnectError> for ConnectError {
     fn from(error: crate::transport::ConnectError) -> Self {
@@ -481,20 +492,19 @@ impl Error {
     }
 
     pub(crate) fn disconnected_close(kind: papo_core::CloseKind, message: String) -> Self {
+        let connect_kind = match kind {
+            papo_core::CloseKind::SaslFailed => Some(ConnectErrorKind::Sasl),
+            papo_core::CloseKind::WebIrcRejected => Some(ConnectErrorKind::WebIrcRejected),
+            papo_core::CloseKind::WelcomeTimeout => Some(ConnectErrorKind::WelcomeTimedOut),
+            papo_core::CloseKind::AccountRequired => Some(ConnectErrorKind::AccountRequired),
+            papo_core::CloseKind::PasswordIncorrect => Some(ConnectErrorKind::PasswordIncorrect),
+            papo_core::CloseKind::Banned => Some(ConnectErrorKind::Banned),
+            _ => None,
+        };
+        if let Some(kind) = connect_kind {
+            return Self::Connect(ConnectError::login(kind, message));
+        }
         match kind {
-            papo_core::CloseKind::SaslFailed => {
-                Self::Registration(RegistrationError::Sasl { message })
-            }
-            papo_core::CloseKind::WebIrcRejected | papo_core::CloseKind::PasswordIncorrect => {
-                Self::Registration(RegistrationError::Rejected { message })
-            }
-            papo_core::CloseKind::WelcomeTimeout => Self::Registration(RegistrationError::Timeout),
-            papo_core::CloseKind::AccountRequired => {
-                Self::Registration(RegistrationError::AccountRequired)
-            }
-            papo_core::CloseKind::Banned => {
-                Self::Registration(RegistrationError::Banned { message })
-            }
             papo_core::CloseKind::ServerError => {
                 Self::Disconnected(Disconnected::new(DisconnectCause::Server { message }, None))
             }
@@ -712,14 +722,16 @@ mod tests {
         assert!(matches!(
             Error::disconnected_close(
                 papo_core::CloseKind::WelcomeTimeout,
-                "registration timed out".into()
+                "IRC welcome timed out before 001".into()
             ),
-            Error::Registration(RegistrationError::Timeout)
+            Error::Connect(error) if error.kind() == ConnectErrorKind::WelcomeTimedOut
         ));
         assert!(matches!(
             Error::disconnected_close(papo_core::CloseKind::Banned, "K-lined: open proxy".into()),
-            Error::Registration(RegistrationError::Banned { message })
-                if message == "K-lined: open proxy"
+            Error::Connect(error)
+                if error.kind() == ConnectErrorKind::Banned
+                    && std::error::Error::source(&error)
+                        .is_some_and(|source| source.to_string() == "K-lined: open proxy")
         ));
         assert!(matches!(
             Error::disconnected_close(papo_core::CloseKind::PingTimeout, "ping timeout".into()),

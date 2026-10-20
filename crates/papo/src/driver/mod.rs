@@ -699,9 +699,10 @@ impl ConnectionEnd {
             Error::Disconnected(crate::Disconnected {
                 cause: crate::DisconnectCause::Server { .. },
                 ..
-            }) => Error::Registration(crate::RegistrationError::Rejected {
-                message: self.reason.clone(),
-            }),
+            }) => Error::Connect(crate::ConnectError::login(
+                crate::ConnectErrorKind::Server,
+                self.reason.clone(),
+            )),
             error => error.clone(),
         }
     }
