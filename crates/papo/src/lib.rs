@@ -63,7 +63,7 @@ pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
 pub use event_impl::{
-    Authorship, Ctcp, Event, Message, MessageKind, ModeKind, Origin, Source, Tags,
+    Authorship, Ctcp, Event, Message, MessageKind, ModeAction, ModeKind, Origin, Source, Tags,
 };
 pub use ext::accounts::{AccountCreation, NewAccount};
 #[cfg(feature = "unstable")]
@@ -90,8 +90,7 @@ pub use papo_core::Refusal;
 pub use papo_core::Secret;
 #[doc(inline)]
 pub use papo_core::{
-    Account, Away, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
-    Typer, User,
+    Account, Away, Capabilities, Channel, Conversation, Feature, Member, ModeArg, Typer, User,
 };
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
