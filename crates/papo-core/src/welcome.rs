@@ -6,6 +6,8 @@ use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome};
 
 const WELCOME_BURST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const MAX_MOTD_LINES: usize = 1_000;
+const ERGO_WEBIRC_REJECTION: &str =
+    "WEBIRC command is not usable from your address or incorrect password given";
 
 #[derive(Debug)]
 pub(super) struct WelcomeState {
@@ -99,20 +101,15 @@ impl WelcomeState {
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Handled {
-        if self.webirc_pending {
-            self.webirc_pending = false;
-            if message.command_is("ERROR") {
-                outbox.close(
-                    CloseKind::WebIrcRejected,
-                    message
-                        .param(0)
-                        .unwrap_or("server rejected WEBIRC")
-                        .to_owned(),
-                );
-                return Handled::Yes;
-            }
+        if self.webirc_pending
+            && message.command_is("ERROR")
+            && message.param(0) == Some(ERGO_WEBIRC_REJECTION)
+        {
+            outbox.close(CloseKind::WebIrcRejected, ERGO_WEBIRC_REJECTION.to_owned());
+            return Handled::Yes;
         }
         if message.command_is("001") {
+            self.webirc_pending = false;
             if let Some(nick) = message.param(0) {
                 nick.clone_into(&mut self.nick);
             }

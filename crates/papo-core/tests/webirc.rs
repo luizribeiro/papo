@@ -95,28 +95,26 @@ fn closes_without_more_protocol_work_when_webirc_is_rejected() {
         .client("CAP LS 302")
         .client("NICK papo")
         .client("USER papo 0 * papo")
-        .server("ERROR :Invalid WEBIRC password")
+        .server("ERROR :WEBIRC command is not usable from your address or incorrect password given")
         .event(|event| {
             matches!(event, Event::Close { kind: CloseKind::WebIrcRejected, reason }
-                if reason == "Invalid WEBIRC password")
+                if reason == "WEBIRC command is not usable from your address or incorrect password given")
         })
         .server("PING :ergo.test")
         .no_client();
 }
 
 #[test]
-fn error_after_another_server_message_is_not_a_webirc_rejection() {
+fn unrelated_first_error_is_a_plain_server_refusal() {
     Transcript::new(Config::default().webirc(webirc(None, "192.0.2.42")))
         .connect()
         .client("WEBIRC gateway-password papo-gateway 192.0.2.42 192.0.2.42")
         .client("CAP LS 302")
         .client("NICK papo")
         .client("USER papo 0 * papo")
-        .server("CAP * LS :")
-        .client("CAP END")
-        .server("ERROR :Closing link")
+        .server("ERROR :Too many clients from your network")
         .event(|event| {
             matches!(event, Event::Close { kind: CloseKind::ServerError, reason }
-                if reason == "Closing link")
+                if reason == "Too many clients from your network")
         });
 }

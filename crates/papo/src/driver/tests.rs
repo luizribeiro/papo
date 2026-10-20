@@ -1823,20 +1823,32 @@ async fn terminal_numerics_have_specific_connect_errors() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn server_error_before_welcome_is_a_connection_failure() {
+    let settings = config().webirc(papo_core::WebIrc {
+        password: papo_core::Secret::from("gateway-password"),
+        gateway: "papo-gateway".into(),
+        hostname: None,
+        ip: "192.0.2.42".into(),
+        options: Vec::new(),
+    });
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
     let (_client, mut events, driver) = Driver::with_stream_and_connect(
         client_stream,
-        Session::new(config()),
+        Session::new(settings),
         super::DEFAULT_CHANNEL_CAPACITY,
         Some(registration),
         super::PostConnect::default(),
     );
     let driver = tokio::spawn(driver);
+    client_line(
+        &mut server,
+        b"WEBIRC gateway-password papo-gateway 192.0.2.42 192.0.2.42\r\n",
+    )
+    .await;
     welcome_burst(&mut server).await;
     server_line(
         &mut server,
-        b"ERROR :Closing Link: papo-driver (Server maintenance)\r\n",
+        b"ERROR :Too many clients from your network\r\n",
     )
     .await;
 
@@ -1848,7 +1860,7 @@ async fn server_error_before_welcome_is_a_connection_failure() {
         crate::DisconnectCause::Connect(error)
             if error.kind() == crate::ConnectErrorKind::Server
                 && std::error::Error::source(error).is_some_and(|source| {
-                    source.to_string() == "Closing Link: papo-driver (Server maintenance)"
+                    source.to_string() == "Too many clients from your network"
                 })
     ));
     assert!(matches!(
