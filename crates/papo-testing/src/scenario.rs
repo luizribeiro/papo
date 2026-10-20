@@ -89,15 +89,17 @@ impl Scenario {
         label: &str,
         account: impl Into<String>,
     ) -> Result<Peer> {
+        let account = account.into();
         let address = self.server.plaintext_addr();
-        let builder = self.configure_named_at(
+        let builder = Self::builder_named_at(
             unique_name(label),
             Endpoint::plaintext(address.ip().to_string(), address.port()),
-        )?;
-        let builder = if self.server.bouncer().is_some() {
-            builder
+        );
+        let builder = if let Some(bouncer) = self.server.bouncer() {
+            let login = bouncer.network_login(&account)?;
+            builder.sasl(Sasl::plain(login.username(), login.password()))
         } else {
-            builder.sasl(Sasl::plain(account.into(), ACCOUNT_PASSWORD))
+            builder.sasl(Sasl::plain(account, ACCOUNT_PASSWORD))
         };
         self.connect_with(builder).await
     }
@@ -166,15 +168,19 @@ impl Scenario {
             .bouncer()
             .map(|bouncer| bouncer.provision_network(&name))
             .transpose()?;
-        let builder = Client::builder(endpoint)
-            .nick(papo::Casemapping::default().nick(name))
-            .realname("papo test peer");
+        let builder = Self::builder_named_at(name, endpoint);
         #[cfg(not(target_family = "wasm"))]
         let builder = match bouncer_login {
             Some(login) => builder.sasl(Sasl::plain(login.username(), login.password())),
             None => builder,
         };
         Ok(builder)
+    }
+
+    fn builder_named_at(name: String, endpoint: impl IntoEndpoint) -> Builder {
+        Client::builder(endpoint)
+            .nick(papo::Casemapping::default().nick(name))
+            .realname("papo test peer")
     }
 }
 

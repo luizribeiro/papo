@@ -137,6 +137,24 @@ impl BouncerInfo {
         self.upstream
     }
 
+    /// Returns credentials for attaching another client to an existing network.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `network` cannot be used as a managed network name.
+    pub fn network_login(&self, network: &str) -> io::Result<BouncerLogin> {
+        if network.is_empty() || network.contains([' ', '\r', '\n', '/', '\0']) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid bouncer network name",
+            ));
+        }
+        Ok(BouncerLogin {
+            username: format!("{}/{network}", self.username),
+            password: self.password.clone(),
+        })
+    }
+
     /// Creates a bouncer network whose upstream nickname is `nick`.
     ///
     /// # Errors
@@ -144,12 +162,7 @@ impl BouncerInfo {
     /// Returns an error if the network name is invalid or soju rejects it.
     #[cfg(not(target_family = "wasm"))]
     pub fn provision_network(&self, nick: &str) -> io::Result<BouncerLogin> {
-        if nick.is_empty() || nick.contains([' ', '\r', '\n', '/', '\0']) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "invalid bouncer network nickname",
-            ));
-        }
+        let login = self.network_login(nick)?;
         let upstream = format!("irc+insecure://{}", self.upstream);
         let status = Command::new(
             env::var("SOJUCTL_BIN").map_err(|_| io::Error::other("SOJUCTL_BIN is unset"))?,
@@ -177,10 +190,7 @@ impl BouncerInfo {
                 "sojuctl could not provision network: {status}"
             )));
         }
-        Ok(BouncerLogin {
-            username: format!("{}/{nick}", self.username),
-            password: self.password.clone(),
-        })
+        Ok(login)
     }
 }
 
@@ -344,6 +354,19 @@ mod tests {
         let bouncer = server.bouncer().unwrap();
         assert_eq!(bouncer.username(), "papo-bouncer");
         assert_eq!(bouncer.upstream_addr().port(), 7667);
+        let existing = bouncer.network_login("reader").unwrap();
+        assert_eq!(existing.username(), "papo-bouncer/reader");
+        assert_eq!(existing.password(), "unique-bouncer-password");
+        for invalid in [
+            "",
+            "two words",
+            "network/name",
+            "line\rbreak",
+            "line\nbreak",
+            "nul\0byte",
+        ] {
+            assert!(bouncer.network_login(invalid).is_err(), "{invalid:?}");
+        }
         assert!(!format!("{server:?}").contains("unique-bouncer-password"));
         let login = BouncerLogin {
             username: "papo-bouncer/reader".into(),

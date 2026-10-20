@@ -371,7 +371,12 @@ async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect_as_account("alice").await?;
-    let account = alice.nick().as_ref().to_owned();
+    let state = alice.state();
+    let account = state
+        .bouncer_network()
+        .and_then(|id| state.bouncer_networks().find(|network| &network.id == id))
+        .and_then(|network| network.name.clone())
+        .unwrap_or_else(|| alice.nick().as_ref().to_owned());
     let channel = s.channel_name();
     alice.join(&channel).await?;
     let initial = alice.wait_for(Event::as_read_marker).await?;
