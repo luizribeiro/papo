@@ -31,7 +31,9 @@ pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChange, ModeChanged, ModeKind,
     Parted, TopicChanged,
 };
-pub use connection::{CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged};
+pub use connection::{
+    CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged, Motd,
+};
 pub use conversation::{
     Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
@@ -519,6 +521,8 @@ fn tag_owned(message: &LineRef<'_>, keys: &[&str]) -> Option<String> {
 pub enum Event {
     /// The IRC connection is ready for use.
     Connected(Connected),
+    /// A complete message of the day received while connecting.
+    Motd(Motd),
     /// An incoming `PRIVMSG` or `NOTICE`.
     Message(Box<Message>),
     /// A line papo did not turn into a typed event.
@@ -640,6 +644,7 @@ event_accessors! {
     (boxed Message, as_message, Message),
     (boxed History, as_history, crate::HistoryPage),
     (Connected, as_connected, Connected),
+    (Motd, as_motd, Motd),
     (Disconnected, as_disconnected, Disconnected),
     (CapsChanged, as_caps_changed, CapsChanged),
     (FeaturesChanged, as_features_changed, FeaturesChanged),
@@ -758,6 +763,7 @@ pub(crate) enum CoreEvent {
 pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Connected(welcome) => return CoreEvent::Connected(welcome),
+        papo_core::Event::Motd { lines } => Event::Motd(Motd { lines }),
         papo_core::Event::Line(message) => {
             if message.as_ref().command_is("001") {
                 return CoreEvent::Unknown;

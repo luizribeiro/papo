@@ -253,9 +253,13 @@ async fn registration_is_forwarded() {
     let mut cap_end = [0; 9];
     within(server.read_exact(&mut cap_end)).await.unwrap();
     assert_eq!(&cap_end, b"CAP END\r\n");
-    within(server.write_all(b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n"))
+    within(server.write_all(b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 375 papo-driver :- ergo.test Message of the Day -\r\n:ergo.test 372 papo-driver :- Welcome to ErgoTest\r\n:ergo.test 376 papo-driver :End of MOTD\r\n"))
         .await
         .unwrap();
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Motd(motd)) if motd.lines == ["- Welcome to ErgoTest"]
+    ));
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));

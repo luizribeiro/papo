@@ -16,6 +16,16 @@ pub struct Connected {
     pub reconnected: bool,
 }
 
+/// A complete message of the day sent while connecting.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Motd {
+    /// Text from each `RPL_MOTD` numeric, in wire order.
+    ///
+    /// This event is absent when the server reports `ERR_NOMOTD`.
+    pub lines: Vec<String>,
+}
+
 /// The capabilities enabled on an established connection changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

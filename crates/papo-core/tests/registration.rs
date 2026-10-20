@@ -285,14 +285,45 @@ fn emits_the_welcome_burst_in_wire_order_before_registration() {
         .server(":ergo.test 251 emily :There are 4 users and 0 invisible on 1 server")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("251")))
         .server(":ergo.test 375 emily :- ergo.test Message of the Day -")
-        .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("375")))
         .server(":ergo.test 372 emily :- Be kind to one another.")
-        .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("372")))
+        .no_event()
         .server(":ergo.test 376 emily :End of MOTD")
+        .event(|event| {
+            matches!(event, Event::Motd { lines }
+                if lines == &["- Be kind to one another."])
+        })
         .event(|event| {
             matches!(event, Event::Connected(welcome)
                 if welcome.text == "Welcome to the Ergo test network")
         })
+        .no_event();
+}
+
+#[test]
+fn caps_an_unfinished_motd_stream() {
+    let transcript = Transcript::new(Config::default())
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 375 papo :- ergo.test Message of the Day -");
+    let transcript = (0..1_001).fold(transcript, |transcript, _| {
+        transcript.server(":ergo.test 372 papo :- This server is managed by Example Networks")
+    });
+    transcript
+        .no_event()
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Motd { lines } if lines.len() == 1_000))
+        .event(|event| matches!(event, Event::Connected(_)))
+        .no_event();
+}
+
+#[test]
+fn emits_an_empty_completed_motd() {
+    Transcript::new(Config::default())
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 375 papo :- ergo.test Message of the Day -")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Motd { lines } if lines.is_empty()))
+        .event(|event| matches!(event, Event::Connected(_)))
         .no_event();
 }
 
@@ -309,7 +340,8 @@ fn no_motd_numeric_completes_registration() {
                     if welcome.nick == "papo" && welcome.caps.is_empty()
             )
         })
-        .inspect(|session| assert!(session.is_connected()));
+        .inspect(|session| assert!(session.is_connected()))
+        .no_event();
 }
 
 #[test]
@@ -317,6 +349,8 @@ fn completes_ten_seconds_after_welcome_when_motd_never_finishes() {
     Transcript::new(Config::default())
         .connect_default()
         .welcome(":soju.example 001 papo :Welcome")
+        .server(":soju.example 375 papo :- soju.example Message of the Day -")
+        .server(":soju.example 372 papo :- This MOTD never finishes")
         .deadline(Some(Duration::from_secs(10)))
         .advance(Duration::from_secs(9))
         .inspect(|session| assert!(!session.is_connected()))
@@ -325,6 +359,7 @@ fn completes_ten_seconds_after_welcome_when_motd_never_finishes() {
         .advance(Duration::from_secs(1))
         .inspect(|session| assert!(session.is_connected()))
         .event(|event| matches!(event, Event::Connected(_)))
+        .no_event()
         .deadline(Some(Duration::from_secs(50)));
 }
 

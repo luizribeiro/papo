@@ -635,6 +635,23 @@ impl core::marker::Unpin for papo::event::MonitorOnline
 impl core::marker::UnsafeUnpin for papo::event::MonitorOnline
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MonitorOnline
 impl core::panic::unwind_safe::UnwindSafe for papo::event::MonitorOnline
+#[non_exhaustive] pub struct papo::event::Motd
+pub papo::event::Motd::lines: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for papo::event::Motd
+pub fn papo::event::Motd::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Motd
+impl core::cmp::PartialEq for papo::event::Motd
+pub fn papo::event::Motd::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Motd
+pub fn papo::event::Motd::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Motd
+impl core::marker::Freeze for papo::event::Motd
+impl core::marker::Send for papo::event::Motd
+impl core::marker::Sync for papo::event::Motd
+impl core::marker::Unpin for papo::event::Motd
+impl core::marker::UnsafeUnpin for papo::event::Motd
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Motd
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Motd
 #[non_exhaustive] pub struct papo::event::Netjoin
 pub papo::event::Netjoin::joins: alloc::vec::Vec<papo::event::Joined>
 pub papo::event::Netjoin::servers: papo::event::SplitServers
@@ -1333,6 +1350,7 @@ pub papo::Event::MetadataChanged(papo::event::MetadataChanged)
 pub papo::Event::ModeChanged(papo::event::ModeChanged)
 pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
 pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
+pub papo::Event::Motd(papo::event::Motd)
 pub papo::Event::Netjoin(papo::event::Netjoin)
 pub papo::Event::Netsplit(papo::event::Netsplit)
 pub papo::Event::NickChanged(papo::event::NickChanged)
@@ -1388,6 +1406,8 @@ impl papo::Event
 pub const fn papo::Event::as_monitor_offline(&self) -> core::option::Option<&papo::event::MonitorOffline>
 impl papo::Event
 pub const fn papo::Event::as_monitor_online(&self) -> core::option::Option<&papo::event::MonitorOnline>
+impl papo::Event
+pub const fn papo::Event::as_motd(&self) -> core::option::Option<&papo::event::Motd>
 impl papo::Event
 pub const fn papo::Event::as_netjoin(&self) -> core::option::Option<&papo::event::Netjoin>
 impl papo::Event

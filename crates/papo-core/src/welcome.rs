@@ -5,6 +5,7 @@ use papo_proto::{Isupport, Line, LineRef, escape_tag_value};
 use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome};
 
 const WELCOME_BURST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const MAX_MOTD_LINES: usize = 1_000;
 
 #[derive(Debug)]
 pub(super) struct WelcomeState {
@@ -12,6 +13,7 @@ pub(super) struct WelcomeState {
     deadline: Option<Instant>,
     welcome_deadline: Option<Instant>,
     welcome_text: Option<String>,
+    motd_lines: Option<Vec<String>>,
     next_alt_nick: usize,
     connected: bool,
     webirc_pending: bool,
@@ -24,6 +26,7 @@ impl WelcomeState {
             deadline: None,
             welcome_deadline: None,
             welcome_text: None,
+            motd_lines: None,
             next_alt_nick: 0,
             connected: false,
             webirc_pending: false,
@@ -35,6 +38,7 @@ impl WelcomeState {
         self.deadline = Some(now + config.welcome_timeout);
         self.welcome_deadline = None;
         self.welcome_text = None;
+        self.motd_lines = None;
         self.next_alt_nick = 0;
         self.connected = false;
         self.webirc_pending = config.webirc.is_some();
@@ -113,12 +117,29 @@ impl WelcomeState {
                 nick.clone_into(&mut self.nick);
             }
             self.welcome_text = Some(message.param(1).unwrap_or_default().to_owned());
+            self.motd_lines = None;
             self.deadline = None;
             self.welcome_deadline = Some(now + WELCOME_BURST_TIMEOUT);
             Handled::No
+        } else if self.welcome_deadline.is_some() && message.command_is("375") {
+            self.motd_lines = Some(Vec::new());
+            Handled::Yes
+        } else if self.welcome_deadline.is_some() && message.command_is("372") {
+            let Some(lines) = self.motd_lines.as_mut() else {
+                return Handled::No;
+            };
+            if lines.len() < MAX_MOTD_LINES {
+                lines.push(message.param(1).unwrap_or_default().to_owned());
+            }
+            Handled::Yes
         } else if self.welcome_deadline.is_some()
             && (message.command_is("376") || message.command_is("422"))
         {
+            if message.command_is("376")
+                && let Some(lines) = self.motd_lines.take()
+            {
+                outbox.event(Event::Motd { lines });
+            }
             self.complete(caps, isupport, outbox);
             Handled::Yes
         } else if self.deadline.is_some()
@@ -183,6 +204,7 @@ impl WelcomeState {
         self.deadline = None;
         self.welcome_deadline = None;
         self.welcome_text = None;
+        self.motd_lines = None;
         self.connected = false;
         self.webirc_pending = false;
     }
@@ -205,6 +227,7 @@ impl WelcomeState {
 
     fn complete(&mut self, caps: &Capabilities, isupport: &Isupport, outbox: &mut Outbox) {
         self.welcome_deadline = None;
+        self.motd_lines = None;
         self.connected = true;
         outbox.event(Event::Connected(Welcome {
             nick: isupport.casemapping().nick(&self.nick),

@@ -117,7 +117,7 @@ pub mod event {
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
         ChannelRenamed, ChannelSynced, Connected, Departed, Disconnected, FeaturesChanged,
         HostChanged, Invited, Joined, Kicked, MetadataChanged, ModeChange, ModeChanged,
-        MonitorOffline, MonitorOnline, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
+        MonitorOffline, MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
         ReadMarker, RealnameChanged, Redacted, Source, SplitServers, StandardReply,
         StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, Visibility, Warning,
     };

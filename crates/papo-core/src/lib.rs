@@ -1450,6 +1450,11 @@ impl From<ModeChange<'_>> for OwnedModeChange {
 pub enum Event {
     /// The IRC connection is ready for use.
     Connected(Welcome),
+    /// A complete message of the day received during connection registration.
+    Motd {
+        /// Text from each `RPL_MOTD` numeric, in wire order.
+        lines: Vec<String>,
+    },
     /// A parsed protocol line not consumed by session protocol behavior.
     Line(ReceivedLine),
     /// A completed `draft/multiline` batch.
