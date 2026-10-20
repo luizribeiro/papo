@@ -2,7 +2,10 @@
 
 use std::{collections::BTreeSet, env, error::Error, io, io::Write as _};
 
-use papo::{Account, Client, Endpoint, Event, LegacyModeAction as ModeAction, ModeArg, Sasl};
+use papo::{
+    Account, Client, Endpoint, Event, LegacyModeAction as ModeAction, LegacyModeArg as ModeArg,
+    Sasl,
+};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {

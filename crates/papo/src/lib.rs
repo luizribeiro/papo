@@ -63,8 +63,8 @@ pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
 pub use event_impl::{
-    Authorship, Ctcp, Event, LegacyModeAction, Message, MessageKind, ModeArg, ModeKind, Origin,
-    Source, Tags,
+    Authorship, Ctcp, Event, LegacyModeAction, LegacyModeArg, Message, MessageKind, ModeArg,
+    ModeKind, Origin, Source, Tags,
 };
 pub use ext::accounts::{AccountCreation, NewAccount};
 #[cfg(feature = "unstable")]

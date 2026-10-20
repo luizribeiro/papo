@@ -1,6 +1,6 @@
 use papo::event::ModeChanged;
 use papo::isupport::Advertised;
-use papo::{LegacyModeAction as ModeAction, ModeArg};
+use papo::{LegacyModeAction as ModeAction, LegacyModeArg as ModeArg};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;

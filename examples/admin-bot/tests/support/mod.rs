@@ -3,7 +3,8 @@
 use std::{path::PathBuf, time::Duration};
 
 use papo::{
-    Client, Endpoint, Event, Events, LegacyModeAction as ModeAction, Message, ModeArg, Sasl,
+    Client, Endpoint, Event, Events, LegacyModeAction as ModeAction, LegacyModeArg as ModeArg,
+    Message, Sasl,
 };
 use papo_test_server::ServerInfo;
 use tokio::time::{sleep, timeout};

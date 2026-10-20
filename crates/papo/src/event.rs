@@ -29,8 +29,8 @@ mod user;
 
 pub use crate::metadata::Visibility;
 pub use channel::{
-    ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, LegacyModeAction, ModeArg, ModeChange,
-    ModeChanged, ModeKind, Parted, TopicChanged,
+    ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, LegacyModeAction, LegacyModeArg,
+    ModeArg, ModeChange, ModeChanged, ModeKind, Parted, TopicChanged,
 };
 pub use connection::{
     CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged, Motd,
@@ -1299,9 +1299,9 @@ pub(crate) fn typed_mode_change(
     casemapping: Casemapping,
 ) -> ModeChange {
     let typed_arg = arg.map(|arg| match kind {
-        papo_proto::ModeKind::Prefix(_) => ModeArg::Nick(casemapping.nick(arg)),
-        papo_proto::ModeKind::List => ModeArg::Mask(casemapping.mask(arg)),
-        _ => ModeArg::Value(arg.to_owned()),
+        papo_proto::ModeKind::Prefix(_) => LegacyModeArg::Nick(casemapping.nick(arg)),
+        papo_proto::ModeKind::List => LegacyModeArg::Mask(casemapping.mask(arg)),
+        _ => LegacyModeArg::Value(arg.to_owned()),
     });
     ModeChange {
         mode,
@@ -1319,8 +1319,8 @@ mod tests {
 
     use super::{
         Authorship, Conversation, CoreEvent, Event, LegacyModeAction as ModeAction,
-        Message as ChatMessage, MessageKind, MetadataChanged, ModeArg, Origin, Source,
-        StandardReplyKind, Visibility, Warning, from_core as from_core_with_mapping,
+        LegacyModeArg as ModeArg, Message as ChatMessage, MessageKind, MetadataChanged, Origin,
+        Source, StandardReplyKind, Visibility, Warning, from_core as from_core_with_mapping,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,

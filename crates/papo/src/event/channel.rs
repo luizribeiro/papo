@@ -25,6 +25,10 @@ pub enum ModeArg {
     Value(String),
 }
 
+/// Compatibility name used while mode events adopt the shared argument type.
+#[doc(hidden)]
+pub type LegacyModeArg = ModeArg;
+
 /// The parameter behavior of a channel mode.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
