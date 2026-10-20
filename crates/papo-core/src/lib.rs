@@ -98,7 +98,8 @@ use web_time::Instant;
 
 use papo_proto::{
     AccountName, BuildError, Casemapping, ChannelName, Command, Ctcp, Line, LineRef, MAX_LINE_LEN,
-    MAX_TAG_SECTION_LEN, Mask, ModeChange, ModeKind, Nick, Numeric, Source as ProtoSource,
+    MAX_TAG_SECTION_LEN, Mask, ModeChange as ProtoModeChange, ModeKind, Nick, Numeric,
+    Source as ProtoSource,
     StandardReply as StandardReplyView, StandardReplyKind,
 };
 
@@ -119,6 +120,7 @@ use monitor::Monitor;
 pub(crate) use name::{NameKey, names_equal};
 use nick_regain::NickRegain;
 pub use outgoing::TextKind;
+pub use papo_proto::ModeAction;
 use ratelimit::RateLimiter;
 pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
@@ -725,6 +727,29 @@ pub struct OwnedModeChange {
     pub arg: Option<String>,
     /// The mode's advertised parameter behavior.
     pub kind: ModeKind,
+}
+
+/// One operation from an IRC mode string.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModeChange {
+    /// The mode letter.
+    pub mode: char,
+    /// Whether the mode was added or removed.
+    pub action: ModeAction,
+    /// The mode argument classified using the server's advertised rules.
+    pub arg: Option<ModeArg>,
+}
+
+/// A mode argument classified using the server's advertised rules.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ModeArg {
+    /// A nickname for a channel-membership mode advertised in `PREFIX`.
+    Nick(Nick),
+    /// A mask for a list mode advertised in the first `CHANMODES` group.
+    Mask(Mask),
+    /// A value for any other mode that takes an argument.
+    Value(String),
 }
 
 /// Stable identifier assigned to one user-originated request.
@@ -1534,8 +1559,8 @@ impl RequestError {
     }
 }
 
-impl From<ModeChange<'_>> for OwnedModeChange {
-    fn from(change: ModeChange<'_>) -> Self {
+impl From<ProtoModeChange<'_>> for OwnedModeChange {
+    fn from(change: ProtoModeChange<'_>) -> Self {
         Self {
             set: change.action == papo_proto::ModeAction::Add,
             mode: change.mode,

@@ -1,4 +1,5 @@
 pub mod papo_core
+pub use papo_core::ModeAction
 pub mod papo_core::cap
 pub enum papo_core::cap::Request
 pub papo_core::cap::Request::Automatic
@@ -745,6 +746,25 @@ impl core::marker::Unpin for papo_core::MetadataCommand
 impl core::marker::UnsafeUnpin for papo_core::MetadataCommand
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MetadataCommand
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MetadataCommand
+#[non_exhaustive] pub enum papo_core::ModeArg
+pub papo_core::ModeArg::Mask(papo::Mask)
+pub papo_core::ModeArg::Nick(papo::Nick)
+pub papo_core::ModeArg::Value(alloc::string::String)
+impl core::clone::Clone for papo_core::ModeArg
+pub fn papo_core::ModeArg::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::ModeArg
+impl core::cmp::PartialEq for papo_core::ModeArg
+pub fn papo_core::ModeArg::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::ModeArg
+pub fn papo_core::ModeArg::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::ModeArg
+impl core::marker::Freeze for papo_core::ModeArg
+impl core::marker::Send for papo_core::ModeArg
+impl core::marker::Sync for papo_core::ModeArg
+impl core::marker::Unpin for papo_core::ModeArg
+impl core::marker::UnsafeUnpin for papo_core::ModeArg
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ModeArg
+impl core::panic::unwind_safe::UnwindSafe for papo_core::ModeArg
 #[non_exhaustive] pub enum papo_core::MsgRef
 pub papo_core::MsgRef::Any
 pub papo_core::MsgRef::Msgid(alloc::string::String)
@@ -1399,6 +1419,25 @@ impl core::marker::Unpin for papo_core::MetadataValue
 impl core::marker::UnsafeUnpin for papo_core::MetadataValue
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MetadataValue
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MetadataValue
+pub struct papo_core::ModeChange
+pub papo_core::ModeChange::action: papo_proto::modes::ModeAction
+pub papo_core::ModeChange::arg: core::option::Option<papo_core::ModeArg>
+pub papo_core::ModeChange::mode: char
+impl core::clone::Clone for papo_core::ModeChange
+pub fn papo_core::ModeChange::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::ModeChange
+impl core::cmp::PartialEq for papo_core::ModeChange
+pub fn papo_core::ModeChange::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::ModeChange
+pub fn papo_core::ModeChange::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::ModeChange
+impl core::marker::Freeze for papo_core::ModeChange
+impl core::marker::Send for papo_core::ModeChange
+impl core::marker::Sync for papo_core::ModeChange
+impl core::marker::Unpin for papo_core::ModeChange
+impl core::marker::UnsafeUnpin for papo_core::ModeChange
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ModeChange
+impl core::panic::unwind_safe::UnwindSafe for papo_core::ModeChange
 pub struct papo_core::MultilineMessage
 pub papo_core::MultilineMessage::message: papo::Line
 impl core::clone::Clone for papo_core::MultilineMessage
