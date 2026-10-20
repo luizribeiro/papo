@@ -391,9 +391,10 @@ impl core::marker::UnsafeUnpin for papo::event::CasemappingChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::CasemappingChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::CasemappingChanged
 #[non_exhaustive] pub struct papo::event::ChannelRenamed
+pub papo::event::ChannelRenamed::actor: papo::Source
 pub papo::event::ChannelRenamed::new: papo::ChannelName
 pub papo::event::ChannelRenamed::old: papo::ChannelName
-pub papo::event::ChannelRenamed::reason: alloc::string::String
+pub papo::event::ChannelRenamed::reason: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::event::ChannelRenamed
 pub fn papo::event::ChannelRenamed::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ChannelRenamed

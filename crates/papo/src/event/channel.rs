@@ -143,6 +143,8 @@ pub struct ChannelRenamed {
     pub old: ChannelName,
     /// The new channel name.
     pub new: ChannelName,
-    /// The server-supplied reason, which may be empty.
-    pub reason: String,
+    /// The user or server that renamed the channel.
+    pub actor: Source,
+    /// The server-supplied reason, when present and non-empty.
+    pub reason: Option<String>,
 }

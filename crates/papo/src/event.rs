@@ -1032,11 +1032,15 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             is_self: false,
         }),
         papo_core::Event::ChannelRenamed {
-            old, new, reason, ..
+            old,
+            new,
+            actor,
+            reason,
         } => Event::ChannelRenamed(ChannelRenamed {
             old,
             new,
-            reason: reason.unwrap_or_default(),
+            actor: Source::from_prefix(actor, casemapping),
+            reason,
         }),
         papo_core::Event::AccountChanged { nick, account } => {
             Event::AccountChanged(AccountChanged {
@@ -1737,7 +1741,20 @@ mod tests {
             Event::ChannelRenamed(renamed)
                 if renamed.old == "#rust"
                     && renamed.new == "#rust-lang"
-                    && renamed.reason == "Project renamed"
+                    && renamed.actor.nick() == Some("alice")
+                    && renamed.reason.as_deref() == Some("Project renamed")
+        ));
+
+        assert!(matches!(
+            forwarded(papo_core::Event::ChannelRenamed {
+                old: Casemapping::default().channel("#rust"),
+                new: Casemapping::default().channel("#rust-lang"),
+                actor: "ergo.test".into(),
+                reason: None,
+            }),
+            Event::ChannelRenamed(renamed)
+                if matches!(renamed.actor, Source::Server { ref name } if name == "ergo.test")
+                    && renamed.reason.is_none()
         ));
     }
 

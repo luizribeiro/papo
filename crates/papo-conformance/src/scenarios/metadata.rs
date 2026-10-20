@@ -233,6 +233,7 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s
         .connect_with(s.configure("bob")?.request_caps(["draft/channel-rename"]))
         .await?;
+    let alice_nick = alice.nick();
     alice.join(channel.clone()).await?;
     bob.join(channel.clone()).await?;
 
@@ -244,7 +245,8 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     for event in [&alice_rename, &bob_rename] {
         assert_eq!(event.old.as_ref(), channel);
         assert_eq!(event.new.as_ref(), renamed);
-        assert_eq!(event.reason, reason);
+        assert_eq!(event.actor.nick(), Some(alice_nick.as_ref()));
+        assert_eq!(event.reason.as_deref(), Some(reason));
     }
     for peer in [&alice, &bob] {
         let snapshot = peer.state();

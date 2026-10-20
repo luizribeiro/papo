@@ -113,8 +113,12 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             match member_events.next().await {
                 Some(Event::ChannelRenamed(renamed)) if renamed.old == old_channel.as_str() => {
                     assert_eq!(
-                        (renamed.new, renamed.reason),
-                        (support::channel(&new_channel), "Project renamed".into())
+                        (renamed.new, renamed.actor.nick(), renamed.reason.as_deref()),
+                        (
+                            support::channel(&new_channel),
+                            Some(operator_nick.as_str()),
+                            Some("Project renamed")
+                        )
                     );
                     break;
                 }
