@@ -4,7 +4,7 @@ mod support;
 
 use std::time::Instant;
 
-use papo_core::{Config, CtcpReplies, Event, RateLimit, Session};
+use papo_core::{Config, Conversation, CtcpReplies, Event, RateLimit, Session};
 use papo_proto::{Line, Reaction, Typing};
 use support::Transcript;
 
@@ -18,7 +18,20 @@ fn tag_message(line: &str) -> papo_core::TagMessage {
 }
 
 fn as_message(tag: &papo_core::TagMessage) -> Line {
-    let mut message = Line::tagmsg(&tag.target);
+    let address = match &tag.conversation {
+        Conversation::Channel(channel) => tag
+            .status
+            .iter()
+            .flatten()
+            .copied()
+            .chain(channel.chars())
+            .collect(),
+        Conversation::Private(nick) => nick.to_string(),
+        Conversation::Server => "*".to_owned(),
+        Conversation::Broadcast(mask) => mask.to_string(),
+        _ => panic!("unexpected conversation kind"),
+    };
+    let mut message = Line::tagmsg(address);
     if let Some(source) = &tag.source {
         message = message.with_source(source);
     }
@@ -37,7 +50,10 @@ fn reports_active_paused_and_done_typing() {
     ] {
         let tag = tag_message(&format!("@+typing={value} :alice!~a@cloak TAGMSG #papo"));
         assert_eq!(tag.source.as_deref(), Some("alice!~a@cloak"));
-        assert_eq!(tag.target, "#papo");
+        assert!(
+            matches!(tag.conversation, Conversation::Channel(ref channel) if channel == "#papo")
+        );
+        assert_eq!(tag.status, None);
         assert_eq!(Typing::parse(&as_message(&tag).as_ref()), Some(expected));
     }
 }
@@ -69,6 +85,31 @@ fn reports_tagmsg_without_known_tags() {
 }
 
 #[test]
+fn classifies_status_and_private_tag_messages() {
+    let mut session = Session::new(Config::default().nick("papo"));
+    session.handle_line(
+        Instant::now(),
+        b":ergo.test 005 papo CHANTYPES=# STATUSMSG=@+ :are supported",
+    );
+    session.handle_line(
+        Instant::now(),
+        b"@+typing=active :alice!~a@cloak TAGMSG @#ops",
+    );
+    let Some(Event::TagMessage(channel)) = session.poll_event() else {
+        panic!("expected channel tag message")
+    };
+    assert!(matches!(channel.conversation, Conversation::Channel(ref name) if name == "#ops"));
+    assert_eq!(channel.status, Some(vec!['@']));
+
+    session.handle_line(Instant::now(), b"@+typing=done :alice!~a@cloak TAGMSG papo");
+    let Some(Event::TagMessage(private)) = session.poll_event() else {
+        panic!("expected private tag message")
+    };
+    assert!(matches!(private.conversation, Conversation::Private(ref nick) if nick == "alice"));
+    assert_eq!(private.status, None);
+}
+
+#[test]
 fn reports_redactions_with_and_without_a_reason() {
     for (line, expected_reason) in [
         (
@@ -83,7 +124,10 @@ fn reports_redactions_with_and_without_a_reason() {
             panic!("expected redaction")
         };
         assert_eq!(redacted.source.as_deref(), Some("alice!~a@cloak"));
-        assert_eq!(redacted.target, "#papo");
+        assert!(
+            matches!(redacted.conversation, Conversation::Channel(ref channel) if channel == "#papo")
+        );
+        assert_eq!(redacted.status, None);
         assert!(matches!(redacted.msgid.as_str(), "RKi9Cw" | "8sKY2A"));
         assert_eq!(redacted.reason.as_deref(), expected_reason);
     }

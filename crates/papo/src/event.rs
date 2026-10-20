@@ -1462,6 +1462,8 @@ mod tests {
         let tag = papo_core::TagMessage {
             source: Some("alice!~a@cloak".into()),
             target: "#papo".into(),
+            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
+            status: None,
             tags: vec![
                 ("+typing".into(), Some("paused".into())),
                 ("+draft/react".into(), Some("👍".into())),
@@ -1484,6 +1486,10 @@ mod tests {
             let tag = papo_core::TagMessage {
                 source: None,
                 target: "#papo".into(),
+                conversation: papo_core::Conversation::Channel(
+                    Casemapping::default().channel("#papo"),
+                ),
+                status: None,
                 tags: vec![("+typing".into(), Some(value.into()))],
             };
             match forwarded(papo_core::Event::TagMessage(tag)) {
@@ -1499,6 +1505,8 @@ mod tests {
         let tag = papo_core::TagMessage {
             source: Some("alice!~a@cloak".into()),
             target: "#papo".into(),
+            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
+            status: None,
             tags: vec![("+typing".into(), Some("active".into()))],
         };
         assert!(
@@ -1511,6 +1519,8 @@ mod tests {
         let redacted = papo_core::Redacted {
             source: Some("alice!~a@cloak".into()),
             target: "#papo".into(),
+            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
+            status: None,
             msgid: "RKi9Cw".into(),
             reason: Some(String::new()),
         };

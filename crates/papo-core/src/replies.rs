@@ -1,13 +1,25 @@
-use crate::{Event, LineRef, Redacted, Session, StandardReply, StandardReplyView, TagMessage};
+use crate::{
+    Event, LineRef, Redacted, Session, StandardReply, StandardReplyView, TagMessage,
+    conversation::classify_line,
+};
 
 impl Session {
     pub(super) fn report_tag_message(&mut self, message: &LineRef<'_>) -> bool {
-        let Some(target) = message.param(0).filter(|_| message.command_is("TAGMSG")) else {
+        if !message.command_is("TAGMSG") {
+            return false;
+        }
+        let Ok((status, conversation)) = classify_line(message, self.nick(), self.isupport.value())
+        else {
             return false;
         };
         self.outbox.event(Event::TagMessage(TagMessage {
             source: message.raw_source().map(str::to_owned),
-            target: target.to_owned(),
+            target: message
+                .param(0)
+                .expect("classified line has a target")
+                .to_owned(),
+            conversation,
+            status,
             tags: message
                 .tags()
                 .map(|(key, value)| (key.to_owned(), value.map(std::borrow::Cow::into_owned)))
@@ -17,15 +29,21 @@ impl Session {
     }
 
     pub(super) fn report_redaction(&mut self, message: &LineRef<'_>) -> bool {
-        let (Some(target), Some(msgid)) = (
-            message.param(0).filter(|_| message.command_is("REDACT")),
-            message.param(1),
-        ) else {
+        let Some(msgid) = message.param(1).filter(|_| message.command_is("REDACT")) else {
+            return false;
+        };
+        let Ok((status, conversation)) = classify_line(message, self.nick(), self.isupport.value())
+        else {
             return false;
         };
         self.outbox.event(Event::Redacted(Redacted {
             source: message.raw_source().map(str::to_owned),
-            target: target.to_owned(),
+            target: message
+                .param(0)
+                .expect("classified line has a target")
+                .to_owned(),
+            conversation,
+            status,
             msgid: msgid.to_owned(),
             reason: message.param(2).map(str::to_owned),
         }));

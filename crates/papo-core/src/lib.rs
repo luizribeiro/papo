@@ -1266,6 +1266,10 @@ pub struct TagMessage {
     pub source: Option<String>,
     /// Message target.
     pub target: String,
+    /// IRC conversation addressed by the message.
+    pub conversation: Conversation,
+    /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
+    pub status: Option<Vec<char>>,
     /// Tags in wire order.
     pub tags: Vec<(String, Option<String>)>,
 }
@@ -1277,6 +1281,10 @@ pub struct Redacted {
     pub source: Option<String>,
     /// History target containing the message.
     pub target: String,
+    /// IRC conversation containing the message.
+    pub conversation: Conversation,
+    /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
+    pub status: Option<Vec<char>>,
     /// Identifier of the redacted message.
     pub msgid: String,
     /// Optional human-readable reason.
