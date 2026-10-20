@@ -1,4 +1,4 @@
-use papo::{Casemapping, Event, Refusal, Source, isupport::Advertised};
+use papo::{Casemapping, Error, Event, Refusal, Source, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -20,6 +20,39 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("server casemapping is not rfc1459");
     }
     assert_eq!(state.casemapping(), Casemapping::Rfc1459);
+
+    let stem = papo_test_server::unique("bot");
+    let square_nick = format!("[{stem}]");
+    let curly_nick = format!("{{{stem}}}");
+    let mut square = s
+        .connect_with(s.configure("square")?.nick(square_nick.clone()))
+        .await?;
+    let curly = s
+        .connect_with(s.configure("curly")?.nick(curly_nick.clone()))
+        .await?;
+    assert_eq!(square.state().nick().as_ref(), square_nick);
+    assert_ne!(curly.state().nick().as_ref(), curly_nick);
+    assert!(square.state().casemapping().eq(&square_nick, &curly_nick));
+    let Error::Server(refusal) = curly.set_nick(curly_nick.clone()).await.unwrap_err() else {
+        panic!("rfc1459-equivalent nickname did not return a server refusal");
+    };
+    assert_eq!(refusal.kind(), Refusal::NicknameInUse);
+    assert_eq!(refusal.code(), "433");
+
+    let mixed_channel = format!("#Papo-{stem}");
+    let lowercase_channel = format!("#papo-{stem}");
+    square.join(&mixed_channel).await?;
+    curly.join(&lowercase_channel).await?;
+    let joined = square
+        .wait_for(|event| {
+            event
+                .as_joined()
+                .filter(|joined| joined.nick == curly.nick())
+        })
+        .await?;
+    assert_eq!(joined.channel.as_ref(), mixed_channel);
+    assert!(square.state().channel(&lowercase_channel).is_some());
+    assert!(curly.state().channel(&mixed_channel).is_some());
 
     let base = alice.nick().to_string();
     let alice_nick = format!("{base}[x]");

@@ -17,6 +17,43 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     }
     assert_eq!(alice.state().casemapping(), Casemapping::Ascii);
 
+    let stem = papo_test_server::unique("bot");
+    let square_nick = format!("[{stem}]");
+    let curly_nick = format!("{{{stem}}}");
+    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_default();
+    let (mut square, curly) = if profile == "soju-ergo" {
+        let square = s.connect("square").await?;
+        let curly = s.connect("curly").await?;
+        square.set_nick(square_nick.clone()).await?;
+        curly.set_nick(curly_nick.clone()).await?;
+        (square, curly)
+    } else {
+        (
+            s.connect_with(s.configure("square")?.nick(square_nick.clone()))
+                .await?,
+            s.connect_with(s.configure("curly")?.nick(curly_nick.clone()))
+                .await?,
+        )
+    };
+    assert_eq!(square.state().nick().as_ref(), square_nick);
+    assert_eq!(curly.state().nick().as_ref(), curly_nick);
+    assert!(!square.state().casemapping().eq(&square_nick, &curly_nick));
+
+    let mixed_channel = format!("#Papo-{stem}");
+    let lowercase_channel = format!("#papo-{stem}");
+    square.join(&mixed_channel).await?;
+    curly.join(&lowercase_channel).await?;
+    let joined = square
+        .wait_for(|event| {
+            event
+                .as_joined()
+                .filter(|joined| joined.nick.as_ref() == curly_nick)
+        })
+        .await?;
+    assert_eq!(joined.channel.as_ref(), mixed_channel);
+    assert!(square.state().channel(&lowercase_channel).is_some());
+    assert!(curly.state().channel(&mixed_channel).is_some());
+
     let base = alice.nick();
     let bob_original = bob.nick();
 
