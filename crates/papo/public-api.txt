@@ -1197,6 +1197,32 @@ impl core::marker::Unpin for papo::AccountCreation
 impl core::marker::UnsafeUnpin for papo::AccountCreation
 impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountCreation
 impl core::panic::unwind_safe::UnwindSafe for papo::AccountCreation
+#[non_exhaustive] pub enum papo::Authorship
+pub papo::Authorship::Other
+pub papo::Authorship::Own
+pub papo::Authorship::Unknown
+impl core::clone::Clone for papo::Authorship
+pub fn papo::Authorship::clone(&self) -> Self
+impl core::cmp::Eq for papo::Authorship
+impl core::cmp::Ord for papo::Authorship
+pub fn papo::Authorship::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo::Authorship
+pub fn papo::Authorship::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo::Authorship
+pub fn papo::Authorship::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo::Authorship
+pub fn papo::Authorship::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::Authorship
+pub fn papo::Authorship::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::Authorship
+impl core::marker::StructuralPartialEq for papo::Authorship
+impl core::marker::Freeze for papo::Authorship
+impl core::marker::Send for papo::Authorship
+impl core::marker::Sync for papo::Authorship
+impl core::marker::Unpin for papo::Authorship
+impl core::marker::UnsafeUnpin for papo::Authorship
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Authorship
+impl core::panic::unwind_safe::UnwindSafe for papo::Authorship
 #[non_exhaustive] pub enum papo::ConnectErrorKind
 pub papo::ConnectErrorKind::AccountRequired
 pub papo::ConnectErrorKind::Banned

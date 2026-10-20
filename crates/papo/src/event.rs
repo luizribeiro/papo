@@ -92,6 +92,18 @@ pub enum MessageKind {
     CtcpReply,
 }
 
+/// Whether an event's actor is this client's user.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
+pub enum Authorship {
+    /// The actor is this client's user.
+    Own,
+    /// The actor is another user or a server.
+    Other,
+    /// The protocol did not prove who the actor is relative to this client.
+    Unknown,
+}
+
 /// How an incoming message relates to the current session.
 ///
 /// Replay detection is refined when typed batches and labeled requests are available.
