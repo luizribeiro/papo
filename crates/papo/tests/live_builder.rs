@@ -77,7 +77,7 @@ async fn connects_through_the_configured_websocket_url() {
 async fn wait_registered(events: &mut papo::Events, nick: &str) {
     loop {
         match events.next().await {
-            Some(Event::Registered(welcome)) => {
+            Some(Event::Connected(welcome)) => {
                 assert_eq!(welcome.nick, nick);
                 return;
             }

@@ -116,7 +116,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         .await;
         wait_for(
             &mut events,
-            |event| matches!(event, Event::Registered(registered) if registered.reconnected),
+            |event| matches!(event, Event::Connected(connected) if connected.reconnected),
         )
         .await;
         wait_for(&mut events, |event| {
@@ -196,7 +196,7 @@ async fn forward_client_lines(
 async fn wait_registered(events: &mut papo::Events, nick: &str) {
     loop {
         match events.next().await {
-            Some(Event::Registered(welcome)) if welcome.nick == nick => return,
+            Some(Event::Connected(welcome)) if welcome.nick == nick => return,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected: {disconnected}")
             }

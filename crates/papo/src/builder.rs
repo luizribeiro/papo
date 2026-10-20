@@ -503,7 +503,7 @@ impl Builder {
 
     /// Connects in a spawned driver and waits for IRC registration.
     ///
-    /// The [`crate::Event::Registered`] event remains available from the
+    /// The [`crate::Event::Connected`] event remains available from the
     /// returned event stream. When account registration requires email
     /// verification, this returns after [`crate::AccountRegistration::VerificationRequired`]
     /// because the server holds IRC registration open until verification.
@@ -1209,7 +1209,7 @@ mod tests {
         assert_eq!(client.state().nick(), "papo-custom");
         assert!(matches!(
             events.next().await,
-            Some(crate::Event::Registered(_))
+            Some(crate::Event::Connected(_))
         ));
         assert!(matches!(client.reconnect().await, Err(disconnected!())));
         let quitting = tokio::spawn({

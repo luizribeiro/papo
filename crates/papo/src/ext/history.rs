@@ -895,7 +895,7 @@ mod tests {
         .await;
         client_line(&mut server, b"CAP END\r\n").await;
         server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        assert!(matches!(events.next().await, Some(Event::Connected(_))));
         assert!(matches!(
             client.history("#papo invalid").latest(10).await,
             Err(Error::InvalidInput(crate::InvalidInput::InvalidName { name, .. }))

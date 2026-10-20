@@ -253,7 +253,7 @@ async fn wait_ready(events: &mut papo::Events, nick: &str, channel: &str) {
     let mut registered = false;
     loop {
         match events.next().await {
-            Some(Event::Registered(welcome)) => registered = welcome.nick == nick,
+            Some(Event::Connected(welcome)) => registered = welcome.nick == nick,
             Some(Event::Joined(papo::event::Joined {
                 channel: joined,
                 nick: joined_nick,

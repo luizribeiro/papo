@@ -167,7 +167,7 @@ async fn message_accessors_use_captured_session_facts() {
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 005 papo-driver CHANTYPES=# CASEMAPPING=rfc1459 :are supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
 
     server_line(&mut server, b"@time=2026-02-03T04:05:06.789Z;msgid=RfcBTzyxY120004;account=emily;bot;+draft/reply=RfcBTzyxY120003 :emily!~e@localhost PRIVMSG #papo :hello \x02from Ergo\x02\r\n").await;
     let message = next_message(&mut events).await;
@@ -234,7 +234,7 @@ async fn registration_is_forwarded() {
     within(server.write_all(b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n"))
         .await
         .unwrap();
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
     assert!(!client.state().is_connected());
@@ -449,7 +449,10 @@ async fn eof_reconnects_and_emits_reconnected() {
     );
     let driver = tokio::spawn(driver);
 
-    complete_registration(&mut first_server, &mut events).await;
+    let connected = complete_registration(&mut first_server, &mut events).await;
+    assert_eq!(connected.nick, "papo-driver");
+    assert_eq!(connected.welcome, "Welcome to the Ergo test network");
+    assert!(!connected.reconnected);
     let join = tokio::spawn({
         let client = client.clone();
         async move {
@@ -477,17 +480,8 @@ async fn eof_reconnects_and_emits_reconnected() {
     assert!(!client.state().is_connected());
 
     tokio::time::advance(Duration::from_secs(2)).await;
-    registration_burst(&mut second_server).await;
-    server_line(&mut second_server, b":ergo.test CAP * LS :\r\n").await;
-    client_line(&mut second_server, b"CAP END\r\n").await;
-    server_line(
-        &mut second_server,
-        b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
-    )
-    .await;
-    assert!(
-        matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
-    );
+    let connected = complete_registration(&mut second_server, &mut events).await;
+    assert!(connected.reconnected);
     client_line(&mut second_server, b"JOIN #papo persistent-channel-key\r\n").await;
     server_line(
         &mut second_server,
@@ -507,7 +501,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     server_line(&mut third_server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut third_server, b"CAP END\r\n").await;
     server_line(&mut third_server, b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     assert!(
         tokio::time::timeout(Duration::from_millis(1), third_server.read_u8())
             .await
@@ -793,7 +787,7 @@ async fn explicit_reconnect_redials_without_backoff() {
     )
     .await;
     assert!(
-        matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
+        matches!(events.next().await, Some(Event::Connected(connected)) if connected.reconnected)
     );
 
     let quit = tokio::spawn(async move { client.quit("").await });
@@ -869,7 +863,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     client_line(&mut second_server, b"CAP END\r\n").await;
     server_line(&mut second_server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome back\r\n").await;
     assert!(
-        matches!(events.next().await, Some(Event::Registered(registered)) if registered.reconnected)
+        matches!(events.next().await, Some(Event::Connected(connected)) if connected.reconnected)
     );
     client_line(&mut second_server, b"JOIN #papo\r\nJOIN #rust\r\n").await;
     client_line(
@@ -1123,7 +1117,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
         b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
     within(server.shutdown()).await.unwrap();
@@ -1380,7 +1374,7 @@ async fn stable_registration_resets_the_backoff() {
         b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     tokio::time::advance(Duration::from_secs(60)).await;
     let disconnected_at = tokio::time::Instant::now();
     within(stable_server.shutdown()).await.unwrap();
@@ -1817,7 +1811,7 @@ async fn successful_registration_preserves_earlier_events() {
         events.next().await,
         Some(Event::Message(message)) if message.kind() == MessageKind::Notice
     ));
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -1908,7 +1902,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
         b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     client_line(
         &mut server,
         b"MODE papo-driver +B\r\nJOIN #PAPO replacement-channel-key\r\nJOIN #papo-bots private-channel-key\r\n",
@@ -3109,7 +3103,7 @@ async fn capability_loss_fails_a_pending_request_immediately() {
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
 
     let request = tokio::spawn(async move {
         client
@@ -3845,7 +3839,7 @@ async fn labels_distinguish_our_echo_from_another_session() {
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    while !matches!(events.next().await, Some(Event::Registered(_))) {}
+    while !matches!(events.next().await, Some(Event::Connected(_))) {}
 
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg("#papo", "from this device").await });
@@ -4546,7 +4540,7 @@ async fn public_state_accessors_report_the_registered_session() {
     server_line(&mut server, b":ergo.test 900 papo-driver papo-driver!papo@localhost emily :You are now logged in as emily\r\n:ergo.test 903 papo-driver :SASL authentication successful\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     assert!(!client.state().away());
 
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 BOUNCER_NETID=42 draft/FILEHOST=https://files.example.net/upload :are supported\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
@@ -4753,7 +4747,7 @@ async fn client_exposes_capability_aliases_and_casemapping() {
             if changed.old == crate::Casemapping::Rfc1459
                 && changed.new == crate::Casemapping::Ascii
     ));
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
 
     let state = client.state();
     assert!(state.has_cap("no-implicit-names"));

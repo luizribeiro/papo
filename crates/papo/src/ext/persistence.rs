@@ -118,7 +118,7 @@ mod tests {
         .await;
         client_line(&mut server, b"CAP END\r\n").await;
         server_line(&mut server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-        assert!(matches!(events.next().await, Some(Event::Registered(_))));
+        assert!(matches!(events.next().await, Some(Event::Connected(_))));
 
         let get = tokio::spawn({
             let client = client.clone();

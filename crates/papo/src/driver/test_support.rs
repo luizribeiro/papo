@@ -179,12 +179,23 @@ pub(crate) fn changed_snapshot(
     current
 }
 
-pub(crate) async fn complete_registration(server: &mut DuplexStream, events: &mut super::Events) {
+pub(crate) async fn complete_registration(
+    server: &mut DuplexStream,
+    events: &mut super::Events,
+) -> crate::event::Connected {
     registration_burst(server).await;
     server_line(server, b":ergo.test CAP * LS :\r\n").await;
     client_line(server, b"CAP END\r\n").await;
-    server_line(server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    server_line(server, b":ergo.test 001 papo-driver :Welcome to the Ergo test network\r\n:ergo.test 002 papo-driver :Your host is ergo.test, running version ergo-2.16.0\r\n:ergo.test 003 papo-driver :This server was created Wed Oct 15 2025\r\n:ergo.test 004 papo-driver ergo.test ergo-2.16.0 BioZ beI,k,l,imnst\r\n:ergo.test 005 papo-driver NETWORK=ErgoTest UTF8ONLY :are supported by this server\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+    for numeric in 2..=4 {
+        assert!(
+            matches!(events.next().await, Some(Event::Other(line)) if line.numeric() == Some(numeric))
+        );
+    }
+    match events.next().await {
+        Some(Event::Connected(connected)) => connected,
+        other => panic!("expected connected event, got {other:?}"),
+    }
 }
 
 pub(crate) async fn complete_labelled_registration(
@@ -201,7 +212,7 @@ pub(crate) async fn complete_labelled_registration(
         b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 
 pub(crate) async fn complete_caps_registration(
@@ -224,7 +235,7 @@ pub(crate) async fn complete_caps_registration(
     .await;
     client_line(server, b"CAP END\r\n").await;
     server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 
 pub(crate) async fn complete_history_registration(
@@ -249,7 +260,7 @@ pub(crate) async fn complete_history_registration(
     .await;
     client_line(server, b"CAP END\r\n").await;
     server_line(server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 
 pub(crate) async fn complete_read_marker_registration(
@@ -270,7 +281,7 @@ pub(crate) async fn complete_read_marker_registration(
     .await;
     client_line(server, b"CAP END\r\n").await;
     server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 
 pub(crate) async fn history_response(server: &mut DuplexStream, label: usize) {
@@ -388,7 +399,7 @@ pub(crate) async fn complete_extended_monitor_registration(
         b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 005 papo-driver MONITOR=100 :are supported\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 
 pub(crate) async fn next_message(events: &mut super::Events) -> ChatMessage {
@@ -423,7 +434,7 @@ pub(crate) async fn assert_registration_output(
         b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     client_line(&mut server, expected).await;
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
@@ -478,7 +489,7 @@ pub(crate) async fn assert_reply_wire(
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     server_line(&mut server, incoming).await;
     let Some(Event::Message(message)) = events.next().await else {
         panic!("expected message event")
@@ -515,7 +526,7 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Registered(_))));
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
     server_line(
         &mut server,
         b"@msgid=RfcBTzyxY120004 :emily!e@localhost PRIVMSG #papo :ship it\r\n",

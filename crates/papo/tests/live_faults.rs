@@ -31,7 +31,7 @@ async fn stale_credentials_end_reconnect_with_a_registration_cause() {
         .connect()
         .await
         .unwrap();
-        wait_for(&mut events, |event| matches!(event, Event::Registered(_))).await;
+        wait_for(&mut events, |event| matches!(event, Event::Connected(_))).await;
 
         server
             .change_account_password(&account, first, replacement)
@@ -68,7 +68,7 @@ async fn quit_returns_within_its_bound_when_the_peer_stops_reading() {
                 .connect()
                 .await
                 .unwrap();
-        wait_for(&mut events, |event| matches!(event, Event::Registered(_))).await;
+        wait_for(&mut events, |event| matches!(event, Event::Connected(_))).await;
         proxy.black_hole().unwrap();
 
         let started = Instant::now();

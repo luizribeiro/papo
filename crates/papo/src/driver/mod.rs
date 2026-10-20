@@ -1175,7 +1175,7 @@ where
                     )));
                 }
             }
-            event::CoreEvent::Registered(welcome) => {
+            event::CoreEvent::Connected(welcome) => {
                 after_registration(session, &welcome, defaults)?;
                 registration.succeeded();
                 *registered_at = Some(now());
@@ -1185,9 +1185,9 @@ where
                 } else {
                     *registered = true;
                 }
-                let event = Event::Registered(event::Registered {
+                let event = Event::Connected(event::Connected {
                     nick: welcome.nick,
-                    text: welcome.text,
+                    welcome: welcome.text,
                     caps: welcome.caps,
                     reconnected,
                 });

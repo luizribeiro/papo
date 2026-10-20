@@ -28,7 +28,7 @@ async fn registers_messages_itself_and_quits() {
 
         loop {
             match events.next().await.unwrap() {
-                Event::Registered(welcome) => {
+                Event::Connected(welcome) => {
                     assert_eq!(welcome.nick, nick.as_str());
                     break;
                 }

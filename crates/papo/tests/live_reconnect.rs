@@ -39,7 +39,7 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
         let (client, mut events) = builder.connect().await.unwrap();
 
         wait_for(&mut events, "initial registration", |event| {
-            matches!(event, Event::Registered(_))
+            matches!(event, Event::Connected(_))
         })
         .await;
         wait_for(&mut events, "initial join", |event| {
@@ -67,7 +67,7 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
         wait_for(
             &mut events,
             "first reconnection",
-            |event| matches!(event, Event::Registered(registered) if registered.reconnected),
+            |event| matches!(event, Event::Connected(connected) if connected.reconnected),
         )
         .await;
         wait_for(&mut events, "first rejoin", |event| {
@@ -111,7 +111,7 @@ async fn reconnect_and_rejoin(
     wait_for(
         events,
         "explicit reconnection",
-        |event| matches!(event, Event::Registered(registered) if registered.reconnected),
+        |event| matches!(event, Event::Connected(connected) if connected.reconnected),
     )
     .await;
     wait_for(events, "second rejoin", |event| {
