@@ -40,6 +40,13 @@ spec = "https://ircv3.net/specs/extensions/message-ids"
 evidence = "S: echo PRIVMSG #review :paging marker, without a msgid tag"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
+[terminal_history_page]
+reason = "soju omits message IDs from history while advertising only msgid references, preventing backward pagination"
+kind = "not-implemented"
+spec = "https://ircv3.net/specs/extensions/chathistory"
+evidence = "S: 005 MSGREFTYPES=msgid | C: CHATHISTORY LATEST #review * 10 | S: history PRIVMSG lines without msgid"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
 [kick_missing_member]
 reason = "soju relays Ergo's 482 rather than 441 when an operator kicks a user outside the channel"
 kind = "server-bug"

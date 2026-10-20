@@ -152,6 +152,61 @@ async fn chathistory_paging(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// pages backward until the server proves that no older messages remain
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory"]),
+    covers = ["draft.chathistory.end-pagination"]
+)]
+async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
+    enum Cursor {
+        Id(String),
+        Time(SystemTime),
+    }
+
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    let texts = (1..=25)
+        .map(|number| format!("deployment log entry {number:02}"))
+        .collect::<Vec<_>>();
+    for text in &texts {
+        alice.privmsg(&channel, text).await?;
+    }
+
+    let mut cursor = None;
+    let mut remaining = texts.len();
+    loop {
+        let page = match cursor {
+            None => alice.history(&channel).latest(10).await?,
+            Some(Cursor::Id(ref id)) => alice.history(&channel).before(id).limit(10).await?,
+            Some(Cursor::Time(time)) => alice.history(&channel).before(time).limit(10).await?,
+        };
+        let messages = page.messages().collect::<Vec<_>>();
+        let page_texts = messages
+            .iter()
+            .map(|message| message.text())
+            .collect::<Vec<_>>();
+        let start = remaining.saturating_sub(10);
+        assert_eq!(page_texts, texts[start..remaining]);
+        if page.end {
+            assert_eq!(start, 0, "history ended while older messages remained");
+            break;
+        }
+        assert!(!messages.is_empty(), "an empty page must report the end");
+        let oldest = messages.first().expect("nonempty page");
+        cursor = Some(match oldest.id() {
+            Some(id) => Cursor::Id(id.as_ref().to_owned()),
+            None => Cursor::Time(
+                oldest
+                    .server_time
+                    .expect("history without a message ID has server time"),
+            ),
+        });
+        remaining = start;
+    }
+    Ok(())
+}
+
 /// rejects history for an unavailable target with a typed server error
 #[scenario(
     requires(caps = ["batch", "draft/chathistory"]),
