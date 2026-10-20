@@ -5,6 +5,7 @@ use papo_conformance_macros::scenario;
 use papo_testing::Peer;
 
 use crate::Scenario;
+use crate::scenarios::support::conversation_name;
 
 fn read_marker_time() -> SystemTime {
     SystemTime::UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
@@ -368,13 +369,19 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     let initial = alice.wait_for(Event::as_read_marker).await?;
-    assert_eq!(initial.target.as_str(), channel);
+    assert_eq!(
+        conversation_name(&initial.conversation),
+        Some(channel.as_str())
+    );
     assert_eq!(initial.time, None);
 
     let time = read_marker_time();
     alice.mark_read(&channel, time).await?;
     let stored = alice.wait_for(Event::as_read_marker).await?;
-    assert_eq!(stored.target.as_str(), channel);
+    assert_eq!(
+        conversation_name(&stored.conversation),
+        Some(channel.as_str())
+    );
     assert_eq!(stored.time, Some(time));
 
     let mut phone = s.connect_account_session("alice-phone", account).await?;
@@ -383,7 +390,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             if let Some(marker) = event
                 .as_read_marker()
-                .filter(|marker| marker.target.as_str() == channel)
+                .filter(|marker| conversation_name(&marker.conversation) == Some(channel.as_str()))
             {
                 early_marker = Some(marker.clone());
             }
@@ -398,7 +405,10 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         Some(marker) => marker,
         None => phone.wait_for(Event::as_read_marker).await?,
     };
-    assert_eq!(replayed.target.as_str(), channel);
+    assert_eq!(
+        conversation_name(&replayed.conversation),
+        Some(channel.as_str())
+    );
     assert_eq!(replayed.time, Some(time));
     assert_eq!(phone.state().read_marker(&channel), Some(time));
     Ok(())

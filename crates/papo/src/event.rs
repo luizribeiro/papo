@@ -886,7 +886,7 @@ pub(crate) fn from_core(event: papo_core::Event, casemapping: Casemapping) -> Co
             return CoreEvent::History { target, items, end };
         }
         papo_core::Event::ReadMarker(marker) => Event::ReadMarker(ReadMarker {
-            target: marker.target,
+            conversation: marker.conversation,
             time: marker.time,
         }),
         papo_core::Event::Netsplit { servers, quits } => Event::Netsplit(Netsplit {
@@ -2086,13 +2086,15 @@ mod tests {
     #[test]
     fn maps_read_markers() {
         let marker = papo_core::ReadMarker {
-            target: "#papo".into(),
+            conversation: papo_core::Conversation::Channel(
+                papo_proto::Casemapping::Rfc1459.channel("#papo"),
+            ),
             time: Some(UNIX_EPOCH + Duration::from_secs(42)),
         };
         assert!(matches!(
             forwarded(papo_core::Event::ReadMarker(marker.clone())),
             Event::ReadMarker(mapped)
-                if mapped.target == marker.target && mapped.time == marker.time
+                if mapped.conversation == marker.conversation && mapped.time == marker.time
         ));
     }
 

@@ -752,7 +752,7 @@ impl core::marker::UnsafeUnpin for papo::event::Reacted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Reacted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Reacted
 #[non_exhaustive] pub struct papo::event::ReadMarker
-pub papo::event::ReadMarker::target: alloc::string::String
+pub papo::event::ReadMarker::conversation: papo::Conversation
 pub papo::event::ReadMarker::time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::event::ReadMarker
 pub fn papo::event::ReadMarker::clone(&self) -> Self

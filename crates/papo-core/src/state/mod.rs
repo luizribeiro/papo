@@ -710,7 +710,23 @@ impl State {
             .collect();
         self.read_markers = std::mem::take(&mut self.read_markers)
             .into_values()
-            .map(|marker| (NameKey::new(&marker.target, mapping), marker))
+            .filter_map(|mut marker| {
+                match &mut marker.conversation {
+                    Conversation::Channel(channel) => {
+                        *channel = mapping.channel(channel.as_ref());
+                    }
+                    Conversation::Private(nick) => {
+                        *nick = mapping.nick(nick.as_ref());
+                    }
+                    Conversation::Server | Conversation::Broadcast(_) => return None,
+                }
+                let name = match &marker.conversation {
+                    Conversation::Channel(channel) => channel.as_ref(),
+                    Conversation::Private(nick) => nick.as_ref(),
+                    Conversation::Server | Conversation::Broadcast(_) => unreachable!(),
+                };
+                Some((NameKey::new(name, mapping), marker))
+            })
             .collect();
         self.last_seen = std::mem::take(&mut self.last_seen)
             .into_values()

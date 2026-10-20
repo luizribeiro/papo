@@ -3,7 +3,7 @@ use web_time::Instant;
 
 use papo_proto::{LimitValue, Line, time};
 
-use crate::{Feature, RequestError, RequestId, Session};
+use crate::{Conversation, Feature, RequestError, RequestId, Session};
 
 const LOCAL_HISTORY_LIMIT: usize = 1_000;
 
@@ -19,11 +19,11 @@ pub enum MsgRef {
     Any,
 }
 
-/// The newest server read marker known for one target.
+/// The newest server read marker known for one conversation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReadMarker {
-    /// Channel or nickname to which the marker applies.
-    pub target: String,
+    /// Conversation to which the marker applies.
+    pub conversation: Conversation,
     /// Marker time, or `None` when the server reports `*`.
     pub time: Option<SystemTime>,
 }

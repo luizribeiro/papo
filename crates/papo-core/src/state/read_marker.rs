@@ -24,6 +24,17 @@ impl State {
                 Some(time)
             }
         };
+        let Ok((status, conversation)) = self.parse_target(target) else {
+            return false;
+        };
+        if status.is_some()
+            || !matches!(
+                conversation,
+                crate::Conversation::Channel(_) | crate::Conversation::Private(_)
+            )
+        {
+            return false;
+        }
         let key = NameKey::new(target, self.casemapping);
         let advances = match (self.read_markers.get(&key), time) {
             (None, _) | (Some(ReadMarker { time: None, .. }), Some(_)) => true,
@@ -36,10 +47,7 @@ impl State {
             (Some(_), None) => false,
         };
         if advances {
-            let marker = ReadMarker {
-                target: target.to_owned(),
-                time,
-            };
+            let marker = ReadMarker { conversation, time };
             self.read_markers.insert(key, marker.clone());
             outbox.event(Event::ReadMarker(marker));
         }

@@ -5,8 +5,8 @@ mod support;
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
-    Config, Event, Feature, HistoryItem, HistoryQuery, MsgRef, RateLimit, Refusal, RequestError,
-    Session, UnsupportedReason,
+    Config, Conversation, Event, Feature, HistoryItem, HistoryQuery, MsgRef, RateLimit, Refusal,
+    RequestError, Session, UnsupportedReason,
 };
 use support::{Transcript, unsupported_because, unsupported_error};
 
@@ -524,7 +524,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
     let Some(Event::ReadMarker(marker)) = session.poll_event() else {
         panic!("expected read marker")
     };
-    assert_eq!(marker.target, "#papo");
+    assert!(matches!(&marker.conversation, Conversation::Channel(channel) if channel == "#papo"));
     assert_eq!(
         marker.time,
         Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
@@ -560,8 +560,22 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
     assert!(matches!(session.poll_event(), Some(Event::Joined { .. })));
     session.handle_line(now, b":ergo.test MARKREAD #joined *");
     assert!(
-        matches!(session.poll_event(), Some(Event::ReadMarker(marker)) if marker.target == "#joined" && marker.time.is_none())
+        matches!(session.poll_event(), Some(Event::ReadMarker(marker)) if matches!(&marker.conversation, Conversation::Channel(channel) if channel == "#joined") && marker.time.is_none())
     );
+    session.handle_line(
+        now,
+        b":ergo.test MARKREAD Alice timestamp=2025-10-15T11:55:44.000Z",
+    );
+    assert!(
+        matches!(session.poll_event(), Some(Event::ReadMarker(marker)) if matches!(&marker.conversation, Conversation::Private(nick) if nick == "Alice"))
+    );
+    for target in ["*", "$opers"] {
+        session.handle_line(
+            now,
+            format!(":ergo.test MARKREAD {target} timestamp=2025-10-15T11:55:45.000Z").as_bytes(),
+        );
+        assert!(matches!(session.poll_event(), Some(Event::Line(_))));
+    }
     session.handle_line(now, b":ergo.test 366 papo #joined :End of /NAMES list");
     assert!(
         matches!(session.poll_event(), Some(Event::ChannelSynced { channel }) if channel == "#joined")

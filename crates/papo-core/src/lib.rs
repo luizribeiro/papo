@@ -1551,7 +1551,7 @@ pub enum Event {
     },
     /// Targets that received messages during a requested time range.
     HistoryTargets(Vec<(String, std::time::SystemTime)>),
-    /// A target's read marker advanced or was first reported.
+    /// A conversation's read marker advanced or was first reported.
     ReadMarker(ReadMarker),
     /// Users departed because connectivity between two servers was lost.
     ///

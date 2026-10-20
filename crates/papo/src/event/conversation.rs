@@ -68,12 +68,12 @@ pub struct TagMsg {
     pub tags: Tags,
 }
 
-/// A target's read marker changed.
+/// A conversation's read marker changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct ReadMarker {
-    /// The channel or nickname to which the marker applies.
-    pub target: String,
+    /// Conversation to which the marker applies.
+    pub conversation: Conversation,
     /// The marker time, or `None` when the server reports `*`.
     pub time: Option<SystemTime>,
 }
