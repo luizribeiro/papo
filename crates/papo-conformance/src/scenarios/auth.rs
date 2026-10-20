@@ -187,12 +187,12 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// registers and authenticates a new account
+/// creates and authenticates a new account
 #[scenario(
     requires(caps = ["draft/account-registration"]),
     covers = ["draft.account-registration.register"]
 )]
-async fn draft_account_registration(s: Scenario) -> papo_testing::Result<()> {
+async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
         .connect_with(
             s.configure("alice")?
@@ -218,12 +218,12 @@ async fn draft_account_registration(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// rejects registration of an existing account
+/// rejects creation of an existing account
 #[scenario(
     requires(caps = ["draft/account-registration"]),
     covers = ["draft.account-registration.errors"]
 )]
-async fn account_registration_error(s: Scenario) -> papo_testing::Result<()> {
+async fn account_creation_error(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let account = alice
         .state()
@@ -240,7 +240,7 @@ async fn account_registration_error(s: Scenario) -> papo_testing::Result<()> {
     let error = alice
         .create_account(NewAccount::new(PASSWORD).account(account))
         .await
-        .expect_err("an existing account cannot be registered twice");
+        .expect_err("an existing account cannot be created twice");
     assert!(
         matches!(
         &error,
