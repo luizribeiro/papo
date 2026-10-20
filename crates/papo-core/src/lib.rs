@@ -68,6 +68,7 @@ mod labels;
 mod metadata;
 mod monitor;
 mod name;
+mod nick_regain;
 mod outgoing;
 #[cfg(feature = "unstable")]
 mod persistence;
@@ -113,6 +114,7 @@ use labels::encode_label;
 pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue};
 use monitor::Monitor;
 pub(crate) use name::{NameKey, names_equal};
+use nick_regain::NickRegain;
 pub use outgoing::TextKind;
 use ratelimit::RateLimiter;
 pub use ratelimit::{InvalidRateLimit, RateLimit};
@@ -1902,6 +1904,7 @@ pub struct Session {
     isupport: IsupportState,
     keepalive: Keepalive,
     monitor: Monitor,
+    nick_regain: NickRegain,
     metadata_subscriptions_sent: bool,
     rate_limit: RateLimiter,
     remembered_casemapping: Casemapping,
@@ -1937,6 +1940,7 @@ impl std::fmt::Debug for Session {
             .field("isupport", &self.isupport)
             .field("keepalive", &self.keepalive)
             .field("monitor", &self.monitor)
+            .field("nick_regain", &self.nick_regain)
             .field(
                 "metadata_subscriptions_sent",
                 &self.metadata_subscriptions_sent,
@@ -2154,6 +2158,7 @@ impl Session {
             isupport,
             keepalive: Keepalive::default(),
             monitor: Monitor::default(),
+            nick_regain: NickRegain::default(),
             metadata_subscriptions_sent: false,
             rate_limit,
             remembered_casemapping,
@@ -2200,6 +2205,7 @@ impl Session {
         self.casemapping_change_emitted = false;
         self.isupport.handle_connected();
         self.sasl.handle_connected();
+        self.nick_regain.reset();
         self.state
             .reset(&self.config, Casemapping::default(), self.isupport.value());
         self.state_generation = self.state_generation.wrapping_add(1);
@@ -2361,6 +2367,7 @@ impl Session {
         self.sasl.handle_disconnected();
         self.keepalive.handle_disconnected();
         self.monitor.handle_disconnected();
+        self.nick_regain.reset();
         self.metadata_subscriptions_sent = false;
         let casemapping = self.state.casemapping();
         self.remembered_casemapping = casemapping;
@@ -3185,6 +3192,11 @@ impl Session {
                 own_away_message.as_deref(),
                 &mut self.outbox,
             ) == Handled::Yes;
+        self.nick_regain.observe_collision(
+            message,
+            self.welcome_state.is_connected(),
+            &self.config.nick,
+        );
         self.handle_ctcp(now, message);
         let handled = registration_handled
             || caps_handled
