@@ -289,7 +289,7 @@ mod tests {
         let settings = config().wanted_caps(["batch", "draft/metadata-2", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
-        complete_caps_registration(
+        complete_connect_caps(
             &mut server,
             &mut events,
             "batch draft/metadata-2=max-subs=100,max-keys=100 labeled-response",
@@ -371,7 +371,7 @@ mod tests {
         let settings = config().wanted_caps(["draft/metadata-2", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
-        complete_caps_registration(
+        complete_connect_caps(
             &mut server,
             &mut events,
             "draft/metadata-2=max-subs=100,max-keys=100 labeled-response",

@@ -90,7 +90,7 @@ mod tests {
             config().wanted_caps(["draft/channel-rename", "draft/relaymsg", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
-        complete_caps_registration(
+        complete_connect_caps(
             &mut server,
             &mut events,
             "draft/channel-rename draft/relaymsg=/| labeled-response",

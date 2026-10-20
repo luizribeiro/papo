@@ -113,7 +113,7 @@ mod tests {
         let settings = config().wanted_caps(["draft/webpush", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
-        complete_caps_registration(
+        complete_connect_caps(
             &mut server,
             &mut events,
             "draft/webpush labeled-response",
@@ -178,7 +178,7 @@ mod tests {
         let settings = config().wanted_caps(["draft/webpush", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
-        complete_registration(&mut server, &mut events).await;
+        complete_connect(&mut server, &mut events).await;
         let keys =
             super::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", crate::Secret::from_bytes([0xff]));
         assert!(matches!(

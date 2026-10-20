@@ -934,7 +934,7 @@ mod tests {
         ]);
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
-        complete_history_registration(&mut server, &mut events).await;
+        complete_connect_history(&mut server, &mut events).await;
 
         let request = tokio::spawn({
             let client = client.clone();
@@ -1006,7 +1006,7 @@ mod tests {
     async fn history_fails_without_the_negotiated_capability() {
         let (mut server, client, mut events, driver) = scripted(config());
         let task = tokio::spawn(driver);
-        complete_registration(&mut server, &mut events).await;
+        complete_connect(&mut server, &mut events).await;
         assert!(matches!(
             within(async { client.history("#papo").latest(10).await }).await,
             Err(Error::Unsupported(crate::Unsupported {
@@ -1033,7 +1033,7 @@ mod tests {
         ]);
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
-        complete_history_registration(&mut server, &mut events).await;
+        complete_connect_history(&mut server, &mut events).await;
         let request = tokio::spawn(async move {
             client
                 .history_targets(
@@ -1063,7 +1063,7 @@ mod tests {
         let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
-        complete_read_marker_registration(&mut server, &mut events).await;
+        complete_connect_read_marker(&mut server, &mut events).await;
         let request = tokio::spawn(async move {
             client
                 .mark_read(
@@ -1097,7 +1097,7 @@ mod tests {
         let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
-        complete_read_marker_registration(&mut server, &mut events).await;
+        complete_connect_read_marker(&mut server, &mut events).await;
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.fetch_read_marker("#papo").await }

@@ -179,7 +179,7 @@ pub(crate) fn changed_snapshot(
     current
 }
 
-pub(crate) async fn complete_registration(
+pub(crate) async fn complete_connect(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) -> crate::event::Connected {
@@ -198,7 +198,7 @@ pub(crate) async fn complete_registration(
     }
 }
 
-pub(crate) async fn complete_labelled_registration(
+pub(crate) async fn complete_connect_labelled(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) {
@@ -215,7 +215,7 @@ pub(crate) async fn complete_labelled_registration(
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 
-pub(crate) async fn complete_caps_registration(
+pub(crate) async fn complete_connect_caps(
     server: &mut DuplexStream,
     events: &mut super::Events,
     advertised: &str,
@@ -238,7 +238,7 @@ pub(crate) async fn complete_caps_registration(
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 
-pub(crate) async fn complete_history_registration(
+pub(crate) async fn complete_connect_history(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) {
@@ -263,7 +263,7 @@ pub(crate) async fn complete_history_registration(
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 
-pub(crate) async fn complete_read_marker_registration(
+pub(crate) async fn complete_connect_read_marker(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) {
@@ -381,7 +381,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
     );
 }
 
-pub(crate) async fn complete_extended_monitor_registration(
+pub(crate) async fn complete_connect_extended_monitor(
     server: &mut DuplexStream,
     events: &mut super::Events,
 ) {
@@ -409,7 +409,7 @@ pub(crate) async fn next_message(events: &mut super::Events) -> ChatMessage {
     *message
 }
 
-pub(crate) async fn assert_registration_output(
+pub(crate) async fn assert_connect_output(
     defaults: super::PostRegistration,
     isupport: Option<&[u8]>,
     expected: &[u8],

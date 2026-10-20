@@ -102,7 +102,7 @@ mod tests {
             config().wanted_caps(["batch", "labeled-response", "soju.im/bouncer-networks"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
-        complete_caps_registration(
+        complete_connect_caps(
             &mut server,
             &mut events,
             "batch labeled-response soju.im/bouncer-networks",
@@ -131,7 +131,7 @@ mod tests {
         let settings = config().wanted_caps(["labeled-response", "soju.im/bouncer-networks"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
-        complete_caps_registration(
+        complete_connect_caps(
             &mut server,
             &mut events,
             "labeled-response soju.im/bouncer-networks",

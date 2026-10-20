@@ -154,7 +154,7 @@ mod tests {
     async fn monitor_rejects_missing_support_before_sending() {
         let (mut server, client, mut events, driver) = scripted(config());
         let driver = tokio::spawn(driver);
-        complete_registration(&mut server, &mut events).await;
+        complete_connect(&mut server, &mut events).await;
 
         assert!(matches!(
             client

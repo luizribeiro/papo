@@ -244,7 +244,7 @@ async fn registration_is_forwarded() {
 async fn unknown_numeric_and_vendor_command_are_other_lines() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
 
     server_line(
         &mut server,
@@ -449,7 +449,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     );
     let driver = tokio::spawn(driver);
 
-    let connected = complete_registration(&mut first_server, &mut events).await;
+    let connected = complete_connect(&mut first_server, &mut events).await;
     assert_eq!(connected.nick, "papo-driver");
     assert_eq!(connected.welcome, "Welcome to the Ergo test network");
     assert!(!connected.reconnected);
@@ -480,7 +480,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     assert!(!client.state().is_connected());
 
     tokio::time::advance(Duration::from_secs(2)).await;
-    let connected = complete_registration(&mut second_server, &mut events).await;
+    let connected = complete_connect(&mut second_server, &mut events).await;
     assert!(connected.reconnected);
     client_line(&mut second_server, b"JOIN #papo persistent-channel-key\r\n").await;
     server_line(
@@ -760,7 +760,7 @@ async fn explicit_reconnect_redials_without_backoff() {
         Box::new(|| 0),
     );
     let driver = tokio::spawn(driver);
-    complete_registration(&mut first_server, &mut events).await;
+    complete_connect(&mut first_server, &mut events).await;
 
     let reconnect_requested_at = tokio::time::Instant::now();
     within(client.reconnect()).await.unwrap();
@@ -836,7 +836,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     );
     let driver = tokio::spawn(driver);
 
-    complete_history_registration(&mut first_server, &mut events).await;
+    complete_connect_history(&mut first_server, &mut events).await;
     client_line(&mut first_server, b"JOIN #papo\r\nJOIN #rust\r\n").await;
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
@@ -977,7 +977,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     );
     let driver = tokio::spawn(driver);
 
-    complete_history_registration(&mut first_server, &mut events).await;
+    complete_connect_history(&mut first_server, &mut events).await;
     client_line(&mut first_server, b"JOIN #papo\r\n").await;
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
@@ -985,7 +985,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
     tokio::time::advance(Duration::from_secs(2)).await;
 
-    complete_history_registration(&mut second_server, &mut events).await;
+    complete_connect_history(&mut second_server, &mut events).await;
     client_line(&mut second_server, b"JOIN #papo\r\n").await;
     client_line(
         &mut second_server,
@@ -1007,7 +1007,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
     tokio::time::advance(Duration::from_secs(2)).await;
 
-    complete_history_registration(&mut third_server, &mut events).await;
+    complete_connect_history(&mut third_server, &mut events).await;
     client_line(&mut third_server, b"JOIN #papo\r\n").await;
     client_line(
         &mut third_server,
@@ -1197,7 +1197,7 @@ async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
         connector,
     );
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test NOTICE papo-driver :maintenance soon\r\n",
@@ -1917,7 +1917,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn bot_default_without_advertised_mode_sends_no_mode() {
-    assert_registration_output(
+    assert_connect_output(
         super::PostRegistration {
             bot: true,
             channels: Vec::new(),
@@ -1932,7 +1932,7 @@ async fn bot_default_without_advertised_mode_sends_no_mode() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn advertised_bot_mode_without_bot_default_sends_no_mode() {
-    assert_registration_output(
+    assert_connect_output(
         super::PostRegistration::default(),
         Some(b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n"),
         b"",
@@ -1942,7 +1942,7 @@ async fn advertised_bot_mode_without_bot_default_sends_no_mode() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn empty_channel_defaults_send_no_join() {
-    assert_registration_output(
+    assert_connect_output(
         super::PostRegistration {
             bot: true,
             channels: Vec::new(),
@@ -1959,7 +1959,7 @@ async fn empty_channel_defaults_send_no_join() {
 async fn cap_new_and_del_forward_capability_changes() {
     let (mut server, _client, mut events, driver) = scripted(config().wanted_caps(["server-time"]));
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test CAP papo-driver NEW :server-time=2027\r\n",
@@ -2340,7 +2340,7 @@ async fn client_send_raw_obeys_the_rate_limit() {
         );
     let (mut server, client, mut events, driver) = scripted(settings);
     let task = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     let started = crate::rt::now_mono();
     for index in 0..200 {
         let nick = format!("release-bot-{index}");
@@ -2499,7 +2499,7 @@ async fn raw_request_returns_every_line_from_a_labelled_batch() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
     let driver = tokio::spawn(driver);
-    complete_labelled_registration(&mut server, &mut events).await;
+    complete_connect_labelled(&mut server, &mut events).await;
 
     let request = tokio::spawn({
         let client = client.clone();
@@ -2529,7 +2529,7 @@ async fn raw_request_returns_no_lines_for_an_ack() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
     let driver = tokio::spawn(driver);
-    complete_labelled_registration(&mut server, &mut events).await;
+    complete_connect_labelled(&mut server, &mut events).await;
 
     let request = tokio::spawn({
         let client = client.clone();
@@ -2558,7 +2558,7 @@ async fn structured_requests_resolve_fail_and_abort() {
             .request_timeout(Duration::from_secs(1)),
     );
     let driver = tokio::spawn(driver);
-    complete_labelled_registration(&mut server, &mut events).await;
+    complete_connect_labelled(&mut server, &mut events).await;
 
     let whois = tokio::spawn({
         let client = client.clone();
@@ -2658,7 +2658,7 @@ async fn raw_request_times_out_after_it_is_written() {
             .request_timeout(Duration::from_secs(1)),
     );
     let driver = tokio::spawn(driver);
-    complete_labelled_registration(&mut server, &mut events).await;
+    complete_connect_labelled(&mut server, &mut events).await;
 
     let timed_out = tokio::spawn({
         let client = client.clone();
@@ -2686,7 +2686,7 @@ async fn raw_request_returns_state_changing_lines_without_an_event() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
     let driver = tokio::spawn(driver);
-    complete_labelled_registration(&mut server, &mut events).await;
+    complete_connect_labelled(&mut server, &mut events).await;
 
     let renamed = tokio::spawn({
         let client = client.clone();
@@ -2724,7 +2724,7 @@ async fn raw_request_returns_state_changing_lines_without_an_event() {
 async fn identity_and_away_actions_match_unlabelled_confirmations() {
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(["setname"]));
     let driver = tokio::spawn(driver);
-    complete_caps_registration(&mut server, &mut events, "setname", "setname").await;
+    complete_connect_caps(&mut server, &mut events, "setname", "setname").await;
 
     let rename = tokio::spawn({
         let client = client.clone();
@@ -2797,7 +2797,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
     let (mut server, client, mut events, driver) =
         scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     client
         .send_raw(crate::Line::new("NICK", ["papo-renamed"]))
         .await
@@ -2847,7 +2847,7 @@ async fn membership_actions_confirm_success_and_refusal() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
     let driver = tokio::spawn(driver);
-    complete_labelled_registration(&mut server, &mut events).await;
+    complete_connect_labelled(&mut server, &mut events).await;
 
     let invite = tokio::spawn({
         let client = client.clone();
@@ -2908,7 +2908,7 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
     let driver = tokio::spawn(driver);
-    complete_labelled_registration(&mut server, &mut events).await;
+    complete_connect_labelled(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test 005 papo-driver PREFIX=(ov)@+ CHANMODES=beI,k,l,imnst MODES=2 :are supported\r\n",
@@ -2969,7 +2969,7 @@ async fn typed_requests_match_unlabelled_responses() {
     let (mut server, client, mut events, driver) =
         scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test 005 papo-driver PREFIX=(ov)@+ CHANMODES=beI,k,l,imnst MODES=3 :are supported\r\n",
@@ -3127,7 +3127,7 @@ async fn capability_loss_fails_a_pending_request_immediately() {
 async fn action_confirmation_is_enqueued_after_state_changes() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,CEMRUimnstu :are supported\r\n",
@@ -3215,7 +3215,7 @@ async fn text_only_commands_reject_byte_secrets() {
 async fn oper_and_ping_return_server_outcomes() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
 
     let oper = tokio::spawn({
         let client = client.clone();
@@ -3258,7 +3258,7 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
         .request_timeout(Duration::from_secs(1));
     let (mut server, client, mut events, driver) = scripted(settings);
     let driver = tokio::spawn(driver);
-    complete_labelled_registration(&mut server, &mut events).await;
+    complete_connect_labelled(&mut server, &mut events).await;
 
     let stalled = tokio::spawn({
         let client = client.clone();
@@ -3434,7 +3434,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     let config = config().wanted_caps(["echo-message", "labeled-response", "message-tags"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let task = tokio::spawn(driver);
-    complete_caps_registration(
+    complete_connect_caps(
         &mut server,
         &mut events,
         "echo-message labeled-response message-tags",
@@ -3586,7 +3586,7 @@ async fn chat_text_returns_a_labelled_numeric_refusal() {
     let settings = config().wanted_caps(["labeled-response"]);
     let (mut server, client, mut events, driver) = scripted(settings);
     let task = tokio::spawn(driver);
-    complete_labelled_registration(&mut server, &mut events).await;
+    complete_connect_labelled(&mut server, &mut events).await;
 
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg("#rust", "hello everyone").await });
@@ -4102,7 +4102,7 @@ async fn quit_reads_server_close_while_events_are_backed_up() {
 async fn only_pending_request_enables_read_ahead() {
     let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 2);
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     saturate_events(&mut server, &events).await;
 
     let whois = tokio::spawn(async move { client.whois(test_nick("alice")).await });
@@ -4190,7 +4190,7 @@ fn closed_waiters_do_not_enable_read_ahead() {
 async fn only_channel_sync_waiter_enables_read_ahead() {
     let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 2);
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n",
@@ -4224,7 +4224,7 @@ async fn pending_read_marker_request_enables_read_ahead() {
     let settings = config().wanted_caps(["draft/read-marker", "labeled-response"]);
     let (mut server, client, mut events, driver) = scripted_with_capacity(settings, 2);
     let driver = tokio::spawn(driver);
-    complete_read_marker_registration(&mut server, &mut events).await;
+    complete_connect_read_marker(&mut server, &mut events).await;
     saturate_events(&mut server, &events).await;
 
     let marker = tokio::spawn(async move { client.fetch_read_marker("#papo").await });
@@ -4246,7 +4246,7 @@ async fn pending_read_marker_request_enables_read_ahead() {
 async fn no_pending_work_disables_read_ahead() {
     let (mut server, _client, mut events, driver) = scripted_with_capacity(config(), 2);
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     saturate_events(&mut server, &events).await;
 
     server_line(&mut server, b"PING :read-ahead-blocked\r\n").await;
@@ -4269,7 +4269,7 @@ async fn no_pending_work_disables_read_ahead() {
 async fn disconnect_preserves_events_waiting_for_channel_capacity() {
     let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     let whois = tokio::spawn(async move { client.whois(test_nick("alice")).await });
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(
@@ -4307,7 +4307,7 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
 async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
     let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     let whois = tokio::spawn(async move { client.whois(test_nick("alice")).await });
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(
@@ -4371,7 +4371,7 @@ async fn slow_consumer_reconnects_after_its_reported_delay() {
         Box::new(|| 0),
     );
     let driver = tokio::spawn(driver);
-    complete_registration(&mut first_server, &mut events).await;
+    complete_connect(&mut first_server, &mut events).await;
 
     let whois = tokio::spawn({
         let client = client.clone();
@@ -4415,7 +4415,7 @@ async fn keepalive_expiry_while_events_are_stalled_is_a_slow_consumer() {
         .ping_timeout(Duration::from_secs(120));
     let (mut server, _client, mut events, driver) = scripted_with_capacity(settings, 1);
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test NOTICE papo-driver :maintenance one\r\n:ergo.test NOTICE papo-driver :maintenance two\r\n",
@@ -4475,7 +4475,7 @@ async fn client_reads_owned_state_snapshots() {
     let (mut server, client, mut events, driver) = scripted(config());
     assert!(!client.state().is_connected());
     let driver = tokio::spawn(driver);
-    complete_registration(&mut server, &mut events).await;
+    complete_connect(&mut server, &mut events).await;
     assert!(client.state().is_connected());
 
     server_line(
@@ -4617,7 +4617,7 @@ async fn every_state_change_replaces_the_snapshot() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    complete_extended_monitor_registration(&mut server, &mut events).await;
+    complete_connect_extended_monitor(&mut server, &mut events).await;
     let mut previous = client.state();
 
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #Papo\r\n").await;
@@ -4777,7 +4777,7 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    complete_extended_monitor_registration(&mut server, &mut events).await;
+    complete_connect_extended_monitor(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example,bob!bob@users.example\r\n",
@@ -4806,7 +4806,7 @@ async fn disconnect_clears_monitor_presence_snapshot() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    complete_extended_monitor_registration(&mut server, &mut events).await;
+    complete_connect_extended_monitor(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\n",
