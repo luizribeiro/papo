@@ -101,8 +101,8 @@ fn read_models_expose_typed_identifiers() {
         .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
         .inspect(|session| {
             let own_nick: &Nick = session.state().nick();
-            let channel_query = ChannelName::from("#PAPO");
-            let user_query = Nick::from("DAN");
+            let channel_query = session.isupport().casemapping().channel("#PAPO");
+            let user_query = session.isupport().casemapping().nick("DAN");
             let channel = session.state().channel(&channel_query).unwrap();
             let channel_name: &ChannelName = channel.name();
             let member_nick: &Nick = channel.member(&user_query).unwrap().nick();

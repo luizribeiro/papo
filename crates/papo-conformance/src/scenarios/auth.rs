@@ -1,4 +1,4 @@
-use papo::{AccountName, AccountRegistration, Event, NewAccount, event::Warning};
+use papo::{AccountRegistration, Event, NewAccount, event::Warning};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
 use papo_test_server::{DeploymentProfile, register_account, unique};
@@ -188,7 +188,7 @@ async fn draft_account_registration(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let nick = alice.state().nick().clone();
-    let account = AccountName::from(nick.as_ref());
+    let account = alice.state().casemapping().account(nick.as_ref());
     let outcome = alice
         .register_account(NewAccount::new(PASSWORD).account(account.clone()))
         .await?;
@@ -216,7 +216,10 @@ async fn draft_account_registration(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn account_registration_error(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let account = AccountName::from(alice.state().nick().as_ref());
+    let account = alice
+        .state()
+        .casemapping()
+        .account(alice.state().nick().as_ref());
     let registered = alice
         .register_account(NewAccount::new(PASSWORD).account(account.clone()))
         .await?;

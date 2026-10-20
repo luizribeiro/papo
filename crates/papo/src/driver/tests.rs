@@ -3273,7 +3273,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let sent = client
         .privmsg("helper", "reviewed")
         .reply_to(&crate::MessageId::from("RfcBTzyxY120004"))
-        .channel_context(&crate::ChannelName::from("#papo"))
+        .channel_context(&crate::Casemapping::default().channel("#papo"))
         .await
         .unwrap();
     assert_eq!(
@@ -3341,7 +3341,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
         sender
             .privmsg("helper", "fixed in 69876ec")
             .reply_to(&crate::MessageId::from("RfcBTzyxY120004"))
-            .channel_context(&crate::ChannelName::from("#papo"))
+            .channel_context(&crate::Casemapping::default().channel("#papo"))
             .tag("+example.org/trace", "98")
             .await
     });
@@ -4463,7 +4463,10 @@ async fn public_state_accessors_report_the_registered_session() {
         ["#Papo"]
     );
     assert_eq!(
-        state.user(crate::Nick::from("ALICE")).unwrap().username(),
+        state
+            .user(state.casemapping().nick("ALICE"))
+            .unwrap()
+            .username(),
         Some("~alice")
     );
     assert_eq!(state.monitor_online().next().unwrap().nick(), "bob");

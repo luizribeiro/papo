@@ -194,7 +194,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let channel = papo::ChannelName::from(channel);
+    let channel = alice.state().casemapping().channel(channel);
     let sent = alice
         .privmsg(bob.nick(), "private thread reply")
         .channel_context(&channel)

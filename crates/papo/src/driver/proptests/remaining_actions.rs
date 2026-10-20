@@ -27,7 +27,7 @@ async fn arbitrary_action_builder_input_is_rejected_or_emits_valid_lines() {
             let (first, second, third) = (first.clone(), second.clone(), third.clone());
             move |client| {
                 let reply = crate::MessageId::from(third.clone());
-                let context = crate::ChannelName::from(third.clone());
+                let context = crate::Casemapping::default().channel(third.clone());
                 action(
                     client
                         .privmsg(first.clone(), second)

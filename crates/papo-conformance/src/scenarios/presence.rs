@@ -1,7 +1,4 @@
-use papo::{
-    Account, AccountName, AccountRegistration, Away, Error, Event, NewAccount, Origin, Refusal,
-    Source,
-};
+use papo::{Account, AccountRegistration, Away, Error, Event, NewAccount, Origin, Refusal, Source};
 use papo_conformance_macros::scenario;
 
 use super::support::assert_refusal;
@@ -64,7 +61,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let account = AccountName::from(alice_nick.as_ref());
+    let account = alice.state().casemapping().account(alice_nick.as_ref());
 
     let outcome = alice
         .register_account(NewAccount::new("q7Hx-2mZp_9vLcT4wRfB").account(account.clone()))
