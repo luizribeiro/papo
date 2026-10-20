@@ -15,7 +15,7 @@ impl NewAccount {
     ///
     /// ```
     /// let account = papo::NewAccount::new("correct horse battery staple")
-    ///     .account("alice")
+    ///     .account(papo::Casemapping::default().account("alice"))
     ///     .email("alice@example.org");
     /// # _ = account;
     /// ```

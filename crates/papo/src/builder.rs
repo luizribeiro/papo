@@ -170,7 +170,8 @@ impl Builder {
     /// Registers an account before connection registration completes.
     ///
     /// ```
-    /// let account = papo::NewAccount::new("correct horse battery staple").account("alice");
+    /// let account = papo::NewAccount::new("correct horse battery staple")
+    ///     .account(papo::Casemapping::default().account("alice"));
     /// # _ = papo::Client::builder("irc.example.net").register_account(account);
     /// ```
     pub fn register_account(mut self, account: NewAccount) -> Self {
