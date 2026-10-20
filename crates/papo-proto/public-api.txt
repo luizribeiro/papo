@@ -425,14 +425,8 @@ impl core::cmp::PartialOrd for papo_proto::AccountName
 pub fn papo_proto::AccountName::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::convert::AsRef<str> for papo_proto::AccountName
 pub fn papo_proto::AccountName::as_ref(&self) -> &str
-impl core::convert::From<&alloc::string::String> for papo_proto::AccountName
-pub fn papo_proto::AccountName::from(&alloc::string::String) -> Self
 impl core::convert::From<&papo_proto::AccountName> for papo_proto::AccountName
 pub fn papo_proto::AccountName::from(&Self) -> Self
-impl core::convert::From<&str> for papo_proto::AccountName
-pub fn papo_proto::AccountName::from(&str) -> Self
-impl core::convert::From<alloc::string::String> for papo_proto::AccountName
-pub fn papo_proto::AccountName::from(alloc::string::String) -> Self
 impl core::fmt::Debug for papo_proto::AccountName
 pub fn papo_proto::AccountName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_proto::AccountName
@@ -512,16 +506,10 @@ impl core::cmp::PartialOrd for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::convert::AsRef<str> for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::as_ref(&self) -> &str
-impl core::convert::From<&alloc::string::String> for papo_proto::ChannelName
-pub fn papo_proto::ChannelName::from(&alloc::string::String) -> Self
 impl core::convert::From<&papo_proto::ChannelName> for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::from(&Self) -> Self
 impl core::convert::From<&papo_proto::ChannelName> for papo_proto::Target
 pub fn papo_proto::Target::from(&papo_proto::ChannelName) -> Self
-impl core::convert::From<&str> for papo_proto::ChannelName
-pub fn papo_proto::ChannelName::from(&str) -> Self
-impl core::convert::From<alloc::string::String> for papo_proto::ChannelName
-pub fn papo_proto::ChannelName::from(alloc::string::String) -> Self
 impl core::convert::From<papo_proto::ChannelName> for papo_proto::Target
 pub fn papo_proto::Target::from(papo_proto::ChannelName) -> Self
 impl core::fmt::Debug for papo_proto::ChannelName
@@ -884,14 +872,8 @@ impl core::cmp::PartialOrd for papo_proto::Mask
 pub fn papo_proto::Mask::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::convert::AsRef<str> for papo_proto::Mask
 pub fn papo_proto::Mask::as_ref(&self) -> &str
-impl core::convert::From<&alloc::string::String> for papo_proto::Mask
-pub fn papo_proto::Mask::from(&alloc::string::String) -> Self
 impl core::convert::From<&papo_proto::Mask> for papo_proto::Mask
 pub fn papo_proto::Mask::from(&Self) -> Self
-impl core::convert::From<&str> for papo_proto::Mask
-pub fn papo_proto::Mask::from(&str) -> Self
-impl core::convert::From<alloc::string::String> for papo_proto::Mask
-pub fn papo_proto::Mask::from(alloc::string::String) -> Self
 impl core::fmt::Debug for papo_proto::Mask
 pub fn papo_proto::Mask::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_proto::Mask
@@ -1077,16 +1059,10 @@ impl core::cmp::PartialOrd for papo_proto::Nick
 pub fn papo_proto::Nick::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::convert::AsRef<str> for papo_proto::Nick
 pub fn papo_proto::Nick::as_ref(&self) -> &str
-impl core::convert::From<&alloc::string::String> for papo_proto::Nick
-pub fn papo_proto::Nick::from(&alloc::string::String) -> Self
 impl core::convert::From<&papo_proto::Nick> for papo_proto::Nick
 pub fn papo_proto::Nick::from(&Self) -> Self
 impl core::convert::From<&papo_proto::Nick> for papo_proto::Target
 pub fn papo_proto::Target::from(&papo_proto::Nick) -> Self
-impl core::convert::From<&str> for papo_proto::Nick
-pub fn papo_proto::Nick::from(&str) -> Self
-impl core::convert::From<alloc::string::String> for papo_proto::Nick
-pub fn papo_proto::Nick::from(alloc::string::String) -> Self
 impl core::convert::From<papo_proto::Nick> for papo_proto::Target
 pub fn papo_proto::Target::from(papo_proto::Nick) -> Self
 impl core::fmt::Debug for papo_proto::Nick

@@ -212,24 +212,6 @@ macro_rules! name_identifier {
                 self == *other
             }
         }
-
-        impl From<&str> for $name {
-            fn from(value: &str) -> Self {
-                Self::new(value, Casemapping::default())
-            }
-        }
-
-        impl From<String> for $name {
-            fn from(value: String) -> Self {
-                Self::new(value, Casemapping::default())
-            }
-        }
-
-        impl From<&String> for $name {
-            fn from(value: &String) -> Self {
-                Self::new(value, Casemapping::default())
-            }
-        }
     };
 }
 
