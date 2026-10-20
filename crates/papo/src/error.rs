@@ -720,6 +720,46 @@ mod tests {
     }
 
     #[test]
+    fn disconnect_source_chains_preserve_transport_diagnostics() {
+        fn sources(error: &(dyn std::error::Error + 'static)) -> Vec<String> {
+            std::iter::successors(error.source(), |source| source.source())
+                .map(ToString::to_string)
+                .collect()
+        }
+
+        for error in [
+            io::Error::new(io::ErrorKind::ConnectionReset, "connection reset by peer"),
+            io::Error::new(
+                io::ErrorKind::ConnectionAborted,
+                "WebSocket closed with code 1001: server restart",
+            ),
+        ] {
+            let diagnostic = error.to_string();
+            let disconnected =
+                Disconnected::new(DisconnectCause::connection_lost(diagnostic.clone()), None);
+            assert_eq!(
+                sources(&disconnected),
+                [format!("the connection was lost: {diagnostic}")]
+            );
+        }
+
+        let cause = DisconnectCause::Connect(ConnectError::new(
+            ConnectErrorKind::Refused,
+            io::Error::new(
+                io::ErrorKind::ConnectionRefused,
+                "irc.example.net:6697 refused the connection",
+            ),
+        ));
+        assert_eq!(
+            sources(&cause),
+            [
+                "the server refused the connection",
+                "irc.example.net:6697 refused the connection",
+            ]
+        );
+    }
+
+    #[test]
     fn close_kinds_retain_their_specific_categories() {
         assert!(matches!(
             Error::disconnected_close(
