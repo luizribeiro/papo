@@ -1163,7 +1163,7 @@ impl Client {
             let response = client
                 .correlated(message, Some(ResponseMatcher::List))
                 .await?;
-            crate::requests::list(response)
+            crate::requests::list(response, client.state().isupport().inner())
         })
     }
 

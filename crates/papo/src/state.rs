@@ -40,7 +40,9 @@ impl State {
             core: session.state().clone(),
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
-            account: session.account().map(AccountName::from),
+            account: session
+                .account()
+                .map(|account| session.isupport().casemapping().account(account)),
             metadata_subscriptions: session
                 .state()
                 .metadata_subscriptions()
