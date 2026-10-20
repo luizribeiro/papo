@@ -591,7 +591,7 @@ impl Client {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use crate::driver::test_support::*;
     use std::time::{Duration, UNIX_EPOCH};

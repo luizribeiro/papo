@@ -280,7 +280,7 @@ fn list_entries(lines: impl IntoIterator<Item = Line>) -> Vec<ListEntry> {
         .collect()
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use std::time::Instant;
 

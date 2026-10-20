@@ -5,7 +5,7 @@
 /// The input is borrowed when it contains no recognized formatting control byte.
 pub use papo_proto::strip_formatting as strip;
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     #[test]
     fn strips_formatting_without_changing_plain_text() {

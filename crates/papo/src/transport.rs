@@ -29,7 +29,7 @@ mod websocket_browser_native;
 #[path = "transport/websocket_browser/pure.rs"]
 mod websocket_browser_pure;
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod live;
 
 /// The security used for a connection.
@@ -542,7 +542,7 @@ async fn connect_address(address: SocketAddr) -> io::Result<TcpStream> {
     Ok(stream)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use super::{ClientCertificate, TlsConfig};
     #[cfg(tls)]

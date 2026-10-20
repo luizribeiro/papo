@@ -107,7 +107,7 @@ fn preflight(client: &Client) -> Result<(), Error> {
     Client::require_feature(&state, Feature::Monitor)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use crate::driver::test_support::*;
     use crate::{Error, Feature};

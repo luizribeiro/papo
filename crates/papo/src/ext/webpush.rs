@@ -104,7 +104,7 @@ fn webpush_result(response: &Response) -> Result<(), Error> {
     crate::requests::empty(response)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use crate::driver::test_support::*;
 

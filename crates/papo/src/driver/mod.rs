@@ -1,7 +1,7 @@
 mod catchup;
 mod connect;
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 use catchup::extend_catchup;
 #[cfg(all(test, feature = "unstable"))]
 use catchup::should_fetch_history;
@@ -9,7 +9,7 @@ use catchup::{Catchup, CatchupCursor, advance_catchup, begin_catchup};
 
 #[cfg(not(browser))]
 use connect::apply_sts_action;
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 use connect::{is_fatal_failure, record_sts_upgrade};
 use connect::{open_connection, run_plan};
 
@@ -368,9 +368,9 @@ impl Events {
     /// Waits for the next event, or returns `None` after the driver stops.
     pub async fn next(&mut self) -> Option<Event> {
         let next = std::future::poll_fn(|context| Pin::new(&mut *self).poll_next(context));
-        #[cfg(test)]
+        #[cfg(all(test, not(browser)))]
         let event = test_support::within(next).await;
-        #[cfg(not(test))]
+        #[cfg(any(not(test), browser))]
         let event = next.await;
         event
     }
@@ -419,7 +419,7 @@ pub struct Driver {
 }
 
 impl Driver {
-    #[cfg(test)]
+    #[cfg(all(test, not(browser)))]
     fn with_stream<S>(stream: S, session: Session) -> (Client, Events, Self)
     where
         S: ConnectionIo + 'static,
@@ -427,7 +427,7 @@ impl Driver {
         Self::with_stream_and_capacity(stream, session, DEFAULT_CHANNEL_CAPACITY)
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, not(browser)))]
     fn with_stream_and_capacity<S>(
         stream: S,
         session: Session,
@@ -1563,11 +1563,11 @@ fn now() -> Instant {
     crate::rt::now_mono()
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 pub(crate) mod test_support;
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod proptests;
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests;

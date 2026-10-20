@@ -91,7 +91,7 @@ impl Bouncer {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use crate::NetworkConfig;
     use crate::driver::test_support::*;

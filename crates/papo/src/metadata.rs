@@ -51,7 +51,7 @@ pub mod keys {
     pub const BLOCKED: &str = "soju.im/blocked";
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     #[test]
     fn registered_keys_match_the_registry() {

@@ -180,7 +180,7 @@ impl fmt::Display for Warning {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use super::{BatchAbandonReason, StateLimit, Warning};
 

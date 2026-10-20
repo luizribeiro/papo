@@ -196,7 +196,7 @@ pub(super) fn should_fetch_history(session: &Session) -> bool {
     true
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use std::{collections::BTreeMap, time::SystemTime};
 

@@ -493,7 +493,7 @@ impl Error {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use std::{io, time::Duration};
 

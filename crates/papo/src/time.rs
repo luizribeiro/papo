@@ -5,7 +5,7 @@
 /// Returns `None` when the timestamp's year is outside `0000..=9999`.
 pub use papo_proto::time::format;
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use std::time::{Duration, UNIX_EPOCH};
 

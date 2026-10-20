@@ -1064,7 +1064,7 @@ pub(crate) fn from_core(event: papo_core::Event) -> CoreEvent {
     })
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 

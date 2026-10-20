@@ -81,7 +81,7 @@ codes!(
     MAX_REGISTRATIONS,
 );
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     #[test]
     fn values_match_wire_codes() {

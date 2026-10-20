@@ -92,7 +92,7 @@ numerics! {
     ERR_INVALIDMODEPARAM = 696,
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use super::*;
 

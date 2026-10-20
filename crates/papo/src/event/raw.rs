@@ -125,7 +125,7 @@ fn escape_tag(value: &str) -> String {
         .replace('\n', "\\n")
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use papo_proto::LineRef;
 

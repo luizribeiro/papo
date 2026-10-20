@@ -4,7 +4,7 @@ use papo_core::MetadataCommand;
 
 use crate::{Client, Error, MetadataValue, driver::CoreRequest};
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 use crate::driver::test_support::*;
 
 /// Handle for metadata requests and cached metadata state.
@@ -280,7 +280,7 @@ impl Metadata {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use super::*;
 

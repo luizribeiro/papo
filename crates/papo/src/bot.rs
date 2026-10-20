@@ -336,7 +336,7 @@ fn split_args(input: &str) -> Option<Vec<String>> {
     Some(words)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 

@@ -61,7 +61,7 @@ impl Default for Reconnect {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use std::time::Duration;
 

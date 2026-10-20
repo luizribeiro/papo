@@ -456,7 +456,7 @@ fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), 
     Ok((host.to_owned(), port))
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use super::{Endpoint, EndpointKind, InvalidInput, Protocol, ServerAddress};
 

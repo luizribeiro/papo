@@ -654,7 +654,7 @@ fn registration_input_error(config: &Config) -> Option<InvalidInput> {
     invalid(Line::new("WEBIRC", params))
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use std::{
         io,

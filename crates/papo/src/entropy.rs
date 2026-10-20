@@ -18,7 +18,7 @@ impl papo_core::Entropy for OsEntropy {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use papo_core::Entropy;
 

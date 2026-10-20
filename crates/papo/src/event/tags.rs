@@ -79,7 +79,7 @@ impl PartialEq for Tags {
 
 impl Eq for Tags {}
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use papo_proto::LineRef;
 

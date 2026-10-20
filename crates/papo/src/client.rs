@@ -18,9 +18,9 @@ use crate::{
     state::State,
 };
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 use crate::driver::channels;
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 use papo_core::Session;
 
 static NEXT_PING: AtomicU64 = AtomicU64::new(0);
@@ -211,12 +211,12 @@ impl Sent {
 }
 
 impl Client {
-    #[cfg(test)]
+    #[cfg(all(test, not(browser)))]
     pub(crate) fn disconnected_for_test() -> Self {
         channels(1, &Session::new(papo_core::Config::default())).client
     }
 
-    #[cfg(all(test, feature = "bot"))]
+    #[cfg(all(test, not(browser), feature = "bot"))]
     pub(crate) fn from_session_for_test(session: &Session) -> Self {
         channels(1, session).client
     }

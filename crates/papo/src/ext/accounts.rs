@@ -147,7 +147,7 @@ fn account_registration_result(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use crate::driver::test_support::*;
 

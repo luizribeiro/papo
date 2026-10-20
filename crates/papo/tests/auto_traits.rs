@@ -1,12 +1,12 @@
-#![cfg(not(target_family = "wasm"))]
 //! Compile-time guards for the thread-safety contracts of public types and futures.
 
 use std::{future::IntoFuture, time::SystemTime};
 
 use futures_core::Stream;
 use papo::{
-    Client, Error, Event, Events, ListFilter, Message as ChatMessage, MessageId, NewAccount,
-    RequestFuture, Target,
+    Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel,
+    ListFilter, Message as ChatMessage, MessageId, NewAccount, RequestFuture, SendMessage,
+    SetModes, State, Target,
 };
 #[cfg(feature = "unstable")]
 use papo::{NetworkConfig, NetworkId, PersistenceSetting, PushKeys};
@@ -14,7 +14,13 @@ use papo_proto::Typing;
 
 fn assert_send_sync<T: Send + Sync>() {}
 
+fn assert_send<T: Send>() {}
+
+fn assert_send_value<T: Send>(_: T) {}
+
 fn assert_send_static<T: Send + 'static>(_: T) {}
+
+fn assert_unpin<T: Unpin>() {}
 
 fn assert_clone<T: Clone>() {}
 
@@ -37,12 +43,26 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
     assert_send_sync::<Error>();
     assert_clone::<Client>();
     assert_event_stream::<Events>();
-    _ = assert_send_static::<RequestFuture<()>>;
+    assert_send_sync::<State>();
+    assert_send::<RequestFuture<()>>();
+    assert_unpin::<RequestFuture<()>>();
+    assert_unpin::<Events>();
+    assert_unpin::<Driver>();
+    assert_send::<Builder>();
+    assert_send::<SendMessage>();
+    assert_send::<JoinChannel>();
+    assert_send::<SetModes>();
+    assert_send::<History>();
+    assert_send::<HistoryRequest>();
+    #[cfg(not(browser))]
+    assert_send::<Driver>();
 }
 
 #[test]
 fn request_futures_are_send() {
-    let (client, _events, driver) = Client::builder("irc.example.net").build();
+    assert_send_static(Client::builder("irc.example.net").connect());
+    let (client, mut events, driver) = Client::builder("irc.example.net").build();
+    assert_send_value(events.next());
 
     assert_send_static(client.send_command("KILL", ["alice", "connection reset"]));
     assert_send_static(client.request_command("MOTD", std::iter::empty::<&str>()));
@@ -138,6 +158,9 @@ fn request_futures_are_send() {
     #[cfg(feature = "unstable")]
     assert_send_static(client.relay("#bridged", "matrix|alice", "Hello from Matrix"));
 
+    #[cfg(not(browser))]
     assert_send_static(driver);
+    #[cfg(browser)]
+    drop(driver);
     _ = assert_message_request_futures;
 }

@@ -95,7 +95,7 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
     State::from_session(&session, connected)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use super::{joined, message, state, user_source};
 

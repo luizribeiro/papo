@@ -268,7 +268,7 @@ fn invalid(message: impl Into<String>) -> Error {
     InvalidInput::InvalidMessage(message.into()).into()
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use papo_proto::{Isupport, LineRef, Target};
 
