@@ -87,6 +87,12 @@ impl Session {
             code: reply.code.to_ascii_uppercase(),
             context: reply.context.into_iter().map(str::to_owned).collect(),
             description: reply.description.to_owned(),
+            #[cfg(feature = "unstable")]
+            refusal: crate::Refusal::from_standard_enabled(
+                reply.command,
+                reply.code,
+                &self.supported_features(),
+            ),
         }));
         true
     }

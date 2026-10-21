@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event};
+use papo_core::{Config, Event, Refusal};
 use support::Transcript;
 
 #[test]
@@ -13,7 +13,11 @@ fn unstable_lines_remain_untyped_without_feature_selection() {
             |event| matches!(event, Event::Line(line) if line.as_ref().command_is("PERSISTENCE")),
         )
         .server("BOUNCER NETWORK libera name=Libera\\sChat;state=connected")
-        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("BOUNCER")));
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("BOUNCER")))
+        .server(":ergo.test FAIL RELAYMSG BANNED #bridged :Relayed sender is banned")
+        .event(|event| {
+            matches!(event, Event::StandardReply(reply) if reply.refusal() == Some(Refusal::Other))
+        });
 }
 
 #[test]

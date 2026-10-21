@@ -1259,6 +1259,10 @@ pub struct StandardReply {
     pub context: Vec<String>,
     /// Human-readable reply description.
     pub description: String,
+    /// Classification recorded using the negotiated unstable features.
+    #[cfg(feature = "unstable")]
+    #[doc(hidden)]
+    pub refusal: Refusal,
 }
 
 /// An account's configured persistence preference.
@@ -1313,8 +1317,12 @@ impl StandardReply {
     /// Returns the refusal category when this is a failure.
     #[must_use]
     pub fn refusal(&self) -> Option<Refusal> {
-        (self.kind == StandardReplyKind::Fail)
-            .then(|| Refusal::from_standard(&self.command, &self.code))
+        (self.kind == StandardReplyKind::Fail).then(|| {
+            #[cfg(feature = "unstable")]
+            return self.refusal;
+            #[cfg(not(feature = "unstable"))]
+            Refusal::from_standard(&self.command, &self.code)
+        })
     }
 }
 
