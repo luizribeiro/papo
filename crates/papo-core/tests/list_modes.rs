@@ -83,6 +83,10 @@ fn each_list_mode_waits_for_its_end_numeric() {
 fn an_empty_ban_list_completes_at_368() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
+    );
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
     let id = request(&mut session, ListMode::Ban);
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
@@ -137,4 +141,47 @@ fn one_thousand_and_one_rows_fail_without_retaining_the_last_row() {
             .list(ListMode::Ban),
         None
     );
+}
+
+#[test]
+fn live_mode_changes_update_only_a_completed_list() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
+    );
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut session, ListMode::Ban);
+    session.handle_line(now, b":ergo.test 367 papo #papo bob!*@* oper 1761048000");
+    session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    _ = response(&mut session, id);
+
+    session.handle_line(
+        now,
+        b"@time=2026-10-21T12:00:00.000Z :alice!~alice@staff.example MODE #papo +bb carol bob",
+    );
+    let entries = session
+        .state()
+        .channel("#papo")
+        .unwrap()
+        .list(ListMode::Ban)
+        .unwrap();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[1].mask, "carol");
+    assert_eq!(entries[1].actor.as_ref().unwrap().to_string(), "alice");
+    assert_eq!(
+        entries[1].time,
+        papo_proto::time::parse("2026-10-21T12:00:00.000Z")
+    );
+
+    session.handle_line(now, b":alice!~alice@staff.example MODE #papo -b bob");
+    let entries = session
+        .state()
+        .channel("#papo")
+        .unwrap()
+        .list(ListMode::Ban)
+        .unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].mask, "carol");
 }

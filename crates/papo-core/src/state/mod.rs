@@ -16,9 +16,9 @@ use std::{
 
 use papo_proto::{
     Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
-    Command, Isupport, Join, LineRef, MetadataKey, ModeChange as ProtoModeChange, ModeChanges,
-    ModeKind, NamesEntry, Nick, Numeric, Prefix, Setname, Source as ProtoSource, WhoxFlags,
-    WhoxPresence, WhoxReply, parse_353, time,
+    Command, Isupport, Join, LineRef, Mask, MetadataKey, ModeChange as ProtoModeChange,
+    ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Prefix, Setname, Source as ProtoSource,
+    WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
 use crate::{
@@ -639,6 +639,7 @@ impl State {
             && let Some(channel) = self.channels.get_mut(&self.casemapping.channel(target))
         {
             channel.apply_modes(modestring, message.params().skip(2), isupport, false);
+            channel.apply_list_modes(message, modestring, isupport);
         }
         true
     }
@@ -937,6 +938,12 @@ impl State {
         self.channels.values()
     }
 
+    /// Reports whether two masks identify the same server list entry.
+    #[must_use]
+    pub fn same_list_entry(&self, a: &Mask, b: impl AsRef<str>) -> bool {
+        same_list_entry(a, &self.casemapping.mask(b.as_ref()), &self.isupport)
+    }
+
     /// Iterates over upstream networks reported by the bouncer.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -1100,6 +1107,40 @@ impl Channel {
                     }
                 }
                 ModeKind::List | ModeKind::Unknown => {}
+            }
+        }
+    }
+
+    fn apply_list_modes(&mut self, message: &LineRef<'_>, modestring: &str, isupport: &Isupport) {
+        let actor = message
+            .source()
+            .map(|source| Source::from_proto(source, self.casemapping));
+        let time = crate::LineEnvelope::from_line(message).time();
+        for change in ModeChanges::parse(modestring, message.params().skip(2), isupport) {
+            let mode = match (change.kind, change.mode) {
+                (ModeKind::List, 'b') => ListMode::Ban,
+                (ModeKind::List, 'e') => ListMode::Except,
+                (ModeKind::List, 'I') => ListMode::Invex,
+                (ModeKind::List, 'q') => ListMode::Quiet,
+                _ => continue,
+            };
+            let (Some(entries), Some(mask)) = (self.lists.get_mut(&mode), change.arg) else {
+                continue;
+            };
+            let mask = self.casemapping.mask(mask);
+            if change.action == papo_proto::ModeAction::Add {
+                if !entries
+                    .iter()
+                    .any(|entry| same_list_entry(&entry.mask, &mask, isupport))
+                {
+                    entries.push(ModeListEntry {
+                        mask,
+                        actor: actor.clone(),
+                        time,
+                    });
+                }
+            } else {
+                entries.retain(|entry| !same_list_entry(&entry.mask, &mask, isupport));
             }
         }
     }
@@ -1305,6 +1346,34 @@ fn parse_unix_seconds(value: &str) -> Option<SystemTime> {
         .parse()
         .ok()
         .and_then(|seconds| UNIX_EPOCH.checked_add(Duration::from_secs(seconds)))
+}
+
+fn same_list_entry(a: &Mask, b: &Mask, isupport: &Isupport) -> bool {
+    let account = |mask: &Mask| {
+        let syntax = isupport.extban()?;
+        let body = match syntax.prefix {
+            Some(prefix) => mask.strip_prefix(prefix)?,
+            None => mask.as_ref(),
+        };
+        let (kind, account) = body.split_once(':')?;
+        isupport
+            .accountextban()
+            .contains(&kind)
+            .then(|| mask.casemapping().account(account))
+    };
+    match (account(a), account(b)) {
+        (Some(a), Some(b)) => a == b,
+        (Some(_), None) | (None, Some(_)) => false,
+        (None, None) => canonical_list_mask(a) == canonical_list_mask(b),
+    }
+}
+
+fn canonical_list_mask(mask: &Mask) -> Mask {
+    if mask.contains(['!', '@']) {
+        mask.clone()
+    } else {
+        mask.casemapping().mask(format!("{mask}!*@*"))
+    }
 }
 
 #[cfg(test)]

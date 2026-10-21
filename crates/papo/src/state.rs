@@ -312,12 +312,7 @@ impl State {
     /// extended-ban names and letters compare as the same typed entry.
     #[must_use]
     pub fn same_list_entry(&self, a: &Mask, b: impl AsRef<str>) -> bool {
-        let b = self.mask(b);
-        match (self.parse_extban(a), self.parse_extban(&b)) {
-            (Some(a), Some(b)) => a == b,
-            (Some(_), None) | (None, Some(_)) => false,
-            (None, None) => canonical_list_mask(a) == canonical_list_mask(&b),
-        }
+        self.core.same_list_entry(a, b)
     }
 
     /// Parses an account extended ban advertised by the current server.
@@ -335,14 +330,6 @@ impl State {
             return None;
         }
         Some(crate::Extban::Account(self.account_name(account)))
-    }
-}
-
-fn canonical_list_mask(mask: &Mask) -> Mask {
-    if mask.contains(['!', '@']) {
-        mask.clone()
-    } else {
-        mask.casemapping().mask(format!("{mask}!*@*"))
     }
 }
 

@@ -2151,6 +2151,7 @@ pub fn papo_core::State::nick(&self) -> &papo::Nick
 pub fn papo_core::State::parse_target(&self, impl core::convert::AsRef<str>) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo::Conversation), papo::InvalidIdentifier>
 pub fn papo_core::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::ReadMarker>
 pub fn papo_core::State::realname(&self) -> &str
+pub fn papo_core::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
 pub fn papo_core::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo_core::Typer>
 pub fn papo_core::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::User>
 pub fn papo_core::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
