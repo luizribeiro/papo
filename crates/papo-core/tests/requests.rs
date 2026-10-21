@@ -379,19 +379,13 @@ fn matches_unlabelled_membership_and_nick_actions() {
     assert_unlabelled(
         &mut session,
         Line::new("KICK", ["#papo", "spambot", "flooding"]),
-        ResponseMatcher::Kick {
-            channel: "#papo".into(),
-            nick: "spambot".into(),
-        },
+        ResponseMatcher::__kick("#papo".into(), "spambot".into()),
         &[":alice!~a@localhost KICK #papo spambot :flooding"],
     );
     assert_unlabelled(
         &mut session,
         Line::new("INVITE", ["carol", "#papo"]),
-        ResponseMatcher::Invite {
-            channel: "#papo".into(),
-            nick: "carol".into(),
-        },
+        ResponseMatcher::__invite("#papo".into(), "carol".into()),
         &[":ergo.test 341 papo carol #papo"],
     );
     assert_unlabelled(
@@ -413,10 +407,7 @@ fn typed_action_refusals_complete_unlabelled_requests() {
         ),
         (
             Line::new("KICK", ["#papo", "carol"]),
-            ResponseMatcher::Kick {
-                channel: "#papo".into(),
-                nick: "carol".into(),
-            },
+            ResponseMatcher::__kick("#papo".into(), "carol".into()),
             ":irc.solanum.test 441 papo carol #papo :They aren't on that channel",
             Refusal::UserNotInChannel,
         ),
@@ -526,10 +517,7 @@ fn membership_matchers_ignore_unrelated_successes_and_capture_errors() {
         .request_with_matcher(
             now,
             Line::new("INVITE", ["carol", "#papo"]),
-            ResponseMatcher::Invite {
-                channel: "#papo".into(),
-                nick: "carol".into(),
-            },
+            ResponseMatcher::__invite("#papo".into(), "carol".into()),
         )
         .unwrap();
     session.handle_line(now, b":ergo.test 341 papo dan #rust");
@@ -550,10 +538,7 @@ fn action_matchers_require_every_identity_field() {
         .request_with_matcher(
             now,
             Line::new("KICK", ["#papo", "spambot"]),
-            ResponseMatcher::Kick {
-                channel: "#papo".into(),
-                nick: "spambot".into(),
-            },
+            ResponseMatcher::__kick("#papo".into(), "spambot".into()),
         )
         .unwrap();
     for line in [
@@ -576,10 +561,7 @@ fn action_matchers_require_every_identity_field() {
         .request_with_matcher(
             now,
             Line::new("INVITE", ["carol", "#papo"]),
-            ResponseMatcher::Invite {
-                channel: "#papo".into(),
-                nick: "carol".into(),
-            },
+            ResponseMatcher::__invite("#papo".into(), "carol".into()),
         )
         .unwrap();
     for line in [
@@ -661,10 +643,7 @@ fn kick_refusals_resolve_only_the_named_concurrent_request() {
             .request_with_matcher(
                 now,
                 Line::new("KICK", ["#papo", "spambot"]),
-                ResponseMatcher::Kick {
-                    channel: "#papo".into(),
-                    nick: "spambot".into(),
-                },
+                ResponseMatcher::__kick("#papo".into(), "spambot".into()),
             )
             .unwrap();
         let mode = session
@@ -718,10 +697,7 @@ fn invite_refusals_resolve_only_the_named_concurrent_request() {
             .request_with_matcher(
                 now,
                 Line::new("INVITE", ["carol", "#papo"]),
-                ResponseMatcher::Invite {
-                    channel: "#papo".into(),
-                    nick: "carol".into(),
-                },
+                ResponseMatcher::__invite("#papo".into(), "carol".into()),
             )
             .unwrap();
         let mode = session
@@ -802,10 +778,7 @@ fn non_error_numeric_named_like_a_command_does_not_claim_its_request() {
         .request_with_matcher(
             now,
             Line::new("INVITE", ["PING", "#papo"]),
-            ResponseMatcher::Invite {
-                channel: "#papo".into(),
-                nick: "PING".into(),
-            },
+            ResponseMatcher::__invite("#papo".into(), "PING".into()),
         )
         .unwrap();
 
@@ -830,10 +803,7 @@ fn no_origin_refusal_resolves_ping_and_leaves_invite_pending() {
         .request_with_matcher(
             now,
             Line::new("INVITE", ["carol", "#papo"]),
-            ResponseMatcher::Invite {
-                channel: "#papo".into(),
-                nick: "carol".into(),
-            },
+            ResponseMatcher::__invite("#papo".into(), "carol".into()),
         )
         .unwrap();
 
@@ -1346,18 +1316,12 @@ fn standard_failures_require_fail_kind_and_matching_command() {
         (
             "KICK",
             Line::new("KICK", ["#papo", "spambot"]),
-            ResponseMatcher::Kick {
-                channel: "#papo".into(),
-                nick: "spambot".into(),
-            },
+            ResponseMatcher::__kick("#papo".into(), "spambot".into()),
         ),
         (
             "INVITE",
             Line::new("INVITE", ["carol", "#papo"]),
-            ResponseMatcher::Invite {
-                channel: "#papo".into(),
-                nick: "carol".into(),
-            },
+            ResponseMatcher::__invite("#papo".into(), "carol".into()),
         ),
         (
             "NICK",
@@ -1436,7 +1400,7 @@ fn unlabelled_requests_time_out_abort_and_obey_the_literal_limit() {
         Some(now + std::time::Duration::from_secs(30))
     );
     session.handle_timeout(now + std::time::Duration::from_secs(30));
-    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id }) if id == first));
+    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id, .. }) if id == first));
 
     for index in 0..256 {
         session
@@ -1566,7 +1530,7 @@ fn labelled_join_waits_for_state_sync_before_resolving() {
     session.handle_line(now, b":ergo.test 366 papo #papo{ :End of /NAMES list");
     assert!(matches!(
         session.poll_event(),
-        Some(Event::ChannelSynced { channel }) if channel == "#Papo["
+        Some(Event::ChannelSynced { channel, .. }) if channel == "#Papo["
     ));
     assert!(matches!(
         session.poll_event(),
@@ -1595,12 +1559,12 @@ fn labelled_join_times_out_once_when_sync_never_finishes() {
 
     session.handle_timeout(now + std::time::Duration::from_secs(30));
     assert!(std::iter::from_fn(|| session.poll_event()).all(
-        |event| !matches!(event, Event::RequestTimedOut { id: timed_out } if timed_out == id)
+        |event| !matches!(event, Event::RequestTimedOut { id: timed_out, .. } if timed_out == id)
     ));
     session.handle_timeout(now + std::time::Duration::from_secs(59));
     assert_eq!(
         std::iter::from_fn(|| session.poll_event())
-            .filter(|event| matches!(event, Event::RequestTimedOut { id: timed_out } if *timed_out == id))
+            .filter(|event| matches!(event, Event::RequestTimedOut { id: timed_out, .. } if *timed_out == id))
             .count(),
         1
     );
@@ -1622,7 +1586,7 @@ fn labelled_join_without_an_echo_times_out_once() {
     session.handle_timeout(now + std::time::Duration::from_secs(30));
     assert_eq!(
         std::iter::from_fn(|| session.poll_event())
-            .filter(|event| matches!(event, Event::RequestTimedOut { id: timed_out } if *timed_out == id))
+            .filter(|event| matches!(event, Event::RequestTimedOut { id: timed_out, .. } if *timed_out == id))
             .count(),
         1
     );
@@ -1737,14 +1701,14 @@ fn request_deadline_starts_when_its_rate_limited_line_is_transmitted() {
     assert!(session.poll_transmit().is_some());
     assert_eq!(session.poll_transmit(), None);
     session.handle_timeout(now + std::time::Duration::from_secs(30));
-    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id }) if id == alice));
+    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id, .. }) if id == alice));
     assert_eq!(session.poll_event(), None);
     session.handle_timeout(now + std::time::Duration::from_secs(60));
     assert_eq!(session.poll_transmit().unwrap(), b"@label=1 WHOIS bob\r\n");
     session.handle_timeout(now + std::time::Duration::from_secs(90));
     assert!(
         std::iter::from_fn(|| session.poll_event())
-            .any(|event| matches!(event, Event::RequestTimedOut { id } if id == bob))
+            .any(|event| matches!(event, Event::RequestTimedOut { id, .. } if id == bob))
     );
 }
 
@@ -1773,13 +1737,13 @@ fn unlabelled_request_deadlines_start_one_transmission_at_a_time() {
     assert_eq!(session.poll_transmit().unwrap(), b"WHOIS alice\r\n");
     assert_eq!(session.poll_transmit(), None);
     session.handle_timeout(now + std::time::Duration::from_secs(30));
-    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id }) if id == alice));
+    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id, .. }) if id == alice));
     assert_eq!(session.poll_event(), None);
 
     session.handle_timeout(now + std::time::Duration::from_secs(60));
     assert_eq!(session.poll_transmit().unwrap(), b"WHOIS bob\r\n");
     session.handle_timeout(now + std::time::Duration::from_secs(90));
-    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id }) if id == bob));
+    assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id, .. }) if id == bob));
 }
 
 #[test]
@@ -1930,12 +1894,12 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
     };
     assert_eq!(
         fail.error(),
-        Some(ServerError::Standard {
-            command: "CHATHISTORY".into(),
-            code: "INVALID_PARAMS".into(),
-            context: vec!["#papo".into(), "bad".into()],
-            description: "Invalid message reference".into(),
-        })
+        Some(ServerError::__standard(
+            "CHATHISTORY".into(),
+            "INVALID_PARAMS".into(),
+            vec!["#papo".into(), "bad".into()],
+            "Invalid message reference".into(),
+        ))
     );
     assert_eq!(fail.error().unwrap().refusal(), Refusal::InvalidParameters);
     let Some(Event::Response(numeric)) = session.poll_event() else {
@@ -1943,14 +1907,14 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
     };
     assert_eq!(
         numeric.error(),
-        Some(ServerError::Numeric {
-            numeric: Numeric::ERR_NOSUCHNICK,
-            params: vec![
+        Some(ServerError::__numeric(
+            Numeric::ERR_NOSUCHNICK,
+            vec![
                 "papo".into(),
                 "missing".into(),
                 "No such nick/channel".into()
             ],
-        })
+        ))
     );
     assert_eq!(numeric.error().unwrap().refusal(), Refusal::NoSuchNick);
 }
@@ -2192,7 +2156,7 @@ fn times_out_and_releases_a_label_for_late_delivery() {
     assert_eq!(session.poll_event(), None);
     session.handle_timeout(now + std::time::Duration::from_secs(30));
     assert!(
-        matches!(session.poll_event(), Some(Event::RequestTimedOut { id: expired }) if expired == id)
+        matches!(session.poll_event(), Some(Event::RequestTimedOut { id: expired, .. }) if expired == id)
     );
     session.handle_line(
         now + std::time::Duration::from_secs(31),
@@ -2210,7 +2174,7 @@ fn aborts_pending_requests_on_disconnect() {
     let id = request(&mut session, now, Line::new("WHOIS", ["alice"]));
     session.handle_disconnected(now);
     assert!(
-        matches!(session.poll_event(), Some(Event::RequestAborted { id: aborted, transmitted: false }) if aborted == id)
+        matches!(session.poll_event(), Some(Event::RequestAborted { id: aborted, transmitted: false, .. }) if aborted == id)
     );
 }
 
@@ -2229,7 +2193,9 @@ fn labelled_join_aborts_once_before_any_bytes_are_transmitted() {
     session.handle_disconnected(now);
     let aborted = std::iter::from_fn(|| session.poll_event())
         .filter_map(|event| match event {
-            Event::RequestAborted { id, transmitted } => Some((id, transmitted)),
+            Event::RequestAborted {
+                id, transmitted, ..
+            } => Some((id, transmitted)),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -2260,6 +2226,7 @@ fn abort_reports_when_a_labelled_privmsg_reached_the_transport() {
         Some(Event::RequestAborted {
             id: aborted,
             transmitted: true,
+        ..
         }) if aborted == id
     ));
 }
@@ -2279,7 +2246,9 @@ fn partially_transmitted_split_send_aborts_as_transmitted() {
     session.handle_disconnected(now);
     let aborted = std::iter::from_fn(|| session.poll_event())
         .filter_map(|event| match event {
-            Event::RequestAborted { id, transmitted } => Some((id, transmitted)),
+            Event::RequestAborted {
+                id, transmitted, ..
+            } => Some((id, transmitted)),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -2301,7 +2270,7 @@ fn split_send_timeout_and_disconnect_are_each_reported_once() {
     timed_out.handle_timeout(now + std::time::Duration::from_secs(30));
     let timeouts = std::iter::from_fn(|| timed_out.poll_event())
         .filter_map(|event| match event {
-            Event::RequestTimedOut { id } => Some(id),
+            Event::RequestTimedOut { id, .. } => Some(id),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -2317,7 +2286,9 @@ fn split_send_timeout_and_disconnect_are_each_reported_once() {
     disconnected.handle_disconnected(now);
     let aborted = std::iter::from_fn(|| disconnected.poll_event())
         .filter_map(|event| match event {
-            Event::RequestAborted { id, transmitted } => Some((id, transmitted)),
+            Event::RequestAborted {
+                id, transmitted, ..
+            } => Some((id, transmitted)),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -2338,7 +2309,7 @@ fn one_timeout_expires_every_ready_request() {
 
     let timed_out: Vec<_> = std::iter::from_fn(|| session.poll_event())
         .filter_map(|event| match event {
-            Event::RequestTimedOut { id } => Some(id),
+            Event::RequestTimedOut { id, .. } => Some(id),
             _ => None,
         })
         .collect();
