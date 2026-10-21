@@ -17,8 +17,8 @@ use std::{
 use papo_proto::{
     Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
     Command, Isupport, Join, LineRef, MetadataKey, ModeChange as ProtoModeChange, ModeChanges,
-    ModeKind, NamesEntry, Nick, Numeric, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence,
-    WhoxReply, parse_353, time,
+    ModeKind, NamesEntry, Nick, Numeric, Prefix, Setname, Source as ProtoSource, WhoxFlags,
+    WhoxPresence, WhoxReply, parse_353, time,
 };
 
 use crate::{
@@ -87,7 +87,7 @@ pub struct Channel {
     topic_set_at: Option<SystemTime>,
     names_reply_seen: bool,
     synced: bool,
-    prefix_order: Arc<[char]>,
+    prefix_order: Arc<[Prefix]>,
 }
 
 /// State known about a channel member.
@@ -95,7 +95,7 @@ pub struct Channel {
 pub struct Member {
     nick: Nick,
     prefixes: Vec<char>,
-    prefix_order: Arc<[char]>,
+    prefix_order: Arc<[Prefix]>,
 }
 
 /// State known about a user sharing a channel or followed through MONITOR.
@@ -1004,11 +1004,7 @@ impl Channel {
             topic_set_at: None,
             names_reply_seen: false,
             synced,
-            prefix_order: isupport
-                .prefix()
-                .into_iter()
-                .map(|prefix| prefix.symbol)
-                .collect(),
+            prefix_order: isupport.prefix().into(),
         }
     }
 
@@ -1037,7 +1033,10 @@ impl Channel {
                     {
                         member.prefixes.push(prefix.symbol);
                         member.prefixes.sort_by_key(|symbol| {
-                            member.prefix_order.iter().position(|item| item == symbol)
+                            member
+                                .prefix_order
+                                .iter()
+                                .position(|item| item.symbol == *symbol)
                         });
                     } else if change.action == papo_proto::ModeAction::Remove {
                         member.prefixes.retain(|symbol| *symbol != prefix.symbol);
@@ -1141,12 +1140,12 @@ impl Member {
     pub fn has_prefix_at_least(&self, prefix: char) -> bool {
         self.prefix_order
             .iter()
-            .position(|item| *item == prefix)
+            .position(|item| item.symbol == prefix)
             .is_some_and(|required| {
                 self.prefixes.iter().any(|owned| {
                     self.prefix_order
                         .iter()
-                        .position(|item| item == owned)
+                        .position(|item| item.symbol == *owned)
                         .is_some_and(|rank| rank <= required)
                 })
             })

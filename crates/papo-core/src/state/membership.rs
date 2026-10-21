@@ -168,7 +168,12 @@ impl State {
             return;
         }
         if let Some(channel) = self.channels.get_mut(&channel_key) {
-            prefixes.sort_by_key(|symbol| channel.prefix_order.iter().position(|p| p == symbol));
+            prefixes.sort_by_key(|symbol| {
+                channel
+                    .prefix_order
+                    .iter()
+                    .position(|prefix| prefix.symbol == *symbol)
+            });
             prefixes.dedup();
             channel.members.insert(
                 nick_key,

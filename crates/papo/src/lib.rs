@@ -133,8 +133,8 @@ pub mod event {
         HostChanged, Invited, Joined, Kicked, MembersRefreshed, MetadataChanged, ModeChange,
         ModeChanged, MonitorOffline, MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Parted,
         Quit, Reacted, ReadMarker, RealnameChanged, Redacted, Source, SplitServers, StandardReply,
-        StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, TypingReason, Visibility,
-        Warning,
+        StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, TypingReason,
+        Visibility, Warning,
     };
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
