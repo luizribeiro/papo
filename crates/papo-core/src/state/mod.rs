@@ -23,7 +23,7 @@ use papo_proto::{
 
 use crate::{
     Authorship, Config, Conversation, Event, Handled, LastSeen, MetadataValue, ModeArg, ModeChange,
-    NameKey, Outbox, ReadMarker, Source, StateLimit, Subject,
+    NameKey, Outbox, ReadMarker, Source, StateLimit, Subject, WhoOnJoin,
     conversation::classify_target,
     monitor::{Monitor, presence_nicks},
     typing::{Typer, TypingTable},
@@ -56,6 +56,7 @@ pub struct State {
     users: HashMap<Nick, User>,
     monitored: Vec<Nick>,
     who_sweeps: HashSet<ChannelName>,
+    who_on_join: WhoOnJoin,
     read_markers: HashMap<NameKey<String>, ReadMarker>,
     last_seen: HashMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
@@ -278,6 +279,7 @@ impl State {
             users: HashMap::new(),
             monitored: Vec::new(),
             who_sweeps: HashSet::new(),
+            who_on_join: config.who_on_join.clone(),
             read_markers: HashMap::new(),
             last_seen: HashMap::new(),
             last_seen_order: VecDeque::new(),

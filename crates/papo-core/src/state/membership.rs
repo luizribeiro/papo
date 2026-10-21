@@ -128,7 +128,18 @@ impl State {
         channel.synced = true;
         if let Some(channel) = name {
             outbox.transmit("MODE", [channel]);
-            self.start_who(channel, isupport, outbox);
+            let members = self
+                .channels
+                .get(&self.casemapping.channel(channel))
+                .map_or(0, |channel| channel.members.len());
+            let refresh = match self.who_on_join {
+                super::WhoOnJoin::Always => true,
+                super::WhoOnJoin::Never => false,
+                super::WhoOnJoin::BelowMembers(limit) => members < limit,
+            };
+            if refresh {
+                self.start_who(channel, isupport, outbox);
+            }
             outbox.event(Event::ChannelSynced {
                 channel: self.casemapping.channel(channel),
             });

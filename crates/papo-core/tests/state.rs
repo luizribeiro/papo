@@ -6,7 +6,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
     Account, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange, RateLimit,
-    ResponseMatcher, Source, StateLimit, Subject,
+    ResponseMatcher, Source, StateLimit, Subject, WhoOnJoin,
 };
 use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick};
 use support::Transcript;
@@ -1276,6 +1276,55 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
         assert_eq!(dan.away(), &Away::Away { message: None });
         assert!(dan.is_bot());
     })
+    .no_event();
+}
+
+#[test]
+fn never_skips_the_join_sweep_and_leaves_member_facts_unknown() {
+    Transcript::new(
+        Config::default()
+            .nick("emily")
+            .who_on_join(WhoOnJoin::Never),
+    )
+    .server(":ergo.test 005 emily WHOX :are supported")
+    .server(":emily!em@127.0.0.1 JOIN #papo")
+    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+    .server(":ergo.test 353 emily = #papo :@emily +dan")
+    .server(":ergo.test 366 emily #papo :End of NAMES list")
+    .client("MODE #papo")
+    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+    .no_client()
+    .inspect(|session| {
+        let dan = session.state().user("dan").unwrap();
+        assert_eq!(dan.account(), &Account::Unknown);
+        assert_eq!(dan.away(), &Away::Unknown);
+    })
+    .no_event();
+}
+
+#[test]
+fn below_members_sweeps_only_below_the_literal_boundary() {
+    Transcript::new(
+        Config::default()
+            .nick("emily")
+            .who_on_join(WhoOnJoin::BelowMembers(2)),
+    )
+    .server(":ergo.test 005 emily WHOX :are supported")
+    .server(":emily!em@127.0.0.1 JOIN #small")
+    .event(|event| matches!(event, Event::Joined { channel, .. } if channel == "#small"))
+    .server(":ergo.test 353 emily = #small :@emily")
+    .server(":ergo.test 366 emily #small :End of NAMES list")
+    .client("MODE #small")
+    .client("WHO #small %tcuhnfar,152")
+    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#small"))
+    .server(":ergo.test 315 emily #small :End of WHO list")
+    .server(":emily!em@127.0.0.1 JOIN #boundary")
+    .event(|event| matches!(event, Event::Joined { channel, .. } if channel == "#boundary"))
+    .server(":ergo.test 353 emily = #boundary :@emily +dan")
+    .server(":ergo.test 366 emily #boundary :End of NAMES list")
+    .client("MODE #boundary")
+    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#boundary"))
+    .no_client()
     .no_event();
 }
 

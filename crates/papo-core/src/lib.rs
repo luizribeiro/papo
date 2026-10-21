@@ -264,6 +264,19 @@ pub enum AwayOnConnect {
     Hidden,
 }
 
+/// Controls whether a channel's members are refreshed with `WHO` after joining.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum WhoOnJoin {
+    /// Refresh members after every channel join.
+    #[default]
+    Always,
+    /// Do not refresh members automatically.
+    Never,
+    /// Refresh members only when fewer than this many were reported by `NAMES`.
+    BelowMembers(usize),
+}
+
 impl Default for CtcpReplies {
     fn default() -> Self {
         Self {
@@ -418,6 +431,8 @@ pub struct Config {
     pub ctcp: CtcpReplies,
     /// Away state announced during or immediately after connecting.
     pub away_on_connect: Option<AwayOnConnect>,
+    /// Policy for refreshing channel members after joining.
+    pub who_on_join: WhoOnJoin,
     /// Metadata keys subscribed on every connection.
     pub metadata_subscriptions: Vec<String>,
     /// Upstream bouncer network selected before the connection completes.
@@ -458,6 +473,7 @@ impl std::fmt::Debug for Config {
             .field("request_timeout", &self.request_timeout)
             .field("ctcp", &self.ctcp)
             .field("away_on_connect", &self.away_on_connect)
+            .field("who_on_join", &self.who_on_join)
             .field("metadata_subscriptions", &self.metadata_subscriptions);
         #[cfg(feature = "unstable")]
         debug.field("bouncer_network", &self.bouncer_network);
@@ -509,6 +525,7 @@ impl Default for Config {
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
             ctcp: CtcpReplies::default(),
             away_on_connect: None,
+            who_on_join: WhoOnJoin::default(),
             metadata_subscriptions: Vec::new(),
             #[cfg(feature = "unstable")]
             bouncer_network: None,
@@ -741,6 +758,13 @@ impl Config {
     #[must_use]
     pub fn away_on_connect(mut self, away: Option<AwayOnConnect>) -> Self {
         self.away_on_connect = away;
+        self
+    }
+
+    /// Sets when joined-channel members are refreshed with `WHO`.
+    #[must_use]
+    pub fn who_on_join(mut self, policy: WhoOnJoin) -> Self {
+        self.who_on_join = policy;
         self
     }
 

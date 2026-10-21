@@ -1150,6 +1150,27 @@ impl core::marker::Unpin for papo_core::Visibility
 impl core::marker::UnsafeUnpin for papo_core::Visibility
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Visibility
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Visibility
+#[non_exhaustive] pub enum papo_core::WhoOnJoin
+pub papo_core::WhoOnJoin::Always
+pub papo_core::WhoOnJoin::BelowMembers(usize)
+pub papo_core::WhoOnJoin::Never
+impl core::clone::Clone for papo_core::WhoOnJoin
+pub fn papo_core::WhoOnJoin::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::WhoOnJoin
+impl core::cmp::PartialEq for papo_core::WhoOnJoin
+pub fn papo_core::WhoOnJoin::eq(&self, &Self) -> bool
+impl core::default::Default for papo_core::WhoOnJoin
+pub fn papo_core::WhoOnJoin::default() -> Self
+impl core::fmt::Debug for papo_core::WhoOnJoin
+pub fn papo_core::WhoOnJoin::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::WhoOnJoin
+impl core::marker::Freeze for papo_core::WhoOnJoin
+impl core::marker::Send for papo_core::WhoOnJoin
+impl core::marker::Sync for papo_core::WhoOnJoin
+impl core::marker::Unpin for papo_core::WhoOnJoin
+impl core::marker::UnsafeUnpin for papo_core::WhoOnJoin
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::WhoOnJoin
+impl core::panic::unwind_safe::UnwindSafe for papo_core::WhoOnJoin
 pub struct papo_core::Channel
 impl papo_core::Channel
 pub const fn papo_core::Channel::created_at(&self) -> core::option::Option<std::time::SystemTime>
@@ -1206,6 +1227,7 @@ pub papo_core::Config::username: alloc::string::String
 pub papo_core::Config::wanted_caps: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Config::webirc: core::option::Option<papo_core::WebIrc>
 pub papo_core::Config::welcome_timeout: core::time::Duration
+pub papo_core::Config::who_on_join: papo_core::WhoOnJoin
 impl papo_core::Config
 pub fn papo_core::Config::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_core::Config::away_on_connect(self, core::option::Option<papo_core::AwayOnConnect>) -> Self
@@ -1234,6 +1256,7 @@ pub fn papo_core::Config::username(self, impl core::convert::Into<alloc::string:
 pub fn papo_core::Config::wanted_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_core::Config::webirc(self, papo_core::WebIrc) -> Self
 pub const fn papo_core::Config::welcome_timeout(self, core::time::Duration) -> Self
+pub fn papo_core::Config::who_on_join(self, papo_core::WhoOnJoin) -> Self
 pub fn papo_core::Config::without_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 impl core::clone::Clone for papo_core::Config
 pub fn papo_core::Config::clone(&self) -> Self
