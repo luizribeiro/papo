@@ -2134,6 +2134,7 @@ pub enum Event {
         removed: Vec<Feature>,
     },
     /// A connection advertised name rules different from the remembered rules.
+    #[non_exhaustive]
     CasemappingChanged {
         /// Rules retained from the previous connection or offline seed.
         old: Casemapping,
@@ -2141,6 +2142,7 @@ pub enum Event {
         new: Casemapping,
     },
     /// A plaintext connection must be replaced with TLS on `port`.
+    #[non_exhaustive]
     StsUpgrade {
         /// The advertised TLS port.
         port: u16,
@@ -2148,11 +2150,13 @@ pub enum Event {
     /// An STS persistence action for the transport shell to store.
     StsPolicy(sts::StsAction),
     /// Server input exceeded a configured state-retention bound.
+    #[non_exhaustive]
     StateLimitReached {
         /// The state collection that rejected another entry.
         limit: StateLimit,
     },
     /// A monitored nickname came online.
+    #[non_exhaustive]
     MonitorOnline {
         /// The monitored nickname.
         nick: Nick,
@@ -2162,11 +2166,13 @@ pub enum Event {
         host: Option<String>,
     },
     /// A monitored nickname went offline.
+    #[non_exhaustive]
     MonitorOffline {
         /// The monitored nickname.
         nick: Nick,
     },
     /// The server rejected nicknames because its monitor list was full.
+    #[non_exhaustive]
     MonitorListFull {
         /// The server's advertised monitor-list limit.
         limit: usize,
@@ -2176,6 +2182,7 @@ pub enum Event {
     /// An automatic action could not use an optional server feature.
     Unsupported(Unsupported),
     /// A user joined a channel shared with the session.
+    #[non_exhaustive]
     Joined {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
@@ -2193,16 +2200,19 @@ pub enum Event {
         authorship: Authorship,
     },
     /// Initial channel membership synchronization completed.
+    #[non_exhaustive]
     ChannelSynced {
         /// The synchronized channel.
         channel: ChannelName,
     },
     /// A channel's member facts were refreshed by a `WHO` sweep.
+    #[non_exhaustive]
     MembersRefreshed {
         /// The refreshed channel.
         channel: ChannelName,
     },
     /// A user left a shared channel with `PART`.
+    #[non_exhaustive]
     Parted {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
@@ -2218,6 +2228,7 @@ pub enum Event {
         authorship: Authorship,
     },
     /// A user was removed from a shared channel with `KICK`.
+    #[non_exhaustive]
     Kicked {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
@@ -2235,6 +2246,7 @@ pub enum Event {
         reason: Option<String>,
     },
     /// A user was invited to a channel.
+    #[non_exhaustive]
     Invited {
         /// The invited channel.
         channel: ChannelName,
@@ -2248,6 +2260,7 @@ pub enum Event {
         subject_authorship: Authorship,
     },
     /// A user sharing channels with the session disconnected.
+    #[non_exhaustive]
     Quit {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
@@ -2263,6 +2276,7 @@ pub enum Event {
         authorship: Authorship,
     },
     /// A user changed nickname.
+    #[non_exhaustive]
     NickChanged {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
@@ -2276,6 +2290,7 @@ pub enum Event {
         authorship: Authorship,
     },
     /// A joined channel was renamed.
+    #[non_exhaustive]
     ChannelRenamed {
         /// The previous channel name.
         old: ChannelName,
@@ -2289,6 +2304,7 @@ pub enum Event {
         reason: Option<String>,
     },
     /// A user's account state changed.
+    #[non_exhaustive]
     AccountChanged {
         /// The affected user's prefix.
         actor: String,
@@ -2298,6 +2314,7 @@ pub enum Event {
         account: Account,
     },
     /// A user's away state changed.
+    #[non_exhaustive]
     AwayChanged {
         /// The affected user's prefix.
         actor: String,
@@ -2307,6 +2324,7 @@ pub enum Event {
         away: Away,
     },
     /// A user's username or hostname changed.
+    #[non_exhaustive]
     HostChanged {
         /// The affected user's prefix when known, otherwise their nickname.
         actor: String,
@@ -2318,6 +2336,7 @@ pub enum Event {
         host: String,
     },
     /// A user's real name changed.
+    #[non_exhaustive]
     RealnameChanged {
         /// The affected user's prefix.
         actor: String,
@@ -2327,6 +2346,7 @@ pub enum Event {
         realname: String,
     },
     /// A user or channel mode changed.
+    #[non_exhaustive]
     ModeChanged {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
@@ -2342,6 +2362,7 @@ pub enum Event {
         changes: Vec<ModeChange>,
     },
     /// A channel topic changed live.
+    #[non_exhaustive]
     TopicChanged {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
