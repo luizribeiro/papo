@@ -1,7 +1,7 @@
 use papo_proto::Numeric;
 
 /// Stable classification of a server refusal.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Refusal {
     /// The server could not process the command (`400`).

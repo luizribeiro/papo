@@ -3,7 +3,7 @@ use crate::{Capabilities, State, cap};
 const UNKNOWN_HOST_LEN: usize = 63;
 
 /// Kind of an outgoing text message.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum TextKind {
     /// A `PRIVMSG` message.
     Privmsg,

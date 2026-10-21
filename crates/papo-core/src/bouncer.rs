@@ -83,7 +83,7 @@ impl std::fmt::Display for NetworkId {
 }
 
 /// Current connection state of an upstream bouncer network.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum NetworkState {
     /// Connected to the upstream network.

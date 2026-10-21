@@ -297,7 +297,7 @@ impl State {
             users: HashMap::new(),
             monitored: Vec::new(),
             who_sweeps: HashMap::new(),
-            who_on_join: config.who_on_join.clone(),
+            who_on_join: config.who_on_join,
             read_markers: HashMap::new(),
             last_seen: HashMap::new(),
             last_seen_order: VecDeque::new(),

@@ -266,7 +266,7 @@ pub enum AwayOnConnect {
 }
 
 /// Controls whether a channel's members are refreshed with `WHO` after joining.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum WhoOnJoin {
     /// Refresh members after every channel join.
@@ -340,7 +340,7 @@ pub struct Welcome {
 }
 
 /// Policy for decoding incoming IRC lines.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Decoding {
     /// Require incoming lines to contain valid UTF-8.
@@ -1354,7 +1354,7 @@ pub struct StandardReply {
 /// An account's configured persistence preference.
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum PersistenceSetting {
     /// Keep the account's client active while disconnected.
@@ -1700,7 +1700,7 @@ pub enum RequestError {
 }
 
 /// Machine-readable reason that a session requested connection closure.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum CloseKind {
     /// Required SASL authentication failed.
@@ -1800,7 +1800,7 @@ impl RequestError {
 }
 
 /// A phase of establishing an IRC connection.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum ConnectPhase {
     /// Opening the underlying transport.
@@ -2202,7 +2202,7 @@ pub enum Event {
 }
 
 /// Why an incomplete server batch was released as individual messages.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum BatchAbandonReason {
     /// The server opened more batches than configured.

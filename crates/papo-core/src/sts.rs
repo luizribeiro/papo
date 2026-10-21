@@ -58,7 +58,7 @@ impl StsDirective {
 }
 
 /// Whether the current connection is protected by TLS.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum ConnectionSecurity {
     /// A connection whose peer and confidentiality were verified with TLS.

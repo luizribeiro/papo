@@ -9,7 +9,7 @@ const MAX_TYPERS_PER_CONVERSATION: usize = 32;
 const MAX_TYPERS: usize = 512;
 
 /// Why a user's typing state changed.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum TypingReason {
     /// The user sent a typing notification.

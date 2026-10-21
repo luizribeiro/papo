@@ -137,6 +137,8 @@ impl core::cmp::PartialEq for papo::sts::ConnectionSecurity
 pub fn papo::sts::ConnectionSecurity::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::sts::ConnectionSecurity
 pub fn papo::sts::ConnectionSecurity::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::sts::ConnectionSecurity
+pub fn papo::sts::ConnectionSecurity::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo::sts::ConnectionSecurity
 impl core::marker::StructuralPartialEq for papo::sts::ConnectionSecurity
 impl core::marker::Freeze for papo::sts::ConnectionSecurity
@@ -362,6 +364,8 @@ impl core::cmp::PartialEq for papo_core::BatchAbandonReason
 pub fn papo_core::BatchAbandonReason::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_core::BatchAbandonReason
 pub fn papo_core::BatchAbandonReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::BatchAbandonReason
+pub fn papo_core::BatchAbandonReason::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::BatchAbandonReason
 impl core::marker::StructuralPartialEq for papo_core::BatchAbandonReason
 impl core::marker::Freeze for papo_core::BatchAbandonReason
@@ -393,6 +397,8 @@ impl core::cmp::PartialEq for papo_core::CloseKind
 pub fn papo_core::CloseKind::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_core::CloseKind
 pub fn papo_core::CloseKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::CloseKind
+pub fn papo_core::CloseKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::CloseKind
 impl core::marker::StructuralPartialEq for papo_core::CloseKind
 impl core::marker::Freeze for papo_core::CloseKind
@@ -415,6 +421,8 @@ impl core::cmp::PartialEq for papo_core::ConnectPhase
 pub fn papo_core::ConnectPhase::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_core::ConnectPhase
 pub fn papo_core::ConnectPhase::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::ConnectPhase
+pub fn papo_core::ConnectPhase::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::ConnectPhase
 impl core::marker::StructuralPartialEq for papo_core::ConnectPhase
 impl core::marker::Freeze for papo_core::ConnectPhase
@@ -462,6 +470,8 @@ impl core::default::Default for papo_core::Decoding
 pub fn papo_core::Decoding::default() -> Self
 impl core::fmt::Debug for papo_core::Decoding
 pub fn papo_core::Decoding::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::Decoding
+pub fn papo_core::Decoding::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::Decoding
 impl core::marker::StructuralPartialEq for papo_core::Decoding
 impl core::marker::Freeze for papo_core::Decoding
@@ -940,6 +950,8 @@ impl core::cmp::PartialEq for papo_core::NetworkState
 pub fn papo_core::NetworkState::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_core::NetworkState
 pub fn papo_core::NetworkState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::NetworkState
+pub fn papo_core::NetworkState::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::NetworkState
 impl core::marker::StructuralPartialEq for papo_core::NetworkState
 impl core::marker::Freeze for papo_core::NetworkState
@@ -962,6 +974,8 @@ impl core::cmp::PartialEq for papo_core::PersistenceSetting
 pub fn papo_core::PersistenceSetting::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_core::PersistenceSetting
 pub fn papo_core::PersistenceSetting::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::PersistenceSetting
+pub fn papo_core::PersistenceSetting::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::PersistenceSetting
 impl core::marker::StructuralPartialEq for papo_core::PersistenceSetting
 impl core::marker::Freeze for papo_core::PersistenceSetting
@@ -1115,6 +1129,8 @@ impl core::fmt::Debug for papo_core::Refusal
 pub fn papo_core::Refusal::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_core::Refusal
 pub fn papo_core::Refusal::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::Refusal
+pub fn papo_core::Refusal::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::Refusal
 impl core::marker::StructuralPartialEq for papo_core::Refusal
 impl core::marker::Freeze for papo_core::Refusal
@@ -1315,6 +1331,8 @@ impl core::cmp::PartialEq for papo_core::TextKind
 pub fn papo_core::TextKind::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_core::TextKind
 pub fn papo_core::TextKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::TextKind
+pub fn papo_core::TextKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::TextKind
 impl core::marker::StructuralPartialEq for papo_core::TextKind
 impl core::marker::Freeze for papo_core::TextKind
@@ -1336,6 +1354,8 @@ impl core::cmp::PartialEq for papo_core::TypingReason
 pub fn papo_core::TypingReason::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_core::TypingReason
 pub fn papo_core::TypingReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::TypingReason
+pub fn papo_core::TypingReason::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::TypingReason
 impl core::marker::StructuralPartialEq for papo_core::TypingReason
 impl core::marker::Freeze for papo_core::TypingReason
@@ -1357,6 +1377,8 @@ impl core::cmp::PartialEq for papo_core::UnsupportedReason
 pub fn papo_core::UnsupportedReason::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_core::UnsupportedReason
 pub fn papo_core::UnsupportedReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::UnsupportedReason
+pub fn papo_core::UnsupportedReason::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::UnsupportedReason
 impl core::marker::StructuralPartialEq for papo_core::UnsupportedReason
 impl core::marker::Freeze for papo_core::UnsupportedReason
@@ -1397,6 +1419,9 @@ impl core::default::Default for papo_core::WhoOnJoin
 pub fn papo_core::WhoOnJoin::default() -> Self
 impl core::fmt::Debug for papo_core::WhoOnJoin
 pub fn papo_core::WhoOnJoin::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::WhoOnJoin
+pub fn papo_core::WhoOnJoin::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_core::WhoOnJoin
 impl core::marker::StructuralPartialEq for papo_core::WhoOnJoin
 impl core::marker::Freeze for papo_core::WhoOnJoin
 impl core::marker::Send for papo_core::WhoOnJoin

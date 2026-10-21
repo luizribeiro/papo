@@ -213,7 +213,7 @@ impl std::fmt::Display for Feature {
 }
 
 /// Why an optional IRC behavior is unavailable.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum UnsupportedReason {
     /// The server did not advertise the required capability or token.
