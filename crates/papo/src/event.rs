@@ -1328,7 +1328,7 @@ pub(crate) fn from_core(
             })
         }
         papo_core::Event::StateLimitReached { limit } => {
-            Event::Warning(Warning::StateLimitReached { limit })
+            Event::Warning(Warning::StateLimitReached { kind: limit })
         }
         papo_core::Event::MonitorOnline {
             nick,
@@ -1341,7 +1341,10 @@ pub(crate) fn from_core(
         }),
         papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline { nick }),
         papo_core::Event::MonitorListFull { limit, nicks } => {
-            Event::Warning(Warning::MonitorListFull { limit, nicks })
+            Event::Warning(Warning::MonitorListFull {
+                maximum: limit,
+                nicks,
+            })
         }
         papo_core::Event::MonitorUnsupported => Event::Warning(Warning::MonitorUnsupported),
         _ => return CoreEvent::Unknown,
@@ -2408,7 +2411,7 @@ mod tests {
         ] {
             assert!(matches!(
                 forwarded(papo_core::Event::StateLimitReached { limit: core }),
-                Event::Warning(Warning::StateLimitReached { limit }) if limit == public
+                Event::Warning(Warning::StateLimitReached { kind }) if kind == public
             ));
         }
     }
@@ -2456,8 +2459,8 @@ mod tests {
                     Casemapping::default().nick("bob"),
                 ],
             }),
-            Event::Warning(Warning::MonitorListFull { limit, nicks })
-                if limit == 100 && nicks == ["alice", "bob"]
+            Event::Warning(Warning::MonitorListFull { maximum, nicks })
+                if maximum == 100 && nicks == ["alice", "bob"]
         ));
     }
 

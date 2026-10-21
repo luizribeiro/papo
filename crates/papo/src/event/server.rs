@@ -59,13 +59,13 @@ pub enum Warning {
     #[non_exhaustive]
     StateLimitReached {
         /// The state collection that rejected another entry.
-        limit: StateLimit,
+        kind: StateLimit,
     },
     /// The server rejected nicknames because its monitor list was full.
     #[non_exhaustive]
     MonitorListFull {
         /// The server's advertised monitor-list limit.
-        limit: usize,
+        maximum: usize,
         /// Nicknames the server did not add.
         nicks: Vec<Nick>,
     },
@@ -89,13 +89,13 @@ impl fmt::Display for Warning {
                 )
             }
             Self::AuthenticationFailed { reason } => formatter.write_str(reason),
-            Self::StateLimitReached { limit } => {
-                write!(formatter, "state limit reached: {limit:?}")
+            Self::StateLimitReached { kind } => {
+                write!(formatter, "state limit reached: {kind:?}")
             }
-            Self::MonitorListFull { limit, .. } => {
+            Self::MonitorListFull { maximum, .. } => {
                 write!(
                     formatter,
-                    "server monitor list is limited to {limit} nicknames"
+                    "server monitor list is limited to {maximum} nicknames"
                 )
             }
             Self::MonitorUnsupported => formatter.write_str("server does not support MONITOR"),
@@ -123,10 +123,10 @@ mod tests {
                 reason: "SASL mechanism unavailable".to_owned(),
             },
             Warning::StateLimitReached {
-                limit: StateLimit::Members,
+                kind: StateLimit::Members,
             },
             Warning::MonitorListFull {
-                limit: 100,
+                maximum: 100,
                 nicks: vec![crate::Casemapping::default().nick("alice")],
             },
             Warning::MonitorUnsupported,
