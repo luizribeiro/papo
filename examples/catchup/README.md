@@ -14,6 +14,7 @@ IRC_NICK=alice IRC_PASSWORD='correct horse battery staple' \
 Sample output:
 
 ```text
-#papo deployment started
-#papo deployment complete
+#papo the deployment started
+#papo the migration completed
+#papo the service is healthy
 ```
