@@ -4,7 +4,7 @@ use tokio::{
     task::JoinHandle,
 };
 
-const MAX_LINE_LEN: usize = 8191;
+const MAX_LINE_LEN: usize = 8191 + 512;
 
 /// The server side of an in-memory IRC connection.
 pub struct Wire {
@@ -106,7 +106,7 @@ impl Wire {
     ///
     /// # Panics
     ///
-    /// Panics if `line` contains a line ending, exceeds 8191 bytes, or the
+    /// Panics if `line` contains a line ending, exceeds 8703 bytes, or the
     /// client has closed its end of the pipe.
     pub async fn server(&mut self, line: impl AsRef<str>) {
         let line = line.as_ref();
@@ -114,7 +114,7 @@ impl Wire {
             !line.contains(['\r', '\n']),
             "server input must be one line"
         );
-        assert!(line.len() <= MAX_LINE_LEN, "server line exceeds 8191 bytes");
+        assert!(line.len() <= MAX_LINE_LEN, "server line exceeds 8703 bytes");
         let mut bytes = line.as_bytes().to_vec();
         bytes.extend_from_slice(b"\r\n");
         papo::__testing::server_line(self.stream().await, &bytes).await;
@@ -125,14 +125,14 @@ impl Wire {
     /// # Panics
     ///
     /// Panics if the client closes the pipe mid-line, sends non-UTF-8 text, or
-    /// sends a line longer than 8191 bytes.
+    /// sends a line longer than 8703 bytes.
     pub async fn next_sent(&mut self) -> String {
         let stream = self.stream().await;
         let mut line = Vec::new();
         loop {
             let byte = stream.read_u8().await.expect("client closed its stream");
             line.push(byte);
-            assert!(line.len() <= MAX_LINE_LEN, "client line exceeds 8191 bytes");
+            assert!(line.len() <= MAX_LINE_LEN, "client line exceeds 8703 bytes");
             if line.ends_with(b"\r\n") {
                 line.truncate(line.len() - 2);
                 return String::from_utf8(line).expect("client sent non-UTF-8 text");
@@ -297,5 +297,37 @@ mod tests {
         assert!(!request.is_finished());
         tokio::time::advance(Duration::from_secs(1)).await;
         assert!(matches!(request.await.unwrap(), Err(papo::Error::Timeout)));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn accepts_the_literal_server_line_bound() {
+        let (_client, _events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test")
+                .nick("papo-wire")
+                .reconnect(papo::Reconnect::never()),
+        );
+        wire.server("x".repeat(8191 + 512)).await;
+    }
+
+    #[tokio::test(start_paused = true)]
+    #[should_panic(expected = "server line exceeds 8703 bytes")]
+    async fn rejects_one_byte_beyond_the_literal_server_line_bound() {
+        let (_client, _events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test")
+                .nick("papo-wire")
+                .reconnect(papo::Reconnect::never()),
+        );
+        wire.server("x".repeat(8191 + 512 + 1)).await;
+    }
+
+    #[tokio::test(start_paused = true)]
+    #[should_panic(expected = "server input must be one line")]
+    async fn rejects_embedded_server_line_endings() {
+        let (_client, _events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test")
+                .nick("papo-wire")
+                .reconnect(papo::Reconnect::never()),
+        );
+        wire.server("PING :one\r\nPING :two").await;
     }
 }
