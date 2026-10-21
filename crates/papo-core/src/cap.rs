@@ -189,7 +189,7 @@ capabilities! {
     [cap] ACCOUNT_REGISTRATION = "draft/account-registration"; "Account registration."; name: "draft/account-registration"; aliases: ["account-registration"]; request: Request::Default("draft/account-registration"); features: [Feature::AccountCreation]; code: [crate::account_registration];
     #[cfg(feature = "unstable")] BOUNCER_NETWORKS = "soju.im/bouncer-networks"; "Bouncer network management."; name: "soju.im/bouncer-networks"; aliases: []; request: Request::Default("soju.im/bouncer-networks"); features: [Feature::Bouncer]; code: [crate::bouncer];
     #[cfg(feature = "unstable")] BOUNCER_NETWORKS_NOTIFY = "soju.im/bouncer-networks-notify"; "Bouncer network change notifications."; name: "soju.im/bouncer-networks-notify"; aliases: []; request: Request::Default("soju.im/bouncer-networks-notify"); features: []; code: [crate::bouncer];
-    CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "chathistory"; aliases: ["draft/chathistory"]; request: Request::Default("chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
+    CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "chathistory"; aliases: ["draft/chathistory"]; request: Request::Default("draft/chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
     READ_MARKER = "draft/read-marker"; "Channel read markers."; name: "draft/read-marker"; aliases: ["read-marker"]; request: Request::Default("draft/read-marker"); features: [Feature::ReadMarkers]; code: [crate::history, crate::state::read_marker];
     #[cfg(feature = "unstable")] PERSISTENCE = "draft/persistence"; "Account persistence preferences."; name: "draft/persistence"; aliases: []; request: Request::Default("draft/persistence"); features: [Feature::Persistence]; code: [crate::persistence, crate::state::persistence];
     CHANNEL_RENAME = "draft/channel-rename"; "Channel renaming."; name: "draft/channel-rename"; aliases: []; request: Request::Default("draft/channel-rename"); features: [Feature::ChannelRename]; code: [crate::channel_rename, crate::state::rename];
@@ -197,7 +197,7 @@ capabilities! {
     MESSAGE_REDACTION = "draft/message-redaction"; "Message redaction."; name: "draft/message-redaction"; aliases: []; request: Request::Default("draft/message-redaction"); features: [Feature::Redaction]; code: [crate::outgoing, crate::replies];
     #[cfg(feature = "unstable")] WEBPUSH = "draft/webpush"; "Web Push subscriptions."; name: "draft/webpush"; aliases: ["soju.im/webpush"]; request: Request::Default("draft/webpush"); features: [Feature::WebPush]; code: [crate::webpush];
     PRE_AWAY = "draft/pre-away"; "Away state during registration."; name: "draft/pre-away"; aliases: []; request: Request::Default("draft/pre-away"); features: []; code: [crate::state];
-    NO_IMPLICIT_NAMES = "draft/no-implicit-names"; "Suppression of implicit names replies."; name: "no-implicit-names"; aliases: ["draft/no-implicit-names"]; request: Request::Default("draft/no-implicit-names"); features: []; code: [crate::state::membership];
+    NO_IMPLICIT_NAMES = "no-implicit-names"; "Suppression of implicit names replies."; name: "no-implicit-names"; aliases: ["draft/no-implicit-names"]; request: Request::Default("no-implicit-names"); features: []; code: [crate::state::membership];
     WHOAMI = "draft/whoami"; "Current connection identity discovery."; name: "draft/whoami"; aliases: []; request: Request::Default("draft/whoami"); features: []; code: [crate::state];
     EXTENDED_ISUPPORT = "draft/extended-isupport"; "Extended ISUPPORT discovery."; name: "draft/extended-isupport"; aliases: []; request: Request::Default("draft/extended-isupport"); features: []; code: [crate::isupport];
 }
@@ -283,6 +283,15 @@ pub(crate) const fn alias(name: &str, index: usize) -> &'static str {
     panic!("capability alias requested for an unknown name")
 }
 
+pub(crate) fn request_spelling(name: &str) -> Option<&'static str> {
+    ALL.iter()
+        .find(|info| info.name == canonical(name))
+        .and_then(|info| match info.request {
+            Request::Default(spelling) => Some(spelling),
+            Request::Automatic | Request::Never | Request::Superseded(_) => None,
+        })
+}
+
 const fn known_primary(name: &str) -> bool {
     let mut index = 0;
     while index < ALL.len() {
@@ -299,6 +308,17 @@ const fn known_primary(name: &str) -> bool {
 pub fn advertised_spelling<'a>(wanted: &str, advertised: &'a Capabilities) -> Option<&'a str> {
     let canonical = canonical(wanted);
     match ALL.iter().find(|info| info.name == canonical) {
+        Some(info)
+            if matches!(info.request, Request::Default(_)) && !accepts_request_aliases(info) =>
+        {
+            let Request::Default(spelling) = info.request else {
+                unreachable!()
+            };
+            advertised
+                .get_key_value(&Cap::from(spelling))
+                .filter(|(name, _)| name.as_str() == spelling)
+                .map(|(name, _)| name.as_str())
+        }
         Some(info) => std::iter::once(info.name)
             .chain(info.aliases.iter().copied())
             .find_map(|name| {
@@ -310,6 +330,10 @@ pub fn advertised_spelling<'a>(wanted: &str, advertised: &'a Capabilities) -> Op
             .get_key_value(&Cap::from(wanted))
             .map(|(name, _)| name.as_str()),
     }
+}
+
+fn accepts_request_aliases(info: &CapInfo) -> bool {
+    cfg!(feature = "unstable") && info.name == "draft/webpush"
 }
 
 /// Renders the capability registry as a Markdown implementation table.
@@ -407,13 +431,17 @@ mod tests {
         assert_eq!(canonical("draft/metadata-2"), "draft/metadata-3");
         assert!(is_known("account-registration"));
         assert!(!is_known("example.org/unknown"));
-        let advertised = Capabilities::from([
-            (Cap::from("draft/metadata-2"), None),
-            (Cap::from("draft/metadata-3"), None),
-        ]);
+        let advertised = Capabilities::from([(Cap::from("draft/metadata-2"), None)]);
         assert_eq!(
             advertised_spelling(METADATA, &advertised),
-            Some("draft/metadata-3")
+            Some("draft/metadata-2")
+        );
+        assert_eq!(
+            advertised_spelling(
+                CHATHISTORY,
+                &Capabilities::from([(Cap::from("chathistory"), None)])
+            ),
+            None
         );
     }
 }

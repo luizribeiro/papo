@@ -1100,9 +1100,9 @@ fn bounds_channel_modes_at_literal_sixty_four() {
 fn no_implicit_names_requests_names_before_marking_the_channel_synced() {
     Transcript::new(Config::default().wanted_caps(["no-implicit-names"]))
         .connect_default()
-        .server("CAP * LS :draft/no-implicit-names")
-        .client("CAP REQ :draft/no-implicit-names")
-        .server("CAP * ACK :draft/no-implicit-names")
+        .server("CAP * LS :no-implicit-names")
+        .client("CAP REQ :no-implicit-names")
+        .server("CAP * ACK :no-implicit-names")
         .client("CAP END")
         .server(":ergo.test 005 papo WHOX :are supported")
         .server(":papo!papo@127.0.0.1 JOIN #papo")

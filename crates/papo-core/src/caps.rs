@@ -23,6 +23,20 @@ pub(super) struct Caps {
 }
 
 impl Caps {
+    fn insert_advertised(&mut self, name: &str, value: Option<String>) {
+        let name = Cap::from(name);
+        let published = cap::request_spelling(name.as_str()) == Some(name.as_str());
+        if published
+            && self
+                .advertised
+                .get_key_value(&name)
+                .is_some_and(|(existing, _)| existing.as_str() != name.as_str())
+        {
+            self.advertised.remove(&name);
+        }
+        self.advertised.insert(name, value);
+    }
+
     pub(super) fn handle_connected(&mut self, _now: Instant) {
         *self = Self::default();
     }
@@ -145,7 +159,7 @@ impl Caps {
                 continue;
             }
             let value = value.map(str::to_owned);
-            self.advertised.insert(Cap::from(name), value.clone());
+            self.insert_advertised(name, value.clone());
             announced.insert(name.to_owned());
             let name = Cap::from(name);
             if self.enabled.contains_key(&name) {
@@ -200,8 +214,7 @@ impl Caps {
                 .split_once('=')
                 .map_or((token, None), |(name, value)| (name, Some(value)));
             if !name.is_empty() {
-                self.advertised
-                    .insert(Cap::from(name), value.map(str::to_owned));
+                self.insert_advertised(name, value.map(str::to_owned));
             }
         }
         if continued {

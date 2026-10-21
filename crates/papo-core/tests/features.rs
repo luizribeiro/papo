@@ -10,7 +10,7 @@ use papo_core::{
 use papo_proto::Line;
 use support::{Transcript, unsupported_because};
 
-const CAPS: &str = "message-tags draft/message-redaction draft/multiline chathistory read-marker draft/metadata-3 setname draft/account-registration soju.im/bouncer-networks draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response away-notify account-notify account-tag chghost";
+const CAPS: &str = "message-tags draft/message-redaction draft/multiline draft/chathistory draft/read-marker draft/metadata-2 setname draft/account-registration soju.im/bouncer-networks draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response away-notify account-notify account-tag chghost";
 
 fn session(caps: &str) -> Session {
     session_with(
@@ -63,8 +63,8 @@ fn recognizes_every_capability_backed_feature() {
 #[test]
 fn combines_isupport_tokens_with_negotiated_caps() {
     let session = session_with(
-        Config::default().wanted_caps(["chathistory"]),
-        "chathistory",
+        Config::default().wanted_caps(["draft/chathistory"]),
+        "draft/chathistory",
         ":irc.unreal.example 005 papo MONITOR=100 BOT=B CHATHISTORY=100 :are supported by this server",
     );
     for feature in [Feature::History, Feature::Monitor, Feature::BotMode] {
@@ -95,8 +95,8 @@ fn account_tracking_requires_both_ratified_capabilities() {
 #[test]
 fn rejects_literal_zero_feature_limits() {
     let zero = session_with(
-        Config::default().wanted_caps(["chathistory"]),
-        "chathistory",
+        Config::default().wanted_caps(["draft/chathistory"]),
+        "draft/chathistory",
         ":irc.unreal.example 005 papo MONITOR=0 CHATHISTORY=0 :are supported by this server",
     );
     assert_eq!(

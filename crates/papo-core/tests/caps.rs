@@ -19,10 +19,10 @@ fn collects_values_selects_aliases_and_denies_the_trap() {
         .client("USER papo 0 * papo")
         .server("CAP * LS * :server-time=old sasl=PLAIN,EXTERNAL")
         .no_client()
-        .server("CAP * LS :server-time=latest draft/no-implicit-names")
-        .client("CAP REQ :server-time draft/no-implicit-names")
+        .server("CAP * LS :server-time=latest no-implicit-names")
+        .client("CAP REQ :server-time no-implicit-names")
         .no_client()
-        .server("CAP * ACK :server-time draft/no-implicit-names")
+        .server("CAP * ACK :server-time no-implicit-names")
         .client("CAP END");
 
     let mut session =
@@ -30,11 +30,11 @@ fn collects_values_selects_aliases_and_denies_the_trap() {
     session.handle_connected(std::time::Instant::now());
     session.handle_line(
         std::time::Instant::now(),
-        b"CAP * LS :server-time=latest draft/no-implicit-names",
+        b"CAP * LS :server-time=latest no-implicit-names",
     );
     session.handle_line(
         std::time::Instant::now(),
-        b"CAP * ACK :server-time draft/no-implicit-names",
+        b"CAP * ACK :server-time no-implicit-names",
     );
     assert_eq!(
         session.caps().get("server-time"),
@@ -57,6 +57,11 @@ fn ends_immediately_when_no_advertised_cap_is_wanted() {
     Transcript::new(Config::default().wanted_caps(["ergo.chat/nope"]))
         .connect_default()
         .server("CAP * LS :ergo.chat/nope")
+        .client("CAP END");
+
+    Transcript::new(Config::default().wanted_caps(["draft/chathistory"]))
+        .connect_default()
+        .server("CAP * LS :chathistory")
         .client("CAP END");
 }
 
@@ -179,7 +184,7 @@ fn defaults_cover_every_implemented_negotiable_capability() {
             "soju.im/bouncer-networks",
             #[cfg(feature = "unstable")]
             "soju.im/bouncer-networks-notify",
-            "chathistory",
+            "draft/chathistory",
             "draft/read-marker",
             #[cfg(feature = "unstable")]
             "draft/persistence",
@@ -190,7 +195,7 @@ fn defaults_cover_every_implemented_negotiable_capability() {
             #[cfg(feature = "unstable")]
             "draft/webpush",
             "draft/pre-away",
-            "draft/no-implicit-names",
+            "no-implicit-names",
             "draft/whoami",
             "draft/extended-isupport",
         ]
@@ -198,19 +203,17 @@ fn defaults_cover_every_implemented_negotiable_capability() {
 }
 
 #[test]
-fn capability_alias_resolution_stays_in_its_namespace() {
+fn requests_only_published_aliases_in_the_capability_namespace() {
     Transcript::new(Config::default())
         .connect_default()
         .server("CAP * LS :chathistory")
-        .client("CAP REQ :chathistory")
-        .server("CAP * ACK :chathistory")
         .client("CAP END");
 
     Transcript::new(Config::default().wanted_caps(["draft/chathistory"]))
         .connect_default()
-        .server("CAP * LS :chathistory")
-        .client("CAP REQ :chathistory")
-        .server("CAP * ACK :chathistory")
+        .server("CAP * LS :draft/chathistory")
+        .client("CAP REQ :draft/chathistory")
+        .server("CAP * ACK :draft/chathistory")
         .client("CAP END");
 
     Transcript::new(Config::default().wanted_caps(["batch"]))
