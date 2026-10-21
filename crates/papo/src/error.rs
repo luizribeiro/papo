@@ -189,7 +189,8 @@ impl std::error::Error for ConnectError {
 /// A server refusal with its wire-level diagnostic context.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServerError {
-    kind: Refusal,
+    refusal: Refusal,
+    numeric: Option<u16>,
     command: String,
     code: String,
     description: String,
@@ -199,12 +200,13 @@ pub struct ServerError {
 impl ServerError {
     /// Creates a numeric refusal using the same classifier as received replies.
     #[must_use]
-    pub fn numeric(code: u16, params: Vec<String>) -> Self {
+    pub fn from_numeric(code: u16, params: Vec<String>) -> Self {
         if let Some(numeric) = papo_proto::Numeric::new(code) {
             return Self::from_core(papo_core::ServerError::Numeric { numeric, params });
         }
         Self {
-            kind: Refusal::Other,
+            refusal: Refusal::Other,
+            numeric: Some(code),
             command: String::new(),
             code: code.to_string(),
             description: params.last().cloned().unwrap_or_default(),
@@ -232,8 +234,14 @@ impl ServerError {
 
     /// Returns the stable refusal category.
     #[must_use]
-    pub const fn kind(&self) -> Refusal {
-        self.kind
+    pub const fn refusal(&self) -> Refusal {
+        self.refusal
+    }
+
+    /// Returns the three-digit reply number, or `None` for a standard reply.
+    #[must_use]
+    pub const fn numeric(&self) -> Option<u16> {
+        self.numeric
     }
 
     /// Returns the command named by a standard reply, or an empty string for a numeric.
@@ -269,21 +277,24 @@ impl ServerError {
                 context,
                 description,
             } => Self {
-                kind,
+                refusal: kind,
+                numeric: None,
                 command,
                 code,
                 description,
                 params: context,
             },
             papo_core::ServerError::Numeric { numeric, params } => Self {
-                kind,
+                refusal: kind,
+                numeric: Some(numeric.code()),
                 command: String::new(),
                 code: format!("{:03}", numeric.code()),
                 description: params.last().cloned().unwrap_or_default(),
                 params,
             },
             other => Self {
-                kind: Refusal::Other,
+                refusal: Refusal::Other,
+                numeric: None,
                 command: String::new(),
                 code: String::new(),
                 description: format!("{other:?}"),
@@ -610,11 +621,12 @@ mod tests {
 
     #[test]
     fn server_errors_hide_core_shapes_behind_accessors() {
-        let error = ServerError::numeric(
+        let error = ServerError::from_numeric(
             404,
             vec!["papo-driver".into(), "#rust".into(), "Cannot send".into()],
         );
-        assert_eq!(error.kind(), Refusal::CannotSendToChannel);
+        assert_eq!(error.refusal(), Refusal::CannotSendToChannel);
+        assert_eq!(error.numeric(), Some(404));
         assert_eq!(error.command(), "");
         assert_eq!(error.code(), "404");
         assert_eq!(error.description(), "Cannot send");
@@ -628,6 +640,8 @@ mod tests {
             "Invalid parameters",
         );
         assert_eq!(standard.command(), "CHATHISTORY");
+        assert_eq!(standard.refusal(), Refusal::InvalidParameters);
+        assert_eq!(standard.numeric(), None);
         assert_eq!(standard.code(), "INVALID_PARAMS");
         assert_eq!(standard.params(), ["LATEST"]);
     }
@@ -648,7 +662,7 @@ mod tests {
                 context: vec!["CHANGENETWORK".into(), "42".into()],
                 description: "Network request rejected".into(),
             });
-            assert_eq!(error.kind(), expected);
+            assert_eq!(error.refusal(), expected);
         }
     }
 

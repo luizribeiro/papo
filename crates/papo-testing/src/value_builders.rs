@@ -53,7 +53,7 @@ impl ErrorBuilder {
     /// Starts a numeric server-refusal error.
     #[must_use]
     pub fn numeric(code: u16, params: Vec<String>) -> Self {
-        Self(Error::Server(ServerError::numeric(code, params)))
+        Self(Error::Server(ServerError::from_numeric(code, params)))
     }
 
     /// Starts a standard-reply server-refusal error.

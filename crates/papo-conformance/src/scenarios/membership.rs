@@ -873,7 +873,7 @@ async fn kick_missing_member(s: Scenario) -> papo_testing::Result<()> {
         Error::Server(refusal) => refusal,
         other => return Err(other.into()),
     };
-    if refusal.kind() != Refusal::Other || refusal.code() != "441" {
+    if refusal.refusal() != Refusal::Other || refusal.code() != "441" {
         return Err(std::io::Error::other(format!(
             "unexpected missing-member refusal: {refusal:?}"
         ))
@@ -992,7 +992,7 @@ async fn nickname_collision_race(s: Scenario) -> papo_testing::Result<()> {
         Error::Server(refusal) => refusal,
         other => panic!("nickname race did not return a server refusal: {other:?}"),
     };
-    if refusal.kind() != Refusal::NickCollision || refusal.code() != "436" {
+    if refusal.refusal() != Refusal::NickCollision || refusal.code() != "436" {
         return Err(std::io::Error::other(format!(
             "unexpected nickname-race refusal: {refusal:?}"
         ))
@@ -1216,7 +1216,7 @@ async fn account_extban(s: Scenario) -> papo_testing::Result<()> {
     let Error::Server(refusal) = bob.join(&channel).await.unwrap_err() else {
         panic!("account extban did not return a server refusal");
     };
-    assert_eq!(refusal.kind(), Refusal::BannedFromChannel);
+    assert_eq!(refusal.refusal(), Refusal::BannedFromChannel);
     assert_eq!(refusal.code(), "474");
     assert!(bob.state().channel(&channel).is_none());
     Ok(())

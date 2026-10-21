@@ -564,7 +564,7 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
         panic!("incorrect operator credentials did not return a server refusal");
     };
     assert!(matches!(
-        refusal.kind(),
+        refusal.refusal(),
         Refusal::PasswordIncorrect | Refusal::NoOperHost
     ));
     assert!(matches!(refusal.code(), "464" | "491"));

@@ -96,5 +96,5 @@ fn assert_above_rank_refusal(error: Error) {
             panic!("unexpected refusal code {other:?} for an above-rank status mode: {refusal:?}")
         }
     };
-    assert_eq!(refusal.kind(), expected);
+    assert_eq!(refusal.refusal(), expected);
 }

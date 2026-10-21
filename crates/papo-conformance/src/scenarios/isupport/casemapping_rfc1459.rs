@@ -40,7 +40,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let Error::Server(refusal) = curly.set_nick(curly_nick.clone()).await.unwrap_err() else {
         panic!("rfc1459-equivalent nickname did not return a server refusal");
     };
-    assert_eq!(refusal.kind(), Refusal::NicknameInUse);
+    assert_eq!(refusal.refusal(), Refusal::NicknameInUse);
     assert_eq!(refusal.code(), "433");
 
     let mixed_channel = format!("#Papo-{stem}");

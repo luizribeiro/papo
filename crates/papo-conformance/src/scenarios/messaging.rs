@@ -194,7 +194,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     else {
         panic!("a nonexistent target did not return a server refusal")
     };
-    assert_eq!(refusal.kind(), Refusal::NoSuchNick);
+    assert_eq!(refusal.refusal(), Refusal::NoSuchNick);
     assert_eq!(refusal.code(), "401");
     alice
         .expect_none(|event| message_text(event, "note to self"))
@@ -743,7 +743,7 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     else {
         panic!("an unknown message identifier did not return a server refusal")
     };
-    assert_eq!(refusal.kind(), Refusal::UnknownMessage);
+    assert_eq!(refusal.refusal(), Refusal::UnknownMessage);
     assert_eq!(refusal.code(), "UNKNOWN_MSGID");
     bob.expect_none(Event::as_redacted).await?;
     Ok(())

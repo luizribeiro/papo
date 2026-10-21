@@ -85,7 +85,7 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     let Error::Server(refusal) = bob.set_nick(bob_square_attempt).await.unwrap_err() else {
         panic!("ascii-folded nickname collision did not return a server refusal");
     };
-    assert_eq!(refusal.kind(), Refusal::NicknameInUse);
+    assert_eq!(refusal.refusal(), Refusal::NicknameInUse);
     assert_eq!(refusal.code(), "433");
     assert_eq!(bob.state().nick(), bob_curly_nick.as_str());
     bob.expect_none(Event::as_nick_changed).await?;

@@ -616,7 +616,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     assert!(matches!(
         events.next().await,
         Some(Event::AutoJoinFailed { channel, error })
-            if channel == "#papo" && error.kind() == crate::Refusal::BadChannelKey
+            if channel == "#papo" && error.refusal() == crate::Refusal::BadChannelKey
     ));
     within(second_server.shutdown()).await.unwrap();
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
@@ -2441,7 +2441,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     assert!(matches!(
         events.next().await,
         Some(Event::AutoJoinFailed { channel, error })
-            if channel == "#PAPO" && error.kind() == crate::Refusal::InviteOnlyChannel
+            if channel == "#PAPO" && error.refusal() == crate::Refusal::InviteOnlyChannel
     ));
     server_line(
         &mut server,
@@ -4338,7 +4338,7 @@ async fn chat_text_returns_a_labelled_numeric_refusal() {
     .await;
     assert!(matches!(
         within(sent).await.unwrap(),
-        Err(Error::Server(error)) if error.kind() == crate::Refusal::CannotSendToChannel
+        Err(Error::Server(error)) if error.refusal() == crate::Refusal::CannotSendToChannel
     ));
 
     within(server.shutdown()).await.unwrap();

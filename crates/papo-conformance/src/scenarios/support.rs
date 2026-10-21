@@ -63,7 +63,7 @@ pub(super) fn assert_refusal(error: Error, expected: Refusal, code: &str) {
     let Error::Server(refusal) = error else {
         panic!("operation did not return a server refusal: {error:?}");
     };
-    assert_eq!(refusal.kind(), expected);
+    assert_eq!(refusal.refusal(), expected);
     assert_eq!(refusal.code(), code);
 }
 

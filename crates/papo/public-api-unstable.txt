@@ -2357,9 +2357,10 @@ impl papo::ServerError
 pub fn papo::ServerError::code(&self) -> &str
 pub fn papo::ServerError::command(&self) -> &str
 pub fn papo::ServerError::description(&self) -> &str
-pub const fn papo::ServerError::kind(&self) -> papo::Refusal
-pub fn papo::ServerError::numeric(u16, alloc::vec::Vec<alloc::string::String>) -> Self
+pub fn papo::ServerError::from_numeric(u16, alloc::vec::Vec<alloc::string::String>) -> Self
+pub const fn papo::ServerError::numeric(&self) -> core::option::Option<u16>
 pub fn papo::ServerError::params(&self) -> &[alloc::string::String]
+pub const fn papo::ServerError::refusal(&self) -> papo::Refusal
 pub fn papo::ServerError::standard(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>, alloc::vec::Vec<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::clone::Clone for papo::ServerError
 pub fn papo::ServerError::clone(&self) -> Self
