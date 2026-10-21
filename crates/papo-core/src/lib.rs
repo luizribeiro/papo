@@ -3529,6 +3529,7 @@ impl Session {
                 message,
                 self.welcome_state.nick(),
                 self.isupport.value(),
+                self.caps.enabled(),
                 self.no_implicit_names(),
                 MetadataContext {
                     max_keys: state::MAX_METADATA_KEYS_PER_TARGET,
@@ -4015,6 +4016,7 @@ impl Session {
             &message.as_ref(),
             self.welcome_state.nick(),
             self.isupport.value(),
+            self.caps.enabled(),
             self.no_implicit_names(),
             MetadataContext {
                 max_keys: state::MAX_METADATA_KEYS_PER_TARGET,

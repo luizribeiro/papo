@@ -339,7 +339,7 @@ async fn unknown_numeric_and_vendor_command_are_other_lines() {
 
     server_line(
         &mut server,
-        b"@time=2026-10-20T12:00:00.000Z :ergo.test 777 papo-driver :Network-specific reply\r\n:irc.example ENCAP * REALHOST bob client.example\r\n",
+        b"@time=2026-10-20T12:00:00.000Z :ergo.test 777 papo-driver :Network-specific reply\r\n:irc.example ENCAP * REALHOST bob client.example\r\n:ergo.test PERSISTENCE STATUS DEFAULT ON\r\n",
     )
     .await;
     let numeric = events.next().await.unwrap();
@@ -353,6 +353,10 @@ async fn unknown_numeric_and_vendor_command_are_other_lines() {
         Some(Event::Other(line))
             if line.command() == "ENCAP"
                 && line.params() == ["*", "REALHOST", "bob", "client.example"]
+    ));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Other(line)) if line.command() == "PERSISTENCE"
     ));
 
     within(server.shutdown()).await.unwrap();

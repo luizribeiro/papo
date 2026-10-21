@@ -22,15 +22,15 @@ use papo_proto::{
 };
 
 use crate::{
-    Authorship, Config, Conversation, Event, Handled, LastSeen, MetadataValue, ModeArg, ModeChange,
-    NameKey, Outbox, ReadMarker, Source, StateLimit, Subject, WhoOnJoin,
+    Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, MetadataValue,
+    ModeArg, ModeChange, NameKey, Outbox, ReadMarker, Source, StateLimit, Subject, WhoOnJoin,
     conversation::classify_target,
     monitor::{Monitor, presence_nicks},
     typing::{Typer, TypingTable},
 };
 #[cfg(feature = "unstable")]
 use crate::{
-    BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, bouncer::NetworkUpdate,
+    BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, bouncer::NetworkUpdate, cap,
 };
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
@@ -382,6 +382,7 @@ impl State {
         message: &LineRef<'_>,
         own_nick: &str,
         isupport: &Isupport,
+        #[cfg_attr(not(feature = "unstable"), allow(unused_variables))] enabled_caps: &Capabilities,
         no_implicit_names: bool,
         metadata: MetadataContext,
         own_away_message: Option<&str>,
@@ -397,11 +398,13 @@ impl State {
             return Handled::Yes;
         }
         #[cfg(feature = "unstable")]
-        if self.handle_persistence(message, outbox) {
+        if enabled_caps.contains_key(&cap::PERSISTENCE) && self.handle_persistence(message, outbox)
+        {
             return Handled::Yes;
         }
         #[cfg(feature = "unstable")]
-        if self.handle_bouncer(message, outbox) {
+        if enabled_caps.contains_key(&cap::BOUNCER_NETWORKS) && self.handle_bouncer(message, outbox)
+        {
             return Handled::Yes;
         }
         self.remember_last_seen(message, own_nick);
