@@ -305,6 +305,45 @@ impl State {
     pub fn mask(&self, text: impl AsRef<str>) -> Mask {
         self.casemapping().mask(text)
     }
+
+    /// Reports whether two masks identify the same server list entry.
+    ///
+    /// Bare nickname masks compare as their canonical `nick!*@*` form. Account
+    /// extended-ban names and letters compare as the same typed entry.
+    #[must_use]
+    pub fn same_list_entry(&self, a: &Mask, b: impl AsRef<str>) -> bool {
+        let b = self.mask(b);
+        match (self.parse_extban(a), self.parse_extban(&b)) {
+            (Some(a), Some(b)) => a == b,
+            (Some(_), None) | (None, Some(_)) => false,
+            (None, None) => canonical_list_mask(a) == canonical_list_mask(&b),
+        }
+    }
+
+    /// Parses an account extended ban advertised by the current server.
+    #[must_use]
+    pub fn parse_extban(&self, mask: &Mask) -> Option<crate::Extban> {
+        let syntax = self.isupport.extban()?;
+        let body = match syntax.prefix {
+            Some(prefix) => mask.strip_prefix(prefix)?,
+            None => mask.as_ref(),
+        };
+        let (kind, account) = body.split_once(':')?;
+        if !self.isupport.accountextban().contains(&kind)
+            || crate::Extban::account(account).is_err()
+        {
+            return None;
+        }
+        Some(crate::Extban::Account(self.account_name(account)))
+    }
+}
+
+fn canonical_list_mask(mask: &Mask) -> Mask {
+    if mask.contains(['!', '@']) {
+        mask.clone()
+    } else {
+        mask.casemapping().mask(format!("{mask}!*@*"))
+    }
 }
 
 const FEATURES: &[Feature] = &[
@@ -349,7 +388,7 @@ mod name_tests {
     use papo_core::{Config, Session};
 
     use super::State;
-    use crate::Casemapping;
+    use crate::{Casemapping, Extban};
 
     fn state_with_isupport(line: &str) -> State {
         let mut session = Session::new(Config::default());
@@ -424,6 +463,61 @@ mod name_tests {
         assert!(state.is_valid_channel("&staff"));
         assert!(state.is_valid_channel("#papo"));
         assert!(!state.is_valid_channel("papo"));
+    }
+
+    #[test]
+    fn parses_advertised_account_extban_names_and_letters() {
+        let cases = [
+            (
+                ":solanum.example 005 papo ACCOUNTEXTBAN=a CHANMODES=eIbq,k,flj,CFLPQcgimnprstz EXTBAN=$,a :are supported",
+                ["$a:Alice", "$a:Alice"],
+            ),
+            (
+                ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXTBAN=~,acfijmnpqrtACFGOST :are supported",
+                ["~account:Alice", "~a:Alice"],
+            ),
+            (
+                ":irc.inspircd.example 005 papo ACCOUNTEXTBAN=account,R CHANMODES=b,k,l,MRimnprst EXTBAN=,RU :are supported",
+                ["account:Alice", "R:Alice"],
+            ),
+        ];
+        for (line, spellings) in cases {
+            let state = state_with_isupport(line);
+            for spelling in spellings {
+                assert!(matches!(
+                    state.parse_extban(&state.mask(spelling)),
+                    Some(Extban::Account(account)) if account == "alice"
+                ));
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_unadvertised_and_malformed_extbans() {
+        let ergo = state_with_isupport(
+            ":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu EXTBAN=,m :are supported",
+        );
+        for value in ["m:*!*@staff.example", "$a:alice", "account:alice"] {
+            assert_eq!(ergo.parse_extban(&ergo.mask(value)), None);
+        }
+
+        let unreal = state_with_isupport(
+            ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXTBAN=~,acfijmnpqrtACFGOST :are supported",
+        );
+        for value in ["account:alice", "~quiet:alice", "~account:bo?"] {
+            assert_eq!(unreal.parse_extban(&unreal.mask(value)), None);
+        }
+    }
+
+    #[test]
+    fn compares_canonical_and_named_list_entries() {
+        let state = state_with_isupport(
+            ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXTBAN=~,acfijmnpqrtACFGOST :are supported",
+        );
+        assert!(state.same_list_entry(&state.mask("Bob"), "bob!*@*"));
+        assert!(state.same_list_entry(&state.mask("~a:Alice"), "~account:alice"));
+        assert!(!state.same_list_entry(&state.mask("Bob"), "alice!*@*"));
+        assert!(!state.same_list_entry(&state.mask("~a:Alice"), "*!*@staff.example"));
     }
 }
 

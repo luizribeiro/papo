@@ -220,7 +220,10 @@ name_identifier!(Nick, "An IRC nickname.");
 name_identifier!(ChannelName, "An IRC channel name.");
 name_identifier!(AccountName, "An IRC account name.");
 identifier!(Address, "An IRC wire address chosen by the caller.");
-name_identifier!(Mask, "An IRC user or channel mask.");
+name_identifier!(
+    Mask,
+    "An IRC user or channel mask. High-level clients can compare server list entries with `papo::State::same_list_entry`."
+);
 identifier!(MetadataKey, "An IRC metadata key.");
 identifier!(
     MessageId,

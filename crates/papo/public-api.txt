@@ -2322,8 +2322,10 @@ pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::
 pub fn papo::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>
 pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::nickname(&self, impl core::convert::AsRef<str>) -> papo::Nick
+pub fn papo::State::parse_extban(&self, &papo::Mask) -> core::option::Option<papo::Extban>
 pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::time::SystemTime>
 pub fn papo::State::realname(&self) -> &str
+pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::supports(&self, papo::Feature) -> bool
 pub fn papo::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo::Typer>
 pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::User>
