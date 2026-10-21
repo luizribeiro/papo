@@ -1156,14 +1156,14 @@ async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
     let mapping = alice.state().casemapping();
     let mask = mapping.mask("reviewer!*@trusted.example");
     alice.join(&channel).await?;
+    alice
+        .mode(&channel)
+        .ban_exception(&mask)
+        .invite_exception(&mask)
+        .await?;
     let support = alice.state().isupport().clone();
     let except = support.excepts().unwrap();
     let invex = support.invex().unwrap();
-    alice
-        .mode(&channel)
-        .add_with(except, mask.as_ref())
-        .add_with(invex, mask.as_ref())
-        .await?;
 
     // List-mode numerics are the public evidence for stored exception masks.
     let exceptions = alice
@@ -1192,8 +1192,8 @@ async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
 
     alice
         .mode(&channel)
-        .remove_with(except, mask.as_ref())
-        .remove_with(invex, mask.as_ref())
+        .remove_ban_exception(&mask)
+        .remove_invite_exception(&mask)
         .await?;
     let cleared = alice
         .request_raw(papo::Line::new("MODE", [&channel, &except.to_string()]))

@@ -178,6 +178,30 @@ impl SetModes {
         )
     }
 
+    /// Adds `target` to the channel ban-exception list.
+    #[must_use]
+    pub fn ban_exception(self, target: impl Into<BanTarget>) -> Self {
+        self.optional_list(true, crate::Feature::Excepts, target)
+    }
+
+    /// Removes `target` from the channel ban-exception list.
+    #[must_use]
+    pub fn remove_ban_exception(self, target: impl Into<BanTarget>) -> Self {
+        self.optional_list(false, crate::Feature::Excepts, target)
+    }
+
+    /// Adds `target` to the channel invite-exception list.
+    #[must_use]
+    pub fn invite_exception(self, target: impl Into<BanTarget>) -> Self {
+        self.optional_list(true, crate::Feature::Invex, target)
+    }
+
+    /// Removes `target` from the channel invite-exception list.
+    #[must_use]
+    pub fn remove_invite_exception(self, target: impl Into<BanTarget>) -> Self {
+        self.optional_list(false, crate::Feature::Invex, target)
+    }
+
     /// Grants channel-operator privileges to `nick`.
     #[must_use]
     pub fn op(self, nick: impl AsRef<str>) -> Self {
@@ -222,6 +246,19 @@ impl SetModes {
     fn optional_prefix(self, set: bool, feature: crate::Feature, nick: impl AsRef<str>) -> Self {
         let nick = self.client.state().nickname(nick.as_ref());
         self.change(set, Selector::Optional(feature), Some(Argument::Nick(nick)))
+    }
+
+    fn optional_list(
+        self,
+        set: bool,
+        feature: crate::Feature,
+        target: impl Into<BanTarget>,
+    ) -> Self {
+        self.change(
+            set,
+            Selector::Optional(feature),
+            Some(Argument::Ban(target.into())),
+        )
     }
 
     fn change(mut self, set: bool, mode: Selector, arg: Option<Argument>) -> Self {
@@ -781,5 +818,22 @@ mod tests {
                 ..
             }))
         ));
+    }
+
+    #[test]
+    fn resolves_exception_letters_from_isupport() {
+        let state =
+            state(":example.test 005 papo EXCEPTS=x INVEX=j CHANMODES=xjb,k,l,imnst :supported");
+        for (feature, expected) in [(Feature::Excepts, 'x'), (Feature::Invex, 'j')] {
+            let change = Change {
+                set: true,
+                mode: Selector::Optional(feature),
+                arg: Some(Argument::Mask(state.mask("reviewer!*@trusted.example"))),
+            };
+            assert!(matches!(
+                change.resolve(&state).unwrap().mode,
+                Selector::Letter(mode) if mode == expected
+            ));
+        }
     }
 }
