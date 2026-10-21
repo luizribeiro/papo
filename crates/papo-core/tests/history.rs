@@ -55,14 +55,7 @@ fn transmitted(session: &mut Session) -> String {
 fn builds_labelled_latest_and_before_requests() {
     let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
     session
-        .chathistory(
-            now,
-            HistoryQuery::Latest {
-                target: "#papo".into(),
-                after: None,
-                limit: 50,
-            },
-        )
+        .chathistory(now, HistoryQuery::__latest("#papo".into(), None, 50))
         .unwrap();
     assert_eq!(
         transmitted(&mut session),
@@ -71,11 +64,11 @@ fn builds_labelled_latest_and_before_requests() {
     session
         .chathistory(
             now,
-            HistoryQuery::Before {
-                target: "#papo".into(),
-                before: MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
-                limit: 25,
-            },
+            HistoryQuery::__before(
+                "#papo".into(),
+                MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
+                25,
+            ),
         )
         .unwrap();
     assert_eq!(
@@ -90,11 +83,11 @@ fn uses_timestamps_when_they_are_the_only_reference_type() {
     session
         .chathistory(
             now,
-            HistoryQuery::After {
-                target: "#papo".into(),
-                after: MsgRef::Timestamp(UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999)),
-                limit: 50,
-            },
+            HistoryQuery::__after(
+                "#papo".into(),
+                MsgRef::Timestamp(UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999)),
+                50,
+            ),
         )
         .unwrap();
     assert_eq!(
@@ -104,11 +97,11 @@ fn uses_timestamps_when_they_are_the_only_reference_type() {
     assert_eq!(
         session.chathistory(
             now,
-            HistoryQuery::Before {
-                target: "#papo".into(),
-                before: MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
-                limit: 50,
-            }
+            HistoryQuery::__before(
+                "#papo".into(),
+                MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
+                50
+            )
         ),
         Err(RequestError::InvalidMessageReference)
     );
@@ -119,11 +112,11 @@ fn uses_timestamps_when_they_are_the_only_reference_type() {
     session
         .chathistory(
             now,
-            HistoryQuery::Before {
-                target: "#papo".into(),
-                before: MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
-                limit: 50,
-            },
+            HistoryQuery::__before(
+                "#papo".into(),
+                MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
+                50,
+            ),
         )
         .unwrap();
     assert_eq!(
@@ -133,11 +126,11 @@ fn uses_timestamps_when_they_are_the_only_reference_type() {
     assert_eq!(
         session.chathistory(
             now,
-            HistoryQuery::Before {
-                target: "#papo".into(),
-                before: MsgRef::Msgid("UnknownErgoMessageId".into()),
-                limit: 50,
-            }
+            HistoryQuery::__before(
+                "#papo".into(),
+                MsgRef::Msgid("UnknownErgoMessageId".into()),
+                50
+            )
         ),
         Err(RequestError::InvalidMessageReference)
     );
@@ -149,11 +142,11 @@ fn honors_each_advertised_reference_type() {
     session
         .chathistory(
             now,
-            HistoryQuery::Before {
-                target: "#papo".into(),
-                before: MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
-                limit: 25,
-            },
+            HistoryQuery::__before(
+                "#papo".into(),
+                MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
+                25,
+            ),
         )
         .unwrap();
     assert_eq!(
@@ -163,11 +156,11 @@ fn honors_each_advertised_reference_type() {
     assert_eq!(
         session.chathistory(
             now,
-            HistoryQuery::After {
-                target: "#papo".into(),
-                after: MsgRef::Timestamp(UNIX_EPOCH + Duration::from_secs(1_760_529_342)),
-                limit: 25,
-            }
+            HistoryQuery::__after(
+                "#papo".into(),
+                MsgRef::Timestamp(UNIX_EPOCH + Duration::from_secs(1_760_529_342)),
+                25
+            )
         ),
         Err(RequestError::InvalidMessageReference)
     );
@@ -179,22 +172,22 @@ fn allows_both_reference_types_when_msgreftypes_is_absent() {
     session
         .chathistory(
             now,
-            HistoryQuery::Before {
-                target: "#papo".into(),
-                before: MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
-                limit: 50,
-            },
+            HistoryQuery::__before(
+                "#papo".into(),
+                MsgRef::Msgid("2Zl7JeYG6I8fG9q1lJ55BQ".into()),
+                50,
+            ),
         )
         .unwrap();
     assert!(transmitted(&mut session).contains(" msgid=2Zl7JeYG6I8fG9q1lJ55BQ "));
     session
         .chathistory(
             now,
-            HistoryQuery::After {
-                target: "#papo".into(),
-                after: MsgRef::Timestamp(UNIX_EPOCH + Duration::from_secs(1_760_529_342)),
-                limit: 50,
-            },
+            HistoryQuery::__after(
+                "#papo".into(),
+                MsgRef::Timestamp(UNIX_EPOCH + Duration::from_secs(1_760_529_342)),
+                50,
+            ),
         )
         .unwrap();
     assert!(transmitted(&mut session).contains(" timestamp=2025-10-15T11:55:42.000Z "));
@@ -204,14 +197,7 @@ fn allows_both_reference_types_when_msgreftypes_is_absent() {
 fn honors_the_server_advertised_history_limit() {
     let (mut limited, now) = history_session("CHATHISTORY=100 MSGREFTYPES=msgid,timestamp");
     limited
-        .chathistory(
-            now,
-            HistoryQuery::Latest {
-                target: "#papo".into(),
-                after: None,
-                limit: 101,
-            },
-        )
+        .chathistory(now, HistoryQuery::__latest("#papo".into(), None, 101))
         .unwrap();
     assert_eq!(
         transmitted(&mut limited),
