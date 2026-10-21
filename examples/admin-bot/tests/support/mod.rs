@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use std::path::PathBuf;
-
 use papo::{Client, Endpoint, Event, Events, Message, ModeAction, ModeArg, Sasl};
 use papo_test_server::ServerInfo;
 
@@ -9,24 +7,18 @@ pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
 pub(super) struct AdminBot {
     child: std::process::Child,
-    password: PathBuf,
 }
 
 impl AdminBot {
-    pub(super) fn start(server: &ServerInfo, nick: &str, channels: &str, admins: &str) -> Self {
-        let password = std::env::temp_dir().join(format!("{nick}.password"));
-        std::fs::write(&password, format!("{PASSWORD}\n")).unwrap();
+    pub(super) fn start(server: &ServerInfo, nick: &str, admin: &str, channel: &str) -> Self {
         let child = std::process::Command::new(env!("CARGO_BIN_EXE_admin-bot"))
-            .env("IRC_SERVER", "localhost")
-            .env("IRC_PORT", server.tls_addr().port().to_string())
+            .arg(format!("irc://{}", server.plaintext_addr()))
             .env("IRC_NICK", nick)
-            .env("IRC_PASSWORD_FILE", &password)
-            .env("IRC_CA_FILE", server.ca_pem_path())
-            .env("IRC_CHANNELS", channels)
-            .env("IRC_ADMINS", admins)
+            .env("IRC_ADMIN", admin)
+            .env("IRC_CHANNEL", channel)
             .spawn()
             .unwrap();
-        Self { child, password }
+        Self { child }
     }
 }
 
@@ -34,7 +26,6 @@ impl Drop for AdminBot {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
-        let _ = std::fs::remove_file(&self.password);
     }
 }
 

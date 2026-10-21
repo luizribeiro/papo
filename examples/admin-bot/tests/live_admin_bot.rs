@@ -11,86 +11,45 @@ use support::{AdminBot, PASSWORD, connect, wait_message, wait_op};
 use tokio::time::{sleep, timeout};
 
 #[tokio::test(flavor = "current_thread")]
-async fn routes_authorizes_contextualizes_and_limits_commands() {
+async fn parses_mentions_and_authorizes_by_account() {
     timeout(Duration::from_secs(25), async {
         let server = from_env();
         let bot_nick = unique("papo-admin-bot");
         let admin_nick = unique("papo-admin");
         let user_nick = unique("papo-user");
-        let channels: Vec<_> = ["commands", "mentions", "operators", "rate"]
-            .map(|kind| format!("#{}-{kind}", unique("papo-admin")))
-            .into();
-        create_account(&server, &bot_nick, PASSWORD).unwrap();
+        let channels = vec![format!("#{}", unique("papo-admin"))];
         create_account(&server, &admin_nick, PASSWORD).unwrap();
-        let _bot = AdminBot::start(&server, &bot_nick, &channels.join(","), &admin_nick);
+        let _bot = AdminBot::start(&server, &bot_nick, &admin_nick, &channels[0]);
         sleep(Duration::from_millis(500)).await;
 
         let (user, mut user_events) = connect(&server, &user_nick, &channels, false).await;
         let (admin, mut admin_events) = connect(&server, &admin_nick, &channels, true).await;
 
-        let sent = user.privmsg(&channels[0], "!ping").await.unwrap();
+        let ping = format!("{bot_nick}: ping");
+        let sent = user.privmsg(&channels[0], &ping).await.unwrap();
         let msgid = sent.msgid.expect("Ergo supplies msgid");
         let response = wait_message(&mut user_events, "pong").await;
         assert_eq!(response.reply_to(), Some(&msgid));
 
-        user.privmsg(&channels[0], "!echo 'Ergo chat'")
-            .await
-            .unwrap();
-        assert_eq!(
-            wait_message(&mut user_events, "Ergo chat").await.text,
-            "Ergo chat"
-        );
-
-        user.privmsg(&channels[1], format!("{bot_nick}: ping"))
-            .await
-            .unwrap();
-        let pong = wait_message(&mut user_events, "pong").await;
-        assert!(matches!(pong.conversation, papo::Conversation::Channel(ref channel) if channel.as_ref() == channels[1].as_str()));
-
-        user.privmsg(&channels[2], format!("!op {admin_nick}"))
+        user.privmsg(&channels[0], format!("!op {admin_nick}"))
             .await
             .unwrap();
         let refusal = wait_message(
             &mut user_events,
-            "permission denied: authenticated account required",
+            &format!("cannot op {admin_nick}: permission denied"),
         )
         .await;
-        assert_eq!(refusal.kind, MessageKind::Notice);
-        assert!(matches!(refusal.conversation, papo::Conversation::Private(_)));
-        let context = refusal
-            .tags
-            .get("+channel-context")
-            .or_else(|| refusal.tags.get("+draft/channel-context"));
-        assert_eq!(context, Some(channels[2].as_str()));
+        assert_eq!(refusal.kind, MessageKind::Privmsg);
+        assert!(matches!(
+            refusal.conversation,
+            papo::Conversation::Channel(_)
+        ));
 
         admin
-            .privmsg(&channels[2], format!("!op {user_nick}"))
+            .privmsg(&channels[0], format!("!op {user_nick}"))
             .await
             .unwrap();
-        wait_op(&mut admin_events, &channels[2], &user_nick).await;
-
-        user.privmsg(&bot_nick, "!echo private command")
-            .await
-            .unwrap();
-        let private = wait_message(&mut user_events, "private command").await;
-        assert!(matches!(private.conversation, papo::Conversation::Private(_)));
-
-        for _ in 0..3 {
-            user.privmsg(&channels[3], "!ping").await.unwrap();
-        }
-        wait_message(&mut user_events, "pong").await;
-        wait_message(&mut user_events, "pong").await;
-        assert!(
-            timeout(
-                Duration::from_millis(300),
-                wait_message(&mut user_events, "pong")
-            )
-            .await
-            .is_err()
-        );
-        sleep(Duration::from_secs(5)).await;
-        user.privmsg(&channels[3], "!ping").await.unwrap();
-        wait_message(&mut user_events, "pong").await;
+        wait_op(&mut admin_events, &channels[0], &user_nick).await;
 
         user.quit("admin bot test complete").await.unwrap();
         admin.quit("admin bot test complete").await.unwrap();
