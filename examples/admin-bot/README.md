@@ -6,8 +6,7 @@ threaded replies, and private notices carrying channel context. It accepts `!pin
 `admin-bot: ping`.
 
 Replies are limited independently for each channel or private conversation to two during any
-five-second window. Further replies are dropped. On native systems, SIGINT and SIGTERM send
-`QUIT :shutting down` before exit. WASI runs until the connection ends.
+five-second window. Further replies are dropped.
 
 Configuration comes from the environment:
 

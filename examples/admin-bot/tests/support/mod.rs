@@ -1,10 +1,9 @@
 #![allow(dead_code)]
 
-use std::{path::PathBuf, time::Duration};
+use std::path::PathBuf;
 
 use papo::{Client, Endpoint, Event, Events, Message, ModeAction, ModeArg, Sasl};
 use papo_test_server::ServerInfo;
-use tokio::time::{sleep, timeout};
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
@@ -28,25 +27,6 @@ impl AdminBot {
             .spawn()
             .unwrap();
         Self { child, password }
-    }
-
-    pub(super) async fn shutdown(&mut self) {
-        let status = std::process::Command::new("kill")
-            .args(["-TERM", &self.child.id().to_string()])
-            .status()
-            .unwrap();
-        assert!(status.success());
-        let status = timeout(Duration::from_secs(10), async {
-            loop {
-                if let Some(status) = self.child.try_wait().unwrap() {
-                    return status;
-                }
-                sleep(Duration::from_millis(10)).await;
-            }
-        })
-        .await
-        .expect("admin bot did not exit within 10 seconds");
-        assert_eq!(status.code(), Some(0));
     }
 }
 

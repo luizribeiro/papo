@@ -22,7 +22,7 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
             .into();
         create_account(&server, &bot_nick, PASSWORD).unwrap();
         create_account(&server, &admin_nick, PASSWORD).unwrap();
-        let mut bot = AdminBot::start(&server, &bot_nick, &channels.join(","), &admin_nick);
+        let _bot = AdminBot::start(&server, &bot_nick, &channels.join(","), &admin_nick);
         sleep(Duration::from_millis(500)).await;
 
         let (user, mut user_events) = connect(&server, &user_nick, &channels, false).await;
@@ -92,7 +92,6 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
         user.privmsg(&channels[3], "!ping").await.unwrap();
         wait_message(&mut user_events, "pong").await;
 
-        bot.shutdown().await;
         user.quit("admin bot test complete").await.unwrap();
         admin.quit("admin bot test complete").await.unwrap();
     })

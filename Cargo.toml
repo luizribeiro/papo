@@ -12,6 +12,7 @@ members = [
   "examples/lurker",
   "examples/admin-bot",
   "examples/echo-bot",
+  "examples/graceful-shutdown",
   "examples/catchup",
   "examples/create-account",
   "examples/browser-worker",

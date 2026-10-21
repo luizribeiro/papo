@@ -60,6 +60,21 @@ The project is early in development; the API is not yet stable.
 Use `papo_proto::strip_formatting` when IRC formatting controls should be removed while
 preserving the message text.
 
+## Running and shutting down
+
+`Client::builder(...).connect()` needs a running tokio runtime on native targets. It spawns the
+driver and waits for the first connection to finish. For explicit driver ownership, call
+`build()`, spawn or otherwise poll the returned `Driver` first, and only then await client
+actions. An action cannot complete while its driver is not being polled.
+
+`Events::next()` is cancel-safe. Dropping a request future does not prove whether its command
+reached the driver, while dropping the driver ends the event stream without a final
+`Event::Disconnected`. It is safe to wrap `connect()` in a timeout; the builder also has a
+`connect_timeout` setting.
+
+The [graceful shutdown example](examples/graceful-shutdown) handles SIGINT and SIGTERM and awaits
+`Client::quit()` before the process exits.
+
 ## WASI
 
 `wasm32-wasip2` and `wasm32-wasip3` need `--cfg tokio_unstable`; this repository sets it for

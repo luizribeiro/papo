@@ -3,7 +3,7 @@
 use std::{env, error::Error, io, time::Duration};
 
 use papo::{
-    Client, Endpoint, Error as PapoError, Event, Events, Sasl,
+    Client, Endpoint, Error as PapoError, Event, Sasl,
     bot::{BotConfig, ReplyRateLimiter},
 };
 
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
         builder = builder.tls_ca_pem(std::fs::read(ca_file)?);
     }
-    let (client, events) = builder.connect().await?;
+    let (client, mut events) = builder.connect().await?;
     let admins: Vec<_> = admins
         .split(',')
         .map(str::trim)
@@ -33,7 +33,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect();
     let config =
         BotConfig::new("!").reply_limiter(ReplyRateLimiter::new(2, Duration::from_secs(5))?);
-    run(client, events, &config, &admins).await?;
+    while let Some(event) = events.next().await {
+        handle(&client, &event, &config, &admins).await?;
+    }
     Ok(())
 }
 
@@ -44,50 +46,6 @@ fn endpoint(host: String) -> Result<Endpoint, Box<dyn Error>> {
     } else {
         Endpoint::tls(host, port)
     })
-}
-
-#[cfg(not(target_os = "wasi"))]
-async fn run(
-    client: Client,
-    mut events: Events,
-    config: &BotConfig,
-    admins: &[String],
-) -> Result<(), PapoError> {
-    let shutdown = shutdown_signal();
-    tokio::pin!(shutdown);
-    loop {
-        tokio::select! {
-            signal = &mut shutdown => {
-                signal.map_err(|error| {
-                    PapoError::Disconnected(papo::Disconnected::new(
-                        papo::DisconnectCause::Protocol {
-                            message: error.to_string(),
-                        },
-                        None,
-                    ))
-                })?;
-                client.quit("shutting down").await?;
-                return Ok(());
-            }
-            event = events.next() => match event {
-                Some(event) => handle(&client, &event, config, admins).await?,
-                None => return Ok(()),
-            },
-        }
-    }
-}
-
-#[cfg(all(target_os = "wasi", not(target_env = "p1")))]
-async fn run(
-    client: Client,
-    mut events: Events,
-    config: &BotConfig,
-    admins: &[String],
-) -> Result<(), PapoError> {
-    while let Some(event) = events.next().await {
-        handle(&client, &event, config, admins).await?;
-    }
-    Ok(())
 }
 
 async fn handle(
@@ -144,20 +102,6 @@ async fn handle(
         _ => {}
     }
     Ok(())
-}
-
-#[cfg(unix)]
-async fn shutdown_signal() -> io::Result<()> {
-    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-    tokio::select! {
-        result = tokio::signal::ctrl_c() => result,
-        _ = terminate.recv() => Ok(()),
-    }
-}
-
-#[cfg(all(not(unix), not(target_os = "wasi")))]
-async fn shutdown_signal() -> io::Result<()> {
-    tokio::signal::ctrl_c().await
 }
 
 fn required(name: &str) -> io::Result<String> {
