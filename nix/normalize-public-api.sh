@@ -12,7 +12,7 @@ expressions=(
 )
 if [[ ${PAPO_PUBLIC_API_FACADE:-} == 1 ]]; then
   expressions+=(
-    -e 's#papo_core::(BatchAbandonReason|CtcpReplies|ModeAction|ModeArg|ModeChange|PersistenceSetting|PersistenceStatus|StateLimit)#papo::\1#g'
+    -e 's#papo_core::(BatchAbandonReason|CtcpReplies|ModeAction|ModeArg|ModeChange|PersistenceSetting|PersistenceStatus|StateLimit|WhoOnJoin)#papo::\1#g'
   )
 fi
 sed -E "${expressions[@]}"
