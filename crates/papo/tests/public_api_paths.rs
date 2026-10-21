@@ -5,6 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 const STABLE: &str = include_str!("../public-api.txt");
 const UNSTABLE: &str = include_str!("../public-api-unstable.txt");
 const BOT: &str = include_str!("../../papo-bot/public-api.txt");
+const CORE: &str = include_str!("../../papo-core/public-api.txt");
+const CORE_UNSTABLE: &str = include_str!("../../papo-core/public-api-unstable.txt");
+const PROTO: &str = include_str!("../../papo-proto/public-api.txt");
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ConversationClass {
@@ -209,6 +212,9 @@ fn struct_like_variants_are_non_exhaustive() {
         ("papo", STABLE),
         ("papo unstable", UNSTABLE),
         ("papo-bot", BOT),
+        ("papo-core", CORE),
+        ("papo-core unstable", CORE_UNSTABLE),
+        ("papo-proto", PROTO),
     ] {
         assert_eq!(
             unsealed_struct_variants(snapshot),
