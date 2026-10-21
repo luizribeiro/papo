@@ -19,6 +19,7 @@ pub use papo::MetadataKey
 pub use papo::MetadataValue
 pub use papo::ModeAction
 pub use papo::ModeArg
+pub use papo::ModeChange
 pub use papo::NetworkConfig
 pub use papo::NetworkId
 pub use papo::NetworkState
@@ -152,6 +153,7 @@ pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::ModeAction
 pub use papo::event::ModeArg
+pub use papo::event::ModeChange
 pub use papo::event::PersistenceSetting
 pub use papo::event::PersistenceStatus
 pub use papo::event::Source
@@ -530,33 +532,11 @@ impl core::marker::Unpin for papo::event::MetadataChanged
 impl core::marker::UnsafeUnpin for papo::event::MetadataChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MetadataChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::MetadataChanged
-#[non_exhaustive] pub struct papo::event::ModeChange
-pub papo::event::ModeChange::action: papo::LegacyModeAction
-pub papo::event::ModeChange::arg: core::option::Option<papo::LegacyModeArg>
-pub papo::event::ModeChange::kind: papo::ModeKind
-pub papo::event::ModeChange::mode: char
-pub papo::event::ModeChange::raw_arg: core::option::Option<alloc::string::String>
-pub papo::event::ModeChange::set: bool
-impl core::clone::Clone for papo::event::ModeChange
-pub fn papo::event::ModeChange::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::ModeChange
-impl core::cmp::PartialEq for papo::event::ModeChange
-pub fn papo::event::ModeChange::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::ModeChange
-pub fn papo::event::ModeChange::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::ModeChange
-impl core::marker::Freeze for papo::event::ModeChange
-impl core::marker::Send for papo::event::ModeChange
-impl core::marker::Sync for papo::event::ModeChange
-impl core::marker::Unpin for papo::event::ModeChange
-impl core::marker::UnsafeUnpin for papo::event::ModeChange
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ModeChange
-impl core::panic::unwind_safe::UnwindSafe for papo::event::ModeChange
 #[non_exhaustive] pub struct papo::event::ModeChanged
 pub papo::event::ModeChanged::account: core::option::Option<papo::AccountName>
 pub papo::event::ModeChanged::actor: papo::Source
 pub papo::event::ModeChanged::authorship: papo::Authorship
-pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::event::ModeChange>
+pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::ModeChange>
 pub papo::event::ModeChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::ModeChanged::subject: papo::Subject
 pub papo::event::ModeChanged::subject_authorship: papo::Authorship

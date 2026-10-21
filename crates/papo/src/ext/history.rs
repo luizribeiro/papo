@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, LegacyModeAction as ModeAction, Line, Message as ChatMessage, Origin,
+    Client, Error, Line, Message as ChatMessage, Origin,
     driver::Command,
     event::{
         Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,
@@ -440,10 +440,7 @@ fn mode_changed(
     )
     .map(|change| {
         crate::event_impl::typed_mode_change(
-            match change.action {
-                papo_proto::ModeAction::Add => ModeAction::Add,
-                papo_proto::ModeAction::Remove => ModeAction::Remove,
-            },
+            change.action,
             change.mode,
             change.arg,
             change.kind,
@@ -1317,7 +1314,7 @@ mod tests {
                     && event
                         .changes
                         .iter()
-                        .all(|change| change.action == crate::LegacyModeAction::Add)
+                        .all(|change| crate::mode_action(change) == crate::LegacyModeAction::Add)
                     && event.changes[0].mode == 'i' && event.changes[1].mode == 'm'
         ));
 

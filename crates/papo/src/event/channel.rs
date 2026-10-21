@@ -4,6 +4,9 @@ use crate::{Account, AccountName, Authorship, ChannelName, MessageId, Nick, Subj
 
 use super::Source;
 
+#[doc(hidden)]
+pub type EventModeChange = papo_core::ModeChange;
+
 /// The operation applied to an IRC mode.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LegacyModeAction {
@@ -43,6 +46,7 @@ pub enum ModeKind {
     Unknown,
 }
 
+#[allow(dead_code)]
 impl ModeKind {
     pub(crate) const fn from_proto(kind: papo_proto::ModeKind) -> Self {
         match kind {
@@ -166,24 +170,6 @@ pub struct TopicChanged {
     pub authorship: Authorship,
 }
 
-/// An owned operation from an IRC mode string.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub struct ModeChange {
-    /// Whether the mode was set rather than removed.
-    pub set: bool,
-    /// The mode's advertised parameter behavior.
-    pub kind: ModeKind,
-    /// The raw mode argument, when supplied by the server.
-    pub raw_arg: Option<String>,
-    /// Whether the mode was added or removed.
-    pub action: LegacyModeAction,
-    /// The argument classified using the server's advertised rules.
-    pub arg: Option<LegacyModeArg>,
-    /// The mode letter.
-    pub mode: char,
-}
-
 /// A user or channel mode changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -203,7 +189,7 @@ pub struct ModeChanged {
     /// Whether the distinct subject is this client's user.
     pub subject_authorship: Authorship,
     /// Parsed mode operations in wire order.
-    pub changes: Vec<ModeChange>,
+    pub changes: Vec<EventModeChange>,
 }
 
 /// A joined channel was renamed.

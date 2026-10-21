@@ -30,7 +30,7 @@ mod user;
 pub use crate::metadata::Visibility;
 pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, LegacyModeAction, LegacyModeArg,
-    ModeChange, ModeChanged, ModeKind, Parted, TopicChanged,
+    ModeChanged, ModeKind, Parted, TopicChanged,
 };
 pub use connection::{
     CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged, Motd,
@@ -42,6 +42,7 @@ pub use conversation::{
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::PersistenceSetting;
 pub use papo_core::{BatchAbandonReason, StateLimit, TypingReason};
+pub use papo_core::{ModeAction, ModeArg, ModeChange};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use server::BouncerNetworkChanged;
@@ -1234,10 +1235,7 @@ pub(crate) fn from_core(
                 actor: source::from_name(&actor, casemapping),
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
-                changes: changes
-                    .into_iter()
-                    .map(|change| legacy_mode_change(change, casemapping))
-                    .collect(),
+                changes,
             })
         }
         papo_core::Event::TopicChanged {
@@ -1279,57 +1277,34 @@ pub(crate) fn from_core(
     })
 }
 
-fn legacy_mode_change(change: papo_core::ModeChange, casemapping: Casemapping) -> ModeChange {
-    let action = match change.action {
-        papo_core::ModeAction::Add => LegacyModeAction::Add,
-        papo_core::ModeAction::Remove => LegacyModeAction::Remove,
-    };
-    let (arg, kind) = match change.arg {
-        Some(papo_core::ModeArg::Nick(nick)) => {
-            (Some(nick.into_string()), papo_proto::ModeKind::Prefix(0))
-        }
-        Some(papo_core::ModeArg::Mask(mask)) => {
-            (Some(mask.into_string()), papo_proto::ModeKind::List)
-        }
-        Some(papo_core::ModeArg::Value(value)) => (Some(value), papo_proto::ModeKind::AlwaysArg),
-        Some(_) => (None, papo_proto::ModeKind::Unknown),
-        None => (None, papo_proto::ModeKind::NoArg),
-    };
-    typed_mode_change(action, change.mode, arg.as_deref(), kind, casemapping)
-}
-
 pub(crate) fn typed_mode_change(
-    action: LegacyModeAction,
+    action: ModeAction,
     mode: char,
     arg: Option<&str>,
     kind: papo_proto::ModeKind,
     casemapping: Casemapping,
 ) -> ModeChange {
-    let typed_arg = arg.map(|arg| match kind {
-        papo_proto::ModeKind::Prefix(_) => LegacyModeArg::Nick(casemapping.nick(arg)),
-        papo_proto::ModeKind::List => LegacyModeArg::Mask(casemapping.mask(arg)),
-        _ => LegacyModeArg::Value(arg.to_owned()),
-    });
-    ModeChange {
-        mode,
-        action,
-        arg: typed_arg,
-        set: action == LegacyModeAction::Add,
-        kind: ModeKind::from_proto(kind),
-        raw_arg: arg.map(str::to_owned),
-    }
+    typed_core_mode_change(action, mode, arg, kind, casemapping)
 }
 
 #[doc(hidden)]
 #[must_use]
 pub fn mode_action(change: &ModeChange) -> LegacyModeAction {
-    change.action
+    match change.action {
+        ModeAction::Add => LegacyModeAction::Add,
+        ModeAction::Remove => LegacyModeAction::Remove,
+    }
 }
 
 #[doc(hidden)]
 #[must_use]
 pub fn mode_arg(change: &ModeChange) -> Option<LegacyModeArg> {
-    change.arg.clone()
+    match change.arg.as_ref() {
+        Some(ModeArg::Nick(nick)) => Some(LegacyModeArg::Nick(nick.clone())),
+        Some(ModeArg::Mask(mask)) => Some(LegacyModeArg::Mask(mask.clone())),
+        Some(ModeArg::Value(value)) => Some(LegacyModeArg::Value(value.clone())),
+        Some(_) | None => None,
+    }
 }
 
 #[allow(dead_code)]
@@ -1353,9 +1328,9 @@ mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
-        Authorship, Conversation, CoreEvent, Event, LegacyModeAction as ModeAction,
-        LegacyModeArg as ModeArg, Message as ChatMessage, MessageKind, MetadataChanged, Origin,
-        Source, StandardReplyKind, Visibility, Warning, from_core as from_core_with_mapping,
+        Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageKind,
+        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Visibility,
+        Warning, from_core as from_core_with_mapping,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
