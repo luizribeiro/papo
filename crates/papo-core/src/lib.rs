@@ -2547,7 +2547,14 @@ impl Session {
             Ok(message) => {
                 let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
                     .map_or(usize::MAX, |limits| limits.max_bytes);
-                match self.batches.handle(now, &message, multiline_max_bytes) {
+                #[cfg(feature = "unstable")]
+                let bouncer_enabled = self.caps.enabled().contains_key(&cap::BOUNCER_NETWORKS);
+                #[cfg(not(feature = "unstable"))]
+                let bouncer_enabled = false;
+                match self
+                    .batches
+                    .handle(now, &message, multiline_max_bytes, bouncer_enabled)
+                {
                     BatchAction::Consumed => {}
                     BatchAction::Complete(events) => {
                         for event in events {

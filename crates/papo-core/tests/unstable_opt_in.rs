@@ -14,6 +14,9 @@ fn unstable_lines_remain_untyped_without_feature_selection() {
         )
         .server("BOUNCER NETWORK libera name=Libera\\sChat;state=connected")
         .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("BOUNCER")))
+        .server("BATCH +networks soju.im/bouncer-networks")
+        .server("@batch=networks BOUNCER NETWORK oftc name=OFTC;state=disconnected")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("BOUNCER")))
         .server(":ergo.test FAIL RELAYMSG BANNED #bridged :Relayed sender is banned")
         .event(|event| {
             matches!(event, Event::StandardReply(reply) if reply.refusal() == Some(Refusal::Other))

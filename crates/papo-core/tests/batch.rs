@@ -55,7 +55,7 @@ fn routes_soju_search_only_to_its_opening_request() {
 
 #[cfg(feature = "unstable")]
 #[test]
-fn discards_unrequested_and_overflowing_soju_search_results() {
+fn unrequested_soju_search_results_keep_their_stable_line_shape() {
     let now = Instant::now();
     let mut session = search_session(now, 1);
     session.handle_line(now, b":soju.example BATCH +search-42 soju.im/search");
@@ -64,10 +64,15 @@ fn discards_unrequested_and_overflowing_soju_search_results() {
         now,
         b"@batch=search-42 :bob NOTICE #papo :overflowing result",
     );
-    assert!(
-        matches!(session.poll_event(), Some(Event::BatchAbandoned { reason, .. })
-        if reason == BatchAbandonReason::LineLimit)
+    assert_eq!(line(&mut session).as_ref().param(1), Some("first result"));
+    assert_eq!(
+        line(&mut session).as_ref().param(1),
+        Some("overflowing result")
     );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reason, .. }) if reason == BatchAbandonReason::LineLimit
+    ));
     assert_eq!(session.poll_event(), None);
 }
 

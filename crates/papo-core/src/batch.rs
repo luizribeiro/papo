@@ -29,6 +29,7 @@ struct OpenBatch {
     lines: usize,
     bytes: usize,
     opened: Instant,
+    typed_aggregate: bool,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -116,6 +117,7 @@ impl Batches {
         now: Instant,
         message: &LineRef<'_>,
         multiline_max_bytes: usize,
+        bouncer_enabled: bool,
     ) -> BatchAction {
         if !message.command_is("BATCH") {
             return self.member(message, multiline_max_bytes);
@@ -124,7 +126,7 @@ impl Batches {
             return BatchAction::Dispatch(self.context(message));
         };
         if let Some(reference) = reference.strip_prefix('+') {
-            return self.open(now, message, reference);
+            return self.open(now, message, reference, bouncer_enabled);
         }
         if let Some(reference) = reference.strip_prefix('-') {
             return self.close(message, reference);
@@ -132,7 +134,13 @@ impl Batches {
         BatchAction::Dispatch(self.context(message))
     }
 
-    fn open(&mut self, now: Instant, message: &LineRef<'_>, reference: &str) -> BatchAction {
+    fn open(
+        &mut self,
+        now: Instant,
+        message: &LineRef<'_>,
+        reference: &str,
+        bouncer_enabled: bool,
+    ) -> BatchAction {
         let Some(kind) = message.param(1) else {
             return BatchAction::Dispatch(self.context(message));
         };
@@ -168,6 +176,7 @@ impl Batches {
                 lines: 0,
                 bytes: 0,
                 opened: now,
+                typed_aggregate: is_aggregate(kind, bouncer_enabled),
             },
         );
         BatchAction::Consumed
@@ -336,8 +345,6 @@ impl Batches {
     }
 
     fn abandon(&mut self, reference: &str, reason: BatchAbandonReason) -> Vec<BatchEvent> {
-        #[cfg(feature = "unstable")]
-        let suppress_messages = self.open[reference].kind == "soju.im/search";
         let references: Vec<_> = self
             .open
             .keys()
@@ -356,10 +363,6 @@ impl Batches {
         let mut messages = Vec::new();
         for candidate in references {
             let batch = self.open.remove(&candidate).expect("selected open batch");
-            #[cfg(feature = "unstable")]
-            if suppress_messages {
-                continue;
-            }
             messages.extend(batch.messages);
             for event in batch.completed {
                 collect_messages(event, &mut messages);
@@ -390,7 +393,7 @@ impl Batches {
         if let Some(reference) = ancestors
             .iter()
             .rev()
-            .find(|reference| is_aggregate(&self.open[*reference].kind))
+            .find(|reference| self.open[*reference].is_typed_aggregate())
         {
             aggregates.push(reference.clone());
         }
@@ -431,13 +434,15 @@ fn is_history(kind: &str) -> bool {
         || kind == cap::EVENT_PLAYBACK.as_str()
 }
 
-fn is_aggregate(kind: &str) -> bool {
+fn is_aggregate(kind: &str, bouncer_enabled: bool) -> bool {
     #[cfg(feature = "unstable")]
-    let bouncer = kind == cap::BOUNCER_NETWORKS.as_str();
+    let bouncer = bouncer_enabled && kind == cap::BOUNCER_NETWORKS.as_str();
     #[cfg(not(feature = "unstable"))]
-    let bouncer = false;
+    let bouncer = {
+        _ = bouncer_enabled;
+        false
+    };
     is_history(kind)
-        || cfg!(feature = "unstable") && kind == "soju.im/search"
         || bouncer
         || kind == cap::MULTILINE.as_str()
         || matches!(
@@ -448,7 +453,7 @@ fn is_aggregate(kind: &str) -> bool {
 
 impl OpenBatch {
     fn is_typed_aggregate(&self) -> bool {
-        is_aggregate(&self.kind)
+        self.typed_aggregate
     }
 }
 
@@ -672,7 +677,7 @@ mod tests {
 
     fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
         let message = LineRef::parse(line).unwrap();
-        match batches.handle(Instant::now(), &message, usize::MAX) {
+        match batches.handle(Instant::now(), &message, usize::MAX, false) {
             BatchAction::Consumed | BatchAction::Complete(_) => (false, None),
             BatchAction::Dispatch(context) => (true, context.batch_type().map(str::to_owned)),
         }
@@ -722,7 +727,8 @@ mod tests {
             (false, None)
         );
         let close = LineRef::parse("BATCH -h").unwrap();
-        let BatchAction::Complete(events) = batches.handle(Instant::now(), &close, usize::MAX)
+        let BatchAction::Complete(events) =
+            batches.handle(Instant::now(), &close, usize::MAX, false)
         else {
             panic!("history did not complete")
         };
