@@ -1279,8 +1279,10 @@ pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::Server(papo::ServerError)
 pub papo::Error::StateLimit(papo::StateLimit)
+pub papo::Error::TargetGone
 pub papo::Error::Timeout
 pub papo::Error::TooManyPendingRequests
+pub papo::Error::Unconfirmed
 pub papo::Error::UnexpectedReply
 pub papo::Error::UnexpectedReply::command: alloc::string::String
 pub papo::Error::Unsupported(papo::Unsupported)
@@ -2052,6 +2054,19 @@ impl core::marker::Unpin for papo::JoinChannel
 impl core::marker::UnsafeUnpin for papo::JoinChannel
 impl core::panic::unwind_safe::RefUnwindSafe for papo::JoinChannel
 impl core::panic::unwind_safe::UnwindSafe for papo::JoinChannel
+#[non_exhaustive] pub struct papo::KickbanOutcome
+pub papo::KickbanOutcome::kick: core::result::Result<(), papo::Error>
+impl core::clone::Clone for papo::KickbanOutcome
+pub fn papo::KickbanOutcome::clone(&self) -> Self
+impl core::fmt::Debug for papo::KickbanOutcome
+pub fn papo::KickbanOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::KickbanOutcome
+impl core::marker::Send for papo::KickbanOutcome
+impl core::marker::Sync for papo::KickbanOutcome
+impl core::marker::Unpin for papo::KickbanOutcome
+impl core::marker::UnsafeUnpin for papo::KickbanOutcome
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::KickbanOutcome
+impl !core::panic::unwind_safe::UnwindSafe for papo::KickbanOutcome
 #[non_exhaustive] pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
 pub papo::ListEntry::name: papo::ChannelName

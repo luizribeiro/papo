@@ -126,6 +126,14 @@ pub struct ModesApplied {
     pub refused: Vec<(ModeChange, Refusal)>,
 }
 
+/// Result of setting a ban before attempting to remove its target.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct KickbanOutcome {
+    /// Result of the kick; the confirmed ban remains set when this is an error.
+    pub kick: Result<(), Error>,
+}
+
 impl SetModes {
     /// Adds a mode that takes no argument.
     #[must_use]

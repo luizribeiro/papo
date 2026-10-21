@@ -469,6 +469,12 @@ pub enum Error {
     /// Server input exceeded a bounded state collection.
     #[error("server input exceeded the {0:?} state limit")]
     StateLimit(crate::StateLimit),
+    /// A requested state change could not be confirmed from server replies or state.
+    #[error("the IRC operation could not be confirmed")]
+    Unconfirmed,
+    /// The intended user left or changed nickname before the follow-up action.
+    #[error("the target user is no longer present")]
+    TargetGone,
     /// The server's reply did not have the shape required by its command.
     #[error("the server sent an unexpected reply to {command}")]
     UnexpectedReply {
@@ -620,6 +626,18 @@ mod tests {
         };
         assert!(disconnected.to_string().contains("maintenance"));
         assert_eq!(disconnected.retry_in, Some(Duration::from_secs(8)));
+    }
+
+    #[test]
+    fn kickban_terminal_errors_are_distinct() {
+        assert_eq!(
+            Error::Unconfirmed.to_string(),
+            "the IRC operation could not be confirmed"
+        );
+        assert_eq!(
+            Error::TargetGone.to_string(),
+            "the target user is no longer present"
+        );
     }
 
     #[test]

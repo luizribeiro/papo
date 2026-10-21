@@ -80,7 +80,7 @@ pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport::Isupport;
 pub use message_ref::MessageRef;
 pub use metadata::{MetadataValue, Visibility};
-pub use mode::{BanTarget, Extban, ModesApplied, SetModes};
+pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
 #[doc(inline)]
 pub use papo_core::Secret;
 #[doc(inline)]
