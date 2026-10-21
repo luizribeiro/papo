@@ -125,7 +125,7 @@ pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
-pub use state::{Account, Away, Channel, Member, State, User};
+pub use state::{Account, Away, Channel, Member, Rank, State, User};
 use state::{MetadataContext, StateSnapshot};
 use sts::ConnectionSecurity;
 pub use typing::{Typer, TypingChanged, TypingReason};

@@ -5,7 +5,7 @@ mod support;
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
-    Account, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange, RateLimit,
+    Account, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange, Rank, RateLimit,
     ResponseMatcher, Source, StateLimit, Subject, WhoOnJoin,
 };
 use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick};
@@ -710,8 +710,10 @@ fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
             assert_eq!(channel.members().count(), 3);
             let emily = channel.member("emily").unwrap();
             assert_eq!(emily.prefixes(), ['@', '+']);
-            assert!(emily.is_op());
-            assert!(!channel.member("alice").unwrap().is_op());
+            assert_eq!(emily.rank(), Some(Rank::Op));
+            assert!(emily.has(Rank::Op));
+            assert!(emily.has(Rank::Voice));
+            assert_eq!(channel.member("alice").unwrap().rank(), Some(Rank::Voice));
             assert_eq!(
                 session.state().user("dan").unwrap().host(),
                 Some("cloak.example")
@@ -970,13 +972,12 @@ fn distinguishes_prefix_rank_and_channel_mode_argument_branches() {
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.member("dan").unwrap().prefixes(), ['@', '+']);
-            assert_eq!(channel.member("dan").unwrap().highest_prefix(), Some('@'));
-            assert!(channel.member("dan").unwrap().is_voiced());
-            assert!(channel.member("dan").unwrap().is_halfop());
-            assert!(!channel.member("erin").unwrap().is_halfop());
-            assert!(!channel.member("erin").unwrap().is_voiced());
-            assert!(channel.member("frank").unwrap().is_op());
-            assert!(!channel.member("frank").unwrap().is_voiced());
+            assert_eq!(channel.member("dan").unwrap().rank(), Some(Rank::Op));
+            assert!(channel.member("dan").unwrap().has(Rank::Voice));
+            assert!(!channel.member("dan").unwrap().has(Rank::Halfop));
+            assert_eq!(channel.member("erin").unwrap().rank(), None);
+            assert_eq!(channel.member("frank").unwrap().rank(), Some(Rank::Op));
+            assert!(!channel.member("frank").unwrap().has(Rank::Voice));
             assert_eq!(channel.mode('l'), None);
             assert_eq!(channel.mode('m'), Some(None));
         })
@@ -1045,7 +1046,7 @@ fn no_implicit_names_ignores_an_empty_implicit_end_before_the_requested_names() 
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert!(channel.is_synced());
-            assert!(channel.member("emily").unwrap().is_voiced());
+            assert!(channel.member("emily").unwrap().has(Rank::Voice));
         })
         .no_event();
 }

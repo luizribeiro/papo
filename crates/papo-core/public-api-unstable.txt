@@ -843,6 +843,34 @@ impl core::marker::Unpin for papo_core::PersistenceSetting
 impl core::marker::UnsafeUnpin for papo_core::PersistenceSetting
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::PersistenceSetting
 impl core::panic::unwind_safe::UnwindSafe for papo_core::PersistenceSetting
+#[non_exhaustive] pub enum papo_core::Rank
+pub papo_core::Rank::Admin
+pub papo_core::Rank::Halfop
+pub papo_core::Rank::Op
+pub papo_core::Rank::Owner
+pub papo_core::Rank::Voice
+impl core::clone::Clone for papo_core::Rank
+pub fn papo_core::Rank::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::Rank
+impl core::cmp::Ord for papo_core::Rank
+pub fn papo_core::Rank::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_core::Rank
+pub fn papo_core::Rank::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_core::Rank
+pub fn papo_core::Rank::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo_core::Rank
+pub fn papo_core::Rank::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::Rank
+pub fn papo_core::Rank::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_core::Rank
+impl core::marker::StructuralPartialEq for papo_core::Rank
+impl core::marker::Freeze for papo_core::Rank
+impl core::marker::Send for papo_core::Rank
+impl core::marker::Sync for papo_core::Rank
+impl core::marker::Unpin for papo_core::Rank
+impl core::marker::UnsafeUnpin for papo_core::Rank
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Rank
+impl core::panic::unwind_safe::UnwindSafe for papo_core::Rank
 #[non_exhaustive] pub enum papo_core::Refusal
 pub papo_core::Refusal::AccountExists
 pub papo_core::Refusal::AccountLocked
@@ -1510,6 +1538,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::LineEnvelope
 impl core::panic::unwind_safe::UnwindSafe for papo_core::LineEnvelope
 pub struct papo_core::Member
 impl papo_core::Member
+pub fn papo_core::Member::has(&self, papo_core::Rank) -> bool
 pub fn papo_core::Member::has_prefix_at_least(&self, char) -> bool
 pub fn papo_core::Member::highest_prefix(&self) -> core::option::Option<char>
 pub fn papo_core::Member::is_halfop(&self) -> bool
@@ -1517,6 +1546,7 @@ pub fn papo_core::Member::is_op(&self) -> bool
 pub fn papo_core::Member::is_voiced(&self) -> bool
 pub fn papo_core::Member::nick(&self) -> &papo::Nick
 pub fn papo_core::Member::prefixes(&self) -> &[char]
+pub fn papo_core::Member::rank(&self) -> core::option::Option<papo_core::Rank>
 impl core::clone::Clone for papo_core::Member
 pub fn papo_core::Member::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Member

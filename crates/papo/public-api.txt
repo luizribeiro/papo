@@ -23,6 +23,7 @@ pub use papo::ModeAction
 pub use papo::ModeArg
 pub use papo::ModeChange
 pub use papo::Nick
+pub use papo::Rank
 pub use papo::RateLimit
 pub use papo::Refusal
 pub use papo::Sasl

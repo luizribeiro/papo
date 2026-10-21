@@ -98,6 +98,22 @@ pub struct Member {
     prefix_order: Arc<[Prefix]>,
 }
 
+/// A standard channel membership rank.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
+pub enum Rank {
+    /// May speak in a moderated channel.
+    Voice,
+    /// Has half-operator privileges.
+    Halfop,
+    /// Has channel-operator privileges.
+    Op,
+    /// Has channel-administrator privileges.
+    Admin,
+    /// Has channel-owner privileges.
+    Owner,
+}
+
 /// State known about a user sharing a channel or followed through MONITOR.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct User {
@@ -1135,6 +1151,26 @@ impl Member {
         &self.prefixes
     }
 
+    /// Returns the highest standard rank the member holds.
+    ///
+    /// Vendor-specific membership modes do not map to a standard rank.
+    #[must_use]
+    pub fn rank(&self) -> Option<Rank> {
+        self.prefix_order
+            .iter()
+            .filter(|prefix| self.prefixes.contains(&prefix.symbol))
+            .filter_map(|prefix| Rank::from_mode(prefix.mode))
+            .max()
+    }
+
+    /// Reports whether the member holds the exact standard rank.
+    #[must_use]
+    pub fn has(&self, rank: Rank) -> bool {
+        self.prefix_order.iter().any(|prefix| {
+            Rank::from_mode(prefix.mode) == Some(rank) && self.prefixes.contains(&prefix.symbol)
+        })
+    }
+
     /// Reports whether the member has the named prefix or any higher-ranked prefix.
     #[must_use]
     pub fn has_prefix_at_least(&self, prefix: char) -> bool {
@@ -1173,6 +1209,19 @@ impl Member {
     #[must_use]
     pub fn highest_prefix(&self) -> Option<char> {
         self.prefixes.first().copied()
+    }
+}
+
+impl Rank {
+    fn from_mode(mode: char) -> Option<Self> {
+        match mode {
+            'v' => Some(Self::Voice),
+            'h' => Some(Self::Halfop),
+            'o' => Some(Self::Op),
+            'a' => Some(Self::Admin),
+            'q' => Some(Self::Owner),
+            _ => None,
+        }
     }
 }
 

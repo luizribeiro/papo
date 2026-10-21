@@ -29,6 +29,7 @@ pub use papo::NetworkState
 pub use papo::Nick
 pub use papo::PersistenceSetting
 pub use papo::PersistenceStatus
+pub use papo::Rank
 pub use papo::RateLimit
 pub use papo::Refusal
 pub use papo::Sasl
