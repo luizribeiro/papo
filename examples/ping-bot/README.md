@@ -1,40 +1,17 @@
 # Ping bot
 
-This example connects as an authenticated IRC bot, joins configured channels, and answers live
-`!ping` messages with `pong`. Replies are threaded when the server supplies a message ID, in both
-channels and private messages. Echoes and history replays are ignored. On native systems,
-SIGINT and SIGTERM send `QUIT :shutting down` and wait at most ten seconds for a clean shutdown.
+This is the smallest complete bot: it connects, joins `#papo`, and answers each live `!ping`
+with a threaded `pong` reply. A failed reply is logged and the bot keeps running.
 
-Configuration comes from the environment:
-
-- `IRC_SERVER`: the server hostname;
-- `IRC_PORT`: optional service port (defaults to `6697`);
-- `IRC_PLAINTEXT`: when set, start without TLS while still honoring STS;
-- `IRC_NICK`: nickname and SASL PLAIN account name;
-- `IRC_PASSWORD_FILE`: file containing the SASL password (a trailing newline is trimmed);
-- `IRC_CA_FILE`: optional PEM file containing the trusted CA certificate;
-- `IRC_CHANNELS`: comma-separated channels to join.
-
-Run it natively from the repository root:
+Pass an `irc://` or `ircs://` server URL as the first argument. The nickname comes from
+`IRC_NICK` and defaults to `papo-ping`.
 
 ```sh
-IRC_SERVER=irc.example.test IRC_NICK=ping-bot \
-IRC_PASSWORD_FILE=/run/credentials/password IRC_CA_FILE=/run/credentials/irc-ca.pem \
-IRC_CHANNELS='#bots,#operators' \
-cargo run -p papo-ping-bot
+IRC_NICK=papo-ping cargo run -p papo-ping-bot -- ircs://irc.example.net
 ```
 
-Build it for WASI, then run it with Wasmtime. WASI has no process signals, so the bot runs until
-the connection ends:
+Sample output after a failed send:
 
-```sh
-cargo build -p papo-ping-bot --target wasm32-wasip2
-wasmtime run -S inherit-network -S allow-ip-name-lookup \
-  --dir /run/credentials \
-  --env IRC_SERVER=irc.example.test \
-  --env IRC_NICK=ping-bot \
-  --env IRC_PASSWORD_FILE=/run/credentials/password \
-  --env IRC_CA_FILE=/run/credentials/irc-ca.pem \
-  --env 'IRC_CHANNELS=#bots,#operators' \
-  target/wasm32-wasip2/debug/ping-bot.wasm
+```text
+could not reply: connection lost
 ```

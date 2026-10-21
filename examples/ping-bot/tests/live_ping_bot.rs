@@ -1,176 +1,77 @@
 //! Ping bot behavior against the runner-managed Ergo server.
-#![cfg(any(
-    not(target_family = "wasm"),
-    all(target_os = "wasi", not(target_env = "p1"))
-))]
+#![cfg(not(target_family = "wasm"))]
 
 use std::time::Duration;
 
-use papo::{Client, Endpoint, Event, Message};
-use papo_test_server::{ServerInfo, create_account, from_env, unique};
-use tokio::time::{sleep, timeout};
+use papo::{Client, Event, Message};
+use papo_test_server::{from_env, unique};
+use tokio::time::timeout;
 
-const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
+const CHANNEL: &str = "#papo";
 
 #[tokio::test(flavor = "current_thread")]
-async fn answers_channel_and_private_pings_then_shuts_down() {
+async fn joins_and_replies_to_channel_pings() {
     timeout(Duration::from_secs(20), async {
         let server = from_env();
         let bot_nick = unique("papo-ping-bot");
         let user_nick = unique("papo-ping-user");
-        let channel = format!("#{}", unique("papo-ping"));
-        create_account(&server, &bot_nick, PASSWORD).unwrap();
-        let mut bot = Bot::start(&server, &bot_nick, &channel).await;
-        sleep(Duration::from_millis(500)).await;
-
-        let endpoint = Endpoint::plaintext(
-            server.plaintext_addr().ip().to_string(),
-            server.plaintext_addr().port(),
-        );
-        let (user, mut events) = Client::builder(endpoint)
-            .nick(papo::Casemapping::default().nick(&user_nick))
-            .autojoin([&channel])
+        let server_url = format!("irc://{}", server.plaintext_addr());
+        let (user, mut events) = Client::builder(server_url.clone())
+            .nick(user_nick)
+            .autojoin([CHANNEL])
             .connect()
             .await
             .unwrap();
-        wait_synced(&mut events, &channel).await;
+        wait_for(&mut events, |event| {
+            matches!(event, Event::ChannelSynced(_))
+        })
+        .await;
 
-        let sent = user.privmsg(&channel, "!ping").await.unwrap();
-        let message_id = sent.msgid.expect("Ergo supplies msgid");
-        let response = wait_message(&mut events, "pong").await;
-        assert_eq!(response.reply_to(), Some(&message_id));
+        let _bot = Child(
+            std::process::Command::new(env!("CARGO_BIN_EXE_ping-bot"))
+                .arg(server_url)
+                .env("IRC_NICK", &bot_nick)
+                .spawn()
+                .unwrap(),
+        );
+        wait_for(
+            &mut events,
+            |event| matches!(event, Event::Joined(joined) if joined.nick == bot_nick.as_str()),
+        )
+        .await;
 
-        let sent = user.privmsg(&bot_nick, "!ping").await.unwrap();
-        let message_id = sent.msgid.expect("Ergo supplies msgid");
-        let response = wait_message(&mut events, "pong").await;
-        assert!(matches!(
-            response.conversation,
-            papo::Conversation::Private(_)
-        ));
-        assert_eq!(response.reply_to(), Some(&message_id));
+        let sent = user.privmsg(CHANNEL, "!ping").await.unwrap();
+        let reply = wait_message(&mut events, "pong").await;
+        assert_eq!(reply.reply_to(), sent.msgid.as_ref());
 
-        bot.shutdown().await;
         user.quit("ping bot test complete").await.unwrap();
     })
     .await
     .expect("live ping bot test did not finish within 20 seconds");
 }
 
-struct Bot {
-    #[cfg(not(target_os = "wasi"))]
-    process: (std::process::Child, std::path::PathBuf),
-    #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
-    session: (Client, tokio::task::JoinHandle<()>),
-}
+struct Child(std::process::Child);
 
-impl Bot {
-    #[cfg(not(target_os = "wasi"))]
-    fn start(server: &ServerInfo, nick: &str, channel: &str) -> std::future::Ready<Self> {
-        use std::process::Command;
-        let password_file = std::env::temp_dir().join(format!("{nick}.password"));
-        std::fs::write(&password_file, format!("{PASSWORD}\n")).unwrap();
-        let child = Command::new(env!("CARGO_BIN_EXE_ping-bot"))
-            .env("IRC_SERVER", "localhost")
-            .env("IRC_PORT", server.tls_addr().port().to_string())
-            .env("IRC_NICK", nick)
-            .env("IRC_PASSWORD_FILE", &password_file)
-            .env("IRC_CA_FILE", server.ca_pem_path())
-            .env("IRC_CHANNELS", channel)
-            .spawn()
-            .unwrap();
-        std::future::ready(Self {
-            process: (child, password_file),
-        })
-    }
-
-    #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
-    async fn start(server: &ServerInfo, nick: &str, channel: &str) -> Self {
-        let (client, mut events) =
-            Client::builder(Endpoint::tls("localhost", server.tls_addr().port()))
-                .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
-                .nick(nick)
-                .sasl(papo::Sasl::plain(nick, PASSWORD))
-                .bot()
-                .autojoin([channel])
-                .connect()
-                .await
-                .unwrap();
-        let bot = client.clone();
-        let task = tokio::spawn(async move {
-            while let Some(event) = events.next().await {
-                if let Event::Message(message) = event
-                    && message.is_live()
-                    && !message.is_own()
-                    && message.text == "!ping"
-                {
-                    bot.reply(&message, "pong").await.unwrap();
-                }
-            }
-        });
-        Self {
-            session: (client, task),
-        }
-    }
-
-    async fn shutdown(&mut self) {
-        #[cfg(not(target_os = "wasi"))]
-        {
-            let status = std::process::Command::new("kill")
-                .args(["-TERM", &self.process.0.id().to_string()])
-                .status()
-                .unwrap();
-            assert!(status.success());
-            let status = timeout(Duration::from_secs(10), async {
-                loop {
-                    if let Some(status) = self.process.0.try_wait().unwrap() {
-                        return status;
-                    }
-                    sleep(Duration::from_millis(10)).await;
-                }
-            })
-            .await
-            .expect("ping bot did not exit within 10 seconds");
-            assert_eq!(status.code(), Some(0));
-        }
-        #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
-        {
-            self.session.0.quit("ping bot test complete").await.unwrap();
-            (&mut self.session.1).await.unwrap();
-        }
-    }
-}
-
-#[cfg(not(target_os = "wasi"))]
-impl Drop for Bot {
+impl Drop for Child {
     fn drop(&mut self) {
-        let _ = self.process.0.kill();
-        let _ = self.process.0.wait();
-        let _ = std::fs::remove_file(&self.process.1);
+        let _ = self.0.kill();
+        let _ = self.0.wait();
     }
 }
 
-async fn wait_synced(events: &mut papo::Events, channel: &str) {
-    loop {
-        match events.next().await {
-            Some(Event::ChannelSynced(papo::event::ChannelSynced {
-                channel: synced, ..
-            })) if synced == channel => return,
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("join failed: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped while joining"),
+async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> bool) {
+    while let Some(event) = events.next().await {
+        if wanted(&event) {
+            return;
         }
     }
+    panic!("driver stopped before the expected event");
 }
 
 async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
     loop {
         match events.next().await {
             Some(Event::Message(message)) if message.text == text => return *message,
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("message failed: {disconnected}")
-            }
             Some(_) => {}
             None => panic!("driver stopped while waiting for {text}"),
         }
