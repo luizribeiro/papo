@@ -36,17 +36,17 @@ impl core::marker::UnsafeUnpin for papo_bot::BotConfig
 impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::BotConfig
 impl core::panic::unwind_safe::UnwindSafe for papo_bot::BotConfig
 pub struct papo_bot::Command
+pub papo_bot::Command::actor: papo::Source
 impl papo_bot::Command
-pub fn papo_bot::Command::account(&self) -> core::option::Option<&str>
+pub const fn papo_bot::Command::account(&self) -> core::option::Option<&papo::AccountName>
 pub fn papo_bot::Command::account_in<I, S>(&self, I) -> bool where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo_bot::Command::args(&self) -> &[alloc::string::String]
-pub fn papo_bot::Command::channel(&self) -> core::option::Option<&str>
+pub const fn papo_bot::Command::channel(&self) -> core::option::Option<&papo::ChannelName>
 pub const fn papo_bot::Command::client(&self) -> &papo::Client
 pub const fn papo_bot::Command::message(&self) -> &papo::Message
 pub fn papo_bot::Command::name(&self) -> &str
 pub async fn papo_bot::Command::private_notice(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
 pub async fn papo_bot::Command::reply(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
-pub fn papo_bot::Command::sender_nick(&self) -> core::option::Option<&str>
 impl core::clone::Clone for papo_bot::Command
 pub fn papo_bot::Command::clone(&self) -> Self
 impl core::fmt::Debug for papo_bot::Command

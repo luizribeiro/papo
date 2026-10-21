@@ -7,7 +7,10 @@ use std::{
 };
 use web_time::Instant;
 
-use papo::{Client, Conversation, InvalidRateLimit, Message as ChatMessage, MessageKind, Source};
+use papo::{
+    AccountName, ChannelName, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
+    MessageKind, Source,
+};
 
 const MAX_RATE_TARGETS: usize = 1024;
 
@@ -122,11 +125,13 @@ pub enum ReplyStatus {
 /// A parsed command from a live private message.
 #[derive(Clone, Debug)]
 pub struct Command {
+    /// The user or server that sent the command.
+    pub actor: Source,
     client: Client,
     message: ChatMessage,
     name: String,
     args: Vec<String>,
-    account: Option<String>,
+    account: Option<AccountName>,
     replies: ReplyRateLimiter,
 }
 
@@ -144,16 +149,17 @@ impl Command {
             return None;
         }
         let name = words.remove(0).to_ascii_lowercase();
-        let account = message.account.as_deref().map(str::to_owned).or_else(|| {
+        let account = message.account.clone().or_else(|| {
             let Source::User { nick, .. } = &message.actor else {
                 return None;
             };
             match client.state().user(nick)?.account() {
-                papo::Account::LoggedIn(account) => Some(account.as_ref().to_owned()),
+                papo::Account::LoggedIn(account) => Some(account.clone()),
                 _ => None,
             }
         });
         Some(Self {
+            actor: message.actor.clone(),
             client: client.clone(),
             message: message.clone(),
             name,
@@ -183,8 +189,8 @@ impl Command {
 
     /// Returns the sender's authenticated account, when known.
     #[must_use]
-    pub fn account(&self) -> Option<&str> {
-        self.account.as_deref()
+    pub const fn account(&self) -> Option<&AccountName> {
+        self.account.as_ref()
     }
 
     /// Reports whether the sender's account is in `accounts`.
@@ -194,20 +200,11 @@ impl Command {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        let state = self.client.state();
         self.account().is_some_and(|account| {
             accounts
                 .into_iter()
-                .any(|allowed| state.account_name(account) == allowed.as_ref())
+                .any(|allowed| account == allowed.as_ref())
         })
-    }
-
-    /// Returns the nickname that sent this command.
-    ///
-    /// Returns `None` for a server-sourced message.
-    #[must_use]
-    pub fn sender_nick(&self) -> Option<&str> {
-        self.message.actor.nick().map(AsRef::as_ref)
     }
 
     /// Returns the client that received this command.
@@ -218,7 +215,7 @@ impl Command {
 
     /// Returns the channel where the command was sent, if it was not private.
     #[must_use]
-    pub fn channel(&self) -> Option<&str> {
+    pub const fn channel(&self) -> Option<&ChannelName> {
         match &self.message.conversation {
             Conversation::Channel(channel) => Some(channel),
             _ => None,
@@ -343,7 +340,10 @@ mod tests {
     };
 
     use futures_io::{AsyncRead, AsyncWrite};
-    use papo::{Authorship, Casemapping, Client, Conversation, InvalidRateLimit, MessageKind};
+    use papo::{
+        AccountName, Authorship, Casemapping, ChannelName, Client, Conversation, InvalidRateLimit,
+        MessageKind, Nick,
+    };
     use papo_testing::MessageBuilder;
     use web_time::Instant;
 
@@ -421,7 +421,8 @@ mod tests {
             .account(Casemapping::Rfc1459.account("Emily"))
             .build();
         let command = parse(&tagged, &BotConfig::new("!")).unwrap();
-        assert_eq!(command.account(), Some("Emily"));
+        let account: Option<&AccountName> = command.account();
+        assert_eq!(account, Some(&Casemapping::Rfc1459.account("Emily")));
         assert!(command.account_in(["emily", "alice"]));
         assert!(!command.account_in(["carol"]));
 
@@ -456,7 +457,10 @@ mod tests {
     #[test]
     fn reports_channel_and_rejects_non_commands() {
         let channel = parse(&message("#papo", "!ping"), &BotConfig::new("!")).unwrap();
-        assert_eq!(channel.channel(), Some("#papo"));
+        let actor: Option<&Nick> = channel.actor.nick();
+        let channel_name: Option<&ChannelName> = channel.channel();
+        assert_eq!(actor, Some(&Casemapping::Rfc1459.nick("emily")));
+        assert_eq!(channel_name, Some(&Casemapping::Rfc1459.channel("#papo")));
         let private = parse(&message("papo{bot}", "!ping"), &BotConfig::new("!")).unwrap();
         assert_eq!(private.channel(), None);
 
