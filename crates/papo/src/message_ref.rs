@@ -124,6 +124,7 @@ mod tests {
             conversation: Conversation::Channel(mapping.channel("#ops")),
             status: Some(vec!['@']),
             id: Some("RfcBTzyxY120005".into()),
+            line_msgids: vec!["RfcBTzyxY120005".into()],
             time: Some(SystemTime::UNIX_EPOCH),
             fallbacks: Vec::new(),
         };

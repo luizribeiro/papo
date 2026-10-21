@@ -2333,6 +2333,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
 pub papo::Sent::conversation: papo::Conversation
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
 pub papo::Sent::id: core::option::Option<papo::MessageId>
+pub papo::Sent::line_msgids: alloc::vec::Vec<papo::MessageId>
 pub papo::Sent::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::Sent::time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::Sent

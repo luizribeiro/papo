@@ -249,6 +249,8 @@ enum PendingRequest {
         conversation: crate::Conversation,
         status: Option<Vec<char>>,
         fallbacks: Vec<crate::Fallback>,
+        remaining: usize,
+        confirmations: Vec<papo_core::SentInfo>,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
 }
@@ -262,28 +264,43 @@ impl PendingRequest {
         }
     }
 
-    fn respond(self, response: Response) {
+    fn respond(self, response: Response) -> Option<Self> {
         match self {
-            Self::Response(result) => _ = result.send(Ok(response)),
-            Self::AutoJoin { .. } => {}
+            Self::Response(result) => {
+                _ = result.send(Ok(response));
+                None
+            }
+            Self::AutoJoin { .. } => None,
             Self::Text {
                 conversation,
                 status,
                 fallbacks,
+                remaining,
+                mut confirmations,
                 result,
             } => {
-                let response = response.error().map_or_else(
-                    || {
-                        Ok(Sent::from_response(
-                            &response,
-                            conversation,
-                            status,
-                            fallbacks,
-                        ))
-                    },
-                    |error| Err(Error::server(error)),
-                );
-                _ = result.send(response);
+                if let Some(error) = response.error() {
+                    _ = result.send(Err(Error::server(error)));
+                    return None;
+                }
+                confirmations.extend(response.sent());
+                if remaining > 1 {
+                    return Some(Self::Text {
+                        conversation,
+                        status,
+                        fallbacks,
+                        remaining: remaining - 1,
+                        confirmations,
+                        result,
+                    });
+                }
+                _ = result.send(Ok(Sent::from_confirmations(
+                    &confirmations,
+                    conversation,
+                    status,
+                    fallbacks,
+                )));
+                None
             }
         }
     }
@@ -1028,7 +1045,14 @@ where
                                 fallbacks.push(crate::Fallback::SplitIntoLines);
                             }
                             if let Some(id) = sent.request {
-                                requests.insert(id, PendingRequest::Text { conversation, status, fallbacks, result });
+                                requests.insert(id, PendingRequest::Text {
+                                    conversation,
+                                    status,
+                                    fallbacks,
+                                    remaining: sent.confirmations,
+                                    confirmations: Vec::new(),
+                                    result,
+                                });
                             } else if let Some(token) = sent.transmit {
                                 transmits.insert(token, PendingTransmit::Text { conversation, status, fallbacks, result });
                             }
@@ -1393,6 +1417,7 @@ where
                         )));
                     }
                 } else if let Some(result) = requests.remove(&response.id) {
+                    let id = response.id;
                     if let PendingRequest::AutoJoin { channel } = result {
                         if let Some(error) = response.error() {
                             let event = Event::AutoJoinFailed {
@@ -1406,8 +1431,8 @@ where
                                 )));
                             }
                         }
-                    } else {
-                        result.respond(response);
+                    } else if let Some(result) = result.respond(response) {
+                        requests.insert(id, result);
                     }
                 }
             }

@@ -45,6 +45,8 @@ pub struct Sent {
     pub status: Option<Vec<char>>,
     /// Server-assigned identifier from a labelled echo.
     pub id: Option<crate::MessageId>,
+    /// Server-assigned identifiers for every confirmed IRC message line, in send order.
+    pub line_msgids: Vec<crate::MessageId>,
     /// Server time from a labelled echo.
     pub time: Option<SystemTime>,
     /// Compatibility fallbacks applied while sending.
@@ -222,26 +224,31 @@ impl Sent {
             conversation,
             status,
             id: None,
+            line_msgids: Vec::new(),
             time: None,
             fallbacks,
         }
     }
 
-    pub(crate) fn from_response(
-        response: &Response,
+    pub(crate) fn from_confirmations(
+        confirmations: &[papo_core::SentInfo],
         conversation: crate::Conversation,
         status: Option<Vec<char>>,
         fallbacks: Vec<Fallback>,
     ) -> Self {
-        match response.sent() {
-            Some(sent) => Self {
-                conversation,
-                status,
-                id: Some(sent.msgid.into()),
-                time: sent.time.and_then(|value| time::parse(&value)),
-                fallbacks,
-            },
-            None => Self::without_echo(conversation, status, fallbacks),
+        let line_msgids = confirmations
+            .iter()
+            .map(|sent| crate::MessageId::from(sent.msgid.clone()))
+            .collect::<Vec<_>>();
+        Self {
+            conversation,
+            status,
+            id: line_msgids.first().cloned(),
+            line_msgids,
+            time: confirmations
+                .iter()
+                .find_map(|sent| sent.time.as_deref().and_then(time::parse)),
+            fallbacks,
         }
     }
 }

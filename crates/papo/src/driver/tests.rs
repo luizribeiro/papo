@@ -4201,7 +4201,7 @@ async fn message_tag_obeys_clienttagdeny() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn chat_text_returns_metadata_from_a_labelled_echo() {
+async fn chat_text_returns_metadata_from_every_labelled_echo() {
     let config = config().wanted_caps(["echo-message", "labeled-response"]);
     let (mut server, client, _events, driver) = scripted(config);
     let task = tokio::spawn(driver);
@@ -4237,6 +4237,28 @@ async fn chat_text_returns_metadata_from_a_labelled_echo() {
         sent.time,
         Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
     );
+
+    let sender = client.clone();
+    let split = tokio::spawn(async move { sender.notice("#papo", "a".repeat(600)).await });
+    let lines = format!(
+        "@label=1 NOTICE #papo {}\r\n@label=1-1 NOTICE #papo {}\r\n",
+        "a".repeat(414),
+        "a".repeat(186)
+    );
+    client_line(&mut server, lines.as_bytes()).await;
+    server_line(
+        &mut server,
+        b"@label=1;msgid=RfcBTzyxY120005 :papo-driver!papo@localhost NOTICE #papo :first part\r\n",
+    )
+    .await;
+    assert!(!split.is_finished());
+    server_line(
+        &mut server,
+        b"@label=1-1;msgid=RfcBTzyxY120006 :papo-driver!papo@localhost NOTICE #papo :second part\r\n",
+    )
+    .await;
+    let split = within(split).await.unwrap().unwrap();
+    assert_eq!(split.line_msgids, ["RfcBTzyxY120005", "RfcBTzyxY120006"]);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
