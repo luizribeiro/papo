@@ -391,14 +391,26 @@ fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
     if let Some(argument) = &change.arg {
         argument.check(isupport)?;
     }
+    let kind = mode_kind(isupport, mode);
+    let accepts_arg = matches!(
+        kind,
+        ModeKind::List | ModeKind::AlwaysArg | ModeKind::Prefix(_)
+    ) || kind == ModeKind::ArgWhenSet && change.set;
+    if kind == ModeKind::Unknown || accepts_arg != change.arg.is_some() {
+        return Err(invalid("mode has an invalid argument"));
+    }
+    Ok(mode)
+}
+
+fn mode_kind(isupport: &Isupport, mode: char) -> ModeKind {
     let prefix = isupport
         .prefix()
         .into_iter()
         .any(|prefix| prefix.mode == mode);
     let Some(groups) = isupport.chanmodes() else {
-        return Err(invalid(format!("mode {mode} was not advertised")));
+        return ModeKind::Unknown;
     };
-    let kind = if prefix {
+    if prefix {
         ModeKind::Prefix(0)
     } else if groups.list.contains(mode) {
         ModeKind::List
@@ -410,15 +422,7 @@ fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
         ModeKind::NoArg
     } else {
         ModeKind::Unknown
-    };
-    let accepts_arg = matches!(
-        kind,
-        ModeKind::List | ModeKind::AlwaysArg | ModeKind::Prefix(_)
-    ) || kind == ModeKind::ArgWhenSet && change.set;
-    if kind == ModeKind::Unknown || accepts_arg != change.arg.is_some() {
-        return Err(invalid("mode has an invalid argument"));
     }
-    Ok(mode)
 }
 
 fn invalid(message: impl Into<String>) -> Error {
