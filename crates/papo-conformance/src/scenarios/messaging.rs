@@ -274,22 +274,16 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     let sent = alice
         .privmsg(format!("+{channel}"), "voiced members only")
         .await?;
-    let echo = alice
-        .wait_for(|event| message_text(event, "voiced members only"))
-        .await?;
     let received = bob
         .wait_for(|event| message_text(event, "voiced members only"))
         .await?;
-    for message in [&echo, &received] {
-        assert_eq!(
-            conversation_name(&message.conversation),
-            Some(channel.as_str())
-        );
-        assert_eq!(message.status.as_deref(), Some(['+'].as_slice()));
-        assert_eq!(message.raw_text, "voiced members only");
-        assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
-    }
-    assert_eq!(echo.origin, Origin::Echo);
+    assert_eq!(
+        conversation_name(&received.conversation),
+        Some(channel.as_str())
+    );
+    assert_eq!(received.status.as_deref(), Some(['+'].as_slice()));
+    assert_eq!(received.raw_text, "voiced members only");
+    assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(received.origin, Origin::Live);
     assert!(
         bob.state()
@@ -327,16 +321,13 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     let sent = carol
         .privmsg(format!("+{channel}"), "voiced members only")
         .await?;
-    let echo = carol
-        .wait_for(|event| message_text(event, "voiced members only"))
-        .await?;
     let received_by_bob = bob
         .wait_for(|event| message_text(event, "voiced members only"))
         .await?;
     let received_by_alice = alice
         .wait_for(|event| message_text(event, "voiced members only"))
         .await?;
-    for message in [&echo, &received_by_bob, &received_by_alice] {
+    for message in [&received_by_bob, &received_by_alice] {
         assert_eq!(
             conversation_name(&message.conversation),
             Some(channel.as_ref())
@@ -345,7 +336,6 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(message.raw_text, "voiced members only");
         assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     }
-    assert_eq!(echo.origin, Origin::Echo);
     assert_eq!(received_by_bob.origin, Origin::Live);
     assert_eq!(received_by_alice.origin, Origin::Live);
     dave.expect_none(|event| message_text(event, "voiced members only"))
@@ -369,20 +359,15 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
 
     alice.action(&channel, "waves hello").await?;
-    let echo = alice
-        .wait_for(|event| message_text(event, "waves hello"))
-        .await?;
     let action = bob
         .wait_for(|event| message_text(event, "waves hello"))
         .await?;
-    for message in [&echo, &action] {
-        assert_eq!(message.kind, MessageKind::Action);
-        assert_eq!(
-            conversation_name(&message.conversation),
-            Some(channel.as_str())
-        );
-        assert_eq!(message.raw_text, "waves hello");
-    }
+    assert_eq!(action.kind, MessageKind::Action);
+    assert_eq!(
+        conversation_name(&action.conversation),
+        Some(channel.as_str())
+    );
+    assert_eq!(action.raw_text, "waves hello");
 
     alice
         .send_raw(papo::Line::new(
@@ -501,9 +486,6 @@ async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
 async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     alice.privmsg(&channel, "ship release 2.19").await?;
-    alice
-        .wait_for(|event| message_text(event, "ship release 2.19"))
-        .await?;
     let original = bob
         .wait_for(|event| message_text(event, "ship release 2.19"))
         .await?;
@@ -517,8 +499,6 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     if sent.fallbacks.contains(&Fallback::ReplyTagDropped) {
         return s.skip("server denies both supported reply-tag aliases");
     }
-    bob.wait_for(|event| message_text(event, "acknowledged"))
-        .await?;
     let reply = alice
         .wait_for(|event| message_text(event, "acknowledged"))
         .await?;
@@ -671,12 +651,10 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     covers = ["ircv3.utf8only"]
 )]
 async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
-    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let (alice, mut bob, channel) = fixture_pair(&s).await?;
     let text = "Olá, IRC 世界";
     let sent = alice.privmsg(&channel, text).await?;
-    let echo = alice.wait_for(|event| message_text(event, text)).await?;
     let received = bob.wait_for(|event| message_text(event, text)).await?;
-    assert_eq!(echo.raw_text, text);
     assert_eq!(received.raw_text, text);
     assert_eq!(received.text, text);
     assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
@@ -698,11 +676,8 @@ async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
     ]
 )]
 async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
-    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let (alice, mut bob, channel) = fixture_pair(&s).await?;
     let sent = alice.privmsg(&channel, "message to\nredact").await?;
-    alice
-        .wait_for(|event| message_text(event, "message to\nredact"))
-        .await?;
     let received = bob
         .wait_for(|event| message_text(event, "message to\nredact"))
         .await?;

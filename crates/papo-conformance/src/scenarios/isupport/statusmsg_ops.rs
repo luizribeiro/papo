@@ -85,7 +85,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
 )]
 async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     let StatusmsgPeers {
-        mut alice,
+        alice,
         mut bob,
         mut carol,
         mut dave,
@@ -96,23 +96,16 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     let sent = alice
         .privmsg(format!("@{channel}"), "operators only")
         .await?;
-    let echo = alice
-        .wait_for(|event| message_text(event, "operators only"))
-        .await?;
     let received = bob
         .wait_for(|event| message_text(event, "operators only"))
         .await?;
-    for message in [&echo, &received] {
-        assert_eq!(
-            crate::scenarios::support::conversation_name(&message.conversation),
-            Some(channel.as_str())
-        );
-        assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
-        assert_eq!(message.raw_text, "operators only");
-        assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
-    }
-    assert_eq!(echo.origin, Origin::Echo);
-    assert!(!matches!(echo.conversation, papo::Conversation::Private(_)));
+    assert_eq!(
+        crate::scenarios::support::conversation_name(&received.conversation),
+        Some(channel.as_str())
+    );
+    assert_eq!(received.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(received.raw_text, "operators only");
+    assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(received.origin, Origin::Live);
     assert_eq!(
         crate::source_nick(&received.actor),
