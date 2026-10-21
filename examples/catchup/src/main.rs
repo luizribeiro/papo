@@ -43,13 +43,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let page = client.history(&channel).after(after).limit(100).await?;
             for message in page.messages() {
                 if matches!(
-                    message.kind(),
+                    message.kind,
                     MessageKind::Privmsg | MessageKind::Notice | MessageKind::Action
                 ) && !matches!(
-                    message.source(),
-                    Some(Source::User { ref nick, .. }) if nick == "HistServ"
+                    &message.actor,
+                    Source::User { nick, .. } if nick == "HistServ"
                 ) {
-                    println!("{channel} {}", message.text());
+                    println!("{channel} {}", message.text);
                 }
                 after = message.time();
                 newest = Some(after);

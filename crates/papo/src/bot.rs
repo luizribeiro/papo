@@ -134,7 +134,7 @@ pub struct Command {
 
 impl Command {
     fn parse(client: &Client, message: &ChatMessage, config: &BotConfig) -> Option<Self> {
-        if !message.is_live() || message.kind() != MessageKind::Privmsg {
+        if !message.is_live() || message.kind != MessageKind::Privmsg {
             return None;
         }
         let body = addressed_body(client, message, config)?;
@@ -143,11 +143,11 @@ impl Command {
             return None;
         }
         let name = words.remove(0).to_ascii_lowercase();
-        let account = message.account().map(str::to_owned).or_else(|| {
-            let Source::User { nick, .. } = message.source()? else {
+        let account = message.account.as_deref().map(str::to_owned).or_else(|| {
+            let Source::User { nick, .. } = &message.actor else {
                 return None;
             };
-            match client.state().user(&nick)?.account() {
+            match client.state().user(nick)?.account() {
                 papo_core::Account::LoggedIn(account) => Some(account.as_ref().to_owned()),
                 _ => None,
             }
@@ -286,14 +286,14 @@ fn addressed_body<'a>(
     message: &'a ChatMessage,
     config: &BotConfig,
 ) -> Option<&'a str> {
-    if let Some(body) = message.text().strip_prefix(&config.prefix) {
+    if let Some(body) = message.text.strip_prefix(&config.prefix) {
         return Some(body.trim_start());
     }
     if !config.mention {
         return None;
     }
-    let boundary = message.text().find([':', ','])?;
-    let (address, body) = message.text().split_at(boundary);
+    let boundary = message.text.find([':', ','])?;
+    let (address, body) = message.text.split_at(boundary);
     (client.state().nick() == address.trim()).then(|| body[1..].trim_start())
 }
 
@@ -378,7 +378,7 @@ mod tests {
         let command = parse(&message("!EcHo hello world"), &BotConfig::new("!")).unwrap();
         assert_eq!(command.name(), "echo");
         assert_eq!(command.args(), ["hello", "world"]);
-        assert_eq!(command.message().text(), "!EcHo hello world");
+        assert_eq!(command.message().text, "!EcHo hello world");
     }
 
     #[test]

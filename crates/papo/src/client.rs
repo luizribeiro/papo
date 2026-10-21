@@ -446,10 +446,10 @@ impl Client {
     /// Returns an error if the text is empty or invalid, or the driver has stopped.
     pub fn reply(&self, message: &crate::Message, text: impl Into<String>) -> SendMessage {
         let mut request = self.privmsg(message.return_address(), text);
-        if let Some(id) = message.id() {
+        if let Some(id) = &message.msgid {
             request = request.reply_to(id);
         }
-        if message.is_private()
+        if matches!(message.conversation, crate::Conversation::Private(_))
             && let Some(context) = message.channel_context()
         {
             request = request.channel_context(self.state().casemapping().channel(context));
@@ -467,7 +467,7 @@ impl Client {
             return Ok(());
         };
         let mut request = self.notice(target, text);
-        if let Some(id) = message.id() {
+        if let Some(id) = &message.msgid {
             request = request.reply_to(id);
         }
         let context = match &message.conversation {
@@ -543,7 +543,7 @@ impl Client {
         message: &crate::Message,
         emoji: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        let Some(id) = message.id() else {
+        let Some(id) = &message.msgid else {
             return crate::RequestFuture::new(async {
                 Err(InvalidInput::UnusableMessageReference.into())
             });
