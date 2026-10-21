@@ -1256,30 +1256,43 @@ pub(crate) fn from_core(
             authorship: Authorship::from_core(authorship),
             reason,
         }),
-        papo_core::Event::AccountChanged { nick, account } => {
-            Event::AccountChanged(AccountChanged {
-                nick,
-                account: match account {
-                    Account::LoggedIn(account) => Some(account),
-                    _ => None,
-                },
-            })
-        }
-        papo_core::Event::AwayChanged { nick, away } => {
-            Event::AwayChanged(AwayChanged { nick, away })
-        }
+        papo_core::Event::AccountChanged {
+            actor,
+            nick,
+            account,
+        } => Event::AccountChanged(AccountChanged {
+            actor: source::from_prefix(actor, casemapping),
+            nick,
+            account: match account {
+                Account::LoggedIn(account) => Some(account),
+                _ => None,
+            },
+        }),
+        papo_core::Event::AwayChanged { actor, nick, away } => Event::AwayChanged(AwayChanged {
+            actor: source::from_prefix(actor, casemapping),
+            nick,
+            away,
+        }),
         papo_core::Event::HostChanged {
+            actor,
             nick,
             username,
             host,
         } => Event::HostChanged(HostChanged {
+            actor: source::from_prefix(actor, casemapping),
             nick,
             username,
             host,
         }),
-        papo_core::Event::RealnameChanged { nick, realname } => {
-            Event::RealnameChanged(RealnameChanged { nick, realname })
-        }
+        papo_core::Event::RealnameChanged {
+            actor,
+            nick,
+            realname,
+        } => Event::RealnameChanged(RealnameChanged {
+            actor: source::from_prefix(actor, casemapping),
+            nick,
+            realname,
+        }),
         papo_core::Event::ModeChanged {
             envelope,
             subject,
@@ -2326,6 +2339,7 @@ mod tests {
     fn maps_account_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::AccountChanged {
+                actor: "emily!~em@users/emily".into(),
                 nick: Casemapping::default().nick("emily"),
                 account: Account::LoggedIn(Casemapping::default().account("emily")),
             }),
@@ -2338,6 +2352,7 @@ mod tests {
     fn maps_away_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::AwayChanged {
+                actor: "emily!~em@users/emily".into(),
                 nick: Casemapping::default().nick("emily"),
                 away: Away::Away {
                     message: Some("Gone to lunch".into()),
@@ -2355,6 +2370,7 @@ mod tests {
     fn maps_host_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::HostChanged {
+                actor: "emily!em@127.0.0.1".into(),
                 nick: Casemapping::default().nick("emily"),
                 username: "~em".into(),
                 host: "users/emily".into(),
@@ -2368,6 +2384,7 @@ mod tests {
     fn maps_realname_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::RealnameChanged {
+                actor: "emily!~em@users/emily".into(),
                 nick: Casemapping::default().nick("emily"),
                 realname: "Emily Smith".into(),
             }),

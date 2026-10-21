@@ -322,7 +322,7 @@ fn state_change_events_capture_the_advertised_ascii_casemapping() {
         .server(":Alice[bot]!alice@staff.example JOIN #Papo[dev]")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":Alice[bot]!alice@staff.example ACCOUNT Alice[acct]")
-        .event(|event| matches!(event, Event::AccountChanged { nick, account: Account::LoggedIn(account) } if nick.casemapping() == Casemapping::Ascii && account.casemapping() == Casemapping::Ascii))
+        .event(|event| matches!(event, Event::AccountChanged { nick, account: Account::LoggedIn(account), .. } if nick.casemapping() == Casemapping::Ascii && account.casemapping() == Casemapping::Ascii))
         .server(":Alice[bot]!alice@staff.example AWAY :Reviewing logs")
         .event(|event| matches!(event, Event::AwayChanged { nick, .. } if nick.casemapping() == Casemapping::Ascii && nick != "alice{bot}"))
         .server(":Alice[bot]!alice@staff.example CHGHOST alice users/alice")
@@ -448,7 +448,7 @@ fn account_notify_tracks_login_and_logout() {
             );
         })
         .server(":dan!~dan@cloak.example ACCOUNT dan")
-        .event_until(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedIn(Casemapping::default().account("dan"))))
+        .event_until(|event| matches!(event, Event::AccountChanged { actor, nick, account } if actor == "dan!~dan@cloak.example" && nick == "dan" && account == &Account::LoggedIn(Casemapping::default().account("dan"))))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
@@ -456,7 +456,7 @@ fn account_notify_tracks_login_and_logout() {
             );
         })
         .server(":dan!~dan@cloak.example ACCOUNT *")
-        .event(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedOut))
+        .event(|event| matches!(event, Event::AccountChanged { nick, account, .. } if nick == "dan" && account == &Account::LoggedOut))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
@@ -472,7 +472,7 @@ fn account_tag_fills_an_unknown_account() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server("@account=dan :dan!~dan@cloak.example PRIVMSG #papo :hello Emily")
-        .event_until(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "dan" && account == &Account::LoggedIn(Casemapping::default().account("dan"))))
+        .event_until(|event| matches!(event, Event::AccountChanged { nick, account, .. } if nick == "dan" && account == &Account::LoggedIn(Casemapping::default().account("dan"))))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
@@ -488,7 +488,7 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
         .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "dan" && message == "Gone to lunch"))
+        .event_until(|event| matches!(event, Event::AwayChanged { actor, nick, away: Away::Away { message: Some(message) } } if actor == "dan!~dan@cloak.example" && nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
@@ -498,7 +498,7 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
             );
         })
         .server(":dan!~dan@cloak.example AWAY")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present } if nick == "dan"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present, .. } if nick == "dan"))
         .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), &Away::Present))
         .ignore_rest();
 }
@@ -509,7 +509,7 @@ fn away_notify_separates_our_state_and_suppresses_repeated_messages() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "dan" && message == "Gone to lunch"))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(session.state().away(), &Away::Present);
             assert_eq!(
@@ -520,7 +520,7 @@ fn away_notify_separates_our_state_and_suppresses_repeated_messages() {
             );
         })
         .server(":emily!em@127.0.0.1 AWAY :On call")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "emily" && message == "On call"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "emily" && message == "On call"))
         .inspect(|session| {
             assert_eq!(
                 session.state().away(),
@@ -532,7 +532,7 @@ fn away_notify_separates_our_state_and_suppresses_repeated_messages() {
         .server(":emily!em@127.0.0.1 AWAY :On call")
         .no_event()
         .server(":emily!em@127.0.0.1 AWAY :Reviewing alerts")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "emily" && message == "Reviewing alerts"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "emily" && message == "Reviewing alerts"))
         .inspect(|session| {
             assert_eq!(
                 session.state().away(),
@@ -550,7 +550,7 @@ fn away_notify_star_records_an_unspecified_away_state() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
         .server(":dan!~dan@cloak.example AWAY *")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None } } if nick == "dan"))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None }, .. } if nick == "dan"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
@@ -589,7 +589,7 @@ fn whois_away_reply_records_the_message() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":ergo.test 301 emily dan :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "dan" && message == "Gone to lunch"))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
@@ -606,12 +606,12 @@ fn uncorrelated_away_numerics_report_an_unspecified_message() {
     Transcript::new(Config::default().nick("emily"))
         .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None } } if nick == "emily"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None }, .. } if nick == "emily"))
         .inspect(|session| {
             assert_eq!(session.state().away(), &Away::Away { message: None });
         })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present } if nick == "emily"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present, .. } if nick == "emily"))
         .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .no_event();
 }
@@ -630,7 +630,7 @@ fn own_away_confirmation_carries_the_requested_message() {
         })
         .client("AWAY :Reviewing the release notes")
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "emily" && message == "Reviewing the release notes"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "emily" && message == "Reviewing the release notes"))
         .inspect(|session| {
             assert_eq!(
                 session.state().away(),
@@ -682,9 +682,9 @@ fn chghost_updates_shared_and_own_userhosts() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":dan!~dan@cloak.example CHGHOST dan account/dan")
-        .event_until(|event| matches!(event, Event::HostChanged { nick, username, host } if nick == "dan" && username == "dan" && host == "account/dan"))
+        .event_until(|event| matches!(event, Event::HostChanged { actor, nick, username, host } if actor == "dan!~dan@cloak.example" && nick == "dan" && username == "dan" && host == "account/dan"))
         .server(":emily!em@127.0.0.1 CHGHOST ~em users/emily")
-        .event(|event| matches!(event, Event::HostChanged { nick, username, host } if nick == "emily" && username == "~em" && host == "users/emily"))
+        .event(|event| matches!(event, Event::HostChanged { nick, username, host, .. } if nick == "emily" && username == "~em" && host == "users/emily"))
         .inspect(|session| {
             let dan = session.state().user("dan").unwrap();
             assert_eq!(dan.username(), Some("dan"));
@@ -699,7 +699,7 @@ fn chghost_updates_shared_and_own_userhosts() {
 fn visible_host_numeric_updates_our_host() {
     Transcript::new(Config::default().nick("emily").username("~em"))
         .server(":ergo.test 396 emily gateway/tor-sasl :is now your displayed host")
-        .event(|event| matches!(event, Event::HostChanged { nick, username, host } if nick == "emily" && username == "~em" && host == "gateway/tor-sasl"))
+        .event(|event| matches!(event, Event::HostChanged { nick, username, host, .. } if nick == "emily" && username == "~em" && host == "gateway/tor-sasl"))
         .inspect(|session| assert_eq!(session.state().host(), Some("gateway/tor-sasl")))
         .no_event();
 }
@@ -710,9 +710,9 @@ fn setname_updates_other_and_own_realnames() {
         .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily Garcia")
     .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
     .server(":dan!~dan@cloak.example SETNAME :Dan Garcia")
-    .event_until(|event| matches!(event, Event::RealnameChanged { nick, realname } if nick == "dan" && realname == "Dan Garcia"))
+    .event_until(|event| matches!(event, Event::RealnameChanged { actor, nick, realname } if actor == "dan!~dan@cloak.example" && nick == "dan" && realname == "Dan Garcia"))
     .server(":emily!em@127.0.0.1 SETNAME :Emily Smith")
-    .event(|event| matches!(event, Event::RealnameChanged { nick, realname } if nick == "emily" && realname == "Emily Smith"))
+    .event(|event| matches!(event, Event::RealnameChanged { nick, realname, .. } if nick == "emily" && realname == "Emily Smith"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().realname(),

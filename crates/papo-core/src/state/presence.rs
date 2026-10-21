@@ -9,6 +9,7 @@ impl State {
         let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return;
         };
+        let actor = message.raw_source().unwrap_or(nick).to_owned();
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
             for (key, value) in message.tags() {
                 match (key, value) {
@@ -17,6 +18,7 @@ impl State {
                         if user.account != account {
                             user.account = account.clone();
                             outbox.event(Event::AccountChanged {
+                                actor: actor.clone(),
                                 nick: self.casemapping.nick(nick),
                                 account,
                             });
@@ -60,6 +62,7 @@ impl State {
             return Some(Handled::No);
         };
         let account = Account::from_notify(account.account, self.casemapping);
+        let actor = message.raw_source().unwrap_or(nick).to_owned();
         if crate::names_equal(self.casemapping, nick, &self.nick) {
             self.account = account.clone();
         }
@@ -68,6 +71,7 @@ impl State {
         {
             user.account = account.clone();
             outbox.event(Event::AccountChanged {
+                actor,
                 nick: self.casemapping.nick(nick),
                 account,
             });
@@ -110,6 +114,7 @@ impl State {
                 });
             if own_changed || user_changed {
                 outbox.event(Event::AwayChanged {
+                    actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
                     away: next,
                 });
@@ -129,6 +134,7 @@ impl State {
                     if user.away != next {
                         user.away = next.clone();
                         outbox.event(Event::AwayChanged {
+                            actor: nick.to_owned(),
                             nick: self.casemapping.nick(nick),
                             away: next,
                         });
@@ -138,6 +144,7 @@ impl State {
             Command::Numeric(Numeric::RPL_UNAWAY) if self.away != Away::Present => {
                 self.away = Away::Present;
                 outbox.event(Event::AwayChanged {
+                    actor: self.nick.to_string(),
                     nick: self.nick.clone(),
                     away: Away::Present,
                 });
@@ -147,6 +154,7 @@ impl State {
                     message: own_away_message.map(str::to_owned),
                 };
                 outbox.event(Event::AwayChanged {
+                    actor: self.nick.to_string(),
                     nick: self.nick.clone(),
                     away: self.away.clone(),
                 });
@@ -187,6 +195,7 @@ impl State {
         }
         self.host = Some(host.to_owned());
         outbox.event(Event::HostChanged {
+            actor: self.nick.to_string(),
             nick: self.nick.clone(),
             username: self.user.clone(),
             host: host.to_owned(),
@@ -211,6 +220,7 @@ impl State {
                 self.host = Some(change.host.to_owned());
             }
             outbox.event(Event::HostChanged {
+                actor: message.raw_source().unwrap_or(nick).to_owned(),
                 nick: self.casemapping.nick(nick),
                 username: change.user.to_owned(),
                 host: change.host.to_owned(),
@@ -225,6 +235,7 @@ impl State {
             change.realname.clone_into(&mut self.realname);
         }
         outbox.event(Event::RealnameChanged {
+            actor: message.raw_source().unwrap_or(nick).to_owned(),
             nick: self.casemapping.nick(nick),
             realname: change.realname.to_owned(),
         });

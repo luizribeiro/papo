@@ -161,6 +161,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Warning
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Warning
 #[non_exhaustive] pub struct papo::event::AccountChanged
 pub papo::event::AccountChanged::account: core::option::Option<papo::AccountName>
+pub papo::event::AccountChanged::actor: papo::Source
 pub papo::event::AccountChanged::nick: papo::Nick
 impl core::clone::Clone for papo::event::AccountChanged
 pub fn papo::event::AccountChanged::clone(&self) -> Self
@@ -178,6 +179,7 @@ impl core::marker::UnsafeUnpin for papo::event::AccountChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountChanged
 #[non_exhaustive] pub struct papo::event::AwayChanged
+pub papo::event::AwayChanged::actor: papo::Source
 pub papo::event::AwayChanged::away: papo::Away
 pub papo::event::AwayChanged::nick: papo::Nick
 impl core::clone::Clone for papo::event::AwayChanged
@@ -356,6 +358,7 @@ impl core::marker::UnsafeUnpin for papo::event::FeaturesChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::FeaturesChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::FeaturesChanged
 #[non_exhaustive] pub struct papo::event::HostChanged
+pub papo::event::HostChanged::actor: papo::Source
 pub papo::event::HostChanged::host: alloc::string::String
 pub papo::event::HostChanged::nick: papo::Nick
 pub papo::event::HostChanged::username: alloc::string::String
@@ -710,6 +713,7 @@ impl core::marker::UnsafeUnpin for papo::event::ReadMarkerChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ReadMarkerChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ReadMarkerChanged
 #[non_exhaustive] pub struct papo::event::RealnameChanged
+pub papo::event::RealnameChanged::actor: papo::Source
 pub papo::event::RealnameChanged::nick: papo::Nick
 pub papo::event::RealnameChanged::realname: alloc::string::String
 impl core::clone::Clone for papo::event::RealnameChanged

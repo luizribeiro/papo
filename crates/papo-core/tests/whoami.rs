@@ -55,7 +55,7 @@ fn whoami_reports_an_actual_realname_change() {
     welcomed("Old Name")
         .server(":Alice!~alice@users/alice SETNAME :Alice Example")
         .event(|event| {
-            matches!(event, Event::RealnameChanged { nick, realname }
+            matches!(event, Event::RealnameChanged { nick, realname, .. }
             if nick == "Alice" && realname == "Alice Example")
         });
 }

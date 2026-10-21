@@ -484,6 +484,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::Decoding
 #[non_exhaustive] pub enum papo_core::Event
 pub papo_core::Event::AccountChanged
 pub papo_core::Event::AccountChanged::account: papo_core::Account
+pub papo_core::Event::AccountChanged::actor: alloc::string::String
 pub papo_core::Event::AccountChanged::nick: papo::Nick
 pub papo_core::Event::AccountCreated
 pub papo_core::Event::AccountCreated::account: papo::AccountName
@@ -491,6 +492,7 @@ pub papo_core::Event::AccountCreated::logged_in: bool
 pub papo_core::Event::AuthenticationFailed
 pub papo_core::Event::AuthenticationFailed::reason: alloc::string::String
 pub papo_core::Event::AwayChanged
+pub papo_core::Event::AwayChanged::actor: alloc::string::String
 pub papo_core::Event::AwayChanged::away: papo_core::Away
 pub papo_core::Event::AwayChanged::nick: papo::Nick
 pub papo_core::Event::BatchAbandoned
@@ -524,6 +526,7 @@ pub papo_core::Event::History::end: bool
 pub papo_core::Event::History::items: alloc::vec::Vec<papo_core::HistoryItem>
 pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(papo::Conversation, std::time::SystemTime)>)
 pub papo_core::Event::HostChanged
+pub papo_core::Event::HostChanged::actor: alloc::string::String
 pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
 pub papo_core::Event::HostChanged::username: alloc::string::String
@@ -612,6 +615,7 @@ pub papo_core::Event::Quit::nick: papo::Nick
 pub papo_core::Event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::ReadMarkerChanged(papo_core::ReadMarker)
 pub papo_core::Event::RealnameChanged
+pub papo_core::Event::RealnameChanged::actor: alloc::string::String
 pub papo_core::Event::RealnameChanged::nick: papo::Nick
 pub papo_core::Event::RealnameChanged::realname: alloc::string::String
 pub papo_core::Event::Redacted(papo_core::Redacted)

@@ -254,6 +254,7 @@ impl Monitor {
                             });
                         } else if userhost_changed && let (Some(user), Some(host)) = (user, host) {
                             outbox.event(Event::HostChanged {
+                                actor: nick.to_owned(),
                                 nick: isupport.casemapping().nick(nick),
                                 username: user.to_owned(),
                                 host: host.to_owned(),

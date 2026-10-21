@@ -583,6 +583,7 @@ impl State {
         change.realname.clone_into(&mut self.realname);
         if realname_changed {
             outbox.event(Event::RealnameChanged {
+                actor: message.raw_source().unwrap_or(nick).to_owned(),
                 nick: self.casemapping.nick(nick),
                 realname: change.realname.to_owned(),
             });

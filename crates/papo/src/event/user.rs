@@ -50,6 +50,8 @@ pub struct NickChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct AwayChanged {
+    /// The affected user.
+    pub actor: Source,
     /// The affected user's nickname.
     pub nick: Nick,
     /// The user's new presence state.
@@ -60,6 +62,8 @@ pub struct AwayChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct AccountChanged {
+    /// The affected user.
+    pub actor: Source,
     /// The affected user's nickname.
     pub nick: Nick,
     /// The authenticated account, or `None` when logged out.
@@ -70,6 +74,8 @@ pub struct AccountChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct HostChanged {
+    /// The affected user.
+    pub actor: Source,
     /// The affected user's nickname.
     pub nick: Nick,
     /// The new username from `nick!user@host`.
@@ -82,6 +88,8 @@ pub struct HostChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct RealnameChanged {
+    /// The affected user.
+    pub actor: Source,
     /// The affected user's nickname.
     pub nick: Nick,
     /// The user's new real name.

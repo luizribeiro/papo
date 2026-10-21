@@ -2189,6 +2189,8 @@ pub enum Event {
     },
     /// A user's account state changed.
     AccountChanged {
+        /// The affected user's prefix.
+        actor: String,
         /// The affected user's nickname.
         nick: Nick,
         /// The user's new account state.
@@ -2196,6 +2198,8 @@ pub enum Event {
     },
     /// A user's away state changed.
     AwayChanged {
+        /// The affected user's prefix.
+        actor: String,
         /// The affected user's nickname.
         nick: Nick,
         /// The user's new presence state.
@@ -2203,6 +2207,8 @@ pub enum Event {
     },
     /// A user's username or hostname changed.
     HostChanged {
+        /// The affected user's prefix when known, otherwise their nickname.
+        actor: String,
         /// The affected user's nickname.
         nick: Nick,
         /// The new username from `nick!user@host`.
@@ -2212,6 +2218,8 @@ pub enum Event {
     },
     /// A user's real name changed.
     RealnameChanged {
+        /// The affected user's prefix.
+        actor: String,
         /// The affected user's nickname.
         nick: Nick,
         /// The user's new real name.
