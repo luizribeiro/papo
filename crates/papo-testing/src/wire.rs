@@ -39,6 +39,69 @@ pub fn wire(builder: papo::Builder) -> (papo::Client, papo::Events, Wire) {
 }
 
 impl Wire {
+    /// Completes connection setup with a representative Ergo server burst.
+    ///
+    /// `caps` are advertised in `CAP LS`. Capabilities requested by the client
+    /// are acknowledged before numerics 001 through 005 and a short MOTD.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the client does not send a valid default connection burst or
+    /// stops during capability negotiation.
+    pub async fn register(&mut self, caps: &[&str]) {
+        assert_eq!(self.next_sent().await, "CAP LS 302");
+        let nick_line = self.next_sent().await;
+        let nick = nick_line
+            .strip_prefix("NICK ")
+            .expect("client did not send NICK");
+        assert!(
+            self.next_sent().await.starts_with("USER "),
+            "client did not send USER"
+        );
+
+        self.server(format!(":offline.test CAP * LS :{}", caps.join(" ")))
+            .await;
+        let negotiation = self.next_sent().await;
+        if let Some(requested) = negotiation.strip_prefix("CAP REQ :") {
+            self.server(format!(":offline.test CAP * ACK :{requested}"))
+                .await;
+            assert_eq!(self.next_sent().await, "CAP END");
+        } else {
+            assert_eq!(negotiation, "CAP END");
+        }
+
+        self.server(format!(
+            ":offline.test 001 {nick} :Welcome to the ErgoTest IRC Network"
+        ))
+        .await;
+        self.server(format!(
+            ":offline.test 002 {nick} :Your host is offline.test, running version ergo-2.16.0"
+        ))
+        .await;
+        self.server(format!(
+            ":offline.test 003 {nick} :This server was created Wed Oct 15 2025 at 12:00:00 UTC"
+        ))
+        .await;
+        self.server(format!(
+            ":offline.test 004 {nick} offline.test ergo-2.16.0 BioZ beI,k,l,imnst"
+        ))
+        .await;
+        self.server(format!(
+            ":offline.test 005 {nick} CASEMAPPING=rfc1459 CHANTYPES=# PREFIX=(qaohv)~&@%+ UTF8ONLY :are supported by this server"
+        ))
+        .await;
+        self.server(format!(
+            ":offline.test 375 {nick} :- offline.test Message of the day -"
+        ))
+        .await;
+        self.server(format!(
+            ":offline.test 372 {nick} :- Welcome to the Ergo test network"
+        ))
+        .await;
+        self.server(format!(":offline.test 376 {nick} :End of /MOTD command"))
+            .await;
+    }
+
     /// Sends one server line to the client.
     ///
     /// # Panics
@@ -131,5 +194,33 @@ mod tests {
         ));
         wire.server("PING :ergo.example/12345").await;
         assert_eq!(wire.next_sent().await, "PONG :ergo.example/12345");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn bot_answers_ping_entirely_offline() {
+        let (client, mut events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test")
+                .nick("papo-wire")
+                .reconnect(papo::Reconnect::never()),
+        );
+        wire.register(&["message-tags"]).await;
+        wire.server(
+            "@time=2026-10-21T10:00:00.000Z :alice!~alice@cloak.example PRIVMSG papo-wire :!ping",
+        )
+        .await;
+
+        while let Some(event) = events.next().await {
+            let Some(message) = event.as_message() else {
+                continue;
+            };
+            if message.text == "!ping" {
+                client
+                    .privmsg(message.return_address(), "pong")
+                    .await
+                    .unwrap();
+                break;
+            }
+        }
+        assert_eq!(wire.next_sent().await, "PRIVMSG alice pong");
     }
 }

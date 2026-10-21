@@ -1,0 +1,35 @@
+# papo-testing
+
+Unstable test support for applications built with `papo`.
+
+## Test a bot without a server
+
+`wire` runs a real client over an in-memory connection. Tests provide server
+lines and inspect the lines that the client sends, while Tokio's paused clock
+keeps timers deterministic.
+
+```rust
+use papo_testing::wire;
+
+#[tokio::test(start_paused = true)]
+async fn ping() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-bot")
+            .reconnect(papo::Reconnect::never()),
+    );
+    wire.register(&["message-tags"]).await;
+    wire.server(":alice!~alice@cloak.example PRIVMSG papo-bot :!ping")
+        .await;
+
+    while let Some(event) = events.next().await {
+        let Some(message) = event.as_message() else { continue };
+        if message.text == "!ping" {
+            client.privmsg(message.return_address(), "pong").await.unwrap();
+            break;
+        }
+    }
+
+    assert_eq!(wire.next_sent().await, "PRIVMSG alice pong");
+}
+```
