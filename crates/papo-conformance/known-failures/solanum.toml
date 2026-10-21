@@ -12,20 +12,6 @@ spec = "https://ircv3.net/specs/extensions/labeled-response"
 evidence = "C: @label=... LIST | S: labeled 322 rows followed by an unlabeled 323 terminator"
 server_version = "0-unstable-2026-09-13"
 
-[channel_mode_exceptions]
-reason = "Solanum labels the first exception-list row but not its terminator, completing the request early"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/labeled-response"
-evidence = "S: @label=... 348 #review mask; 349 #review without the label"
-server_version = "0-unstable-2026-09-13"
-
-[channel_mode_lists]
-reason = "Solanum labels the first ban-list row but not its terminator, completing the request early"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/labeled-response"
-evidence = "S: @label=... 367 #review mask; 368 #review without the label"
-server_version = "0-unstable-2026-09-13"
-
 [channel_mode_refusals]
 reason = "Solanum acknowledges a nonnumeric channel limit without returning 696"
 kind = "server-bug"

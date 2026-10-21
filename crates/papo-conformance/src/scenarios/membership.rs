@@ -809,13 +809,6 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
     first.kick?;
     let kicked = bob.wait_for(Event::as_kicked).await?;
     assert_eq!(kicked.nick, bob_nick);
-    assert!(
-        alice
-            .list_modes(&channel, papo::ListMode::Ban)
-            .await?
-            .iter()
-            .any(|entry| alice.state().same_list_entry(&entry.mask, &ban))
-    );
 
     join_seen_by(&bob, &mut alice, &channel).await?;
     let duplicate = alice
@@ -825,6 +818,13 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
     let kicked = bob.wait_for(Event::as_kicked).await?;
     assert_eq!(kicked.nick, bob_nick);
     assert_eq!(kicked.reason.as_deref(), Some("ban already present"));
+    assert!(
+        alice
+            .list_modes(&channel, papo::ListMode::Ban)
+            .await?
+            .iter()
+            .any(|entry| alice.state().same_list_entry(&entry.mask, &ban))
+    );
     alice.mode(&channel).unban(ban).await?;
     Ok(())
 }
