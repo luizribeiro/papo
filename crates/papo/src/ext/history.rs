@@ -572,15 +572,20 @@ pub struct History {
     pub(crate) target: Result<String, Error>,
 }
 
+const DEFAULT_HISTORY_LIMIT: usize = 100;
+
 impl History {
-    /// Requests the newest `limit` messages.
-    pub fn latest(self, limit: usize) -> HistoryRequest {
+    /// Requests the newest messages.
+    ///
+    /// The request defaults to 100 messages. Use [`HistoryRequest::limit`] to change it; the
+    /// server may cap the requested limit lower.
+    pub fn latest(self) -> HistoryRequest {
         HistoryRequest {
             client: self.client,
             query: self.target.map(|target| HistoryQuery::Latest {
                 target,
                 after: None,
-                limit,
+                limit: DEFAULT_HISTORY_LIMIT,
             }),
         }
     }
@@ -591,7 +596,7 @@ impl History {
         let query = self.target.map(|target| HistoryQuery::Before {
             target,
             before,
-            limit: 100,
+            limit: DEFAULT_HISTORY_LIMIT,
         });
         HistoryRequest {
             client: self.client,
@@ -605,7 +610,7 @@ impl History {
         let query = self.target.map(|target| HistoryQuery::After {
             target,
             after,
-            limit: 100,
+            limit: DEFAULT_HISTORY_LIMIT,
         });
         HistoryRequest {
             client: self.client,
@@ -619,7 +624,7 @@ impl History {
         let query = self.target.map(|target| HistoryQuery::Around {
             target,
             around,
-            limit: 100,
+            limit: DEFAULT_HISTORY_LIMIT,
         });
         HistoryRequest {
             client: self.client,
@@ -639,7 +644,7 @@ impl History {
             target,
             start,
             end,
-            limit: 100,
+            limit: DEFAULT_HISTORY_LIMIT,
         });
         HistoryRequest {
             client: self.client,
@@ -715,7 +720,9 @@ pub struct HistoryRequest {
 }
 
 impl HistoryRequest {
-    /// Sets the maximum number of returned messages.
+    /// Sets the requested maximum number of returned messages.
+    ///
+    /// The default is 100. The server may cap the requested limit lower.
     pub fn limit(mut self, limit: usize) -> Self {
         if let Ok(
             HistoryQuery::Latest { limit: value, .. }
@@ -1334,28 +1341,42 @@ mod tests {
     }
 
     #[test]
-    fn builds_after_around_and_between_queries_with_limits() {
+    fn history_starting_points_default_to_100_and_accept_an_override() {
         let client = crate::Client::disconnected_for_test();
+        let latest = client.history("#papo").latest();
+        assert!(matches!(
+            latest.query,
+            Ok(HistoryQuery::Latest { limit: 100, .. })
+        ));
+        let message_id = crate::MessageId::from("RfcBTzyxY120000");
+        let before = client.history("#papo").before(message_id.clone());
+        assert!(matches!(
+            before.query,
+            Ok(HistoryQuery::Before { limit: 100, .. })
+        ));
         let after = client
             .history("#papo")
-            .after(UNIX_EPOCH + Duration::from_secs(42))
-            .limit(51);
+            .after(UNIX_EPOCH + Duration::from_secs(42));
         assert!(matches!(
             after.query,
-            Ok(HistoryQuery::After { limit: 51, .. })
+            Ok(HistoryQuery::After { limit: 100, .. })
         ));
-        let around = client.history("#papo").around("RfcBTzyxY120000").limit(52);
+        let around = client.history("#papo").around(&message_id);
         assert!(matches!(
             around.query,
-            Ok(HistoryQuery::Around { limit: 52, .. })
+            Ok(HistoryQuery::Around { limit: 100, .. })
         ));
         let between = client
             .history("#papo")
-            .between("RfcBTzyxY119998", "RfcBTzyxY120003")
-            .limit(53);
+            .between("RfcBTzyxY119998", "RfcBTzyxY120003");
         assert!(matches!(
             between.query,
-            Ok(HistoryQuery::Between { limit: 53, .. })
+            Ok(HistoryQuery::Between { limit: 100, .. })
+        ));
+        let override_limit = client.history("#papo").latest().limit(51);
+        assert!(matches!(
+            override_limit.query,
+            Ok(HistoryQuery::Latest { limit: 51, .. })
         ));
     }
 
@@ -1368,7 +1389,7 @@ mod tests {
             "server-time",
         ]);
         let (mut server, client, mut events, driver) = scripted(config);
-        let request = client.history("#papo-history").latest(10);
+        let request = client.history("#papo-history").latest().limit(10);
         let task = tokio::spawn(driver);
         welcome_burst(&mut server).await;
         server_line(
@@ -1437,16 +1458,16 @@ mod tests {
         server_line(&mut server, b":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ CHATHISTORY=100 MSGREFTYPES=msgid,timestamp STATUSMSG=@+ :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
         assert!(matches!(events.next().await, Some(Event::Connected(_))));
         assert!(matches!(
-            client.history("#papo invalid").latest(10).await,
+            client.history("#papo invalid").latest().await,
             Err(Error::InvalidInput(crate::InvalidInput::InvalidName { name, .. }))
                 if name == "#papo invalid"
         ));
         assert!(matches!(
-            client.history("@#papo").latest(10).await,
+            client.history("@#papo").latest().await,
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
-            client.history(crate::Conversation::Server).latest(10).await,
+            client.history(crate::Conversation::Server).latest().await,
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
@@ -1454,13 +1475,13 @@ mod tests {
                 .history(crate::Conversation::Broadcast(
                     client.state().mask("$opers")
                 ))
-                .latest(10)
+                .latest()
                 .await,
             Err(Error::InvalidInput(_))
         ));
         let conversation = crate::Conversation::Channel(client.state().channel_name("#papo"));
-        let request = tokio::spawn(async move { client.history(conversation).latest(10).await });
-        client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 10\r\n").await;
+        let request = tokio::spawn(async move { client.history(conversation).latest().await });
+        client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 100\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :ChanServ!service@services MODE #papo +o alice\r\n@batch=history :OperServ!service@services MODE #papo +b *!*@spammer.example\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
         let page = within(request).await.unwrap().unwrap();
         assert!(page.end);
@@ -1556,10 +1577,10 @@ mod tests {
         history_response(&mut server, 1).await;
         within(request).await.unwrap().unwrap();
 
-        let message = before.messages().next().unwrap().clone();
+        let message_id = before.messages().next().unwrap().msgid.clone().unwrap();
         let request = tokio::spawn({
             let client = client.clone();
-            async move { client.history("#papo").around(&message).limit(52).await }
+            async move { client.history("#papo").around(&message_id).limit(52).await }
         });
         client_line(
             &mut server,
@@ -1592,7 +1613,7 @@ mod tests {
         let task = tokio::spawn(driver);
         complete_connect(&mut server, &mut events).await;
         assert!(matches!(
-            within(async { client.history("#papo").latest(10).await }).await,
+            within(async { client.history("#papo").latest().limit(10).await }).await,
             Err(Error::Unsupported(crate::Unsupported {
                 feature: crate::Feature::History,
                 reason: crate::UnsupportedReason::NotOffered,

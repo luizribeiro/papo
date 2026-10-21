@@ -48,7 +48,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             sent.push(client.privmsg(&channel, text).await.unwrap());
         }
 
-        let latest = client.history(&channel).latest(10).await.unwrap();
+        let latest = client.history(&channel).latest().limit(10).await.unwrap();
         let messages = chats(latest.messages(), &texts);
         assert_eq!(
             messages
@@ -70,7 +70,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             message.origin == Origin::History && !message.is_live() && message.msgid.is_some()
         }));
 
-        let third = sent[2].msgid.as_deref().expect("Ergo supplies a msgid");
+        let third = sent[2].msgid.as_ref().expect("Ergo supplies a msgid");
         let before = client
             .history(&channel)
             .before(third)

@@ -1976,7 +1976,7 @@ pub fn papo::History::after(self, impl core::convert::Into<papo::HistoryReferenc
 pub fn papo::History::around(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
 pub fn papo::History::before(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
 pub fn papo::History::between(self, impl core::convert::Into<papo::HistoryReference>, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
-pub fn papo::History::latest(self, usize) -> papo::HistoryRequest
+pub fn papo::History::latest(self) -> papo::HistoryRequest
 impl core::marker::Freeze for papo::History
 impl core::marker::Send for papo::History
 impl core::marker::Sync for papo::History

@@ -38,7 +38,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
         "history ends with a health check",
     ];
     let (writer, reader, channel, sent) = history_peers(&s, &texts).await?;
-    let page = reader.history(&channel).latest(10).await?;
+    let page = reader.history(&channel).latest().limit(10).await?;
     assert_eq!(
         conversation_name(&page.conversation),
         Some(channel.as_str())
@@ -185,7 +185,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     let mut remaining = texts.len();
     loop {
         let page = match cursor {
-            None => alice.history(&*channel).latest(10).await?,
+            None => alice.history(&*channel).latest().limit(10).await?,
             Some(Cursor::Id(ref id)) => alice.history(&*channel).before(id).limit(10).await?,
             Some(Cursor::Time(time)) => alice.history(&*channel).before(time).limit(10).await?,
         };
@@ -219,7 +219,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
 async fn chathistory_errors(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let target = s.channel_name();
-    let error = alice.history(&target).latest(10).await.unwrap_err();
+    let error = alice.history(&target).latest().limit(10).await.unwrap_err();
     assert!(matches!(
         error,
         Error::Server(ref error) if error.code() == "INVALID_TARGET"
@@ -285,7 +285,7 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         .to_owned();
     assert!(target.starts_with('$'));
 
-    let page = alice.history("BouncerServ").latest(10).await?;
+    let page = alice.history("BouncerServ").latest().limit(10).await?;
     assert!(page.items.is_empty());
     assert!(page.end);
     let targets = alice
@@ -320,7 +320,7 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
 
     let reader = s.connect("reader").await?;
     reader.join(&channel).await?;
-    let page = reader.history(&channel).latest(10).await?;
+    let page = reader.history(&channel).latest().limit(10).await?;
     let topic = page
         .items
         .iter()

@@ -51,7 +51,7 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
 
     let reader = s.connect("reader").await?;
     reader.join(&channel).await?;
-    let page = reader.history(&channel).latest(10).await?;
+    let page = reader.history(&channel).latest().limit(10).await?;
     assert_eq!(
         conversation_name(&page.conversation),
         Some(channel.as_str())

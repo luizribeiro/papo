@@ -40,7 +40,7 @@ async fn retains_message(persistent: bool) -> bool {
     server.restart().unwrap();
     let (client, _events) = connect(&server, &account, password).await;
     client.join(support::channel(&channel)).await.unwrap();
-    let page = client.history(&channel).latest(10).await.unwrap();
+    let page = client.history(&channel).latest().limit(10).await.unwrap();
     let retained = page
         .messages()
         .any(|message| message.text == text && message.origin == Origin::History);

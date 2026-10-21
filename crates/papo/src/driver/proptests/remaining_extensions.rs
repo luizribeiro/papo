@@ -32,7 +32,8 @@ async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
             )
         })
         .await;
-        check_action(|client| action(client.history(first.clone()).latest(second.len()))).await;
+        check_action(|client| action(client.history(first.clone()).latest().limit(second.len())))
+            .await;
         check_action(|client| {
             action(
                 client
