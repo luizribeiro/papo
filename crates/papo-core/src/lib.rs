@@ -1795,6 +1795,22 @@ impl RequestError {
     }
 }
 
+/// A phase of establishing an IRC connection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ConnectPhase {
+    /// Opening the underlying transport.
+    Transport,
+    /// Negotiating transport security.
+    Tls,
+    /// Discovering and enabling IRC capabilities.
+    Capabilities,
+    /// Authenticating the connection.
+    Authenticating,
+    /// Waiting for the server's welcome reply.
+    WaitingForWelcome,
+}
+
 /// An event emitted by an IRC session.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -2363,6 +2379,7 @@ struct Outbox {
     transmits: VecDeque<Transmission>,
     immediate: VecDeque<QueuedLine>,
     events: VecDeque<Event>,
+    connect_phases: VecDeque<ConnectPhase>,
     close_requested: bool,
 }
 
@@ -2473,6 +2490,10 @@ impl Outbox {
 
     fn event(&mut self, event: Event) {
         self.events.push_back(event);
+    }
+
+    fn connect_phase(&mut self, phase: ConnectPhase) {
+        self.connect_phases.push_back(phase);
     }
 
     fn close(&mut self, kind: CloseKind, reason: String) {
@@ -2620,6 +2641,7 @@ impl Session {
         self.state_generation = self.state_generation.wrapping_add(1);
         self.keepalive
             .handle_connected(now, self.config.ping_interval, self.config.ping_timeout);
+        self.outbox.connect_phase(ConnectPhase::Capabilities);
         self.welcome_state
             .handle_connected(now, &self.config, &mut self.outbox);
     }
@@ -3292,6 +3314,13 @@ impl Session {
     /// Returns the next session event.
     pub fn poll_event(&mut self) -> Option<Event> {
         self.outbox.events.pop_front()
+    }
+
+    /// Returns the next connection phase reported by protocol processing.
+    ///
+    /// Transport shells supply [`ConnectPhase::Transport`] and [`ConnectPhase::Tls`].
+    pub fn poll_connect_phase(&mut self) -> Option<ConnectPhase> {
+        self.outbox.connect_phases.pop_front()
     }
 
     /// Returns the next protocol deadline, if any.

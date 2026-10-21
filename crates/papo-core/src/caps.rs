@@ -5,7 +5,7 @@ use papo_proto::{LineRef, MAX_LINE_LEN};
 
 use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
-    Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox,
+    Capabilities, CloseKind, Config, ConnectPhase, Connection, Event, Handled, Outbox,
     cap::{self, Cap},
     sasl::SaslSession,
 };
@@ -76,6 +76,9 @@ impl Caps {
                         added.insert(name, value);
                     }
                     if sasl_acked {
+                        if !self.ended {
+                            outbox.connect_phase(ConnectPhase::Authenticating);
+                        }
                         sasl.handle_cap_ack(
                             now,
                             self.enabled.get(&cap::SASL).and_then(Option::as_deref),
@@ -301,6 +304,7 @@ impl Caps {
             {
                 outbox.transmit_immediate("BOUNCER", ["BIND", id]);
             }
+            outbox.connect_phase(ConnectPhase::WaitingForWelcome);
             outbox.transmit_raw(b"CAP END\r\n".to_vec());
             self.ended = true;
         }

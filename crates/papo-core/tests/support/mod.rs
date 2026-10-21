@@ -261,6 +261,12 @@ impl Transcript {
         self
     }
 
+    /// Asserts the next connection phase.
+    pub fn phase(mut self, expected: papo_core::ConnectPhase) -> Self {
+        assert_eq!(self.session.poll_connect_phase(), Some(expected));
+        self
+    }
+
     /// Consumes events until one satisfies `predicate`.
     pub fn event_until(mut self, mut predicate: impl FnMut(&Event) -> bool) -> Self {
         loop {
