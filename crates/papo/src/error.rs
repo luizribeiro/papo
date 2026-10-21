@@ -680,13 +680,13 @@ mod tests {
 
     #[cfg(feature = "unstable")]
     #[test]
-    fn classifies_bouncer_network_failures() {
-        for (code, expected) in [
-            ("INVALID_NETID", Refusal::InvalidNetwork),
-            ("INVALID_ATTRIBUTE", Refusal::InvalidAttribute),
-            ("READ_ONLY_ATTRIBUTE", Refusal::ReadOnlyAttribute),
-            ("UNKNOWN_ATTRIBUTE", Refusal::UnknownAttribute),
-            ("NEED_ATTRIBUTE", Refusal::MissingAttribute),
+    fn unscoped_bouncer_network_failures_remain_other() {
+        for code in [
+            "INVALID_NETID",
+            "INVALID_ATTRIBUTE",
+            "READ_ONLY_ATTRIBUTE",
+            "UNKNOWN_ATTRIBUTE",
+            "NEED_ATTRIBUTE",
         ] {
             let error = ServerError::from_core(papo_core::ServerError::__standard(
                 "BOUNCER".into(),
@@ -694,7 +694,7 @@ mod tests {
                 vec!["CHANGENETWORK".into(), "42".into()],
                 "Network request rejected".into(),
             ));
-            assert_eq!(error.refusal(), expected);
+            assert_eq!(error.refusal(), Refusal::Other);
         }
     }
 

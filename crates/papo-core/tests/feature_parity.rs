@@ -3,10 +3,12 @@
 use std::time::Instant;
 
 use papo_core::{Config, Event, RateLimit, ServerError, Session};
+use papo_proto::Line;
 
 const TRAFFIC: &[&str] = &[
     ":ergo.test CAP * LS :account-tag batch draft/chathistory draft/multiline labeled-response server-time standard-replies",
-    ":ergo.test CAP * ACK :batch",
+    ":ergo.test CAP * ACK :batch labeled-response",
+    "@label=0 :ergo.test 401 papo missing :No such nick/channel",
     ":ergo.test 001 papo :Welcome to the ErgoTest IRC Network papo",
     ":ergo.test 005 papo CASEMAPPING=ascii NETWORK=ErgoTest PREFIX=(qaohv)~&@%+ UTF8ONLY :are supported by this server",
     ":papo!papo@127.0.0.1 JOIN #papo",
@@ -106,6 +108,11 @@ fn drain(session: &mut Session) {
             println!("STANDARD_REFUSAL {:?}", reply.refusal());
             println!("SERVER_REFUSAL {:?}", error.refusal());
         }
+        if let Event::Response(response) = &event
+            && let Some(error) = response.error()
+        {
+            println!("SERVER_REFUSAL {:?}", error.refusal());
+        }
     }
 }
 
@@ -123,6 +130,12 @@ fn disabled_extensions_match_stable_behavior() {
         println!("SERVER {line}");
         session.handle_line(now, line.as_bytes());
         drain(&mut session);
+        if line.contains("CAP * ACK") {
+            session
+                .request_silent(now, Line::new("WHOIS", ["missing"]))
+                .unwrap();
+            drain(&mut session);
+        }
         println!("STATE {}", state_debug(&session));
     }
     println!("PAPO_FEATURE_PARITY_END");

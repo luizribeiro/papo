@@ -1320,6 +1320,7 @@ pub struct Response {
     /// State bound that ended the request before its protocol terminator.
     pub state_limit: Option<StateLimit>,
     sent: Option<SentInfo>,
+    enabled_features: BTreeSet<Feature>,
 }
 
 impl Response {
@@ -1342,6 +1343,12 @@ impl Response {
                     code: reply.code.to_ascii_uppercase(),
                     context: reply.context.into_iter().map(str::to_owned).collect(),
                     description: reply.description.to_owned(),
+                    #[cfg(feature = "unstable")]
+                    refusal: Refusal::from_standard_enabled(
+                        reply.command,
+                        reply.code,
+                        &self.enabled_features,
+                    ),
                 });
             }
             let Command::Numeric(numeric) = message.command() else {
@@ -1385,6 +1392,10 @@ pub enum ServerError {
         context: Vec<String>,
         /// Human-readable failure description.
         description: String,
+        /// Classification recorded using the negotiated unstable features.
+        #[cfg(feature = "unstable")]
+        #[doc(hidden)]
+        refusal: Refusal,
     },
     /// A classic error numeric.
     #[non_exhaustive]
@@ -1405,11 +1416,15 @@ impl ServerError {
         context: Vec<String>,
         description: String,
     ) -> Self {
+        #[cfg(feature = "unstable")]
+        let refusal = Refusal::from_standard_enabled(&command, &code, &BTreeSet::new());
         Self::Standard {
             command,
             code,
             context,
             description,
+            #[cfg(feature = "unstable")]
+            refusal,
         }
     }
 
@@ -1424,6 +1439,9 @@ impl ServerError {
     pub fn refusal(&self) -> Refusal {
         match self {
             Self::Numeric { numeric, .. } => Refusal::from_numeric(*numeric),
+            #[cfg(feature = "unstable")]
+            Self::Standard { refusal, .. } => *refusal,
+            #[cfg(not(feature = "unstable"))]
             Self::Standard { command, code, .. } => Refusal::from_standard(command, code),
         }
     }
@@ -4461,6 +4479,7 @@ impl Session {
             && !deferred
         {
             let whois_channels = parse_whois_channels(&messages, self.isupport.value());
+            let enabled_features = self.supported_features();
             let echoed = (sent && emit_events).then(|| {
                 messages
                     .iter()
@@ -4498,6 +4517,7 @@ impl Session {
                 whois_channels,
                 mode_list: None,
                 state_limit: None,
+                enabled_features,
             }));
             for message in echoed.into_iter().flatten() {
                 let received = self.received_line(message, None);

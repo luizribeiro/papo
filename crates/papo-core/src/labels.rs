@@ -23,6 +23,7 @@ impl Session {
             .iter()
             .any(|request| request.id == id)
         {
+            let enabled_features = self.supported_features();
             self.outbox.event(Event::Response(Response {
                 id,
                 sent: if sent { sent_info(message) } else { None },
@@ -32,6 +33,7 @@ impl Session {
                 whois_channels,
                 mode_list: None,
                 state_limit: None,
+                enabled_features,
             }));
         }
         true
@@ -130,6 +132,7 @@ impl Session {
             }
             self.state
                 .warn_limit(crate::StateLimit::ListEntries, &mut self.outbox);
+            let enabled_features = self.supported_features();
             self.outbox.event(Event::Response(Response {
                 id: request.id,
                 sent: None,
@@ -139,6 +142,7 @@ impl Session {
                 whois_channels: Vec::new(),
                 mode_list: None,
                 state_limit: Some(crate::StateLimit::ListEntries),
+                enabled_features,
             }));
             return true;
         }
@@ -147,6 +151,7 @@ impl Session {
             let request = self.unlabelled_requests.remove(index).unwrap();
             self.away_messages.remove(&request.id);
             let whois_channels = parse_whois_channels(&request.lines, self.isupport.value());
+            let enabled_features = self.supported_features();
             let mut response = Response {
                 id: request.id,
                 sent: None,
@@ -156,6 +161,7 @@ impl Session {
                 whois_channels,
                 mode_list: None,
                 state_limit: None,
+                enabled_features,
             };
             self.finish_mode_list_response(&request.matcher, &mut response);
             self.outbox.event(Event::Response(response));
