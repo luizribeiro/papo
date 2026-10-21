@@ -6,7 +6,7 @@
 ))]
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     env, fs,
     future::Future,
     ops::Deref,
@@ -112,7 +112,7 @@ pub fn run() -> ExitCode {
         .or_else(|_| env::var("PAPO_TEST_SERVER"))
         .unwrap_or_else(|_| "ergo-default".into());
     let known_failures =
-        load_known_failures(&server_name, &specs).unwrap_or_else(|error| startup_error(&error));
+        load_known_failures(&server_name).unwrap_or_else(|error| startup_error(&error));
     let wanted_caps = specs
         .iter()
         .flat_map(|spec| spec.requires.caps)
@@ -341,22 +341,14 @@ async fn expect_event(
     .map_err(|_| Failed::from("timed out waiting for an event"))?
 }
 
-fn load_known_failures(
-    server: &str,
-    scenarios: &[ScenarioSpec],
-) -> Result<BTreeMap<String, String>, String> {
-    load_known_failures_from(
-        Path::new("known-failures"),
-        server,
-        scenarios.iter().map(|scenario| scenario.name),
-    )
+fn load_known_failures(server: &str) -> Result<BTreeMap<String, String>, String> {
+    load_known_failures_from(Path::new("known-failures"), server)
 }
 
 /// A missing file means that the server has no recorded conformance exceptions.
-fn load_known_failures_from<'a>(
+fn load_known_failures_from(
     directory: &Path,
     server: &str,
-    scenarios: impl IntoIterator<Item = &'a str>,
 ) -> Result<BTreeMap<String, String>, String> {
     if server.is_empty()
         || !server
@@ -373,23 +365,16 @@ fn load_known_failures_from<'a>(
         }
         Err(error) => return Err(format!("failed to read {}: {error}", path.display())),
     };
-    parse_known_failures(&input, scenarios)
+    parse_known_failures(&input)
 }
 
-fn parse_known_failures<'a>(
-    input: &str,
-    scenarios: impl IntoIterator<Item = &'a str>,
-) -> Result<BTreeMap<String, String>, String> {
+fn parse_known_failures(input: &str) -> Result<BTreeMap<String, String>, String> {
     let table = input
         .parse::<toml::Table>()
         .map_err(|error| format!("invalid known-failures TOML: {error}"))?;
-    let scenarios = scenarios.into_iter().collect::<BTreeSet<_>>();
     table
         .into_iter()
         .map(|(name, entry)| {
-            if !scenarios.contains(name.as_str()) {
-                return Err(format!("known failure names unknown scenario {name:?}"));
-            }
             let entry = entry
                 .as_table()
                 .ok_or_else(|| format!("known failure {name:?} must be a table"))?;
@@ -806,18 +791,16 @@ mod tests {
     #[test]
     fn known_failure_loader_reads_and_validates_real_files() {
         let directory = TestDirectory::create();
-        let scenarios = ["connect", "ping"];
-
-        let missing = load_known_failures_from(&directory.0, "ergo", scenarios).unwrap();
+        let missing = load_known_failures_from(&directory.0, "ergo").unwrap();
         assert!(missing.is_empty());
-        assert!(load_known_failures_from(&directory.0, "", scenarios).is_err());
-        assert!(load_known_failures_from(&directory.0, "../ergo", scenarios).is_err());
+        assert!(load_known_failures_from(&directory.0, "").is_err());
+        assert!(load_known_failures_from(&directory.0, "../ergo").is_err());
 
         directory.write(
             "[connect]\nreason = 'server bug 417'\nkind = 'server-bug'\nspec = 'RFC 2812 section 4.1'\nevidence = '417'\nserver_version = '1.0'\n\
              [ping]\nreason = 'missing PONG'\nkind = 'not-implemented'\nspec = 'RFC 2812 section 3.7.2'\nevidence = 'PING received, no PONG'\nserver_version = '1.0'\n",
         );
-        let parsed = load_known_failures_from(&directory.0, "ergo", scenarios).unwrap();
+        let parsed = load_known_failures_from(&directory.0, "ergo").unwrap();
         assert_eq!(parsed.len(), 2);
         assert_eq!(parsed["connect"], "server bug 417");
         assert_eq!(parsed["ping"], "missing PONG");
@@ -837,14 +820,13 @@ mod tests {
                 "[connect]\nreason = 'broken'\nkind = 'server-bug'\nspec = 'RFC 2812'\nevidence = '417'\n",
                 "missing \"server_version\"",
             ),
-            ("[ghost]\nreason = 'stale'\n", "unknown scenario"),
             (
                 "[connect\nreason = 'broken'\n",
                 "invalid known-failures TOML",
             ),
         ] {
             directory.write(input);
-            let error = load_known_failures_from(&directory.0, "ergo", scenarios).unwrap_err();
+            let error = load_known_failures_from(&directory.0, "ergo").unwrap_err();
             assert!(error.contains(expected), "{error:?}");
         }
     }
