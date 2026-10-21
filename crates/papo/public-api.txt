@@ -15,6 +15,7 @@ pub use papo::FormatBuilder
 pub use papo::InvalidIdentifier
 pub use papo::InvalidRateLimit
 pub use papo::Line
+pub use papo::ListMode
 pub use papo::Mask
 pub use papo::Member
 pub use papo::MessageId
@@ -23,6 +24,7 @@ pub use papo::MetadataValue
 pub use papo::ModeAction
 pub use papo::ModeArg
 pub use papo::ModeChange
+pub use papo::ModeListEntry
 pub use papo::Nick
 pub use papo::Rank
 pub use papo::RateLimit
@@ -32,6 +34,7 @@ pub use papo::Secret
 pub use papo::ServerName
 pub use papo::Source
 pub use papo::Span
+pub use papo::StateLimit
 pub use papo::Style
 pub use papo::Typer
 pub use papo::Typing
@@ -1230,6 +1233,7 @@ pub papo::Error::Disconnected(papo::Disconnected)
 pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::Server(papo::ServerError)
+pub papo::Error::StateLimit(papo::StateLimit)
 pub papo::Error::Timeout
 pub papo::Error::TooManyPendingRequests
 pub papo::Error::UnexpectedReply
@@ -1697,9 +1701,10 @@ pub fn papo::Client::history(&self, impl core::convert::Into<ConversationInput>)
 pub fn papo::Client::mark_read(&self, impl core::convert::Into<ConversationInput>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::recent_conversations(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
 impl papo::Client
-pub fn papo::Client::metadata(&self) -> papo::Metadata
-impl papo::Client
+pub fn papo::Client::list_modes(&self, impl core::convert::AsRef<str>, papo::ListMode) -> papo::RequestFuture<alloc::vec::Vec<papo::ModeListEntry>>
 pub fn papo::Client::mode(&self, impl core::convert::AsRef<str>) -> papo::SetModes
+impl papo::Client
+pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
 pub fn papo::Client::monitor(&self) -> papo::Monitor
 impl papo::Client

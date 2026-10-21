@@ -2418,6 +2418,7 @@ mod tests {
         for (core, public) in [
             (StateLimit::Channels, super::StateLimit::Channels),
             (StateLimit::Members, super::StateLimit::Members),
+            (StateLimit::ListEntries, super::StateLimit::ListEntries),
             (
                 StateLimit::MetadataTargets,
                 super::StateLimit::MetadataTargets,

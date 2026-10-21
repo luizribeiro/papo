@@ -1,4 +1,5 @@
 use super::test_support::*;
+use std::fmt::Write as _;
 
 macro_rules! disconnected {
     () => {
@@ -357,6 +358,62 @@ async fn unknown_numeric_and_vendor_command_are_other_lines() {
     assert!(matches!(
         events.next().await,
         Some(Event::Other(line)) if line.command() == "PERSISTENCE"
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn list_modes_returns_entries_and_updates_joined_channel_state() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(&mut server, b":papo-driver!~papo@localhost JOIN #papo\r\n").await;
+
+    let request = tokio::spawn(client.list_modes("#papo", crate::ListMode::Ban));
+    client_line(&mut server, b"MODE #papo b\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 367 papo-driver #papo *!*@gateway.example oper 1761048000\r\n:ergo.test 368 papo-driver #papo :End of channel ban list\r\n",
+    )
+    .await;
+    let entries = within(request).await.unwrap().unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].mask, "*!*@gateway.example");
+    assert_eq!(entries[0].actor.as_ref().unwrap().to_string(), "oper");
+    assert_eq!(
+        client
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(crate::ListMode::Ban),
+        Some(entries.as_slice())
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn list_modes_reports_the_entry_bound() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    let request = tokio::spawn(client.list_modes("#papo", crate::ListMode::Ban));
+    client_line(&mut server, b"MODE #papo b\r\n").await;
+    let rows = (0..1001).fold(String::new(), |mut rows, index| {
+        write!(
+            rows,
+            ":ergo.test 367 papo-driver #papo *!*@host{index}.example oper 1761048000\r\n"
+        )
+        .unwrap();
+        rows
+    });
+    server_line(&mut server, rows.as_bytes()).await;
+    assert!(matches!(
+        within(request).await.unwrap(),
+        Err(Error::StateLimit(crate::StateLimit::ListEntries))
     ));
 
     within(server.shutdown()).await.unwrap();

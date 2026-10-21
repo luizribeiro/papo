@@ -466,6 +466,9 @@ pub enum Error {
     /// `MODE +b` can repeat its effect.
     #[error("the IRC operation timed out")]
     Timeout,
+    /// Server input exceeded a bounded state collection.
+    #[error("server input exceeded the {0:?} state limit")]
+    StateLimit(crate::StateLimit),
     /// The server's reply did not have the shape required by its command.
     #[error("the server sent an unexpected reply to {command}")]
     UnexpectedReply {

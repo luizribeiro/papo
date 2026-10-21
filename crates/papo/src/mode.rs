@@ -236,6 +236,57 @@ impl Client {
             changes: Vec::new(),
         }
     }
+
+    /// Fetches one channel list mode.
+    ///
+    /// Joined-channel results are tracked in [`Channel::list`](crate::Channel::list). A request
+    /// for a channel this client has not joined is returned without being tracked, and an empty
+    /// result may mean the server hid the list rather than that the list is empty.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::StateLimit`] after 1001 rows, without returning a partial list. Server
+    /// refusals return [`Error::Server`]. It can also return [`Error::InvalidInput`],
+    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
+    pub fn list_modes(
+        &self,
+        channel: impl AsRef<str>,
+        mode: crate::ListMode,
+    ) -> RequestFuture<Vec<crate::ModeListEntry>> {
+        let client = self.clone();
+        let channel = channel.as_ref().to_owned();
+        RequestFuture::new(async move {
+            let state = client.state();
+            let name = state.channel_name(&channel);
+            name.check(state.isupport().inner())
+                .map_err(|error| invalid(error.to_string()))?;
+            let letter = match mode {
+                crate::ListMode::Ban => "b",
+                crate::ListMode::Except => "e",
+                crate::ListMode::Invex => "I",
+                crate::ListMode::Quiet => "q",
+                _ => unreachable!("new list modes must define wire syntax"),
+            };
+            let response = client
+                .correlated(
+                    Line::new("MODE", [name.to_string(), letter.to_owned()]),
+                    Some(ResponseMatcher::ListMode {
+                        channel: name.to_string(),
+                        mode,
+                    }),
+                )
+                .await?;
+            if let Some(limit) = response.state_limit {
+                return Err(Error::StateLimit(limit));
+            }
+            if let Some(error) = response.error() {
+                return Err(Error::server(error));
+            }
+            response
+                .mode_list
+                .ok_or_else(|| Error::unexpected_reply("MODE"))
+        })
+    }
 }
 
 pub(crate) struct Change {
