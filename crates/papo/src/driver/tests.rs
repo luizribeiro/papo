@@ -305,11 +305,11 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(message.account.as_deref(), Some("emily"));
     assert!(message.is_bot);
     assert_eq!(
-        message.reply_to().map(AsRef::as_ref),
+        message.reply_to.as_ref().map(AsRef::as_ref),
         Some("RfcBTzyxY120003")
     );
     assert_eq!(
-        message.time(),
+        message.time,
         UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
     );
     assert_eq!(message.origin, Origin::Live);
@@ -372,8 +372,8 @@ async fn message_fields_use_captured_session_facts() {
 
     let before = SystemTime::now();
     server_line(&mut server, b":dan!d@localhost PRIVMSG #papo :no time\r\n@time=invalid :dan!d@localhost PRIVMSG #papo :bad time\r\n").await;
-    let absent = next_message(&mut events).await.time();
-    let malformed = next_message(&mut events).await.time();
+    let absent = next_message(&mut events).await.time;
+    let malformed = next_message(&mut events).await.time;
     let after = SystemTime::now();
     assert!((before..=after).contains(&absent));
     assert!((before..=after).contains(&malformed));

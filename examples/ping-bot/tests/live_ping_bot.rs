@@ -42,7 +42,7 @@ async fn joins_and_replies_to_channel_pings() {
 
         let sent = user.privmsg(CHANNEL, "!ping").await.unwrap();
         let reply = wait_message(&mut events, "pong").await;
-        assert_eq!(reply.reply_to(), sent.msgid.as_ref());
+        assert_eq!(reply.reply_to.as_ref(), sent.msgid.as_ref());
 
         user.quit("ping bot test complete").await.unwrap();
     })

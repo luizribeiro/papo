@@ -2014,10 +2014,8 @@ pub papo::Message::time: std::time::SystemTime
 impl papo::Message
 pub fn papo::Message::is_live(&self) -> bool
 pub fn papo::Message::is_own(&self) -> bool
-pub const fn papo::Message::reply_to(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Message::return_address(&self) -> alloc::string::String
 pub fn papo::Message::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
-pub fn papo::Message::time(&self) -> std::time::SystemTime
 impl core::clone::Clone for papo::Message
 pub fn papo::Message::clone(&self) -> Self
 impl core::cmp::Eq for papo::Message

@@ -515,18 +515,6 @@ impl Message {
         }
     }
 
-    /// Returns server time when valid, or the local receipt time.
-    #[must_use]
-    pub fn time(&self) -> SystemTime {
-        self.time
-    }
-
-    /// Returns the message identifier referenced by a reply tag.
-    #[must_use]
-    pub const fn reply_to(&self) -> Option<&MessageId> {
-        self.reply_to.as_ref()
-    }
-
     /// Reports whether a bot may treat this as a newly received message.
     #[must_use]
     pub fn is_live(&self) -> bool {
@@ -1614,14 +1602,14 @@ mod tests {
             received,
         );
         assert_eq!(
-            tagged.time(),
+            tagged.time,
             UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
         );
         assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
         assert_eq!(tagged.account.as_deref(), Some("emily"));
         assert!(tagged.is_bot);
-        let reply: Option<&MessageId> = tagged.reply_to();
+        let reply: Option<&MessageId> = tagged.reply_to.as_ref();
         assert_eq!(reply.unwrap(), "RfcBTzyxY120003");
         #[cfg(feature = "unstable")]
         assert_eq!(tagged.relayed_by.as_deref(), Some("bridge-bot"));
@@ -1634,7 +1622,7 @@ mod tests {
                 message = message.with_tag("time", time);
             }
             assert_eq!(
-                event(message, &Isupport::default(), "papo", received).time(),
+                event(message, &Isupport::default(), "papo", received).time,
                 received
             );
         }
