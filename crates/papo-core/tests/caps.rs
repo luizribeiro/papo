@@ -75,6 +75,26 @@ fn requests_event_playback_and_oper_tags_by_default() {
 }
 
 #[test]
+fn requests_echo_message_only_with_labeled_response() {
+    Transcript::new(Config::default().wanted_caps(["echo-message", "labeled-response"]))
+        .connect_default()
+        .server("CAP * LS :echo-message")
+        .client("CAP END");
+
+    Transcript::new(Config::default().wanted_caps(["echo-message", "labeled-response"]))
+        .connect_default()
+        .server("CAP * LS :echo-message labeled-response")
+        .client("CAP REQ :echo-message labeled-response")
+        .server("CAP * ACK :echo-message labeled-response")
+        .client("CAP END");
+
+    Transcript::new(Config::default().wanted_caps(["echo-message"]))
+        .connect_default()
+        .server("CAP * LS :echo-message labeled-response")
+        .client("CAP END");
+}
+
+#[test]
 fn defaults_cover_every_implemented_negotiable_capability() {
     assert_eq!(
         DEFAULT_WANTED_CAPS,

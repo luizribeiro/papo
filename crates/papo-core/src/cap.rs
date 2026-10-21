@@ -247,6 +247,12 @@ pub(crate) fn requestable(name: &str, advertised: &Capabilities, wanted: &[Strin
     let Some(info) = ALL.iter().find(|info| info.name == canonical(name)) else {
         return true;
     };
+    if info.name == ECHO_MESSAGE {
+        return wanted
+            .iter()
+            .any(|name| canonical(name) == LABELED_RESPONSE)
+            && advertised_spelling(LABELED_RESPONSE, advertised).is_some();
+    }
     match info.request {
         Request::Never => false,
         Request::Superseded(preferred) => {
