@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
     Config, Conversation, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher,
-    ServerError, Session, TextKind,
+    ServerError, Session, TextKind, WhoOnJoin,
 };
 use papo_proto::{Line, LineRef, Numeric};
 
@@ -865,6 +865,100 @@ fn who_rows_attach_only_to_the_named_concurrent_mask() {
             .iter()
             .any(|line| line.as_ref().param(1) == Some("#unknown"))
     );
+}
+
+fn who_request_outcome(
+    session: &mut Session,
+    now: Instant,
+    message: Line,
+    mask: &str,
+    row: &str,
+) -> (bool, bool) {
+    let id = session
+        .request_with_matcher(now, message, ResponseMatcher::Who(mask.into()))
+        .unwrap();
+    session.handle_line(now, row.as_bytes());
+    session.handle_line(
+        now,
+        format!(":ergo.test 315 papo {mask} :End of WHO list").as_bytes(),
+    );
+
+    let mut refreshed = false;
+    let mut responded = false;
+    while let Some(event) = session.poll_event() {
+        match event {
+            Event::MembersRefreshed { .. } => refreshed = true,
+            Event::Response(response) if response.id == id => {
+                assert_eq!(response.lines.len(), 2);
+                responded = true;
+            }
+            _ => {}
+        }
+    }
+    (refreshed, responded)
+}
+
+#[test]
+fn manual_who_tracks_only_a_real_request_for_a_joined_channel() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited())
+            .who_on_join(WhoOnJoin::Never),
+    );
+    for line in [
+        ":papo!papo@localhost JOIN #papo",
+        ":ergo.test 353 papo = #papo :@papo",
+        ":ergo.test 366 papo #papo :End of NAMES list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    while session.poll_event().is_some() {}
+    while session.poll_transmit().is_some() {}
+
+    let (refreshed, responded) = who_request_outcome(
+        &mut session,
+        now,
+        Line::new("WHO", ["#papo"]),
+        "#papo",
+        ":ergo.test 352 papo #papo ~alice staff.example ergo.test alice H@ :0 Alice Example",
+    );
+    assert_eq!((refreshed, responded), (true, true));
+    assert_eq!(
+        session.state().user("alice").unwrap().realname(),
+        Some("Alice Example")
+    );
+
+    let (refreshed, responded) = who_request_outcome(
+        &mut session,
+        now,
+        Line::new("WHO", ["#rust"]),
+        "#rust",
+        ":ergo.test 352 papo #rust ~bob users.example ergo.test bob H :0 Bob Example",
+    );
+    assert!(!refreshed && responded);
+    assert!(session.state().user("bob").is_none());
+
+    let (refreshed, responded) = who_request_outcome(
+        &mut session,
+        now,
+        Line::new("WHO", ["carol"]),
+        "carol",
+        ":ergo.test 352 papo #papo ~carol users.example ergo.test carol H :0 Carol Example",
+    );
+    assert!(!refreshed && responded);
+    assert!(session.state().user("carol").is_none());
+
+    let (refreshed, responded) = who_request_outcome(
+        &mut session,
+        now,
+        Line::new("WHOIS", ["#papo"]),
+        "#papo",
+        ":ergo.test 352 papo #papo ~mallory users.example ergo.test mallory H :0 Mallory Example",
+    );
+    assert!(!refreshed && responded);
+    assert!(session.state().user("mallory").is_none());
 }
 
 #[test]
