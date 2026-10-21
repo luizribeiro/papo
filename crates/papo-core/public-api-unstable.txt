@@ -543,7 +543,7 @@ pub papo_core::Event::Invited
 pub papo_core::Event::Invited::actor: alloc::string::String
 pub papo_core::Event::Invited::authorship: papo_core::Authorship
 pub papo_core::Event::Invited::channel: papo::ChannelName
-pub papo_core::Event::Invited::nick: papo::Nick
+pub papo_core::Event::Invited::subject: papo::Nick
 pub papo_core::Event::Invited::subject_authorship: papo_core::Authorship
 pub papo_core::Event::Joined
 pub papo_core::Event::Joined::account: papo_core::Account
@@ -558,8 +558,8 @@ pub papo_core::Event::Kicked::actor: alloc::string::String
 pub papo_core::Event::Kicked::authorship: papo_core::Authorship
 pub papo_core::Event::Kicked::channel: papo::ChannelName
 pub papo_core::Event::Kicked::envelope: papo_core::LineEnvelope
-pub papo_core::Event::Kicked::nick: papo::Nick
 pub papo_core::Event::Kicked::reason: core::option::Option<alloc::string::String>
+pub papo_core::Event::Kicked::subject: papo::Nick
 pub papo_core::Event::Kicked::subject_authorship: papo_core::Authorship
 pub papo_core::Event::Line(papo_core::ReceivedLine)
 pub papo_core::Event::Malformed

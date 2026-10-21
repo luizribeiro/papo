@@ -1171,7 +1171,7 @@ pub(crate) fn from_core(
         papo_core::Event::Kicked {
             envelope,
             channel,
-            nick,
+            subject,
             actor,
             authorship,
             subject_authorship,
@@ -1184,7 +1184,7 @@ pub(crate) fn from_core(
                 time: envelope.time,
                 account: envelope.account,
                 channel,
-                nick,
+                subject,
                 actor: source::from_name(&actor, casemapping),
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
@@ -1193,13 +1193,13 @@ pub(crate) fn from_core(
         }
         papo_core::Event::Invited {
             channel,
-            nick,
+            subject,
             actor,
             authorship,
             subject_authorship,
         } => Event::Invited(Invited {
             channel,
-            nick,
+            subject,
             actor: source::from_prefix(actor, casemapping),
             authorship: Authorship::from_core(authorship),
             subject_authorship: Authorship::from_core(subject_authorship),
@@ -1753,14 +1753,14 @@ mod tests {
     fn maps_invitation_source_details() {
         let event = forwarded(papo_core::Event::Invited {
             channel: Casemapping::default().channel("#papo"),
-            nick: Casemapping::default().nick("papo"),
+            subject: Casemapping::default().nick("papo"),
             actor: "emily!~emily@localhost".to_owned(),
             authorship: papo_core::Authorship::Other,
             subject_authorship: papo_core::Authorship::Own,
         });
         let invited = event.as_invited().unwrap();
         assert_eq!(invited.channel, "#papo");
-        assert_eq!(invited.nick, "papo");
+        assert_eq!(invited.subject, "papo");
         assert!(matches!(
             &invited.actor,
             Source::User { nick, username: Some(username), host: Some(host), .. }
@@ -2283,7 +2283,7 @@ mod tests {
             forwarded(papo_core::Event::Kicked {
                 envelope: papo_core::LineEnvelope::default(),
                 channel: Casemapping::default().channel("#papo"),
-                nick: Casemapping::default().nick("emily"),
+                subject: Casemapping::default().nick("emily"),
                 actor: "alice".into(),
                 authorship: papo_core::Authorship::Other,
                 subject_authorship: papo_core::Authorship::Other,
@@ -2291,7 +2291,7 @@ mod tests {
             }),
             Event::Kicked(kicked)
                 if kicked.channel == "#papo"
-                    && kicked.nick == "emily"
+                    && kicked.subject == "emily"
                     && kicked.actor.nick().is_some_and(|nick| nick == "alice")
                     && kicked.reason.as_deref() == Some("Flooding")
         ));
@@ -2671,7 +2671,7 @@ mod tests {
                 time: UNIX_EPOCH,
                 account: None,
                 channel: mapping.channel("#papo"),
-                nick: mapping.nick("Papo[Bot]"),
+                subject: mapping.nick("Papo[Bot]"),
                 actor: actor.clone(),
                 authorship: Authorship::Other,
                 subject_authorship: Authorship::Own,
@@ -2679,7 +2679,7 @@ mod tests {
             }),
             Event::Invited(super::Invited {
                 channel: mapping.channel("#papo"),
-                nick: mapping.nick("Papo[Bot]"),
+                subject: mapping.nick("Papo[Bot]"),
                 actor,
                 authorship: Authorship::Other,
                 subject_authorship: Authorship::Own,

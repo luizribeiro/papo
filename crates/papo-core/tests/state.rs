@@ -1641,13 +1641,13 @@ fn reports_parts_and_kicks_for_other_users_and_ourselves() {
         .server(":dan!dan@cloak.example JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
         .server(":chanop!op@staff.example KICK #papo dan :Rule violation")
-        .event(|event| matches!(event, Event::Kicked { channel, nick, actor, reason, .. } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && actor == "chanop" && reason.as_deref() == Some("Rule violation")))
+        .event(|event| matches!(event, Event::Kicked { channel, subject, actor, reason, .. } if channel == "#papo" && subject == "dan" && channel.casemapping() == Casemapping::Ascii && subject.casemapping() == Casemapping::Ascii && actor == "chanop" && reason.as_deref() == Some("Rule violation")))
         .server(":emily!em@127.0.0.1 PART #papo :Requested")
         .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "emily"))
         .server(":emily!em@127.0.0.1 JOIN #rust")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
         .server(":chanop!op@staff.example KICK #rust emily :Requested")
-        .event(|event| matches!(event, Event::Kicked { nick, .. } if nick == "emily"))
+        .event(|event| matches!(event, Event::Kicked { subject, .. } if subject == "emily"))
         .no_event();
 }
 

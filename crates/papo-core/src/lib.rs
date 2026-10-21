@@ -2122,8 +2122,8 @@ pub enum Event {
         envelope: LineEnvelope,
         /// The affected channel.
         channel: ChannelName,
-        /// The removed user's nickname.
-        nick: Nick,
+        /// The removed user.
+        subject: Nick,
         /// The user or server that issued the kick.
         actor: String,
         /// Whether the actor is this session's user.
@@ -2137,8 +2137,8 @@ pub enum Event {
     Invited {
         /// The invited channel.
         channel: ChannelName,
-        /// The invited user's nickname.
-        nick: Nick,
+        /// The invited user.
+        subject: Nick,
         /// The user or server prefix that sent the invitation.
         actor: String,
         /// Whether the actor is this session's user.

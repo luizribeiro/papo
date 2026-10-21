@@ -376,7 +376,7 @@ fn kicked(
         channel: mapping.channel(message.param(0)?),
         authorship,
         subject_authorship,
-        nick: mapping.nick(nick),
+        subject: mapping.nick(nick),
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         reason: message.param(2).map(str::to_owned),
     }))
@@ -1295,7 +1295,7 @@ mod tests {
         assert!(matches!(
             kicked,
             HistoryItem::Kicked(event)
-                if event.channel == "#papo" && event.nick == "emily"
+                if event.channel == "#papo" && event.subject == "emily"
                     && event.reason.as_deref() == Some("Requested by alice")
                     && matches!(event.actor, crate::Source::Server { ref name, .. } if name == "irc.example")
                     && event.subject_authorship == crate::Authorship::Unknown

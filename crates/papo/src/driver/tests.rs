@@ -1015,7 +1015,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             time: SystemTime::UNIX_EPOCH,
             account: None,
             channel: test_channel("#staff"),
-            nick: test_nick("alice"),
+            subject: test_nick("alice"),
             actor: crate::Source::from_proto(
                 papo_proto::Source::User {
                     nick: "chanserv",
@@ -1054,7 +1054,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             time: SystemTime::UNIX_EPOCH,
             account: None,
             channel: test_channel("#staff"),
-            nick: test_nick("papo-driver"),
+            subject: test_nick("papo-driver"),
             actor: crate::Source::from_proto(
                 papo_proto::Source::User {
                     nick: "chanserv",

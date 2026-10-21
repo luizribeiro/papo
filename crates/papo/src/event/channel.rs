@@ -76,8 +76,8 @@ pub struct Kicked {
     pub account: Option<AccountName>,
     /// The affected channel.
     pub channel: ChannelName,
-    /// The removed user's nickname.
-    pub nick: Nick,
+    /// The removed user.
+    pub subject: Nick,
     /// The user or server that issued the kick.
     pub actor: Source,
     /// Whether the actor is this client's user.
@@ -94,8 +94,8 @@ pub struct Kicked {
 pub struct Invited {
     /// The invited channel.
     pub channel: ChannelName,
-    /// The invited user's nickname.
-    pub nick: Nick,
+    /// The invited user.
+    pub subject: Nick,
     /// The user or server that sent the invitation.
     pub actor: Source,
     /// Whether the actor is this client's user.

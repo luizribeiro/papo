@@ -63,7 +63,7 @@ impl Session {
         let casemapping = self.isupport.value().casemapping();
         self.outbox.event(Event::Invited {
             channel: casemapping.channel(channel),
-            nick: casemapping.nick(nick),
+            subject: casemapping.nick(nick),
             actor: by.to_owned(),
             authorship: self.authorship(message),
             subject_authorship: if crate::names_equal(casemapping, nick, self.nick()) {

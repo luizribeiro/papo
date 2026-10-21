@@ -474,7 +474,7 @@ impl State {
             outbox.event(Event::Kicked {
                 envelope: crate::LineEnvelope::from_line(message),
                 channel: mapping.channel(channel),
-                nick: mapping.nick(nick),
+                subject: mapping.nick(nick),
                 actor: actor.to_owned(),
                 authorship,
                 subject_authorship,

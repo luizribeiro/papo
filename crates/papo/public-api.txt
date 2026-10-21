@@ -381,7 +381,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::HostChanged
 pub papo::event::Invited::actor: papo::Source
 pub papo::event::Invited::authorship: papo::Authorship
 pub papo::event::Invited::channel: papo::ChannelName
-pub papo::event::Invited::nick: papo::Nick
+pub papo::event::Invited::subject: papo::Nick
 pub papo::event::Invited::subject_authorship: papo::Authorship
 impl core::clone::Clone for papo::event::Invited
 pub fn papo::event::Invited::clone(&self) -> Self
@@ -428,8 +428,8 @@ pub papo::event::Kicked::actor: papo::Source
 pub papo::event::Kicked::authorship: papo::Authorship
 pub papo::event::Kicked::channel: papo::ChannelName
 pub papo::event::Kicked::msgid: core::option::Option<papo::MessageId>
-pub papo::event::Kicked::nick: papo::Nick
 pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
+pub papo::event::Kicked::subject: papo::Nick
 pub papo::event::Kicked::subject_authorship: papo::Authorship
 pub papo::event::Kicked::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Kicked
