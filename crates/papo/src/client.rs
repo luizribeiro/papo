@@ -273,7 +273,7 @@ impl Client {
     /// A bare hostname uses TLS on port 6697.
     ///
     /// ```
-    /// let builder = papo::Client::builder("irc.example.net");
+    /// let builder = papo::Client::builder("ircs://irc.example.net");
     /// # _ = builder;
     /// ```
     pub fn builder(endpoint: impl crate::IntoEndpoint) -> crate::Builder {

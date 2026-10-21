@@ -191,8 +191,8 @@ impl Builder {
     ///
     /// ```
     /// let account = papo::NewAccount::new("correct horse battery staple")
-    ///     .account(papo::Casemapping::default().account("alice"));
-    /// # _ = papo::Client::builder("irc.example.net").create_account(account);
+    ///     .account("alice");
+    /// # _ = papo::Client::builder("ircs://irc.example.net").create_account(account);
     /// ```
     pub fn create_account(mut self, account: NewAccount) -> Self {
         self.reject_binary_secret(&account.password);
@@ -215,7 +215,7 @@ impl Builder {
     /// Adds capability names to request when advertised.
     ///
     /// ```
-    /// let builder = papo::Client::builder("irc.example.net")
+    /// let builder = papo::Client::builder("ircs://irc.example.net")
     ///     .request_caps(["soju.im/bouncer-networks"]);
     /// # _ = builder;
     /// ```
@@ -235,7 +235,7 @@ impl Builder {
     /// Removes default capability names from the request set.
     ///
     /// ```
-    /// let builder = papo::Client::builder("irc.example.net")
+    /// let builder = papo::Client::builder("ircs://irc.example.net")
     ///     .without_caps([papo::cap::AWAY_NOTIFY]);
     /// # _ = builder;
     /// ```
@@ -305,7 +305,7 @@ impl Builder {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # _ = papo::Client::builder("irc.example.net")
+    /// # _ = papo::Client::builder("ircs://irc.example.net")
     /// #     .request_timeout(Duration::from_secs(15));
     /// ```
     pub fn request_timeout(mut self, timeout: Duration) -> Self {
@@ -316,7 +316,7 @@ impl Builder {
     /// Sets the away message announced while connecting.
     ///
     /// ```
-    /// # _ = papo::Client::builder("irc.example.net").away_on_connect("At lunch");
+    /// # _ = papo::Client::builder("ircs://irc.example.net").away_on_connect("At lunch");
     /// ```
     pub fn away_on_connect(mut self, text: impl Into<String>) -> Self {
         self.config.away_on_connect = Some(AwayOnConnect::Message(text.into()));
@@ -329,7 +329,7 @@ impl Builder {
     ///
     /// ```
     /// # use papo::CtcpReplies;
-    /// # _ = papo::Client::builder("irc.example.net")
+    /// # _ = papo::Client::builder("ircs://irc.example.net")
     /// #     .ctcp_replies(CtcpReplies::default().version(Some("papo bot")));
     /// ```
     pub fn ctcp_replies(mut self, replies: CtcpReplies) -> Self {
@@ -342,7 +342,7 @@ impl Builder {
     /// Channel queries get a private reply.
     ///
     /// ```
-    /// # _ = papo::Client::builder("irc.example.net")
+    /// # _ = papo::Client::builder("ircs://irc.example.net")
     /// #     .ctcp_source("https://example.org/papo-bot");
     /// ```
     pub fn ctcp_source(mut self, url: impl Into<String>) -> Self {
@@ -403,7 +403,7 @@ impl Builder {
     /// Trusts only the certificates in a PEM document.
     ///
     /// ```
-    /// # _ = papo::Client::builder("irc.example.net").tls_ca_pem(Vec::new());
+    /// # _ = papo::Client::builder("ircs://irc.example.net").tls_ca_pem(Vec::new());
     /// ```
     #[cfg(not(browser))]
     pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
@@ -414,7 +414,7 @@ impl Builder {
     /// Adds certificates from a PEM document to the platform trust roots.
     ///
     /// ```
-    /// # _ = papo::Client::builder("irc.example.net").tls_extra_ca_pem(Vec::new());
+    /// # _ = papo::Client::builder("ircs://irc.example.net").tls_extra_ca_pem(Vec::new());
     /// ```
     #[cfg(not(browser))]
     pub fn tls_extra_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
@@ -425,7 +425,7 @@ impl Builder {
     /// Sets a PEM-encoded TLS client certificate chain and private key.
     ///
     /// ```
-    /// # _ = papo::Client::builder("irc.example.net").tls_client_cert(Vec::new(), "key");
+    /// # _ = papo::Client::builder("ircs://irc.example.net").tls_client_cert(Vec::new(), "key");
     /// ```
     #[cfg(not(browser))]
     pub fn tls_client_cert(
@@ -440,7 +440,7 @@ impl Builder {
     /// Overrides the DNS name authenticated by TLS.
     ///
     /// ```
-    /// # _ = papo::Client::builder("127.0.0.1").tls_server_name("irc.example.net");
+    /// # _ = papo::Client::builder("ircs://127.0.0.1").tls_server_name("irc.example.net");
     /// ```
     #[cfg(not(browser))]
     pub fn tls_server_name(mut self, server_name: impl Into<String>) -> Self {
@@ -460,7 +460,7 @@ impl Builder {
     /// known, names that compare equal under that mapping are also deduplicated before joining.
     ///
     /// ```
-    /// # _ = papo::Client::builder("irc.example.net").autojoin(["#papo"]);
+    /// # _ = papo::Client::builder("ircs://irc.example.net").autojoin(["#papo"]);
     /// ```
     pub fn autojoin<I, S>(mut self, channels: I) -> Self
     where
@@ -479,7 +479,7 @@ impl Builder {
     /// that compare equal under that mapping are also deduplicated before joining.
     ///
     /// ```
-    /// # _ = papo::Client::builder("irc.example.net").autojoin_with_key("#staff", "secret");
+    /// # _ = papo::Client::builder("ircs://irc.example.net").autojoin_with_key("#staff", "secret");
     /// ```
     pub fn autojoin_with_key(
         mut self,
