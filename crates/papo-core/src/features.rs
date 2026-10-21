@@ -130,32 +130,35 @@ impl Feature {
         }
     }
 
-    const fn caps(self) -> &'static [&'static str] {
+    fn caps(self) -> [Option<cap::Cap>; 2] {
         match self {
             Self::MessageTags | Self::Replies | Self::Reactions | Self::Typing => {
-                &[cap::MESSAGE_TAGS]
+                [Some(cap::Cap::from(cap::MESSAGE_TAGS)), None]
             }
-            Self::Redaction => &[cap::MESSAGE_REDACTION],
-            Self::Multiline => &[cap::MULTILINE],
-            Self::History => &[cap::CHATHISTORY],
-            Self::ReadMarkers => &[cap::READ_MARKER],
-            Self::Metadata => &[cap::METADATA],
-            Self::SetName => &[cap::SETNAME],
-            Self::AccountCreation => &[cap::ACCOUNT_REGISTRATION],
+            Self::Redaction => [Some(cap::Cap::from(cap::MESSAGE_REDACTION)), None],
+            Self::Multiline => [Some(cap::Cap::from(cap::MULTILINE)), None],
+            Self::History => [Some(cap::Cap::from(cap::CHATHISTORY)), None],
+            Self::ReadMarkers => [Some(cap::Cap::from(cap::READ_MARKER)), None],
+            Self::Metadata => [Some(cap::Cap::from(cap::METADATA)), None],
+            Self::SetName => [Some(cap::Cap::from(cap::SETNAME)), None],
+            Self::AccountCreation => [Some(cap::Cap::from(cap::ACCOUNT_REGISTRATION)), None],
             #[cfg(feature = "unstable")]
-            Self::Bouncer => &[cap::BOUNCER_NETWORKS],
+            Self::Bouncer => [Some(cap::Cap::from(cap::BOUNCER_NETWORKS)), None],
             #[cfg(feature = "unstable")]
-            Self::Persistence => &[cap::PERSISTENCE],
+            Self::Persistence => [Some(cap::Cap::from(cap::PERSISTENCE)), None],
             #[cfg(feature = "unstable")]
-            Self::WebPush => &[cap::WEBPUSH],
-            Self::ChannelRename => &[cap::CHANNEL_RENAME],
+            Self::WebPush => [Some(cap::Cap::from(cap::WEBPUSH)), None],
+            Self::ChannelRename => [Some(cap::Cap::from(cap::CHANNEL_RENAME)), None],
             #[cfg(feature = "unstable")]
-            Self::Relay => &[cap::RELAYMSG],
-            Self::LabeledResponse => &[cap::LABELED_RESPONSE],
-            Self::AwayTracking => &[cap::AWAY_NOTIFY],
-            Self::AccountTracking => &[cap::ACCOUNT_NOTIFY, cap::ACCOUNT_TAG],
-            Self::HostTracking => &[cap::CHGHOST],
-            Self::Monitor | Self::BotMode => &[],
+            Self::Relay => [Some(cap::Cap::from(cap::RELAYMSG)), None],
+            Self::LabeledResponse => [Some(cap::Cap::from(cap::LABELED_RESPONSE)), None],
+            Self::AwayTracking => [Some(cap::Cap::from(cap::AWAY_NOTIFY)), None],
+            Self::AccountTracking => [
+                Some(cap::Cap::from(cap::ACCOUNT_NOTIFY)),
+                Some(cap::Cap::from(cap::ACCOUNT_TAG)),
+            ],
+            Self::HostTracking => [Some(cap::Cap::from(cap::CHGHOST)), None],
+            Self::Monitor | Self::BotMode => [None, None],
         }
     }
 
@@ -254,25 +257,25 @@ impl Session {
             }
             _ => {}
         }
-        let enabled = if feature == Feature::AccountTracking {
-            feature
-                .caps()
-                .iter()
-                .all(|name| cap::advertised_spelling(name, self.caps.enabled()).is_some())
-        } else {
-            feature
-                .caps()
-                .iter()
-                .any(|name| cap::advertised_spelling(name, self.caps.enabled()).is_some())
-        };
+        let required = feature.caps();
+        let enabled =
+            if feature == Feature::AccountTracking {
+                required.iter().flatten().all(|name| {
+                    cap::advertised_spelling(name.as_str(), self.caps.enabled()).is_some()
+                })
+            } else {
+                required.iter().flatten().any(|name| {
+                    cap::advertised_spelling(name.as_str(), self.caps.enabled()).is_some()
+                })
+            };
         if !enabled {
-            let disabled = feature.caps().iter().any(|required| {
-                self.config.cap_disabled(required)
+            let disabled = required.iter().flatten().any(|required| {
+                self.config.cap_disabled(required.as_str())
                     && self
                         .caps
                         .advertised()
                         .keys()
-                        .any(|offered| offered == &cap::Cap::from(*required))
+                        .any(|offered| offered == required)
             });
             return Err(if disabled {
                 UnsupportedReason::DisabledByClient
@@ -302,10 +305,10 @@ mod tests {
     #[test]
     fn registry_and_feature_capabilities_agree_in_both_directions() {
         for feature in Feature::ALL {
-            for required in feature.caps() {
+            for required in feature.caps().iter().flatten() {
                 let info = cap::ALL
                     .iter()
-                    .find(|info| info.name == cap::canonical(required))
+                    .find(|info| info.name == cap::canonical(required.as_str()))
                     .unwrap();
                 assert!(info.features.contains(feature), "{feature:?}: {required}");
             }
@@ -316,7 +319,8 @@ mod tests {
                     feature
                         .caps()
                         .iter()
-                        .any(|name| cap::canonical(name) == info.name),
+                        .flatten()
+                        .any(|name| cap::canonical(name.as_str()) == info.name),
                     "{}: {feature:?}",
                     info.name
                 );
