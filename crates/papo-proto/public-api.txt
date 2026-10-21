@@ -187,7 +187,7 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Command<'a>
 pub papo_proto::InvalidIdentifier::Empty
 pub papo_proto::InvalidIdentifier::InvalidCharacter(char)
 pub papo_proto::InvalidIdentifier::InvalidPrefix(char)
-pub papo_proto::InvalidIdentifier::TooLong
+#[non_exhaustive] pub papo_proto::InvalidIdentifier::TooLong
 pub papo_proto::InvalidIdentifier::TooLong::length: usize
 pub papo_proto::InvalidIdentifier::TooLong::maximum: usize
 impl core::clone::Clone for papo_proto::InvalidIdentifier

@@ -60,14 +60,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     else {
         panic!("over-limit nickname did not return an invalid-input error");
     };
-    assert_eq!(
-        text,
-        InvalidIdentifier::TooLong {
-            length: n + 1,
-            maximum: n,
-        }
-        .to_string()
-    );
+    assert_eq!(text, InvalidIdentifier::__too_long(n + 1, n).to_string());
 
     bob.expect_none(Event::as_nick_changed).await?;
     alice.expect_none(Event::as_nick_changed).await?;

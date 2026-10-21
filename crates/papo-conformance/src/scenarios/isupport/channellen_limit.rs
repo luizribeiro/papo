@@ -55,13 +55,7 @@ async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
         panic!("over-limit channel name did not return an invalid-input error");
     };
     assert_eq!(name, over);
-    assert_eq!(
-        reason,
-        InvalidIdentifier::TooLong {
-            length: n + 1,
-            maximum: n,
-        }
-    );
+    assert_eq!(reason, InvalidIdentifier::__too_long(n + 1, n));
 
     assert!(alice.state().channel(&over).is_none());
     assert_eq!(alice.state().channels().count(), 1);

@@ -19,12 +19,21 @@ pub enum InvalidIdentifier {
     /// The identifier starts with a character forbidden in its protocol context.
     InvalidPrefix(char),
     /// The identifier exceeds a server or protocol length limit.
+    #[non_exhaustive]
     TooLong {
         /// The identifier's character count.
         length: usize,
         /// The maximum accepted character count.
         maximum: usize,
     },
+}
+
+impl InvalidIdentifier {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __too_long(length: usize, maximum: usize) -> Self {
+        Self::TooLong { length, maximum }
+    }
 }
 
 impl fmt::Display for InvalidIdentifier {
