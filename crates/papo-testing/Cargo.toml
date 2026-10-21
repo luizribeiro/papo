@@ -10,7 +10,7 @@ publish = false
 [dependencies]
 papo = { path = "../papo", version = "=0.0.0", default-features = false }
 papo-test-server = { path = "../papo-test-server", version = "=0.0.0" }
-tokio = { version = "1.53.3", features = ["macros", "time"] }
+tokio = { version = "1.53.3", features = ["io-util", "macros", "rt", "test-util", "time"] }
 
 [lints]
 workspace = true
