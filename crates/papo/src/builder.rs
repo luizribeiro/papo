@@ -952,13 +952,19 @@ mod tests {
         for removed in ["draft/read-marker", "draft/account-registration"] {
             assert!(!aliases.wanted_caps.iter().any(|name| name == removed));
         }
-        let unstable = Builder::new("irc.example.net")
-            .without_caps(["soju.im/bouncer-networks", "soju.im/webpush"]);
-        assert_eq!(unstable.invalid_input, None);
-        assert_eq!(
-            unstable.config.disabled_caps,
-            ["soju.im/bouncer-networks", "soju.im/webpush"]
-        );
+        let unstable_caps = [
+            "soju.im/bouncer-networks",
+            "soju.im/bouncer-networks-notify",
+            "draft/persistence",
+            "draft/relaymsg",
+            "draft/webpush",
+            "soju.im/webpush",
+        ];
+        for capability in unstable_caps {
+            let unstable = Builder::new("irc.example.net").without_caps([capability]);
+            assert_eq!(unstable.invalid_input, None);
+            assert_eq!(unstable.config.disabled_caps, [capability]);
+        }
     }
 
     #[cfg(feature = "unstable")]
@@ -969,6 +975,12 @@ mod tests {
             .enable(crate::Feature::Relay)
             .enable(crate::Feature::WebPush)
             .bouncer_network(crate::NetworkId::new("libera"));
+        assert!(
+            enabled
+                .config
+                .enabled_features
+                .contains(&crate::Feature::Bouncer)
+        );
         for capability in [
             "soju.im/bouncer-networks",
             "soju.im/bouncer-networks-notify",
