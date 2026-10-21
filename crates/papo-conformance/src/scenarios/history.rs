@@ -47,32 +47,32 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     assert!(page.end);
     let messages = page
         .messages()
-        .filter(|message| texts.contains(&message.text()))
+        .filter(|message| texts.contains(&message.text.as_str()))
         .collect::<Vec<_>>();
     assert_eq!(
         messages
             .iter()
-            .map(|message| message.text())
+            .map(|message| message.text.as_str())
             .collect::<Vec<_>>(),
         texts
     );
     assert_eq!(
         messages
             .iter()
-            .map(|message| message.id())
+            .map(|message| message.msgid.as_ref())
             .collect::<Vec<_>>(),
         sent.iter()
             .map(|message| message.id.as_ref())
             .collect::<Vec<_>>()
     );
     for message in messages {
-        assert_eq!(message.origin(), Origin::History);
+        assert_eq!(message.origin, Origin::History);
         assert!(!message.is_live());
         assert_eq!(
-            message.source().as_ref().and_then(crate::source_nick),
+            crate::source_nick(&message.actor),
             Some(writer.nick().as_ref())
         );
-        assert!(message.tags().get("time").is_some());
+        assert!(message.tags.get("time").is_some());
     }
     Ok(())
 }
@@ -96,16 +96,16 @@ async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {
     );
     let message = page
         .messages()
-        .find(|message| message.text() == text)
+        .find(|message| message.text == text)
         .expect("HISTORY replays the stored message");
-    assert_eq!(message.origin(), Origin::Replay);
+    assert_eq!(message.origin, Origin::Replay);
     Ok(())
 }
 
 fn message_texts(page: &papo::HistoryPage, expected: &[&str]) -> Vec<String> {
     page.messages()
-        .filter(|message| expected.contains(&message.text()))
-        .map(|message| message.text().to_owned())
+        .filter(|message| expected.contains(&message.text.as_str()))
+        .map(|message| message.text.clone())
         .collect()
 }
 
@@ -193,7 +193,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
         let messages = page.messages().collect::<Vec<_>>();
         let page_texts = messages
             .iter()
-            .map(|message| message.text())
+            .map(|message| message.text.as_str())
             .collect::<Vec<_>>();
         let start = remaining.saturating_sub(10);
         assert_eq!(page_texts, texts[start..remaining]);
@@ -203,7 +203,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
         }
         assert!(!messages.is_empty(), "an empty page must report the end");
         let oldest = messages.first().expect("nonempty page");
-        cursor = Some(match oldest.id() {
+        cursor = Some(match oldest.msgid.as_ref() {
             Some(id) => Cursor::Id(id.as_ref().to_owned()),
             None => Cursor::Time(oldest.time),
         });
@@ -277,13 +277,10 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_message()
-                .filter(|message| message.kind() == MessageKind::Notice && message.text() == text)
+                .filter(|message| message.kind == MessageKind::Notice && message.text == text)
         })
         .await?;
-    assert_eq!(
-        notice.source().as_ref().and_then(crate::source_nick),
-        Some("BouncerServ")
-    );
+    assert_eq!(crate::source_nick(&notice.actor), Some("BouncerServ"));
     let target = crate::scenarios::support::conversation_name(&notice.conversation)
         .expect("broadcast has an address")
         .to_owned();

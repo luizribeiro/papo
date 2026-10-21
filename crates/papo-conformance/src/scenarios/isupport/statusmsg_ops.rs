@@ -108,12 +108,12 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
             Some(channel.as_str())
         );
         assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
-        assert_eq!(message.raw_text(), "operators only");
-        assert_eq!(message.id(), sent.id.as_ref());
+        assert_eq!(message.raw_text, "operators only");
+        assert_eq!(message.msgid.as_ref(), sent.id.as_ref());
     }
-    assert_eq!(echo.origin(), Origin::Echo);
-    assert!(!echo.is_private());
-    assert_eq!(received.origin(), Origin::Live);
+    assert_eq!(echo.origin, Origin::Echo);
+    assert!(!matches!(echo.conversation, papo::Conversation::Private(_)));
+    assert_eq!(received.origin, Origin::Live);
     assert_eq!(
         crate::source_nick(&received.actor),
         Some(alice_nick.as_ref())

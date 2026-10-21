@@ -1246,11 +1246,7 @@ async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
         "404",
     );
     alice
-        .expect_none(|event| {
-            event
-                .as_message()
-                .filter(|message| message.text() == blocked)
-        })
+        .expect_none(|event| event.as_message().filter(|message| message.text == blocked))
         .await?;
 
     // These server numerics are the behavior under test and need raw MODE parameters.
@@ -1451,7 +1447,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     wait_channel_mode(&mut bob, &channel, 'v').await?;
     bob.privmsg(&channel, "allowed after voice").await?;
     let delivered = carol.wait_for(Event::as_message).await?;
-    assert_eq!(delivered.text(), "allowed after voice");
+    assert_eq!(delivered.text, "allowed after voice");
     Ok(())
 }
 

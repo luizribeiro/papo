@@ -21,10 +21,10 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     let text = "authenticated hello from alice";
     let sent = alice.privmsg(&channel, text).await?;
     let message = bob
-        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
 
-    assert_eq!(message.text(), text);
+    assert_eq!(message.text, text);
     assert_eq!(
         crate::source_nick(&message.actor),
         Some(alice_nick.as_ref())
@@ -33,16 +33,16 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(message.id(), sent.id.as_ref());
+    assert_eq!(message.msgid.as_ref(), sent.id.as_ref());
     assert_eq!(Some(message.time), sent.time);
-    assert_eq!(message.account(), Some(account.as_ref()));
-    assert_eq!(message.origin(), Origin::Live);
+    assert_eq!(message.account.as_deref(), Some(account.as_ref()));
+    assert_eq!(message.origin, Origin::Live);
     assert!(sent.fallbacks.is_empty());
     assert!(matches!(
         bob.state().user(&alice_nick).unwrap().account(),
         Account::LoggedIn(observed) if observed == &account
     ));
-    bob.expect_none(|event| event.as_message().filter(|message| message.text() == text))
+    bob.expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     Ok(())
 }
@@ -142,7 +142,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     let text = "the review can wait until you return";
     let sent = bob.privmsg(alice_nick.clone(), text).await?;
     let message = alice
-        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
 
     assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
@@ -150,15 +150,15 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(bob_nick.as_ref())
     );
-    assert_eq!(message.text(), text);
-    assert_eq!(message.id(), sent.id.as_ref());
+    assert_eq!(message.text, text);
+    assert_eq!(message.msgid.as_ref(), sent.id.as_ref());
     assert_eq!(Some(message.time), sent.time);
-    assert_eq!(message.origin(), Origin::Live);
+    assert_eq!(message.origin, Origin::Live);
     assert!(alice.state().away());
     assert_eq!(alice.state().away_message(), Some(away));
     assert!(sent.fallbacks.is_empty());
     alice
-        .expect_none(|event| event.as_message().filter(|message| message.text() == text))
+        .expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     Ok(())
 }
@@ -373,7 +373,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
     let text = "automated conformance report";
     alice.privmsg(&channel, text).await?;
     let message = bob
-        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
 
     assert_eq!(
@@ -384,9 +384,9 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(message.text(), text);
-    assert!(message.is_bot());
-    bob.expect_none(|event| event.as_message().filter(|message| message.text() == text))
+    assert_eq!(message.text, text);
+    assert!(message.is_bot);
+    bob.expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     Ok(())
 }

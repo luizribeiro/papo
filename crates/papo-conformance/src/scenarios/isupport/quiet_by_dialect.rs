@@ -96,7 +96,10 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
             Some(channel.as_str())
         );
         assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
-        assert!(!message.is_private());
+        assert!(!matches!(
+            message.conversation,
+            papo::Conversation::Private(_)
+        ));
     }
     for peer in [&alice, &bob, &carol] {
         let state = peer.state();

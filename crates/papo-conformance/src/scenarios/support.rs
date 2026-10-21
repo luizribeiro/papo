@@ -8,7 +8,7 @@ pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 pub(super) fn message_text<'event>(event: &'event Event, text: &str) -> Option<&'event Message> {
     event
         .as_message()
-        .filter(|message| message.raw_text() == text)
+        .filter(|message| message.raw_text == text)
 }
 
 pub(super) fn conversation_name(conversation: &Conversation) -> Option<&str> {

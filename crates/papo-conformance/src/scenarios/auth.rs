@@ -161,13 +161,16 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     let nickserv = alice
         .wait_for(|event| {
             event.as_message().filter(|message| {
-                message.kind() == papo::MessageKind::Notice
-                    && message.source().as_ref().and_then(crate::source_nick) == Some("NickServ")
-                    && message.text().contains(account.as_ref())
+                message.kind == papo::MessageKind::Notice
+                    && crate::source_nick(&message.actor) == Some("NickServ")
+                    && message.text.contains(account.as_ref())
             })
         })
         .await?;
-    assert!(nickserv.is_private());
+    assert!(matches!(
+        nickserv.conversation,
+        papo::Conversation::Private(_)
+    ));
 
     let channel = s.channel_name();
     alice.join(&channel).await?;
@@ -177,13 +180,16 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     let chanserv = alice
         .wait_for(|event| {
             event.as_message().filter(|message| {
-                message.kind() == papo::MessageKind::Notice
-                    && message.source().as_ref().and_then(crate::source_nick) == Some("ChanServ")
-                    && message.text().contains(&channel)
+                message.kind == papo::MessageKind::Notice
+                    && crate::source_nick(&message.actor) == Some("ChanServ")
+                    && message.text.contains(&channel)
             })
         })
         .await?;
-    assert!(chanserv.is_private());
+    assert!(matches!(
+        chanserv.conversation,
+        papo::Conversation::Private(_)
+    ));
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-use papo::{Casemapping, Error, Event, Refusal, isupport::Advertised};
+use papo::{Casemapping, Conversation, Error, Event, Refusal, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -110,14 +110,14 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let text = "folded channel target";
     alice.privmsg(&folded, text).await?;
     let message = bob
-        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     assert_eq!(name(&message.conversation), Some(&*chan));
     assert_eq!(
         crate::source_nick(&message.actor),
         Some(alice_nick.as_str())
     );
-    assert!(!message.is_private());
+    assert!(matches!(message.conversation, Conversation::Channel(_)));
 
     bob.expect_none(Event::as_message).await?;
     Ok(())

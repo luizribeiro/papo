@@ -283,9 +283,9 @@ async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let message = bob
-        .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+        .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(message.relayed_by(), Some(alice_nick.as_ref()));
+    assert_eq!(message.relayed_by.as_deref(), Some(alice_nick.as_ref()));
     assert_eq!(
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())

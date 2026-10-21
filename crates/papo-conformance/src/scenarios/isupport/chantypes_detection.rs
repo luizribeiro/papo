@@ -45,13 +45,16 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         let text = format!("hello {c} channel");
         bob.privmsg(&name, text.clone()).await?;
         let message = alice
-            .wait_for(|event| event.as_message().filter(|message| message.text() == text))
+            .wait_for(|event| event.as_message().filter(|message| message.text == text))
             .await?;
         assert_eq!(
             crate::scenarios::support::conversation_name(&message.conversation),
             Some(name.as_str())
         );
-        assert!(!message.is_private());
+        assert!(!matches!(
+            message.conversation,
+            papo::Conversation::Private(_)
+        ));
         assert_eq!(message.return_address(), name);
         assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
     }
@@ -81,13 +84,12 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
     let direct = "a direct message";
     bob.privmsg(alice_nick.clone(), direct).await?;
     let private = alice
-        .wait_for(|event| {
-            event
-                .as_message()
-                .filter(|message| message.text() == direct)
-        })
+        .wait_for(|event| event.as_message().filter(|message| message.text == direct))
         .await?;
-    assert!(private.is_private());
+    assert!(matches!(
+        private.conversation,
+        papo::Conversation::Private(_)
+    ));
     assert_eq!(
         crate::scenarios::support::conversation_name(&private.conversation),
         Some(bob_nick.as_ref())
