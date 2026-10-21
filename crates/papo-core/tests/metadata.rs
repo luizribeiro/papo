@@ -70,11 +70,7 @@ fn requests_published_metadata_name_and_reads_known_limits() {
         session
             .metadata(
                 std::time::Instant::now(),
-                MetadataCommand::Set {
-                    target: "alice".into(),
-                    key: "avatar".into(),
-                    value: Some("https://example.com/alice.png".into()),
-                },
+                MetadataCommand::__set("alice".into(), "avatar".into(), Some("https://example.com/alice.png".into())),
             )
             .unwrap();
     })
@@ -83,11 +79,7 @@ fn requests_published_metadata_name_and_reads_known_limits() {
         session
             .metadata(
                 std::time::Instant::now(),
-                MetadataCommand::Set {
-                    target: "alice".into(),
-                    key: "pronouns".into(),
-                    value: Some("they/them".into()),
-                },
+                MetadataCommand::__set("alice".into(), "pronouns".into(), Some("they/them".into())),
             )
             .unwrap();
     })
@@ -96,16 +88,13 @@ fn requests_published_metadata_name_and_reads_known_limits() {
         session
             .metadata(
                 std::time::Instant::now(),
-                MetadataCommand::Get {
-                    target: "alice".into(),
-                    keys: vec!["avatar".into(), "pronouns".into()],
-                },
+                MetadataCommand::__get("alice".into(), vec!["avatar".into(), "pronouns".into()]),
             )
             .unwrap();
     })
     .client("@label=2 METADATA alice GET avatar pronouns")
     .server("@label=0 :ergo.test 761 alice ALICE avatar * :https://cdn.example.net/a.png")
-    .event(|event| matches!(event, Event::MetadataChanged { subject, key, value: Some(value), visibility }
+    .event(|event| matches!(event, Event::MetadataChanged { subject, key, value: Some(value), visibility, .. }
         if subject_name(subject) == "ALICE" && key == "avatar"
             && value == "https://cdn.example.net/a.png" && visibility == &Visibility::Public))
     .event(|event| matches!(event, Event::Response(_)))
@@ -129,9 +118,7 @@ fn requests_published_metadata_name_and_reads_known_limits() {
         if key == "avatar"))
     .inspect(|session| assert!(!session.state().metadata("alice").unwrap().contains_key("avatar")))
     .update(|session| {
-        session.metadata(std::time::Instant::now(), MetadataCommand::Clear {
-            target: "alice".into(),
-        }).unwrap();
+        session.metadata(std::time::Instant::now(), MetadataCommand::__clear("alice".into())).unwrap();
     })
     .client("@label=3 METADATA alice CLEAR")
     .server("@label=3 :ergo.test FAIL METADATA VALUE_INVALID :Metadata value is invalid")
@@ -194,70 +181,57 @@ fn rejects_invalid_keys_values_and_subscription_counts_locally() {
             session
                 .metadata(
                     now,
-                    MetadataCommand::Set {
-                        target: "alice".into(),
-                        key: "a0_./-".into(),
-                        value: Some("12345678".into()),
-                    },
+                    MetadataCommand::__set(
+                        "alice".into(),
+                        "a0_./-".into(),
+                        Some("12345678".into()),
+                    ),
                 )
                 .unwrap();
             session
                 .metadata(
                     now,
-                    MetadataCommand::Sub {
-                        keys: vec!["avatar".into(), "pronouns".into()],
-                    },
+                    MetadataCommand::__sub(vec!["avatar".into(), "pronouns".into()]),
                 )
                 .unwrap();
             assert_eq!(
                 session.metadata(
                     now,
-                    MetadataCommand::Set {
-                        target: "alice".into(),
-                        key: "status".into(),
-                        value: Some(String::new()),
-                    },
+                    MetadataCommand::__set("alice".into(), "status".into(), Some(String::new())),
                 ),
                 Err(RequestError::EmptyText)
             );
             assert_eq!(
                 session.metadata(
                     now,
-                    MetadataCommand::Get {
-                        target: "alice".into(),
-                        keys: vec!["Avatar".into()],
-                    },
+                    MetadataCommand::__get("alice".into(), vec!["Avatar".into()]),
                 ),
-                Err(RequestError::InvalidMetadataKey {
-                    key: "Avatar".into(),
-                    reason: papo_proto::InvalidIdentifier::InvalidCharacter('A'),
-                })
+                Err(RequestError::__invalid_metadata_key(
+                    "Avatar".into(),
+                    papo_proto::InvalidIdentifier::InvalidCharacter('A'),
+                ))
             );
             assert_eq!(
                 session.metadata(
                     now,
-                    MetadataCommand::Set {
-                        target: "alice".into(),
-                        key: "pronouns".into(),
-                        value: Some("they/them!".into()),
-                    },
+                    MetadataCommand::__set(
+                        "alice".into(),
+                        "pronouns".into(),
+                        Some("they/them!".into())
+                    ),
                 ),
-                Err(RequestError::MetadataValueTooLong {
-                    maximum: 8,
-                    actual: 10,
-                })
+                Err(RequestError::__metadata_value_too_long(8, 10))
             );
             assert_eq!(
                 session.metadata(
                     now,
-                    MetadataCommand::Sub {
-                        keys: vec!["avatar".into(), "pronouns".into(), "status".into()],
-                    },
+                    MetadataCommand::__sub(vec![
+                        "avatar".into(),
+                        "pronouns".into(),
+                        "status".into()
+                    ]),
                 ),
-                Err(RequestError::TooManyMetadataSubscriptions {
-                    maximum: 2,
-                    actual: 3,
-                })
+                Err(RequestError::__too_many_metadata_subscriptions(2, 3))
             );
         })
         .event(|event| matches!(event, Event::RequestUntracked { .. }))
@@ -319,7 +293,8 @@ fn bounds_received_metadata_with_its_own_storage_limit() {
             std::iter::from_fn(|| session.poll_event()).any(|event| matches!(
                 event,
                 Event::StateLimitReached {
-                    limit: StateLimit::MetadataKeys
+                    limit: StateLimit::MetadataKeys,
+                    ..
                 }
             ))
         );
@@ -356,9 +331,7 @@ fn tracks_sub_subs_and_unsub_replies() {
             session
                 .metadata(
                     std::time::Instant::now(),
-                    MetadataCommand::Sub {
-                        keys: vec!["avatar".into(), "pronouns".into()],
-                    },
+                    MetadataCommand::__sub(vec!["avatar".into(), "pronouns".into()]),
                 )
                 .unwrap();
         })
@@ -378,9 +351,7 @@ fn tracks_sub_subs_and_unsub_replies() {
             assert!(matches!(
                 session.metadata(
                     std::time::Instant::now(),
-                    MetadataCommand::Sub {
-                        keys: vec!["status".into()],
-                    },
+                    MetadataCommand::__sub(vec!["status".into()]),
                 ),
                 Err(RequestError::TooManyMetadataSubscriptions { actual: 3, .. })
             ));
@@ -410,9 +381,11 @@ fn tracks_sub_subs_and_unsub_replies() {
             session
                 .metadata(
                     std::time::Instant::now(),
-                    MetadataCommand::Unsub {
-                        keys: vec!["avatar".into(), "status".into(), "pronouns".into()],
-                    },
+                    MetadataCommand::__unsub(vec![
+                        "avatar".into(),
+                        "status".into(),
+                        "pronouns".into(),
+                    ]),
                 )
                 .unwrap();
         })
@@ -501,12 +474,12 @@ fn reports_metadata_sync_later_with_and_without_a_retry_delay() {
     registered("max-subs=100,max-keys=100")
         .server(":ergo.test 774 alice #papo 90")
         .event(|event| {
-            matches!(event, Event::MetadataSyncLater { target, retry_after }
+            matches!(event, Event::MetadataSyncLater { target, retry_after, .. }
             if target == "#papo" && *retry_after == Some(Duration::from_secs(90)))
         })
         .server(":ergo.test 774 alice bob")
         .event(|event| {
-            matches!(event, Event::MetadataSyncLater { target, retry_after: None }
+            matches!(event, Event::MetadataSyncLater { target, retry_after: None, .. }
             if target == "bob")
         });
 }
@@ -569,20 +542,10 @@ fn encodes_list_remove_clear_and_sync() {
         .update(|session| {
             let now = std::time::Instant::now();
             for command in [
-                MetadataCommand::List {
-                    target: "alice".into(),
-                },
-                MetadataCommand::Set {
-                    target: "alice".into(),
-                    key: "status".into(),
-                    value: None,
-                },
-                MetadataCommand::Clear {
-                    target: "alice".into(),
-                },
-                MetadataCommand::Sync {
-                    target: "#papo".into(),
-                },
+                MetadataCommand::__list("alice".into()),
+                MetadataCommand::__set("alice".into(), "status".into(), None),
+                MetadataCommand::__clear("alice".into()),
+                MetadataCommand::__sync("#papo".into()),
             ] {
                 session.metadata(now, command).unwrap();
             }
