@@ -772,39 +772,7 @@ pub enum Event {
     Disconnected(Disconnected),
 }
 
-macro_rules! event_accessors {
-    () => {};
-    ((boxed $variant:ident, $method:ident, $payload:ty), $($rest:tt)*) => {
-        impl Event {
-            #[doc = concat!("Returns the payload when this is [`Event::", stringify!($variant), "`].")]
-            #[must_use]
-            pub fn $method(&self) -> Option<&$payload> {
-                if let Self::$variant(payload) = self {
-                    Some(payload)
-                } else {
-                    None
-                }
-            }
-        }
-        event_accessors! { $($rest)* }
-    };
-    (($variant:ident, $method:ident, $payload:ty), $($rest:tt)*) => {
-        impl Event {
-            #[doc = concat!("Returns the payload when this is [`Event::", stringify!($variant), "`].")]
-            #[must_use]
-            pub const fn $method(&self) -> Option<&$payload> {
-                if let Self::$variant(payload) = self {
-                    Some(payload)
-                } else {
-                    None
-                }
-            }
-        }
-        event_accessors! { $($rest)* }
-    };
-}
-
-event_accessors! {
+variant_accessors! { Event;
     (boxed Message, as_message, Message),
     (Ctcp, as_ctcp, Ctcp),
     (boxed History, as_history, crate::HistoryPage),

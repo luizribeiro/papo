@@ -16,6 +16,52 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+macro_rules! variant_accessors {
+    ($type:ident;) => {};
+    ($type:ident; (boxed $variant:ident, $method:ident, $payload:ty), $($rest:tt)*) => {
+        impl $type {
+            #[doc = concat!("Returns the payload when this is [`", stringify!($type), "::", stringify!($variant), "`].")]
+            #[must_use]
+            pub fn $method(&self) -> Option<&$payload> {
+                if let Self::$variant(payload) = self {
+                    Some(payload)
+                } else {
+                    None
+                }
+            }
+        }
+        variant_accessors! { $type; $($rest)* }
+    };
+    ($type:ident; (field $variant:ident, $field:ident, $method:ident, $payload:ty), $($rest:tt)*) => {
+        impl $type {
+            #[doc = concat!("Returns the payload when this is [`", stringify!($type), "::", stringify!($variant), "`].")]
+            #[must_use]
+            pub const fn $method(&self) -> Option<&$payload> {
+                if let Self::$variant { $field, .. } = self {
+                    Some($field)
+                } else {
+                    None
+                }
+            }
+        }
+        variant_accessors! { $type; $($rest)* }
+    };
+    ($type:ident; ($variant:ident, $method:ident, $payload:ty), $($rest:tt)*) => {
+        impl $type {
+            #[doc = concat!("Returns the payload when this is [`", stringify!($type), "::", stringify!($variant), "`].")]
+            #[must_use]
+            pub const fn $method(&self) -> Option<&$payload> {
+                if let Self::$variant(payload) = self {
+                    Some(payload)
+                } else {
+                    None
+                }
+            }
+        }
+        variant_accessors! { $type; $($rest)* }
+    };
+}
+
 mod action;
 mod address;
 mod builder;
