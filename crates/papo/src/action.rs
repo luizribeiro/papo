@@ -29,6 +29,12 @@ impl<T> RequestFuture<T> {
     }
 }
 
+impl<T> std::fmt::Debug for RequestFuture<T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("RequestFuture", formatter)
+    }
+}
+
 impl<T> Future for RequestFuture<T> {
     type Output = Result<T, Error>;
 

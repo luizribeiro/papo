@@ -1,6 +1,6 @@
 //! Public credential formatting invariants.
 
-use papo::{NewAccount, Sasl, Secret, WebIrc};
+use papo::{Client, NewAccount, Sasl, Secret, WebIrc};
 
 fn assert_redacted(value: &impl std::fmt::Debug, secret: &str) {
     let output = format!("{value:?}");
@@ -26,5 +26,19 @@ fn public_credentials_are_redacted_from_debug_output() {
             options: vec![("secure".into(), None)],
         },
         webirc_password,
+    );
+}
+
+#[test]
+fn runtime_handles_have_opaque_debug_output() {
+    let (client, events, driver) = Client::builder("irc://irc.example.net")
+        .password("unique-network-password-1597")
+        .build();
+    assert_eq!(format!("{client:?}"), "Client { .. }");
+    assert_eq!(format!("{events:?}"), "Events { .. }");
+    assert_eq!(format!("{driver:?}"), "Driver { .. }");
+    assert_eq!(
+        format!("{:?}", client.quit("Leaving")),
+        "RequestFuture { .. }"
     );
 }

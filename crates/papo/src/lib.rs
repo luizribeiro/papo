@@ -62,6 +62,13 @@ macro_rules! variant_accessors {
     };
 }
 
+pub(crate) fn opaque_debug(
+    name: &str,
+    formatter: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    formatter.debug_struct(name).finish_non_exhaustive()
+}
+
 mod action;
 mod address;
 mod builder;

@@ -454,6 +454,12 @@ pub struct Events {
     include_connecting: Arc<AtomicBool>,
 }
 
+impl std::fmt::Debug for Events {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("Events", formatter)
+    }
+}
+
 impl Events {
     /// Waits for the next event, or returns `None` after the driver stops.
     pub async fn next(&mut self) -> Option<Event> {
@@ -506,6 +512,12 @@ pub struct Driver {
     inner: Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>,
     #[cfg(browser)]
     inner: Pin<Box<dyn Future<Output = Result<(), Error>>>>,
+}
+
+impl std::fmt::Debug for Driver {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("Driver", formatter)
+    }
 }
 
 impl Driver {

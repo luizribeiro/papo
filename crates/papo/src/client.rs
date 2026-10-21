@@ -1288,6 +1288,6 @@ pub(crate) fn validate_kick_reason(state: &State, reason: &str) -> Result<(), Er
 
 impl std::fmt::Debug for Client {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("Client").finish_non_exhaustive()
+        crate::opaque_debug("Client", formatter)
     }
 }

@@ -1384,8 +1384,7 @@ mod tests {
                 .connect(),
         )
         .await
-        .err()
-        .expect("an early peer close must fail connect");
+        .expect_err("an early peer close must fail connect");
         let Error::Connect(error) = error else {
             panic!("early close was not a connect error: {error:?}")
         };

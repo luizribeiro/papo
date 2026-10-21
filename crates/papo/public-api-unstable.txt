@@ -1933,6 +1933,8 @@ impl core::marker::UnsafeUnpin for papo::Disconnected
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
 impl !core::panic::unwind_safe::UnwindSafe for papo::Disconnected
 pub struct papo::Driver
+impl core::fmt::Debug for papo::Driver
+pub fn papo::Driver::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::future::Future for papo::Driver
 pub type papo::Driver::Output = core::result::Result<(), papo::Error>
 pub fn papo::Driver::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
@@ -1974,6 +1976,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::Endpoint
 pub struct papo::Events
 impl papo::Events
 pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::Event>
+impl core::fmt::Debug for papo::Events
+pub fn papo::Events::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl futures_core::stream::Stream for papo::Events
 pub type papo::Events::Item = papo::Event
 pub fn papo::Events::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
@@ -2431,6 +2435,8 @@ impl core::marker::UnsafeUnpin for papo::Reconnect
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Reconnect
 impl core::panic::unwind_safe::UnwindSafe for papo::Reconnect
 pub struct papo::RequestFuture<T>
+impl<T> core::fmt::Debug for papo::RequestFuture<T>
+pub fn papo::RequestFuture<T>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl<T> core::future::future::Future for papo::RequestFuture<T>
 pub type papo::RequestFuture<T>::Output = core::result::Result<T, papo::Error>
 pub fn papo::RequestFuture<T>::poll(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<Self::Output>
