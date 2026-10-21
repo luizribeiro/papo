@@ -1111,21 +1111,11 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn defers_invalid_setters_and_typed_ports_until_build() {
-        let cases = [
-            (
-                Builder::new("irc.example.net").event_capacity(0),
-                InvalidInput::ZeroEventCapacity,
-            ),
-            (
-                crate::Client::builder(crate::Endpoint::tls("irc.example.net", 0)),
-                InvalidInput::InvalidPort("0".into()),
-            ),
-            (
-                crate::Client::builder(crate::Endpoint::plaintext("irc.example.net", 0)),
-                InvalidInput::InvalidPort("0".into()),
-            ),
-        ];
+    async fn defers_invalid_setters_until_build() {
+        let cases = [(
+            Builder::new("irc.example.net").event_capacity(0),
+            InvalidInput::ZeroEventCapacity,
+        )];
         for (builder, expected) in cases {
             let (_client, _events, driver) = builder.build();
             assert!(matches!(
@@ -1294,7 +1284,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn build_rejects_invalid_tls_input_before_connecting() {
         let (_client, _events, driver) =
-            crate::Client::builder(crate::Endpoint::tls("localhost", 9))
+            crate::Client::builder(crate::Endpoint::tls("localhost", 9).unwrap())
                 .tls_ca_pem(Vec::new())
                 .reconnect(crate::Reconnect::never())
                 .build();
