@@ -31,7 +31,7 @@ pub use channel::{
     TopicChanged,
 };
 pub use connection::{
-    CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged, Motd,
+    CapsChanged, CasemappingChanged, ConnectPhase, Connected, Disconnected, FeaturesChanged, Motd,
 };
 pub use conversation::{
     Reacted, ReadMarkerChanged, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,

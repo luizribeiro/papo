@@ -2,6 +2,22 @@ use crate::{Capabilities, Casemapping, Feature, Nick};
 
 pub use crate::Disconnected;
 
+/// A phase of establishing an IRC connection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ConnectPhase {
+    /// Opening the underlying transport.
+    Transport,
+    /// Negotiating transport security.
+    Tls,
+    /// Discovering and enabling IRC capabilities.
+    Capabilities,
+    /// Authenticating the connection.
+    Authenticating,
+    /// Waiting for the server's welcome reply.
+    WaitingForWelcome,
+}
+
 /// An IRC connection ready for use.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
