@@ -1170,46 +1170,6 @@ impl Member {
             Rank::from_mode(prefix.mode) == Some(rank) && self.prefixes.contains(&prefix.symbol)
         })
     }
-
-    /// Reports whether the member has the named prefix or any higher-ranked prefix.
-    #[must_use]
-    pub fn has_prefix_at_least(&self, prefix: char) -> bool {
-        self.prefix_order
-            .iter()
-            .position(|item| item.symbol == prefix)
-            .is_some_and(|required| {
-                self.prefixes.iter().any(|owned| {
-                    self.prefix_order
-                        .iter()
-                        .position(|item| item.symbol == *owned)
-                        .is_some_and(|rank| rank <= required)
-                })
-            })
-    }
-
-    /// Reports whether the member has operator rank or higher.
-    #[must_use]
-    pub fn is_op(&self) -> bool {
-        self.has_prefix_at_least('@')
-    }
-
-    /// Reports whether the member has the voice prefix.
-    #[must_use]
-    pub fn is_voiced(&self) -> bool {
-        self.prefixes.contains(&'+')
-    }
-
-    /// Reports whether the member has half-operator rank or higher.
-    #[must_use]
-    pub fn is_halfop(&self) -> bool {
-        self.has_prefix_at_least('%')
-    }
-
-    /// Returns the member's highest-ranked prefix.
-    #[must_use]
-    pub fn highest_prefix(&self) -> Option<char> {
-        self.prefixes.first().copied()
-    }
 }
 
 impl Rank {

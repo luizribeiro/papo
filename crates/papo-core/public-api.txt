@@ -1439,11 +1439,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::LineEnvelope
 pub struct papo_core::Member
 impl papo_core::Member
 pub fn papo_core::Member::has(&self, papo_core::Rank) -> bool
-pub fn papo_core::Member::has_prefix_at_least(&self, char) -> bool
-pub fn papo_core::Member::highest_prefix(&self) -> core::option::Option<char>
-pub fn papo_core::Member::is_halfop(&self) -> bool
-pub fn papo_core::Member::is_op(&self) -> bool
-pub fn papo_core::Member::is_voiced(&self) -> bool
 pub fn papo_core::Member::nick(&self) -> &papo::Nick
 pub fn papo_core::Member::prefixes(&self) -> &[char]
 pub fn papo_core::Member::rank(&self) -> core::option::Option<papo_core::Rank>

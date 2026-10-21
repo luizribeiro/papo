@@ -1,4 +1,4 @@
-use papo::{Account, DisconnectCause, Error, Event, ModeAction, ModeArg, Refusal, Source};
+use papo::{Account, DisconnectCause, Error, Event, ModeAction, ModeArg, Rank, Refusal, Source};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
@@ -510,7 +510,8 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
             .unwrap()
             .member(&bob_nick)
             .unwrap()
-            .is_op()
+            .rank()
+            >= Some(Rank::Op)
     );
 
     alice.invite(&channel, carol_nick.clone()).await?;

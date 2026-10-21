@@ -1,5 +1,5 @@
 use papo::isupport::{Advertised, Prefix};
-use papo::{ModeAction, ModeArg, Nick, State};
+use papo::{ModeAction, ModeArg, Nick, Rank, State};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 use papo_testing::Peer;
@@ -164,10 +164,10 @@ async fn assert_dave_view(
     let state = dave.state();
     let member = state.channel(channel).unwrap().member(bob_nick).unwrap();
     assert_eq!(member.prefixes(), allowed_symbols);
-    assert_eq!(member.highest_prefix(), Some('@'));
-    assert!(member.is_op());
-    assert!(member.is_voiced());
-    assert_eq!(member.is_halfop(), has_halfop);
+    assert!(member.rank() >= Some(Rank::Op));
+    assert!(member.has(Rank::Op));
+    assert!(member.has(Rank::Voice));
+    assert_eq!(member.has(Rank::Halfop), has_halfop);
     assert_eq!(member.prefixes().contains(&'%'), has_halfop);
     Ok(())
 }
