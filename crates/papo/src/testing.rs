@@ -3,6 +3,7 @@
 use std::{sync::Arc, time::SystemTime};
 
 use papo_core::{Config, Session};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
     Authorship, Capabilities, ChannelName, Conversation, Message, MessageKind, Nick, Origin,
@@ -30,6 +31,26 @@ pub fn wire_client(
     });
     let (client, events, driver) = builder.build_with_connector(connector);
     (client, events, driver, receiver)
+}
+
+/// Writes exact server bytes to an in-memory client connection.
+///
+/// # Panics
+///
+/// Panics if the in-memory pipe cannot accept all bytes.
+pub async fn server_line(server: &mut tokio::io::DuplexStream, line: &[u8]) {
+    server.write_all(line).await.unwrap();
+}
+
+/// Reads and checks exact client bytes from an in-memory connection.
+///
+/// # Panics
+///
+/// Panics if the client closes early or sends bytes other than `expected`.
+pub async fn client_line(server: &mut tokio::io::DuplexStream, expected: &[u8]) {
+    let mut actual = vec![0; expected.len()];
+    server.read_exact(&mut actual).await.unwrap();
+    assert_eq!(actual, expected);
 }
 
 /// Constructs a user event source.
@@ -153,8 +174,6 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
 
 #[cfg(all(test, not(browser)))]
 mod wire_tests {
-    use tokio::io::AsyncReadExt;
-
     #[tokio::test]
     async fn wire_client_connects_through_memory() {
         let builder = crate::Client::builder("irc://offline.test").nick("papo-wire");
@@ -162,9 +181,7 @@ mod wire_tests {
         let task = tokio::spawn(driver);
         let mut server = connections.recv().await.unwrap();
         let expected = b"CAP LS 302\r\nNICK papo-wire\r\nUSER papo-wire 0 * papo-wire\r\n";
-        let mut actual = vec![0; expected.len()];
-        server.read_exact(&mut actual).await.unwrap();
-        assert_eq!(actual, expected);
+        super::client_line(&mut server, expected).await;
         task.abort();
     }
 }

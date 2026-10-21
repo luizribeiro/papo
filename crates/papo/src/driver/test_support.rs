@@ -147,13 +147,11 @@ pub(crate) async fn welcome_burst(server: &mut DuplexStream) {
 }
 
 pub(crate) async fn client_line(server: &mut DuplexStream, expected: &[u8]) {
-    let mut actual = vec![0; expected.len()];
-    within(server.read_exact(&mut actual)).await.unwrap();
-    assert_eq!(actual, expected);
+    within(crate::__testing::client_line(server, expected)).await;
 }
 
 pub(crate) async fn server_line(server: &mut DuplexStream, line: &[u8]) {
-    within(server.write_all(line)).await.unwrap();
+    within(crate::__testing::server_line(server, line)).await;
 }
 
 pub(crate) async fn saturate_events(server: &mut DuplexStream, events: &super::Events) {

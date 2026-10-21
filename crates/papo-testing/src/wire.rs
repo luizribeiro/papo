@@ -49,7 +49,7 @@ impl Wire {
     /// Panics if the client does not send a valid default connection burst or
     /// stops during capability negotiation.
     pub async fn register(&mut self, caps: &[&str]) {
-        assert_eq!(self.next_sent().await, "CAP LS 302");
+        self.expect_sent("CAP LS 302").await;
         let nick_line = self.next_sent().await;
         let nick = nick_line
             .strip_prefix("NICK ")
@@ -65,7 +65,7 @@ impl Wire {
         if let Some(requested) = negotiation.strip_prefix("CAP REQ :") {
             self.server(format!(":offline.test CAP * ACK :{requested}"))
                 .await;
-            assert_eq!(self.next_sent().await, "CAP END");
+            self.expect_sent("CAP END").await;
         } else {
             assert_eq!(negotiation, "CAP END");
         }
@@ -115,9 +115,9 @@ impl Wire {
             "server input must be one line"
         );
         assert!(line.len() <= MAX_LINE_LEN, "server line exceeds 8191 bytes");
-        let stream = self.stream().await;
-        stream.write_all(line.as_bytes()).await.unwrap();
-        stream.write_all(b"\r\n").await.unwrap();
+        let mut bytes = line.as_bytes().to_vec();
+        bytes.extend_from_slice(b"\r\n");
+        papo::__testing::server_line(self.stream().await, &bytes).await;
     }
 
     /// Reads the next complete line sent by the client, without its terminator.
@@ -161,6 +161,12 @@ impl Wire {
             );
         }
         self.stream.as_mut().unwrap()
+    }
+
+    async fn expect_sent(&mut self, expected: &str) {
+        let mut expected = expected.as_bytes().to_vec();
+        expected.extend_from_slice(b"\r\n");
+        papo::__testing::client_line(self.stream().await, &expected).await;
     }
 }
 
