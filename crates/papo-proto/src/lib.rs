@@ -1,8 +1,8 @@
-//! IRC line parsing, formatting, casemapping, and typed protocol data.
+//! IRC line parsing, formatting, casemapping, and typed protocol data with no I/O. Most users want
+//! the `papo` crate; use `papo-proto` directly for low-level IRC wire processing.
 //!
 //! The IRC specifications call each line a message; this crate uses "line" so
 //! "message" can consistently mean a chat message in the wider API.
-//! This crate performs no I/O and has minimal dependencies.
 
 mod casemapping;
 mod client_tags;

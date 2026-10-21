@@ -1,4 +1,6 @@
-//! Helpers for parsing and responding to IRC bot commands with [`papo`].
+//! Command parsing, addressing, and reply-rate helpers for bots built with [`papo`]. Most users
+//! want `papo` alone; use `papo-bot` directly when an application needs its opinionated command
+//! layer.
 
 use std::{
     collections::{HashMap, VecDeque},

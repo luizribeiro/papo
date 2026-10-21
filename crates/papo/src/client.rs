@@ -29,6 +29,17 @@ static NEXT_PING: AtomicU64 = AtomicU64::new(0);
 ///
 /// Typed requests use server labels when available and otherwise match protocol
 /// reply boundaries. Concurrent identical unlabelled requests resolve in FIFO order.
+///
+/// ```no_run
+/// # async fn send() -> Result<(), papo::Error> {
+/// let (client, _events) = papo::Client::builder("ircs://irc.example.net")
+///     .nick("papo-client")
+///     .connect()
+///     .await?;
+/// client.privmsg("#papo", "hello from the docs").await?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct Client {
     pub(crate) commands: mpsc::Sender<Command>,

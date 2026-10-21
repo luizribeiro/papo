@@ -1,5 +1,6 @@
-//! Sans-I/O IRC session state and protocol behavior.
-//! Time and randomness enter through explicit inputs.
+//! A Sans-I/O IRC session state machine: protocol behavior, time, and randomness are driven by
+//! explicit inputs. Most users want the `papo` crate; use `papo-core` directly to embed its
+//! deterministic protocol engine behind a custom I/O layer.
 //!
 //! ## Capability implementation map
 //!

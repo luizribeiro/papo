@@ -15,6 +15,12 @@ use crate::Isupport;
 /// [`crate::Event::Connected`].
 /// The identity and presence methods on this type are the source of truth for
 /// the client's own entry; a [`User`] with the same nickname is shared-user state.
+///
+/// ```
+/// fn member_count(state: &papo::State) -> Option<usize> {
+///     state.channel("#papo").map(|channel| channel.members().count())
+/// }
+/// ```
 #[derive(Clone, Debug)]
 pub struct State {
     core: Arc<papo_core::State>,

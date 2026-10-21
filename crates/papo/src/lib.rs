@@ -1,6 +1,61 @@
-//! Tokio-based IRC client orchestration, transports, and ergonomic handles.
+//! An ergonomic async IRC client for applications and bots, with `IRCv3` support and Tokio-based
+//! I/O on native and WASI targets.
 //!
-//! TLS uses ring when both `tls-ring` and `tls-aws-lc` are enabled.
+//! # Quick start
+//!
+//! ```no_run
+//! use papo::{Client, Event};
+//!
+//! # #[tokio::main(flavor = "current_thread")]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let (client, mut events) = Client::builder("ircs://irc.example.net")
+//!     .nick("papo-bot")
+//!     .connect()
+//!     .await?;
+//! client.join("#papo").await?;
+//!
+//! while let Some(event) = events.next().await {
+//!     if let Event::Message(message) = event
+//!         && message.text == "!ping"
+//!         && let Err(error) = client.reply(&message, "pong").await
+//!     {
+//!         eprintln!("could not reply: {error}");
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Cargo features
+//!
+//! | Feature | What it adds | Targets |
+//! |---|---|---|
+//! | `default` | The `tls-ring` feature | Native and WASI |
+//! | `precis` | Unicode nickname and account comparison using PRECIS | All targets |
+//! | `websocket` | `ws://` and `wss://` transports | Native and WASI; browsers provide WebSocket support without this feature |
+//! | `tls-ring` | TLS through rustls with the ring provider | Native and WASI |
+//! | `tls-aws-lc` | TLS through rustls with the AWS-LC provider | Native and WASI |
+//! | `unstable` | Experimental extension APIs outside semantic-versioning guarantees | All targets |
+//!
+//! If both TLS provider features are enabled, ring is used.
+//!
+//! # Running and shutting down
+//!
+//! [`Builder::connect`] spawns the [`Driver`] and waits for the first connection. On native
+//! targets it must run inside a Tokio runtime and panics otherwise. It is safe to wrap this future
+//! in a timeout; [`Builder::connect_timeout`] also bounds each transport connection attempt.
+//!
+//! [`Builder::build`] returns the [`Client`], [`Events`], and lazy [`Driver`] separately. Poll or
+//! spawn the driver before awaiting a client action: awaiting `client.join("#papo")` before
+//! spawning the driver deadlocks because the action is waiting for that driver. [`Events::next`]
+//! is cancel-safe, so it may be used as a `tokio::select!` branch.
+//!
+//! A dropped [`RequestFuture`] was sent if and only if it reached the driver. Dropping the driver
+//! ends the event stream without a final [`Event::Disconnected`]. For an orderly process exit,
+//! send [`Client::quit`] and keep reading events until the server closes the connection. The
+//! [graceful-shutdown example](https://github.com/luizribeiro/papo/tree/main/examples/graceful-shutdown)
+//! shows the complete lifecycle.
+//!
 //! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
 //! Applications can opt in while libraries should leave the feature disabled.
 //! Browser builds (`wasm32-unknown-unknown`) connect only through `ws://` and `wss://`

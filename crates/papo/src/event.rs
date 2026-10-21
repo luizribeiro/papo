@@ -664,6 +664,17 @@ fn tag_owned(message: &LineRef<'_>, keys: &[&str]) -> Option<String> {
 }
 
 /// An event emitted by an IRC client.
+///
+/// ```
+/// fn summary(event: &papo::Event) -> &'static str {
+///     match event {
+///         papo::Event::Connected(_) => "connected",
+///         papo::Event::Message(_) => "chat message",
+///         papo::Event::Disconnected(_) => "disconnected",
+///         _ => "another IRC event",
+///     }
+/// }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Event {
