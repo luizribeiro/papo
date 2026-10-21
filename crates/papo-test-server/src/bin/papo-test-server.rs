@@ -54,11 +54,12 @@ impl Server {
             }
             Self::Solanum(server) => {
                 let [plaintext, tls] = server.endpoints();
+                let unavailable = String::new;
                 (
                     plaintext.to_string(),
                     tls.to_string(),
-                    String::new(),
-                    String::new(),
+                    unavailable(),
+                    unavailable(),
                 )
             }
             Self::Soju(server) => {
@@ -105,12 +106,9 @@ impl Server {
     fn bouncer_metadata(&self) -> (String, String, String, String) {
         if let Self::Soju(server) = self {
             let (account, password, config, upstream) = server.fixture_metadata();
-            return (
-                account.into(),
-                password.into(),
-                config.display().to_string(),
-                upstream.to_string(),
-            );
+            let config = config.display().to_string();
+            let upstream = upstream.to_string();
+            return (account.into(), password.into(), config, upstream);
         }
         (String::new(), String::new(), String::new(), String::new())
     }
