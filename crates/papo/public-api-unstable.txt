@@ -1446,6 +1446,8 @@ pub fn papo::Extban::clone(&self) -> Self
 impl core::cmp::Eq for papo::Extban
 impl core::cmp::PartialEq for papo::Extban
 pub fn papo::Extban::eq(&self, &Self) -> bool
+impl core::convert::From<papo::Extban> for papo::BanTarget
+pub fn papo::BanTarget::from(papo::Extban) -> Self
 impl core::fmt::Debug for papo::Extban
 pub fn papo::Extban::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::Extban
@@ -1633,6 +1635,32 @@ impl core::marker::Unpin for papo::Subject
 impl core::marker::UnsafeUnpin for papo::Subject
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Subject
 impl core::panic::unwind_safe::UnwindSafe for papo::Subject
+pub struct papo::BanTarget(_)
+impl core::clone::Clone for papo::BanTarget
+pub fn papo::BanTarget::clone(&self) -> Self
+impl core::cmp::Eq for papo::BanTarget
+impl core::cmp::PartialEq for papo::BanTarget
+pub fn papo::BanTarget::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::Mask> for papo::BanTarget
+pub fn papo::BanTarget::from(&papo::Mask) -> Self
+impl core::convert::From<&str> for papo::BanTarget
+pub fn papo::BanTarget::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo::BanTarget
+pub fn papo::BanTarget::from(alloc::string::String) -> Self
+impl core::convert::From<papo::Extban> for papo::BanTarget
+pub fn papo::BanTarget::from(papo::Extban) -> Self
+impl core::convert::From<papo::Mask> for papo::BanTarget
+pub fn papo::BanTarget::from(papo::Mask) -> Self
+impl core::fmt::Debug for papo::BanTarget
+pub fn papo::BanTarget::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::BanTarget
+impl core::marker::Freeze for papo::BanTarget
+impl core::marker::Send for papo::BanTarget
+impl core::marker::Sync for papo::BanTarget
+impl core::marker::Unpin for papo::BanTarget
+impl core::marker::UnsafeUnpin for papo::BanTarget
+impl core::panic::unwind_safe::RefUnwindSafe for papo::BanTarget
+impl core::panic::unwind_safe::UnwindSafe for papo::BanTarget
 pub struct papo::Bouncer
 impl papo::Bouncer
 pub fn papo::Bouncer::add(&self, papo::NetworkConfig) -> papo::RequestFuture<papo::NetworkId>

@@ -30,6 +30,47 @@ impl Extban {
     }
 }
 
+/// A mask or extended ban accepted by channel list-mode actions.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BanTarget(Target);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum Target {
+    Text(String),
+    Mask(Mask),
+    Extban(Extban),
+}
+
+impl From<&str> for BanTarget {
+    fn from(value: &str) -> Self {
+        Self(Target::Text(value.to_owned()))
+    }
+}
+
+impl From<String> for BanTarget {
+    fn from(value: String) -> Self {
+        Self(Target::Text(value))
+    }
+}
+
+impl From<Mask> for BanTarget {
+    fn from(value: Mask) -> Self {
+        Self(Target::Mask(value))
+    }
+}
+
+impl From<&Mask> for BanTarget {
+    fn from(value: &Mask) -> Self {
+        Self(Target::Mask(value.clone()))
+    }
+}
+
+impl From<Extban> for BanTarget {
+    fn from(value: Extban) -> Self {
+        Self(Target::Extban(value))
+    }
+}
+
 /// Builds one or more validated mode-change commands.
 pub struct SetModes {
     client: Client,
@@ -286,7 +327,7 @@ fn invalid(message: impl Into<String>) -> Error {
 mod tests {
     use papo_proto::{Isupport, LineRef};
 
-    use super::{Argument, Change, Extban, Selector, encode};
+    use super::{Argument, BanTarget, Change, Extban, Selector, Target, encode};
 
     fn isupport() -> Isupport {
         let mut support = Isupport::default();
@@ -379,5 +420,18 @@ mod tests {
                 Err(crate::InvalidInput::InvalidExtbanAccount(invalid.into()))
             );
         }
+    }
+
+    #[test]
+    fn ban_targets_accept_text_masks_and_extbans() {
+        let mask = papo_proto::Casemapping::Ascii.mask("*!*@staff.example");
+        assert!(matches!(BanTarget::from("Nick"), BanTarget(Target::Text(text)) if text == "Nick"));
+        assert!(
+            matches!(BanTarget::from(mask.clone()), BanTarget(Target::Mask(value)) if value == mask)
+        );
+        assert!(matches!(
+            BanTarget::from(Extban::account("alice").unwrap()),
+            BanTarget(Target::Extban(Extban::Account(account))) if account == "alice"
+        ));
     }
 }
