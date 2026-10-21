@@ -1847,7 +1847,7 @@ pub enum Event {
     PersistenceStatus(PersistenceStatus),
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
-    BouncerNetwork {
+    BouncerNetworkChanged {
         /// Bouncer-assigned network identifier.
         id: NetworkId,
         /// Complete cached network state, or `None` when removed.

@@ -598,7 +598,7 @@ impl State {
         };
         if update.removed {
             self.bouncer_networks.remove(&update.id);
-            outbox.event(Event::BouncerNetwork {
+            outbox.event(Event::BouncerNetworkChanged {
                 id: update.id,
                 network: None,
             });
@@ -615,7 +615,7 @@ impl State {
             .entry(update.id.clone())
             .or_insert_with(|| BouncerNetwork::empty(update.id.clone()));
         network.apply(update.attributes, self.casemapping);
-        outbox.event(Event::BouncerNetwork {
+        outbox.event(Event::BouncerNetworkChanged {
             id: update.id,
             network: Some(network.clone()),
         });

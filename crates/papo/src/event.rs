@@ -702,7 +702,7 @@ pub enum Event {
     PersistenceChanged(crate::PersistenceStatus),
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
-    BouncerNetwork(BouncerNetworkChanged),
+    BouncerNetworkChanged(BouncerNetworkChanged),
     /// A user or channel's cached metadata changed.
     MetadataChanged(MetadataChanged),
     /// A completed history or playback batch.
@@ -858,11 +858,11 @@ impl Event {
         }
     }
 
-    /// Returns the payload when this is [`Event::BouncerNetwork`].
+    /// Returns the payload when this is [`Event::BouncerNetworkChanged`].
     #[must_use]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    pub const fn as_bouncer_network(&self) -> Option<&BouncerNetworkChanged> {
-        if let Self::BouncerNetwork(payload) = self {
+    pub const fn as_bouncer_network_changed(&self) -> Option<&BouncerNetworkChanged> {
+        if let Self::BouncerNetworkChanged(payload) = self {
             Some(payload)
         } else {
             None
@@ -1029,8 +1029,8 @@ pub(crate) fn from_core(
         #[cfg(feature = "unstable")]
         papo_core::Event::PersistenceStatus(status) => Event::PersistenceChanged(status),
         #[cfg(feature = "unstable")]
-        papo_core::Event::BouncerNetwork { id, network } => {
-            Event::BouncerNetwork(BouncerNetworkChanged { id, network })
+        papo_core::Event::BouncerNetworkChanged { id, network } => {
+            Event::BouncerNetworkChanged(BouncerNetworkChanged { id, network })
         }
         papo_core::Event::MetadataChanged {
             subject,
@@ -2101,11 +2101,11 @@ mod tests {
     #[cfg(feature = "unstable")]
     #[test]
     fn maps_bouncer_network_updates() {
-        let event = forwarded(papo_core::Event::BouncerNetwork {
+        let event = forwarded(papo_core::Event::BouncerNetworkChanged {
             id: papo_core::NetworkId::from("42"),
             network: None,
         });
-        let changed = event.as_bouncer_network().unwrap();
+        let changed = event.as_bouncer_network_changed().unwrap();
         assert_eq!(changed.id, "42");
         assert!(changed.network.is_none());
     }

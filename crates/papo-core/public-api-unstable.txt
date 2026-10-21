@@ -463,9 +463,9 @@ pub papo_core::Event::BatchAbandoned
 pub papo_core::Event::BatchAbandoned::batch_type: alloc::string::String
 pub papo_core::Event::BatchAbandoned::reason: papo_core::BatchAbandonReason
 pub papo_core::Event::BatchAbandoned::reference: alloc::string::String
-pub papo_core::Event::BouncerNetwork
-pub papo_core::Event::BouncerNetwork::id: papo_core::NetworkId
-pub papo_core::Event::BouncerNetwork::network: core::option::Option<papo_core::BouncerNetwork>
+pub papo_core::Event::BouncerNetworkChanged
+pub papo_core::Event::BouncerNetworkChanged::id: papo_core::NetworkId
+pub papo_core::Event::BouncerNetworkChanged::network: core::option::Option<papo_core::BouncerNetwork>
 pub papo_core::Event::CapsChanged
 pub papo_core::Event::CapsChanged::added: papo::Capabilities
 pub papo_core::Event::CapsChanged::removed: papo::Capabilities

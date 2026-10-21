@@ -73,7 +73,7 @@ fn sends_each_bouncer_network_operation() {
         .server("@label=0 BATCH +networks soju.im/bouncer-networks")
         .server(r"@batch=networks BOUNCER NETWORK 42 name=Libera\sChat;state=connected")
         .server("BATCH -networks")
-        .event(|event| matches!(event, Event::BouncerNetwork { network: Some(network), .. }
+        .event(|event| matches!(event, Event::BouncerNetworkChanged { network: Some(network), .. }
             if network.name.as_deref() == Some("Libera Chat")))
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
         .update(|session| {
@@ -109,17 +109,17 @@ fn merges_bounded_notification_batches_and_deletes_networks() {
         .server("BATCH +notify soju.im/bouncer-networks")
         .server(r"@batch=notify BOUNCER NETWORK 42 name=My\sNetwork;host=irc.example.org;state=connecting")
         .server("BATCH -notify")
-        .event(|event| matches!(event, Event::BouncerNetwork { network: Some(network), .. }
+        .event(|event| matches!(event, Event::BouncerNetworkChanged { network: Some(network), .. }
             if network.host.as_deref() == Some("irc.example.org")))
         .server("BOUNCER NETWORK 42 state=connected;host")
-        .event(|event| matches!(event, Event::BouncerNetwork { network: Some(network), .. }
+        .event(|event| matches!(event, Event::BouncerNetworkChanged { network: Some(network), .. }
             if network.host.is_none()))
         .inspect(|session| {
             let network = session.state().bouncer_networks().next().unwrap();
             assert_eq!(network.name.as_deref(), Some("My Network"));
         })
         .server("BOUNCER NETWORK 42 *")
-        .event(|event| matches!(event, Event::BouncerNetwork { id, network: None }
+        .event(|event| matches!(event, Event::BouncerNetworkChanged { id, network: None }
             if id == "42"))
         .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 0))
         .no_event();
@@ -142,7 +142,7 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
         .event(|event| {
             matches!(
                 event,
-                Event::BouncerNetwork {
+                Event::BouncerNetworkChanged {
                     id,
                     network: Some(network),
                 } if id == "network-42"
@@ -164,7 +164,7 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
         .event(|event| {
             matches!(
                 event,
-                Event::BouncerNetwork {
+                Event::BouncerNetworkChanged {
                     network: Some(network),
                     ..
                 } if network.state == Some(NetworkState::Disconnected)
@@ -177,7 +177,7 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
 fn refolds_cached_network_nicknames_when_casemapping_changes() {
     registered()
         .server("BOUNCER NETWORK 42 nickname=Alice[bot]")
-        .event(|event| matches!(event, Event::BouncerNetwork { .. }))
+        .event(|event| matches!(event, Event::BouncerNetworkChanged { .. }))
         .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported")
         .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .inspect(|session| {

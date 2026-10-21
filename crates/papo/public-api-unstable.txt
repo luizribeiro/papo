@@ -1314,7 +1314,7 @@ pub papo::Event::AutoJoinFailed
 pub papo::Event::AutoJoinFailed::channel: papo::ChannelName
 pub papo::Event::AutoJoinFailed::error: papo::ServerError
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
-pub papo::Event::BouncerNetwork(papo::event::BouncerNetworkChanged)
+pub papo::Event::BouncerNetworkChanged(papo::event::BouncerNetworkChanged)
 pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::CasemappingChanged(papo::event::CasemappingChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
@@ -1358,7 +1358,7 @@ pub const fn papo::Event::as_account_creation(&self) -> core::option::Option<&pa
 impl papo::Event
 pub const fn papo::Event::as_away_changed(&self) -> core::option::Option<&papo::event::AwayChanged>
 impl papo::Event
-pub const fn papo::Event::as_bouncer_network(&self) -> core::option::Option<&papo::event::BouncerNetworkChanged>
+pub const fn papo::Event::as_bouncer_network_changed(&self) -> core::option::Option<&papo::event::BouncerNetworkChanged>
 pub const fn papo::Event::as_persistence_changed(&self) -> core::option::Option<&papo::PersistenceStatus>
 impl papo::Event
 pub const fn papo::Event::as_caps_changed(&self) -> core::option::Option<&papo::event::CapsChanged>
