@@ -2658,7 +2658,8 @@ impl Session {
         if segments.is_empty() {
             return Err(RequestError::EmptyText);
         }
-        let labelled = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
+        let labelled = self.caps.enabled().contains_key(cap::LABELED_RESPONSE)
+            && self.caps.enabled().contains_key(cap::ECHO_MESSAGE);
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);
         }
@@ -2727,8 +2728,7 @@ impl Session {
         }
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
-            let sent = self.caps.enabled().contains_key(cap::ECHO_MESSAGE);
-            self.requests.insert(label, (id, None, sent, None, true));
+            self.requests.insert(label, (id, None, true, None, false));
         }
         let transmit =
             self.queue_text_lines(lines, batch_count > 0, !labelled, labelled.then_some(id));

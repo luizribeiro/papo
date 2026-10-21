@@ -519,36 +519,33 @@ fn text_response_retains_labelled_echo_identity() {
         })
         .unwrap();
     assert_eq!(response.sent().unwrap().msgid, "RfcBTzyxY120004");
+    assert_eq!(session.poll_event(), None);
 }
 
 #[test]
-fn response_batch_without_echo_message_emits_no_synthetic_echo() {
+fn text_without_both_echo_and_labels_resolves_on_write() {
     let now = Instant::now();
-    let mut session = Session::new(
-        Config::default()
-            .wanted_caps(["batch", "labeled-response"])
-            .rate_limit(RateLimit::unlimited()),
-    );
-    session.handle_connected(now);
-    session.handle_line(now, b"CAP * LS :batch labeled-response");
-    session.handle_line(now, b"CAP * ACK :batch labeled-response");
-    while session.poll_transmit().is_some() {}
-    let id = session
-        .send_text(now, TextKind::Privmsg, "#papo", "hello everyone", &[])
-        .unwrap()
-        .unwrap();
-    session.handle_line(now, b"@label=0 BATCH +response labeled-response");
-    session.handle_line(
-        now,
-        b"@batch=response :papo!p@localhost PRIVMSG #papo :hello everyone",
-    );
-    session.handle_line(now, b"BATCH -response");
+    for offered in ["echo-message", "labeled-response"] {
+        let mut session = Session::new(
+            Config::default()
+                .wanted_caps(offered.split_whitespace())
+                .rate_limit(RateLimit::unlimited()),
+        );
+        session.handle_connected(now);
+        session.handle_line(now, format!("CAP * LS :{offered}").as_bytes());
+        session.handle_line(now, format!("CAP * ACK :{offered}").as_bytes());
+        while session.poll_transmit().is_some() {}
 
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Response(response)) if response.id == id && response.sent().is_none()
-    ));
-    assert_eq!(session.poll_event(), None);
+        let sent = session
+            .send_text_detailed(now, TextKind::Notice, "#papo", "maintenance complete", &[])
+            .unwrap();
+        assert!(sent.request.is_none());
+        assert!(sent.transmit.is_some());
+        assert_eq!(
+            session.poll_transmit(),
+            Some(b"NOTICE #papo :maintenance complete\r\n".to_vec())
+        );
+    }
 }
 
 #[test]

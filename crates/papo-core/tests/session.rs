@@ -157,7 +157,7 @@ fn annotates_echoes_with_the_active_casemapping() {
 }
 
 #[test]
-fn labels_distinguish_a_confirmed_echo_from_an_own_live_line() {
+fn labelled_echo_is_consumed_before_an_own_live_line() {
     let now = Instant::now();
     let mut session = Session::new(
         Config::default()
@@ -187,15 +187,13 @@ fn labels_distinguish_a_confirmed_echo_from_an_own_live_line() {
             _ => None,
         })
         .collect();
-    assert_eq!(messages.len(), 2);
-    assert!(messages[0].is_echo());
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].as_ref().param(1), Some("from another device"));
     assert_eq!(messages[0].authorship(), Authorship::Own);
-    assert!(!messages[1].is_echo());
-    assert_eq!(messages[1].authorship(), Authorship::Own);
 }
 
 #[test]
-fn labelled_response_batch_also_emits_its_message_echo() {
+fn labelled_response_batch_does_not_emit_its_message_echo() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo").wanted_caps([
         "batch",
@@ -217,15 +215,13 @@ fn labelled_response_batch_also_emits_its_message_echo() {
     );
     session.handle_line(now, b"BATCH -response");
 
-    let echo = std::iter::from_fn(|| session.poll_event()).find_map(|event| match event {
-        Event::Line(message) => Some(message),
-        _ => None,
-    });
+    let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
     assert!(
-        echo.is_some_and(|message| {
-            message.is_echo() && message.authorship() == Authorship::Own
-        })
+        events
+            .iter()
+            .any(|event| matches!(event, Event::Response(_)))
     );
+    assert!(!events.iter().any(|event| matches!(event, Event::Line(_))));
 }
 
 fn pending_labelled_echo(now: Instant) -> Session {

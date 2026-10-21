@@ -4295,10 +4295,16 @@ async fn actions_reject_every_ctcp_delimiter_without_panicking() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn chat_text_returns_a_labelled_numeric_refusal() {
-    let settings = config().wanted_caps(["labeled-response"]);
+    let settings = config().wanted_caps(["echo-message", "labeled-response"]);
     let (mut server, client, mut events, driver) = scripted(settings);
     let task = tokio::spawn(driver);
-    complete_connect_labelled(&mut server, &mut events).await;
+    complete_connect_caps(
+        &mut server,
+        &mut events,
+        "echo-message labeled-response",
+        "echo-message labeled-response",
+    )
+    .await;
 
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg("#rust", "hello everyone").await });
@@ -4701,7 +4707,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn labels_distinguish_a_confirmed_echo_from_an_own_live_line() {
+async fn labelled_echo_is_consumed_before_an_own_live_line() {
     let caps = ["echo-message", "labeled-response"];
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
     let task = tokio::spawn(driver);
@@ -4734,9 +4740,6 @@ async fn labels_distinguish_a_confirmed_echo_from_an_own_live_line() {
     )
     .await;
     assert!(within(sent).await.unwrap().is_ok());
-    let echo = next_message(&mut events).await;
-    assert_eq!(echo.origin, Origin::Echo);
-    assert!(!echo.is_live());
 
     server_line(
         &mut server,
