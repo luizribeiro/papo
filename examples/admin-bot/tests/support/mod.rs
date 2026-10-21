@@ -100,7 +100,7 @@ pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
 pub(super) async fn wait_message(events: &mut Events, text: &str) -> Message {
     loop {
         match events.next().await {
-            Some(Event::Message(message)) if message.text() == text => return *message,
+            Some(Event::Message(message)) if message.text == text => return *message,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("message failed: {disconnected}")
             }

@@ -37,16 +37,19 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
 
         user.privmsg(&channel, "!ping").await.unwrap();
         let sent = wait_message(&mut events, "!ping").await;
-        let message_id = sent.msgid().expect("Ergo supplies msgid").to_owned();
+        let message_id = (*sent.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let response = wait_message(&mut events, "pong").await;
-        assert_eq!(response.reply_to(), Some(message_id.as_str()));
+        assert_eq!(response.reply_to(), Some(message_id.as_ref()));
 
         user.privmsg(&bot_nick, "!ping").await.unwrap();
         let sent = wait_message(&mut events, "!ping").await;
-        let message_id = sent.msgid().expect("Ergo supplies msgid").to_owned();
+        let message_id = (*sent.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let response = wait_message(&mut events, "pong").await;
-        assert!(response.is_private());
-        assert_eq!(response.reply_to(), Some(message_id.as_str()));
+        assert!(matches!(
+            response.conversation,
+            papo::Conversation::Private(_)
+        ));
+        assert_eq!(response.reply_to(), Some(message_id.as_ref()));
 
         bot.shutdown().await;
         user.quit("ping bot test complete").await.unwrap();
@@ -99,7 +102,7 @@ impl Bot {
             while let Some(event) = events.next().await {
                 if let Event::Message(message) = event
                     && message.is_live()
-                    && message.text() == "!ping"
+                    && message.text == "!ping"
                 {
                     bot.reply(&message, "pong").await.unwrap();
                 }
@@ -165,7 +168,7 @@ async fn wait_synced(events: &mut papo::Events, channel: &str) {
 async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
     loop {
         match events.next().await {
-            Some(Event::Message(message)) if message.text() == text => return *message,
+            Some(Event::Message(message)) if message.text == text => return *message,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("message failed: {disconnected}")
             }

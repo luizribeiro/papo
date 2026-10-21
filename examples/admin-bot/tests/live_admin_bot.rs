@@ -30,15 +30,15 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
 
         user.privmsg(&channels[0], "!ping").await.unwrap();
         let sent = wait_message(&mut user_events, "!ping").await;
-        let msgid = sent.msgid().expect("Ergo supplies msgid").to_owned();
+        let msgid = (*sent.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let response = wait_message(&mut user_events, "pong").await;
-        assert_eq!(response.reply_to(), Some(msgid.as_str()));
+        assert_eq!(response.reply_to(), Some(msgid.as_ref()));
 
         user.privmsg(&channels[0], "!echo 'Ergo chat'")
             .await
             .unwrap();
         assert_eq!(
-            wait_message(&mut user_events, "Ergo chat").await.text(),
+            wait_message(&mut user_events, "Ergo chat").await.text,
             "Ergo chat"
         );
 
@@ -56,12 +56,12 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
             "permission denied: authenticated account required",
         )
         .await;
-        assert_eq!(refusal.kind(), MessageKind::Notice);
-        assert!(refusal.is_private());
+        assert_eq!(refusal.kind, MessageKind::Notice);
+        assert!(matches!(refusal.conversation, papo::Conversation::Private(_)));
         let context = refusal
-            .tags()
+            .tags
             .get("+channel-context")
-            .or_else(|| refusal.tags().get("+draft/channel-context"));
+            .or_else(|| refusal.tags.get("+draft/channel-context"));
         assert_eq!(context, Some(channels[2].as_str()));
 
         admin
@@ -74,7 +74,7 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
             .await
             .unwrap();
         let private = wait_message(&mut user_events, "private command").await;
-        assert!(private.is_private());
+        assert!(matches!(private.conversation, papo::Conversation::Private(_)));
 
         for _ in 0..3 {
             user.privmsg(&channels[3], "!ping").await.unwrap();

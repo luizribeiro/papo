@@ -34,28 +34,28 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
 
         user.privmsg(&channel, "!echo hello").await.unwrap();
         let command = wait_message(&mut events, "!echo hello").await;
-        let command_id = command.msgid().expect("Ergo supplies msgid").to_owned();
+        let command_id = (*command.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let response = wait_message(&mut events, "hello").await;
-        assert_eq!(response.reply_to(), Some(command_id.as_str()));
+        assert_eq!(response.reply_to(), Some(command_id.as_ref()));
 
         let paste = "first line\nsecond line\nthird line";
         user.privmsg(&channel, paste).await.unwrap();
         let original = wait_message(&mut events, paste).await;
-        let paste_id = original.msgid().expect("Ergo supplies msgid").to_owned();
+        let paste_id = (*original.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let summary = format!("got 3 lines, {} bytes", paste.len());
         let counted = wait_message(&mut events, &summary).await;
-        assert_eq!(counted.reply_to(), Some(paste_id.as_str()));
+        assert_eq!(counted.reply_to(), Some(paste_id.as_ref()));
         wait_typing(&mut events, &channel, Typing::Active).await;
         let echoed = wait_message(&mut events, paste).await;
-        assert_eq!(echoed.text(), paste);
-        assert_eq!(echoed.reply_to(), Some(paste_id.as_str()));
+        assert_eq!(echoed.text, paste);
+        assert_eq!(echoed.reply_to(), Some(paste_id.as_ref()));
         wait_typing(&mut events, &channel, Typing::Done).await;
 
         user.privmsg(&channel, "!react").await.unwrap();
         let command = wait_message(&mut events, "!react").await;
-        let command_id = command.msgid().expect("Ergo supplies msgid").to_owned();
+        let command_id = (*command.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let (emoji, reply_to) = wait_reaction(&mut events).await;
-        assert_eq!(reply_to, command_id);
+        assert_eq!(reply_to, command_id.as_ref());
         assert_eq!(emoji.as_deref(), Some("👍"));
 
         user.quit("echo bot test complete").await.unwrap();
@@ -112,7 +112,7 @@ async fn wait_synced(events: &mut papo::Events, channel: &str) {
 async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
     loop {
         match events.next().await {
-            Some(Event::Message(message)) if message.text() == text => return *message,
+            Some(Event::Message(message)) if message.text == text => return *message,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("message failed: {disconnected}")
             }
