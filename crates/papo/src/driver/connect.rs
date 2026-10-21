@@ -601,7 +601,16 @@ async fn connect_while_disconnected(
                     return DisconnectedWait::SlowConsumer;
                 }
             }
-            result = &mut connection => return DisconnectedWait::Complete(result),
+            result = &mut connection => {
+                while let Ok(phase) = progress.try_recv() {
+                    if !enqueue_event(events, pending_events, Event::Connecting(
+                        crate::event::Connecting { attempt, phase },
+                    )) {
+                        return DisconnectedWait::SlowConsumer;
+                    }
+                }
+                return DisconnectedWait::Complete(result);
+            }
             () = &mut timeout => {
                 return DisconnectedWait::Complete(Err(Error::Connect(crate::ConnectError::login(
                     crate::ConnectErrorKind::TimedOut,

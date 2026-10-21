@@ -604,6 +604,76 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     assert_eq!(calls.load(Ordering::Relaxed), 2);
 }
 
+async fn assert_failed_connection_progress(address: &str, attempts: usize) {
+    let connector: super::Connector = Arc::new(|plan, progress| {
+        Box::pin(async move {
+            if plan.address.is_secure() {
+                _ = progress.send(crate::ConnectPhase::Tls);
+            }
+            Err(transport_failure("irc.example.net refused the connection"))
+        })
+    });
+    let (_client, mut events, driver) = Driver::with_connector_and_entropy(
+        Ok(ConnectionPlan {
+            address: address.parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect::default(),
+        Reconnect::exponential().max_attempts(attempts),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+        Box::new(|| 0),
+    );
+    events.include_connecting.store(true, Ordering::Relaxed);
+    let driver = tokio::spawn(driver);
+    let secure = address.starts_with("ircs:");
+
+    for attempt in 1..=attempts {
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Connecting(crate::event::Connecting {
+                attempt: event_attempt,
+                phase: crate::ConnectPhase::Transport,
+            })) if event_attempt == attempt
+        ));
+        if secure {
+            assert!(matches!(
+                events.next().await,
+                Some(Event::Connecting(crate::event::Connecting {
+                    attempt: event_attempt,
+                    phase: crate::ConnectPhase::Tls,
+                })) if event_attempt == attempt
+            ));
+        }
+        let disconnected = events
+            .next()
+            .await
+            .unwrap()
+            .as_disconnected()
+            .unwrap()
+            .clone();
+        if attempt == attempts {
+            assert!(!disconnected.is_retrying());
+        } else {
+            assert_eq!(disconnected.retry_in, Some(Duration::from_millis(800)));
+            tokio::time::advance(Duration::from_millis(800)).await;
+        }
+    }
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Connect(_))
+    ));
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn transport_progress_distinguishes_plaintext_tls_and_attempts() {
+    assert_failed_connection_progress("irc://irc.example.net", 1).await;
+    assert_failed_connection_progress("ircs://irc.example.net", 2).await;
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn configuration_failures_are_terminal() {
     let mut failures = vec![Error::connect_unavailable("WebSocket")];
