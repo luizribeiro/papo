@@ -4,6 +4,8 @@ use papo_proto::Numeric;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Refusal {
+    /// The server could not process the command (`400`).
+    UnknownError,
     /// The requested nickname is not connected (`401`).
     NoSuchNick,
     /// The requested server is unknown (`402`).
@@ -14,12 +16,20 @@ pub enum Refusal {
     CannotSendToChannel,
     /// The session has joined too many channels (`405`).
     TooManyChannels,
+    /// No nickname history exists for the requested nickname (`406`).
+    NoNicknameHistory,
+    /// A required ping origin or token is missing (`409`).
+    MissingOrigin,
+    /// A message command did not include a recipient (`411`).
+    MissingRecipient,
     /// A message command did not include text (`412`).
     NoTextToSend,
     /// An input line exceeded the server limit (`417`).
     InputTooLong,
     /// The server does not recognize the command (`421`).
     UnknownCommand,
+    /// The server's message of the day is unavailable (`422`).
+    MotdUnavailable,
     /// The nickname is malformed (`432`).
     ErroneousNickname,
     /// The nickname is already in use (`433`).
@@ -28,6 +38,8 @@ pub enum Refusal {
     NickCollision,
     /// A nickname or channel is temporarily unavailable (`437`).
     TemporarilyUnavailable,
+    /// The named user is not on the channel (`441`).
+    UserNotInChannel,
     /// The session is not on the channel (`442`).
     NotOnChannel,
     /// The named user is already on the channel (`443`).
@@ -208,18 +220,25 @@ impl Refusal {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn from_numeric(numeric: Numeric) -> Self {
         match numeric.code() {
+            400 => Self::UnknownError,
             401 => Self::NoSuchNick,
             402 => Self::NoSuchServer,
             403 => Self::NoSuchChannel,
             404 => Self::CannotSendToChannel,
             405 => Self::TooManyChannels,
+            406 => Self::NoNicknameHistory,
+            409 => Self::MissingOrigin,
+            411 => Self::MissingRecipient,
             412 => Self::NoTextToSend,
             417 => Self::InputTooLong,
             421 => Self::UnknownCommand,
+            422 => Self::MotdUnavailable,
+            431 => Self::NicknameRequired,
             432 => Self::ErroneousNickname,
             433 => Self::NicknameInUse,
             436 => Self::NickCollision,
             437 => Self::TemporarilyUnavailable,
+            441 => Self::UserNotInChannel,
             442 => Self::NotOnChannel,
             443 => Self::UserOnChannel,
             451 => Self::NotConnectedYet,
@@ -351,11 +370,13 @@ mod tests {
             )*};
         }
         cases!(
-            401 => NoSuchNick, 402 => NoSuchServer, 403 => NoSuchChannel,
+            400 => UnknownError, 401 => NoSuchNick, 402 => NoSuchServer, 403 => NoSuchChannel,
             404 => CannotSendToChannel, 405 => TooManyChannels, 412 => NoTextToSend,
-            417 => InputTooLong,
-            421 => UnknownCommand, 432 => ErroneousNickname, 433 => NicknameInUse,
-            436 => NickCollision, 437 => TemporarilyUnavailable, 442 => NotOnChannel,
+            406 => NoNicknameHistory, 409 => MissingOrigin, 411 => MissingRecipient,
+            417 => InputTooLong, 421 => UnknownCommand, 422 => MotdUnavailable,
+            431 => NicknameRequired, 432 => ErroneousNickname, 433 => NicknameInUse,
+            436 => NickCollision, 437 => TemporarilyUnavailable, 441 => UserNotInChannel,
+            442 => NotOnChannel,
             443 => UserOnChannel, 451 => NotConnectedYet, 464 => PasswordIncorrect,
             471 => ChannelIsFull,
             472 => UnknownMode, 473 => InviteOnlyChannel, 474 => BannedFromChannel,

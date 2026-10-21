@@ -1513,9 +1513,28 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
 }
 
 #[test]
-fn classifies_common_numeric_refusals() {
+fn classifies_numeric_refusals() {
     let now = Instant::now();
     let cases = [
+        (
+            "400 papo PACK BOX :Could not find box to pack",
+            Refusal::UnknownError,
+        ),
+        (
+            "406 papo alice :There was no such nickname",
+            Refusal::NoNicknameHistory,
+        ),
+        ("409 papo :No origin specified", Refusal::MissingOrigin),
+        (
+            "411 papo :No recipient given (PRIVMSG)",
+            Refusal::MissingRecipient,
+        ),
+        ("422 papo :MOTD File is missing", Refusal::MotdUnavailable),
+        ("431 papo :No nickname given", Refusal::NicknameRequired),
+        (
+            "441 papo alice #papo :They aren't on that channel",
+            Refusal::UserNotInChannel,
+        ),
         (
             "404 papo #rust :Cannot send to channel",
             Refusal::CannotSendToChannel,
