@@ -1,7 +1,7 @@
-//! Test fixtures and value builders for applications using `papo`.
+//! Offline test fixtures and value builders for applications using `papo`.
 //!
-//! This crate is intended only for tests and traffic drivers. Its API has no
-//! stability promise, including between minor releases.
+//! This crate is unpublished and intended only for tests and traffic drivers.
+//! Its API has no stability promise, including between minor releases.
 
 mod builders;
 mod error;

@@ -1,6 +1,8 @@
 # papo-testing
 
-Unstable test support for applications built with `papo`.
+Unpublished, unstable, offline-first test support for applications built with
+`papo`. Live-server fixtures belong to the conformance suite rather than this
+crate's default surface.
 
 ## Test a bot without a server
 
