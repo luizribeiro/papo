@@ -202,27 +202,27 @@ impl Endpoint {
         url.parse().map(Self)
     }
 
-    /// Returns the endpoint's hostname, or `None` when construction recorded invalid input.
+    /// Returns the endpoint's hostname.
     #[must_use]
-    pub fn host(&self) -> Option<&str> {
-        Some(&self.0.host)
+    pub fn host(&self) -> &str {
+        &self.0.host
     }
 
-    /// Returns the endpoint's service port, or `None` when construction recorded invalid input.
+    /// Returns the endpoint's service port.
     #[must_use]
-    pub fn port(&self) -> Option<u16> {
-        Some(self.0.port)
+    pub fn port(&self) -> u16 {
+        self.0.port
     }
 
-    /// Returns the endpoint's transport kind, or `None` when construction recorded invalid input.
+    /// Returns the endpoint's transport kind.
     #[must_use]
-    pub fn kind(&self) -> Option<EndpointKind> {
-        Some(match self.0.protocol {
+    pub fn kind(&self) -> EndpointKind {
+        match self.0.protocol {
             Protocol::Irc => EndpointKind::Plaintext,
             Protocol::Ircs => EndpointKind::Tls,
             Protocol::Ws => EndpointKind::WebSocket,
             Protocol::Wss => EndpointKind::SecureWebSocket,
-        })
+        }
     }
 
     #[cfg(any(
@@ -503,15 +503,15 @@ mod tests {
     #[test]
     fn endpoint_accessors_and_display_preserve_configuration() {
         let tls = Endpoint::tls("2001:db8::7", 6697).unwrap();
-        assert_eq!(tls.host(), Some("2001:db8::7"));
-        assert_eq!(tls.port(), Some(6697));
-        assert_eq!(tls.kind(), Some(EndpointKind::Tls));
+        assert_eq!(tls.host(), "2001:db8::7");
+        assert_eq!(tls.port(), 6697);
+        assert_eq!(tls.kind(), EndpointKind::Tls);
         assert_eq!(tls.to_string(), "ircs://[2001:db8::7]:6697");
 
         let socket = Endpoint::websocket("ws://irc.example.net/webirc").unwrap();
-        assert_eq!(socket.host(), Some("irc.example.net"));
-        assert_eq!(socket.port(), Some(80));
-        assert_eq!(socket.kind(), Some(EndpointKind::WebSocket));
+        assert_eq!(socket.host(), "irc.example.net");
+        assert_eq!(socket.port(), 80);
+        assert_eq!(socket.kind(), EndpointKind::WebSocket);
         assert_eq!(socket.to_string(), "ws://irc.example.net/webirc");
     }
 

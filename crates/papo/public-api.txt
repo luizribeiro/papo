@@ -1788,10 +1788,10 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::Driver
 impl !core::panic::unwind_safe::UnwindSafe for papo::Driver
 pub struct papo::Endpoint(_)
 impl papo::Endpoint
-pub fn papo::Endpoint::host(&self) -> core::option::Option<&str>
-pub fn papo::Endpoint::kind(&self) -> core::option::Option<papo::EndpointKind>
+pub fn papo::Endpoint::host(&self) -> &str
+pub fn papo::Endpoint::kind(&self) -> papo::EndpointKind
 pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>, u16) -> core::result::Result<Self, papo::InvalidInput>
-pub fn papo::Endpoint::port(&self) -> core::option::Option<u16>
+pub fn papo::Endpoint::port(&self) -> u16
 pub fn papo::Endpoint::tls(impl core::convert::Into<alloc::string::String>, u16) -> core::result::Result<Self, papo::InvalidInput>
 pub fn papo::Endpoint::websocket(impl core::convert::AsRef<str>) -> core::result::Result<Self, papo::InvalidInput>
 impl core::clone::Clone for papo::Endpoint
