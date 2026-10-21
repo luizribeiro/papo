@@ -1325,7 +1325,7 @@ impl core::marker::UnsafeUnpin for papo::Event
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::Event
 impl !core::panic::unwind_safe::UnwindSafe for papo::Event
 #[non_exhaustive] pub enum papo::Extban
-pub papo::Extban::Account(papo::AccountName)
+pub papo::Extban::Account(alloc::string::String)
 impl papo::Extban
 pub fn papo::Extban::account(impl core::convert::AsRef<str>) -> core::result::Result<Self, papo::InvalidInput>
 impl core::clone::Clone for papo::Extban

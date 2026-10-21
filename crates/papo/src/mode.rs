@@ -1,9 +1,7 @@
 use std::future::IntoFuture;
 
 use papo_core::{Refusal, Response, ResponseMatcher};
-use papo_proto::{
-    AccountName, Casemapping, Command, Isupport, Line, Mask, ModeChanges, ModeKind, Nick, Source,
-};
+use papo_proto::{Casemapping, Command, Isupport, Line, Mask, ModeChanges, ModeKind, Nick, Source};
 
 use crate::{Client, Error, InvalidInput, ModeAction, ModeArg, ModeChange, RequestFuture};
 
@@ -12,7 +10,7 @@ use crate::{Client, Error, InvalidInput, ModeAction, ModeArg, ModeChange, Reques
 #[non_exhaustive]
 pub enum Extban {
     /// A ban matching an authenticated account name.
-    Account(AccountName),
+    Account(String),
 }
 
 impl Extban {
@@ -24,11 +22,13 @@ impl Extban {
     /// characters, or text that cannot be sent as one IRC parameter.
     pub fn account(name: impl AsRef<str>) -> Result<Self, InvalidInput> {
         let name = name.as_ref();
-        let account = Casemapping::Rfc1459.account(name);
-        if name == "0" || name.contains(['*', '?']) || account.check().is_err() {
+        if name == "0"
+            || name.contains(['*', '?'])
+            || Casemapping::Ascii.account(name).check().is_err()
+        {
             return Err(InvalidInput::InvalidExtbanAccount(name.to_owned()));
         }
-        Ok(Self::Account(account))
+        Ok(Self::Account(name.to_owned()))
     }
 }
 
@@ -98,6 +98,7 @@ impl BanTarget {
                 let prefix = syntax
                     .prefix
                     .map_or(String::new(), |value| value.to_string());
+                let account = state.account_name(account);
                 Ok(state.mask(format!("{prefix}{kind}:{account}")))
             }
         }
@@ -881,7 +882,7 @@ mod tests {
     #[test]
     fn validates_account_extban_names() {
         assert!(
-            matches!(Extban::account("alice"), Ok(Extban::Account(account)) if account == "ALICE")
+            matches!(Extban::account("alice"), Ok(Extban::Account(account)) if account == "alice")
         );
         for invalid in ["", "0", "*", "bo?", "bob smith"] {
             assert_eq!(
@@ -902,6 +903,30 @@ mod tests {
             BanTarget::from(Extban::account("alice").unwrap()),
             BanTarget(Target::Extban(Extban::Account(account))) if account == "alice"
         ));
+    }
+
+    #[test]
+    fn account_extbans_defer_folding_until_resolved() {
+        let bracket = BanTarget::from(Extban::account("Alice[bot]").unwrap());
+        let brace = BanTarget::from(Extban::account("alice{bot}").unwrap());
+        assert_ne!(bracket, brace);
+
+        let advertised = "ACCOUNTEXTBAN=a CHANMODES=beI,k,l,imnst EXTBAN=$,a :are supported";
+        let ascii = state(&format!(
+            ":irc.example 005 papo CASEMAPPING=ascii {advertised}"
+        ));
+        assert_ne!(
+            bracket.clone().resolve(&ascii).unwrap(),
+            brace.clone().resolve(&ascii).unwrap()
+        );
+
+        let rfc1459 = state(&format!(
+            ":irc.example 005 papo CASEMAPPING=rfc1459 {advertised}"
+        ));
+        assert_eq!(
+            bracket.resolve(&rfc1459).unwrap(),
+            brace.resolve(&rfc1459).unwrap()
+        );
     }
 
     #[test]

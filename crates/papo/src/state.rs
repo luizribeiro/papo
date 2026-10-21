@@ -384,7 +384,7 @@ impl State {
         {
             return None;
         }
-        Some(crate::Extban::Account(self.account_name(account)))
+        Some(crate::Extban::Account(account.to_owned()))
     }
 }
 
@@ -566,7 +566,7 @@ mod name_tests {
             for spelling in spellings {
                 assert!(matches!(
                     state.parse_extban(&state.mask(spelling)),
-                    Some(Extban::Account(account)) if account == "alice"
+                    Some(Extban::Account(account)) if account == "Alice"
                 ));
             }
         }
