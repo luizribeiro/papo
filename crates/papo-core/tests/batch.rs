@@ -509,7 +509,7 @@ fn outermost_aggregate_groups_its_commands_and_releases_others() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Netsplit { servers, quits, authorship })
+        Some(Event::Netsplit { servers, quits, authorship, .. })
             if servers == ["irc.example", "irc.remote"]
                 && quits.len() == 1
                 && authorship == [Authorship::Other]
@@ -573,7 +573,7 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Netsplit { servers, quits, authorship })
+        Some(Event::Netsplit { servers, quits, authorship, .. })
             if servers == ["irc.example", "irc.remote"] && quits.len() == 2
                 && authorship == [Authorship::Own, Authorship::Other]
     ));
@@ -604,6 +604,44 @@ fn empty_membership_aggregates_are_observable() {
         Some(Event::Netjoin { joins, .. }) if joins.is_empty()
     ));
     assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn ergo_netsplit_captures_channels_before_removing_users() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for line in [
+        ":papo!~papo@localhost JOIN #papo",
+        ":papo!~papo@localhost JOIN #rust",
+        ":alice!~alice@users.example JOIN #papo",
+        ":alice!~alice@users.example JOIN #rust",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    while session.poll_event().is_some() {}
+
+    session.handle_line(
+        now,
+        b":ergo.test BATCH +split netsplit ergo.test remote.example",
+    );
+    session.handle_line(
+        now,
+        b"@batch=split :alice!~alice@users.example QUIT :ergo.test remote.example",
+    );
+    session.handle_line(now, b":ergo.test BATCH -split");
+
+    let Some(Event::Netsplit {
+        quits, channels, ..
+    }) = session.poll_event()
+    else {
+        panic!("expected netsplit")
+    };
+    assert_eq!(quits.len(), 1);
+    assert_eq!(channels.len(), 1);
+    assert_eq!(channels[0].len(), 2);
+    assert!(channels[0].iter().any(|channel| channel == "#papo"));
+    assert!(channels[0].iter().any(|channel| channel == "#rust"));
+    assert!(session.state().user("alice").is_none());
 }
 
 #[test]

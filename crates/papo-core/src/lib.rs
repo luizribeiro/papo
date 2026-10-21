@@ -1895,6 +1895,8 @@ pub enum Event {
         quits: Vec<Line>,
         /// Authorship facts corresponding to `quits` in wire order.
         authorship: Vec<Authorship>,
+        /// Shared channels captured before each user was removed, in wire order.
+        channels: Vec<Vec<ChannelName>>,
     },
     /// Users returned after connectivity between two servers was restored.
     ///
@@ -3910,13 +3912,15 @@ impl Session {
                     .collect();
                 // History can describe stale membership, while netsplit and netjoin batches
                 // report connectivity changes that define the current live membership.
-                for message in &quits {
-                    self.apply_aggregate_state(message);
-                }
+                let channels = quits
+                    .iter()
+                    .map(|message| self.apply_aggregate_state(message).unwrap_or_default())
+                    .collect();
                 self.outbox.event(Event::Netsplit {
                     servers,
                     quits,
                     authorship,
+                    channels,
                 });
             }
             BatchEvent::Netjoin { servers, joins } => {
@@ -4192,7 +4196,7 @@ impl Session {
         }
     }
 
-    fn apply_aggregate_state(&mut self, message: &Line) {
+    fn apply_aggregate_state(&mut self, message: &Line) -> Option<Vec<ChannelName>> {
         let before = self.state.clone();
         let event_count = self.outbox.events.len();
         self.state.handle_message(
@@ -4209,6 +4213,10 @@ impl Session {
             &mut self.outbox,
         );
         let generated = self.outbox.events.split_off(event_count);
+        let channels = generated.iter().find_map(|event| match event {
+            Event::Quit { channels, .. } => Some(channels.clone()),
+            _ => None,
+        });
         self.outbox.events.extend(
             generated
                 .into_iter()
@@ -4217,6 +4225,7 @@ impl Session {
         if before != self.state {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
+        channels
     }
 
     fn no_implicit_names(&self) -> bool {

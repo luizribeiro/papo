@@ -48,8 +48,8 @@ pub use server::{MetadataChanged, Warning};
 pub use source::Source;
 pub use tags::Tags;
 pub use user::{
-    AccountChanged, AwayChanged, Departed, HostChanged, MonitorOffline, MonitorOnline, Netjoin,
-    Netsplit, NickChanged, Quit, RealnameChanged, SplitServers,
+    AccountChanged, AwayChanged, HostChanged, MonitorOffline, MonitorOnline, Netjoin, Netsplit,
+    NickChanged, Quit, RealnameChanged, SplitServers,
 };
 
 /// The semantic kind of an incoming chat message.
@@ -1068,21 +1068,28 @@ pub(crate) fn from_core(
             servers,
             quits,
             authorship,
+            channels,
         } => Event::Netsplit(Netsplit {
             servers: servers.into(),
             quits: quits
                 .into_iter()
                 .zip(authorship)
-                .filter_map(|(message, authorship)| {
+                .zip(channels)
+                .filter_map(|((message, authorship), channels)| {
                     let message = message.as_ref();
                     let nick = match message.source()? {
                         papo_proto::Source::User { nick, .. } => nick.to_owned(),
                         papo_proto::Source::Server(_) => return None,
                     };
-                    Some(Departed {
+                    let envelope = line_envelope(&message, casemapping, received_at);
+                    Some(Quit {
+                        msgid: envelope.msgid,
+                        time: envelope.time,
+                        account: envelope.account,
                         nick: casemapping.nick(nick),
                         authorship: Authorship::from_core(authorship),
                         reason: message.param(0).map(str::to_owned),
+                        channels,
                     })
                 })
                 .collect(),
@@ -2570,6 +2577,7 @@ mod tests {
             servers: ["irc.example".into(), "irc.remote".into()],
             quits: vec![quit],
             authorship: vec![papo_core::Authorship::Other],
+            channels: vec![vec![Casemapping::default().channel("#papo")]],
         }) else {
             panic!("netsplit was not forwarded")
         };
@@ -2577,6 +2585,7 @@ mod tests {
         assert_eq!(netsplit.servers.second, "irc.remote");
         assert_eq!(netsplit.quits.len(), 1);
         assert_eq!(netsplit.quits[0].nick, "alice");
+        assert_eq!(netsplit.quits[0].channels, ["#papo"]);
         assert_eq!(
             netsplit.quits[0].reason.as_deref(),
             Some("irc.example irc.remote")

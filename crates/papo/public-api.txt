@@ -298,25 +298,6 @@ impl core::marker::Unpin for papo::event::Ctcp
 impl core::marker::UnsafeUnpin for papo::event::Ctcp
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Ctcp
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Ctcp
-#[non_exhaustive] pub struct papo::event::Departed
-pub papo::event::Departed::authorship: papo::Authorship
-pub papo::event::Departed::nick: papo::Nick
-pub papo::event::Departed::reason: core::option::Option<alloc::string::String>
-impl core::clone::Clone for papo::event::Departed
-pub fn papo::event::Departed::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::Departed
-impl core::cmp::PartialEq for papo::event::Departed
-pub fn papo::event::Departed::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::Departed
-pub fn papo::event::Departed::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::Departed
-impl core::marker::Freeze for papo::event::Departed
-impl core::marker::Send for papo::event::Departed
-impl core::marker::Sync for papo::event::Departed
-impl core::marker::Unpin for papo::event::Departed
-impl core::marker::UnsafeUnpin for papo::event::Departed
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Departed
-impl core::panic::unwind_safe::UnwindSafe for papo::event::Departed
 #[non_exhaustive] pub struct papo::event::Disconnected
 pub papo::event::Disconnected::cause: papo::DisconnectCause
 pub papo::event::Disconnected::retry_in: core::option::Option<core::time::Duration>
@@ -582,7 +563,7 @@ impl core::marker::UnsafeUnpin for papo::event::Netjoin
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Netjoin
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Netjoin
 #[non_exhaustive] pub struct papo::event::Netsplit
-pub papo::event::Netsplit::quits: alloc::vec::Vec<papo::event::Departed>
+pub papo::event::Netsplit::quits: alloc::vec::Vec<papo::event::Quit>
 pub papo::event::Netsplit::servers: papo::event::SplitServers
 impl core::clone::Clone for papo::event::Netsplit
 pub fn papo::event::Netsplit::clone(&self) -> Self

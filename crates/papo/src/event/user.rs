@@ -104,18 +104,6 @@ pub struct MonitorOffline {
     pub nick: Nick,
 }
 
-/// A user departed during a netsplit.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub struct Departed {
-    /// The departed user's nickname.
-    pub nick: Nick,
-    /// Whether the departed user is this client's user.
-    pub authorship: Authorship,
-    /// The optional quit reason.
-    pub reason: Option<String>,
-}
-
 /// Server names attached to a netsplit or netjoin batch, in wire order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -140,8 +128,8 @@ impl From<[String; 2]> for SplitServers {
 pub struct Netsplit {
     /// The server names reported for the lost link.
     pub servers: SplitServers,
-    /// The grouped departures in wire order.
-    pub quits: Vec<Departed>,
+    /// The grouped quits in wire order.
+    pub quits: Vec<Quit>,
 }
 
 /// Users returned after connectivity between two servers was restored.
