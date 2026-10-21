@@ -1462,6 +1462,7 @@ pub struct StandardReply {
     pub description: String,
     /// Classification recorded using the negotiated unstable features.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[doc(hidden)]
     pub refusal: Refusal,
 }
@@ -1484,6 +1485,7 @@ pub enum PersistenceSetting {
 impl PersistenceSetting {
     /// Returns the wire token for this setting.
     #[must_use]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::On => "ON",

@@ -137,6 +137,18 @@ pub struct CapInfo {
 }
 
 macro_rules! capability_constant {
+    (#[cfg(feature = $feature:literal)] [cap] $constant:ident = $value:literal; $doc:literal) => {
+        #[cfg(feature = $feature)]
+        #[cfg_attr(docsrs, doc(cfg(feature = $feature)))]
+        #[doc = $doc]
+        pub const $constant: Cap = Cap::new($value);
+    };
+    (#[cfg(feature = $feature:literal)] $constant:ident = $value:literal; $doc:literal) => {
+        #[cfg(feature = $feature)]
+        #[cfg_attr(docsrs, doc(cfg(feature = $feature)))]
+        #[doc = $doc]
+        pub const $constant: &str = $value;
+    };
     ($(#[$meta:meta])* [cap] $constant:ident = $value:literal; $doc:literal) => {
         $(#[$meta])* #[doc = $doc] pub const $constant: Cap = Cap::new($value);
     };
