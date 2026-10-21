@@ -2396,6 +2396,7 @@ pub const fn papo::Reconnect::exponential() -> Self
 pub const fn papo::Reconnect::max_attempts(self, usize) -> Self
 pub const fn papo::Reconnect::max_delay(self, core::time::Duration) -> Self
 pub const fn papo::Reconnect::never() -> Self
+pub const fn papo::Reconnect::refused_delay(self, core::time::Duration) -> Self
 impl core::clone::Clone for papo::Reconnect
 pub fn papo::Reconnect::clone(&self) -> Self
 impl core::cmp::Eq for papo::Reconnect

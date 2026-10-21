@@ -11,6 +11,7 @@ use std::time::Duration;
 pub struct Reconnect {
     max_delay: Duration,
     max_attempts: Option<usize>,
+    refused_delay: Duration,
 }
 
 impl Reconnect {
@@ -20,6 +21,7 @@ impl Reconnect {
         Self {
             max_delay: Duration::from_mins(5),
             max_attempts: None,
+            refused_delay: Duration::from_secs(60),
         }
     }
 
@@ -29,6 +31,7 @@ impl Reconnect {
         Self {
             max_delay: Duration::ZERO,
             max_attempts: Some(1),
+            refused_delay: Duration::from_secs(60),
         }
     }
 
@@ -46,14 +49,39 @@ impl Reconnect {
         self
     }
 
+    /// Sets the minimum delay after a server refuses IRC login.
+    ///
+    /// The default is 60 seconds. This delay also applies when required SASL
+    /// is unavailable or times out, and when every nickname candidate is
+    /// rejected. It takes precedence over a smaller [`Self::max_delay`].
+    #[must_use]
+    pub const fn refused_delay(mut self, delay: Duration) -> Self {
+        self.refused_delay = delay;
+        self
+    }
+
     pub(crate) fn permits(self, completed_attempts: usize) -> bool {
         self.max_attempts
             .is_none_or(|maximum| completed_attempts < maximum)
     }
 
     pub(crate) fn delay(self, retry: u32, entropy: u64) -> Duration {
-        let seconds = 1_u64.checked_shl(retry.min(63)).unwrap_or(u64::MAX);
-        let base = Duration::from_secs(seconds).min(self.max_delay);
+        Self::jitter(Duration::from_secs(1), retry, self.max_delay, entropy)
+    }
+
+    pub(crate) fn refused(self, retry: u32, entropy: u64) -> Duration {
+        Self::jitter(
+            self.refused_delay,
+            retry,
+            self.max_delay.max(self.refused_delay),
+            entropy,
+        )
+        .max(self.refused_delay)
+    }
+
+    fn jitter(initial: Duration, retry: u32, maximum: Duration, entropy: u64) -> Duration {
+        let multiplier = 1_u32.checked_shl(retry.min(31)).unwrap_or(u32::MAX);
+        let base = initial.saturating_mul(multiplier).min(maximum);
         let denominator = u128::from(u64::MAX) * 100;
         let numerator = u128::from(u64::MAX) * 80 + u128::from(entropy) * 40;
         let nanos = base.as_nanos().saturating_mul(numerator) / denominator;
@@ -90,6 +118,24 @@ mod tests {
         assert!(policy.permits(2));
         assert!(!policy.permits(3));
         assert_eq!(policy.delay(8, 0), Duration::from_secs(8));
+    }
+
+    #[test]
+    fn refusals_start_at_sixty_seconds_then_back_off() {
+        let policy = Reconnect::exponential();
+        assert_eq!(policy.refused(0, 0), Duration::from_secs(60));
+        assert_eq!(policy.refused(1, 0), Duration::from_secs(96));
+        assert_eq!(policy.refused(1, u64::MAX), Duration::from_secs(144));
+        assert_eq!(policy.refused(20, u64::MAX), Duration::from_secs(360));
+    }
+
+    #[test]
+    fn refusal_minimum_overrides_a_smaller_normal_cap() {
+        let policy = Reconnect::exponential()
+            .max_delay(Duration::from_secs(10))
+            .refused_delay(Duration::from_secs(75));
+        assert_eq!(policy.refused(0, 0), Duration::from_secs(75));
+        assert_eq!(policy.refused(1, u64::MAX), Duration::from_secs(90));
     }
 
     #[test]

@@ -188,10 +188,11 @@ pub(super) async fn run_plan(
             sts_required = true;
         }
         let reconnect_now = end.reconnect_now;
+        let refused = retry_was_refused(&end);
         let reconnect_in = if upgrade_port.is_some() || reconnect_now {
             Duration::ZERO
         } else {
-            retry_delay(reconnect, attempts, entropy.as_mut())
+            retry_delay(reconnect, attempts, refused, entropy.as_mut())
         };
         let disconnected = super::disconnected_event(&end.error, Some(reconnect_in));
         if matches!(disconnected.cause, crate::DisconnectCause::SlowConsumer) {
@@ -416,7 +417,7 @@ async fn connect_or_wait(
     {
         return ConnectionAttempt::Failed(error);
     }
-    let reconnect_in = retry_delay(reconnect, attempts, entropy);
+    let reconnect_in = retry_delay(reconnect, attempts, false, entropy);
     let disconnected = super::disconnected_event(&error, Some(reconnect_in));
     *last_disconnect = Some(disconnected.cause.clone());
     if !enqueue_event(
@@ -677,10 +678,27 @@ async fn wait_before_retry(
 fn retry_delay(
     reconnect: Reconnect,
     attempts: usize,
+    refused: bool,
     entropy: &mut (dyn FnMut() -> u64 + Send),
 ) -> Duration {
     let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
-    reconnect.delay(retry, entropy())
+    if refused {
+        reconnect.refused(retry, entropy())
+    } else {
+        reconnect.delay(retry, entropy())
+    }
+}
+
+fn retry_was_refused(end: &ConnectionEnd) -> bool {
+    end.registered_at.is_none()
+        && matches!(
+            end.error,
+            Error::Connect(ref error)
+                if matches!(
+                    error.kind(),
+                    crate::ConnectErrorKind::Server | crate::ConnectErrorKind::SaslUnavailable
+                )
+        )
 }
 
 fn handle_disconnected_command(
