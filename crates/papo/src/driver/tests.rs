@@ -4067,7 +4067,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     assert_eq!(
-        within(sent).await.unwrap().unwrap().id.unwrap(),
+        within(sent).await.unwrap().unwrap().msgid.unwrap(),
         "RfcBTzyxY120005"
     );
 
@@ -4084,7 +4084,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     assert_eq!(
-        within(action).await.unwrap().unwrap().id.unwrap(),
+        within(action).await.unwrap().unwrap().msgid.unwrap(),
         "RfcBTzyxY120006"
     );
     within(server.shutdown()).await.unwrap();
@@ -4228,13 +4228,13 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     let sent = within(sent).await.unwrap().unwrap();
-    assert_eq!(sent.id.as_deref(), Some("RfcBTzyxY120004"));
+    assert_eq!(sent.msgid.as_deref(), Some("RfcBTzyxY120004"));
     assert!(
         matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
     );
     assert_eq!(sent.status, None);
     assert_eq!(
-        sent.time,
+        sent.server_time,
         Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
     );
 

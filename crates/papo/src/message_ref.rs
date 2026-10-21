@@ -29,7 +29,7 @@ impl From<&Sent> for MessageRef {
     fn from(message: &Sent) -> Self {
         Self {
             address: conversation_address(&message.conversation, message.status.as_deref()),
-            msgid: message.id.clone(),
+            msgid: message.msgid.clone(),
         }
     }
 }
@@ -123,9 +123,9 @@ mod tests {
         let sent = Sent {
             conversation: Conversation::Channel(mapping.channel("#ops")),
             status: Some(vec!['@']),
-            id: Some("RfcBTzyxY120005".into()),
+            msgid: Some("RfcBTzyxY120005".into()),
             line_msgids: vec!["RfcBTzyxY120005".into()],
-            time: Some(SystemTime::UNIX_EPOCH),
+            server_time: Some(SystemTime::UNIX_EPOCH),
             fallbacks: Vec::new(),
         };
         let reference = MessageRef::from(&sent);

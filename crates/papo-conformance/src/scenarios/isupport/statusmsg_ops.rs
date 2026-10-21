@@ -109,7 +109,7 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
         );
         assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
         assert_eq!(message.raw_text, "operators only");
-        assert_eq!(message.msgid.as_ref(), sent.id.as_ref());
+        assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     }
     assert_eq!(echo.origin, Origin::Echo);
     assert!(!matches!(echo.conversation, papo::Conversation::Private(_)));

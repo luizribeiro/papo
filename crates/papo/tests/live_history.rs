@@ -60,14 +60,14 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
                 .map(|message| message.msgid.as_deref())
                 .collect::<Vec<_>>(),
             sent.iter()
-                .map(|message| message.id.as_deref())
+                .map(|message| message.msgid.as_deref())
                 .collect::<Vec<_>>()
         );
         assert!(messages.iter().all(|message| {
             message.origin == Origin::History && !message.is_live() && message.msgid.is_some()
         }));
 
-        let third = sent[2].id.as_deref().expect("Ergo supplies a msgid");
+        let third = sent[2].msgid.as_deref().expect("Ergo supplies a msgid");
         let before = client
             .history(&channel)
             .before(third)
@@ -82,7 +82,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             &texts[..2]
         );
 
-        let newest = sent[2].time.expect("Ergo supplies server time");
+        let newest = sent[2].server_time.expect("Ergo supplies server time");
         client.mark_read(&channel, newest).await.unwrap();
         assert_eq!(
             client.fetch_read_marker(&channel).await.unwrap(),

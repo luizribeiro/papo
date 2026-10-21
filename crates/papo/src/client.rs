@@ -36,6 +36,9 @@ pub struct Client {
 }
 
 /// Server-assigned metadata for a sent chat message.
+///
+/// Applications that log every chat message must log their own sends from this value. The
+/// correlated server copy is consumed and is not also emitted as a [`crate::Message`] event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Sent {
@@ -44,11 +47,11 @@ pub struct Sent {
     /// `STATUSMSG` prefixes on the wire address, in wire order.
     pub status: Option<Vec<char>>,
     /// Server-assigned identifier from a labelled echo.
-    pub id: Option<crate::MessageId>,
+    pub msgid: Option<crate::MessageId>,
     /// Server-assigned identifiers for every confirmed IRC message line, in send order.
     pub line_msgids: Vec<crate::MessageId>,
     /// Server time from a labelled echo.
-    pub time: Option<SystemTime>,
+    pub server_time: Option<SystemTime>,
     /// Compatibility fallbacks applied while sending.
     pub fallbacks: Vec<Fallback>,
 }
@@ -223,9 +226,9 @@ impl Sent {
         Self {
             conversation,
             status,
-            id: None,
+            msgid: None,
             line_msgids: Vec::new(),
-            time: None,
+            server_time: None,
             fallbacks,
         }
     }
@@ -243,9 +246,9 @@ impl Sent {
         Self {
             conversation,
             status,
-            id: line_msgids.first().cloned(),
+            msgid: line_msgids.first().cloned(),
             line_msgids,
-            time: confirmations
+            server_time: confirmations
                 .iter()
                 .find_map(|sent| sent.time.as_deref().and_then(time::parse)),
             fallbacks,
@@ -403,8 +406,10 @@ impl Client {
 
     /// Sends a private message to a channel or directly to a user.
     ///
-    /// A labelled echo supplies its message identifier and optional server time. Both fields are
-    /// `None` unless `echo-message` and `labeled-response` are enabled.
+    /// With `echo-message` and `labeled-response`, the future resolves with the server's copy,
+    /// which is not also emitted as an event. Applications that log every message must log their
+    /// own sends from the returned [`Sent`]. Without both capabilities, it resolves after the last
+    /// line is written and has no server-assigned metadata.
     ///
     /// # Errors
     ///
@@ -430,8 +435,7 @@ impl Client {
 
     /// Sends a notice to a user or channel.
     ///
-    /// A labelled echo supplies its message identifier and optional server time. Both fields are
-    /// `None` unless `echo-message` and `labeled-response` are enabled.
+    /// Confirmation and event behavior is the same as [`Client::privmsg`].
     ///
     /// # Errors
     ///
@@ -456,6 +460,8 @@ impl Client {
     }
 
     /// Sends a CTCP ACTION to a user or channel.
+    ///
+    /// Confirmation and event behavior is the same as [`Client::privmsg`].
     ///
     /// # Errors
     ///

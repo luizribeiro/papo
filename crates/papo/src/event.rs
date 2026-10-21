@@ -137,6 +137,10 @@ pub enum Origin {
 }
 
 /// An owned incoming `PRIVMSG` or `NOTICE`.
+///
+/// Correlated copies of this client's sends are returned through [`crate::Sent`] and are not
+/// emitted as messages. Applications that log everything must therefore log their own sends from
+/// the send future's result.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Message {

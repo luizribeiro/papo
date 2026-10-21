@@ -54,7 +54,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         ];
         let mut newest = None;
         for text in texts {
-            newest = poster.privmsg(&channel, text).await.unwrap().time;
+            newest = poster.privmsg(&channel, text).await.unwrap().server_time;
         }
 
         let password = std::env::temp_dir().join(format!("{account}.password"));

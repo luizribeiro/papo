@@ -176,8 +176,8 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .privmsg(&channel, "plain message with multiline enabled")
             .await
             .unwrap();
-        let plain_id = plain.id.expect("plain echo supplies msgid");
-        assert!(plain.time.is_some());
+        let plain_id = plain.msgid.expect("plain echo supplies msgid");
+        assert!(plain.server_time.is_some());
         let incoming = wait_message(&mut events_b, |message| {
             message.raw_text == "plain message with multiline enabled"
         })
@@ -188,8 +188,8 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .privmsg(&channel, "first deployment line\nsecond deployment line")
             .await
             .unwrap();
-        let multiline_id = multiline.id.expect("multiline echo supplies msgid");
-        assert!(multiline.time.is_some());
+        let multiline_id = multiline.msgid.expect("multiline echo supplies msgid");
+        assert!(multiline.server_time.is_some());
         let incoming = wait_message(&mut events_b, |message| {
             message.raw_text == "first deployment line\nsecond deployment line"
         })
