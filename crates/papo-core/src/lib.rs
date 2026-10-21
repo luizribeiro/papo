@@ -180,6 +180,7 @@ impl Transmit {
 }
 const CTCP_REPLY_INTERVAL: Duration = Duration::from_secs(2);
 
+pub use cap::Cap;
 /// Capabilities requested by a default session when the server advertises them.
 pub use cap::DEFAULTS as DEFAULT_WANTED_CAPS;
 
