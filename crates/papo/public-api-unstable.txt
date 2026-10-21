@@ -949,64 +949,6 @@ pub use papo::isupport::Extban
 pub use papo::isupport::Limit
 pub use papo::isupport::LimitValue
 pub use papo::isupport::Prefix
-pub struct papo::isupport::Isupport
-impl papo::isupport::Isupport
-pub fn papo::isupport::Isupport::account_required(&self) -> bool
-pub fn papo::isupport::Isupport::accountextban(&self) -> alloc::vec::Vec<&str>
-pub fn papo::isupport::Isupport::awaylen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::bot_mode(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::casemapping(&self) -> papo::Casemapping
-pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo::isupport::ChanModes<'_>>
-pub fn papo::isupport::Isupport::channellen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::chantypes(&self) -> &str
-pub fn papo::isupport::Isupport::chathistory(&self) -> core::option::Option<papo::isupport::LimitValue>
-pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo::isupport::ClientTagDeny<'_>
-pub fn papo::isupport::Isupport::elist(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::excepts(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo::isupport::Extban<'_>>
-pub fn papo::isupport::Isupport::filehost(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::get(&self, &str) -> papo::isupport::Advertised<'_>
-pub fn papo::isupport::Isupport::icon(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
-pub fn papo::isupport::Isupport::invex(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::is_channel(&self, &str) -> bool
-pub fn papo::isupport::Isupport::kicklen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo::isupport::LimitValue>
-pub fn papo::isupport::Isupport::modes(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::monitor(&self) -> core::option::Option<papo::isupport::LimitValue>
-pub fn papo::isupport::Isupport::msgreftypes(&self) -> alloc::vec::Vec<&str>
-pub fn papo::isupport::Isupport::namelen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::network(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::nicklen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo::isupport::Prefix>
-pub fn papo::isupport::Isupport::safelist(&self) -> bool
-pub fn papo::isupport::Isupport::saferate(&self) -> bool
-pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::tokens(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, papo::isupport::Advertised<'_>)>
-pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::utf8only(&self) -> bool
-pub fn papo::isupport::Isupport::vapid(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::whox(&self) -> bool
-impl core::clone::Clone for papo::isupport::Isupport
-pub fn papo::isupport::Isupport::clone(&self) -> Self
-impl core::cmp::Eq for papo::isupport::Isupport
-impl core::cmp::PartialEq for papo::isupport::Isupport
-pub fn papo::isupport::Isupport::eq(&self, &Self) -> bool
-impl core::default::Default for papo::isupport::Isupport
-pub fn papo::isupport::Isupport::default() -> Self
-impl core::fmt::Debug for papo::isupport::Isupport
-pub fn papo::isupport::Isupport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::isupport::Isupport
-impl core::marker::Freeze for papo::isupport::Isupport
-impl core::marker::Send for papo::isupport::Isupport
-impl core::marker::Sync for papo::isupport::Isupport
-impl core::marker::Unpin for papo::isupport::Isupport
-impl core::marker::UnsafeUnpin for papo::isupport::Isupport
-impl core::panic::unwind_safe::RefUnwindSafe for papo::isupport::Isupport
-impl core::panic::unwind_safe::UnwindSafe for papo::isupport::Isupport
 pub mod papo::metadata
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
@@ -1995,63 +1937,63 @@ impl core::marker::UnsafeUnpin for papo::HistoryRequest
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::HistoryRequest
 impl !core::panic::unwind_safe::UnwindSafe for papo::HistoryRequest
 pub struct papo::Isupport
-impl papo::isupport::Isupport
-pub fn papo::isupport::Isupport::account_required(&self) -> bool
-pub fn papo::isupport::Isupport::accountextban(&self) -> alloc::vec::Vec<&str>
-pub fn papo::isupport::Isupport::awaylen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::bot_mode(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::casemapping(&self) -> papo::Casemapping
-pub fn papo::isupport::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::chanmodes(&self) -> core::option::Option<papo::isupport::ChanModes<'_>>
-pub fn papo::isupport::Isupport::channellen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::chantypes(&self) -> &str
-pub fn papo::isupport::Isupport::chathistory(&self) -> core::option::Option<papo::isupport::LimitValue>
-pub fn papo::isupport::Isupport::clienttagdeny(&self) -> papo::isupport::ClientTagDeny<'_>
-pub fn papo::isupport::Isupport::elist(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::excepts(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::extban(&self) -> core::option::Option<papo::isupport::Extban<'_>>
-pub fn papo::isupport::Isupport::filehost(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::get(&self, &str) -> papo::isupport::Advertised<'_>
-pub fn papo::isupport::Isupport::icon(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
-pub fn papo::isupport::Isupport::invex(&self) -> core::option::Option<char>
-pub fn papo::isupport::Isupport::is_channel(&self, &str) -> bool
-pub fn papo::isupport::Isupport::kicklen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::maxlist(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::maxtargets(&self) -> core::option::Option<papo::isupport::LimitValue>
-pub fn papo::isupport::Isupport::modes(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::monitor(&self) -> core::option::Option<papo::isupport::LimitValue>
-pub fn papo::isupport::Isupport::msgreftypes(&self) -> alloc::vec::Vec<&str>
-pub fn papo::isupport::Isupport::namelen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::network(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::nicklen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::prefix(&self) -> alloc::vec::Vec<papo::isupport::Prefix>
-pub fn papo::isupport::Isupport::safelist(&self) -> bool
-pub fn papo::isupport::Isupport::saferate(&self) -> bool
-pub fn papo::isupport::Isupport::statusmsg(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::targmax(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
-pub fn papo::isupport::Isupport::tokens(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, papo::isupport::Advertised<'_>)>
-pub fn papo::isupport::Isupport::topiclen(&self) -> core::option::Option<usize>
-pub fn papo::isupport::Isupport::utf8only(&self) -> bool
-pub fn papo::isupport::Isupport::vapid(&self) -> core::option::Option<&str>
-pub fn papo::isupport::Isupport::whox(&self) -> bool
-impl core::clone::Clone for papo::isupport::Isupport
-pub fn papo::isupport::Isupport::clone(&self) -> Self
-impl core::cmp::Eq for papo::isupport::Isupport
-impl core::cmp::PartialEq for papo::isupport::Isupport
-pub fn papo::isupport::Isupport::eq(&self, &Self) -> bool
-impl core::default::Default for papo::isupport::Isupport
-pub fn papo::isupport::Isupport::default() -> Self
-impl core::fmt::Debug for papo::isupport::Isupport
-pub fn papo::isupport::Isupport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::isupport::Isupport
-impl core::marker::Freeze for papo::isupport::Isupport
-impl core::marker::Send for papo::isupport::Isupport
-impl core::marker::Sync for papo::isupport::Isupport
-impl core::marker::Unpin for papo::isupport::Isupport
-impl core::marker::UnsafeUnpin for papo::isupport::Isupport
-impl core::panic::unwind_safe::RefUnwindSafe for papo::isupport::Isupport
-impl core::panic::unwind_safe::UnwindSafe for papo::isupport::Isupport
+impl papo::Isupport
+pub fn papo::Isupport::account_required(&self) -> bool
+pub fn papo::Isupport::accountextban(&self) -> alloc::vec::Vec<&str>
+pub fn papo::Isupport::awaylen(&self) -> core::option::Option<usize>
+pub fn papo::Isupport::bot_mode(&self) -> core::option::Option<char>
+pub fn papo::Isupport::casemapping(&self) -> papo::Casemapping
+pub fn papo::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::Isupport::chanmodes(&self) -> core::option::Option<papo::isupport::ChanModes<'_>>
+pub fn papo::Isupport::channellen(&self) -> core::option::Option<usize>
+pub fn papo::Isupport::chantypes(&self) -> &str
+pub fn papo::Isupport::chathistory(&self) -> core::option::Option<papo::isupport::LimitValue>
+pub fn papo::Isupport::clienttagdeny(&self) -> papo::isupport::ClientTagDeny<'_>
+pub fn papo::Isupport::elist(&self) -> core::option::Option<&str>
+pub fn papo::Isupport::excepts(&self) -> core::option::Option<char>
+pub fn papo::Isupport::extban(&self) -> core::option::Option<papo::isupport::Extban<'_>>
+pub fn papo::Isupport::filehost(&self) -> core::option::Option<&str>
+pub fn papo::Isupport::get(&self, &str) -> papo::isupport::Advertised<'_>
+pub fn papo::Isupport::icon(&self) -> core::option::Option<&str>
+pub fn papo::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
+pub fn papo::Isupport::invex(&self) -> core::option::Option<char>
+pub fn papo::Isupport::is_channel(&self, &str) -> bool
+pub fn papo::Isupport::kicklen(&self) -> core::option::Option<usize>
+pub fn papo::Isupport::maxlist(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::Isupport::maxtargets(&self) -> core::option::Option<papo::isupport::LimitValue>
+pub fn papo::Isupport::modes(&self) -> core::option::Option<usize>
+pub fn papo::Isupport::monitor(&self) -> core::option::Option<papo::isupport::LimitValue>
+pub fn papo::Isupport::msgreftypes(&self) -> alloc::vec::Vec<&str>
+pub fn papo::Isupport::namelen(&self) -> core::option::Option<usize>
+pub fn papo::Isupport::network(&self) -> core::option::Option<&str>
+pub fn papo::Isupport::nicklen(&self) -> core::option::Option<usize>
+pub fn papo::Isupport::prefix(&self) -> alloc::vec::Vec<papo::isupport::Prefix>
+pub fn papo::Isupport::safelist(&self) -> bool
+pub fn papo::Isupport::saferate(&self) -> bool
+pub fn papo::Isupport::statusmsg(&self) -> core::option::Option<&str>
+pub fn papo::Isupport::targmax(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::Isupport::tokens(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, papo::isupport::Advertised<'_>)>
+pub fn papo::Isupport::topiclen(&self) -> core::option::Option<usize>
+pub fn papo::Isupport::utf8only(&self) -> bool
+pub fn papo::Isupport::vapid(&self) -> core::option::Option<&str>
+pub fn papo::Isupport::whox(&self) -> bool
+impl core::clone::Clone for papo::Isupport
+pub fn papo::Isupport::clone(&self) -> Self
+impl core::cmp::Eq for papo::Isupport
+impl core::cmp::PartialEq for papo::Isupport
+pub fn papo::Isupport::eq(&self, &Self) -> bool
+impl core::default::Default for papo::Isupport
+pub fn papo::Isupport::default() -> Self
+impl core::fmt::Debug for papo::Isupport
+pub fn papo::Isupport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Isupport
+impl core::marker::Freeze for papo::Isupport
+impl core::marker::Send for papo::Isupport
+impl core::marker::Sync for papo::Isupport
+impl core::marker::Unpin for papo::Isupport
+impl core::marker::UnsafeUnpin for papo::Isupport
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Isupport
+impl core::panic::unwind_safe::UnwindSafe for papo::Isupport
 pub struct papo::JoinChannel
 impl papo::JoinChannel
 pub fn papo::JoinChannel::key(self, impl core::convert::Into<papo::Secret>) -> Self
@@ -2501,7 +2443,7 @@ pub fn papo::State::host(&self) -> core::option::Option<&str>
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::is_valid_channel(&self, &str) -> bool
 pub fn papo::State::is_valid_nick(&self, &str) -> bool
-pub fn papo::State::isupport(&self) -> &papo::isupport::Isupport
+pub fn papo::State::isupport(&self) -> &papo::Isupport
 pub fn papo::State::mask(&self, impl core::convert::AsRef<str>) -> papo::Mask
 pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::MetadataKey>

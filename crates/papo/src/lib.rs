@@ -89,7 +89,8 @@ mod ext;
 pub mod fail;
 #[cfg(not(browser))]
 mod io_compat;
-pub mod isupport;
+#[path = "isupport.rs"]
+mod isupport_impl;
 mod message_ref;
 pub mod metadata;
 mod mode;
@@ -108,6 +109,12 @@ pub mod __testing;
 
 pub mod cap;
 pub mod tags;
+
+/// Read-only views of server features advertised through `RPL_ISUPPORT`.
+pub mod isupport {
+    #[doc(inline)]
+    pub use papo_proto::{Advertised, ChanModes, ClientTagDeny, Extban, Limit, LimitValue, Prefix};
+}
 
 /// The version of the `papo` crate.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -137,7 +144,7 @@ pub use ext::persistence::Persistence;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::webpush::{PushKeys, WebPush};
-pub use isupport::Isupport;
+pub use isupport_impl::Isupport;
 pub use message_ref::MessageRef;
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
 #[doc(inline)]
