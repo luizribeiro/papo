@@ -81,7 +81,9 @@ async fn handle(client: &Client, event: Event) -> Result<(), papo::Error> {
                 disconnected.is_retrying()
             );
         }
-        Event::Message(message) if message.is_live() && message.text == "!ping" => {
+        Event::Message(message)
+            if message.is_live() && !message.is_own() && message.text == "!ping" =>
+        {
             client.reply(&message, "pong").await?;
         }
         _ => {}

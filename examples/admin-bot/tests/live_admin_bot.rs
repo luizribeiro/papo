@@ -28,9 +28,8 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
         let (user, mut user_events) = connect(&server, &user_nick, &channels, false).await;
         let (admin, mut admin_events) = connect(&server, &admin_nick, &channels, true).await;
 
-        user.privmsg(&channels[0], "!ping").await.unwrap();
-        let sent = wait_message(&mut user_events, "!ping").await;
-        let msgid = (*sent.msgid.as_ref().expect("Ergo supplies msgid")).clone();
+        let sent = user.privmsg(&channels[0], "!ping").await.unwrap();
+        let msgid = sent.msgid.expect("Ergo supplies msgid");
         let response = wait_message(&mut user_events, "pong").await;
         assert_eq!(response.reply_to(), Some(&msgid));
 

@@ -41,7 +41,7 @@ async fn handle(client: &Client, event: &Event, config: &BotConfig) -> Result<()
     let Event::Message(message) = event else {
         return Ok(());
     };
-    if !message.is_live() || message.kind != MessageKind::Privmsg {
+    if !message.is_live() || message.is_own() || message.kind != MessageKind::Privmsg {
         return Ok(());
     }
     if message.text.contains('\n') {

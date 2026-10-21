@@ -35,15 +35,13 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
             .unwrap();
         wait_synced(&mut events, &channel).await;
 
-        user.privmsg(&channel, "!ping").await.unwrap();
-        let sent = wait_message(&mut events, "!ping").await;
-        let message_id = (*sent.msgid.as_ref().expect("Ergo supplies msgid")).clone();
+        let sent = user.privmsg(&channel, "!ping").await.unwrap();
+        let message_id = sent.msgid.expect("Ergo supplies msgid");
         let response = wait_message(&mut events, "pong").await;
         assert_eq!(response.reply_to(), Some(&message_id));
 
-        user.privmsg(&bot_nick, "!ping").await.unwrap();
-        let sent = wait_message(&mut events, "!ping").await;
-        let message_id = (*sent.msgid.as_ref().expect("Ergo supplies msgid")).clone();
+        let sent = user.privmsg(&bot_nick, "!ping").await.unwrap();
+        let message_id = sent.msgid.expect("Ergo supplies msgid");
         let response = wait_message(&mut events, "pong").await;
         assert!(matches!(
             response.conversation,
@@ -102,6 +100,7 @@ impl Bot {
             while let Some(event) = events.next().await {
                 if let Event::Message(message) = event
                     && message.is_live()
+                    && !message.is_own()
                     && message.text == "!ping"
                 {
                     bot.reply(&message, "pong").await.unwrap();

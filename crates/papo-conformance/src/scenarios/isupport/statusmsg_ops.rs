@@ -136,38 +136,28 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
     alice
         .privmsg(format!("@{channel}"), "operators-only question")
         .await?;
-    let alice_echo = alice
-        .wait_for(|event| message_text(event, "operators-only question"))
-        .await?;
     let question = bob
         .wait_for(|event| message_text(event, "operators-only question"))
         .await?;
-    for message in [&alice_echo, &question] {
-        assert_eq!(
-            crate::scenarios::support::conversation_name(&message.conversation),
-            Some(channel.as_str())
-        );
-        assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
-    }
+    assert_eq!(
+        crate::scenarios::support::conversation_name(&question.conversation),
+        Some(channel.as_str())
+    );
+    assert_eq!(question.status.as_deref(), Some(['@'].as_slice()));
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| message_text(event, "operators-only question"))
             .await?;
     }
 
     bob.reply(&question, "operators-only answer").await?;
-    let bob_echo = bob
-        .wait_for(|event| message_text(event, "operators-only answer"))
-        .await?;
     let answer = alice
         .wait_for(|event| message_text(event, "operators-only answer"))
         .await?;
-    for message in [&bob_echo, &answer] {
-        assert_eq!(
-            crate::scenarios::support::conversation_name(&message.conversation),
-            Some(channel.as_str())
-        );
-        assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
-    }
+    assert_eq!(
+        crate::scenarios::support::conversation_name(&answer.conversation),
+        Some(channel.as_str())
+    );
+    assert_eq!(answer.status.as_deref(), Some(['@'].as_slice()));
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| message_text(event, "operators-only answer"))
             .await?;
