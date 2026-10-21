@@ -115,6 +115,37 @@ fn requests_echo_message_only_with_labeled_response() {
 }
 
 #[test]
+fn cap_new_requests_only_capabilities_newly_available_in_that_update() {
+    let config = Config::default().wanted_caps([
+        "server-time",
+        "echo-message",
+        "labeled-response",
+        "ergo.chat/nope",
+    ]);
+    Transcript::new(config.clone())
+        .connect_default()
+        .server("CAP * LS :echo-message")
+        .client("CAP END")
+        .server("CAP papo NEW :server-time")
+        .client("CAP REQ :server-time")
+        .server("CAP papo NAK :server-time")
+        .server("CAP papo NEW :ergo.chat/nope")
+        .no_client();
+
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :echo-message labeled-response")
+        .client("CAP REQ :echo-message labeled-response")
+        .server("CAP * NAK :echo-message labeled-response")
+        .client("CAP END")
+        .server("CAP papo NEW :server-time")
+        .client("CAP REQ :server-time")
+        .server("CAP papo NAK :server-time")
+        .server("CAP papo NEW :ergo.chat/nope")
+        .no_client();
+}
+
+#[test]
 fn defaults_cover_every_implemented_negotiable_capability() {
     assert_eq!(
         DEFAULT_WANTED_CAPS,
