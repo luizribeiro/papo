@@ -697,10 +697,14 @@ fn invalid(message: impl Into<String>) -> Error {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use papo_core::{Config, Feature, Session, UnsupportedReason};
-    use papo_proto::{Isupport, LineRef};
+    use std::time::Instant;
 
-    use super::{Argument, BanTarget, Change, Extban, Selector, Target, confirmed_ban, encode};
+    use papo_core::{Config, Event, Feature, ResponseMatcher, Session, UnsupportedReason};
+    use papo_proto::{Isupport, Line, LineRef};
+
+    use super::{
+        Argument, BanTarget, Change, Extban, Selector, Target, confirmed, confirmed_ban, encode,
+    };
 
     fn isupport() -> Isupport {
         let mut support = Isupport::default();
@@ -715,6 +719,87 @@ mod tests {
         let mut session = Session::new(Config::default());
         session.handle_line(crate::rt::now_mono(), line.as_bytes());
         crate::State::from_session(&session, false)
+    }
+
+    fn response_with(lines: &[&str]) -> papo_core::Response {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        let id = session
+            .request_with_matcher(
+                now,
+                Line::new("MODE", ["#papo", "+m"]),
+                ResponseMatcher::Mode("#papo".into()),
+            )
+            .unwrap();
+        while session.poll_transmit().is_some() {}
+        session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-0");
+        let mut response = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Response(response) if response.id == id => Some(response),
+                _ => None,
+            })
+            .unwrap();
+        response.lines = lines
+            .iter()
+            .map(|line| LineRef::parse(line).unwrap().to_owned())
+            .collect();
+        response
+    }
+
+    #[test]
+    fn mode_confirmation_rejects_every_nonmatching_echo_dimension() {
+        let state =
+            state(":ergo.test 005 papo CHANMODES=beI,k,l,imnst CASEMAPPING=rfc1459 :supported");
+        let ban = crate::ModeChange {
+            mode: 'b',
+            action: crate::ModeAction::Add,
+            arg: Some(crate::ModeArg::Mask(state.mask("alice!*@*"))),
+        };
+        let invisible = crate::ModeChange {
+            mode: 'i',
+            action: crate::ModeAction::Add,
+            arg: None,
+        };
+        let moderated = crate::ModeChange {
+            mode: 'm',
+            action: crate::ModeAction::Add,
+            arg: None,
+        };
+
+        for line in [
+            ":alice!~alice@users.example MODE #papo +b alice!*@*",
+            ":papo!papo@localhost MODE #other +b alice!*@*",
+            ":papo!papo@localhost MODE #papo -b alice!*@*",
+        ] {
+            assert!(
+                confirmed(
+                    &response_with(&[line]),
+                    &state,
+                    "#papo",
+                    std::slice::from_ref(&ban),
+                )
+                .is_empty(),
+                "accepted {line}"
+            );
+        }
+        assert!(
+            confirmed(
+                &response_with(&[":papo!papo@localhost MODE somebody-else +i"]),
+                &state,
+                "papo",
+                &[invisible],
+            )
+            .is_empty()
+        );
+        assert!(
+            confirmed(
+                &response_with(&[":papo!papo@localhost PRIVMSG #papo :+m"]),
+                &state,
+                "#papo",
+                &[moderated],
+            )
+            .is_empty()
+        );
     }
 
     #[test]

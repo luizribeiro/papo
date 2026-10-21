@@ -420,6 +420,67 @@ async fn list_modes_reports_the_entry_bound() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn list_modes_uses_each_dialects_wire_letter() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":solanum.example 005 papo-driver CHANMODES=eIbq,k,flj,CFLPQcgimnprstz :are supported\r\n",
+    )
+    .await;
+
+    for (label, mode, letter, row, end, extra, mask) in [
+        (
+            0,
+            crate::ListMode::Except,
+            "e",
+            348,
+            349,
+            "",
+            "*!*@staff.example",
+        ),
+        (1, crate::ListMode::Invex, "I", 346, 347, "", "$a:invited"),
+        (
+            2,
+            crate::ListMode::Quiet,
+            "q",
+            728,
+            729,
+            " q",
+            "*!*@noisy.example",
+        ),
+    ] {
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.list_modes("#papo", mode).await }
+        });
+        client_line(
+            &mut server,
+            format!("@label={label} MODE #papo {letter}\r\n").as_bytes(),
+        )
+        .await;
+        server_line(
+            &mut server,
+            format!(
+                ":solanum.example {row} papo-driver #papo{extra} {mask} oper 1792573200\r\n:solanum.example {end} papo-driver #papo{extra} :End of mode list\r\n"
+            )
+            .as_bytes(),
+        )
+        .await;
+        let entries = within(request).await.unwrap().unwrap();
+        assert!(matches!(entries.as_slice(), [entry] if entry.mask == mask));
+    }
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn connection_failures_retry_up_to_the_configured_limit() {
     let calls = Arc::new(AtomicUsize::new(0));
@@ -3862,6 +3923,53 @@ async fn kickban_stops_when_the_ban_is_unconfirmed_or_the_target_leaves() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn kickban_does_not_refetch_a_known_list_after_an_unconfirmed_ban() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst :are supported\r\n:papo-driver!papo@localhost JOIN #papo\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n",
+    )
+    .await;
+
+    let list = tokio::spawn({
+        let client = client.clone();
+        async move { client.list_modes("#papo", crate::ListMode::Ban).await }
+    });
+    client_line(&mut server, b"@label=0 MODE #papo b\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 368 papo-driver #papo :End of channel ban list\r\n",
+    )
+    .await;
+    assert!(within(list).await.unwrap().unwrap().is_empty());
+
+    let kickban = tokio::spawn({
+        let client = client.clone();
+        async move { client.kickban("#papo", "alice", "flooding", "alice").await }
+    });
+    client_line(&mut server, b"@label=1 MODE #papo +b alice\r\n").await;
+    server_line(&mut server, b"@label=1 ACK\r\n").await;
+    assert!(matches!(
+        within(kickban).await.unwrap(),
+        Err(Error::Unconfirmed)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn typed_numeric_refusals_reach_action_futures() {
     let (mut server, client, mut events, driver) =
         scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
@@ -4193,6 +4301,93 @@ async fn mode_changes_return_confirmed_facts_after_a_later_disconnect() {
     let result = within(modes).await.unwrap().unwrap();
     assert!(matches!(result.applied.as_slice(), [change] if change.mode == 'm'));
     assert!(result.refused.is_empty());
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn mode_changes_require_an_own_matching_mode_echo() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst :are supported\r\n",
+    )
+    .await;
+
+    let other_actor = tokio::spawn({
+        let client = client.clone();
+        async move { client.mode("#papo").ban("alice!*@*").await }
+    });
+    client_line(
+        &mut server,
+        b"MODE #papo +b alice!*@*\r\nPING :papo-mode-0\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":alice!~alice@users.example MODE #papo +b alice!*@*\r\n:ergo.test PONG ergo.test :papo-mode-0\r\n",
+    )
+    .await;
+    assert!(
+        within(other_actor)
+            .await
+            .unwrap()
+            .unwrap()
+            .applied
+            .is_empty()
+    );
+
+    let wrong_action = tokio::spawn({
+        let client = client.clone();
+        async move { client.mode("#papo").ban("alice!*@*").await }
+    });
+    client_line(
+        &mut server,
+        b"MODE #papo +b alice!*@*\r\nPING :papo-mode-1\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost MODE #papo -b alice!*@*\r\n:ergo.test PONG ergo.test :papo-mode-1\r\n",
+    )
+    .await;
+    assert!(
+        within(wrong_action)
+            .await
+            .unwrap()
+            .unwrap()
+            .applied
+            .is_empty()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn an_unconfirmed_first_mode_chunk_returns_its_transport_error() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst :are supported\r\n",
+    )
+    .await;
+
+    let modes = tokio::spawn(async move { client.mode("#papo").add('m').await });
+    client_line(&mut server, b"MODE #papo +m\r\nPING :papo-mode-0\r\n").await;
+    within(server.shutdown()).await.unwrap();
+
+    let result = within(modes).await.unwrap();
+    assert!(matches!(result, Err(Error::Interrupted(_))), "{result:?}");
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())
