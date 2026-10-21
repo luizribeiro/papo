@@ -1428,7 +1428,7 @@ mod tests {
         )
         .await;
         client_line(&mut server, b"CAP END\r\n").await;
-        server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp STATUSMSG=@+ :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+        server_line(&mut server, b":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ CHATHISTORY=100 MSGREFTYPES=msgid,timestamp STATUSMSG=@+ :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
         assert!(matches!(events.next().await, Some(Event::Connected(_))));
         assert!(matches!(
             client.history("#papo invalid").latest(10).await,
@@ -1455,13 +1455,37 @@ mod tests {
         let conversation = crate::Conversation::Channel(client.state().channel_name("#papo"));
         let request = tokio::spawn(async move { client.history(conversation).latest(10).await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 10\r\n").await;
-        server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
+        server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :ChanServ!service@services MODE #papo +o alice\r\n@batch=history :OperServ!service@services MODE #papo +b *!*@spammer.example\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
         let page = within(request).await.unwrap().unwrap();
         assert!(page.end);
-        assert_eq!(page.items.len(), 4);
+        assert_eq!(page.items.len(), 6);
         assert!(matches!(page.items[1], HistoryItem::Reacted(_)));
         assert!(matches!(page.items[2], HistoryItem::Joined(_)));
-        assert_eq!(page.items[3].as_other().unwrap().command(), "TAGMSG");
+        let HistoryItem::ModeChanged(prefix_mode) = &page.items[3] else {
+            panic!("expected replayed prefix mode")
+        };
+        assert!(matches!(
+            prefix_mode.changes.as_slice(),
+            [crate::ModeChange {
+                mode: 'o',
+                action: crate::ModeAction::Add,
+                arg: Some(crate::ModeArg::Nick(nick)),
+                ..
+            }] if nick == "alice"
+        ));
+        let HistoryItem::ModeChanged(list_mode) = &page.items[4] else {
+            panic!("expected replayed list mode")
+        };
+        assert!(matches!(
+            list_mode.changes.as_slice(),
+            [crate::ModeChange {
+                mode: 'b',
+                action: crate::ModeAction::Add,
+                arg: Some(crate::ModeArg::Mask(mask)),
+                ..
+            }] if mask == "*!*@spammer.example"
+        ));
+        assert_eq!(page.items[5].as_other().unwrap().command(), "TAGMSG");
         let message = page.messages().next().unwrap();
         assert_eq!(message.text(), "earlier");
         assert_eq!(message.origin(), Origin::History);
@@ -1471,7 +1495,9 @@ mod tests {
         };
         assert!(matches!(history.items[1], HistoryItem::Reacted(_)));
         assert!(matches!(history.items[2], HistoryItem::Joined(_)));
-        assert_eq!(history.items[3].as_other().unwrap().command(), "TAGMSG");
+        assert!(matches!(history.items[3], HistoryItem::ModeChanged(_)));
+        assert!(matches!(history.items[4], HistoryItem::ModeChanged(_)));
+        assert_eq!(history.items[5].as_other().unwrap().command(), "TAGMSG");
         assert_eq!(history.messages().next().unwrap().origin(), Origin::Replay);
         abort_task(task).await;
     }
