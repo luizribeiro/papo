@@ -134,7 +134,10 @@ pub struct Command {
 
 impl Command {
     fn parse(client: &Client, message: &ChatMessage, config: &BotConfig) -> Option<Self> {
-        if !message.is_live() || message.kind != MessageKind::Privmsg {
+        if !message.is_live()
+            || message.authorship == crate::Authorship::Own
+            || message.kind != MessageKind::Privmsg
+        {
             return None;
         }
         let body = addressed_body(client, message, config)?;

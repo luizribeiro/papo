@@ -1984,7 +1984,6 @@ pub enum BatchAbandonReason {
 pub struct ReceivedLine {
     line: Line,
     batch_type: Option<String>,
-    echo: bool,
     authorship: Authorship,
     conversation: Option<Conversation>,
     status: Option<Vec<char>>,
@@ -2001,12 +2000,6 @@ impl ReceivedLine {
     #[must_use]
     pub fn batch_type(&self) -> Option<&str> {
         self.batch_type.as_deref()
-    }
-
-    /// Reports whether the source matches the session's current nickname.
-    #[must_use]
-    pub const fn is_echo(&self) -> bool {
-        self.echo
     }
 
     /// Returns whether the line's actor is this session's user.
@@ -2035,8 +2028,8 @@ impl ReceivedLine {
 
     /// Splits the line into its wire value and dispatch annotations.
     #[must_use]
-    pub fn into_parts(self) -> (Line, Option<String>, bool) {
-        (self.line, self.batch_type, self.echo)
+    pub fn into_parts(self) -> (Line, Option<String>) {
+        (self.line, self.batch_type)
     }
 }
 
@@ -2301,7 +2294,13 @@ impl Outbox {
 
 impl Session {
     fn authorship(&self, message: &LineRef<'_>) -> Authorship {
-        if self.is_own_source(message) {
+        let same_account = message.tag("account").is_some_and(|actor| {
+            self.account().is_some_and(|own| {
+                let mapping = self.isupport.value().casemapping();
+                mapping.account(actor.as_ref()) == mapping.account(own)
+            })
+        });
+        if self.is_own_source(message) || same_account {
             Authorship::Own
         } else {
             Authorship::Other
@@ -3481,11 +3480,8 @@ impl Session {
             && !standard_reply
             && emit_unhandled
         {
-            let received = self.received_line(
-                message.to_owned(),
-                context.batch_type().map(str::to_owned),
-                false,
-            );
+            let received =
+                self.received_line(message.to_owned(), context.batch_type().map(str::to_owned));
             self.outbox.event(Event::Line(received));
         }
         if message.command() == Command::Nick
@@ -3692,7 +3688,7 @@ impl Session {
                 reason,
             }),
             BatchEvent::Line { line, batch_type } => {
-                let received = self.received_line(line, batch_type, false);
+                let received = self.received_line(line, batch_type);
                 self.outbox.event(Event::Line(received));
             }
             BatchEvent::Multiline(message) => self
@@ -3876,7 +3872,7 @@ impl Session {
                 whois_channels,
             }));
             for message in echoed.into_iter().flatten() {
-                let received = self.received_line(message, None, true);
+                let received = self.received_line(message, None);
                 self.outbox.event(Event::Line(received));
             }
         }

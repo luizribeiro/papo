@@ -73,6 +73,27 @@ fn queued_event_keeps_authorship_across_a_nick_change() {
 }
 
 #[test]
+fn live_message_from_another_session_of_our_account_is_own() {
+    Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN account-tag")
+        .client("CAP REQ :account-tag sasl")
+        .server("CAP * ACK :account-tag sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AHBhcG8AY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
+        .server(":ergo.test 900 papo papo!~papo@localhost papo :You are now logged in as papo")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .client("CAP END")
+        .server("@account=papo;msgid=RfcBTzyxY120004 :papo-phone!~papo@localhost PRIVMSG #papo :deployment finished")
+        .event(|event| {
+            matches!(event, Event::Line(message)
+                if message.authorship() == Authorship::Own
+                    && message.as_ref().param(1) == Some("deployment finished"))
+        });
+}
+
+#[test]
 fn history_authorship_requires_an_account_tag() {
     Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
         .connect_default()

@@ -306,12 +306,12 @@ pub(crate) fn incoming_from_core(
     };
     let status = received.status().map(<[char]>::to_vec);
     let authorship = Authorship::from_core(received.authorship());
-    let (raw, batch_type, echo) = received.into_parts();
+    let (raw, batch_type) = received.into_parts();
     Event::Ctcp(
         Ctcp::from_line(
             raw,
             batch_type.as_deref(),
-            echo,
+            false,
             authorship,
             conversation,
             status,
@@ -383,11 +383,11 @@ impl Message {
         };
         let status = received.status().map(<[char]>::to_vec);
         let authorship = Authorship::from_core(received.authorship());
-        let (raw, batch_type, echo) = received.into_parts();
+        let (raw, batch_type) = received.into_parts();
         Self::new_with_context(
             raw,
             batch_type.as_deref(),
-            echo,
+            false,
             authorship,
             conversation,
             status,
@@ -577,7 +577,7 @@ impl Message {
 fn message_metadata(
     message: &LineRef<'_>,
     batch_type: Option<&str>,
-    echo: bool,
+    _echo: bool,
     authorship: Authorship,
     conversation: Conversation,
     status: Option<Vec<char>>,
@@ -615,13 +615,7 @@ fn message_metadata(
         relayed_by,
         is_bot: tags.contains("bot"),
         oper: oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned)),
-        origin: if echo {
-            Origin::Echo
-        } else if replay {
-            Origin::Replay
-        } else {
-            Origin::Live
-        },
+        origin: if replay { Origin::Replay } else { Origin::Live },
         tags,
     })
 }
@@ -1719,12 +1713,12 @@ mod tests {
     }
 
     #[test]
-    fn distinguishes_echoes_and_live_messages() {
+    fn classifies_own_and_other_live_messages() {
         let classify = |message| event(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH);
         let echo = classify(Line::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
-        assert_eq!(echo.origin, Origin::Echo);
+        assert_eq!(echo.origin, Origin::Live);
         assert!(echo.is_own());
-        assert!(!echo.is_live());
+        assert!(echo.is_live());
         let tagged = classify(
             Line::privmsg("#papo", "earlier")
                 .with_source("emily!e@localhost")
@@ -2199,13 +2193,13 @@ mod tests {
     }
 
     #[test]
-    fn classifies_echo_before_batch_origin() {
+    fn classifies_an_own_message_as_live() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("Papo[bot]"));
         session.handle_line(now, b":papo{bot}!~p@host PRIVMSG #papo :sent");
         let echo = mapped_message(session.poll_event().expect("expected echo"));
-        assert_eq!(echo.origin, Origin::Echo);
-        assert!(!echo.is_live());
+        assert_eq!(echo.origin, Origin::Live);
+        assert!(echo.is_live());
     }
 
     #[test]

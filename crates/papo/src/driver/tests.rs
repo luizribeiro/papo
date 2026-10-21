@@ -247,7 +247,7 @@ async fn message_fields_use_captured_session_facts() {
     assert!(reply.reply);
 
     server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
-    assert_eq!(next_message(&mut events).await.origin, Origin::Echo);
+    assert_eq!(next_message(&mut events).await.origin, Origin::Live);
     assert_eq!(next_message(&mut events).await.origin, Origin::Replay);
     assert!(matches!(
         events.next().await,

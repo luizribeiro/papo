@@ -1,6 +1,4 @@
-use crate::{
-    Authorship, Event, Line, LineRef, ReceivedLine, Session, cap, conversation::classify_line,
-};
+use crate::{Event, Line, LineRef, ReceivedLine, Session, conversation::classify_line};
 
 impl Session {
     pub(super) fn enqueue_labelled_echo(&mut self, message: &LineRef<'_>) {
@@ -10,7 +8,7 @@ impl Session {
             .pop_back()
             .expect("a resolved request queued its response");
         debug_assert!(matches!(response, Event::Response(_)));
-        let received = self.received_line(message.to_owned(), None, true);
+        let received = self.received_line(message.to_owned(), None);
         self.outbox.event(Event::Line(received));
         // Consumers must observe the confirming event before the action completes.
         self.outbox.event(response);
@@ -31,14 +29,8 @@ impl Session {
         })
     }
 
-    pub(super) fn received_line(
-        &self,
-        line: Line,
-        batch_type: Option<String>,
-        labelled_echo: bool,
-    ) -> ReceivedLine {
-        let own_source = self.is_own_source(&line.as_ref());
-        let labels = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
+    pub(super) fn received_line(&self, line: Line, batch_type: Option<String>) -> ReceivedLine {
+        let authorship = self.authorship(&line.as_ref());
         let (status, conversation) =
             classify_line(&line.as_ref(), self.nick(), self.isupport.value())
                 .map_or((None, None), |(status, conversation)| {
@@ -47,12 +39,7 @@ impl Session {
         ReceivedLine {
             line,
             batch_type,
-            echo: own_source && (labelled_echo || !labels),
-            authorship: if own_source {
-                Authorship::Own
-            } else {
-                Authorship::Other
-            },
+            authorship,
             conversation,
             status,
         }

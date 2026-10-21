@@ -140,7 +140,7 @@ fn state_generation_changes_only_with_snapshot_state() {
 }
 
 #[test]
-fn annotates_echoes_with_the_active_casemapping() {
+fn annotates_authorship_with_the_active_casemapping() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("Papo[bot]"));
     session.handle_line(now, b":papo{bot}!~papo@localhost PRIVMSG #papo :sent");
@@ -152,8 +152,8 @@ fn annotates_echoes_with_the_active_casemapping() {
     let Some(Event::Line(received)) = session.poll_event() else {
         panic!("expected received message")
     };
-    assert!(echo.is_echo());
-    assert!(!received.is_echo());
+    assert_eq!(echo.authorship(), Authorship::Own);
+    assert_eq!(received.authorship(), Authorship::Other);
 }
 
 #[test]
