@@ -5,7 +5,7 @@ use papo_proto::Numeric;
 #[non_exhaustive]
 pub enum Refusal {
     /// The server could not process the command (`400`).
-    UnknownError,
+    CommandFailed,
     /// The requested nickname is not connected (`401`).
     NoSuchNick,
     /// The requested server is unknown (`402`).
@@ -250,7 +250,7 @@ impl Refusal {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn from_numeric(numeric: Numeric) -> Self {
         match numeric.code() {
-            400 => Self::UnknownError,
+            400 => Self::CommandFailed,
             401 => Self::NoSuchNick,
             402 => Self::NoSuchServer,
             403 => Self::NoSuchChannel,
@@ -417,7 +417,7 @@ mod tests {
             )*};
         }
         cases!(
-            400 => UnknownError, 401 => NoSuchNick, 402 => NoSuchServer, 403 => NoSuchChannel,
+            400 => CommandFailed, 401 => NoSuchNick, 402 => NoSuchServer, 403 => NoSuchChannel,
             404 => CannotSendToChannel, 405 => TooManyChannels, 412 => NoTextToSend,
             406 => NoNicknameHistory, 409 => MissingOrigin, 411 => MissingRecipient,
             417 => InputTooLong, 421 => UnknownCommand, 422 => MotdUnavailable,

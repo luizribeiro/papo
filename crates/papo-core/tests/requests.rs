@@ -1522,7 +1522,7 @@ fn classifies_numeric_refusals() {
     let cases = [
         (
             "400 papo NICK :Nickname is already in use",
-            Refusal::UnknownError,
+            Refusal::CommandFailed,
         ),
         ("401 papo alice :No such nick", Refusal::NoSuchNick),
         (

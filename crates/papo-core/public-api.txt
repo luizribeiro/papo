@@ -807,6 +807,7 @@ pub papo_core::Refusal::ChannelNameInUse
 pub papo_core::Refusal::ChannelOperatorPrivilegesNeeded
 pub papo_core::Refusal::ChannelRenameForbidden
 pub papo_core::Refusal::ChannelRenamed
+pub papo_core::Refusal::CommandFailed
 pub papo_core::Refusal::ErroneousNickname
 pub papo_core::Refusal::InputTooLong
 pub papo_core::Refusal::InsufficientPrivileges
@@ -871,7 +872,6 @@ pub papo_core::Refusal::UnacceptableEmail
 pub papo_core::Refusal::UnacceptablePassword
 pub papo_core::Refusal::UnknownBatchType
 pub papo_core::Refusal::UnknownCommand
-pub papo_core::Refusal::UnknownError
 pub papo_core::Refusal::UnknownMessage
 pub papo_core::Refusal::UnknownMode
 pub papo_core::Refusal::UnknownUserMode
