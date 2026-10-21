@@ -440,6 +440,7 @@ impl std::fmt::Display for Refusal {
 #[cfg(test)]
 mod tests {
     use {super::Refusal, papo_proto::Numeric};
+
     #[test]
     fn classifies_every_numeric_refusal() {
         macro_rules! cases {
@@ -575,5 +576,87 @@ mod tests {
             "PERSISTENCE" "INVALID_PARAMETERS" => InvalidPersistenceParameters,
             "PERSISTENCE" "INTERNAL_ERROR" => InternalError,
         );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[test]
+    fn gates_unstable_extension_failures_by_enabled_feature() {
+        use std::collections::BTreeSet;
+
+        use crate::Feature;
+
+        for (feature, command, code, expected) in [
+            (
+                Feature::Bouncer,
+                "BOUNCER",
+                "INVALID_NETID",
+                Refusal::InvalidNetwork,
+            ),
+            (
+                Feature::Bouncer,
+                "BOUNCER",
+                "INVALID_ATTRIBUTE",
+                Refusal::InvalidAttribute,
+            ),
+            (
+                Feature::Bouncer,
+                "BOUNCER",
+                "READ_ONLY_ATTRIBUTE",
+                Refusal::ReadOnlyAttribute,
+            ),
+            (
+                Feature::Bouncer,
+                "BOUNCER",
+                "UNKNOWN_ATTRIBUTE",
+                Refusal::UnknownAttribute,
+            ),
+            (
+                Feature::Bouncer,
+                "BOUNCER",
+                "NEED_ATTRIBUTE",
+                Refusal::MissingAttribute,
+            ),
+            (
+                Feature::WebPush,
+                "WEBPUSH",
+                "INVALID_PARAMS",
+                Refusal::InvalidWebPushParameters,
+            ),
+            (
+                Feature::WebPush,
+                "WEBPUSH",
+                "MAX_REGISTRATIONS",
+                Refusal::WebPushRegistrationLimit,
+            ),
+            (
+                Feature::Persistence,
+                "PERSISTENCE",
+                "INVALID_PARAMETERS",
+                Refusal::InvalidPersistenceParameters,
+            ),
+        ] {
+            assert_eq!(
+                Refusal::from_standard_enabled(command, code, &BTreeSet::new()),
+                Refusal::Other,
+                "{command} {code} without {feature:?}"
+            );
+            assert_eq!(
+                Refusal::from_standard_enabled(command, code, &BTreeSet::from([feature])),
+                expected,
+                "{command} {code} with {feature:?}"
+            );
+        }
+
+        for (command, code, expected) in [
+            ("WEBPUSH", "INTERNAL_ERROR", Refusal::InternalError),
+            ("PERSISTENCE", "ACCOUNT_REQUIRED", Refusal::AccountRequired),
+            ("PERSISTENCE", "INTERNAL_ERROR", Refusal::InternalError),
+        ] {
+            assert_eq!(
+                Refusal::from_standard_enabled(command, code, &BTreeSet::new()),
+                expected,
+                "{command} {code}"
+            );
+        }
     }
 }
