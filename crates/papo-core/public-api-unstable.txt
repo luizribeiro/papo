@@ -842,6 +842,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::PersistenceSetting
 impl core::panic::unwind_safe::UnwindSafe for papo_core::PersistenceSetting
 #[non_exhaustive] pub enum papo_core::Refusal
 pub papo_core::Refusal::AccountExists
+pub papo_core::Refusal::AccountLocked
 pub papo_core::Refusal::AccountNameMustMatchNick
 pub papo_core::Refusal::AccountRequired
 pub papo_core::Refusal::AlreadyAuthenticated
@@ -919,6 +920,9 @@ pub papo_core::Refusal::RedactionForbidden
 pub papo_core::Refusal::RedactionWindowExpired
 pub papo_core::Refusal::RelayDisabled
 pub papo_core::Refusal::RelayPrivilegesNeeded
+pub papo_core::Refusal::SaslAborted
+pub papo_core::Refusal::SaslFailed
+pub papo_core::Refusal::SaslMessageTooLong
 pub papo_core::Refusal::SecureOnlyChannel
 pub papo_core::Refusal::TemporarilyUnavailable
 pub papo_core::Refusal::TlsUpgradeFailed

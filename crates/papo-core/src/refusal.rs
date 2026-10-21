@@ -86,6 +86,14 @@ pub enum Refusal {
     InvalidModeParameter,
     /// The IRC operator lacks a required server privilege (`723`).
     InsufficientPrivileges,
+    /// The account is locked or otherwise unavailable (`902`).
+    AccountLocked,
+    /// SASL authentication failed (`904`).
+    SaslFailed,
+    /// A SASL message exceeded the server's limit (`905`).
+    SaslMessageTooLong,
+    /// SASL authentication was aborted (`906`).
+    SaslAborted,
     /// The server is temporarily too busy (`263`).
     TryAgain,
     /// The requested account name is already registered.
@@ -279,6 +287,11 @@ impl Refusal {
             691 => Self::TlsUpgradeFailed,
             696 => Self::InvalidModeParameter,
             723 => Self::InsufficientPrivileges,
+            902 => Self::AccountLocked,
+            904 => Self::SaslFailed,
+            905 => Self::SaslMessageTooLong,
+            906 => Self::SaslAborted,
+            907 => Self::AlreadyAuthenticated,
             263 => Self::TryAgain,
             _ => Self::Other,
         }
@@ -408,7 +421,9 @@ mod tests {
             489 => SecureOnlyChannel, 491 => NoOperHost, 501 => UnknownUserMode,
             502 => UsersDontMatch, 524 => NoHelpAvailable, 525 => InvalidKey,
             691 => TlsUpgradeFailed, 696 => InvalidModeParameter,
-            723 => InsufficientPrivileges, 263 => TryAgain, 999 => Other,
+            723 => InsufficientPrivileges, 902 => AccountLocked, 904 => SaslFailed,
+            905 => SaslMessageTooLong, 906 => SaslAborted, 907 => AlreadyAuthenticated,
+            263 => TryAgain, 999 => Other,
         );
     }
 

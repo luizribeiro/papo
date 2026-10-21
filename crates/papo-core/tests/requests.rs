@@ -1572,6 +1572,23 @@ fn classifies_numeric_refusals() {
             Refusal::InsufficientPrivileges,
         ),
         (
+            "902 papo :You must use a nick assigned to you",
+            Refusal::AccountLocked,
+        ),
+        ("904 papo :SASL authentication failed", Refusal::SaslFailed),
+        (
+            "905 papo :SASL message too long",
+            Refusal::SaslMessageTooLong,
+        ),
+        (
+            "906 papo :SASL authentication aborted",
+            Refusal::SaslAborted,
+        ),
+        (
+            "907 papo :You have already authenticated using SASL",
+            Refusal::AlreadyAuthenticated,
+        ),
+        (
             "404 papo #rust :Cannot send to channel",
             Refusal::CannotSendToChannel,
         ),
@@ -1638,8 +1655,12 @@ fn classifies_numeric_refusals() {
         while session.poll_event().is_some() {}
         request(&mut session, now, Line::new("RAW", ["probe"]));
         session.handle_line(now, format!("@label=0 :ergo.test {line}").as_bytes());
-        let Some(Event::Response(response)) = session.poll_event() else {
-            panic!("expected refusal response for {line}")
+        let response = loop {
+            match session.poll_event() {
+                Some(Event::Response(response)) => break response,
+                Some(_) => {}
+                None => panic!("expected refusal response for {line}"),
+            }
         };
         assert_eq!(response.error().unwrap().refusal(), expected, "{line}");
     }
