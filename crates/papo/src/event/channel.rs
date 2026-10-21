@@ -4,18 +4,6 @@ use crate::{Account, AccountName, Authorship, ChannelName, MessageId, Nick, Subj
 
 use super::Source;
 
-/// A mode argument classified using the server's advertised rules.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum LegacyModeArg {
-    /// A nickname for a channel-membership mode advertised in `PREFIX`.
-    Nick(Nick),
-    /// A mask for a list mode advertised in the first `CHANMODES` group.
-    Mask(crate::Mask),
-    /// A value for any other mode that takes an argument.
-    Value(String),
-}
-
 /// The parameter behavior of a channel mode.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
