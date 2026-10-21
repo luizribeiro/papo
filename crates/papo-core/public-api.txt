@@ -1455,28 +1455,6 @@ impl core::marker::Unpin for papo_core::MultilineMessage
 impl core::marker::UnsafeUnpin for papo_core::MultilineMessage
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MultilineMessage
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MultilineMessage
-pub struct papo_core::OwnedModeChange
-pub papo_core::OwnedModeChange::arg: core::option::Option<alloc::string::String>
-pub papo_core::OwnedModeChange::kind: papo_proto::modes::ModeKind
-pub papo_core::OwnedModeChange::mode: char
-pub papo_core::OwnedModeChange::set: bool
-impl core::clone::Clone for papo_core::OwnedModeChange
-pub fn papo_core::OwnedModeChange::clone(&self) -> Self
-impl core::cmp::Eq for papo_core::OwnedModeChange
-impl core::cmp::PartialEq for papo_core::OwnedModeChange
-pub fn papo_core::OwnedModeChange::eq(&self, &Self) -> bool
-impl core::convert::From<papo_proto::modes::ModeChange<'_>> for papo_core::OwnedModeChange
-pub fn papo_core::OwnedModeChange::from(papo_proto::modes::ModeChange<'_>) -> Self
-impl core::fmt::Debug for papo_core::OwnedModeChange
-pub fn papo_core::OwnedModeChange::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo_core::OwnedModeChange
-impl core::marker::Freeze for papo_core::OwnedModeChange
-impl core::marker::Send for papo_core::OwnedModeChange
-impl core::marker::Sync for papo_core::OwnedModeChange
-impl core::marker::Unpin for papo_core::OwnedModeChange
-impl core::marker::UnsafeUnpin for papo_core::OwnedModeChange
-impl core::panic::unwind_safe::RefUnwindSafe for papo_core::OwnedModeChange
-impl core::panic::unwind_safe::UnwindSafe for papo_core::OwnedModeChange
 pub struct papo_core::RateLimit
 impl papo_core::RateLimit
 pub const fn papo_core::RateLimit::new(usize, core::time::Duration) -> core::result::Result<Self, papo_core::InvalidRateLimit>

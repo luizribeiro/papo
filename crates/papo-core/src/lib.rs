@@ -98,8 +98,7 @@ use web_time::Instant;
 
 use papo_proto::{
     AccountName, BuildError, Casemapping, ChannelName, Command, Ctcp, Line, LineRef, MAX_LINE_LEN,
-    MAX_TAG_SECTION_LEN, Mask, ModeChange as ProtoModeChange, ModeKind, Nick, Numeric,
-    Source as ProtoSource,
+    MAX_TAG_SECTION_LEN, Mask, Nick, Numeric, Source as ProtoSource,
     StandardReply as StandardReplyView, StandardReplyKind,
 };
 
@@ -714,19 +713,6 @@ impl Config {
         self.metadata_subscriptions = keys.into_iter().map(Into::into).collect();
         self
     }
-}
-
-/// An owned operation from an IRC mode string.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OwnedModeChange {
-    /// Whether the mode is being set rather than removed.
-    pub set: bool,
-    /// The mode letter.
-    pub mode: char,
-    /// The mode argument, when one was required and supplied.
-    pub arg: Option<String>,
-    /// The mode's advertised parameter behavior.
-    pub kind: ModeKind,
 }
 
 /// One operation from an IRC mode string.
@@ -1556,17 +1542,6 @@ impl From<BuildError> for RequestError {
 impl RequestError {
     fn unsupported(feature: Feature) -> Self {
         Self::Unsupported(Unsupported::new(feature, UnsupportedReason::NotOffered))
-    }
-}
-
-impl From<ProtoModeChange<'_>> for OwnedModeChange {
-    fn from(change: ProtoModeChange<'_>) -> Self {
-        Self {
-            set: change.action == papo_proto::ModeAction::Add,
-            mode: change.mode,
-            arg: change.arg.map(str::to_owned),
-            kind: change.kind,
-        }
     }
 }
 
