@@ -120,7 +120,7 @@ pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
-pub use event_impl::{Authorship, ConnectPhase, Event, Message, MessageKind, Origin, Source, Tags};
+pub use event_impl::{Authorship, Event, Message, MessageKind, Origin, Source, Tags};
 pub use ext::accounts::{AccountCreation, NewAccount};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -195,6 +195,8 @@ pub mod event {
     };
     pub use crate::event_impl::{ConnectPhase, Connecting};
 }
+
+pub(crate) use event_impl::ConnectPhase;
 
 /// Strict Transport Security policy stores.
 pub mod sts;

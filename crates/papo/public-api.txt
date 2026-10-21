@@ -87,24 +87,24 @@ pub papo::event::ConnectPhase::Capabilities
 pub papo::event::ConnectPhase::Tls
 pub papo::event::ConnectPhase::Transport
 pub papo::event::ConnectPhase::WaitingForWelcome
-impl core::clone::Clone for papo::ConnectPhase
-pub fn papo::ConnectPhase::clone(&self) -> Self
-impl core::cmp::Eq for papo::ConnectPhase
-impl core::cmp::PartialEq for papo::ConnectPhase
-pub fn papo::ConnectPhase::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::ConnectPhase
-pub fn papo::ConnectPhase::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::ConnectPhase
-pub fn papo::ConnectPhase::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for papo::ConnectPhase
-impl core::marker::StructuralPartialEq for papo::ConnectPhase
-impl core::marker::Freeze for papo::ConnectPhase
-impl core::marker::Send for papo::ConnectPhase
-impl core::marker::Sync for papo::ConnectPhase
-impl core::marker::Unpin for papo::ConnectPhase
-impl core::marker::UnsafeUnpin for papo::ConnectPhase
-impl core::panic::unwind_safe::RefUnwindSafe for papo::ConnectPhase
-impl core::panic::unwind_safe::UnwindSafe for papo::ConnectPhase
+impl core::clone::Clone for papo::event::ConnectPhase
+pub fn papo::event::ConnectPhase::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ConnectPhase
+impl core::cmp::PartialEq for papo::event::ConnectPhase
+pub fn papo::event::ConnectPhase::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ConnectPhase
+pub fn papo::event::ConnectPhase::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::event::ConnectPhase
+pub fn papo::event::ConnectPhase::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::event::ConnectPhase
+impl core::marker::StructuralPartialEq for papo::event::ConnectPhase
+impl core::marker::Freeze for papo::event::ConnectPhase
+impl core::marker::Send for papo::event::ConnectPhase
+impl core::marker::Sync for papo::event::ConnectPhase
+impl core::marker::Unpin for papo::event::ConnectPhase
+impl core::marker::UnsafeUnpin for papo::event::ConnectPhase
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ConnectPhase
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ConnectPhase
 #[non_exhaustive] pub enum papo::event::StandardReplyKind
 pub papo::event::StandardReplyKind::Fail
 pub papo::event::StandardReplyKind::Note
@@ -292,7 +292,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Connected
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Connected
 #[non_exhaustive] pub struct papo::event::Connecting
 pub papo::event::Connecting::attempt: usize
-pub papo::event::Connecting::phase: papo::ConnectPhase
+pub papo::event::Connecting::phase: papo::event::ConnectPhase
 impl core::clone::Clone for papo::event::Connecting
 pub fn papo::event::Connecting::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Connecting
@@ -1174,30 +1174,6 @@ impl core::marker::Unpin for papo::ConnectErrorKind
 impl core::marker::UnsafeUnpin for papo::ConnectErrorKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ConnectErrorKind
 impl core::panic::unwind_safe::UnwindSafe for papo::ConnectErrorKind
-#[non_exhaustive] pub enum papo::ConnectPhase
-pub papo::ConnectPhase::Authenticating
-pub papo::ConnectPhase::Capabilities
-pub papo::ConnectPhase::Tls
-pub papo::ConnectPhase::Transport
-pub papo::ConnectPhase::WaitingForWelcome
-impl core::clone::Clone for papo::ConnectPhase
-pub fn papo::ConnectPhase::clone(&self) -> Self
-impl core::cmp::Eq for papo::ConnectPhase
-impl core::cmp::PartialEq for papo::ConnectPhase
-pub fn papo::ConnectPhase::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::ConnectPhase
-pub fn papo::ConnectPhase::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::ConnectPhase
-pub fn papo::ConnectPhase::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for papo::ConnectPhase
-impl core::marker::StructuralPartialEq for papo::ConnectPhase
-impl core::marker::Freeze for papo::ConnectPhase
-impl core::marker::Send for papo::ConnectPhase
-impl core::marker::Sync for papo::ConnectPhase
-impl core::marker::Unpin for papo::ConnectPhase
-impl core::marker::UnsafeUnpin for papo::ConnectPhase
-impl core::panic::unwind_safe::RefUnwindSafe for papo::ConnectPhase
-impl core::panic::unwind_safe::UnwindSafe for papo::ConnectPhase
 #[non_exhaustive] pub enum papo::DisconnectCause
 pub papo::DisconnectCause::Connect(papo::ConnectError)
 pub papo::DisconnectCause::ConnectionLost
