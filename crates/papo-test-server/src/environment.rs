@@ -265,16 +265,22 @@ pub fn unique(prefix: &str) -> String {
 }
 
 fn test_process_id() -> String {
-    match env::var("PAPO_TEST_PID") {
-        Ok(id) => id,
-        Err(error) if cfg!(target_family = "wasm") => {
-            let _ = error;
-            panic!("PAPO_TEST_PID is unset; {RUNNER_HINT}")
-        }
-        Err(error) => {
-            let _ = error;
-            std::process::id().to_string()
-        }
+    process_id_from(
+        env::var("PAPO_TEST_PID").ok(),
+        cfg!(target_family = "wasm"),
+        || std::process::id().to_string(),
+    )
+}
+
+fn process_id_from(
+    configured: Option<String>,
+    wasm: bool,
+    native: impl FnOnce() -> String,
+) -> String {
+    match configured {
+        Some(id) => id,
+        None if wasm => panic!("PAPO_TEST_PID is unset; {RUNNER_HINT}"),
+        None => native(),
     }
 }
 
@@ -331,7 +337,7 @@ fn parse_address(name: &str, value: &str) -> io::Result<SocketAddr> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BouncerLogin, RUNNER_HINT, from_values, test_process_id, unique};
+    use super::{BouncerLogin, RUNNER_HINT, from_values, process_id_from, unique};
 
     #[test]
     fn distinguishes_unset_complete_and_partial_environments() {
@@ -370,6 +376,8 @@ mod tests {
         assert_eq!(bouncer.upstream_addr().port(), 7667);
         if cfg!(target_family = "wasm") {
             assert!(server.bouncer_login("reader").unwrap().is_none());
+        } else {
+            assert!(server.bouncer_login("").is_err());
         }
         let existing = bouncer.network_login("reader").unwrap();
         assert_eq!(existing.username(), "papo-bouncer/reader");
@@ -413,9 +421,29 @@ mod tests {
     fn unique_names_include_the_pid_and_counter_within_nicklen() {
         let first = unique("integration-registration-name-that-is-too-long");
         let second = unique("integration-registration-name-that-is-too-long");
+        let process_id =
+            std::env::var("PAPO_TEST_PID").unwrap_or_else(|_| std::process::id().to_string());
         assert_ne!(first, second);
-        assert!(first.contains(&format!("-{}-", test_process_id())));
+        assert!(first.contains(&format!("-{process_id}-")));
         assert!(first.len() <= 32);
         assert!(second.len() <= 32);
+    }
+
+    #[test]
+    fn process_ids_prefer_configuration_and_use_the_native_fallback() {
+        assert_eq!(
+            process_id_from(Some("runner-417".into()), true, || "native-99".into()),
+            "runner-417"
+        );
+        assert_eq!(
+            process_id_from(None, false, || "native-99".into()),
+            "native-99"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "PAPO_TEST_PID is unset; run tests through the dev shell")]
+    fn missing_wasi_process_id_has_the_runner_hint() {
+        process_id_from(None, true, || "native-99".into());
     }
 }
