@@ -54,8 +54,8 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
                 .iter()
                 .find(|change| change.mode == letter)
                 .unwrap();
-            assert_eq!(change.action, ModeAction::Add);
-            assert!(matches!(&change.arg, Some(ModeArg::Nick(value)) if value == nick));
+            assert_eq!(papo::mode_action(change), ModeAction::Add);
+            assert!(matches!(papo::mode_arg(change), Some(ModeArg::Nick(value)) if value == *nick));
         }
     }
     for peer in [&alice, &bob, &carol, &dave] {

@@ -352,7 +352,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         .iter()
         .find(|change| change.mode == 'B')
         .unwrap();
-    assert_eq!(bot_change.action, papo::LegacyModeAction::Add);
+    assert_eq!(papo::mode_action(bot_change), papo::LegacyModeAction::Add);
     assert!(alice.state().user_modes().any(|mode_| mode_ == 'B'));
 
     alice.join(&channel).await?;
@@ -610,7 +610,7 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
         event.as_mode_changed().filter(|changed| {
             subject_name(&changed.subject) == bob_nick.as_ref()
                 && changed.changes.iter().any(|change| {
-                    change.mode == 'w' && change.action == papo::LegacyModeAction::Add
+                    change.mode == 'w' && papo::mode_action(change) == papo::LegacyModeAction::Add
                 })
         })
     })

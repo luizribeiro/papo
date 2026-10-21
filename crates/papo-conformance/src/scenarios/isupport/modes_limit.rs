@@ -42,8 +42,8 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(changed.changes.len(), expected.len());
         for (change, mask) in changed.changes.iter().zip(expected) {
             assert_eq!(change.mode, 'b');
-            assert_eq!(change.action, ModeAction::Add);
-            assert!(matches!(&change.arg, Some(ModeArg::Mask(value)) if value == mask));
+            assert_eq!(papo::mode_action(change), ModeAction::Add);
+            assert!(matches!(papo::mode_arg(change), Some(ModeArg::Mask(value)) if value == *mask));
         }
     };
 
