@@ -6,6 +6,7 @@ members = [
   "crates/papo-test-server",
   "crates/papo-testing",
   "crates/papo",
+  "crates/papo-bot",
   "crates/papo-conformance",
   "examples/parse",
   "examples/ping-bot",

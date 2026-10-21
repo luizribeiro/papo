@@ -5040,19 +5040,6 @@ async fn private_reply_keeps_channel_context() {
     .await;
 }
 
-#[cfg(feature = "bot")]
-#[tokio::test(flavor = "current_thread")]
-async fn private_notice_adds_the_source_channel_context() {
-    assert_reply_wire(
-        true,
-        "",
-        b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG #papo :!op alice\r\n",
-        b"@+reply=RfcBTzyxY120003;+channel-context=#papo NOTICE emily denied\r\n",
-        ReplyKind::PrivateNotice,
-    )
-    .await;
-}
-
 #[tokio::test(flavor = "current_thread")]
 async fn client_send_raw_rejects_invalid_lines() {
     let (mut server, client, _events, driver) = scripted(config());

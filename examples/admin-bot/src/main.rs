@@ -2,7 +2,8 @@
 
 use std::{env, error::Error};
 
-use papo::{Client, Event, bot::BotConfig};
+use papo::{Client, Event};
+use papo_bot::BotConfig;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {

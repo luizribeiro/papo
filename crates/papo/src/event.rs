@@ -492,14 +492,6 @@ impl Message {
         })
     }
 
-    #[cfg(feature = "bot")]
-    pub(crate) fn sender_nick(&self) -> Option<&str> {
-        match &self.actor {
-            Source::User { nick, .. } => Some(nick.as_ref()),
-            _ => None,
-        }
-    }
-
     pub(crate) fn channel_context(&self) -> Option<&str> {
         self.channel_context.as_deref()
     }

@@ -9,7 +9,6 @@ publish.workspace = true
 
 [features]
 default = ["tls-ring"]
-bot = []
 precis = ["papo-core/precis", "papo-proto/precis"]
 websocket = ["dep:futures-util", "dep:tokio-tungstenite"]
 tls-aws-lc = [
@@ -27,7 +26,7 @@ tls-ring = [
 unstable = ["papo-core/unstable"]
 
 [package.metadata.docs.rs]
-features = ["bot", "unstable"]
+features = ["unstable"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]

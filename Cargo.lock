@@ -704,9 +704,21 @@ name = "papo-admin-bot"
 version = "0.0.0"
 dependencies = [
  "papo",
+ "papo-bot",
  "papo-proto",
  "papo-test-server",
  "tokio",
+]
+
+[[package]]
+name = "papo-bot"
+version = "0.0.0"
+dependencies = [
+ "futures-io",
+ "papo",
+ "papo-testing",
+ "tokio",
+ "web-time",
 ]
 
 [[package]]

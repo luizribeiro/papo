@@ -262,11 +262,6 @@ impl Client {
         channels(1, &Session::new(papo_core::Config::default())).client
     }
 
-    #[cfg(all(test, not(browser), feature = "bot"))]
-    pub(crate) fn from_session_for_test(session: &Session) -> Self {
-        channels(1, session).client
-    }
-
     /// Starts configuring a client for `endpoint`.
     ///
     /// Strings accept hostnames and `irc://`, `ircs://`, `ws://`, and `wss://` URLs.
@@ -495,30 +490,6 @@ impl Client {
             request = request.channel_context(self.state().casemapping().channel(context));
         }
         request
-    }
-
-    #[cfg(feature = "bot")]
-    pub(crate) async fn private_notice(
-        &self,
-        message: &crate::Message,
-        text: &str,
-    ) -> Result<(), Error> {
-        let Some(target) = message.sender_nick() else {
-            return Ok(());
-        };
-        let mut request = self.notice(target, text);
-        if let Some(id) = &message.msgid {
-            request = request.reply_to(id);
-        }
-        let context = match &message.conversation {
-            crate::Conversation::Private(_) => message.channel_context(),
-            crate::Conversation::Channel(channel) => Some(channel.as_ref()),
-            _ => None,
-        };
-        if let Some(context) = context {
-            request = request.channel_context(self.state().casemapping().channel(context));
-        }
-        request.await.map(drop)
     }
 
     /// Adds `emoji` as a reaction to `message`.

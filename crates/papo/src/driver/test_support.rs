@@ -458,8 +458,6 @@ pub(crate) fn config() -> Config {
 
 pub(crate) enum ReplyKind {
     Reply,
-    #[cfg(feature = "bot")]
-    PrivateNotice,
 }
 
 pub(crate) async fn assert_reply_wire(
@@ -497,12 +495,6 @@ pub(crate) async fn assert_reply_wire(
     match kind {
         ReplyKind::Reply => {
             within(client.reply(&message, "pong")).await.unwrap();
-        }
-        #[cfg(feature = "bot")]
-        ReplyKind::PrivateNotice => {
-            within(client.private_notice(&message, "denied"))
-                .await
-                .unwrap();
         }
     }
     client_line(&mut server, expected).await;

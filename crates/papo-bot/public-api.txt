@@ -1,0 +1,74 @@
+pub mod papo_bot
+#[non_exhaustive] pub enum papo_bot::ReplyStatus
+pub papo_bot::ReplyStatus::Dropped
+pub papo_bot::ReplyStatus::Sent
+impl core::clone::Clone for papo_bot::ReplyStatus
+pub fn papo_bot::ReplyStatus::clone(&self) -> Self
+impl core::cmp::Eq for papo_bot::ReplyStatus
+impl core::cmp::PartialEq for papo_bot::ReplyStatus
+pub fn papo_bot::ReplyStatus::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_bot::ReplyStatus
+pub fn papo_bot::ReplyStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_bot::ReplyStatus
+impl core::marker::StructuralPartialEq for papo_bot::ReplyStatus
+impl core::marker::Freeze for papo_bot::ReplyStatus
+impl core::marker::Send for papo_bot::ReplyStatus
+impl core::marker::Sync for papo_bot::ReplyStatus
+impl core::marker::Unpin for papo_bot::ReplyStatus
+impl core::marker::UnsafeUnpin for papo_bot::ReplyStatus
+impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::ReplyStatus
+impl core::panic::unwind_safe::UnwindSafe for papo_bot::ReplyStatus
+pub struct papo_bot::BotConfig
+impl papo_bot::BotConfig
+pub fn papo_bot::BotConfig::command(&self, &papo::Client, &papo::Message) -> core::option::Option<papo_bot::Command>
+pub const fn papo_bot::BotConfig::mention(self, bool) -> Self
+pub fn papo_bot::BotConfig::new(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_bot::BotConfig::reply_limiter(self, papo_bot::ReplyRateLimiter) -> Self
+impl core::clone::Clone for papo_bot::BotConfig
+pub fn papo_bot::BotConfig::clone(&self) -> Self
+impl core::fmt::Debug for papo_bot::BotConfig
+pub fn papo_bot::BotConfig::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo_bot::BotConfig
+impl core::marker::Send for papo_bot::BotConfig
+impl core::marker::Sync for papo_bot::BotConfig
+impl core::marker::Unpin for papo_bot::BotConfig
+impl core::marker::UnsafeUnpin for papo_bot::BotConfig
+impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::BotConfig
+impl core::panic::unwind_safe::UnwindSafe for papo_bot::BotConfig
+pub struct papo_bot::Command
+impl papo_bot::Command
+pub fn papo_bot::Command::account(&self) -> core::option::Option<&str>
+pub fn papo_bot::Command::account_in<I, S>(&self, I) -> bool where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo_bot::Command::args(&self) -> &[alloc::string::String]
+pub fn papo_bot::Command::channel(&self) -> core::option::Option<&str>
+pub const fn papo_bot::Command::client(&self) -> &papo::Client
+pub const fn papo_bot::Command::message(&self) -> &papo::Message
+pub fn papo_bot::Command::name(&self) -> &str
+pub async fn papo_bot::Command::private_notice(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
+pub async fn papo_bot::Command::reply(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
+pub fn papo_bot::Command::sender_nick(&self) -> core::option::Option<&str>
+impl core::clone::Clone for papo_bot::Command
+pub fn papo_bot::Command::clone(&self) -> Self
+impl core::fmt::Debug for papo_bot::Command
+pub fn papo_bot::Command::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo_bot::Command
+impl core::marker::Send for papo_bot::Command
+impl core::marker::Sync for papo_bot::Command
+impl core::marker::Unpin for papo_bot::Command
+impl core::marker::UnsafeUnpin for papo_bot::Command
+impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::Command
+impl core::panic::unwind_safe::UnwindSafe for papo_bot::Command
+pub struct papo_bot::ReplyRateLimiter
+impl papo_bot::ReplyRateLimiter
+pub fn papo_bot::ReplyRateLimiter::new(usize, core::time::Duration) -> core::result::Result<Self, papo::InvalidRateLimit>
+impl core::clone::Clone for papo_bot::ReplyRateLimiter
+pub fn papo_bot::ReplyRateLimiter::clone(&self) -> Self
+impl core::fmt::Debug for papo_bot::ReplyRateLimiter
+pub fn papo_bot::ReplyRateLimiter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo_bot::ReplyRateLimiter
+impl core::marker::Send for papo_bot::ReplyRateLimiter
+impl core::marker::Sync for papo_bot::ReplyRateLimiter
+impl core::marker::Unpin for papo_bot::ReplyRateLimiter
+impl core::marker::UnsafeUnpin for papo_bot::ReplyRateLimiter
+impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::ReplyRateLimiter
+impl core::panic::unwind_safe::UnwindSafe for papo_bot::ReplyRateLimiter
