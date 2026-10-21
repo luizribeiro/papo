@@ -321,6 +321,25 @@ impl core::marker::Unpin for papo::event::Connected
 impl core::marker::UnsafeUnpin for papo::event::Connected
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Connected
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Connected
+#[non_exhaustive] pub struct papo::event::Connecting
+pub papo::event::Connecting::attempt: usize
+pub papo::event::Connecting::phase: papo::ConnectPhase
+impl core::clone::Clone for papo::event::Connecting
+pub fn papo::event::Connecting::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Connecting
+impl core::cmp::PartialEq for papo::event::Connecting
+pub fn papo::event::Connecting::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Connecting
+pub fn papo::event::Connecting::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::event::Connecting
+impl core::marker::StructuralPartialEq for papo::event::Connecting
+impl core::marker::Freeze for papo::event::Connecting
+impl core::marker::Send for papo::event::Connecting
+impl core::marker::Sync for papo::event::Connecting
+impl core::marker::Unpin for papo::event::Connecting
+impl core::marker::UnsafeUnpin for papo::event::Connecting
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Connecting
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Connecting
 #[non_exhaustive] pub struct papo::event::Ctcp
 pub papo::event::Ctcp::account: core::option::Option<papo::AccountName>
 pub papo::event::Ctcp::actor: papo::Source
@@ -1345,6 +1364,7 @@ pub papo::Event::CasemappingChanged(papo::event::CasemappingChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
 pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
 pub papo::Event::Connected(papo::event::Connected)
+pub papo::Event::Connecting(papo::event::Connecting)
 pub papo::Event::Ctcp(papo::event::Ctcp)
 pub papo::Event::Disconnected(papo::Disconnected)
 pub papo::Event::FeaturesChanged(papo::event::FeaturesChanged)
@@ -1395,6 +1415,8 @@ impl papo::Event
 pub const fn papo::Event::as_channel_synced(&self) -> core::option::Option<&papo::event::ChannelSynced>
 impl papo::Event
 pub const fn papo::Event::as_connected(&self) -> core::option::Option<&papo::event::Connected>
+impl papo::Event
+pub const fn papo::Event::as_connecting(&self) -> core::option::Option<&papo::event::Connecting>
 impl papo::Event
 pub const fn papo::Event::as_ctcp(&self) -> core::option::Option<&papo::event::Ctcp>
 impl papo::Event

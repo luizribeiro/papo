@@ -18,6 +18,16 @@ pub enum ConnectPhase {
     WaitingForWelcome,
 }
 
+/// Progress while establishing an IRC connection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Connecting {
+    /// One-based attempt number since the last stable connection.
+    pub attempt: usize,
+    /// Work currently in progress.
+    pub phase: ConnectPhase,
+}
+
 /// An IRC connection ready for use.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

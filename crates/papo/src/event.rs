@@ -31,7 +31,8 @@ pub use channel::{
     TopicChanged,
 };
 pub use connection::{
-    CapsChanged, CasemappingChanged, ConnectPhase, Connected, Disconnected, FeaturesChanged, Motd,
+    CapsChanged, CasemappingChanged, ConnectPhase, Connected, Connecting, Disconnected,
+    FeaturesChanged, Motd,
 };
 pub use conversation::{
     Reacted, ReadMarkerChanged, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
@@ -672,6 +673,8 @@ fn tag_owned(message: &LineRef<'_>, keys: &[&str]) -> Option<String> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Event {
+    /// The connection moved to another setup phase.
+    Connecting(Connecting),
     /// The IRC connection is ready for use.
     Connected(Connected),
     /// A complete message of the day received while connecting.
@@ -777,6 +780,7 @@ variant_accessors! { Event;
     (Ctcp, as_ctcp, Ctcp),
     (boxed History, as_history, crate::HistoryPage),
     (Connected, as_connected, Connected),
+    (Connecting, as_connecting, Connecting),
     (Motd, as_motd, Motd),
     (Disconnected, as_disconnected, Disconnected),
     (CapsChanged, as_caps_changed, CapsChanged),

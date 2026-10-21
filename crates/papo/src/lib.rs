@@ -171,7 +171,6 @@ pub mod event {
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub use crate::PersistenceStatus;
-    pub use crate::event_impl::ConnectPhase;
     pub use crate::event_impl::{
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
         ChannelRenamed, ChannelSynced, Connected, Ctcp, Disconnected, FeaturesChanged, HostChanged,
@@ -184,6 +183,7 @@ pub mod event {
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub use crate::event_impl::{BouncerNetworkChanged, PersistenceSetting};
+    pub use crate::event_impl::{ConnectPhase, Connecting};
     pub use crate::{ModeAction, ModeArg};
 }
 
