@@ -1,32 +1,18 @@
 # Create account
 
-This example creates an Ergo account during connection setup and prints the authenticated account.
-If the server requires email verification, it prints the server's instructions and reads the
-verification code from standard input before the connection completes.
+This example creates an account during connection setup. If the server requires verification,
+it prints the instructions and reads the verification code from standard input.
 
-Configuration comes from the environment:
-
-- `IRC_SERVER`: the server hostname;
-- `IRC_PORT`: optional service port (defaults to `6697`);
-- `IRC_PLAINTEXT`: when set, start without TLS while still honoring STS;
-- `IRC_ACCOUNT`: the new account name and initial nickname;
-- `IRC_PASSWORD_FILE`: a file containing the new account password;
-- `IRC_EMAIL`: an optional account-creation email address;
-- `IRC_CA_FILE`: an optional PEM file containing the trusted CA certificate.
-
-Run it from the repository root:
+Pass an `irc://` or `ircs://` server URL as the first argument. Set `IRC_NICK` to the new account
+name, `IRC_PASSWORD` to its password, and optionally set `IRC_EMAIL`.
 
 ```sh
-IRC_SERVER=irc.example.test IRC_ACCOUNT=alice \
-IRC_PASSWORD_FILE=/run/credentials/irc-password \
-IRC_EMAIL=alice@example.test IRC_CA_FILE=/run/credentials/irc-ca.pem \
-cargo run -p papo-create-account
+IRC_NICK=alice IRC_PASSWORD='correct horse battery staple' \
+  cargo run -p papo-create-account -- ircs://irc.example.net
 ```
 
-Successful output is line-oriented:
+Sample output:
 
 ```text
 logged in as alice
 ```
-
-Passwords are read from a file so they do not appear in the process arguments or environment.

@@ -11,17 +11,12 @@ async fn creates_and_logs_in_during_connection_setup() {
     timeout(Duration::from_secs(10), async {
         let server = from_env();
         let account = unique("papo-create-account");
-        let password = std::env::temp_dir().join(format!("{account}.password"));
-        std::fs::write(&password, "q7Hx-2mZp_9vLcT4wRfB\n").unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_create-account"))
-            .env("IRC_SERVER", server.plaintext_addr().ip().to_string())
-            .env("IRC_PORT", server.plaintext_addr().port().to_string())
-            .env("IRC_PLAINTEXT", "1")
-            .env("IRC_ACCOUNT", &account)
-            .env("IRC_PASSWORD_FILE", &password)
+            .arg(format!("irc://{}", server.plaintext_addr()))
+            .env("IRC_NICK", &account)
+            .env("IRC_PASSWORD", "q7Hx-2mZp_9vLcT4wRfB")
             .output()
             .unwrap();
-        std::fs::remove_file(password).unwrap();
 
         assert!(
             output.status.success(),

@@ -772,7 +772,6 @@ name = "papo-create-account"
 version = "0.0.0"
 dependencies = [
  "papo",
- "papo-core",
  "papo-test-server",
  "tokio",
 ]

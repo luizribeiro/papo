@@ -1,75 +1,41 @@
-//! Create an Ergo account while connecting.
+//! Create an IRC account while connecting.
 
 use std::{env, error::Error, io};
 
-use papo::{AccountCreation, Client, Endpoint, Event, NewAccount};
+use papo::{AccountCreation, Client, Event, NewAccount};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let server = required("IRC_SERVER")?;
-    let account = required("IRC_ACCOUNT")?;
-    let password = std::fs::read_to_string(required("IRC_PASSWORD_FILE")?)?;
-    let email = env::var("IRC_EMAIL").ok();
-    let mut builder = Client::builder(endpoint(server)?)
-        .nick(&account)
-        .request_caps(["draft/account-registration"])
-        .create_account(new_account(
-            &account,
-            email.as_deref(),
-            password.trim_end_matches(['\r', '\n']),
-        ));
-    if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
-        builder = builder.tls_ca_pem(std::fs::read(ca_file)?);
+    let server = env::args()
+        .nth(1)
+        .map_or_else(|| env::var("IRC_SERVER"), Ok)?;
+    let nick = env::var("IRC_NICK")?;
+    let mut account = NewAccount::new(env::var("IRC_PASSWORD")?).account(&nick);
+    if let Ok(email) = env::var("IRC_EMAIL") {
+        account = account.email(email);
     }
-    let (client, mut events, driver) = builder.build();
-    tokio::spawn(driver);
+    let (client, mut events) = Client::builder(server)
+        .nick(&nick)
+        .create_account(account)
+        .connect()
+        .await?;
 
-    let mut connected = false;
-    let mut logged_in = None;
     while let Some(event) = events.next().await {
-        match event {
+        let created = match event {
+            Event::AccountCreation(AccountCreation::Created { account }) => account,
             Event::AccountCreation(AccountCreation::VerificationRequired { account, message }) => {
                 eprintln!("{message}");
                 let mut code = String::new();
                 io::stdin().read_line(&mut code)?;
-                client.verify_account(&account, code.trim()).await?;
+                match client.verify_account(account, code.trim()).await? {
+                    AccountCreation::Created { account } => account,
+                    _ => continue,
+                }
             }
-            Event::AccountCreation(AccountCreation::Created { account }) => {
-                logged_in = Some(account);
-            }
-            Event::Connected(_) => connected = true,
-            Event::Disconnected(disconnected) => {
-                return Err(disconnected.to_string().into());
-            }
-            _ => {}
-        }
-        if connected && let Some(account) = &logged_in {
-            println!("logged in as {account}");
-            client.quit("account creation complete").await?;
-            return Ok(());
-        }
+            _ => continue,
+        };
+        println!("logged in as {created}");
+        return Ok(());
     }
-    Err("driver stopped before connection completed".into())
-}
-
-fn new_account(account: &str, email: Option<&str>, password: &str) -> NewAccount {
-    let account = NewAccount::new(password).account(account);
-    match email {
-        Some(email) => account.email(email),
-        None => account,
-    }
-}
-
-fn endpoint(host: String) -> Result<Endpoint, Box<dyn Error>> {
-    let port = env::var("IRC_PORT").map_or(Ok(6697), |value| value.parse())?;
-    Ok(if env::var_os("IRC_PLAINTEXT").is_some() {
-        Endpoint::plaintext(host, port)
-    } else {
-        Endpoint::tls(host, port)
-    })
-}
-
-fn required(name: &str) -> io::Result<String> {
-    env::var(name)
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, format!("{name} is required")))
+    Ok(())
 }
