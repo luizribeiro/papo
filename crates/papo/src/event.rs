@@ -1515,14 +1515,14 @@ mod tests {
 
     #[test]
     fn classifies_chat_and_ctcp_messages() {
-        assert_eq!(chat("PRIVMSG", "hello").kind(), MessageKind::Privmsg);
-        assert_eq!(chat("NOTICE", "hello").kind(), MessageKind::Notice);
+        assert_eq!(chat("PRIVMSG", "hello").kind, MessageKind::Privmsg);
+        assert_eq!(chat("NOTICE", "hello").kind, MessageKind::Notice);
         assert_eq!(
-            chat("PRIVMSG", "\x01ACTION waves\x01").kind(),
+            chat("PRIVMSG", "\x01ACTION waves\x01").kind,
             MessageKind::Action
         );
         assert_eq!(
-            chat("PRIVMSG", "\x01ACTION tests a split message").kind(),
+            chat("PRIVMSG", "\x01ACTION tests a split message").kind,
             MessageKind::Action
         );
         let parse = |command, text| {
@@ -1568,11 +1568,11 @@ mod tests {
     #[test]
     fn exposes_raw_and_display_text_once() {
         let formatted = chat("PRIVMSG", "hello \x02from Ergo\x02");
-        assert_eq!(formatted.raw_text(), "hello \x02from Ergo\x02");
-        assert_eq!(formatted.text(), "hello from Ergo");
+        assert_eq!(formatted.raw_text, "hello \x02from Ergo\x02");
+        assert_eq!(formatted.text, "hello from Ergo");
         let action = chat("PRIVMSG", "\x01ACTION writes the specification\x01");
-        assert_eq!(action.raw_text(), "writes the specification");
-        assert_eq!(action.text(), "writes the specification");
+        assert_eq!(action.raw_text, "writes the specification");
+        assert_eq!(action.text, "writes the specification");
     }
 
     #[test]
@@ -1597,19 +1597,19 @@ mod tests {
             "papo",
             UNIX_EPOCH,
         );
-        assert!(!channel.is_private());
+        assert!(!matches!(channel.conversation, Conversation::Private(_)));
         assert!(matches!(&channel.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(channel.return_address(), "#papo");
         assert_eq!(
-            channel.source(),
-            Some(Source::from_proto(
+            channel.actor,
+            Source::from_proto(
                 papo_proto::Source::User {
                     nick: "emily",
                     username: Some("~emily"),
                     host: Some("localhost")
                 },
                 Casemapping::default(),
-            ))
+            )
         );
 
         let private = event(
@@ -1618,7 +1618,7 @@ mod tests {
             "papo",
             UNIX_EPOCH,
         );
-        assert!(private.is_private());
+        assert!(matches!(private.conversation, Conversation::Private(_)));
         assert!(matches!(&private.conversation, Conversation::Private(nick) if nick == "emily"));
         assert_eq!(private.return_address(), "emily");
 
@@ -1680,7 +1680,7 @@ mod tests {
         assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
         assert!(matches!(&message.conversation, Conversation::Channel(name) if name == "#ops"));
         assert_eq!(message.return_address(), "@#ops");
-        assert!(!message.is_private());
+        assert!(!matches!(message.conversation, Conversation::Private(_)));
         assert_eq!(message.tags.get("bot"), Some(""));
     }
 
@@ -1705,13 +1705,13 @@ mod tests {
             UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
         );
         assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
-        assert_eq!(tagged.id().unwrap(), "RfcBTzyxY120004");
-        assert_eq!(tagged.account(), Some("emily"));
-        assert!(tagged.is_bot());
+        assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
+        assert_eq!(tagged.account.as_deref(), Some("emily"));
+        assert!(tagged.is_bot);
         assert_eq!(tagged.reply_to(), Some("RfcBTzyxY120003"));
         #[cfg(feature = "unstable")]
-        assert_eq!(tagged.relayed_by(), Some("bridge-bot"));
-        assert!(!chat("PRIVMSG", "human message").is_bot());
+        assert_eq!(tagged.relayed_by.as_deref(), Some("bridge-bot"));
+        assert!(!chat("PRIVMSG", "human message").is_bot);
 
         for time in [None, Some("not-a-time")] {
             let mut message =
@@ -1775,22 +1775,23 @@ mod tests {
             tagged(
                 "@draft/oper=network-admin :alice!a@localhost PRIVMSG #papo :Scheduled maintenance"
             )
-            .oper(),
+            .oper
+            .as_deref(),
             Some("network-admin")
         );
         let unnamed = tagged("@draft/oper :alice!a@localhost PRIVMSG #papo :Scheduled maintenance");
-        assert!(unnamed.is_oper());
-        assert_eq!(unnamed.oper(), None);
+        assert!(unnamed.tags.contains("draft/oper"));
+        assert_eq!(unnamed.oper, None);
         let ordinary = chat("PRIVMSG", "ordinary message");
-        assert!(!ordinary.is_oper());
-        assert_eq!(ordinary.oper(), None);
+        assert!(!ordinary.tags.contains("draft/oper"));
+        assert_eq!(ordinary.oper, None);
     }
 
     #[test]
     fn distinguishes_echoes_and_live_messages() {
         let classify = |message| event(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH);
         let echo = classify(Line::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
-        assert_eq!(echo.origin(), Origin::Echo);
+        assert_eq!(echo.origin, Origin::Echo);
         assert!(echo.is_own());
         assert!(!echo.is_live());
         let tagged = classify(
@@ -1798,10 +1799,10 @@ mod tests {
                 .with_source("emily!e@localhost")
                 .with_tag("batch", "history42"),
         );
-        assert_eq!(tagged.origin(), Origin::Live);
+        assert_eq!(tagged.origin, Origin::Live);
         assert!(tagged.is_live());
         let live = classify(Line::privmsg("#papo", "now").with_source("emily!e@localhost"));
-        assert_eq!(live.origin(), Origin::Live);
+        assert_eq!(live.origin, Origin::Live);
         assert!(!live.is_own());
         assert!(live.is_live());
     }
@@ -2247,13 +2248,13 @@ mod tests {
             "vendor/sync",
         ] {
             let replay = batched_message(kind, "PRIVMSG #papo :earlier");
-            assert_eq!(replay.origin(), Origin::Replay);
+            assert_eq!(replay.origin, Origin::Replay);
             assert!(!replay.is_live());
         }
 
         for kind in ["netsplit", "netjoin"] {
             let live = batched_message(kind, "NOTICE papo :live batch");
-            assert_eq!(live.origin(), Origin::Live);
+            assert_eq!(live.origin, Origin::Live);
             assert!(live.is_live());
         }
     }
@@ -2262,7 +2263,7 @@ mod tests {
     fn explicit_history_has_a_non_live_origin() {
         let mut history = chat("PRIVMSG", "earlier");
         history.origin = Origin::History;
-        assert_eq!(history.origin(), Origin::History);
+        assert_eq!(history.origin, Origin::History);
         assert!(!history.is_live());
     }
 
@@ -2272,7 +2273,7 @@ mod tests {
         let mut session = Session::new(Config::default().nick("Papo[bot]"));
         session.handle_line(now, b":papo{bot}!~p@host PRIVMSG #papo :sent");
         let echo = mapped_message(session.poll_event().expect("expected echo"));
-        assert_eq!(echo.origin(), Origin::Echo);
+        assert_eq!(echo.origin, Origin::Echo);
         assert!(!echo.is_live());
     }
 
