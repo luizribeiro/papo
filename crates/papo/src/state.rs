@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use papo_core::{Capabilities, Channel, Feature, Session, UnsupportedReason, User};
+use papo_core::{Account, Away, Capabilities, Channel, Feature, Session, UnsupportedReason, User};
 use papo_proto::{AccountName, Casemapping, ChannelName, Mask, Nick};
 
 use crate::Isupport;
@@ -10,16 +10,16 @@ use crate::Isupport;
 ///
 /// A snapshot is at least as new as the last event delivered. Events can be
 /// applied in order using their self-contained payloads.
+/// The identity and presence methods on this type are the source of truth for
+/// the client's own entry; a [`User`] with the same nickname is shared-user state.
 #[derive(Clone, Debug)]
 pub struct State {
     core: Arc<papo_core::State>,
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
-    account: Option<AccountName>,
     #[cfg(feature = "unstable")]
     bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
-    away: bool,
     connected: bool,
     generation: u64,
 }
@@ -54,7 +54,6 @@ impl State {
         connected: bool,
         core: Arc<papo_core::State>,
     ) -> Self {
-        let away = matches!(core.away(), papo_core::Away::Away { .. });
         let unsupported = FEATURES
             .iter()
             .copied()
@@ -69,16 +68,12 @@ impl State {
             core,
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
-            account: session
-                .account()
-                .map(|account| session.state().casemapping().account(account)),
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
                 papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::new(id)),
                 _ => None,
             },
             unsupported,
-            away,
             connected,
             generation: session.state_generation(),
         }
@@ -130,10 +125,13 @@ impl State {
         self.nickname(text).check(self.isupport.inner()).is_ok()
     }
 
-    /// Returns the authenticated account name when known.
+    /// Returns the client's account state.
+    ///
+    /// This is always [`Account::LoggedIn`] or [`Account::LoggedOut`]. Logged out also covers
+    /// servers without account support.
     #[must_use]
-    pub fn account(&self) -> Option<&AccountName> {
-        self.account.as_ref()
+    pub fn account(&self) -> &Account {
+        self.core.account()
     }
 
     /// Builds an account name with the current or last-known server-defined comparison rules.
@@ -142,22 +140,28 @@ impl State {
         self.casemapping().account(text)
     }
 
-    /// Reports whether the client is marked away.
+    /// Returns the client's presence state.
     #[must_use]
-    pub const fn away(&self) -> bool {
-        self.away
+    pub fn away(&self) -> &Away {
+        self.core.away()
     }
 
-    /// Returns the client's confirmed away message.
-    ///
-    /// `None` means the client is not away or the server confirmed away state without a message
-    /// sent through [`crate::Client::set_away`].
+    /// Returns the client's username from `nick!user@host`.
     #[must_use]
-    pub fn away_message(&self) -> Option<&str> {
-        match self.core.away() {
-            papo_core::Away::Away { message } => message.as_deref(),
-            _ => None,
-        }
+    pub fn username(&self) -> &str {
+        self.core.username()
+    }
+
+    /// Returns the client's hostname when known.
+    #[must_use]
+    pub fn host(&self) -> Option<&str> {
+        self.core.host()
+    }
+
+    /// Returns the client's real name.
+    #[must_use]
+    pub fn realname(&self) -> &str {
+        self.core.realname()
     }
 
     /// Iterates over the client's user modes in unspecified order.

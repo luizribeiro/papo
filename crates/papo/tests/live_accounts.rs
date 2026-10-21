@@ -62,11 +62,8 @@ async fn registers_then_logs_in_with_sasl() {
             .unwrap();
         wait_connected(&mut authenticated_events, &account).await;
         assert_eq!(
-            authenticated
-                .state()
-                .account()
-                .map(|account| account.as_ref().to_owned()),
-            Some(account.clone())
+            authenticated.state().account(),
+            &papo::Account::LoggedIn(support::account(&account))
         );
         authenticated.quit("SASL login verified").await.unwrap();
     })

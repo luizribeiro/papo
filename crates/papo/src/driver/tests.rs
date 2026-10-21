@@ -5632,6 +5632,7 @@ async fn client_reads_owned_state_snapshots() {
     let driver = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
     assert!(client.state().is_connected());
+    assert_eq!(client.state().account(), &crate::Account::LoggedOut);
 
     server_line(
         &mut server,
@@ -5696,7 +5697,7 @@ async fn public_state_accessors_report_the_registered_session() {
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
-    assert!(!client.state().away());
+    assert_eq!(client.state().away(), &crate::Away::Present);
 
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 BOUNCER_NETID=42 draft/FILEHOST=https://files.example.net/upload :are supported\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
     while !matches!(events.next().await, Some(Event::MonitorOnline(_))) {}
@@ -5719,10 +5720,18 @@ async fn public_state_accessors_report_the_registered_session() {
     assert_eq!(nick, "papo-driver");
     let state = client.state();
     assert_eq!(state.nick(), &nick);
-    assert!(state.nick() != "emily");
-    assert_eq!(state.account().map(AsRef::as_ref), Some("emily"));
-    assert!(state.away());
-    assert_eq!(state.away_message(), Some("reviewing patches"));
+    assert_eq!(
+        state.account(),
+        &crate::Account::LoggedIn(test_account("emily"))
+    );
+    assert_eq!(
+        state.away(),
+        &crate::Away::Away {
+            message: Some("reviewing patches".into())
+        }
+    );
+    assert_eq!(state.host(), Some("localhost"));
+    assert_eq!(state.realname(), "papo driver test");
     let mut modes: Vec<_> = state.user_modes().collect();
     modes.sort_unstable();
     assert_eq!(modes, ['i', 'w']);
@@ -5757,7 +5766,10 @@ async fn public_state_accessors_report_the_registered_session() {
     );
     let snapshot = client.state();
     assert_eq!(snapshot.nick(), "papo-driver");
-    assert_eq!(snapshot.account().map(AsRef::as_ref), Some("emily"));
+    assert_eq!(
+        snapshot.account(),
+        &crate::Account::LoggedIn(test_account("emily"))
+    );
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(

@@ -215,7 +215,7 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("the selected profile does not expose account multiclient attachment");
     }
     let mut desktop = s.connect_as_account("alice").await?;
-    let account = desktop.state().account().unwrap().clone();
+    let account = crate::scenarios::support::logged_in_account(&desktop.state()).clone();
     let channel = s.channel_name();
     desktop.join(&channel).await?;
     let mut phone = s

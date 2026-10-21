@@ -135,8 +135,8 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
     assert_eq!(&connected.nick, alice.state().nick());
     assert!(connected.caps.contains_key("sasl"));
     assert_eq!(
-        alice.state().account().map(AsRef::as_ref),
-        Some(account.as_str())
+        alice.state().account(),
+        &papo::Account::LoggedIn(alice.state().account_name(&account))
     );
 
     let whois = alice.whois(alice.state().nick().clone()).await?;
@@ -154,7 +154,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("the selected profile does not expose Ergo services aliases");
     }
     let mut alice = s.connect_as_account("alice").await?;
-    let account = alice.state().account().unwrap().clone();
+    let account = crate::scenarios::support::logged_in_account(&alice.state()).clone();
     alice
         .send_raw(papo::Line::new("NS", ["INFO", account.as_ref()]))
         .await?;
@@ -215,7 +215,10 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         AccountCreation::Created { account: registered } if registered == &account
     ));
     assert_eq!(alice.wait_for(Event::as_account_creation).await?, outcome);
-    assert_eq!(alice.state().account(), Some(&account));
+    assert_eq!(
+        alice.state().account(),
+        &papo::Account::LoggedIn(account.clone())
+    );
 
     let whois = alice.whois(nick.clone()).await?;
     assert_eq!(whois.nick, nick);

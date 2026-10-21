@@ -12,7 +12,7 @@ use crate::Scenario;
 async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect_as_account("alice").await?;
     let mut bob = s.connect("bob").await?;
-    let account = alice.state().account().unwrap().clone();
+    let account = crate::scenarios::support::logged_in_account(&alice.state()).clone();
     let alice_nick = alice.nick();
     let channel = s.channel_name();
     alice.join(&channel).await?;
@@ -77,7 +77,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(changed.nick, alice_nick);
     assert_eq!(changed.account.as_ref(), Some(&account));
-    assert_eq!(alice.state().account(), Some(&account));
+    assert_eq!(alice.state().account(), &Account::LoggedIn(account.clone()));
     assert!(matches!(
         bob.state().user(&alice_nick).unwrap().account(),
         Account::LoggedIn(observed) if observed == &account
@@ -110,8 +110,12 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
             message: Some(away.to_owned())
         }
     );
-    assert!(alice.state().away());
-    assert_eq!(alice.state().away_message(), Some(away));
+    assert_eq!(
+        alice.state().away(),
+        &Away::Away {
+            message: Some(away.to_owned())
+        }
+    );
     assert_eq!(
         bob.state().user(&alice_nick).unwrap().away(),
         &Away::Away {
@@ -124,8 +128,7 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(returned.nick, alice_nick);
     assert_eq!(returned.away, Away::Present);
-    assert!(!alice.state().away());
-    assert_eq!(alice.state().away_message(), None);
+    assert_eq!(alice.state().away(), &Away::Present);
     assert_eq!(
         bob.state().user(&alice_nick).unwrap().away(),
         &Away::Present
@@ -159,8 +162,12 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(Some(message.time), sent.server_time);
     assert_eq!(message.origin, Origin::Live);
-    assert!(alice.state().away());
-    assert_eq!(alice.state().away_message(), Some(away));
+    assert_eq!(
+        alice.state().away(),
+        &Away::Away {
+            message: Some(away.to_owned())
+        }
+    );
     assert!(sent.fallbacks.is_empty());
     alice
         .expect_none(|event| event.as_message().filter(|message| message.text == text))
@@ -180,8 +187,7 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
     let connected = alice.wait_for(Event::as_connected).await?;
     assert_eq!(connected.nick, alice.nick());
     assert!(connected.caps.contains_key("draft/pre-away"));
-    assert!(alice.state().away());
-    assert_eq!(alice.state().away_message(), None);
+    assert_eq!(alice.state().away(), &Away::Away { message: None });
 
     let whois = bob.whois(alice.nick()).await?;
     assert_eq!(whois.nick, alice.nick());

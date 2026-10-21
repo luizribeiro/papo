@@ -1,8 +1,16 @@
 use papo::event::ModeChanged;
-use papo::{Conversation, Error, Event, Message, Refusal, Subject};
+use papo::{Account, AccountName, Conversation, Error, Event, Message, Refusal, State, Subject};
 use papo_testing::Peer;
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
+
+pub(super) fn logged_in_account(state: &State) -> &AccountName {
+    match state.account() {
+        Account::LoggedIn(account) => account,
+        Account::Unknown | Account::LoggedOut => panic!("peer is not logged in"),
+        _ => panic!("unexpected account state"),
+    }
+}
 
 /// Accepts a message whose wire text is exactly `text`.
 pub(super) fn message_text<'event>(event: &'event Event, text: &str) -> Option<&'event Message> {

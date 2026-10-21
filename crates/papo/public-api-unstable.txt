@@ -2409,10 +2409,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::SetModes
 impl core::panic::unwind_safe::UnwindSafe for papo::SetModes
 pub struct papo::State
 impl papo::State
-pub fn papo::State::account(&self) -> core::option::Option<&papo::AccountName>
+pub fn papo::State::account(&self) -> &papo::Account
 pub fn papo::State::account_name(&self, impl core::convert::AsRef<str>) -> papo::AccountName
-pub const fn papo::State::away(&self) -> bool
-pub fn papo::State::away_message(&self) -> core::option::Option<&str>
+pub fn papo::State::away(&self) -> &papo::Away
 pub const fn papo::State::bouncer_network(&self) -> core::option::Option<&papo::NetworkId>
 pub fn papo::State::bouncer_networks(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::BouncerNetwork>
 pub const fn papo::State::caps(&self) -> &papo::Capabilities
@@ -2423,6 +2422,7 @@ pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterat
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Feature> + '_
 pub fn papo::State::filehost(&self) -> core::option::Option<&str>
 pub fn papo::State::has_cap(&self, &str) -> bool
+pub fn papo::State::host(&self) -> core::option::Option<&str>
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::is_valid_channel(&self, &str) -> bool
 pub fn papo::State::is_valid_nick(&self, &str) -> bool
@@ -2436,10 +2436,12 @@ pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::nickname(&self, impl core::convert::AsRef<str>) -> papo::Nick
 pub fn papo::State::persistence(&self) -> core::option::Option<papo::PersistenceStatus>
 pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::time::SystemTime>
+pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::supports(&self, papo::Feature) -> bool
 pub fn papo::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo::Typer>
 pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
+pub fn papo::State::username(&self) -> &str
 impl core::clone::Clone for papo::State
 pub fn papo::State::clone(&self) -> Self
 impl core::fmt::Debug for papo::State

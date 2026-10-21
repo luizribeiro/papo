@@ -16,7 +16,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
-    let account = alice.state().account().unwrap().clone();
+    let account = crate::scenarios::support::logged_in_account(&alice.state()).clone();
     bob.join(&channel).await?;
     let joined = bob.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.as_ref(), channel);
@@ -1205,7 +1205,7 @@ async fn account_extban(s: Scenario) -> papo_testing::Result<()> {
     }
     let alice = s.connect("alice").await?;
     let bob = s.connect_as_account("bob").await?;
-    let account = bob.state().account().unwrap().clone();
+    let account = crate::scenarios::support::logged_in_account(&bob.state()).clone();
     let channel = s.channel_name();
     alice.join(&channel).await?;
     alice
