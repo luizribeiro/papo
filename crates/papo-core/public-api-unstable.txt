@@ -1950,6 +1950,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::StandardReply
 impl core::panic::unwind_safe::UnwindSafe for papo_core::StandardReply
 pub struct papo_core::State
 impl papo_core::State
+pub const fn papo_core::State::account(&self) -> &papo_core::Account
 pub const fn papo_core::State::away(&self) -> bool
 pub fn papo_core::State::away_message(&self) -> core::option::Option<&str>
 pub fn papo_core::State::bouncer_networks(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::BouncerNetwork>

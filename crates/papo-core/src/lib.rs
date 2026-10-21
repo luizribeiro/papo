@@ -3161,9 +3161,10 @@ impl Session {
     /// Returns the account name reported by the server, when authenticated.
     #[must_use]
     pub fn account(&self) -> Option<&str> {
-        self.account_registration
-            .account()
-            .or_else(|| self.sasl.account())
+        match self.state.account() {
+            Account::LoggedIn(account) => Some(account.as_ref()),
+            Account::Unknown | Account::LoggedOut => None,
+        }
     }
 
     /// Requests creation of an account through `draft/account-registration`.
@@ -3398,6 +3399,14 @@ impl Session {
             self.isupport.value().casemapping(),
             &mut self.outbox,
         ) == Handled::Yes;
+        if sasl_handled || account_registration_handled {
+            let account = self
+                .account_registration
+                .account()
+                .or_else(|| self.sasl.account())
+                .map(str::to_owned);
+            self.state.sync_own_account(account.as_deref());
+        }
         self.maybe_send_away_on_connect();
         let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
         if isupport_handled {

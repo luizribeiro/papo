@@ -20,7 +20,19 @@ fn starts_with_configured_identity_and_empty_shared_state() {
             assert_eq!(state.nick().casemapping(), Casemapping::Rfc1459);
             assert_eq!(state.username(), "em");
             assert_eq!(state.host(), None);
+            assert_eq!(state.account(), &Account::LoggedOut);
         })
+        .no_event();
+}
+
+#[test]
+fn a_server_without_accounts_keeps_our_entry_logged_out() {
+    Transcript::new(Config::default().wanted_caps(std::iter::empty::<&str>()))
+        .connect_default()
+        .server("CAP * LS :")
+        .client("CAP END")
+        .welcome(":irc.example 001 papo :Welcome to the Internet Relay Network")
+        .inspect(|session| assert_eq!(session.state().account(), &Account::LoggedOut))
         .no_event();
 }
 

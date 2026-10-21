@@ -47,6 +47,7 @@ pub struct State {
     user: String,
     host: Option<String>,
     realname: String,
+    account: Account,
     away: bool,
     away_message: Option<String>,
     user_modes: HashSet<char>,
@@ -269,6 +270,7 @@ impl State {
             user: config.username.clone(),
             host: None,
             realname: config.realname.clone(),
+            account: Account::LoggedOut,
             away: false,
             away_message: None,
             user_modes: HashSet::new(),
@@ -331,6 +333,10 @@ impl State {
     pub(crate) fn update_isupport(&mut self, isupport: &Isupport) {
         self.update_casemapping(isupport.casemapping());
         self.isupport.clone_from(isupport);
+    }
+
+    pub(crate) fn sync_own_account(&mut self, account: Option<&str>) {
+        self.account = Account::from_notify(account, self.casemapping);
     }
 
     pub(crate) fn sync_monitored_nick(
@@ -737,6 +743,9 @@ impl State {
         }
         TypingTable::refold(&mut self.typing, mapping);
         self.nick = mapping.nick(self.nick.as_ref());
+        if let Account::LoggedIn(account) = &mut self.account {
+            *account = mapping.account(account.as_ref());
+        }
         self.channels = std::mem::take(&mut self.channels)
             .into_values()
             .map(|mut channel| {
@@ -859,6 +868,12 @@ impl State {
     #[must_use]
     pub fn realname(&self) -> &str {
         &self.realname
+    }
+
+    /// Returns the session's account state.
+    #[must_use]
+    pub const fn account(&self) -> &Account {
+        &self.account
     }
 
     /// Returns whether the session is marked away.

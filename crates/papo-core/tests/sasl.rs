@@ -3,7 +3,7 @@
 mod support;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use papo_core::{CloseKind, Config, Entropy, Event, Sasl, Secret, Session};
+use papo_core::{Account, CloseKind, Config, Entropy, Event, Sasl, Secret, Session};
 use support::Transcript;
 
 struct FixedEntropy;
@@ -243,11 +243,19 @@ fn accepts_prefixed_plain_challenge_and_tracks_logout() {
         .server(":solanum.example AUTHENTICATE +")
         .client("AUTHENTICATE AGVtZXJzaW9uAGh1bnRlcjI=")
         .server(":solanum.example 900 emersion emersion!user@host emersion :logged in")
-        .inspect(|session| assert_eq!(session.account(), Some("emersion")))
+        .inspect(|session| {
+            assert_eq!(session.account(), Some("emersion"));
+            assert!(
+                matches!(session.state().account(), Account::LoggedIn(name) if name == "emersion")
+            );
+        })
         .server(":solanum.example 903 emersion :SASL authentication successful")
         .client("CAP END")
         .server(":solanum.example 901 emersion emersion!user@host :logged out")
-        .inspect(|session| assert_eq!(session.account(), None));
+        .inspect(|session| {
+            assert_eq!(session.account(), None);
+            assert_eq!(session.state().account(), &Account::LoggedOut);
+        });
 }
 
 #[test]

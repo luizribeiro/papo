@@ -60,6 +60,9 @@ impl State {
             return Some(Handled::No);
         };
         let account = Account::from_notify(account.account, self.casemapping);
+        if crate::names_equal(self.casemapping, nick, &self.nick) {
+            self.account = account.clone();
+        }
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick))
             && user.account != account
         {
