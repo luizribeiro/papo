@@ -17,6 +17,15 @@ fn inspect_event(event: papo::Event) {
     }
 }
 
+fn moderate_message(client: &papo::Client, event: papo::Event) {
+    let papo::Event::Message(message) = event else {
+        return;
+    };
+    let _: papo::RequestFuture<()> = client.react(&message, "👍");
+    let _: papo::RequestFuture<()> = client.unreact(&message, "👍");
+    let _: papo::RequestFuture<()> = client.redact(&message, "superseded");
+}
+
 #[test]
 fn everyday_api_is_nameable_from_the_facade() {
     assert_eq!(
@@ -49,5 +58,6 @@ fn everyday_api_is_nameable_from_the_facade() {
     let connect = papo::Client::builder("irc.example.net").connect();
     drop(connect);
     let _: fn(papo::Event) = inspect_event;
+    let _: fn(&papo::Client, papo::Event) = moderate_message;
     drop(driver);
 }

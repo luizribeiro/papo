@@ -2037,6 +2037,8 @@ pub fn papo::Message::clone(&self) -> Self
 impl core::cmp::Eq for papo::Message
 impl core::cmp::PartialEq for papo::Message
 pub fn papo::Message::eq(&self, &Self) -> bool
+impl core::convert::From<&alloc::boxed::Box<papo::Message>> for papo::MessageRef
+pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::Message>) -> Self
 impl core::convert::From<&papo::Message> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::Message) -> Self
 impl core::convert::From<&papo::Message> for papo::MessageRef
@@ -2057,6 +2059,8 @@ pub fn papo::MessageRef::clone(&self) -> Self
 impl core::cmp::Eq for papo::MessageRef
 impl core::cmp::PartialEq for papo::MessageRef
 pub fn papo::MessageRef::eq(&self, &Self) -> bool
+impl core::convert::From<&alloc::boxed::Box<papo::Message>> for papo::MessageRef
+pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::Message>) -> Self
 impl core::convert::From<&papo::Message> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::Message) -> Self
 impl core::convert::From<&papo::Sent> for papo::MessageRef

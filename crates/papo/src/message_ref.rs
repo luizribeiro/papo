@@ -25,6 +25,12 @@ impl From<&Message> for MessageRef {
     }
 }
 
+impl From<&Box<Message>> for MessageRef {
+    fn from(message: &Box<Message>) -> Self {
+        Self::from(message.as_ref())
+    }
+}
+
 impl From<&Sent> for MessageRef {
     fn from(message: &Sent) -> Self {
         Self {
