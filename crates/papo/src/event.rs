@@ -698,7 +698,7 @@ pub enum Event {
     Reacted(Reacted),
     /// A tag-only typing notification.
     TypingChanged(TypingChanged),
-    /// A message was redacted from a target's history.
+    /// A message was redacted from a conversation's history.
     Redacted(Redacted),
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
@@ -710,11 +710,11 @@ pub enum Event {
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
     BouncerNetwork(BouncerNetworkChanged),
-    /// A target's cached metadata changed.
+    /// A user or channel's cached metadata changed.
     MetadataChanged(MetadataChanged),
     /// A completed history or playback batch.
     History(Box<crate::HistoryPage>),
-    /// A target's read marker advanced or was first reported.
+    /// A conversation's read marker advanced or was first reported.
     ReadMarker(ReadMarker),
     /// Users departed because connectivity between two servers was lost.
     ///

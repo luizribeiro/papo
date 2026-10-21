@@ -9,7 +9,7 @@ pub mod keys {
     pub const AVATAR: &str = "avatar";
     /// Display name.
     pub const DISPLAY_NAME: &str = "display-name";
-    /// Whether the target is a bot.
+    /// Whether the user or channel is a bot.
     pub const BOT: &str = "bot";
     /// Display color.
     pub const COLOR: &str = "color";
@@ -19,15 +19,15 @@ pub mod keys {
     pub const PRONOUNS: &str = "pronouns";
     /// Free-form status text.
     pub const STATUS: &str = "status";
-    /// Whether a target is pinned in a Soju-compatible client.
+    /// Whether a user or channel is pinned in a Soju-compatible client.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const PINNED: &str = "soju.im/pinned";
-    /// Whether a target is muted in a Soju-compatible client.
+    /// Whether a user or channel is muted in a Soju-compatible client.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const MUTED: &str = "soju.im/muted";
-    /// Whether a target is blocked in a Soju-compatible client.
+    /// Whether a user or channel is blocked in a Soju-compatible client.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const BLOCKED: &str = "soju.im/blocked";

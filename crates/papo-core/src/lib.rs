@@ -1605,7 +1605,7 @@ pub enum Event {
     TagMessage(TagMessage),
     /// A user's typing state changed.
     TypingChanged(TypingChanged),
-    /// A message was redacted from a target's history.
+    /// A message was redacted from a conversation's history.
     Redacted(Redacted),
     /// A request was sent without protocol-level response correlation.
     RequestUntracked {
@@ -1666,7 +1666,7 @@ pub enum Event {
         /// Complete cached network state, or `None` when removed.
         network: Option<BouncerNetwork>,
     },
-    /// A target's cached metadata changed.
+    /// A user or channel's cached metadata changed.
     MetadataChanged {
         /// User or channel whose metadata changed.
         subject: Subject,
@@ -1677,7 +1677,7 @@ pub enum Event {
         /// Visibility policy reported by the server.
         visibility: Visibility,
     },
-    /// The server deferred metadata synchronization for a target.
+    /// The server deferred metadata synchronization for a user or channel.
     MetadataSyncLater {
         /// Nickname or channel whose synchronization was deferred.
         target: String,
@@ -2051,7 +2051,7 @@ pub enum StateLimit {
     Members,
     /// Targets retained in the metadata cache.
     MetadataTargets,
-    /// Metadata keys retained for one target.
+    /// Metadata keys retained for one user or channel.
     MetadataKeys,
     /// Upstream bouncer networks.
     #[cfg(feature = "unstable")]

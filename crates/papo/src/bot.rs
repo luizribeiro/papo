@@ -11,7 +11,7 @@ use crate::{Client, Message as ChatMessage, MessageKind, Source};
 
 const MAX_RATE_TARGETS: usize = 1024;
 
-/// A shared sliding-window reply limiter keyed by message target.
+/// A shared sliding-window reply limiter keyed by return address.
 #[derive(Clone, Debug)]
 pub struct ReplyRateLimiter {
     max: usize,
@@ -20,7 +20,7 @@ pub struct ReplyRateLimiter {
 }
 
 impl ReplyRateLimiter {
-    /// Creates a limiter allowing `max` replies per target during `window`.
+    /// Creates a limiter allowing `max` replies per address during `window`.
     ///
     /// # Errors
     ///
@@ -43,7 +43,7 @@ impl ReplyRateLimiter {
         }
     }
 
-    /// Consumes one reply slot for `target`, or reports that it is limited.
+    /// Consumes one reply slot for an address, or reports that it is limited.
     #[must_use]
     pub fn check(&self, target: &str) -> bool {
         self.check_at(target, crate::rt::now_mono())
@@ -117,7 +117,7 @@ impl BotConfig {
 pub enum ReplyStatus {
     /// The response was accepted by the client driver.
     Sent,
-    /// The response exceeded the per-target rate limit.
+    /// The response exceeded the per-address rate limit.
     Dropped,
 }
 
@@ -227,7 +227,7 @@ impl Command {
         }
     }
 
-    /// Sends a threaded reply unless the target has exhausted its reply budget.
+    /// Sends a threaded reply unless the return address has exhausted its reply budget.
     ///
     /// # Errors
     ///

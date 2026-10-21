@@ -38,19 +38,19 @@ impl Visibility {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum MetadataCommand {
-    /// Gets selected keys for a target.
+    /// Gets selected keys for a user or channel.
     Get {
         /// Nickname or channel to query.
         target: String,
         /// Keys to query.
         keys: Vec<String>,
     },
-    /// Lists all visible keys for a target.
+    /// Lists all visible keys for a user or channel.
     List {
         /// Nickname or channel to query.
         target: String,
     },
-    /// Sets or removes one key for a target.
+    /// Sets or removes one key for a user or channel.
     Set {
         /// Nickname or channel to change.
         target: String,
@@ -59,7 +59,7 @@ pub enum MetadataCommand {
         /// New nonempty value, or `None` to remove the key.
         value: Option<String>,
     },
-    /// Removes every metadata key from a target.
+    /// Removes every metadata key from a user or channel.
     Clear {
         /// Nickname or channel to clear.
         target: String,
@@ -76,7 +76,7 @@ pub enum MetadataCommand {
     },
     /// Lists current metadata subscriptions.
     Subs,
-    /// Synchronizes metadata for a target.
+    /// Synchronizes metadata for a user or channel.
     Sync {
         /// Nickname or channel to synchronize.
         target: String,
@@ -90,7 +90,7 @@ pub struct MetadataLimits {
     pub before_connect: bool,
     /// Maximum number of subscribed keys, when advertised.
     pub max_subscriptions: Option<usize>,
-    /// Maximum keys stored for one target, when advertised.
+    /// Maximum keys stored for one user or channel, when advertised.
     pub max_keys: Option<usize>,
     /// Maximum metadata value length in bytes, when advertised.
     pub max_value_bytes: Option<usize>,

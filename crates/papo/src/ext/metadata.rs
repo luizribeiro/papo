@@ -40,7 +40,7 @@ impl Metadata {
         crate::RequestFuture::new(async move { metadata.request(command).await })
     }
 
-    /// Gets selected keys and returns the target's resulting cache.
+    /// Gets selected keys and returns the user or channel's resulting cache.
     ///
     /// # Errors
     ///
@@ -91,7 +91,7 @@ impl Metadata {
         })
     }
 
-    /// Lists visible keys and returns the target's resulting cache.
+    /// Lists visible keys and returns the user or channel's resulting cache.
     ///
     /// # Errors
     ///
@@ -155,7 +155,7 @@ impl Metadata {
         self.remove_on(target, key)
     }
 
-    /// Sets one metadata key on `target`.
+    /// Sets one metadata key on a user or channel.
     ///
     /// An empty value is invalid input. Use [`Metadata::remove_on`] to remove the key.
     ///
@@ -193,7 +193,7 @@ impl Metadata {
         })
     }
 
-    /// Removes one metadata key from `target`.
+    /// Removes one metadata key from a user or channel.
     pub fn remove_on(
         &self,
         target: impl AsRef<str>,
@@ -219,7 +219,7 @@ impl Metadata {
         self.clear_on(self.client.nick())
     }
 
-    /// Clears all metadata on `target`.
+    /// Clears all metadata on a user or channel.
     pub fn clear_on(&self, target: impl AsRef<str>) -> crate::RequestFuture<()> {
         self.action(MetadataCommand::Clear {
             target: target.as_ref().to_owned(),
@@ -274,7 +274,7 @@ impl Metadata {
         })
     }
 
-    /// Synchronizes cached metadata for a target.
+    /// Synchronizes cached metadata for a user or channel.
     ///
     /// # Errors
     ///

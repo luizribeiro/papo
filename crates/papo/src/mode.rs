@@ -123,7 +123,7 @@ impl IntoFuture for SetModes {
 }
 
 impl Client {
-    /// Starts a validated mode-change request for `target`.
+    /// Starts a validated mode-change request for a user or channel.
     #[must_use]
     pub fn mode(&self, target: impl AsRef<str>) -> SetModes {
         SetModes {

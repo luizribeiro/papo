@@ -754,7 +754,7 @@ impl IntoFuture for HistoryRequest {
 }
 
 impl Client {
-    /// Starts a chat history request for `target`.
+    /// Starts a chat history request for a conversation.
     #[must_use]
     pub fn history(&self, target: impl Into<ConversationInput>) -> crate::History {
         crate::History {
@@ -860,7 +860,7 @@ impl Client {
         })
     }
 
-    /// Sets the server read marker for `target`.
+    /// Sets the server read marker for a conversation.
     ///
     /// # Errors
     ///
@@ -895,7 +895,7 @@ impl Client {
         })
     }
 
-    /// Queries the server read marker for `target`.
+    /// Queries the server read marker for a conversation.
     ///
     /// # Errors
     ///

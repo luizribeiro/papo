@@ -28,7 +28,7 @@ pub struct ReadMarker {
     pub time: Option<SystemTime>,
 }
 
-/// The newest live message remembered for one target.
+/// The newest live message remembered for one conversation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LastSeen {
     /// Channel or nickname to which the message belongs.
@@ -128,7 +128,7 @@ impl Session {
         self.request_for_feature(now, Line::new("CHATHISTORY", params), Feature::History)
     }
 
-    /// Sets the read marker for `target` to a UTC timestamp.
+    /// Sets the read marker for a conversation to a UTC timestamp.
     ///
     /// # Errors
     ///
@@ -156,7 +156,7 @@ impl Session {
         )
     }
 
-    /// Queries the current read marker for `target`.
+    /// Queries the current read marker for a conversation.
     ///
     /// # Errors
     ///

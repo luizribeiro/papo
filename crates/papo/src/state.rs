@@ -200,7 +200,7 @@ impl State {
         self.core.bouncer_networks()
     }
 
-    /// Returns the newest read marker time reported for `target`.
+    /// Returns the newest read marker time reported for a conversation.
     #[must_use]
     pub fn read_marker(&self, target: impl AsRef<str>) -> Option<std::time::SystemTime> {
         self.core.read_marker(target).and_then(|marker| marker.time)
@@ -214,7 +214,7 @@ impl State {
         self.core.persistence()
     }
 
-    /// Returns cached metadata for `target`.
+    /// Returns cached metadata for a user or channel.
     #[must_use]
     pub fn metadata(
         &self,

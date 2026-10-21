@@ -913,7 +913,7 @@ impl State {
         self.metadata.get(target.as_ref())
     }
 
-    /// Returns the number of targets retained in the metadata cache.
+    /// Returns the number of users and channels retained in the metadata cache.
     #[must_use]
     pub fn metadata_target_count(&self) -> usize {
         self.metadata.len()
@@ -928,14 +928,14 @@ impl State {
         self.metadata_subscriptions.clear();
     }
 
-    /// Returns the newest read marker reported for a target.
+    /// Returns the newest read marker reported for a conversation.
     #[must_use]
     pub fn read_marker(&self, target: impl AsRef<str>) -> Option<&ReadMarker> {
         let target = self.casemapping.fold(target.as_ref());
         self.read_markers.get(target.as_ref())
     }
 
-    /// Returns the newest live message remembered for a target.
+    /// Returns the newest live message remembered for a conversation.
     #[must_use]
     pub fn last_seen(&self, target: impl AsRef<str>) -> Option<&LastSeen> {
         let target = self.casemapping.fold(target.as_ref());

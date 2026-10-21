@@ -15,7 +15,7 @@ pub struct BouncerNetworkChanged {
     pub network: Option<crate::BouncerNetwork>,
 }
 
-/// A target's cached metadata changed.
+/// A user or channel's cached metadata changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct MetadataChanged {

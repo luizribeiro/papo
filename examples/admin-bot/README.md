@@ -5,7 +5,7 @@ threaded replies, and private notices carrying channel context. It accepts `!pin
 `!echo <text>`, and administrator-only `!op <nick>` commands. It also accepts mentions such as
 `admin-bot: ping`.
 
-Replies are limited independently for each channel or private target to two during any
+Replies are limited independently for each channel or private conversation to two during any
 five-second window. Further replies are dropped. On native systems, SIGINT and SIGTERM send
 `QUIT :shutting down` before exit. WASI runs until the connection ends.
 

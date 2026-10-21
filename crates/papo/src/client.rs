@@ -611,7 +611,7 @@ impl Client {
         })
     }
 
-    /// Sends a typing state for `target`.
+    /// Sends a typing state to an address.
     ///
     /// While composing, send [`Typing::Active`] every three seconds so recipients can refresh
     /// their local expiry deadline. Repeated active states within three seconds are silently
@@ -646,7 +646,7 @@ impl Client {
         })
     }
 
-    /// Redacts a message from a target's history.
+    /// Redacts a message from a conversation's history.
     ///
     /// # Errors
     ///
