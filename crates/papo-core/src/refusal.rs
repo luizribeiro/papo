@@ -62,12 +62,16 @@ pub enum Refusal {
     BadChannelKey,
     /// A channel mask is malformed (`476`).
     BadChannelMask,
+    /// A channel's ban or exception list is full (`478`).
+    BanListFull,
     /// The action requires IRC operator privileges (`481`).
     NoPrivileges,
     /// The action requires channel operator privileges (`482`).
     ChannelOperatorPrivilegesNeeded,
     /// A server cannot be disconnected with `KILL` (`483`).
     CannotKillServer,
+    /// The target is protected from being kicked (`484`).
+    CannotKickProtected,
     /// The channel accepts only secure connections (`489`).
     SecureOnlyChannel,
     /// The host is not authorized for operator access (`491`).
@@ -84,6 +88,10 @@ pub enum Refusal {
     TlsUpgradeFailed,
     /// A channel mode parameter is invalid (`696`).
     InvalidModeParameter,
+    /// The list mode entry is already set (`697`).
+    ListModeAlreadySet,
+    /// The list mode entry is not set (`698`).
+    ListModeNotSet,
     /// The IRC operator lacks a required server privilege (`723`).
     InsufficientPrivileges,
     /// The account is locked or otherwise unavailable (`902`).
@@ -275,9 +283,11 @@ impl Refusal {
             475 => Self::BadChannelKey,
             476 => Self::BadChannelMask,
             477 => Self::AccountRequired,
+            478 => Self::BanListFull,
             481 => Self::NoPrivileges,
             482 => Self::ChannelOperatorPrivilegesNeeded,
             483 => Self::CannotKillServer,
+            484 => Self::CannotKickProtected,
             489 => Self::SecureOnlyChannel,
             491 => Self::NoOperHost,
             501 => Self::UnknownUserMode,
@@ -286,6 +296,8 @@ impl Refusal {
             525 => Self::InvalidKey,
             691 => Self::TlsUpgradeFailed,
             696 => Self::InvalidModeParameter,
+            697 => Self::ListModeAlreadySet,
+            698 => Self::ListModeNotSet,
             723 => Self::InsufficientPrivileges,
             902 => Self::AccountLocked,
             904 => Self::SaslFailed,
@@ -417,10 +429,12 @@ mod tests {
             471 => ChannelIsFull,
             472 => UnknownMode, 473 => InviteOnlyChannel, 474 => BannedFromChannel,
             475 => BadChannelKey, 476 => BadChannelMask, 477 => AccountRequired,
-            481 => NoPrivileges, 482 => ChannelOperatorPrivilegesNeeded, 483 => CannotKillServer,
-            489 => SecureOnlyChannel, 491 => NoOperHost, 501 => UnknownUserMode,
+            478 => BanListFull, 481 => NoPrivileges, 482 => ChannelOperatorPrivilegesNeeded,
+            483 => CannotKillServer, 484 => CannotKickProtected, 489 => SecureOnlyChannel,
+            491 => NoOperHost, 501 => UnknownUserMode,
             502 => UsersDontMatch, 524 => NoHelpAvailable, 525 => InvalidKey,
-            691 => TlsUpgradeFailed, 696 => InvalidModeParameter,
+            691 => TlsUpgradeFailed, 696 => InvalidModeParameter, 697 => ListModeAlreadySet,
+            698 => ListModeNotSet,
             723 => InsufficientPrivileges, 902 => AccountLocked, 904 => SaslFailed,
             905 => SaslMessageTooLong, 906 => SaslAborted, 907 => AlreadyAuthenticated,
             263 => TryAgain, 999 => Other,

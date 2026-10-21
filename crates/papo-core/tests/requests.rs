@@ -1595,6 +1595,10 @@ fn classifies_numeric_refusals() {
             Refusal::BadChannelKey,
         ),
         (
+            "478 papo #papo b :Channel ban list is full",
+            Refusal::BanListFull,
+        ),
+        (
             "481 papo :Permission Denied- You're not an IRC operator",
             Refusal::NoPrivileges,
         ),
@@ -1607,6 +1611,10 @@ fn classifies_numeric_refusals() {
             Refusal::CannotKillServer,
         ),
         (
+            "484 papo alice #papo :Cannot kick protected user",
+            Refusal::CannotKickProtected,
+        ),
+        (
             "524 papo MASKMATCH :No help available on this topic",
             Refusal::NoHelpAvailable,
         ),
@@ -1617,6 +1625,14 @@ fn classifies_numeric_refusals() {
         (
             "691 papo :STARTTLS failed (Wrong moon phase)",
             Refusal::TlsUpgradeFailed,
+        ),
+        (
+            "697 papo #papo b alice!*@* :List mode already set",
+            Refusal::ListModeAlreadySet,
+        ),
+        (
+            "698 papo #papo b alice!*@* :List mode is not set",
+            Refusal::ListModeNotSet,
         ),
         (
             "723 papo kill:remote :Insufficient oper privileges.",
@@ -1705,7 +1721,12 @@ fn classifies_numeric_refusals() {
         session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
         while session.poll_event().is_some() {}
         request(&mut session, now, Line::new("RAW", ["probe"]));
-        session.handle_line(now, format!("@label=0 :ergo.test {line}").as_bytes());
+        let server = if line.starts_with("484 ") {
+            "irc.unreal.test"
+        } else {
+            "ergo.test"
+        };
+        session.handle_line(now, format!("@label=0 :{server} {line}").as_bytes());
         let response = loop {
             match session.poll_event() {
                 Some(Event::Response(response)) => break response,

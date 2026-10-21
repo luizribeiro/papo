@@ -850,11 +850,13 @@ pub papo_core::Refusal::AlreadyConnected
 pub papo_core::Refusal::BadAccountName
 pub papo_core::Refusal::BadChannelKey
 pub papo_core::Refusal::BadChannelMask
+pub papo_core::Refusal::BanListFull
 pub papo_core::Refusal::BannedFromChannel
 pub papo_core::Refusal::BannedFromServer
 pub papo_core::Refusal::BannedRelaySender
 pub papo_core::Refusal::BatchTimedOut
 pub papo_core::Refusal::BlankRelayMessage
+pub papo_core::Refusal::CannotKickProtected
 pub papo_core::Refusal::CannotKillServer
 pub papo_core::Refusal::CannotSendToChannel
 pub papo_core::Refusal::ChannelIsFull
@@ -886,6 +888,8 @@ pub papo_core::Refusal::InvalidUtf8
 pub papo_core::Refusal::InvalidVerificationCode
 pub papo_core::Refusal::InvalidWebPushParameters
 pub papo_core::Refusal::InviteOnlyChannel
+pub papo_core::Refusal::ListModeAlreadySet
+pub papo_core::Refusal::ListModeNotSet
 pub papo_core::Refusal::MessageError
 pub papo_core::Refusal::MetadataKeyNotSet
 pub papo_core::Refusal::MetadataLimitReached
