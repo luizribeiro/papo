@@ -105,6 +105,9 @@ impl BanTarget {
 }
 
 /// Builds one or more validated mode-change commands.
+///
+/// Each method adds one independent change to the channel. Chaining methods sends their changes
+/// together, split across commands at the server's advertised `MODES` limit.
 pub struct SetModes {
     client: Client,
     target: String,
@@ -187,6 +190,18 @@ impl SetModes {
         self.prefix(false, 'o', nick)
     }
 
+    /// Grants half-operator privileges to `nick`.
+    #[must_use]
+    pub fn halfop(self, nick: impl AsRef<str>) -> Self {
+        self.optional_prefix(true, crate::Feature::Halfop, nick)
+    }
+
+    /// Removes half-operator privileges from `nick`.
+    #[must_use]
+    pub fn dehalfop(self, nick: impl AsRef<str>) -> Self {
+        self.optional_prefix(false, crate::Feature::Halfop, nick)
+    }
+
     /// Grants voice privileges to `nick`.
     #[must_use]
     pub fn voice(self, nick: impl AsRef<str>) -> Self {
@@ -202,6 +217,11 @@ impl SetModes {
     fn prefix(self, set: bool, mode: char, nick: impl AsRef<str>) -> Self {
         let nick = self.client.state().nickname(nick.as_ref());
         self.change(set, Selector::Prefix(mode), Some(Argument::Nick(nick)))
+    }
+
+    fn optional_prefix(self, set: bool, feature: crate::Feature, nick: impl AsRef<str>) -> Self {
+        let nick = self.client.state().nickname(nick.as_ref());
+        self.change(set, Selector::Optional(feature), Some(Argument::Nick(nick)))
     }
 
     fn change(mut self, set: bool, mode: Selector, arg: Option<Argument>) -> Self {
@@ -339,11 +359,28 @@ pub(crate) struct Change {
 
 impl Change {
     fn resolve(self, state: &crate::State) -> Result<Self, Error> {
+        let mode = match self.mode {
+            Selector::Optional(feature) => {
+                if let Some(reason) = state.unsupported_reason(feature) {
+                    return Err(Error::Unsupported(crate::Unsupported::new(feature, reason)));
+                }
+                match feature {
+                    crate::Feature::Halfop => Selector::Prefix('h'),
+                    crate::Feature::Excepts => {
+                        Selector::Letter(state.isupport().excepts().unwrap())
+                    }
+                    crate::Feature::Invex => Selector::Letter(state.isupport().invex().unwrap()),
+                    crate::Feature::Quiet => Selector::Letter('q'),
+                    _ => unreachable!("mode helpers require mode-related features"),
+                }
+            }
+            mode => mode,
+        };
         let arg = match self.arg {
             Some(Argument::Ban(target)) => Some(Argument::Mask(target.resolve(state)?)),
             other => other,
         };
-        Ok(Self { arg, ..self })
+        Ok(Self { mode, arg, ..self })
     }
 
     fn typed(&self, state: &crate::State) -> Result<ModeChange, Error> {
@@ -366,9 +403,11 @@ impl Change {
     }
 }
 
+#[derive(Clone, Copy)]
 enum Selector {
     Letter(char),
     Prefix(char),
+    Optional(crate::Feature),
 }
 
 enum Argument {
@@ -448,6 +487,7 @@ fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
             .find(|prefix| prefix.mode == mode)
             .map(|prefix| prefix.mode)
             .ok_or_else(|| invalid(format!("prefix mode {mode} was not advertised")))?,
+        Selector::Optional(_) => unreachable!("optional modes are resolved before validation"),
     };
     if let Some(argument) = &change.arg {
         argument.check(isupport)?;
@@ -708,6 +748,38 @@ mod tests {
                 reason: UnsupportedReason::NotOffered,
                 ..
             })
+        ));
+    }
+
+    #[test]
+    fn resolves_halfop_only_when_prefix_advertises_it() {
+        let supported =
+            state(":ergo.test 005 papo PREFIX=(ohv)@%+ CHANMODES=beI,k,l,imnst :are supported");
+        let change = Change {
+            set: true,
+            mode: Selector::Optional(Feature::Halfop),
+            arg: Some(Argument::Nick(supported.nickname("alice"))),
+        };
+        assert!(matches!(
+            change.resolve(&supported).unwrap().mode,
+            Selector::Prefix('h')
+        ));
+
+        let unsupported = state(
+            ":solanum.example 005 papo PREFIX=(ov)@+ CHANMODES=eIbq,k,flj,CFLPQcgimnprstz :are supported",
+        );
+        let change = Change {
+            set: true,
+            mode: Selector::Optional(Feature::Halfop),
+            arg: Some(Argument::Nick(unsupported.nickname("alice"))),
+        };
+        assert!(matches!(
+            change.resolve(&unsupported),
+            Err(crate::Error::Unsupported(crate::Unsupported {
+                feature: Feature::Halfop,
+                reason: UnsupportedReason::NotOffered,
+                ..
+            }))
         ));
     }
 }

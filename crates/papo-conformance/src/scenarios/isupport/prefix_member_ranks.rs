@@ -113,10 +113,14 @@ async fn grant_rank(
     bob_nick: &Nick,
     prefix: Prefix,
 ) -> papo_testing::Result<()> {
-    alice
-        .mode(channel)
-        .add_with(prefix.mode, bob_nick.to_string())
-        .await?;
+    if prefix.mode == 'h' {
+        alice.mode(channel).halfop(bob_nick).await?;
+    } else {
+        alice
+            .mode(channel)
+            .add_with(prefix.mode, bob_nick.to_string())
+            .await?;
+    }
     let changed = wait_channel_mode(bob, channel, prefix.mode).await?;
     assert_eq!(
         crate::source_nick(&changed.actor),

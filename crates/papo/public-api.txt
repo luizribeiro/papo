@@ -2304,8 +2304,10 @@ impl papo::SetModes
 pub fn papo::SetModes::add(self, char) -> Self
 pub fn papo::SetModes::add_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::SetModes::ban(self, impl core::convert::Into<papo::BanTarget>) -> Self
+pub fn papo::SetModes::dehalfop(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::SetModes::deop(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::SetModes::devoice(self, impl core::convert::AsRef<str>) -> Self
+pub fn papo::SetModes::halfop(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::SetModes::op(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
