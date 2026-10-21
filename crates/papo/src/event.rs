@@ -881,7 +881,7 @@ pub(crate) fn from_core(
 ) -> CoreEvent {
     CoreEvent::Forward(match event {
         papo_core::Event::Connected(welcome) => return CoreEvent::Connected(welcome),
-        papo_core::Event::Motd { lines } => Event::Motd(Motd { lines }),
+        papo_core::Event::Motd { lines, .. } => Event::Motd(Motd { lines }),
         papo_core::Event::Line(message) => {
             if message.as_ref().command_is("001") {
                 return CoreEvent::Unknown;
@@ -965,13 +965,19 @@ pub(crate) fn from_core(
             })
         }
         papo_core::Event::Response(response) => return CoreEvent::Response(response),
-        papo_core::Event::RequestUntracked { id } => return CoreEvent::RequestUntracked(id),
-        papo_core::Event::RequestTimedOut { id } => return CoreEvent::RequestTimedOut(id),
-        papo_core::Event::RequestAborted { id, transmitted } => {
+        papo_core::Event::RequestUntracked { id, .. } => return CoreEvent::RequestUntracked(id),
+        papo_core::Event::RequestTimedOut { id, .. } => return CoreEvent::RequestTimedOut(id),
+        papo_core::Event::RequestAborted {
+            id, transmitted, ..
+        } => {
             return CoreEvent::RequestAborted { id, transmitted };
         }
-        papo_core::Event::TransmitAborted { token } => return CoreEvent::TransmitAborted(token),
-        papo_core::Event::RequestUnsupported { id, unsupported } => {
+        papo_core::Event::TransmitAborted { token, .. } => {
+            return CoreEvent::TransmitAborted(token);
+        }
+        papo_core::Event::RequestUnsupported {
+            id, unsupported, ..
+        } => {
             return CoreEvent::RequestUnsupported { id, unsupported };
         }
         papo_core::Event::StandardReply(reply) => Event::StandardReply(StandardReply {
@@ -989,16 +995,16 @@ pub(crate) fn from_core(
         papo_core::Event::AccountCreated { account, .. } => {
             Event::AccountCreation(crate::AccountCreation::Created { account })
         }
-        papo_core::Event::VerificationRequired { account, message } => {
-            Event::AccountCreation(crate::AccountCreation::VerificationRequired {
-                account,
-                message,
-            })
-        }
+        papo_core::Event::VerificationRequired {
+            account, message, ..
+        } => Event::AccountCreation(crate::AccountCreation::VerificationRequired {
+            account,
+            message,
+        }),
         #[cfg(feature = "unstable")]
         papo_core::Event::PersistenceStatus(status) => Event::PersistenceChanged(status),
         #[cfg(feature = "unstable")]
-        papo_core::Event::BouncerNetworkChanged { id, network } => {
+        papo_core::Event::BouncerNetworkChanged { id, network, .. } => {
             Event::BouncerNetworkChanged(BouncerNetworkChanged { id, network })
         }
         papo_core::Event::MetadataChanged {
@@ -1006,6 +1012,7 @@ pub(crate) fn from_core(
             key,
             value,
             visibility,
+            ..
         } => Event::MetadataChanged(MetadataChanged {
             subject: match subject {
                 papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
@@ -1020,6 +1027,7 @@ pub(crate) fn from_core(
             conversation,
             items,
             end,
+            ..
         } => {
             return CoreEvent::History {
                 conversation,
@@ -1038,6 +1046,7 @@ pub(crate) fn from_core(
             quits,
             authorship,
             channels,
+            ..
         } => Event::Netsplit(Netsplit {
             servers: servers.into(),
             quits: quits
@@ -1071,6 +1080,7 @@ pub(crate) fn from_core(
             servers,
             joins,
             authorship,
+            ..
         } => Event::Netjoin(Netjoin {
             servers: servers.into(),
             joins: joins
@@ -1090,26 +1100,27 @@ pub(crate) fn from_core(
             reference,
             batch_type,
             reason,
+            ..
         } => Event::Warning(Warning::BatchAbandoned {
             id: reference,
             batch_type,
             reason,
         }),
-        papo_core::Event::Malformed { line } => Event::Warning(Warning::Malformed { line }),
-        papo_core::Event::Close { kind, reason } => return CoreEvent::Close { kind, reason },
-        papo_core::Event::AuthenticationFailed { reason } => {
+        papo_core::Event::Malformed { line, .. } => Event::Warning(Warning::Malformed { line }),
+        papo_core::Event::Close { kind, reason, .. } => return CoreEvent::Close { kind, reason },
+        papo_core::Event::AuthenticationFailed { reason, .. } => {
             Event::Warning(Warning::AuthenticationFailed { reason })
         }
-        papo_core::Event::CapsChanged { added, removed } => {
+        papo_core::Event::CapsChanged { added, removed, .. } => {
             Event::CapsChanged(CapsChanged { added, removed })
         }
-        papo_core::Event::FeaturesChanged { added, removed } => {
+        papo_core::Event::FeaturesChanged { added, removed, .. } => {
             Event::FeaturesChanged(FeaturesChanged { added, removed })
         }
-        papo_core::Event::CasemappingChanged { old, new } => {
+        papo_core::Event::CasemappingChanged { old, new, .. } => {
             Event::CasemappingChanged(CasemappingChanged { old, new })
         }
-        papo_core::Event::StsUpgrade { port } => return CoreEvent::StsUpgrade(port),
+        papo_core::Event::StsUpgrade { port, .. } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined {
             envelope,
@@ -1119,6 +1130,7 @@ pub(crate) fn from_core(
             channel,
             nick,
             authorship,
+            ..
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
             let actor = source::from_prefix(actor, channel.casemapping());
@@ -1133,10 +1145,10 @@ pub(crate) fn from_core(
                 authorship: Authorship::from_core(authorship),
             })
         }
-        papo_core::Event::ChannelSynced { channel } => {
+        papo_core::Event::ChannelSynced { channel, .. } => {
             Event::ChannelSynced(ChannelSynced { channel })
         }
-        papo_core::Event::MembersRefreshed { channel } => {
+        papo_core::Event::MembersRefreshed { channel, .. } => {
             Event::MembersRefreshed(MembersRefreshed { channel })
         }
         papo_core::Event::Parted {
@@ -1146,6 +1158,7 @@ pub(crate) fn from_core(
             nick,
             reason,
             authorship,
+            ..
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::Parted(Parted {
@@ -1188,6 +1201,7 @@ pub(crate) fn from_core(
             actor,
             authorship,
             subject_authorship,
+            ..
         } => Event::Invited(Invited {
             channel,
             subject,
@@ -1202,6 +1216,7 @@ pub(crate) fn from_core(
             reason,
             channels,
             authorship,
+            ..
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::Quit(Quit {
@@ -1221,6 +1236,7 @@ pub(crate) fn from_core(
             old,
             new,
             authorship,
+            ..
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::NickChanged(NickChanged {
@@ -1251,6 +1267,7 @@ pub(crate) fn from_core(
             actor,
             nick,
             account,
+            ..
         } => Event::AccountChanged(AccountChanged {
             actor: source::from_prefix(actor, casemapping),
             nick,
@@ -1259,7 +1276,9 @@ pub(crate) fn from_core(
                 _ => None,
             },
         }),
-        papo_core::Event::AwayChanged { actor, nick, away } => Event::AwayChanged(AwayChanged {
+        papo_core::Event::AwayChanged {
+            actor, nick, away, ..
+        } => Event::AwayChanged(AwayChanged {
             actor: source::from_prefix(actor, casemapping),
             nick,
             away,
@@ -1269,6 +1288,7 @@ pub(crate) fn from_core(
             nick,
             username,
             host,
+            ..
         } => Event::HostChanged(HostChanged {
             actor: source::from_prefix(actor, casemapping),
             nick,
@@ -1279,6 +1299,7 @@ pub(crate) fn from_core(
             actor,
             nick,
             realname,
+            ..
         } => Event::RealnameChanged(RealnameChanged {
             actor: source::from_prefix(actor, casemapping),
             nick,
@@ -1315,6 +1336,7 @@ pub(crate) fn from_core(
             topic,
             actor,
             authorship,
+            ..
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::TopicChanged(TopicChanged {
@@ -1327,20 +1349,23 @@ pub(crate) fn from_core(
                 authorship: Authorship::from_core(authorship),
             })
         }
-        papo_core::Event::StateLimitReached { limit } => {
+        papo_core::Event::StateLimitReached { limit, .. } => {
             Event::Warning(Warning::StateLimitReached { kind: limit })
         }
         papo_core::Event::MonitorOnline {
             nick,
             username,
             host,
+            ..
         } => Event::MonitorOnline(MonitorOnline {
             nick,
             username,
             host,
         }),
-        papo_core::Event::MonitorOffline { nick } => Event::MonitorOffline(MonitorOffline { nick }),
-        papo_core::Event::MonitorListFull { limit, nicks } => {
+        papo_core::Event::MonitorOffline { nick, .. } => {
+            Event::MonitorOffline(MonitorOffline { nick })
+        }
+        papo_core::Event::MonitorListFull { limit, nicks, .. } => {
             Event::Warning(Warning::MonitorListFull {
                 maximum: limit,
                 nicks,

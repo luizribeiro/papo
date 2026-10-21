@@ -512,13 +512,13 @@ fn finish_slow_consumer(
 #[cfg(not(browser))]
 pub(super) fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &StsAction) {
     match action {
-        StsAction::Persist { host, duration } => {
+        StsAction::Persist { host, duration, .. } => {
             let now = crate::rt::now_wall();
             if let Some(expires_at) = now.checked_add(*duration) {
                 store.put(StsPolicy::new(host, port, expires_at, *duration));
             }
         }
-        StsAction::Remove { host } => store.remove(host),
+        StsAction::Remove { host, .. } => store.remove(host),
         _ => {}
     }
 }
