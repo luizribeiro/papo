@@ -10,6 +10,34 @@ The project is early in development; the API is not yet stable.
 - `papo-core` implements deterministic sans-I/O IRC session behavior.
 - `papo` provides the tokio driver, transports, client handles, and event stream.
 
+## Quick start
+
+```rust
+use papo::{Client, Event};
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let (client, mut events) = Client::builder("ircs://irc.example.net")
+        .nick("papo-bot")
+        .autojoin(["#papo"])
+        .connect()
+        .await?;
+
+    while let Some(event) = events.next().await {
+        if let Event::Message(message) = event
+            && message.is_live()
+            && message.text == "!ping"
+            && let Err(error) = client.reply(&message, "pong").await
+        {
+            eprintln!("could not reply: {error}");
+        }
+    }
+    Ok(())
+}
+```
+
+See the [ping bot](examples/ping-bot) for the complete example and its live-server test.
+
 ## Capability implementation map
 
 <!-- caps:start -->
