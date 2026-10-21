@@ -2128,6 +2128,23 @@ impl core::marker::Unpin for papo::Metadata
 impl core::marker::UnsafeUnpin for papo::Metadata
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
 impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
+#[non_exhaustive] pub struct papo::ModesApplied
+pub papo::ModesApplied::applied: alloc::vec::Vec<papo::ModeChange>
+impl core::clone::Clone for papo::ModesApplied
+pub fn papo::ModesApplied::clone(&self) -> Self
+impl core::cmp::Eq for papo::ModesApplied
+impl core::cmp::PartialEq for papo::ModesApplied
+pub fn papo::ModesApplied::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::ModesApplied
+pub fn papo::ModesApplied::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::ModesApplied
+impl core::marker::Freeze for papo::ModesApplied
+impl core::marker::Send for papo::ModesApplied
+impl core::marker::Sync for papo::ModesApplied
+impl core::marker::Unpin for papo::ModesApplied
+impl core::marker::UnsafeUnpin for papo::ModesApplied
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ModesApplied
+impl core::panic::unwind_safe::UnwindSafe for papo::ModesApplied
 pub struct papo::Monitor
 impl papo::Monitor
 pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
@@ -2294,8 +2311,8 @@ pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::s
 pub fn papo::SetModes::unban(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::voice(self, impl core::convert::AsRef<str>) -> Self
 impl core::future::into_future::IntoFuture for papo::SetModes
-pub type papo::SetModes::IntoFuture = papo::RequestFuture<()>
-pub type papo::SetModes::Output = core::result::Result<(), papo::Error>
+pub type papo::SetModes::IntoFuture = papo::RequestFuture<papo::ModesApplied>
+pub type papo::SetModes::Output = core::result::Result<papo::ModesApplied, papo::Error>
 pub fn papo::SetModes::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::SetModes
 impl core::marker::Send for papo::SetModes

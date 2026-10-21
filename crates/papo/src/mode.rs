@@ -3,7 +3,7 @@ use std::future::IntoFuture;
 use papo_core::ResponseMatcher;
 use papo_proto::{AccountName, Casemapping, Isupport, Line, Mask, ModeKind, Nick};
 
-use crate::{Client, Error, InvalidInput, RequestFuture};
+use crate::{Client, Error, InvalidInput, ModeChange, RequestFuture};
 
 /// A validated extended-ban value.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -109,6 +109,14 @@ pub struct SetModes {
     changes: Vec<Change>,
 }
 
+/// Mode changes whose outcomes the server confirmed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct ModesApplied {
+    /// Changes confirmed by a matching server echo.
+    pub applied: Vec<ModeChange>,
+}
+
 impl SetModes {
     /// Adds a mode that takes no argument.
     #[must_use]
@@ -199,8 +207,8 @@ impl SetModes {
 }
 
 impl IntoFuture for SetModes {
-    type Output = Result<(), Error>;
-    type IntoFuture = RequestFuture<()>;
+    type Output = Result<ModesApplied, Error>;
+    type IntoFuture = RequestFuture<ModesApplied>;
 
     fn into_future(self) -> Self::IntoFuture {
         RequestFuture::new(async move {
@@ -221,7 +229,9 @@ impl IntoFuture for SetModes {
                     .await?;
                 crate::requests::empty(&response)?;
             }
-            Ok(())
+            Ok(ModesApplied {
+                applied: Vec::new(),
+            })
         })
     }
 }

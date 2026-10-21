@@ -57,7 +57,7 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-fn assert_invalid_message(result: &Result<(), Error>) {
+fn assert_invalid_message<T: std::fmt::Debug>(result: &Result<T, Error>) {
     let Err(Error::InvalidInput(InvalidInput::InvalidMessage(_))) = result else {
         panic!("expected Error::InvalidInput(InvalidInput::InvalidMessage(_)), got {result:?}");
     };

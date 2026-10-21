@@ -30,9 +30,9 @@ fn test_account(value: &str) -> crate::AccountName {
     crate::Casemapping::default().account(value)
 }
 
-async fn assert_action_refusal(
+async fn assert_action_refusal<T: std::fmt::Debug + Send + 'static>(
     server: &mut DuplexStream,
-    action: crate::RequestFuture<()>,
+    action: crate::RequestFuture<T>,
     outgoing: &str,
     incoming: &str,
     numeric: u16,
