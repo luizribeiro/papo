@@ -1741,10 +1741,10 @@ mod tests {
 
     #[test]
     fn maps_feature_changes() {
-        let event = forwarded(papo_core::Event::FeaturesChanged {
-            added: vec![Feature::Reactions, Feature::Typing],
-            removed: vec![Feature::History],
-        });
+        let event = forwarded(papo_core::Event::__features_changed(
+            vec![Feature::Reactions, Feature::Typing],
+            vec![Feature::History],
+        ));
         let changed = event.as_features_changed().unwrap();
         assert_eq!(changed.added, [Feature::Reactions, Feature::Typing]);
         assert_eq!(changed.removed, [Feature::History]);
@@ -1752,10 +1752,10 @@ mod tests {
 
     #[test]
     fn maps_casemapping_changes() {
-        let event = forwarded(papo_core::Event::CasemappingChanged {
-            old: Casemapping::Ascii,
-            new: Casemapping::Rfc1459Strict,
-        });
+        let event = forwarded(papo_core::Event::__casemapping_changed(
+            Casemapping::Ascii,
+            Casemapping::Rfc1459Strict,
+        ));
         let changed = event.as_casemapping_changed().unwrap();
         assert_eq!(changed.old, Casemapping::Ascii);
         assert_eq!(changed.new, Casemapping::Rfc1459Strict);
@@ -1763,13 +1763,13 @@ mod tests {
 
     #[test]
     fn maps_invitation_source_details() {
-        let event = forwarded(papo_core::Event::Invited {
-            channel: Casemapping::default().channel("#papo"),
-            subject: Casemapping::default().nick("papo"),
-            actor: "emily!~emily@localhost".to_owned(),
-            authorship: papo_core::Authorship::Other,
-            subject_authorship: papo_core::Authorship::Own,
-        });
+        let event = forwarded(papo_core::Event::__invited(
+            Casemapping::default().channel("#papo"),
+            Casemapping::default().nick("papo"),
+            "emily!~emily@localhost".to_owned(),
+            papo_core::Authorship::Other,
+            papo_core::Authorship::Own,
+        ));
         let invited = event.as_invited().unwrap();
         assert_eq!(invited.channel, "#papo");
         assert_eq!(invited.subject, "papo");
@@ -1784,15 +1784,15 @@ mod tests {
     #[test]
     fn forwarded_names_keep_the_core_casemapping() {
         let CoreEvent::Forward(Event::Joined(joined)) = from_core_with_mapping(
-            papo_core::Event::Joined {
-                envelope: papo_core::LineEnvelope::default(),
-                channel: Casemapping::Ascii.channel("#Papo[dev]"),
-                actor: "Alice[bot]!~a@cloak.example".to_owned(),
-                account: Account::Unknown,
-                realname: None,
-                nick: Casemapping::Ascii.nick("Alice[bot]"),
-                authorship: papo_core::Authorship::Other,
-            },
+            papo_core::Event::__joined(
+                papo_core::LineEnvelope::default(),
+                "Alice[bot]!~a@cloak.example".to_owned(),
+                Account::Unknown,
+                None,
+                Casemapping::Ascii.channel("#Papo[dev]"),
+                Casemapping::Ascii.nick("Alice[bot]"),
+                papo_core::Authorship::Other,
+            ),
             Casemapping::Rfc1459,
             UNIX_EPOCH,
         ) else {
@@ -2070,18 +2070,12 @@ mod tests {
     #[test]
     fn maps_account_creation_results() {
         assert!(matches!(
-            forwarded(papo_core::Event::AccountCreated {
-                account: Casemapping::default().account("alice"),
-                logged_in: true,
-            }),
+            forwarded(papo_core::Event::__account_created(Casemapping::default().account("alice"), true)),
             Event::AccountCreation(crate::AccountCreation::Created { account })
                 if account == "alice"
         ));
         assert!(matches!(
-            forwarded(papo_core::Event::VerificationRequired {
-                account: Casemapping::default().account("alice"),
-                message: "Verification code sent".into(),
-            }),
+            forwarded(papo_core::Event::__verification_required(Casemapping::default().account("alice"), "Verification code sent".into())),
             Event::AccountCreation(crate::AccountCreation::VerificationRequired {
                 account,
                 message,
@@ -2093,13 +2087,7 @@ mod tests {
     #[test]
     fn maps_channel_renames() {
         assert!(matches!(
-            forwarded(papo_core::Event::ChannelRenamed {
-                old: Casemapping::default().channel("#rust"),
-                new: Casemapping::default().channel("#rust-lang"),
-                actor: "alice!a@localhost".into(),
-                authorship: papo_core::Authorship::Other,
-                reason: Some("Project renamed".into()),
-            }),
+            forwarded(papo_core::Event::__channel_renamed(Casemapping::default().channel("#rust"), Casemapping::default().channel("#rust-lang"), "alice!a@localhost".into(), papo_core::Authorship::Other, Some("Project renamed".into()))),
             Event::ChannelRenamed(renamed)
                 if renamed.old == "#rust"
                     && renamed.new == "#rust-lang"
@@ -2108,13 +2096,7 @@ mod tests {
         ));
 
         assert!(matches!(
-            forwarded(papo_core::Event::ChannelRenamed {
-                old: Casemapping::default().channel("#rust"),
-                new: Casemapping::default().channel("#rust-lang"),
-                actor: "ergo.test".into(),
-                authorship: papo_core::Authorship::Other,
-                reason: None,
-            }),
+            forwarded(papo_core::Event::__channel_renamed(Casemapping::default().channel("#rust"), Casemapping::default().channel("#rust-lang"), "ergo.test".into(), papo_core::Authorship::Other, None)),
             Event::ChannelRenamed(renamed)
                 if matches!(renamed.actor, Source::Server { ref name, .. } if name == "ergo.test")
                     && renamed.reason.is_none()
@@ -2124,10 +2106,10 @@ mod tests {
     #[cfg(feature = "unstable")]
     #[test]
     fn maps_bouncer_network_updates() {
-        let event = forwarded(papo_core::Event::BouncerNetworkChanged {
-            id: papo_core::NetworkId::from("42"),
-            network: None,
-        });
+        let event = forwarded(papo_core::Event::__bouncer_network_changed(
+            papo_core::NetworkId::from("42"),
+            None,
+        ));
         let changed = event.as_bouncer_network_changed().unwrap();
         assert_eq!(changed.id, "42");
         assert!(changed.network.is_none());
@@ -2136,12 +2118,7 @@ mod tests {
     #[test]
     fn maps_metadata_events() {
         assert!(matches!(
-            forwarded(papo_core::Event::MetadataChanged {
-                subject: papo_core::Subject::Channel(Casemapping::default().channel("#papo")),
-                key: "pronouns".into(),
-                value: Some("they/them".into()),
-                visibility: Visibility::Restricted("members".into()),
-            }),
+            forwarded(papo_core::Event::__metadata_changed(papo_core::Subject::Channel(Casemapping::default().channel("#papo")), "pronouns".into(), Some("they/them".into()), Visibility::Restricted("members".into()))),
             Event::MetadataChanged(changed)
                 if matches!(changed.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && changed.key == "pronouns"
@@ -2149,22 +2126,22 @@ mod tests {
                     && matches!(changed.visibility, Visibility::Restricted(ref policy) if policy == "members")
         ));
         assert!(matches!(
-            forwarded(papo_core::Event::MetadataChanged {
-                subject: papo_core::Subject::User(Casemapping::default().nick("alice")),
-                key: "avatar".into(),
-                value: None,
-                visibility: Visibility::Public,
-            }),
+            forwarded(papo_core::Event::__metadata_changed(
+                papo_core::Subject::User(Casemapping::default().nick("alice")),
+                "avatar".into(),
+                None,
+                Visibility::Public
+            )),
             Event::MetadataChanged(MetadataChanged {
                 visibility: Visibility::Public,
                 ..
             })
         ));
         assert!(matches!(
-            from_core(papo_core::Event::MetadataSyncLater {
-                target: "alice".into(),
-                retry_after: Some(Duration::from_secs(90)),
-            }),
+            from_core(papo_core::Event::__metadata_sync_later(
+                "alice".into(),
+                Some(Duration::from_secs(90))
+            )),
             CoreEvent::Unknown
         ));
     }
@@ -2211,15 +2188,15 @@ mod tests {
 
     #[test]
     fn maps_joined() {
-        let event = forwarded(papo_core::Event::Joined {
-            envelope: papo_core::LineEnvelope::default(),
-            channel: Casemapping::default().channel("#papo"),
-            nick: Casemapping::default().nick("alice"),
-            actor: "alice!~a@host".to_owned(),
-            account: Account::LoggedIn(Casemapping::default().account("alice")),
-            realname: Some("Alice Liddell".to_owned()),
-            authorship: papo_core::Authorship::Other,
-        });
+        let event = forwarded(papo_core::Event::__joined(
+            papo_core::LineEnvelope::default(),
+            "alice!~a@host".to_owned(),
+            Account::LoggedIn(Casemapping::default().account("alice")),
+            Some("Alice Liddell".to_owned()),
+            Casemapping::default().channel("#papo"),
+            Casemapping::default().nick("alice"),
+            papo_core::Authorship::Other,
+        ));
         let joined = event.as_joined().unwrap();
         assert_eq!(joined.channel, "#papo");
         assert_eq!(joined.actor.nick().map(AsRef::as_ref), Some("alice"));
@@ -2253,9 +2230,7 @@ mod tests {
     #[test]
     fn maps_channel_synced() {
         assert!(matches!(
-            forwarded(papo_core::Event::ChannelSynced {
-                channel: Casemapping::default().channel("#papo")
-            }),
+            forwarded(papo_core::Event::__channel_synced(Casemapping::default().channel("#papo"))),
             Event::ChannelSynced(synced) if synced.channel == "#papo"
         ));
     }
@@ -2263,9 +2238,7 @@ mod tests {
     #[test]
     fn maps_members_refreshed() {
         assert!(matches!(
-            forwarded(papo_core::Event::MembersRefreshed {
-                channel: Casemapping::default().channel("#papo")
-            }),
+            forwarded(papo_core::Event::__members_refreshed(Casemapping::default().channel("#papo"))),
             Event::MembersRefreshed(refreshed) if refreshed.channel == "#papo"
         ));
     }
@@ -2273,14 +2246,14 @@ mod tests {
     #[test]
     fn maps_parted() {
         assert!(matches!(
-            forwarded(papo_core::Event::Parted {
-                envelope: papo_core::LineEnvelope::default(),
-                actor: "emily!~emily@cloak.example".into(),
-                channel: Casemapping::default().channel("#papo"),
-                nick: Casemapping::default().nick("emily"),
-                reason: Some("Leaving for lunch".into()),
-                authorship: papo_core::Authorship::Other,
-            }),
+            forwarded(papo_core::Event::__parted(
+                papo_core::LineEnvelope::default(),
+                Casemapping::default().channel("#papo"),
+                "emily!~emily@cloak.example".into(),
+                Casemapping::default().nick("emily"),
+                Some("Leaving for lunch".into()),
+                papo_core::Authorship::Other,
+            )),
             Event::Parted(parted)
                 if parted.channel == "#papo"
                     && parted.nick == "emily"
