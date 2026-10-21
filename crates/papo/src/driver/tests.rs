@@ -6806,6 +6806,30 @@ async fn session_deadline_sends_keepalive_ping() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn ping_timeout_after_welcome_retries_normally() {
+    let settings = config()
+        .ping_interval(Duration::from_secs(30))
+        .ping_timeout(Duration::from_secs(120));
+    let (mut server, _client, mut events, driver, calls) =
+        reconnectable_stream(settings, Reconnect::exponential());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    tokio::time::advance(Duration::from_secs(30)).await;
+    client_line(&mut server, b"PING :papo-0\r\n").await;
+    tokio::time::advance(Duration::from_secs(90)).await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::PingTimeout,
+            reconnect_in: Some(delay),
+        })) if delay == Duration::from_millis(800)
+    ));
+    tokio::time::advance(Duration::from_millis(799)).await;
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    abort_task(driver).await;
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn client_reads_owned_state_snapshots() {
     let (mut server, client, mut events, driver) = scripted(config());
