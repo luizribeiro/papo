@@ -165,6 +165,7 @@ fn reports_one_rules_change_against_the_remembered_connection() {
             Event::CasemappingChanged {
                 old: Casemapping::Ascii,
                 new: Casemapping::Rfc1459Strict,
+                ..
             }
         )
     })
@@ -448,7 +449,7 @@ fn account_notify_tracks_login_and_logout() {
             );
         })
         .server(":dan!~dan@cloak.example ACCOUNT dan")
-        .event_until(|event| matches!(event, Event::AccountChanged { actor, nick, account } if actor == "dan!~dan@cloak.example" && nick == "dan" && account == &Account::LoggedIn(Casemapping::default().account("dan"))))
+        .event_until(|event| matches!(event, Event::AccountChanged { actor, nick, account, .. } if actor == "dan!~dan@cloak.example" && nick == "dan" && account == &Account::LoggedIn(Casemapping::default().account("dan"))))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().account(),
@@ -488,13 +489,11 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
         .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { actor, nick, away: Away::Away { message: Some(message) } } if actor == "dan!~dan@cloak.example" && nick == "dan" && message == "Gone to lunch"))
+        .event_until(|event| matches!(event, Event::AwayChanged { actor, nick, away: Away::Away { message: Some(message), .. }, .. } if actor == "dan!~dan@cloak.example" && nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
-                &Away::Away {
-                    message: Some("Gone to lunch".into())
-                }
+                &Away::__away_value(Some("Gone to lunch".into()))
             );
         })
         .server(":dan!~dan@cloak.example AWAY")
@@ -509,36 +508,30 @@ fn away_notify_separates_our_state_and_suppresses_repeated_messages() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "dan" && message == "Gone to lunch"))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, .. } if nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(session.state().away(), &Away::Present);
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
-                &Away::Away {
-                    message: Some("Gone to lunch".into())
-                }
+                &Away::__away_value(Some("Gone to lunch".into()))
             );
         })
         .server(":emily!em@127.0.0.1 AWAY :On call")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "emily" && message == "On call"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, .. } if nick == "emily" && message == "On call"))
         .inspect(|session| {
             assert_eq!(
                 session.state().away(),
-                &Away::Away {
-                    message: Some("On call".into())
-                }
+                &Away::__away_value(Some("On call".into()))
             );
         })
         .server(":emily!em@127.0.0.1 AWAY :On call")
         .no_event()
         .server(":emily!em@127.0.0.1 AWAY :Reviewing alerts")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "emily" && message == "Reviewing alerts"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, .. } if nick == "emily" && message == "Reviewing alerts"))
         .inspect(|session| {
             assert_eq!(
                 session.state().away(),
-                &Away::Away {
-                    message: Some("Reviewing alerts".into())
-                }
+                &Away::__away_value(Some("Reviewing alerts".into()))
             );
         })
         .ignore_rest();
@@ -550,11 +543,11 @@ fn away_notify_star_records_an_unspecified_away_state() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
         .server(":dan!~dan@cloak.example AWAY *")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None }, .. } if nick == "dan"))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None, .. }, .. } if nick == "dan"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
-                &Away::Away { message: None }
+                &Away::__away_value(None)
             );
         })
         .ignore_rest();
@@ -575,9 +568,7 @@ fn away_notify_immediately_after_join_records_initial_state() {
         .inspect(|session| {
             assert_eq!(
                 session.state().user("alice").unwrap().away(),
-                &Away::Away {
-                    message: Some("Working".into())
-                }
+                &Away::__away_value(Some("Working".into()))
             );
         })
         .ignore_rest();
@@ -589,13 +580,11 @@ fn whois_away_reply_records_the_message() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":ergo.test 301 emily dan :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "dan" && message == "Gone to lunch"))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, .. } if nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
-                &Away::Away {
-                    message: Some("Gone to lunch".into())
-                }
+                &Away::__away_value(Some("Gone to lunch".into()))
             );
         })
         .ignore_rest();
@@ -606,9 +595,9 @@ fn uncorrelated_away_numerics_report_an_unspecified_message() {
     Transcript::new(Config::default().nick("emily"))
         .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None }, .. } if nick == "emily"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None, .. }, .. } if nick == "emily"))
         .inspect(|session| {
-            assert_eq!(session.state().away(), &Away::Away { message: None });
+            assert_eq!(session.state().away(), &Away::__away_value(None));
         })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
         .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present, .. } if nick == "emily"))
@@ -630,13 +619,11 @@ fn own_away_confirmation_carries_the_requested_message() {
         })
         .client("AWAY :Reviewing the release notes")
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "emily" && message == "Reviewing the release notes"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, .. } if nick == "emily" && message == "Reviewing the release notes"))
         .inspect(|session| {
             assert_eq!(
                 session.state().away(),
-                &Away::Away {
-                    message: Some("Reviewing the release notes".into())
-                }
+                &Away::__away_value(Some("Reviewing the release notes".into()))
             );
         })
         .ignore_rest();
@@ -650,7 +637,7 @@ fn away_numerics_do_not_repeat_our_own_state_changes() {
             matches!(
                 event,
                 Event::AwayChanged {
-                    away: Away::Away { message: None },
+                    away: Away::Away { message: None, .. },
                     ..
                 }
             )
@@ -658,7 +645,7 @@ fn away_numerics_do_not_repeat_our_own_state_changes() {
         .server(":ergo.test 306 emily :You have been marked as being away")
         .no_event()
         .inspect(|session| {
-            assert_eq!(session.state().away(), &Away::Away { message: None });
+            assert_eq!(session.state().away(), &Away::__away_value(None));
         })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
         .event(|event| {
@@ -682,7 +669,7 @@ fn chghost_updates_shared_and_own_userhosts() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":dan!~dan@cloak.example CHGHOST dan account/dan")
-        .event_until(|event| matches!(event, Event::HostChanged { actor, nick, username, host } if actor == "dan!~dan@cloak.example" && nick == "dan" && username == "dan" && host == "account/dan"))
+        .event_until(|event| matches!(event, Event::HostChanged { actor, nick, username, host, .. } if actor == "dan!~dan@cloak.example" && nick == "dan" && username == "dan" && host == "account/dan"))
         .server(":emily!em@127.0.0.1 CHGHOST ~em users/emily")
         .event(|event| matches!(event, Event::HostChanged { nick, username, host, .. } if nick == "emily" && username == "~em" && host == "users/emily"))
         .inspect(|session| {
@@ -710,7 +697,7 @@ fn setname_updates_other_and_own_realnames() {
         .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily Garcia")
     .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
     .server(":dan!~dan@cloak.example SETNAME :Dan Garcia")
-    .event_until(|event| matches!(event, Event::RealnameChanged { actor, nick, realname } if actor == "dan!~dan@cloak.example" && nick == "dan" && realname == "Dan Garcia"))
+    .event_until(|event| matches!(event, Event::RealnameChanged { actor, nick, realname, .. } if actor == "dan!~dan@cloak.example" && nick == "dan" && realname == "Dan Garcia"))
     .server(":emily!em@127.0.0.1 SETNAME :Emily Smith")
     .event(|event| matches!(event, Event::RealnameChanged { nick, realname, .. } if nick == "emily" && realname == "Emily Smith"))
         .inspect(|session| {
@@ -757,7 +744,7 @@ fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
         .server(":ergo.test 353 emily = #papo :+alice!alice@staff.example")
         .server(":ergo.test 366 emily #papo :End of NAMES list")
         .event_until(
-            |event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"),
+            |event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"),
         )
         .client("MODE #papo")
         .client("WHO #papo")
@@ -1131,7 +1118,7 @@ fn no_implicit_names_requests_names_before_marking_the_channel_synced() {
         .server(":ergo.test 366 papo #papo :End of NAMES list")
         .client("MODE #papo")
         .client("WHO #papo %tcuhnfar,152")
-        .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+        .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
         .inspect(|session| assert!(session.state().channel("#papo").unwrap().is_synced()))
         .no_event();
 }
@@ -1155,7 +1142,7 @@ fn no_implicit_names_ignores_an_empty_implicit_end_before_the_requested_names() 
         .server(":inspircd.test 366 papo #papo :End of /NAMES list")
         .client("MODE #papo")
         .client("WHO #papo %tcuhnfar,152")
-        .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+        .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert!(channel.is_synced());
@@ -1179,7 +1166,7 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
         .server(":ergo.test 366 papo #Papo :End of NAMES list")
         .client("MODE #Papo")
         .client("WHO #Papo")
-        .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#Papo"))
+        .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#Papo"))
         .server(":solanum.example 324 papo #Papo +ntk secret")
         .server(":solanum.example 329 papo #Papo 1760529342")
         .inspect(|session| {
@@ -1314,7 +1301,8 @@ fn bounds_channels_and_members_with_one_warning_each() {
         matches!(
             event,
             Event::StateLimitReached {
-                limit: StateLimit::Channels
+                limit: StateLimit::Channels,
+                ..
             }
         )
     })
@@ -1325,7 +1313,8 @@ fn bounds_channels_and_members_with_one_warning_each() {
         matches!(
             event,
             Event::StateLimitReached {
-                limit: StateLimit::Members
+                limit: StateLimit::Members,
+                ..
             }
         )
     })
@@ -1374,11 +1363,11 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     .no_client()
     .advance(Duration::from_millis(500))
     .client("WHO #papo %tcuhnfar,152")
-    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+    .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
     .server(":ergo.test 354 emily 152 #papo em 127.0.0.1 emily H@ emily :Emily Garcia")
     .server(":ergo.test 354 emily 152 #papo ~dan account/dan dan GB+ dan :Daniel Garcia")
     .server(":ergo.test 315 emily #papo :End of WHO list")
-    .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#papo"))
+    .event(|event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#papo"))
     .inspect(|session| {
         let dan = session.state().user("dan").unwrap();
         assert_eq!(
@@ -1388,7 +1377,7 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
         assert_eq!(dan.username(), Some("~dan"));
         assert_eq!(dan.host(), Some("account/dan"));
         assert_eq!(dan.realname(), Some("Daniel Garcia"));
-        assert_eq!(dan.away(), &Away::Away { message: None });
+        assert_eq!(dan.away(), &Away::__away_value(None));
         assert!(dan.is_bot());
     })
     .server(":alice!~alice@staff.example JOIN #papo alice :Alice Smith")
@@ -1410,7 +1399,7 @@ fn never_skips_the_join_sweep_and_leaves_member_facts_unknown() {
     .server(":ergo.test 353 emily = #papo :@emily +dan")
     .server(":ergo.test 366 emily #papo :End of NAMES list")
     .client("MODE #papo")
-    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+    .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
     .no_client()
     .inspect(|session| {
         let dan = session.state().user("dan").unwrap();
@@ -1433,7 +1422,7 @@ fn manual_sweep_refreshes_member_facts_and_completes_at_end_of_who() {
     .server(":ergo.test 353 emily = #papo :@emily +dan")
     .server(":ergo.test 366 emily #papo :End of NAMES list")
     .client("MODE #papo")
-    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+    .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
     .update(|session| {
         session
             .request_with_matcher(
@@ -1446,7 +1435,7 @@ fn manual_sweep_refreshes_member_facts_and_completes_at_end_of_who() {
     .client("WHO #papo %tcuhnfar,152")
     .server(":ergo.test 354 emily 152 #papo ~dan account/dan dan G+ dan :Daniel Garcia")
     .server(":ergo.test 315 emily #papo :End of WHO list")
-    .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#papo"))
+    .event(|event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#papo"))
     .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 2))
     .inspect(|session| {
         let dan = session.state().user("dan").unwrap();
@@ -1454,7 +1443,7 @@ fn manual_sweep_refreshes_member_facts_and_completes_at_end_of_who() {
             dan.account(),
             &Account::LoggedIn(Casemapping::default().account("dan"))
         );
-        assert_eq!(dan.away(), &Away::Away { message: None });
+        assert_eq!(dan.away(), &Away::__away_value(None));
     })
     .no_event();
 }
@@ -1473,15 +1462,15 @@ fn below_members_sweeps_only_below_the_literal_boundary() {
     .server(":ergo.test 366 emily #small :End of NAMES list")
     .client("MODE #small")
     .client("WHO #small %tcuhnfar,152")
-    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#small"))
+    .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#small"))
     .server(":ergo.test 315 emily #small :End of WHO list")
-    .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#small"))
+    .event(|event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#small"))
     .server(":emily!em@127.0.0.1 JOIN #boundary")
     .event(|event| matches!(event, Event::Joined { channel, .. } if channel == "#boundary"))
     .server(":ergo.test 353 emily = #boundary :@emily +dan")
     .server(":ergo.test 366 emily #boundary :End of NAMES list")
     .client("MODE #boundary")
-    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#boundary"))
+    .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#boundary"))
     .no_client()
     .no_event();
 }
@@ -1496,17 +1485,19 @@ fn falls_back_to_plain_who_without_whox() {
         .server(":ergo.test 366 emily #papo :End of NAMES list")
         .client("MODE #papo")
         .client("WHO #papo")
-        .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+        .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
         .server(":ergo.test 352 emily #papo ~dan account/dan ergo.test dan GB+ :0 Daniel Garcia")
         .server(":ergo.test 315 emily #papo :End of WHO list")
-        .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#papo"))
+        .event(
+            |event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#papo"),
+        )
         .inspect(|session| {
             let dan = session.state().user("dan").unwrap();
             assert_eq!(dan.account(), &Account::Unknown);
             assert_eq!(dan.username(), Some("~dan"));
             assert_eq!(dan.host(), Some("account/dan"));
             assert_eq!(dan.realname(), Some("Daniel Garcia"));
-            assert_eq!(dan.away(), &Away::Away { message: None });
+            assert_eq!(dan.away(), &Away::__away_value(None));
             assert!(dan.is_bot());
         })
         .no_event();
@@ -1524,7 +1515,10 @@ fn who_here_flags_clear_a_previous_away_state() {
             matches!(
                 event,
                 Event::AwayChanged {
-                    away: Away::Away { message: Some(_) },
+                    away: Away::Away {
+                        message: Some(_),
+                        ..
+                    },
                     ..
                 }
             )
@@ -1550,7 +1544,10 @@ fn who_gone_flags_preserve_a_known_away_message() {
             matches!(
                 event,
                 Event::AwayChanged {
-                    away: Away::Away { message: Some(_) },
+                    away: Away::Away {
+                        message: Some(_),
+                        ..
+                    },
                     ..
                 }
             )
@@ -1563,9 +1560,7 @@ fn who_gone_flags_preserve_a_known_away_message() {
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
-                &Away::Away {
-                    message: Some("Gone to lunch".into())
-                }
+                &Away::__away_value(Some("Gone to lunch".into()))
             );
         })
         .no_event();
@@ -1605,7 +1600,7 @@ fn whox_replies_require_our_token_and_an_active_sweep() {
         .server(":ergo.test 354 emily 999 #papo dan cloak.example dan H dan :Daniel Garcia")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "354"))
         .server(":ergo.test 315 emily #papo :End of WHO list")
-        .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#papo"))
+        .event(|event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#papo"))
         .server(":ergo.test 354 emily 152 #papo alice users.example alice H alice :Alice Smith")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "354"))
         .inspect(|session| {
