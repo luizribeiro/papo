@@ -301,7 +301,7 @@ mod tests {
         wire.close().await;
         let delay = next_disconnected(&mut events)
             .await
-            .retry_in
+            .reconnect_in
             .expect("disconnect should retry");
         tokio::time::advance(delay).await;
         wire.register(&[]).await;

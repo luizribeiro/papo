@@ -392,20 +392,23 @@ pub struct Disconnected {
     /// Why the connection ended.
     pub cause: DisconnectCause,
     /// Delay before the next connection attempt, when one is scheduled.
-    pub retry_in: Option<Duration>,
+    pub reconnect_in: Option<Duration>,
 }
 
 impl Disconnected {
     /// Creates a disconnected-operation description.
     #[must_use]
-    pub const fn new(cause: DisconnectCause, retry_in: Option<Duration>) -> Self {
-        Self { cause, retry_in }
+    pub const fn new(cause: DisconnectCause, reconnect_in: Option<Duration>) -> Self {
+        Self {
+            cause,
+            reconnect_in,
+        }
     }
 
     /// Whether another connection attempt is scheduled.
     #[must_use]
     pub const fn is_retrying(&self) -> bool {
-        self.retry_in.is_some()
+        self.reconnect_in.is_some()
     }
 }
 
@@ -621,10 +624,10 @@ mod tests {
             cause: DisconnectCause::Server {
                 message: "Closing Link: maintenance".into(),
             },
-            retry_in: Some(Duration::from_secs(8)),
+            reconnect_in: Some(Duration::from_secs(8)),
         };
         assert!(disconnected.to_string().contains("maintenance"));
-        assert_eq!(disconnected.retry_in, Some(Duration::from_secs(8)));
+        assert_eq!(disconnected.reconnect_in, Some(Duration::from_secs(8)));
     }
 
     #[test]
@@ -802,7 +805,7 @@ mod tests {
             Error::disconnected_close(papo_core::CloseKind::PingTimeout, "ping timeout".into()),
             Error::Disconnected(Disconnected {
                 cause: DisconnectCause::PingTimeout,
-                retry_in: None,
+                reconnect_in: None,
             })
         ));
     }

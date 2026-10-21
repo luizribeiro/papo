@@ -740,7 +740,7 @@ async fn quit(s: Scenario) -> papo_testing::Result<()> {
             quit_unacknowledged: false,
         }
     );
-    assert_eq!(disconnected.retry_in, None);
+    assert_eq!(disconnected.reconnect_in, None);
     assert_eq!(observed.nick, alice_nick);
     let observed_reason = observed.reason.as_deref().unwrap();
     assert!(observed_reason == reason || observed_reason == format!("Quit: {reason}"));

@@ -75,7 +75,7 @@ async fn high_level_client_uses_the_browser_websocket() {
         matches!(
             event,
             ClientEvent::Disconnected(disconnected)
-                if disconnected.retry_in.is_some_and(|delay| !delay.is_zero())
+                if disconnected.reconnect_in.is_some_and(|delay| !delay.is_zero())
         )
     })
     .await;

@@ -341,7 +341,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Ctcp
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Ctcp
 #[non_exhaustive] pub struct papo::event::Disconnected
 pub papo::event::Disconnected::cause: papo::DisconnectCause
-pub papo::event::Disconnected::retry_in: core::option::Option<core::time::Duration>
+pub papo::event::Disconnected::reconnect_in: core::option::Option<core::time::Duration>
 impl papo::Disconnected
 pub const fn papo::Disconnected::is_retrying(&self) -> bool
 pub const fn papo::Disconnected::new(papo::DisconnectCause, core::option::Option<core::time::Duration>) -> Self
@@ -1820,7 +1820,7 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::ConnectError
 impl !core::panic::unwind_safe::UnwindSafe for papo::ConnectError
 #[non_exhaustive] pub struct papo::Disconnected
 pub papo::Disconnected::cause: papo::DisconnectCause
-pub papo::Disconnected::retry_in: core::option::Option<core::time::Duration>
+pub papo::Disconnected::reconnect_in: core::option::Option<core::time::Duration>
 impl papo::Disconnected
 pub const fn papo::Disconnected::is_retrying(&self) -> bool
 pub const fn papo::Disconnected::new(papo::DisconnectCause, core::option::Option<core::time::Duration>) -> Self

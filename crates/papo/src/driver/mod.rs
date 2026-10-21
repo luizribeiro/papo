@@ -1852,13 +1852,13 @@ fn finish(events: EventSink, end: ConnectionEnd, _will_retry: bool) -> Result<()
     }
 }
 
-fn disconnected_event(error: &Error, retry_in: Option<Duration>) -> crate::Disconnected {
+fn disconnected_event(error: &Error, reconnect_in: Option<Duration>) -> crate::Disconnected {
     let cause = match error {
         Error::Disconnected(disconnected) => disconnected.cause.clone(),
         Error::Connect(error) => crate::DisconnectCause::Connect(error.clone()),
         _ => crate::DisconnectCause::connection_lost("transport ended unexpectedly"),
     };
-    crate::Disconnected::new(cause, retry_in)
+    crate::Disconnected::new(cause, reconnect_in)
 }
 
 fn now() -> Instant {

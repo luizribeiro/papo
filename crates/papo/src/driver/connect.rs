@@ -188,12 +188,12 @@ pub(super) async fn run_plan(
             sts_required = true;
         }
         let reconnect_now = end.reconnect_now;
-        let retry_in = if upgrade_port.is_some() || reconnect_now {
+        let reconnect_in = if upgrade_port.is_some() || reconnect_now {
             Duration::ZERO
         } else {
             retry_delay(reconnect, attempts, entropy.as_mut())
         };
-        let disconnected = super::disconnected_event(&end.error, Some(retry_in));
+        let disconnected = super::disconnected_event(&end.error, Some(reconnect_in));
         if matches!(disconnected.cause, crate::DisconnectCause::SlowConsumer) {
             end.pending_events.clear();
         }
@@ -413,8 +413,8 @@ async fn connect_or_wait(
     {
         return ConnectionAttempt::Failed(error);
     }
-    let retry_in = retry_delay(reconnect, attempts, entropy);
-    let disconnected = super::disconnected_event(&error, Some(retry_in));
+    let reconnect_in = retry_delay(reconnect, attempts, entropy);
+    let disconnected = super::disconnected_event(&error, Some(reconnect_in));
     *last_disconnect = Some(disconnected.cause.clone());
     if !enqueue_event(
         events,
@@ -637,7 +637,7 @@ async fn wait_before_retry(
     defaults: &mut PostConnect,
     disconnected: crate::Disconnected,
 ) -> bool {
-    let deadline = now() + disconnected.retry_in.unwrap_or_default();
+    let deadline = now() + disconnected.reconnect_in.unwrap_or_default();
     let sleep = crate::rt::sleep_until(deadline);
     tokio::pin!(sleep);
     loop {

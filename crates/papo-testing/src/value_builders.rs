@@ -46,8 +46,8 @@ impl ErrorBuilder {
 
     /// Starts a disconnect error with an optional retry delay.
     #[must_use]
-    pub const fn disconnected(cause: DisconnectCause, retry_in: Option<Duration>) -> Self {
-        Self(Error::Disconnected(Disconnected::new(cause, retry_in)))
+    pub const fn disconnected(cause: DisconnectCause, reconnect_in: Option<Duration>) -> Self {
+        Self(Error::Disconnected(Disconnected::new(cause, reconnect_in)))
     }
 
     /// Starts a numeric server-refusal error.
