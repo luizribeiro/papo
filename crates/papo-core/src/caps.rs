@@ -368,3 +368,24 @@ fn split_requests(names: Vec<String>) -> Vec<Vec<String>> {
     }
     requests
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn advertised_caps_preserve_values_and_prefer_published_spellings() {
+        let mut caps = Caps::default();
+        caps.insert_advertised("server-time", Some("iso8601".to_owned()));
+        assert_eq!(
+            caps.advertised.get("server-time"),
+            Some(&Some("iso8601".to_owned()))
+        );
+
+        caps.insert_advertised("chathistory", Some("legacy-value".to_owned()));
+        caps.insert_advertised("draft/chathistory", None);
+        let (name, value) = caps.advertised.get_key_value(&cap::CHATHISTORY).unwrap();
+        assert_eq!(name.as_str(), "draft/chathistory");
+        assert_eq!(value, &None);
+    }
+}
