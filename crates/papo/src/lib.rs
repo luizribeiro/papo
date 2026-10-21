@@ -27,7 +27,6 @@ mod error;
 mod event_impl;
 mod ext;
 pub mod fail;
-pub mod format;
 #[cfg(not(browser))]
 mod io_compat;
 pub mod isupport;
@@ -104,7 +103,7 @@ pub use papo_core::{Unsupported, UnsupportedReason};
 #[doc(inline)]
 pub use papo_proto::{
     AccountName, Casemapping, ChannelName, Color, FormatBuilder, InvalidIdentifier, Line, Mask,
-    MessageId, MetadataKey, Nick, ServerName, Span, Style, Typing,
+    MessageId, MetadataKey, Nick, ServerName, Span, Style, Typing, strip_formatting,
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};

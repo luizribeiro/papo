@@ -42,6 +42,7 @@ pub use papo::Unsupported
 pub use papo::UnsupportedReason
 pub use papo::User
 pub use papo::Visibility
+pub use papo::strip_formatting
 pub mod papo::bot
 #[non_exhaustive] pub enum papo::bot::ReplyStatus
 pub papo::bot::ReplyStatus::Dropped
@@ -997,8 +998,6 @@ pub const papo::fail::UNKNOWN_MSGID: &str
 pub const papo::fail::UNKNOWN_TYPE: &str
 pub const papo::fail::VALUE_INVALID: &str
 pub const papo::fail::WEAK_PASSWORD: &str
-pub mod papo::format
-pub use papo::format::strip
 pub mod papo::isupport
 pub use papo::isupport::Advertised
 pub use papo::isupport::ChanModes

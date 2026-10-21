@@ -19,6 +19,11 @@ fn inspect_event(event: papo::Event) {
 
 #[test]
 fn everyday_api_is_nameable_from_the_facade() {
+    assert_eq!(
+        papo::strip_formatting("\x02bold\x02 and \x0312blue"),
+        "bold and blue"
+    );
+
     let channel = papo::Casemapping::Rfc1459.channel("#papo");
     let builder: papo::Builder = papo::Client::builder("irc.example.net")
         .nick("emily")
