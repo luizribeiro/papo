@@ -1,22 +1,22 @@
-//! Echo bot behavior against the runner-managed Ergo server.
+//! Reaction bot behavior against the runner-managed Ergo server.
 #![cfg(not(target_family = "wasm"))]
 
 use std::time::Duration;
 
-use papo::{Client, Event, Message};
+use papo::{Client, Event};
 use papo_test_server::{from_env, unique};
 use tokio::time::timeout;
 
 const CHANNEL: &str = "#papo";
 
 #[tokio::test(flavor = "current_thread")]
-async fn replies_reacts_and_preserves_multiple_lines() {
+async fn reacts_to_live_messages() {
     timeout(Duration::from_secs(20), async {
         let server = from_env();
-        let bot_nick = unique("papo-echo-bot");
+        let bot_nick = unique("papo-react-bot");
         let server_url = format!("irc://{}", server.plaintext_addr());
         let (user, mut events) = Client::builder(server_url.clone())
-            .nick(unique("papo-echo-user"))
+            .nick(unique("papo-react-user"))
             .autojoin([CHANNEL])
             .connect()
             .await
@@ -27,7 +27,7 @@ async fn replies_reacts_and_preserves_multiple_lines() {
         .await;
 
         let _bot = Child(
-            std::process::Command::new(env!("CARGO_BIN_EXE_echo-bot"))
+            std::process::Command::new(env!("CARGO_BIN_EXE_react-bot"))
                 .arg(server_url)
                 .env("IRC_NICK", &bot_nick)
                 .spawn()
@@ -39,15 +39,7 @@ async fn replies_reacts_and_preserves_multiple_lines() {
         )
         .await;
 
-        let sent = user.privmsg(CHANNEL, "hello from Ergo").await.unwrap();
-        let reply = wait_message(&mut events, "hello from Ergo").await;
-        assert_eq!(reply.reply_to(), sent.msgid.as_ref());
-
-        let lines = "first line\nsecond line\nthird line";
-        user.privmsg(CHANNEL, lines).await.unwrap();
-        wait_message(&mut events, lines).await;
-
-        let sent = user.privmsg(CHANNEL, "!react").await.unwrap();
+        let sent = user.privmsg(CHANNEL, "ship it").await.unwrap();
         let reaction = wait_for(&mut events, |event| matches!(event, Event::Reacted(_))).await;
         let Event::Reacted(reaction) = reaction else {
             unreachable!();
@@ -55,10 +47,10 @@ async fn replies_reacts_and_preserves_multiple_lines() {
         assert_eq!(&reaction.message, sent.msgid.as_ref().unwrap());
         assert_eq!(reaction.reaction, "👍");
 
-        user.quit("echo bot test complete").await.unwrap();
+        user.quit("reaction bot test complete").await.unwrap();
     })
     .await
-    .expect("live echo bot test did not finish within 20 seconds");
+    .expect("live reaction bot test did not finish within 20 seconds");
 }
 
 struct Child(std::process::Child);
@@ -77,14 +69,4 @@ async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> b
         }
     }
     panic!("driver stopped before the expected event");
-}
-
-async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
-    loop {
-        match events.next().await {
-            Some(Event::Message(message)) if message.text == text => return *message,
-            Some(_) => {}
-            None => panic!("driver stopped while waiting for {text}"),
-        }
-    }
 }

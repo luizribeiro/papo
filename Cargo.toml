@@ -11,7 +11,7 @@ members = [
   "examples/ping-bot",
   "examples/lurker",
   "examples/admin-bot",
-  "examples/echo-bot",
+  "examples/react-bot",
   "examples/graceful-shutdown",
   "examples/catchup",
   "examples/create-account",
