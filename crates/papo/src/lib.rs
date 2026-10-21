@@ -16,6 +16,7 @@
 //!
 //! while let Some(event) = events.next().await {
 //!     if let Event::Message(message) = event
+//!         && message.is_live()
 //!         && message.text == "!ping"
 //!         && let Err(error) = client.reply(&message, "pong").await
 //!     {
