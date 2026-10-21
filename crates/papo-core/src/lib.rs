@@ -3438,6 +3438,10 @@ impl Session {
     }
 
     /// Returns the `IRCv3` capabilities enabled on this connection.
+    ///
+    /// Look up a capability with [`&Cap`](cap::Cap), using either its draft or final spelling, to
+    /// treat aliases as the same capability. A plain `&str` lookup only matches the spelling the
+    /// server used.
     #[must_use]
     pub fn caps(&self) -> &Capabilities {
         self.caps.enabled()

@@ -302,6 +302,10 @@ impl State {
     }
 
     /// Returns the capabilities enabled on the current connection.
+    ///
+    /// Look up a capability with [`&Cap`](crate::Cap), using either its draft or final
+    /// spelling, to treat aliases as the same capability. A plain `&str` lookup only matches the
+    /// spelling the server used.
     #[must_use]
     pub const fn caps(&self) -> &Capabilities {
         &self.caps
