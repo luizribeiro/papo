@@ -331,6 +331,39 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn raw_request_resolves_with_labelled_reply_lines() {
+        let (client, _events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test")
+                .nick("papo-wire")
+                .rate_limit(papo::RateLimit::unlimited())
+                .reconnect(papo::Reconnect::never()),
+        );
+        wire.register(&["batch", "labeled-response"]).await;
+        let request = tokio::spawn(async move {
+            client
+                .request_raw(papo::Line::new("MOTD", Vec::<String>::new()))
+                .await
+        });
+        assert_eq!(wire.next_sent().await, "@label=0 MOTD");
+
+        wire.server("@label=0 :offline.test BATCH +motd labeled-response")
+            .await;
+        wire.server("@batch=motd :offline.test 375 papo-wire :- offline.test Message of the Day -")
+            .await;
+        wire.server("@batch=motd :offline.test 372 papo-wire :- Welcome to ErgoTest")
+            .await;
+        wire.server("@batch=motd :offline.test 376 papo-wire :End of /MOTD command")
+            .await;
+        wire.server(":offline.test BATCH -motd").await;
+
+        let lines = request.await.unwrap().unwrap();
+        assert_eq!(
+            lines.iter().map(papo::Line::command).collect::<Vec<_>>(),
+            ["375", "372", "376"]
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
     async fn accepts_the_literal_server_line_bound() {
         let (_client, _events, mut wire) = wire(
             papo::Client::builder("irc://offline.test")
