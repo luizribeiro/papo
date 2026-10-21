@@ -332,6 +332,9 @@ fn triage_connection_end(
         }
         return ControlFlow::Break((end, true));
     }
+    if end.registered_at.is_none() {
+        end.error = end.login_error(true);
+    }
     if awaiting_registration {
         return ControlFlow::Break((end, true));
     }
@@ -550,6 +553,9 @@ pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::Clos
         Some(
             papo_core::CloseKind::SaslFailed
                 | papo_core::CloseKind::AccountRequired
+                | papo_core::CloseKind::PasswordIncorrect
+                | papo_core::CloseKind::ConnectionRestricted
+                | papo_core::CloseKind::Banned
                 | papo_core::CloseKind::WebIrcRejected
         )
     ) {

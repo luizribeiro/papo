@@ -798,18 +798,18 @@ async fn registration_connection_loss_is_a_connect_error() {
 
     assert!(matches!(
         within(waiting).await.unwrap(),
-        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Other
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Server
     ));
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
-        })) if error.kind() == crate::ConnectErrorKind::Other
+        })) if error.kind() == crate::ConnectErrorKind::Server
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Other
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Server
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
@@ -2291,6 +2291,11 @@ async fn account_required_cap_rejects_registration_without_sasl() {
 async fn terminal_numerics_have_specific_connect_errors() {
     for (line, expected, diagnostic) in [
         (
+            ":solanum.example 463 * :No more connections allowed in your connection class\r\n",
+            crate::ConnectErrorKind::Server,
+            "No more connections allowed in your connection class",
+        ),
+        (
             ":ergo.test 464 * :Password incorrect\r\n",
             crate::ConnectErrorKind::PasswordIncorrect,
             "Password incorrect",
@@ -2326,6 +2331,82 @@ async fn terminal_numerics_have_specific_connect_errors() {
             Err(Error::Connect(error)) if error.kind() == expected
         ));
     }
+}
+
+#[test]
+fn fatal_close_kinds_are_fixed_by_protocol_evidence() {
+    for kind in [
+        papo_core::CloseKind::SaslFailed,
+        papo_core::CloseKind::AccountRequired,
+        papo_core::CloseKind::PasswordIncorrect,
+        papo_core::CloseKind::ConnectionRestricted,
+        papo_core::CloseKind::Banned,
+        papo_core::CloseKind::WebIrcRejected,
+    ] {
+        assert!(super::is_fatal_failure(
+            &Error::connection_lost(),
+            Some(kind)
+        ));
+    }
+    for kind in [
+        papo_core::CloseKind::ServerError,
+        papo_core::CloseKind::SaslUnavailable,
+        papo_core::CloseKind::NickCandidatesExhausted,
+    ] {
+        assert!(!super::is_fatal_failure(
+            &Error::connection_lost(),
+            Some(kind)
+        ));
+    }
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn live_ban_after_welcome_does_not_reconnect() {
+    let (stream, mut server) = tokio::io::duplex(4096);
+    let stream = Arc::new(Mutex::new(Some(Box::new(stream) as super::BoxConnection)));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let connector: super::Connector = Arc::new({
+        let calls = Arc::clone(&calls);
+        move |_, _| {
+            calls.fetch_add(1, Ordering::Relaxed);
+            let stream = stream.lock().unwrap().take().unwrap();
+            Box::pin(async move { Ok(stream) })
+        }
+    });
+    let (_client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect::default(),
+        Reconnect::exponential(),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":solanum.example 465 papo-driver :You are banned from this server\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Connect(error),
+            reconnect_in: None,
+        })) if error.kind() == crate::ConnectErrorKind::Banned
+    ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Banned
+    ));
+    tokio::time::advance(Duration::from_secs(300)).await;
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -3032,7 +3113,7 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(disconnected!())
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Server
     ));
     let disconnect_finished = SystemTime::now();
     let refreshed = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
@@ -3103,7 +3184,7 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(disconnected!())
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Server
     ));
 }
 
@@ -3162,7 +3243,7 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(disconnected!())
+        Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Server
     ));
 }
 

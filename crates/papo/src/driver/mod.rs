@@ -803,6 +803,12 @@ impl ConnectionEnd {
                 crate::ConnectErrorKind::Server,
                 self.reason.clone(),
             )),
+            Error::Disconnected(crate::Disconnected {
+                cause: crate::DisconnectCause::ConnectionLost { message },
+                ..
+            }) if message == "server closed the connection" => Error::Connect(
+                crate::ConnectError::login(crate::ConnectErrorKind::Server, self.reason.clone()),
+            ),
             Error::Disconnected(_) if awaiting_registration => Error::Connect(
                 crate::ConnectError::login(crate::ConnectErrorKind::Other, self.reason.clone()),
             ),

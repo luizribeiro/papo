@@ -528,7 +528,8 @@ impl Error {
             papo_core::CloseKind::AccountRequired => Some(ConnectErrorKind::AccountRequired),
             papo_core::CloseKind::PasswordIncorrect => Some(ConnectErrorKind::PasswordIncorrect),
             papo_core::CloseKind::Banned => Some(ConnectErrorKind::Banned),
-            papo_core::CloseKind::NickCandidatesExhausted => Some(ConnectErrorKind::Server),
+            papo_core::CloseKind::ConnectionRestricted
+            | papo_core::CloseKind::NickCandidatesExhausted => Some(ConnectErrorKind::Server),
             _ => None,
         };
         if let Some(kind) = connect_kind {
