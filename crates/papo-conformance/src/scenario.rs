@@ -191,14 +191,8 @@ impl Scenario {
     }
 
     fn configure_named_at(&self, name: String, endpoint: impl IntoEndpoint) -> Result<Builder> {
-        #[cfg(not(target_family = "wasm"))]
-        let bouncer_login = self
-            .server
-            .bouncer()
-            .map(|bouncer| bouncer.provision_network(&name))
-            .transpose()?;
+        let bouncer_login = self.server.bouncer_login(&name)?;
         let builder = Self::builder_named_at(name, endpoint);
-        #[cfg(not(target_family = "wasm"))]
         let builder = match bouncer_login {
             Some(login) => builder.sasl(Sasl::plain(login.username(), login.password())),
             None => builder,

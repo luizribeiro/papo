@@ -354,20 +354,17 @@ fn connect_client(
         }
         builder = builder.request_caps(wanted_caps);
     }
-    #[cfg(not(target_family = "wasm"))]
-    if let Some(bouncer) = server.bouncer() {
-        let login = bouncer
-            .provision_network(nick)
-            .map_err(|error| error.to_string())?;
-        builder = builder
-            .username(login.username())
-            .password(login.password());
-    } else if let Some(sasl) = sasl {
-        builder = builder.sasl(sasl);
-    }
-    #[cfg(target_family = "wasm")]
-    if let Some(sasl) = sasl {
-        builder = builder.sasl(sasl);
+    let bouncer = server
+        .bouncer_login(nick)
+        .map_err(|error| error.to_string())?;
+    match (bouncer, sasl) {
+        (Some(login), _) => {
+            builder = builder
+                .username(login.username())
+                .password(login.password());
+        }
+        (None, Some(sasl)) => builder = builder.sasl(sasl),
+        (None, None) => {}
     }
     let (client, events, driver) = builder.build();
     Ok(Connection {

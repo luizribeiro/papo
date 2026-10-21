@@ -2,11 +2,9 @@ use std::{
     env, fmt, io,
     net::SocketAddr,
     path::PathBuf,
+    process::{Command, Stdio},
     sync::atomic::{AtomicU64, Ordering},
 };
-
-#[cfg(not(target_family = "wasm"))]
-use std::process::{Command, Stdio};
 
 static NEXT_NAME: AtomicU64 = AtomicU64::new(0);
 const RUNNER_HINT: &str = "run tests through the dev shell's test runner";
@@ -110,6 +108,23 @@ impl ServerInfo {
     pub const fn bouncer(&self) -> Option<&BouncerInfo> {
         self.bouncer.as_ref()
     }
+
+    /// Creates a managed bouncer network and returns its credentials when available.
+    ///
+    /// Process-owned bouncer provisioning is unavailable on wasm targets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the network name is invalid or soju rejects it.
+    pub fn bouncer_login(&self, nick: &str) -> io::Result<Option<BouncerLogin>> {
+        if cfg!(target_family = "wasm") {
+            return Ok(None);
+        }
+        self.bouncer
+            .as_ref()
+            .map(|bouncer| bouncer.provision_network(nick))
+            .transpose()
+    }
 }
 
 impl BouncerInfo {
@@ -160,7 +175,6 @@ impl BouncerInfo {
     /// # Errors
     ///
     /// Returns an error if the network name is invalid or soju rejects it.
-    #[cfg(not(target_family = "wasm"))]
     pub fn provision_network(&self, nick: &str) -> io::Result<BouncerLogin> {
         let login = self.network_login(nick)?;
         let upstream = format!("irc+insecure://{}", self.upstream);
@@ -251,16 +265,16 @@ pub fn unique(prefix: &str) -> String {
 }
 
 fn test_process_id() -> String {
-    if let Ok(id) = env::var("PAPO_TEST_PID") {
-        return id;
-    }
-    #[cfg(not(target_family = "wasm"))]
-    {
-        std::process::id().to_string()
-    }
-    #[cfg(target_family = "wasm")]
-    {
-        panic!("PAPO_TEST_PID is unset; {RUNNER_HINT}");
+    match env::var("PAPO_TEST_PID") {
+        Ok(id) => id,
+        Err(error) if cfg!(target_family = "wasm") => {
+            let _ = error;
+            panic!("PAPO_TEST_PID is unset; {RUNNER_HINT}")
+        }
+        Err(error) => {
+            let _ = error;
+            std::process::id().to_string()
+        }
     }
 }
 
@@ -354,6 +368,9 @@ mod tests {
         let bouncer = server.bouncer().unwrap();
         assert_eq!(bouncer.username(), "papo-bouncer");
         assert_eq!(bouncer.upstream_addr().port(), 7667);
+        if cfg!(target_family = "wasm") {
+            assert!(server.bouncer_login("reader").unwrap().is_none());
+        }
         let existing = bouncer.network_login("reader").unwrap();
         assert_eq!(existing.username(), "papo-bouncer/reader");
         assert_eq!(existing.password(), "unique-bouncer-password");
