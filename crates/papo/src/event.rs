@@ -2265,15 +2265,15 @@ mod tests {
     #[test]
     fn maps_kicked() {
         assert!(matches!(
-            forwarded(papo_core::Event::Kicked {
-                envelope: papo_core::LineEnvelope::default(),
-                channel: Casemapping::default().channel("#papo"),
-                subject: Casemapping::default().nick("emily"),
-                actor: "alice".into(),
-                authorship: papo_core::Authorship::Other,
-                subject_authorship: papo_core::Authorship::Other,
-                reason: Some("Flooding".into()),
-            }),
+            forwarded(papo_core::Event::__kicked(
+                papo_core::LineEnvelope::default(),
+                Casemapping::default().channel("#papo"),
+                Casemapping::default().nick("emily"),
+                "alice".into(),
+                papo_core::Authorship::Other,
+                papo_core::Authorship::Other,
+                Some("Flooding".into()),
+            )),
             Event::Kicked(kicked)
                 if kicked.channel == "#papo"
                     && kicked.subject == "emily"
@@ -2285,17 +2285,17 @@ mod tests {
     #[test]
     fn maps_quit() {
         assert!(matches!(
-            forwarded(papo_core::Event::Quit {
-                envelope: papo_core::LineEnvelope::default(),
-                actor: "emily!~emily@cloak.example".into(),
-                nick: Casemapping::default().nick("emily"),
-                reason: Some("Client exited".into()),
-                channels: vec![
+            forwarded(papo_core::Event::__quit(
+                papo_core::LineEnvelope::default(),
+                "emily!~emily@cloak.example".into(),
+                Casemapping::default().nick("emily"),
+                Some("Client exited".into()),
+                vec![
                     Casemapping::default().channel("#papo"),
                     Casemapping::default().channel("#rust"),
                 ],
-                authorship: papo_core::Authorship::Other,
-            }),
+                papo_core::Authorship::Other,
+            )),
             Event::Quit(quit)
                 if quit.nick == "emily"
                     && quit.actor.nick().is_some_and(|nick| nick == "emily")
@@ -2307,13 +2307,13 @@ mod tests {
     #[test]
     fn maps_nick_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::NickChanged {
-                envelope: papo_core::LineEnvelope::default(),
-                actor: "emily!~emily@cloak.example".into(),
-                old: Casemapping::default().nick("emily"),
-                new: Casemapping::default().nick("em"),
-                authorship: papo_core::Authorship::Other,
-            }),
+            forwarded(papo_core::Event::__nick_changed(
+                papo_core::LineEnvelope::default(),
+                "emily!~emily@cloak.example".into(),
+                Casemapping::default().nick("emily"),
+                Casemapping::default().nick("em"),
+                papo_core::Authorship::Other,
+            )),
             Event::NickChanged(changed)
                 if changed.actor.nick().is_some_and(|nick| nick == "emily")
                     && changed.old == "emily" && changed.new == "em"
@@ -2323,11 +2323,11 @@ mod tests {
     #[test]
     fn maps_account_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::AccountChanged {
-                actor: "emily!~em@users/emily".into(),
-                nick: Casemapping::default().nick("emily"),
-                account: Account::LoggedIn(Casemapping::default().account("emily")),
-            }),
+            forwarded(papo_core::Event::__account_changed(
+                "emily!~em@users/emily".into(),
+                Casemapping::default().nick("emily"),
+                Account::LoggedIn(Casemapping::default().account("emily")),
+            )),
             Event::AccountChanged(changed)
                 if changed.nick == "emily" && changed.account.as_deref() == Some("emily")
         ));
@@ -2336,30 +2336,26 @@ mod tests {
     #[test]
     fn maps_away_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::AwayChanged {
-                actor: "emily!~em@users/emily".into(),
-                nick: Casemapping::default().nick("emily"),
-                away: Away::Away {
-                    message: Some("Gone to lunch".into()),
-                },
-            }),
+            forwarded(papo_core::Event::__away_changed(
+                "emily!~em@users/emily".into(),
+                Casemapping::default().nick("emily"),
+                Away::__away_value(Some("Gone to lunch".into())),
+            )),
             Event::AwayChanged(changed)
                 if changed.nick == "emily"
-                    && changed.away == Away::Away {
-                        message: Some("Gone to lunch".into())
-                    }
+                    && changed.away == Away::__away_value(Some("Gone to lunch".into()))
         ));
     }
 
     #[test]
     fn maps_host_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::HostChanged {
-                actor: "emily!em@127.0.0.1".into(),
-                nick: Casemapping::default().nick("emily"),
-                username: "~em".into(),
-                host: "users/emily".into(),
-            }),
+            forwarded(papo_core::Event::__host_changed(
+                "emily!em@127.0.0.1".into(),
+                Casemapping::default().nick("emily"),
+                "~em".into(),
+                "users/emily".into(),
+            )),
             Event::HostChanged(changed)
                 if changed.nick == "emily" && changed.username == "~em" && changed.host == "users/emily"
         ));
@@ -2368,11 +2364,11 @@ mod tests {
     #[test]
     fn maps_realname_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::RealnameChanged {
-                actor: "emily!~em@users/emily".into(),
-                nick: Casemapping::default().nick("emily"),
-                realname: "Emily Smith".into(),
-            }),
+            forwarded(papo_core::Event::__realname_changed(
+                "emily!~em@users/emily".into(),
+                Casemapping::default().nick("emily"),
+                "Emily Smith".into(),
+            )),
             Event::RealnameChanged(changed)
                 if changed.nick == "emily" && changed.realname == "Emily Smith"
         ));
@@ -2388,14 +2384,7 @@ mod tests {
             )),
         }];
         assert!(matches!(
-            forwarded(papo_core::Event::ModeChanged {
-                envelope: papo_core::LineEnvelope::default(),
-                subject: papo_core::Subject::Channel(Casemapping::default().channel("#papo")),
-                actor: "alice".into(),
-                authorship: papo_core::Authorship::Other,
-                subject_authorship: papo_core::Authorship::Other,
-                changes: mode_changes.clone(),
-            }),
+            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), "alice".into(), papo_core::Authorship::Other, papo_core::Authorship::Other, mode_changes.clone())),
             Event::ModeChanged(mode)
                 if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && mode.actor.nick().is_some_and(|nick| nick == "alice")
@@ -2409,13 +2398,7 @@ mod tests {
     #[test]
     fn maps_topic_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::TopicChanged {
-                envelope: papo_core::LineEnvelope::default(),
-                channel: Casemapping::default().channel("#papo"),
-                topic: Some("Rust 1.90 is out".into()),
-                actor: "alice".into(),
-                authorship: papo_core::Authorship::Other,
-            }),
+            forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), "alice".into(), papo_core::Authorship::Other)),
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")
@@ -2441,7 +2424,7 @@ mod tests {
             ),
         ] {
             assert!(matches!(
-                forwarded(papo_core::Event::StateLimitReached { limit: core }),
+                forwarded(papo_core::Event::__state_limit_reached(core)),
                 Event::Warning(Warning::StateLimitReached { kind }) if kind == public
             ));
         }
@@ -2450,21 +2433,13 @@ mod tests {
     #[test]
     fn maps_monitor_online_with_and_without_userhost() {
         assert!(matches!(
-            forwarded(papo_core::Event::MonitorOnline {
-                nick: Casemapping::default().nick("alice"),
-                username: Some("~alice".into()),
-                host: Some("cloak.example".into()),
-            }),
+            forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("alice"), Some("~alice".into()), Some("cloak.example".into()))),
             Event::MonitorOnline(online)
                 if online.nick == "alice" && online.username.as_deref() == Some("~alice")
                     && online.host.as_deref() == Some("cloak.example")
         ));
         assert!(matches!(
-            forwarded(papo_core::Event::MonitorOnline {
-                nick: Casemapping::default().nick("bob"),
-                username: None,
-                host: None,
-            }),
+            forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("bob"), None, None)),
             Event::MonitorOnline(online)
                 if online.nick == "bob" && online.username.is_none() && online.host.is_none()
         ));
@@ -2473,9 +2448,7 @@ mod tests {
     #[test]
     fn maps_monitor_offline() {
         assert!(matches!(
-            forwarded(papo_core::Event::MonitorOffline {
-                nick: Casemapping::default().nick("alice"),
-            }),
+            forwarded(papo_core::Event::__monitor_offline(Casemapping::default().nick("alice"))),
             Event::MonitorOffline(offline) if offline.nick == "alice"
         ));
     }
@@ -2483,13 +2456,10 @@ mod tests {
     #[test]
     fn maps_monitor_list_full() {
         assert!(matches!(
-            forwarded(papo_core::Event::MonitorListFull {
-                limit: 100,
-                nicks: vec![
+            forwarded(papo_core::Event::__monitor_list_full(100, vec![
                     Casemapping::default().nick("alice"),
                     Casemapping::default().nick("bob"),
-                ],
-            }),
+                ])),
             Event::Warning(Warning::MonitorListFull { maximum, nicks })
                 if maximum == 100 && nicks == ["alice", "bob"]
         ));
@@ -2513,9 +2483,9 @@ mod tests {
             conversation: mapped,
             items,
             end,
-        } = from_core(papo_core::Event::History {
-            conversation: conversation.clone(),
-            items: vec![
+        } = from_core(papo_core::Event::__history(
+            conversation.clone(),
+            vec![
                 papo_core::HistoryItem::Message(papo_core::HistoryLine {
                     line: message.clone(),
                     context: false,
@@ -2529,8 +2499,8 @@ mod tests {
                     subject_authorship: papo_core::Authorship::Unknown,
                 }),
             ],
-            end: true,
-        })
+            true,
+        ))
         else {
             panic!("history was not classified")
         };
@@ -2577,12 +2547,12 @@ mod tests {
         let quit =
             Line::new("QUIT", ["irc.example irc.remote"]).with_source("alice!~a@remote.example");
         let empty_reason = ":bob!~b@remote.example QUIT :".parse().unwrap();
-        let Event::Netsplit(netsplit) = forwarded(papo_core::Event::Netsplit {
-            servers: ["irc.example".into(), "irc.remote".into()],
-            quits: vec![quit, empty_reason],
-            authorship: vec![papo_core::Authorship::Other; 2],
-            channels: vec![vec![Casemapping::default().channel("#papo")]; 2],
-        }) else {
+        let Event::Netsplit(netsplit) = forwarded(papo_core::Event::__netsplit(
+            ["irc.example".into(), "irc.remote".into()],
+            vec![quit, empty_reason],
+            vec![papo_core::Authorship::Other; 2],
+            vec![vec![Casemapping::default().channel("#papo")]; 2],
+        )) else {
             panic!("netsplit was not forwarded")
         };
         assert_eq!(netsplit.servers.first, "irc.example");
@@ -2600,11 +2570,11 @@ mod tests {
     #[test]
     fn maps_netjoin() {
         let join = Line::new("JOIN", ["#papo", "*", "Bob"]).with_source("bob!~b@remote.example");
-        let Event::Netjoin(netjoin) = forwarded(papo_core::Event::Netjoin {
-            servers: ["irc.example".into(), "irc.remote".into()],
-            joins: vec![join],
-            authorship: vec![papo_core::Authorship::Other],
-        }) else {
+        let Event::Netjoin(netjoin) = forwarded(papo_core::Event::__netjoin(
+            ["irc.example".into(), "irc.remote".into()],
+            vec![join],
+            vec![papo_core::Authorship::Other],
+        )) else {
             panic!("netjoin was not forwarded")
         };
         assert_eq!(netjoin.servers.first, "irc.example");
@@ -2736,11 +2706,11 @@ mod tests {
                 id,
                 batch_type,
                 reason,
-            }) = forwarded(papo_core::Event::BatchAbandoned {
-                reference: "history42".into(),
-                batch_type: "chathistory".into(),
-                reason: core,
-            })
+            }) = forwarded(papo_core::Event::__batch_abandoned(
+                "history42".into(),
+                "chathistory".into(),
+                core,
+            ))
             else {
                 panic!("abandonment was not forwarded")
             };
