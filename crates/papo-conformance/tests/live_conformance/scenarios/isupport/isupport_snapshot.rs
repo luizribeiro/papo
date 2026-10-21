@@ -74,6 +74,10 @@ fn snapshot_diff(expected: &str, actual: &str) -> String {
     diff
 }
 
+fn should_bless_snapshot(native: bool, configured: Option<&str>) -> bool {
+    native && configured == Some("1")
+}
+
 /// the advertised ISUPPORT set matches the checked-in snapshot for this profile
 #[scenario(covers = ["base.isupport.snapshot"])]
 async fn isupport_snapshot(s: Scenario) -> papo_testing::Result<()> {
@@ -90,9 +94,8 @@ async fn isupport_snapshot(s: Scenario) -> papo_testing::Result<()> {
 
     let profile = DeploymentProfile::from_env()?;
 
-    if cfg!(not(target_family = "wasm"))
-        && env::var("PAPO_BLESS_ISUPPORT").is_ok_and(|value| value == "1")
-    {
+    let configured = env::var("PAPO_BLESS_ISUPPORT").ok();
+    if should_bless_snapshot(cfg!(not(target_family = "wasm")), configured.as_deref()) {
         let path = format!(
             "{}{}.txt",
             concat!(env!("CARGO_MANIFEST_DIR"), "/snapshots/isupport/"),
@@ -118,7 +121,9 @@ async fn isupport_snapshot(s: Scenario) -> papo_testing::Result<()> {
 mod tests {
     use papo::isupport::Advertised;
 
-    use super::{VARYING, is_clean_snapshot_line, render_snapshot, snapshot_diff};
+    use super::{
+        VARYING, is_clean_snapshot_line, render_snapshot, should_bless_snapshot, snapshot_diff,
+    };
 
     #[test]
     fn renders_sorted_bare_and_valued_tokens_with_a_trailing_newline() {
@@ -170,6 +175,14 @@ mod tests {
     fn diff_of_identical_snapshots_is_empty() {
         let snapshot = "CHANTYPES=#\nNETWORK=ErgoTest\n";
         assert_eq!(snapshot_diff(snapshot, snapshot), "");
+    }
+
+    #[test]
+    fn snapshot_blessing_requires_native_and_the_exact_opt_in() {
+        assert!(should_bless_snapshot(true, Some("1")));
+        assert!(!should_bless_snapshot(false, Some("1")));
+        assert!(!should_bless_snapshot(true, Some("0")));
+        assert!(!should_bless_snapshot(true, None));
     }
 
     #[test]

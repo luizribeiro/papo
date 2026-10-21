@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use papo::{Client, Endpoint};
+use papo::{Client, Endpoint, NetworkId};
 use papo_core::{
     NetworkConfig,
     sts::{StsPolicy, StsStore},
@@ -35,6 +35,10 @@ impl StsStore for RecordingStsStore {
             *policy = None;
         }
     }
+}
+
+fn network_id_matches(candidate: &NetworkId, expected: &NetworkId) -> bool {
+    candidate == expected
 }
 
 pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
@@ -82,7 +86,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     let added = alice.bouncer().networks().await?;
     let network = added
         .iter()
-        .find(|network| network.id == id)
+        .find(|network| network_id_matches(&network.id, &id))
         .expect("the added network is listed");
     assert_eq!(network.id, id);
     assert_eq!(network.name.as_deref(), Some(name.as_str()));
@@ -148,4 +152,43 @@ pub(super) async fn sts(s: Scenario) -> papo_testing::Result<()> {
     assert!(policy.is_active_at(std::time::SystemTime::now()));
     s.quit_all().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, SystemTime};
+
+    use papo::NetworkId;
+    use papo_core::sts::{StsPolicy, StsStore};
+
+    use super::{RecordingStsStore, network_id_matches};
+
+    #[test]
+    fn recording_store_matches_and_removes_only_the_requested_host() {
+        let policy = StsPolicy::new(
+            "irc.example.net",
+            6697,
+            SystemTime::UNIX_EPOCH + Duration::from_secs(7200),
+            Duration::from_secs(3600),
+        );
+        let mut store = RecordingStsStore::default();
+        store.put(policy.clone());
+        assert_eq!(store.get("irc.example.net"), Some(policy.clone()));
+        assert_eq!(store.get("chat.example.net"), None);
+
+        store.remove("chat.example.net");
+        assert_eq!(store.get("irc.example.net"), Some(policy));
+        store.remove("irc.example.net");
+        assert_eq!(store.get("irc.example.net"), None);
+    }
+
+    #[test]
+    fn network_ids_match_exactly() {
+        let expected = NetworkId::from("irc.example.net");
+        assert!(network_id_matches(&expected, &expected));
+        assert!(!network_id_matches(
+            &NetworkId::from("chat.example.net"),
+            &expected
+        ));
+    }
 }
