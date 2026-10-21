@@ -1,47 +1,13 @@
 use std::{env, fs, time::Duration};
 
-#[cfg(not(target_family = "wasm"))]
-use std::sync::{Arc, Mutex};
-
-#[cfg(not(target_family = "wasm"))]
-use papo::Client;
 use papo::{ConnectErrorKind, Endpoint, Event, ListFilter, WebIrc, isupport::Advertised};
 use papo_conformance_macros::scenario;
-#[cfg(not(target_family = "wasm"))]
-use papo_core::sts::{StsPolicy, StsStore};
 
 use crate::Scenario;
 
 #[cfg_attr(not(target_family = "wasm"), path = "connection/process_owned.rs")]
 #[cfg_attr(target_family = "wasm", path = "connection/process_owned_wasm.rs")]
 mod process_owned;
-
-#[cfg(not(target_family = "wasm"))]
-#[derive(Clone, Default)]
-struct RecordingStsStore(Arc<Mutex<Option<StsPolicy>>>);
-
-#[cfg(not(target_family = "wasm"))]
-impl StsStore for RecordingStsStore {
-    fn get(&self, host: &str) -> Option<StsPolicy> {
-        self.0
-            .lock()
-            .unwrap()
-            .as_ref()
-            .filter(|policy| policy.host == host)
-            .cloned()
-    }
-
-    fn put(&mut self, policy: StsPolicy) {
-        *self.0.lock().unwrap() = Some(policy);
-    }
-
-    fn remove(&mut self, host: &str) {
-        let mut policy = self.0.lock().unwrap();
-        if policy.as_ref().is_some_and(|policy| policy.host == host) {
-            *policy = None;
-        }
-    }
-}
 
 /// registers with the requested nickname
 #[scenario(covers = ["base.connreg.nick-user", "base.connreg.welcome-order"])]
@@ -414,41 +380,7 @@ async fn tls_certificate_rejected(s: Scenario) -> papo_testing::Result<()> {
 /// upgrades plaintext to TLS and persists the advertised STS policy
 #[scenario(covers = ["core.sts.upgrade", "core.sts.persistence"])]
 async fn sts(s: Scenario) -> papo_testing::Result<()> {
-    #[cfg(target_family = "wasm")]
-    {
-        return s.skip("process-owned STS setup is unavailable on WASI");
-    }
-    #[cfg(not(target_family = "wasm"))]
-    {
-        let server = papo_test_server::TestServer::start_with_sts()?;
-        let store = RecordingStsStore::default();
-        let nick = papo_test_server::unique("alice-sts");
-        let alice = s
-            .connect_with(
-                Client::builder(
-                    Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
-                )
-                .nick(&nick)
-                .request_caps(["sts"])
-                .tls_ca_pem(fs::read(server.ca_pem_path())?)
-                .sts_store(store.clone()),
-            )
-            .await?;
-        assert!(alice.state().is_connected());
-        assert_eq!(alice.state().nick(), nick.as_str());
-        let policy = store
-            .0
-            .lock()
-            .unwrap()
-            .clone()
-            .expect("the secure connection persisted STS");
-        assert_eq!(policy.host, "localhost");
-        assert_eq!(policy.port, server.tls_addr().port());
-        assert_eq!(policy.duration, Duration::from_secs(3600));
-        assert!(policy.is_active_at(std::time::SystemTime::now()));
-        s.quit_all().await?;
-        Ok(())
-    }
+    process_owned::sts(s).await
 }
 
 /// registers over a WebSocket transport

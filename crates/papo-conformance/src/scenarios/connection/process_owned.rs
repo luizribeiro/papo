@@ -1,7 +1,41 @@
+use std::{
+    fs,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
+
 use papo::{Client, Endpoint};
-use papo_core::NetworkConfig;
+use papo_core::{
+    NetworkConfig,
+    sts::{StsPolicy, StsStore},
+};
 
 use crate::Scenario;
+
+#[derive(Clone, Default)]
+struct RecordingStsStore(Arc<Mutex<Option<StsPolicy>>>);
+
+impl StsStore for RecordingStsStore {
+    fn get(&self, host: &str) -> Option<StsPolicy> {
+        self.0
+            .lock()
+            .unwrap()
+            .as_ref()
+            .filter(|policy| policy.host == host)
+            .cloned()
+    }
+
+    fn put(&mut self, policy: StsPolicy) {
+        *self.0.lock().unwrap() = Some(policy);
+    }
+
+    fn remove(&mut self, host: &str) {
+        let mut policy = self.0.lock().unwrap();
+        if policy.as_ref().is_some_and(|policy| policy.host == host) {
+            *policy = None;
+        }
+    }
+}
 
 pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     let Some(bouncer) = s.server.bouncer() else {
@@ -82,5 +116,36 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
         removed.iter().all(|network| network.id != id),
         "the removed network was still listed"
     );
+    Ok(())
+}
+
+pub(super) async fn sts(s: Scenario) -> papo_testing::Result<()> {
+    let server = papo_test_server::TestServer::start_with_sts()?;
+    let store = RecordingStsStore::default();
+    let nick = papo_test_server::unique("alice-sts");
+    let alice = s
+        .connect_with(
+            Client::builder(
+                Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
+            )
+            .nick(&nick)
+            .request_caps(["sts"])
+            .tls_ca_pem(fs::read(server.ca_pem_path())?)
+            .sts_store(store.clone()),
+        )
+        .await?;
+    assert!(alice.state().is_connected());
+    assert_eq!(alice.state().nick(), nick.as_str());
+    let policy = store
+        .0
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("the secure connection persisted STS");
+    assert_eq!(policy.host, "localhost");
+    assert_eq!(policy.port, server.tls_addr().port());
+    assert_eq!(policy.duration, Duration::from_secs(3600));
+    assert!(policy.is_active_at(std::time::SystemTime::now()));
+    s.quit_all().await?;
     Ok(())
 }
