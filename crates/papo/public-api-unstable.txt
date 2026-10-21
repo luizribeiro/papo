@@ -1587,29 +1587,6 @@ impl core::marker::Unpin for papo::MessageKind
 impl core::marker::UnsafeUnpin for papo::MessageKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::MessageKind
 impl core::panic::unwind_safe::UnwindSafe for papo::MessageKind
-#[non_exhaustive] pub enum papo::ModeKind
-pub papo::ModeKind::AlwaysArg
-pub papo::ModeKind::ArgWhenSet
-pub papo::ModeKind::List
-pub papo::ModeKind::NoArg
-pub papo::ModeKind::Prefix(usize)
-pub papo::ModeKind::Unknown
-impl core::clone::Clone for papo::ModeKind
-pub fn papo::ModeKind::clone(&self) -> Self
-impl core::cmp::Eq for papo::ModeKind
-impl core::cmp::PartialEq for papo::ModeKind
-pub fn papo::ModeKind::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::ModeKind
-pub fn papo::ModeKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::ModeKind
-impl core::marker::StructuralPartialEq for papo::ModeKind
-impl core::marker::Freeze for papo::ModeKind
-impl core::marker::Send for papo::ModeKind
-impl core::marker::Sync for papo::ModeKind
-impl core::marker::Unpin for papo::ModeKind
-impl core::marker::UnsafeUnpin for papo::ModeKind
-impl core::panic::unwind_safe::RefUnwindSafe for papo::ModeKind
-impl core::panic::unwind_safe::UnwindSafe for papo::ModeKind
 #[non_exhaustive] pub enum papo::Origin
 pub papo::Origin::Echo
 pub papo::Origin::History

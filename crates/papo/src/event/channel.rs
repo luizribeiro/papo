@@ -4,38 +4,6 @@ use crate::{Account, AccountName, Authorship, ChannelName, MessageId, Nick, Subj
 
 use super::Source;
 
-/// The parameter behavior of a channel mode.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum ModeKind {
-    /// A list mode that always takes an argument.
-    List,
-    /// A mode that always takes an argument.
-    AlwaysArg,
-    /// A mode that takes an argument only when being set.
-    ArgWhenSet,
-    /// A mode that never takes an argument.
-    NoArg,
-    /// A channel-membership mode with its zero-based privilege rank.
-    Prefix(usize),
-    /// A mode whose parameter behavior was not advertised.
-    Unknown,
-}
-
-#[allow(dead_code)]
-impl ModeKind {
-    pub(crate) const fn from_proto(kind: papo_proto::ModeKind) -> Self {
-        match kind {
-            papo_proto::ModeKind::List => Self::List,
-            papo_proto::ModeKind::AlwaysArg => Self::AlwaysArg,
-            papo_proto::ModeKind::ArgWhenSet => Self::ArgWhenSet,
-            papo_proto::ModeKind::NoArg => Self::NoArg,
-            papo_proto::ModeKind::Prefix(rank) => Self::Prefix(rank),
-            papo_proto::ModeKind::Unknown => Self::Unknown,
-        }
-    }
-}
-
 /// A user joined a channel shared with the client.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
