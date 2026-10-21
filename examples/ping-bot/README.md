@@ -9,9 +9,3 @@ Pass an `irc://` or `ircs://` server URL as the first argument. The nickname com
 ```sh
 IRC_NICK=papo-ping cargo run -p papo-ping-bot -- ircs://irc.example.net
 ```
-
-Sample output after a failed send:
-
-```text
-could not reply: connection lost
-```
