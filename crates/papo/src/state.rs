@@ -8,8 +8,11 @@ use crate::Isupport;
 
 /// An immutable snapshot of an IRC client's known state.
 ///
-/// A snapshot is at least as new as the last event delivered. Events can be
-/// applied in order using their self-contained payloads.
+/// A snapshot is at least as new as the last event delivered. Most changes can be applied from
+/// their event payloads. Member facts learned by a `WHO` sweep and state cleared across a
+/// connection boundary are visible only here. Re-read the snapshot after
+/// [`crate::Event::MembersRefreshed`], [`crate::Event::Disconnected`], and
+/// [`crate::Event::Connected`].
 /// The identity and presence methods on this type are the source of truth for
 /// the client's own entry; a [`User`] with the same nickname is shared-user state.
 #[derive(Clone, Debug)]

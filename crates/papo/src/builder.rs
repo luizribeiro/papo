@@ -1,7 +1,9 @@
 use std::{fmt, time::Duration};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
-use papo_core::{AwayOnConnect, Config, CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, cap};
+use papo_core::{
+    AwayOnConnect, Config, CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, WhoOnJoin, cap,
+};
 use papo_proto::{Line, escape_tag_value};
 use tokio::sync::oneshot;
 
@@ -489,6 +491,15 @@ impl Builder {
         let key = key.into();
         self.reject_binary_secret(&key);
         self.push_autojoin(Autojoin::new(channel.as_ref(), Some(key)));
+        self
+    }
+
+    /// Sets when channel members are refreshed with `WHO` after joining.
+    ///
+    /// The default is [`crate::WhoOnJoin::Always`]. A refresh happens once after the initial
+    /// `NAMES` reply; later member joins do not start another query.
+    pub fn who_on_join(mut self, policy: WhoOnJoin) -> Self {
+        self.config.who_on_join = policy;
         self
     }
 
@@ -1172,11 +1183,16 @@ mod tests {
 
     #[test]
     fn configures_post_registration_defaults() {
+        assert_eq!(
+            Builder::new("irc.example.net").config.who_on_join,
+            crate::WhoOnJoin::Always
+        );
         let staff = crate::Casemapping::default().channel("#staff");
         let builder = Builder::new("irc.example.net")
             .bot()
             .autojoin(["#papo", "#papo-bots"])
             .autojoin_with_key(staff, "private channel key")
+            .who_on_join(crate::WhoOnJoin::BelowMembers(25))
             .history_on_reconnect(true);
         assert!(builder.bot);
         assert_eq!(
@@ -1188,6 +1204,10 @@ mod tests {
             ["#papo", "#papo-bots", "#staff"]
         );
         assert!(builder.autojoin[2].key.is_some());
+        assert_eq!(
+            builder.config.who_on_join,
+            crate::WhoOnJoin::BelowMembers(25)
+        );
         assert!(builder.history_on_reconnect);
     }
 

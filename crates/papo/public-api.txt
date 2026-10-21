@@ -37,6 +37,7 @@ pub use papo::Unsupported
 pub use papo::UnsupportedReason
 pub use papo::User
 pub use papo::Visibility
+pub use papo::WhoOnJoin
 pub use papo::strip_formatting
 pub mod papo::bot
 #[non_exhaustive] pub enum papo::bot::ReplyStatus
@@ -1668,6 +1669,7 @@ pub fn papo::Builder::tls_extra_ca_pem(self, impl core::convert::Into<alloc::vec
 pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::webirc(self, papo::WebIrc) -> Self
+pub fn papo::Builder::who_on_join(self, papo::WhoOnJoin) -> Self
 pub fn papo::Builder::without_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
