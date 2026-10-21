@@ -220,11 +220,6 @@ impl Peer {
         )
     }
 
-    #[cfg(test)]
-    fn recent_events(&self) -> impl ExactSizeIterator<Item = &Event> {
-        self.recent.iter()
-    }
-
     fn remember(&mut self, event: Event) {
         if self.recent.len() == EVENT_HISTORY {
             self.recent.pop_front();
@@ -262,7 +257,7 @@ mod tests {
                 false,
             )));
         }
-        let events = peer.recent_events().collect::<Vec<_>>();
+        let events = peer.recent.iter().collect::<Vec<_>>();
         assert_eq!(events.len(), 20);
         assert_eq!(events[0].as_joined().unwrap().nick.as_ref(), "user-1");
         assert_eq!(events[19].as_joined().unwrap().nick.as_ref(), "user-20");

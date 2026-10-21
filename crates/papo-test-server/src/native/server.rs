@@ -356,7 +356,7 @@ mod tests {
             attempts += 1;
             let config = Configuration::new(directory)?;
             if attempts == 1 {
-                Ok(Configuration::at_addresses(
+                Ok(Configuration::from_addresses(
                     directory,
                     [
                         occupied_address,

@@ -31,14 +31,6 @@ impl Configuration {
         Ok(configuration)
     }
 
-    #[cfg(test)]
-    pub(crate) fn at_addresses(
-        directory: &TemporaryDirectory,
-        addresses: [std::net::SocketAddr; 4],
-    ) -> Self {
-        Self::from_addresses(directory, addresses)
-    }
-
     pub(crate) fn enable_sts(&mut self) {
         self.overrides
             .push(("ERGO__SERVER__STS__ENABLED", "true".into()));
@@ -70,7 +62,7 @@ impl Configuration {
         }
     }
 
-    fn from_addresses(
+    pub(super) fn from_addresses(
         directory: &TemporaryDirectory,
         addresses: [std::net::SocketAddr; 4],
     ) -> Self {
@@ -158,7 +150,7 @@ mod tests {
     use super::{Configuration, OPER_PASSWORD_HASH};
 
     fn configuration(directory: &TemporaryDirectory) -> Configuration {
-        Configuration::at_addresses(
+        Configuration::from_addresses(
             directory,
             [7667, 7668, 7669, 7670]
                 .map(|port| SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port)),

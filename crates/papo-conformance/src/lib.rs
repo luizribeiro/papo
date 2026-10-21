@@ -84,18 +84,6 @@ struct Welcome {
     isupport: Isupport,
 }
 
-#[cfg(test)]
-trait EventSource {
-    fn next_event(&mut self) -> impl Future<Output = Option<Event>>;
-}
-
-#[cfg(test)]
-impl EventSource for Events {
-    fn next_event(&mut self) -> impl Future<Output = Option<Event>> {
-        self.next()
-    }
-}
-
 fn catch_scenario_panic(run: impl FnOnce() -> FixtureResult) -> FixtureResult {
     match catch_unwind(AssertUnwindSafe(run)) {
         Ok(result) => result,
@@ -133,13 +121,6 @@ fn json_string(input: &str) -> String {
     output
 }
 
-impl<S> Scenario<S> {
-    #[cfg(test)]
-    fn unique(&self) -> String {
-        papo_test_server::unique(self.name)
-    }
-}
-
 impl Scenario {
     #[doc(hidden)]
     pub fn record_evidence(&self, value: &str) {
@@ -161,28 +142,6 @@ impl Deref for Scenario {
             .as_ref()
             .expect("live scenarios have a fixture")
     }
-}
-
-#[cfg(test)]
-async fn expect_event(
-    events: &mut impl EventSource,
-    mut matcher: impl FnMut(&Event) -> bool,
-    limit: Duration,
-) -> Result<Event, String> {
-    timeout(limit, async {
-        loop {
-            match events.next_event().await {
-                Some(event) if matcher(&event) => return Ok(event),
-                Some(Event::Disconnected(disconnected)) => {
-                    return Err(disconnected.to_string());
-                }
-                Some(_) => {}
-                None => return Err("driver stopped while waiting for an event".into()),
-            }
-        }
-    })
-    .await
-    .map_err(|_| "timed out waiting for an event".to_owned())?
 }
 
 fn load_known_failures(server: &str) -> Result<BTreeMap<String, String>, String> {
@@ -324,13 +283,6 @@ impl IsupportView for Isupport {
     }
 }
 
-#[cfg(test)]
-impl IsupportView for papo_proto::Isupport {
-    fn advertised(&self, token: &str) -> Advertised<'_> {
-        self.get(token)
-    }
-}
-
 fn connect_client(
     server: &ServerInfo,
     endpoint: Endpoint,
@@ -419,7 +371,8 @@ fn runtime() -> tokio::runtime::Runtime {
 mod tests {
     use std::{
         collections::VecDeque,
-        fs, future,
+        fs,
+        future::{self, Future},
         path::{Path, PathBuf},
         time::Duration,
     };
@@ -429,9 +382,25 @@ mod tests {
 
     use super::unstable_feature_for_cap;
     use super::{
-        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event, json_string,
-        load_known_failures_from, runtime,
+        CapRequirement, Event, Requirements, Scenario, json_string, load_known_failures_from,
+        runtime,
     };
+
+    trait EventSource {
+        fn next_event(&mut self) -> impl Future<Output = Option<Event>>;
+    }
+
+    impl EventSource for super::Events {
+        fn next_event(&mut self) -> impl Future<Output = Option<Event>> {
+            self.next()
+        }
+    }
+
+    impl super::IsupportView for Isupport {
+        fn advertised(&self, token: &str) -> papo::isupport::Advertised<'_> {
+            self.get(token)
+        }
+    }
 
     struct TestDirectory(PathBuf);
 
@@ -457,6 +426,27 @@ mod tests {
 
     struct ScriptedEvents {
         events: VecDeque<Event>,
+    }
+
+    async fn expect_event(
+        events: &mut impl EventSource,
+        mut matcher: impl FnMut(&Event) -> bool,
+        limit: Duration,
+    ) -> Result<Event, String> {
+        tokio::time::timeout(limit, async {
+            loop {
+                match events.next_event().await {
+                    Some(event) if matcher(&event) => return Ok(event),
+                    Some(Event::Disconnected(disconnected)) => {
+                        return Err(disconnected.to_string());
+                    }
+                    Some(_) => {}
+                    None => return Err("driver stopped while waiting for an event".into()),
+                }
+            }
+        })
+        .await
+        .map_err(|_| "timed out waiting for an event".to_owned())?
     }
 
     #[test]
@@ -652,8 +642,8 @@ mod tests {
             fixture: None,
             json: false,
         };
-        let first = scenario.unique();
-        let second = scenario.unique();
+        let first = papo_test_server::unique(scenario.name);
+        let second = papo_test_server::unique(scenario.name);
         assert!(first.starts_with("connect-"), "{first:?}");
         assert!(second.starts_with("connect-"), "{second:?}");
         assert_ne!(first, second);
