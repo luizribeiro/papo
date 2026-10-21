@@ -242,10 +242,43 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(other.origin, Origin::Live);
     assert!(other.is_live());
     assert_eq!(other.authorship, papo::Authorship::Own);
-    let echo = desktop
+    desktop
+        .expect_none(|event| event.as_message().filter(|message| message.text == text))
+        .await?;
+    Ok(())
+}
+
+/// a session without echo-message receives another session's message as its own
+#[scenario(covers = ["core.multiclient.own-message-without-echo"])]
+async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
+    let (desktop, account_key) = s.connect_as_account_with_key("alice").await?;
+    let channel = s.channel_name();
+    desktop.join(&channel).await?;
+    let mut phone = s
+        .connect_with(
+            s.configure_account_session("alice-phone", account_key)?
+                .without_caps([papo::cap::ECHO_MESSAGE]),
+        )
+        .await?;
+    assert!(phone.state().caps().get(papo::cap::ECHO_MESSAGE).is_none());
+
+    if phone.state().channel(&channel).is_none() {
+        phone.join(&channel).await?;
+    }
+    let text = "message from another logged-in session";
+    desktop.privmsg(&channel, text).await?;
+    let message = phone
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(echo.origin, Origin::Echo);
+    assert_eq!(message.origin, Origin::Live);
+    assert_eq!(message.authorship, papo::Authorship::Own);
+    assert_eq!(
+        conversation_name(&message.conversation),
+        Some(channel.as_str())
+    );
+    phone
+        .expect_none(|event| event.as_message().filter(|message| message.text == text))
+        .await?;
     Ok(())
 }
 

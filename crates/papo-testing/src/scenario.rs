@@ -64,6 +64,19 @@ impl Scenario {
     /// Returns an error when the server cannot register the account or the
     /// authenticated client cannot connect.
     pub async fn connect_as_account(&self, label: &str) -> Result<Peer> {
+        Ok(self.connect_as_account_with_key(label).await?.0)
+    }
+
+    /// Registers an account and returns a connected peer plus its fixture session key.
+    ///
+    /// The key can be passed to [`Self::configure_account_session`] to attach more clients,
+    /// including when the selected profile uses a bouncer network.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the server cannot register the account or the
+    /// authenticated client cannot connect.
+    pub async fn connect_as_account_with_key(&self, label: &str) -> Result<(Peer, String)> {
         let account = unique_name(label);
         create_account(&self.server, &account, ACCOUNT_PASSWORD)?;
         let address = self.server.plaintext_addr();
@@ -74,9 +87,9 @@ impl Scenario {
         let builder = if self.server.bouncer().is_some() {
             builder
         } else {
-            builder.sasl(Sasl::plain(account, ACCOUNT_PASSWORD))
+            builder.sasl(Sasl::plain(account.clone(), ACCOUNT_PASSWORD))
         };
-        self.connect_with(builder).await
+        Ok((self.connect_with(builder).await?, account))
     }
 
     /// Connects another client authenticated to an account created by this fixture.
@@ -89,6 +102,20 @@ impl Scenario {
         label: &str,
         account: impl Into<String>,
     ) -> Result<Peer> {
+        self.connect_with(self.configure_account_session(label, account)?)
+            .await
+    }
+
+    /// Configures another client authenticated to an account created by this fixture.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a selected bouncer network cannot be addressed.
+    pub fn configure_account_session(
+        &self,
+        label: &str,
+        account: impl Into<String>,
+    ) -> Result<Builder> {
         let account = account.into();
         let address = self.server.plaintext_addr();
         let builder = Self::builder_named_at(
@@ -101,7 +128,7 @@ impl Scenario {
         } else {
             builder.sasl(Sasl::plain(account, ACCOUNT_PASSWORD))
         };
-        self.connect_with(builder).await
+        Ok(builder)
     }
 
     /// Connects and retains a client configured by the caller.
