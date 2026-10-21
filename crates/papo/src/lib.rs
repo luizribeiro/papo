@@ -30,6 +30,7 @@ pub mod fail;
 #[cfg(not(browser))]
 mod io_compat;
 pub mod isupport;
+mod message_ref;
 pub mod metadata;
 mod mode;
 pub mod numeric;
@@ -79,6 +80,7 @@ pub use ext::persistence::Persistence;
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport::Isupport;
+pub use message_ref::MessageRef;
 pub use metadata::{MetadataValue, Visibility};
 pub use mode::SetModes;
 #[doc(inline)]

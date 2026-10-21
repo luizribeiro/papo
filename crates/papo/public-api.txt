@@ -2041,6 +2041,8 @@ impl core::cmp::PartialEq for papo::Message
 pub fn papo::Message::eq(&self, &Self) -> bool
 impl core::convert::From<&papo::Message> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::Message) -> Self
+impl core::convert::From<&papo::Message> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::Message) -> Self
 impl core::fmt::Debug for papo::Message
 pub fn papo::Message::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::Message
@@ -2051,6 +2053,26 @@ impl core::marker::Unpin for papo::Message
 impl core::marker::UnsafeUnpin for papo::Message
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Message
 impl core::panic::unwind_safe::UnwindSafe for papo::Message
+pub struct papo::MessageRef
+impl core::clone::Clone for papo::MessageRef
+pub fn papo::MessageRef::clone(&self) -> Self
+impl core::cmp::Eq for papo::MessageRef
+impl core::cmp::PartialEq for papo::MessageRef
+pub fn papo::MessageRef::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::Message> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::Message) -> Self
+impl core::convert::From<&papo::Sent> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::Sent) -> Self
+impl core::fmt::Debug for papo::MessageRef
+pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::MessageRef
+impl core::marker::Freeze for papo::MessageRef
+impl core::marker::Send for papo::MessageRef
+impl core::marker::Sync for papo::MessageRef
+impl core::marker::Unpin for papo::MessageRef
+impl core::marker::UnsafeUnpin for papo::MessageRef
+impl core::panic::unwind_safe::RefUnwindSafe for papo::MessageRef
+impl core::panic::unwind_safe::UnwindSafe for papo::MessageRef
 pub struct papo::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
@@ -2183,6 +2205,8 @@ pub fn papo::Sent::clone(&self) -> Self
 impl core::cmp::Eq for papo::Sent
 impl core::cmp::PartialEq for papo::Sent
 pub fn papo::Sent::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::Sent> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::Sent) -> Self
 impl core::fmt::Debug for papo::Sent
 pub fn papo::Sent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::Sent
