@@ -5,8 +5,10 @@ mod support;
 
 use std::time::{Duration, Instant};
 
-use papo::{Client, DisconnectCause, Endpoint, Event, Reconnect, Sasl};
-use papo_test_server::{TestServer, register_account_at, unique};
+use papo::{Client, ConnectErrorKind, DisconnectCause, Endpoint, Event, Line, Reconnect, Sasl};
+use papo_test_server::{
+    OPER_NAME, OPER_PASSWORD, SolanumServer, TestServer, register_account_at, unique,
+};
 use support::within;
 
 #[tokio::test(flavor = "current_thread")]
@@ -48,6 +50,57 @@ async fn stale_credentials_end_reconnect_with_a_connect_cause() {
             unreachable!()
         };
         assert!(matches!(disconnected.cause, DisconnectCause::Connect(_)));
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn solanum_kline_after_welcome_stops_reconnecting() {
+    within(async {
+        let server = SolanumServer::start().unwrap();
+        let endpoint = Endpoint::plaintext("localhost", server.endpoints()[0].port()).unwrap();
+        let (operator, mut operator_events) = Client::builder(endpoint.clone())
+            .nick("papo-oper")
+            .connect()
+            .await
+            .unwrap();
+        let (_victim, mut victim_events) = Client::builder(endpoint)
+            .nick("papo-kline")
+            .username("klineuser")
+            .reconnect(Reconnect::exponential().max_delay(Duration::from_millis(10)))
+            .connect()
+            .await
+            .unwrap();
+        wait_for(&mut operator_events, |event| {
+            matches!(event, Event::Connected(_))
+        })
+        .await;
+        wait_for(&mut victim_events, |event| {
+            matches!(event, Event::Connected(_))
+        })
+        .await;
+        operator.oper(OPER_NAME, OPER_PASSWORD).await.unwrap();
+
+        operator
+            .send_raw(Line::new(
+                "KLINE",
+                ["1", "*klineuser@*", "post-welcome retry test"],
+            ))
+            .await
+            .unwrap();
+        let disconnected = wait_for(&mut victim_events, |event| {
+            matches!(event, Event::Disconnected(_))
+        })
+        .await;
+        let Event::Disconnected(disconnected) = disconnected else {
+            unreachable!()
+        };
+        assert!(matches!(
+            disconnected.cause,
+            DisconnectCause::Connect(ref error) if error.kind() == ConnectErrorKind::Banned
+        ));
+        assert!(!disconnected.is_reconnecting());
+        assert!(victim_events.next().await.is_none());
     })
     .await;
 }
