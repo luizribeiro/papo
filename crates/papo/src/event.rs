@@ -519,6 +519,11 @@ impl Message {
         self.channel_context.as_deref()
     }
 
+    /// Returns the formatted spans parsed from [`Self::raw_text`].
+    pub fn spans(&self) -> impl Iterator<Item = crate::Span<'_>> {
+        papo_proto::Formatted::new(&self.raw_text)
+    }
+
     /// Returns the plain-text IRC address that reaches the same recipients.
     #[must_use]
     pub fn return_address(&self) -> String {

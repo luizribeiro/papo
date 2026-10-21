@@ -199,7 +199,7 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(message.origin, Origin::Live);
     assert!(message.is_live());
 
-    server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION waves\x01\r\n:dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n:dan!~d@cloak PRIVMSG papo-driver :\x01PING 1731513600\x01\r\n:soju.example NOTICE papo-driver :\x01VERSION soju 0.8.2\x01\r\n").await;
+    server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION deploys \x02bold\x02 and \x1ditalic\x1d then \x02\x1dboth\x0f in \x0304red and \x04FF0000hex\x01\r\n:dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n:dan!~d@cloak PRIVMSG papo-driver :\x01PING 1731513600\x01\r\n:soju.example NOTICE papo-driver :\x01VERSION soju 0.8.2\x01\r\n").await;
     let notice = next_message(&mut events).await;
     assert_eq!(notice.kind, MessageKind::Notice);
     assert!(matches!(
@@ -209,8 +209,24 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(notice.return_address(), "emily");
     let action = next_message(&mut events).await;
     assert_eq!(action.kind, MessageKind::Action);
-    assert_eq!(action.text, "waves");
-    assert_eq!(action.raw_text, "waves");
+    assert_eq!(
+        action.text,
+        "deploys bold and italic then both in red and hex"
+    );
+    assert_eq!(
+        action.raw_text,
+        "deploys \x02bold\x02 and \x1ditalic\x1d then \x02\x1dboth\x0f in \x0304red and \x04FF0000hex"
+    );
+    let spans = action.spans().collect::<Vec<_>>();
+    assert_eq!(spans[1].text, "bold");
+    assert!(spans[1].style.bold);
+    assert_eq!(spans[2].style, crate::Style::default());
+    assert!(spans[3].style.italics);
+    assert_eq!(spans[4].style, crate::Style::default());
+    assert!(spans[5].style.bold && spans[5].style.italics);
+    assert_eq!(spans[6].style, crate::Style::default());
+    assert_eq!(spans[7].style.fg, Some(crate::Color::Palette(4)));
+    assert_eq!(spans[8].style.fg, Some(crate::Color::Hex(0xff_0000)));
     let action = next_message(&mut events).await;
     assert_eq!(action.kind, MessageKind::Action);
     assert_eq!(action.text, "tests a split message");

@@ -6,8 +6,10 @@ pub use papo::Capabilities
 pub use papo::Casemapping
 pub use papo::Channel
 pub use papo::ChannelName
+pub use papo::Color
 pub use papo::Conversation
 pub use papo::Feature
+pub use papo::FormatBuilder
 pub use papo::InvalidIdentifier
 pub use papo::InvalidRateLimit
 pub use papo::Line
@@ -26,6 +28,8 @@ pub use papo::Sasl
 pub use papo::Secret
 pub use papo::ServerName
 pub use papo::Source
+pub use papo::Span
+pub use papo::Style
 pub use papo::Typer
 pub use papo::Typing
 pub use papo::Unsupported
@@ -2028,6 +2032,7 @@ pub fn papo::Message::is_live(&self) -> bool
 pub fn papo::Message::is_own(&self) -> bool
 pub const fn papo::Message::reply_to(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Message::return_address(&self) -> alloc::string::String
+pub fn papo::Message::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 pub fn papo::Message::time(&self) -> std::time::SystemTime
 impl core::clone::Clone for papo::Message
 pub fn papo::Message::clone(&self) -> Self
