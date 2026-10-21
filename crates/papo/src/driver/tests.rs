@@ -395,7 +395,7 @@ async fn list_modes_returns_entries_and_updates_joined_channel_state() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn list_modes_reports_the_entry_bound() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
