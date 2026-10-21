@@ -115,16 +115,38 @@ fn unrelated_unknown_error_does_not_consume_a_nick_candidate() {
 
 #[test]
 fn terminal_registration_numerics_close_with_their_wire_diagnostic() {
-    for (numeric, text) in [
-        ("464", "Password incorrect"),
-        ("465", "You are banned from this server"),
+    for (numeric, text, expected) in [
+        (
+            "463",
+            "No more connections allowed in your connection class",
+            CloseKind::ConnectionRestricted,
+        ),
+        ("464", "Password incorrect", CloseKind::PasswordIncorrect),
+        ("465", "You are banned from this server", CloseKind::Banned),
     ] {
         Transcript::new(Config::default())
             .connect_default()
             .server(&format!(":ergo.test {numeric} papo :{text}"))
-            .event(|event| matches!(event, Event::Close { reason, .. } if reason == text))
+            .event(|event| {
+                matches!(event, Event::Close { kind, reason } if *kind == expected && reason == text)
+            })
             .no_client();
     }
+}
+
+#[test]
+fn live_server_ban_closes_an_established_connection() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .welcome(":solanum.example 001 papo :Welcome to Solanum")
+        .server(":solanum.example 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .server(":solanum.example 465 papo :You are banned from this server")
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::Banned, reason }
+                if reason == "You are banned from this server")
+        })
+        .no_client();
 }
 
 #[test]

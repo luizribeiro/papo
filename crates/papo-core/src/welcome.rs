@@ -109,7 +109,13 @@ impl WelcomeState {
             outbox.close(CloseKind::WebIrcRejected, ERGO_WEBIRC_REJECTION.to_owned());
             return Handled::Yes;
         }
-        if message.command_is("001") {
+        if message.command_is("465") {
+            outbox.close(
+                CloseKind::Banned,
+                message.param(1).unwrap_or_default().to_owned(),
+            );
+            Handled::Yes
+        } else if message.command_is("001") {
             self.webirc_pending = false;
             if let Some(nick) = message.param(0) {
                 nick.clone_into(&mut self.nick);
@@ -140,15 +146,15 @@ impl WelcomeState {
             }
             self.complete(caps, isupport, outbox);
             Handled::Yes
-        } else if self.deadline.is_some()
-            && (message.command_is("464") || message.command_is("465"))
-        {
+        } else if self.deadline.is_some() && message.command_is("464") {
             outbox.close(
-                if message.command_is("464") {
-                    CloseKind::PasswordIncorrect
-                } else {
-                    CloseKind::Banned
-                },
+                CloseKind::PasswordIncorrect,
+                message.param(1).unwrap_or_default().to_owned(),
+            );
+            Handled::Yes
+        } else if self.deadline.is_some() && message.command_is("463") {
+            outbox.close(
+                CloseKind::ConnectionRestricted,
                 message.param(1).unwrap_or_default().to_owned(),
             );
             Handled::Yes

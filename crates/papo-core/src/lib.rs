@@ -1721,6 +1721,8 @@ pub enum CloseKind {
     AccountRequired,
     /// The server rejected the connection password (`464`).
     PasswordIncorrect,
+    /// The server rejected this connection class (`463`).
+    ConnectionRestricted,
     /// The server banned the connection (`465`).
     Banned,
     /// Every configured connection nickname was rejected.
