@@ -1,6 +1,4 @@
-use std::collections::BTreeSet;
-#[cfg(not(target_family = "wasm"))]
-use std::{env, fs};
+use std::{collections::BTreeSet, env, fs};
 
 use papo::isupport::Advertised;
 use papo_conformance_macros::scenario;
@@ -92,17 +90,16 @@ async fn isupport_snapshot(s: Scenario) -> papo_testing::Result<()> {
 
     let profile = DeploymentProfile::from_env()?;
 
-    #[cfg(not(target_family = "wasm"))]
+    if cfg!(not(target_family = "wasm"))
+        && env::var("PAPO_BLESS_ISUPPORT").is_ok_and(|value| value == "1")
     {
-        if env::var("PAPO_BLESS_ISUPPORT").is_ok_and(|value| value == "1") {
-            let path = format!(
-                "{}{}.txt",
-                concat!(env!("CARGO_MANIFEST_DIR"), "/snapshots/isupport/"),
-                profile.as_str()
-            );
-            fs::write(path, &actual)?;
-            return Ok(());
-        }
+        let path = format!(
+            "{}{}.txt",
+            concat!(env!("CARGO_MANIFEST_DIR"), "/snapshots/isupport/"),
+            profile.as_str()
+        );
+        fs::write(path, &actual)?;
+        return Ok(());
     }
 
     let expected = expected_snapshot(profile);
