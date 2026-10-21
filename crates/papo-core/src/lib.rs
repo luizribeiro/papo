@@ -901,6 +901,13 @@ pub enum ResponseMatcher {
     Ping(String),
     /// A channel list ending at `323`.
     List,
+    /// A channel mode list ending at its mode-specific numeric.
+    ListMode {
+        /// Channel whose list was requested.
+        channel: String,
+        /// List mode that was requested.
+        mode: ListMode,
+    },
     /// A read-marker query ending at the matching `MARKREAD` reply.
     ReadMarker(String),
 }
@@ -1135,6 +1142,28 @@ impl ResponseMatcher {
                     ) || list_error)
                         .then_some(numeric == Numeric::RPL_LISTEND || list_error)
                 })
+            }
+            Self::ListMode { channel, mode } => {
+                if Self::standard_failure(message, "MODE") {
+                    return Some(true);
+                }
+                let Command::Numeric(numeric) = message.command() else {
+                    return None;
+                };
+                let named = Self::target_is(message, 1, channel, mapping);
+                let (row, end) = match mode {
+                    ListMode::Ban => (367, 368),
+                    ListMode::Except => (348, 349),
+                    ListMode::Invex => (346, 347),
+                    ListMode::Quiet => (728, 729),
+                };
+                let list_reply = named
+                    && matches!(numeric.code(), code if code == row || code == end)
+                    && (*mode != ListMode::Quiet || message.param(2) == Some("q"));
+                (list_reply
+                    || numeric.is_error() && named
+                    || Self::numeric_names_command(message, numeric, "MODE"))
+                .then_some(numeric.code() == end || numeric.is_error())
             }
             Self::ReadMarker(target) => ((message.command() == Command::Markread
                 && Self::target_is(message, 0, target, mapping))
@@ -2989,7 +3018,10 @@ impl Session {
             .then(|| message.as_ref().param(0).map(str::to_owned))
             .flatten();
         if self.caps.enabled().contains_key(&cap::LABELED_RESPONSE) {
-            let track_sync = matches!(matcher, ResponseMatcher::Join(_));
+            let track_sync = matches!(
+                matcher,
+                ResponseMatcher::Join(_) | ResponseMatcher::ListMode { .. }
+            );
             if track_sync && self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
                 return Err(RequestError::PendingLimit);
             }

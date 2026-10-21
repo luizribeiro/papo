@@ -1047,6 +1047,9 @@ pub papo_core::ResponseMatcher::Kick
 pub papo_core::ResponseMatcher::Kick::channel: alloc::string::String
 pub papo_core::ResponseMatcher::Kick::nick: alloc::string::String
 pub papo_core::ResponseMatcher::List
+pub papo_core::ResponseMatcher::ListMode
+pub papo_core::ResponseMatcher::ListMode::channel: alloc::string::String
+pub papo_core::ResponseMatcher::ListMode::mode: papo_core::ListMode
 pub papo_core::ResponseMatcher::Mode(alloc::string::String)
 pub papo_core::ResponseMatcher::Nick(alloc::string::String)
 pub papo_core::ResponseMatcher::Oper
