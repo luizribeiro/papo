@@ -2772,7 +2772,6 @@ impl Session {
         self.keepalive.handle_disconnected();
         self.monitor.handle_disconnected();
         self.nick_regain.reset();
-        self.state.invalidate_mode_lists();
         self.metadata_subscriptions_sent = false;
         let casemapping = self.state.casemapping();
         self.remembered_casemapping = casemapping;

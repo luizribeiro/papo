@@ -374,12 +374,6 @@ impl State {
         }
     }
 
-    pub(crate) fn invalidate_mode_lists(&mut self) {
-        for channel in self.channels.values_mut() {
-            channel.lists.clear();
-        }
-    }
-
     pub(crate) fn sync_monitored_nick(
         &mut self,
         monitor: &Monitor,

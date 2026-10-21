@@ -286,3 +286,68 @@ fn a_refusal_invalidates_a_previously_fetched_list() {
         None
     );
 }
+
+#[test]
+fn live_changes_during_a_fetch_do_not_duplicate_the_snapshot() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
+    );
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut session, ListMode::Ban);
+    session.handle_line(now, b":ergo.test 367 papo #papo bob!*@* oper 1761048000");
+    session.handle_line(now, b":alice!~alice@staff.example MODE #papo +b bob");
+    session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+
+    let entries = response(&mut session, id).mode_list.unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban),
+        Some(entries.as_slice())
+    );
+}
+
+#[test]
+fn timeout_and_disconnect_invalidate_tracked_lists() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut session, ListMode::Ban);
+    session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    _ = response(&mut session, id);
+
+    let id = request(&mut session, ListMode::Ban);
+    while session.poll_transmit().is_some() {}
+    session.handle_line(
+        now,
+        b":ergo.test 367 papo #papo *!*@gateway.example oper 1761048000",
+    );
+    session.handle_timeout(session.poll_timeout().unwrap() + Duration::from_secs(31));
+    assert!(
+        std::iter::from_fn(|| session.poll_event()).any(
+            |event| matches!(event, Event::RequestTimedOut { id: timed_out } if timed_out == id)
+        )
+    );
+    assert_eq!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban),
+        None
+    );
+
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut session, ListMode::Ban);
+    session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    _ = response(&mut session, id);
+    session.handle_disconnected(now);
+    assert!(session.state().channel("#papo").is_none());
+}
