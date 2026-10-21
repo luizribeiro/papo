@@ -14,6 +14,44 @@ fn transport_failure(message: &'static str) -> Error {
     ))
 }
 
+fn reconnectable_stream(
+    settings: Config,
+    reconnect: Reconnect,
+) -> (
+    DuplexStream,
+    super::Client,
+    super::Events,
+    Driver,
+    Arc<AtomicUsize>,
+) {
+    let (stream, server) = tokio::io::duplex(4096);
+    let stream = Arc::new(Mutex::new(Some(Box::new(stream) as super::BoxConnection)));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let connector: super::Connector = Arc::new({
+        let calls = Arc::clone(&calls);
+        move |_, _| {
+            calls.fetch_add(1, Ordering::Relaxed);
+            let stream = stream.lock().unwrap().take().unwrap();
+            Box::pin(async move { Ok(stream) })
+        }
+    });
+    let (client, events, driver) = Driver::with_connector_and_entropy(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(settings),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect::default(),
+        reconnect,
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+        Box::new(|| 0),
+    );
+    (server, client, events, driver, calls)
+}
+
 fn test_nick(value: &str) -> crate::Nick {
     crate::Casemapping::default().nick(value)
 }
@@ -2652,6 +2690,78 @@ async fn nick_candidates_exhaustion_ends_login_immediately() {
         Err(Error::Connect(error))
             if error.kind() == crate::ConnectErrorKind::Server
     ));
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn nick_candidates_exhaustion_retries_at_the_refusal_minimum() {
+    let settings = config().alt_nicks(["papo-away"]);
+    let (mut server, _client, mut events, driver, calls) = reconnectable_stream(
+        settings,
+        Reconnect::exponential().refused_delay(Duration::from_secs(47)),
+    );
+    let driver = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 * NICKLEN=1 :are supported by this server\r\n",
+    )
+    .await;
+    for (line, nick) in [
+        (
+            b":ergo.test 400 * NICK :Nickname is already in use\r\n".as_slice(),
+            b"NICK papo-away\r\n".as_slice(),
+        ),
+        (
+            b":ergo.test 400 * NICK :Nickname is already in use\r\n".as_slice(),
+            b"NICK _\r\n".as_slice(),
+        ),
+    ] {
+        server_line(&mut server, line).await;
+        client_line(&mut server, nick).await;
+    }
+    server_line(
+        &mut server,
+        b":ergo.test 400 * NICK :Nickname is already in use\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Connect(error),
+            reconnect_in: Some(delay),
+        })) if error.kind() == crate::ConnectErrorKind::Server
+            && delay == Duration::from_secs(47)
+    ));
+    tokio::time::advance(Duration::from_secs(46)).await;
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn unavailable_required_sasl_retries_at_the_refusal_minimum() {
+    let settings = config().sasl(Sasl::plain("alice", "correct horse battery staple"));
+    let (mut server, _client, mut events, driver, calls) = reconnectable_stream(
+        settings,
+        Reconnect::exponential().refused_delay(Duration::from_secs(47)),
+    );
+    let driver = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :multi-prefix\r\n").await;
+
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Connect(error),
+            reconnect_in: Some(delay),
+        })) if error.kind() == crate::ConnectErrorKind::SaslUnavailable
+            && std::error::Error::source(&error)
+                .is_some_and(|source| source.to_string().contains("did not advertise"))
+            && delay == Duration::from_secs(47)
+    ));
+    tokio::time::advance(Duration::from_secs(46)).await;
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    abort_task(driver).await;
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
