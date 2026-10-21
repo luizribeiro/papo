@@ -173,6 +173,63 @@ impl Session {
 }
 
 impl HistoryQuery {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __latest(target: String, after: Option<MsgRef>, limit: usize) -> Self {
+        Self::Latest {
+            target,
+            after,
+            limit,
+        }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __before(target: String, before: MsgRef, limit: usize) -> Self {
+        Self::Before {
+            target,
+            before,
+            limit,
+        }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __after(target: String, after: MsgRef, limit: usize) -> Self {
+        Self::After {
+            target,
+            after,
+            limit,
+        }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __around(target: String, around: MsgRef, limit: usize) -> Self {
+        Self::Around {
+            target,
+            around,
+            limit,
+        }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __between(target: String, start: MsgRef, end: MsgRef, limit: usize) -> Self {
+        Self::Between {
+            target,
+            start,
+            end,
+            limit,
+        }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __targets(from: SystemTime, to: SystemTime, limit: usize) -> Self {
+        Self::Targets { from, to, limit }
+    }
+
     fn limit(&self) -> usize {
         match self {
             Self::Latest { limit, .. }

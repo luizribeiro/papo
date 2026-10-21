@@ -63,11 +63,11 @@ pub(super) fn advance_catchup(
         && catchup.items.len() < 1_000
         && let Some(next) = next
     {
-        let query = HistoryQuery::After {
-            target: catchup.target.clone(),
-            after: papo_core::MsgRef::Msgid(next),
-            limit: (1_000 - catchup.items.len()).min(100),
-        };
+        let query = HistoryQuery::__after(
+            catchup.target.clone(),
+            papo_core::MsgRef::Msgid(next),
+            (1_000 - catchup.items.len()).min(100),
+        );
         if let Ok(id) = session.chathistory(now(), query) {
             catchups.insert(id, catchup);
             return None;
@@ -183,11 +183,7 @@ pub(super) fn begin_catchup(
         } else {
             continue;
         };
-        let query = HistoryQuery::After {
-            target: channel.channel.clone(),
-            after,
-            limit: 100,
-        };
+        let query = HistoryQuery::__after(channel.channel.clone(), after, 100);
         if let Ok(id) = session.chathistory(now(), query) {
             catchups.insert(
                 id,

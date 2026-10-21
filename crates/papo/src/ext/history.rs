@@ -601,22 +601,18 @@ impl History {
     pub fn latest(self) -> HistoryRequest {
         HistoryRequest {
             client: self.client,
-            query: self.target.map(|target| HistoryQuery::Latest {
-                target,
-                after: None,
-                limit: DEFAULT_HISTORY_LIMIT,
-            }),
+            query: self
+                .target
+                .map(|target| HistoryQuery::__latest(target, None, DEFAULT_HISTORY_LIMIT)),
         }
     }
 
     /// Requests messages before `reference`.
     pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         let before = reference.into().0;
-        let query = self.target.map(|target| HistoryQuery::Before {
-            target,
-            before,
-            limit: DEFAULT_HISTORY_LIMIT,
-        });
+        let query = self
+            .target
+            .map(|target| HistoryQuery::__before(target, before, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
             query,
@@ -626,11 +622,9 @@ impl History {
     /// Requests messages after `reference`.
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         let after = reference.into().0;
-        let query = self.target.map(|target| HistoryQuery::After {
-            target,
-            after,
-            limit: DEFAULT_HISTORY_LIMIT,
-        });
+        let query = self
+            .target
+            .map(|target| HistoryQuery::__after(target, after, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
             query,
@@ -640,11 +634,9 @@ impl History {
     /// Requests messages surrounding `reference`.
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         let around = reference.into().0;
-        let query = self.target.map(|target| HistoryQuery::Around {
-            target,
-            around,
-            limit: DEFAULT_HISTORY_LIMIT,
-        });
+        let query = self
+            .target
+            .map(|target| HistoryQuery::__around(target, around, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
             query,
@@ -659,12 +651,9 @@ impl History {
     ) -> HistoryRequest {
         let start = start.into().0;
         let end = end.into().0;
-        let query = self.target.map(|target| HistoryQuery::Between {
-            target,
-            start,
-            end,
-            limit: DEFAULT_HISTORY_LIMIT,
-        });
+        let query = self
+            .target
+            .map(|target| HistoryQuery::__between(target, start, end, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
             query,
@@ -864,11 +853,7 @@ impl Client {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             client
-                .history_response(HistoryQuery::Targets {
-                    from: since,
-                    to: until,
-                    limit: 1_000,
-                })
+                .history_response(HistoryQuery::__targets(since, until, 1_000))
                 .await?
                 .history_targets
                 .ok_or_else(Error::connection_lost)
