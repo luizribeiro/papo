@@ -110,6 +110,7 @@ impl BanTarget {
 /// together, split across commands at the server's advertised `MODES` limit.
 /// Awaiting returns an error only when no change was confirmed; after a partial success, the
 /// result contains the facts confirmed before a later request or connection failure.
+#[must_use = "requests do nothing unless awaited"]
 pub struct SetModes {
     client: Client,
     target: String,
@@ -136,20 +137,17 @@ pub struct KickbanOutcome {
 
 impl SetModes {
     /// Adds a mode that takes no argument.
-    #[must_use]
     #[allow(clippy::should_implement_trait)]
     pub fn add(self, mode: char) -> Self {
         self.change(true, Selector::Letter(mode), None)
     }
 
     /// Removes a mode that takes no argument.
-    #[must_use]
     pub fn remove(self, mode: char) -> Self {
         self.change(false, Selector::Letter(mode), None)
     }
 
     /// Adds a mode with its required argument.
-    #[must_use]
     pub fn add_with(self, mode: char, argument: impl Into<String>) -> Self {
         self.change(
             true,
@@ -159,7 +157,6 @@ impl SetModes {
     }
 
     /// Removes a mode with its required argument.
-    #[must_use]
     pub fn remove_with(self, mode: char, argument: impl Into<String>) -> Self {
         self.change(
             false,
@@ -169,7 +166,6 @@ impl SetModes {
     }
 
     /// Adds `target` to the channel ban list.
-    #[must_use]
     pub fn ban(self, target: impl Into<BanTarget>) -> Self {
         self.change(
             true,
@@ -179,7 +175,6 @@ impl SetModes {
     }
 
     /// Removes `target` from the channel ban list.
-    #[must_use]
     pub fn unban(self, target: impl Into<BanTarget>) -> Self {
         self.change(
             false,
@@ -189,25 +184,21 @@ impl SetModes {
     }
 
     /// Adds `target` to the channel ban-exception list.
-    #[must_use]
     pub fn ban_exception(self, target: impl Into<BanTarget>) -> Self {
         self.optional_list(true, crate::Feature::Excepts, target)
     }
 
     /// Removes `target` from the channel ban-exception list.
-    #[must_use]
     pub fn remove_ban_exception(self, target: impl Into<BanTarget>) -> Self {
         self.optional_list(false, crate::Feature::Excepts, target)
     }
 
     /// Adds `target` to the channel invite-exception list.
-    #[must_use]
     pub fn invite_exception(self, target: impl Into<BanTarget>) -> Self {
         self.optional_list(true, crate::Feature::Invex, target)
     }
 
     /// Removes `target` from the channel invite-exception list.
-    #[must_use]
     pub fn remove_invite_exception(self, target: impl Into<BanTarget>) -> Self {
         self.optional_list(false, crate::Feature::Invex, target)
     }
@@ -216,43 +207,36 @@ impl SetModes {
     ///
     /// This is available when the server advertises `q` as a list mode, as Solanum does. Ergo
     /// represents quiets as ban-list entries; use `.ban("m:*!*@host")` there.
-    #[must_use]
     pub fn quiet(self, target: impl Into<BanTarget>) -> Self {
         self.optional_list(true, crate::Feature::Quiet, target)
     }
 
     /// Grants channel-operator privileges to `nick`.
-    #[must_use]
     pub fn op(self, nick: impl AsRef<str>) -> Self {
         self.prefix(true, 'o', nick)
     }
 
     /// Removes channel-operator privileges from `nick`.
-    #[must_use]
     pub fn deop(self, nick: impl AsRef<str>) -> Self {
         self.prefix(false, 'o', nick)
     }
 
     /// Grants half-operator privileges to `nick`.
-    #[must_use]
     pub fn halfop(self, nick: impl AsRef<str>) -> Self {
         self.optional_prefix(true, crate::Feature::Halfop, nick)
     }
 
     /// Removes half-operator privileges from `nick`.
-    #[must_use]
     pub fn dehalfop(self, nick: impl AsRef<str>) -> Self {
         self.optional_prefix(false, crate::Feature::Halfop, nick)
     }
 
     /// Grants voice privileges to `nick`.
-    #[must_use]
     pub fn voice(self, nick: impl AsRef<str>) -> Self {
         self.prefix(true, 'v', nick)
     }
 
     /// Removes voice privileges from `nick`.
-    #[must_use]
     pub fn devoice(self, nick: impl AsRef<str>) -> Self {
         self.prefix(false, 'v', nick)
     }
@@ -351,7 +335,6 @@ impl IntoFuture for SetModes {
 
 impl Client {
     /// Starts a validated mode-change request for a user or channel.
-    #[must_use]
     pub fn mode(&self, target: impl AsRef<str>) -> SetModes {
         SetModes {
             client: self.clone(),

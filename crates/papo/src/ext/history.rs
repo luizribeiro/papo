@@ -570,6 +570,7 @@ impl HistoryPage {
 }
 
 /// Builds a history request for one channel or nickname.
+#[must_use = "requests do nothing unless awaited"]
 pub struct History {
     pub(crate) client: Client,
     pub(crate) target: Result<String, Error>,
@@ -577,7 +578,6 @@ pub struct History {
 
 impl History {
     /// Requests the newest `limit` messages.
-    #[must_use]
     pub fn latest(self, limit: usize) -> HistoryRequest {
         HistoryRequest {
             client: self.client,
@@ -590,7 +590,6 @@ impl History {
     }
 
     /// Requests messages before `reference`.
-    #[must_use]
     pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         let before = reference.into().0;
         let query = self.target.map(|target| HistoryQuery::Before {
@@ -605,7 +604,6 @@ impl History {
     }
 
     /// Requests messages after `reference`.
-    #[must_use]
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         let after = reference.into().0;
         let query = self.target.map(|target| HistoryQuery::After {
@@ -620,7 +618,6 @@ impl History {
     }
 
     /// Requests messages surrounding `reference`.
-    #[must_use]
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         let around = reference.into().0;
         let query = self.target.map(|target| HistoryQuery::Around {
@@ -635,7 +632,6 @@ impl History {
     }
 
     /// Requests messages between two exclusive references.
-    #[must_use]
     pub fn between(
         self,
         start: impl Into<HistoryReference>,
@@ -716,6 +712,7 @@ impl From<&ChatMessage> for HistoryReference {
 /// [`crate::UnsupportedReason::DisabledByClient`]. An unusable reference returns
 /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with [`crate::Refusal::Other`]. It
 /// can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
+#[must_use = "requests do nothing unless awaited"]
 pub struct HistoryRequest {
     client: Client,
     query: Result<HistoryQuery, Error>,
@@ -723,7 +720,6 @@ pub struct HistoryRequest {
 
 impl HistoryRequest {
     /// Sets the maximum number of returned messages.
-    #[must_use]
     pub fn limit(mut self, limit: usize) -> Self {
         if let Ok(
             HistoryQuery::Latest { limit: value, .. }
@@ -755,7 +751,6 @@ impl IntoFuture for HistoryRequest {
 
 impl Client {
     /// Starts a chat history request for a conversation.
-    #[must_use]
     pub fn history(&self, target: impl Into<ConversationInput>) -> crate::History {
         crate::History {
             client: self.clone(),

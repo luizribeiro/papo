@@ -69,6 +69,14 @@ pub enum Fallback {
 }
 
 /// Builds a chat message with optional `IRCv3` client tags.
+///
+/// ```compile_fail
+/// # #![deny(unused_must_use)]
+/// # fn send(client: &papo::Client) {
+/// client.privmsg("#papo", "hello from the docs");
+/// # }
+/// ```
+#[must_use = "requests do nothing unless awaited"]
 pub struct SendMessage {
     client: Client,
     kind: TextKind,
@@ -82,6 +90,7 @@ pub struct SendMessage {
 
 /// Builds a channel join request.
 #[derive(Debug)]
+#[must_use = "requests do nothing unless awaited"]
 pub struct JoinChannel {
     client: Client,
     channel: crate::ChannelName,
@@ -90,7 +99,6 @@ pub struct JoinChannel {
 
 impl JoinChannel {
     /// Supplies the channel key without exposing it through `Debug` output.
-    #[must_use]
     pub fn key(mut self, key: impl Into<crate::Secret>) -> Self {
         self.key = Some(key.into());
         self
@@ -110,14 +118,12 @@ impl IntoFuture for JoinChannel {
 
 impl SendMessage {
     /// Marks this message as a reply to `message` when replies are available.
-    #[must_use]
     pub fn reply_to(mut self, message: impl Into<crate::MessageId>) -> Self {
         self.reply_to = Some(message.into());
         self
     }
 
     /// Supplies channel context for a private message.
-    #[must_use]
     pub fn channel_context(mut self, channel: impl AsRef<str>) -> Self {
         self.channel_context = Some(self.client.state().channel_name(channel.as_ref()));
         self
@@ -136,7 +142,6 @@ impl SendMessage {
     /// [`UnsupportedReason::DisabledByClient`]. A key rejected by `CLIENTTAGDENY` returns the
     /// same feature with [`UnsupportedReason::TagDenied`]. Other key grammar and encoded-size
     /// failures return [`Error::InvalidInput`].
-    #[must_use]
     pub fn tag(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.tags.push((key.into(), value.into()));
         self
