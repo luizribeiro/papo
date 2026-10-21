@@ -51,25 +51,21 @@ pub enum HistoryItem {
     },
 }
 
+variant_accessors! { HistoryItem;
+    (Message, as_message, ChatMessage),
+    (Reacted, as_reacted, Reacted),
+    (Redacted, as_redacted, Redacted),
+    (Joined, as_joined, Joined),
+    (Parted, as_parted, Parted),
+    (Quit, as_quit, Quit),
+    (Kicked, as_kicked, Kicked),
+    (NickChanged, as_nick_changed, NickChanged),
+    (TopicChanged, as_topic_changed, TopicChanged),
+    (ModeChanged, as_mode_changed, ModeChanged),
+    (field Other, line, as_other, Line),
+}
+
 impl HistoryItem {
-    /// Returns the message when this item is [`HistoryItem::Message`].
-    #[must_use]
-    pub const fn message(&self) -> Option<&ChatMessage> {
-        match self {
-            Self::Message(message) => Some(message),
-            _ => None,
-        }
-    }
-
-    /// Returns the line when this item is [`HistoryItem::Other`].
-    #[must_use]
-    pub const fn as_other(&self) -> Option<&Line> {
-        match self {
-            Self::Other { line, .. } => Some(line),
-            _ => None,
-        }
-    }
-
     /// Returns the server-assigned identifier of this history line, when supplied.
     #[must_use]
     pub const fn msgid(&self) -> Option<&crate::MessageId> {
@@ -565,7 +561,7 @@ impl ConversationInput {
 impl HistoryPage {
     /// Iterates over chat messages, excluding replayed activity items.
     pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
-        self.items.iter().filter_map(HistoryItem::message)
+        self.items.iter().filter_map(HistoryItem::as_message)
     }
 }
 
@@ -1036,6 +1032,8 @@ mod tests {
             })
             .collect();
 
+        assert!(items[0].as_message().is_some());
+        assert!(items[0].as_other().is_none());
         assert!(matches!(&items[0], HistoryItem::Message(message)
             if message.authorship == crate::Authorship::Own && message.is_own()));
         assert!(matches!(&items[1], HistoryItem::Message(message)
@@ -1125,6 +1123,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
+        assert!(reacted.as_reacted().is_some());
         assert!(matches!(
             reacted,
             HistoryItem::Reacted(event)
@@ -1145,6 +1144,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
+        assert!(removal.as_redacted().is_some());
         assert!(matches!(
             removal,
             HistoryItem::Redacted(event)
@@ -1188,6 +1188,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
+        assert!(item.as_other().is_some());
         assert!(matches!(item, HistoryItem::Other { line, .. } if line.command() == "REDACT"));
     }
 
@@ -1203,6 +1204,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::Replay,
         );
+        assert!(joined.as_joined().is_some());
         assert!(matches!(
             joined,
             HistoryItem::Joined(event)
@@ -1242,6 +1244,7 @@ mod tests {
         let parted = map(papo_core::HistoryItem::Parted(core_item(
             ":emily!~e@localhost PART #papo :Leaving for lunch",
         )));
+        assert!(parted.as_parted().is_some());
         assert!(matches!(
             parted,
             HistoryItem::Parted(event)
@@ -1253,6 +1256,7 @@ mod tests {
         let quit = map(papo_core::HistoryItem::Quit(core_item(
             ":emily!~e@localhost QUIT :Connection reset by peer",
         )));
+        assert!(quit.as_quit().is_some());
         assert!(matches!(
             quit,
             HistoryItem::Quit(event)
@@ -1264,6 +1268,7 @@ mod tests {
         let kicked = map(papo_core::HistoryItem::Kicked(core_item(
             ":irc.example KICK #papo emily :Requested by alice",
         )));
+        assert!(kicked.as_kicked().is_some());
         assert!(matches!(
             kicked,
             HistoryItem::Kicked(event)
@@ -1276,6 +1281,7 @@ mod tests {
         let renamed = map(papo_core::HistoryItem::NickChanged(core_item(
             ":emily!~e@localhost NICK emily_",
         )));
+        assert!(renamed.as_nick_changed().is_some());
         assert!(matches!(
             renamed,
             HistoryItem::NickChanged(event)
@@ -1292,6 +1298,7 @@ mod tests {
         let topic = map(papo_core::HistoryItem::TopicChanged(core_item(
             ":emily!~e@localhost TOPIC #papo :Rust 1.90 is out",
         )));
+        assert!(topic.as_topic_changed().is_some());
         assert!(matches!(
             topic,
             HistoryItem::TopicChanged(event)
@@ -1303,6 +1310,7 @@ mod tests {
         let mode = map(papo_core::HistoryItem::ModeChanged(core_item(
             ":emily!~e@localhost MODE #papo +im",
         )));
+        assert!(mode.as_mode_changed().is_some());
         assert!(matches!(
             mode,
             HistoryItem::ModeChanged(event)
