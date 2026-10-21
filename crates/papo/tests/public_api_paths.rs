@@ -6,6 +6,91 @@ const STABLE: &str = include_str!("../public-api.txt");
 const UNSTABLE: &str = include_str!("../public-api-unstable.txt");
 const BOT: &str = include_str!("../../papo-bot/public-api.txt");
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ConversationClass {
+    Event,
+    History,
+    MessageReference,
+    Outgoing,
+    State,
+}
+
+const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
+    (
+        "pub papo::event::Ctcp::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub papo::event::Reacted::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub papo::event::ReadMarkerChanged::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub papo::event::Redacted::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub papo::event::TagMsg::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub papo::event::TypingChanged::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<ConversationInput>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>",
+        ConversationClass::History,
+    ),
+    (
+        "pub fn papo::Client::history(&self, impl core::convert::Into<ConversationInput>) -> papo::History",
+        ConversationClass::History,
+    ),
+    (
+        "pub fn papo::Client::mark_read(&self, impl core::convert::Into<ConversationInput>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>",
+        ConversationClass::History,
+    ),
+    (
+        "pub papo::HistoryPage::conversation: papo::Conversation",
+        ConversationClass::History,
+    ),
+    (
+        "pub papo::Message::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::Conversation, I)> for papo::MessageRef",
+        ConversationClass::MessageReference,
+    ),
+    (
+        "pub fn papo::MessageRef::from((&papo::Conversation, I)) -> Self",
+        ConversationClass::MessageReference,
+    ),
+    (
+        "impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::Conversation, I)> for papo::MessageRef",
+        ConversationClass::MessageReference,
+    ),
+    (
+        "pub fn papo::MessageRef::from((papo::Conversation, I)) -> Self",
+        ConversationClass::MessageReference,
+    ),
+    (
+        "pub papo::RecentConversation::conversation: papo::Conversation",
+        ConversationClass::History,
+    ),
+    (
+        "pub papo::Sent::conversation: papo::Conversation",
+        ConversationClass::Outgoing,
+    ),
+    (
+        "pub fn papo::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo::Typer>",
+        ConversationClass::State,
+    ),
+];
+const BOT_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[];
+
 fn public_type_path(line: &str) -> Option<&str> {
     let public = line.find("pub ")?;
     let declaration = &line[public + 4..];
@@ -72,6 +157,16 @@ fn wire_address_exposures(snapshot: &str) -> Vec<&str> {
                 !(character.is_ascii_alphanumeric() || "_:".contains(character))
             })
             .any(|word| word == "papo_proto::Address")
+        })
+        .collect()
+}
+
+fn conversation_items(snapshot: &str) -> Vec<&str> {
+    snapshot
+        .lines()
+        .filter(|line| {
+            *line != "pub use papo::Conversation"
+                && (line.contains("papo::Conversation") || line.contains("ConversationInput"))
         })
         .collect()
 }
@@ -148,5 +243,35 @@ fn address_check_matches_types_not_names() {
     assert_eq!(
         wire_address_exposures(snapshot),
         ["pub fn example::send(papo_proto::Address)"]
+    );
+}
+
+#[test]
+fn conversation_items_are_classified() {
+    for (name, snapshot, classified) in [
+        ("papo", STABLE, PAPO_CONVERSATION_ITEMS),
+        ("papo unstable", UNSTABLE, PAPO_CONVERSATION_ITEMS),
+        ("papo-bot", BOT, BOT_CONVERSATION_ITEMS),
+    ] {
+        let classified: Vec<_> = classified.iter().map(|(item, _class)| *item).collect();
+        assert_eq!(
+            conversation_items(snapshot),
+            classified,
+            "{name} has an unclassified Conversation-bearing item"
+        );
+    }
+}
+
+#[test]
+fn conversation_check_includes_indirect_inputs_but_not_the_reexport() {
+    let snapshot = "pub use papo::Conversation\n\
+                    pub example::Event::conversation: papo::Conversation\n\
+                    pub fn example::history(impl core::convert::Into<ConversationInput>)\n";
+    assert_eq!(
+        conversation_items(snapshot),
+        [
+            "pub example::Event::conversation: papo::Conversation",
+            "pub fn example::history(impl core::convert::Into<ConversationInput>)",
+        ]
     );
 }
