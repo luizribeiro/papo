@@ -117,15 +117,11 @@ mod tests {
         assert_eq!(joined.authorship, papo::Authorship::Own);
 
         let away = AwayChangedBuilder::new(mapping.nick("alice"))
-            .away(papo::Away::Away {
-                message: Some("reviewing IRCv3".into()),
-            })
+            .away(papo::Away::__away_value(Some("reviewing IRCv3".into())))
             .build();
         assert_eq!(
             away.away,
-            papo::Away::Away {
-                message: Some("reviewing IRCv3".into())
-            }
+            papo::Away::__away_value(Some("reviewing IRCv3".into()))
         );
     }
 }

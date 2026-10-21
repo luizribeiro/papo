@@ -3767,7 +3767,7 @@ fn assert_structured_who(who: &[crate::WhoEntry]) {
         ),
         (
             &crate::Account::LoggedOut,
-            &crate::Away::Away { message: None },
+            &crate::Away::__away_value(None),
             true,
             ['+'].as_slice()
         )
@@ -3809,9 +3809,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     assert_eq!(whois.channels[1].prefixes, ['+']);
     assert_eq!(
         whois.away,
-        crate::Away::Away {
-            message: Some("away from keyboard".into())
-        }
+        crate::Away::__away_value(Some("away from keyboard".into()))
     );
     assert!(whois.is_bot && whois.secure);
     assert_eq!(whois.idle, Some(Duration::from_secs(42)));
@@ -5127,7 +5125,7 @@ async fn manual_who_refreshes_joined_member_state_at_numeric_315() {
     let state = client.state();
     let dan = state.user("dan").unwrap();
     assert!(matches!(dan.account(), crate::Account::LoggedIn(account) if account == "dan"));
-    assert_eq!(dan.away(), &crate::Away::Away { message: None });
+    assert_eq!(dan.away(), &crate::Away::__away_value(None));
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -7014,9 +7012,7 @@ async fn public_state_accessors_report_the_registered_session() {
     );
     assert_eq!(
         state.away(),
-        &crate::Away::Away {
-            message: Some("reviewing patches".into())
-        }
+        &crate::Away::__away_value(Some("reviewing patches".into()))
     );
     assert_eq!(state.host(), Some("localhost"));
     assert_eq!(state.realname(), "papo driver test");
@@ -7118,9 +7114,7 @@ async fn every_state_change_replaces_the_snapshot() {
     previous = changed_snapshot(&client, &previous, "AWAY");
     assert_eq!(
         previous.user("papo-driver").unwrap().away(),
-        &crate::Away::Away {
-            message: Some("Gone to lunch".into())
-        }
+        &crate::Away::__away_value(Some("Gone to lunch".into()))
     );
 
     server_line(

@@ -372,7 +372,7 @@ mod tests {
         );
         assert_eq!(
             (visible.account, visible.away),
-            (Account::Unknown, Away::Away { message: None })
+            (Account::Unknown, Away::__away_value(None))
         );
         assert_eq!((hidden.channel, hidden.prefixes), (None, vec!['@']));
         assert_eq!(

@@ -685,12 +685,12 @@ mod tests {
             ("UNKNOWN_ATTRIBUTE", Refusal::UnknownAttribute),
             ("NEED_ATTRIBUTE", Refusal::MissingAttribute),
         ] {
-            let error = ServerError::from_core(papo_core::ServerError::Standard {
-                command: "BOUNCER".into(),
-                code: code.into(),
-                context: vec!["CHANGENETWORK".into(), "42".into()],
-                description: "Network request rejected".into(),
-            });
+            let error = ServerError::from_core(papo_core::ServerError::__standard(
+                "BOUNCER".into(),
+                code.into(),
+                vec!["CHANGENETWORK".into(), "42".into()],
+                "Network request rejected".into(),
+            ));
             assert_eq!(error.refusal(), expected);
         }
     }
@@ -841,29 +841,23 @@ mod tests {
             Error::InvalidInput(InvalidInput::AccountNameMustMatchNick)
         ));
         assert!(matches!(
-            Error::request(Request::InvalidMetadataKey {
-                key: "draft/example".into(),
-                reason: papo_proto::InvalidIdentifier::InvalidCharacter('/'),
-            }),
+            Error::request(Request::__invalid_metadata_key(
+                "draft/example".into(),
+                papo_proto::InvalidIdentifier::InvalidCharacter('/'),
+            )),
             Error::InvalidInput(InvalidInput::InvalidName { name, reason })
                 if name == "draft/example"
                     && reason == papo_proto::InvalidIdentifier::InvalidCharacter('/')
         ));
         assert!(matches!(
-            Error::request(Request::MetadataValueTooLong {
-                maximum: 512,
-                actual: 513,
-            }),
+            Error::request(Request::__metadata_value_too_long(512, 513)),
             Error::InvalidInput(InvalidInput::MetadataValueTooLong {
                 maximum: 512,
                 actual: 513,
             })
         ));
         assert!(matches!(
-            Error::request(Request::TooManyMetadataSubscriptions {
-                maximum: 10,
-                actual: 11,
-            }),
+            Error::request(Request::__too_many_metadata_subscriptions(10, 11)),
             Error::InvalidInput(InvalidInput::TooManyMetadataSubscriptions {
                 maximum: 10,
                 actual: 11,
