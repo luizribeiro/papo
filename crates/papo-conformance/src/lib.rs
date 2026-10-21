@@ -527,7 +527,7 @@ fn connect_client(
 ) -> Result<Connection, String> {
     let ca_pem = std::fs::read(server.ca_pem_path()).map_err(|error| error.to_string())?;
     let mut builder = Client::builder(endpoint)
-        .nick(papo::Casemapping::default().nick(nick))
+        .nick(nick)
         .username("papo")
         .realname(realname)
         .tls_ca_pem(ca_pem);

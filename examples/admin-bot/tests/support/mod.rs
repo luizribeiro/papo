@@ -48,9 +48,7 @@ pub(super) async fn connect(
         server.plaintext_addr().ip().to_string(),
         server.plaintext_addr().port(),
     );
-    let mut builder = Client::builder(endpoint)
-        .nick(papo::Casemapping::default().nick(nick))
-        .autojoin(channels);
+    let mut builder = Client::builder(endpoint).nick(nick).autojoin(channels);
     if authenticated {
         builder = builder.sasl(Sasl::plain(nick, PASSWORD));
     }

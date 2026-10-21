@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect::<Vec<_>>();
     let password = std::fs::read_to_string(password_file)?;
     let mut builder = Client::builder(endpoint(server)?)
-        .nick(papo::Casemapping::default().nick(&nick))
+        .nick(&nick)
         .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
         .request_caps([
             "draft/chathistory",

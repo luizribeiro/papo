@@ -206,7 +206,7 @@ impl Scenario {
 
     fn builder_named_at(name: String, endpoint: impl IntoEndpoint) -> Builder {
         Client::builder(endpoint)
-            .nick(papo::Casemapping::default().nick(name))
+            .nick(name)
             .realname("papo test peer")
     }
 }

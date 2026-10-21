@@ -365,7 +365,7 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
                     address.ip().to_string(),
                     address.port(),
                 ))
-                .nick(papo::Casemapping::default().nick(network_nick))
+                .nick(network_nick)
                 .username(login.username())
                 .realname("papo bouncer control")
                 .password(login.password())
@@ -512,7 +512,7 @@ async fn sts(s: Scenario) -> papo_testing::Result<()> {
                     "localhost",
                     server.plaintext_addr().port(),
                 ))
-                .nick(papo::Casemapping::default().nick(&nick))
+                .nick(&nick)
                 .request_caps(["sts"])
                 .tls_ca_pem(fs::read(server.ca_pem_path())?)
                 .sts_store(store.clone()),
