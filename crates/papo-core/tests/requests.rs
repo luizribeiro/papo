@@ -6,7 +6,7 @@ use papo_core::{
     Config, Conversation, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher,
     ServerError, Session, TextKind, WhoOnJoin,
 };
-use papo_proto::{Line, LineRef, Numeric};
+use papo_proto::{Command, Line, LineRef, Numeric};
 
 fn labelled_session(now: Instant) -> Session {
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -156,6 +156,48 @@ fn unlabelled_mode_waits_for_its_matching_ping_fence() {
     assert!(
         std::iter::from_fn(|| session.poll_event())
             .any(|event| matches!(event, Event::Response(response) if response.id == id))
+    );
+}
+
+#[test]
+fn unlabelled_mode_keeps_applied_changes_and_partial_refusals() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new(
+                "MODE",
+                ["#papo", "+bb", "alice!*@*", "spambot!*@gateway.example"],
+            ),
+            ResponseMatcher::Mode("#papo".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap(),
+        b"MODE #papo +bb alice!*@* spambot!*@gateway.example\r\n"
+    );
+    assert_eq!(session.poll_transmit().unwrap(), b"PING :papo-mode-0\r\n");
+
+    session.handle_line(now, b":papo!~papo@localhost MODE #papo +b alice!*@*");
+    session.handle_line(
+        now,
+        b":ergo.test 478 papo #papo b :Channel ban list is full",
+    );
+    session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-0");
+
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) if response.id == id => Some(response),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(response.lines.len(), 3);
+    assert_eq!(response.refusal(), Some(Refusal::BanListFull));
+    assert_eq!(response.lines[0].as_ref().param(2), Some("alice!*@*"));
+    assert_eq!(
+        response.lines[1].as_ref().command(),
+        Command::Numeric(Numeric::new(478).unwrap())
     );
 }
 
