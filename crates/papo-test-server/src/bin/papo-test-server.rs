@@ -132,10 +132,7 @@ fn main() -> io::Result<()> {
             &password,
         )?;
     }
-    println!("{plaintext}");
-    println!("{tls}");
-    println!("{websocket}");
-    println!("{secure_websocket}");
+    println!("{plaintext}\n{tls}\n{websocket}\n{secure_websocket}");
     println!("{}", server.ca_pem_path().display());
     let (bouncer_user, bouncer_password, bouncer_config, upstream) = server.bouncer_metadata();
     println!("{bouncer_user}");
