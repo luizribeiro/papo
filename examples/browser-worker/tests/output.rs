@@ -6,5 +6,5 @@ fn page_and_worker_exchange_configuration_and_events() {
     let worker = include_str!("../worker.js");
     assert!(page.contains("new SharedWorker"));
     assert!(page.contains("worker.port.postMessage"));
-    assert!(worker.contains("run(port, data.url, data.nick, data.channel)"));
+    assert!(worker.contains("run(port, data.url, data.nick)"));
 }

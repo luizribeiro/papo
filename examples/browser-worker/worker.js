@@ -5,7 +5,7 @@ const ready = init();
 self.onconnect = ({ ports: [port] }) => {
   port.onmessage = async ({ data }) => {
     await ready;
-    run(port, data.url, data.nick, data.channel);
+    run(port, data.url, data.nick);
   };
   port.start();
 };
