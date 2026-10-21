@@ -3612,12 +3612,104 @@ async fn kick_reasons_obey_advertised_byte_limits() {
                 actual,
             })) if advertised == maximum && actual > maximum
         ));
+        assert!(matches!(
+            client
+                .kickban("#papo", "spambot", format!("{exact}é"), "spambot")
+                .await,
+            Err(Error::InvalidInput(crate::InvalidInput::KickReasonTooLong {
+                maximum: advertised,
+                actual,
+            })) if advertised == maximum && actual > maximum
+        ));
         assert!(
             tokio::time::timeout(Duration::from_millis(1), server.read_u8())
                 .await
                 .is_err()
         );
     }
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst :are supported\r\n",
+    )
+    .await;
+
+    let success = tokio::spawn({
+        let client = client.clone();
+        async move {
+            client
+                .kickban("#papo", "alice", "repeated flooding", "alice")
+                .await
+        }
+    });
+    client_line(&mut server, b"@label=0 MODE #papo +b alice\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0 :papo-driver!papo@localhost MODE #papo +b alice!*@*\r\n",
+    )
+    .await;
+    client_line(
+        &mut server,
+        b"@label=1 KICK #papo alice :repeated flooding\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=1 :papo-driver!papo@localhost KICK #papo alice :repeated flooding\r\n",
+    )
+    .await;
+    assert!(within(success).await.unwrap().unwrap().kick.is_ok());
+
+    let refused = tokio::spawn({
+        let client = client.clone();
+        async move { client.kickban("#papo", "carol", "abuse", "carol!*@*").await }
+    });
+    client_line(&mut server, b"@label=2 MODE #papo +b carol!*@*\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=2 :ergo.test 482 papo-driver #papo :You're not a channel operator\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(refused).await.unwrap(),
+        Err(Error::Server(error))
+            if error.refusal() == crate::Refusal::ChannelOperatorPrivilegesNeeded
+    ));
+
+    let duplicate = tokio::spawn({
+        let client = client.clone();
+        async move { client.kickban("#papo", "bob", "abuse", "bob!*@*").await }
+    });
+    client_line(&mut server, b"@label=3 MODE #papo +b bob!*@*\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=3 :irc.inspircd.test 697 papo-driver #papo bob!*@* b :Entry is already in the list\r\n",
+    )
+    .await;
+    client_line(&mut server, b"@label=4 KICK #papo bob abuse\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=4 :irc.inspircd.test 484 papo-driver bob #papo :Cannot kick protected user\r\n",
+    )
+    .await;
+    let outcome = within(duplicate).await.unwrap().unwrap();
+    assert!(matches!(
+        outcome.kick,
+        Err(Error::Server(error)) if error.refusal() == crate::Refusal::CannotKickProtected
+    ));
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
