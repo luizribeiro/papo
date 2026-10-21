@@ -46,7 +46,9 @@ impl fmt::Debug for Builder {
 impl Builder {
     pub(crate) fn new(address: &str) -> Self {
         let mut config = Config::default();
-        config.ctcp.version = Some(format!("papo {}", crate::VERSION));
+        config.ctcp = config
+            .ctcp
+            .version(Some(&format!("papo {}", crate::VERSION)));
         Self {
             address: address.parse(),
             config,
@@ -331,19 +333,6 @@ impl Builder {
     /// ```
     pub fn ctcp_replies(mut self, replies: CtcpReplies) -> Self {
         self.config.ctcp = replies;
-        self
-    }
-
-    /// Sets the automatic reply to CTCP SOURCE queries.
-    ///
-    /// Channel queries get a private reply.
-    ///
-    /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net")
-    /// #     .ctcp_source("https://example.org/papo-bot");
-    /// ```
-    pub fn ctcp_source(mut self, url: impl Into<String>) -> Self {
-        self.config.ctcp.source = Some(url.into());
         self
     }
 
@@ -1061,30 +1050,24 @@ mod tests {
     fn configures_away_and_ctcp_replies() {
         let rate = RateLimit::new(4, Duration::from_secs(3)).unwrap();
         assert_eq!(
-            Builder::new("irc.example.net")
-                .config
-                .ctcp
-                .version
-                .as_deref(),
-            Some(concat!("papo ", env!("CARGO_PKG_VERSION")))
+            Builder::new("irc.example.net").config.ctcp,
+            CtcpReplies::default()
         );
+        let replies = CtcpReplies::default()
+            .version(None)
+            .ping(false)
+            .source(Some("https://example.org/papo"))
+            .rate(rate);
         let builder = Builder::new("irc.example.net")
             .away_on_connect("Reviewing patches")
-            .ctcp_replies(CtcpReplies::default().version(None).ping(false).rate(rate))
-            .ctcp_source("https://example.org/papo");
+            .ctcp_replies(replies.clone());
         assert_eq!(
             builder.config.away_on_connect,
             Some(papo_core::AwayOnConnect::Message(
                 "Reviewing patches".into()
             ))
         );
-        assert_eq!(builder.config.ctcp.version, None);
-        assert!(!builder.config.ctcp.ping);
-        assert_eq!(builder.config.ctcp.rate, rate);
-        assert_eq!(
-            builder.config.ctcp.source.as_deref(),
-            Some("https://example.org/papo")
-        );
+        assert_eq!(builder.config.ctcp, replies);
     }
 
     #[test]

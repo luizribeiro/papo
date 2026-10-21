@@ -180,10 +180,10 @@ fn connected_ctcp(replies: CtcpReplies) -> Transcript {
 #[test]
 fn answers_supported_ctcp_queries_and_applies_safety_rules() {
     let now = Instant::now();
-    let mut replies = CtcpReplies::default()
+    let replies = CtcpReplies::default()
         .version(Some("papo test build"))
+        .source(Some("https://example.invalid/papo"))
         .rate(RateLimit::unlimited());
-    replies.source = Some("https://example.invalid/papo".into());
     let mut session = Session::new(
         Config::default()
             .rate_limit(RateLimit::unlimited())
@@ -324,8 +324,7 @@ fn caps_ctcp_replies_across_several_senders() {
 #[test]
 fn answers_time_with_the_injected_wall_clock_value() {
     let now = Instant::now();
-    let mut replies = CtcpReplies::off();
-    replies.time = Some("Thu Oct 15 16:30:00 2026 EDT".into());
+    let replies = CtcpReplies::off().time(Some("Thu Oct 15 16:30:00 2026 EDT"));
     let mut session = Session::new(
         Config::default()
             .rate_limit(RateLimit::unlimited())

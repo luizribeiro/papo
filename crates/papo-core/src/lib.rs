@@ -275,19 +275,20 @@ pub fn classify_conversation(
     conversation::classify_line(line, own_nick, isupport)
 }
 
-/// Automatic replies to private CTCP queries.
+/// Automatic replies to CTCP queries.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct CtcpReplies {
     /// VERSION reply, or `None` to disable it.
-    pub version: Option<String>,
+    version: Option<String>,
     /// Whether PING parameters are echoed.
-    pub ping: bool,
+    ping: bool,
     /// TIME reply supplied by a shell with access to a wall clock.
-    pub time: Option<String>,
+    time: Option<String>,
     /// SOURCE reply, or `None` to disable it.
-    pub source: Option<String>,
+    source: Option<String>,
     /// Overall reply budget shared across all senders.
-    pub rate: RateLimit,
+    rate: RateLimit,
 }
 
 /// Away state to announce when connecting.
@@ -350,6 +351,20 @@ impl CtcpReplies {
     #[must_use]
     pub const fn ping(mut self, enabled: bool) -> Self {
         self.ping = enabled;
+        self
+    }
+
+    /// Sets the TIME reply supplied by a shell with access to a wall clock.
+    #[must_use]
+    pub fn time(mut self, text: Option<&str>) -> Self {
+        self.time = text.map(str::to_owned);
+        self
+    }
+
+    /// Sets the SOURCE reply, or disables it with `None`.
+    #[must_use]
+    pub fn source(mut self, url: Option<&str>) -> Self {
+        self.source = url.map(str::to_owned);
         self
     }
 

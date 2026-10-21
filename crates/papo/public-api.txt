@@ -1587,7 +1587,6 @@ pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client,
 pub const fn papo::Builder::connect_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::create_account(self, papo::NewAccount) -> Self
 pub fn papo::Builder::ctcp_replies(self, papo::CtcpReplies) -> Self
-pub fn papo::Builder::ctcp_source(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::event_capacity(self, usize) -> Self
 pub const fn papo::Builder::history_on_reconnect(self, bool) -> Self
