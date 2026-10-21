@@ -19,7 +19,7 @@ use crate::{Error, Event, InvalidInput, Reconnect, transport};
 
 pub(super) async fn open_connection(
     plan: ConnectionPlan,
-    progress: mpsc::UnboundedSender<crate::ConnectPhase>,
+    progress: mpsc::UnboundedSender<papo_core::ConnectPhase>,
 ) -> Result<transport::Stream, Error> {
     #[cfg(sockets)]
     {
@@ -27,7 +27,7 @@ pub(super) async fn open_connection(
             #[cfg(feature = "websocket")]
             {
                 if plan.address.is_secure() {
-                    _ = progress.send(crate::ConnectPhase::Tls);
+                    _ = progress.send(papo_core::ConnectPhase::Tls);
                 }
                 return transport::connect_websocket(
                     &url,
@@ -45,7 +45,7 @@ pub(super) async fn open_connection(
         let security = match plan.address.protocol {
             Protocol::Irc => transport::Security::Plaintext,
             Protocol::Ircs => {
-                _ = progress.send(crate::ConnectPhase::Tls);
+                _ = progress.send(papo_core::ConnectPhase::Tls);
                 transport::Security::Tls(plan.tls)
             }
             Protocol::Ws | Protocol::Wss => return Err(Error::connect_unavailable("websocket")),
@@ -60,7 +60,7 @@ pub(super) async fn open_connection(
             return Err(Error::connect_unavailable("TCP in browsers"));
         };
         if plan.address.is_secure() {
-            _ = progress.send(crate::ConnectPhase::Tls);
+            _ = progress.send(papo_core::ConnectPhase::Tls);
         }
         transport::connect_websocket(&url, None)
             .await
@@ -100,12 +100,14 @@ pub(super) async fn run_plan(
         attempts = attempts.saturating_add(1);
         let plan = plan_with_stored_sts(&base_plan, sts_store.as_mut());
         sts_required |= !base_plan.address.is_secure() && plan.address.is_secure();
+        let phase = crate::ConnectPhase::from_core(papo_core::ConnectPhase::Transport)
+            .expect("transport is a public connection phase");
         if !enqueue_event(
             &events,
             &mut pending_events,
             Event::Connecting(crate::event::Connecting {
                 attempt: attempts,
-                phase: crate::ConnectPhase::Transport,
+                phase,
             }),
         ) {
             return finish_slow_consumer(events, &mut registration, pending_events);
@@ -366,7 +368,7 @@ enum ConnectionAttempt {
 #[allow(clippy::too_many_arguments)]
 async fn connect_or_wait(
     connection: ConnectFuture,
-    progress: mpsc::UnboundedReceiver<crate::ConnectPhase>,
+    progress: mpsc::UnboundedReceiver<papo_core::ConnectPhase>,
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
     pending_events: &mut VecDeque<Event>,
@@ -581,7 +583,7 @@ enum DisconnectedWait {
 #[allow(clippy::too_many_arguments)]
 async fn connect_while_disconnected(
     mut connection: ConnectFuture,
-    mut progress: mpsc::UnboundedReceiver<crate::ConnectPhase>,
+    mut progress: mpsc::UnboundedReceiver<papo_core::ConnectPhase>,
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
     pending_events: &mut VecDeque<Event>,
@@ -602,6 +604,9 @@ async fn connect_while_disconnected(
         tokio::select! {
             biased;
             Some(phase) = progress.recv() => {
+                let Some(phase) = crate::ConnectPhase::from_core(phase) else {
+                    continue;
+                };
                 if !enqueue_event(events, pending_events, Event::Connecting(
                     crate::event::Connecting { attempt, phase },
                 )) {
@@ -610,6 +615,9 @@ async fn connect_while_disconnected(
             }
             result = &mut connection => {
                 while let Ok(phase) = progress.try_recv() {
+                    let Some(phase) = crate::ConnectPhase::from_core(phase) else {
+                        continue;
+                    };
                     if !enqueue_event(events, pending_events, Event::Connecting(
                         crate::event::Connecting { attempt, phase },
                     )) {
@@ -758,5 +766,69 @@ fn handle_disconnected_command(
             false
         }
         None => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::*;
+
+    fn connection_end(error: Error, registered: bool) -> ConnectionEnd {
+        ConnectionEnd {
+            reason: error.to_string(),
+            error,
+            close_kind: None,
+            quit: None,
+            quit_timed_out: false,
+            registered_at: registered.then(now),
+            sts: StsActions::default(),
+            sts_store: None,
+            pending_events: VecDeque::new(),
+            reconnect_now: false,
+        }
+    }
+
+    #[test]
+    fn refused_and_transport_retries_use_distinct_delays() {
+        let refusal = connection_end(
+            Error::Connect(crate::ConnectError::login(
+                crate::ConnectErrorKind::Server,
+                "Too many clients from your network",
+            )),
+            false,
+        );
+        let transport_after_welcome = connection_end(
+            Error::connection_lost_with("connection reset by peer"),
+            true,
+        );
+        let transport_before_welcome = connection_end(
+            Error::Connect(crate::ConnectError::new(
+                crate::ConnectErrorKind::Refused,
+                io::Error::new(io::ErrorKind::ConnectionRefused, "connection refused"),
+            )),
+            false,
+        );
+        let reconnect = Reconnect::exponential()
+            .initial_delay(Duration::from_secs(5))
+            .refused_delay(Duration::from_secs(47));
+
+        assert!(retry_was_refused(&refusal));
+        assert!(!retry_was_refused(&transport_after_welcome));
+        assert!(!retry_was_refused(&transport_before_welcome));
+        assert_eq!(
+            retry_delay(reconnect, 1, retry_was_refused(&refusal), &mut || 0),
+            Duration::from_secs(47)
+        );
+        assert_eq!(
+            retry_delay(
+                reconnect,
+                1,
+                retry_was_refused(&transport_after_welcome),
+                &mut || 0,
+            ),
+            Duration::from_secs(4)
+        );
     }
 }

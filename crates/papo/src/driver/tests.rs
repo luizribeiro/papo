@@ -646,7 +646,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
     let connector: super::Connector = Arc::new(|plan, progress| {
         Box::pin(async move {
             if plan.address.is_secure() {
-                _ = progress.send(crate::ConnectPhase::Tls);
+                _ = progress.send(papo_core::ConnectPhase::Tls);
             }
             Err(transport_failure("irc.example.net refused the connection"))
         })

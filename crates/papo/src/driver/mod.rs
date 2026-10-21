@@ -66,7 +66,7 @@ type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>> +
 #[cfg(browser)]
 type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>>>>;
 pub(crate) type Connector = Arc<
-    dyn Fn(ConnectionPlan, mpsc::UnboundedSender<crate::ConnectPhase>) -> ConnectFuture
+    dyn Fn(ConnectionPlan, mpsc::UnboundedSender<papo_core::ConnectPhase>) -> ConnectFuture
         + Send
         + Sync,
 >;
