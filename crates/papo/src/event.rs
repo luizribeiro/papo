@@ -159,6 +159,7 @@ pub struct Message {
     pub channel_context: Option<ChannelName>,
     /// Nickname of the client that submitted a relayed message.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub relayed_by: Option<Nick>,
     /// Whether the message carried the `bot` tag.
     pub is_bot: bool,
@@ -707,9 +708,11 @@ pub enum Event {
     AccountCreation(crate::AccountCreation),
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     PersistenceChanged(crate::PersistenceStatus),
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     BouncerNetworkChanged(BouncerNetworkChanged),
     /// A user or channel's cached metadata changed.
     MetadataChanged(MetadataChanged),

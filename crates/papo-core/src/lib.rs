@@ -1691,12 +1691,15 @@ pub enum RequestError {
     },
     /// A relayed nickname contains none of the server-advertised separator characters.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidRelayNickname,
     /// A web push endpoint is not a nonempty HTTPS URL.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidWebPushEndpoint,
     /// A web push key is not valid URL-safe base64.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidWebPushKey,
 }
 
@@ -1887,9 +1890,11 @@ pub enum Event {
     },
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     PersistenceStatus(PersistenceStatus),
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     BouncerNetworkChanged {
         /// Bouncer-assigned network identifier.
         id: NetworkId,
@@ -2294,6 +2299,7 @@ pub enum StateLimit {
     MetadataKeys,
     /// Upstream bouncer networks.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     BouncerNetworks,
 }
 

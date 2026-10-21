@@ -4,6 +4,8 @@
 //! The IRC specifications call each line a message; this crate uses "line" so
 //! "message" can consistently mean a chat message in the wider API.
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod casemapping;
 mod client_tags;
 mod command;

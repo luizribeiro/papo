@@ -27,6 +27,7 @@ pub enum Casemapping {
     Rfc1459Strict,
     /// Unicode names are folded with the RFC 8265 `UsernameCaseMapped` profile.
     #[cfg(feature = "precis")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "precis")))]
     Precis,
 }
 

@@ -117,6 +117,7 @@ pub enum Request {
     Superseded(&'static str),
     /// Requested only when the application enables the corresponding feature.
     #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     OptIn(&'static str, Feature),
 }
 
