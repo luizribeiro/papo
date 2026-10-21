@@ -6,25 +6,25 @@
 //! ```no_run
 //! use papo::{Client, Event};
 //!
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let (client, mut events) = Client::builder("ircs://irc.example.net")
-//!     .nick("papo-bot")
-//!     .connect()
-//!     .await?;
-//! client.join("#papo").await?;
+//! #[tokio::main(flavor = "current_thread")]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let (client, mut events) = Client::builder("ircs://irc.example.net")
+//!         .nick("papo-bot")
+//!         .autojoin(["#papo"])
+//!         .connect()
+//!         .await?;
 //!
-//! while let Some(event) = events.next().await {
-//!     if let Event::Message(message) = event
-//!         && message.is_live()
-//!         && message.text == "!ping"
-//!         && let Err(error) = client.reply(&message, "pong").await
-//!     {
-//!         eprintln!("could not reply: {error}");
+//!     while let Some(event) = events.next().await {
+//!         if let Event::Message(message) = event
+//!             && message.is_live()
+//!             && message.text == "!ping"
+//!             && let Err(error) = client.reply(&message, "pong").await
+//!         {
+//!             eprintln!("could not reply: {error}");
+//!         }
 //!     }
+//!     Ok(())
 //! }
-//! # Ok(())
-//! # }
 //! ```
 //!
 //! # Cargo features
