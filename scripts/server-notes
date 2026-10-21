@@ -28,6 +28,7 @@ KINDS = {
 OBSERVATION_LABELS = {
     "history-end": "Chat history end",
     "connect-line-length": "Connect line length",
+    "labeled-response": "Labeled response availability",
 }
 
 

@@ -8,6 +8,11 @@ finding = "Every observed CAP LS and welcome-burst line fits the wire limits."
 evidence = "longest S: 501 bytes CAP (0 tag section + 501 line)"
 server_version = "2.19.1"
 
+[ergo-default.labeled-response]
+finding = "The server advertises labeled-response."
+evidence = "S: CAP * LS includes labeled-response"
+server_version = "2.19.1"
+
 [ergo-persistent.history-end]
 finding = "The final nonempty five-message page carries draft/chathistory-end."
 evidence = "S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review"
@@ -16,6 +21,11 @@ server_version = "2.19.1"
 [ergo-persistent.connect-line-length]
 finding = "Every observed CAP LS and welcome-burst line fits the wire limits."
 evidence = "longest S: 501 bytes CAP (0 tag section + 501 line)"
+server_version = "2.19.1"
+
+[ergo-persistent.labeled-response]
+finding = "The server advertises labeled-response."
+evidence = "S: CAP * LS includes labeled-response"
 server_version = "2.19.1"
 
 [soju-ergo.history-end]
@@ -28,6 +38,11 @@ finding = "Every observed CAP LS and welcome-burst line fits the wire limits wit
 evidence = "longest S: 430 bytes CAP (0 tag section + 430 line)"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
+[soju-ergo.labeled-response]
+finding = "The bouncer advertises labeled-response; no managed profile lacks it."
+evidence = "S: CAP * LS includes labeled-response"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
 [inspircd.history-end]
 finding = "The fixture does not advertise chat history, so no end signal is available."
 evidence = "S: CAP LS omits chathistory and draft/chathistory"
@@ -36,6 +51,11 @@ server_version = "4.12.1"
 [inspircd.connect-line-length]
 finding = "Every observed CAP LS and welcome-burst line fits the wire limits."
 evidence = "longest S: 339 bytes CAP (0 tag section + 339 line)"
+server_version = "4.12.1"
+
+[inspircd.labeled-response]
+finding = "The server advertises labeled-response."
+evidence = "S: CAP * LS includes labeled-response"
 server_version = "4.12.1"
 
 [solanum.history-end]
@@ -48,6 +68,11 @@ finding = "Every observed CAP LS and welcome-burst line fits the wire limits."
 evidence = "longest S: 260 bytes 005 (0 tag section + 260 line)"
 server_version = "2026-09-13"
 
+[solanum.labeled-response]
+finding = "The server advertises labeled-response."
+evidence = "S: CAP * LS includes labeled-response"
+server_version = "2026-09-13"
+
 [unrealircd.history-end]
 finding = "The final nonempty five-message page carries draft/chathistory-end."
 evidence = "S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review"
@@ -56,4 +81,9 @@ server_version = "6.2.7"
 [unrealircd.connect-line-length]
 finding = "Every observed CAP LS and welcome-burst line fits the wire limits."
 evidence = "longest S: 501 bytes CAP (0 tag section + 501 line)"
+server_version = "6.2.7"
+
+[unrealircd.labeled-response]
+finding = "The server advertises labeled-response."
+evidence = "S: CAP * LS includes labeled-response"
 server_version = "6.2.7"
