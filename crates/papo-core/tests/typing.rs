@@ -2,10 +2,11 @@
 
 mod support;
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use papo_core::{Config, Conversation, Event, Session};
-use papo_proto::Typing;
+use papo_proto::{Casemapping, Typing};
+use support::Transcript;
 
 fn conversation(session: &Session, target: &str) -> Conversation {
     session.state().parse_target(target).unwrap().1
@@ -54,6 +55,77 @@ fn notifications_update_state_in_start_order_without_refresh_churn() {
     let remaining: Vec<_> = session.state().typing(&conversation).collect();
     assert_eq!(remaining.len(), 1);
     assert_eq!(remaining[0].nick, "bob");
+}
+
+#[test]
+fn status_target_updates_typing_state_and_deadline() {
+    Transcript::new(Config::default().nick("papo"))
+        .connect()
+        .server(":ergo.test 005 papo STATUSMSG=@+ :are supported by this server")
+        .server("@+typing=active :alice!~a@cloak TAGMSG @#papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server("@+typing=paused :ALICE!~a@cloak TAGMSG @#papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .inspect(|session| {
+            let conversation = conversation(session, "#papo");
+            let typers: Vec<_> = session.state().typing(&conversation).collect();
+            assert_eq!(typers.len(), 1);
+            assert_eq!(typers[0].state, Typing::Paused);
+            assert_eq!(typers[0].status.as_deref(), Some(&['@'][..]));
+        })
+        .deadline(Some(Duration::from_secs(30)))
+        .no_event()
+        .ignore_rest();
+}
+
+#[test]
+fn typing_tag_on_chat_message_is_not_a_notification() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":ergo.test 005 papo STATUSMSG=@+ :are supported by this server")
+        .server("@+typing=active :alice!~a@cloak PRIVMSG @#papo :status update")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("PRIVMSG")))
+        .inspect(|session| {
+            let conversation = conversation(session, "#papo");
+            assert_eq!(session.state().typing(&conversation).count(), 0);
+        })
+        .no_event();
+}
+
+#[test]
+fn casemapping_change_refolds_and_deduplicates_typers() {
+    Transcript::new(
+        Config::default()
+            .nick("papo")
+            .casemapping(Casemapping::Ascii),
+    )
+    .connect()
+    .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported by this server")
+    .server("@+typing=active :alice[bot]!~a@cloak TAGMSG #papo")
+    .event(|event| matches!(event, Event::TypingChanged(_)))
+    .server("@+typing=active :alice{bot}!~a@cloak TAGMSG #papo")
+    .event(|event| matches!(event, Event::TypingChanged(_)))
+    .inspect(|session| {
+        let conversation = conversation(session, "#papo");
+        assert_eq!(session.state().typing(&conversation).count(), 2);
+    })
+    .server(":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported by this server")
+    .event(|event| matches!(event, Event::CasemappingChanged { .. }))
+    .inspect(|session| {
+        let conversation = conversation(session, "#papo");
+        let typers: Vec<_> = session.state().typing(&conversation).collect();
+        assert_eq!(typers.len(), 1);
+    })
+    .advance(Duration::from_secs(6))
+    .event(|event| {
+        matches!(
+            event,
+            Event::TypingChanged(change)
+                if change.state == Typing::Done
+                    && change.reason == papo_core::TypingReason::TimedOut
+        )
+    })
+    .no_event()
+    .ignore_rest();
 }
 
 #[test]
@@ -127,6 +199,80 @@ fn part_and_kick_emit_departed_typing_before_departure() {
             Some(Event::Parted { .. } | Event::Kicked { .. })
         ));
     }
+}
+
+#[test]
+fn part_scopes_other_typing_but_own_part_clears_the_channel() {
+    Transcript::new(Config::default().nick("papo"))
+        .server("@+typing=active :alice!~a@cloak TAGMSG #papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server("@+typing=active :alice!~a@cloak TAGMSG #rust")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server("@+typing=active :bob!~b@cloak TAGMSG #papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server(":alice!~a@cloak PART #papo :Leaving")
+        .event(|event| {
+            matches!(
+                event,
+                Event::TypingChanged(change)
+                    if change.actor == "alice!~a@cloak"
+                        && change.reason == papo_core::TypingReason::Departed
+            )
+        })
+        .event(|event| matches!(event, Event::Parted { .. }))
+        .inspect(|session| {
+            let papo = conversation(session, "#papo");
+            let rust = conversation(session, "#rust");
+            assert_eq!(session.state().typing(&papo).next().unwrap().nick, "bob");
+            assert_eq!(session.state().typing(&rust).next().unwrap().nick, "alice");
+        })
+        .server(":papo!~p@localhost PART #papo :Leaving")
+        .event(|event| matches!(event, Event::Parted { .. }))
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .typing(&conversation(session, "#papo"))
+                    .count(),
+                0
+            );
+            assert_eq!(
+                session
+                    .state()
+                    .typing(&conversation(session, "#rust"))
+                    .count(),
+                1
+            );
+        })
+        .no_event();
+}
+
+#[test]
+fn kick_only_clears_the_kicked_sender_in_that_channel() {
+    Transcript::new(Config::default().nick("papo"))
+        .server("@+typing=active :alice!~a@cloak TAGMSG #papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server("@+typing=active :bob!~b@cloak TAGMSG #papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server("@+typing=active :alice!~a@cloak TAGMSG #rust")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server(":ChanServ!service@services KICK #papo alice :Requested")
+        .event(|event| {
+            matches!(
+                event,
+                Event::TypingChanged(change)
+                    if change.actor == "alice!~a@cloak"
+                        && change.reason == papo_core::TypingReason::Departed
+            )
+        })
+        .event(|event| matches!(event, Event::Kicked { .. }))
+        .inspect(|session| {
+            let papo = conversation(session, "#papo");
+            let rust = conversation(session, "#rust");
+            assert_eq!(session.state().typing(&papo).next().unwrap().nick, "bob");
+            assert_eq!(session.state().typing(&rust).next().unwrap().nick, "alice");
+        })
+        .no_event();
 }
 
 #[test]
