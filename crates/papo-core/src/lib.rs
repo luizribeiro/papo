@@ -1941,6 +1941,7 @@ pub enum Event {
     /// The IRC connection is ready for use.
     Connected(Welcome),
     /// A complete message of the day received during connection registration.
+    #[non_exhaustive]
     Motd {
         /// Text from each `RPL_MOTD` numeric, in wire order.
         lines: Vec<String>,
@@ -1956,6 +1957,7 @@ pub enum Event {
     /// A message was redacted from a conversation's history.
     Redacted(Redacted),
     /// A request was sent without protocol-level response correlation.
+    #[non_exhaustive]
     RequestUntracked {
         /// Identifier assigned to the request.
         id: RequestId,
@@ -1963,11 +1965,13 @@ pub enum Event {
     /// A labelled request received its complete logical response.
     Response(Response),
     /// A labelled request did not receive a response before its deadline.
+    #[non_exhaustive]
     RequestTimedOut {
         /// Identifier assigned to the request.
         id: RequestId,
     },
     /// A labelled request was pending when the connection ended.
+    #[non_exhaustive]
     RequestAborted {
         /// Identifier assigned to the request.
         id: RequestId,
@@ -1976,11 +1980,13 @@ pub enum Event {
     },
     /// A user-originated line was discarded before reaching the transport.
     #[doc(hidden)]
+    #[non_exhaustive]
     TransmitAborted {
         /// Identifier assigned when the line was queued.
         token: TransmitToken,
     },
     /// A pending request's required feature became unavailable.
+    #[non_exhaustive]
     RequestUnsupported {
         /// Identifier assigned to the request.
         id: RequestId,
@@ -1990,6 +1996,7 @@ pub enum Event {
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
     /// Account creation completed and the session is authenticated.
+    #[non_exhaustive]
     AccountCreated {
         /// The created account name.
         account: AccountName,
@@ -1997,6 +2004,7 @@ pub enum Event {
         logged_in: bool,
     },
     /// Account creation requires a verification step.
+    #[non_exhaustive]
     VerificationRequired {
         /// The account awaiting verification.
         account: AccountName,
@@ -2010,6 +2018,7 @@ pub enum Event {
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    #[non_exhaustive]
     BouncerNetworkChanged {
         /// Bouncer-assigned network identifier.
         id: NetworkId,
@@ -2017,6 +2026,7 @@ pub enum Event {
         network: Option<BouncerNetwork>,
     },
     /// A user or channel's cached metadata changed.
+    #[non_exhaustive]
     MetadataChanged {
         /// User or channel whose metadata changed.
         subject: Subject,
@@ -2028,6 +2038,7 @@ pub enum Event {
         visibility: Visibility,
     },
     /// The server deferred metadata synchronization for a user or channel.
+    #[non_exhaustive]
     MetadataSyncLater {
         /// Nickname or channel whose synchronization was deferred.
         target: String,
@@ -2035,6 +2046,7 @@ pub enum Event {
         retry_after: Option<Duration>,
     },
     /// A completed history or playback batch.
+    #[non_exhaustive]
     History {
         /// The conversation named by the batch.
         conversation: Conversation,
@@ -2051,6 +2063,7 @@ pub enum Event {
     ///
     /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
     /// separate [`Event::Line`] values.
+    #[non_exhaustive]
     Netsplit {
         /// The servers on either side of the lost link.
         servers: [String; 2],
@@ -2065,6 +2078,7 @@ pub enum Event {
     ///
     /// This event is emitted for an empty batch. Non-`JOIN` lines are delivered as
     /// separate [`Event::Line`] values.
+    #[non_exhaustive]
     Netjoin {
         /// The servers on either side of the restored link.
         servers: [String; 2],
@@ -2074,6 +2088,7 @@ pub enum Event {
         authorship: Vec<Authorship>,
     },
     /// A server batch exceeded a retention bound or deadline.
+    #[non_exhaustive]
     BatchAbandoned {
         /// The opaque batch reference.
         reference: String,
@@ -2083,11 +2098,13 @@ pub enum Event {
         reason: BatchAbandonReason,
     },
     /// A line that could not be decoded or parsed.
+    #[non_exhaustive]
     Malformed {
         /// The original bytes, excluding the line ending.
         line: Vec<u8>,
     },
     /// A request for the transport to drop the connection.
+    #[non_exhaustive]
     Close {
         /// Machine-readable closure classification.
         kind: CloseKind,
@@ -2095,11 +2112,13 @@ pub enum Event {
         reason: String,
     },
     /// Configured authentication failed and connecting is continuing.
+    #[non_exhaustive]
     AuthenticationFailed {
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
     },
     /// The capabilities enabled on an established connection changed.
+    #[non_exhaustive]
     CapsChanged {
         /// Newly enabled capabilities and updated advertised values.
         added: Capabilities,
@@ -2107,6 +2126,7 @@ pub enum Event {
         removed: Capabilities,
     },
     /// Optional behaviors available on an established connection changed.
+    #[non_exhaustive]
     FeaturesChanged {
         /// Behaviors that became available.
         added: Vec<Feature>,

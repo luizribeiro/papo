@@ -486,20 +486,20 @@ pub papo_core::Event::AccountChanged
 pub papo_core::Event::AccountChanged::account: papo_core::Account
 pub papo_core::Event::AccountChanged::actor: alloc::string::String
 pub papo_core::Event::AccountChanged::nick: papo::Nick
-pub papo_core::Event::AccountCreated
+#[non_exhaustive] pub papo_core::Event::AccountCreated
 pub papo_core::Event::AccountCreated::account: papo::AccountName
 pub papo_core::Event::AccountCreated::logged_in: bool
-pub papo_core::Event::AuthenticationFailed
+#[non_exhaustive] pub papo_core::Event::AuthenticationFailed
 pub papo_core::Event::AuthenticationFailed::reason: alloc::string::String
 pub papo_core::Event::AwayChanged
 pub papo_core::Event::AwayChanged::actor: alloc::string::String
 pub papo_core::Event::AwayChanged::away: papo_core::Away
 pub papo_core::Event::AwayChanged::nick: papo::Nick
-pub papo_core::Event::BatchAbandoned
+#[non_exhaustive] pub papo_core::Event::BatchAbandoned
 pub papo_core::Event::BatchAbandoned::batch_type: alloc::string::String
 pub papo_core::Event::BatchAbandoned::reason: papo_core::BatchAbandonReason
 pub papo_core::Event::BatchAbandoned::reference: alloc::string::String
-pub papo_core::Event::CapsChanged
+#[non_exhaustive] pub papo_core::Event::CapsChanged
 pub papo_core::Event::CapsChanged::added: papo::Capabilities
 pub papo_core::Event::CapsChanged::removed: papo::Capabilities
 pub papo_core::Event::CasemappingChanged
@@ -513,14 +513,14 @@ pub papo_core::Event::ChannelRenamed::old: papo::ChannelName
 pub papo_core::Event::ChannelRenamed::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::ChannelSynced
 pub papo_core::Event::ChannelSynced::channel: papo::ChannelName
-pub papo_core::Event::Close
+#[non_exhaustive] pub papo_core::Event::Close
 pub papo_core::Event::Close::kind: papo_core::CloseKind
 pub papo_core::Event::Close::reason: alloc::string::String
 pub papo_core::Event::Connected(papo_core::Welcome)
-pub papo_core::Event::FeaturesChanged
+#[non_exhaustive] pub papo_core::Event::FeaturesChanged
 pub papo_core::Event::FeaturesChanged::added: alloc::vec::Vec<papo_core::Feature>
 pub papo_core::Event::FeaturesChanged::removed: alloc::vec::Vec<papo_core::Feature>
-pub papo_core::Event::History
+#[non_exhaustive] pub papo_core::Event::History
 pub papo_core::Event::History::conversation: papo::Conversation
 pub papo_core::Event::History::end: bool
 pub papo_core::Event::History::items: alloc::vec::Vec<papo_core::HistoryItem>
@@ -553,16 +553,16 @@ pub papo_core::Event::Kicked::reason: core::option::Option<alloc::string::String
 pub papo_core::Event::Kicked::subject: papo::Nick
 pub papo_core::Event::Kicked::subject_authorship: papo_core::Authorship
 pub papo_core::Event::Line(papo_core::ReceivedLine)
-pub papo_core::Event::Malformed
+#[non_exhaustive] pub papo_core::Event::Malformed
 pub papo_core::Event::Malformed::line: alloc::vec::Vec<u8>
 pub papo_core::Event::MembersRefreshed
 pub papo_core::Event::MembersRefreshed::channel: papo::ChannelName
-pub papo_core::Event::MetadataChanged
+#[non_exhaustive] pub papo_core::Event::MetadataChanged
 pub papo_core::Event::MetadataChanged::key: alloc::string::String
 pub papo_core::Event::MetadataChanged::subject: papo_core::Subject
 pub papo_core::Event::MetadataChanged::value: core::option::Option<alloc::string::String>
 pub papo_core::Event::MetadataChanged::visibility: papo_core::Visibility
-pub papo_core::Event::MetadataSyncLater
+#[non_exhaustive] pub papo_core::Event::MetadataSyncLater
 pub papo_core::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
 pub papo_core::Event::MetadataSyncLater::target: alloc::string::String
 pub papo_core::Event::ModeChanged
@@ -581,14 +581,14 @@ pub papo_core::Event::MonitorOnline
 pub papo_core::Event::MonitorOnline::host: core::option::Option<alloc::string::String>
 pub papo_core::Event::MonitorOnline::nick: papo::Nick
 pub papo_core::Event::MonitorOnline::username: core::option::Option<alloc::string::String>
-pub papo_core::Event::Motd
+#[non_exhaustive] pub papo_core::Event::Motd
 pub papo_core::Event::Motd::lines: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Event::MultilineMessage(papo_core::MultilineMessage)
-pub papo_core::Event::Netjoin
+#[non_exhaustive] pub papo_core::Event::Netjoin
 pub papo_core::Event::Netjoin::authorship: alloc::vec::Vec<papo_core::Authorship>
 pub papo_core::Event::Netjoin::joins: alloc::vec::Vec<papo::Line>
 pub papo_core::Event::Netjoin::servers: [alloc::string::String; 2]
-pub papo_core::Event::Netsplit
+#[non_exhaustive] pub papo_core::Event::Netsplit
 pub papo_core::Event::Netsplit::authorship: alloc::vec::Vec<papo_core::Authorship>
 pub papo_core::Event::Netsplit::channels: alloc::vec::Vec<alloc::vec::Vec<papo::ChannelName>>
 pub papo_core::Event::Netsplit::quits: alloc::vec::Vec<papo::Line>
@@ -619,15 +619,15 @@ pub papo_core::Event::RealnameChanged::actor: alloc::string::String
 pub papo_core::Event::RealnameChanged::nick: papo::Nick
 pub papo_core::Event::RealnameChanged::realname: alloc::string::String
 pub papo_core::Event::Redacted(papo_core::Redacted)
-pub papo_core::Event::RequestAborted
+#[non_exhaustive] pub papo_core::Event::RequestAborted
 pub papo_core::Event::RequestAborted::id: papo_core::RequestId
 pub papo_core::Event::RequestAborted::transmitted: bool
-pub papo_core::Event::RequestTimedOut
+#[non_exhaustive] pub papo_core::Event::RequestTimedOut
 pub papo_core::Event::RequestTimedOut::id: papo_core::RequestId
-pub papo_core::Event::RequestUnsupported
+#[non_exhaustive] pub papo_core::Event::RequestUnsupported
 pub papo_core::Event::RequestUnsupported::id: papo_core::RequestId
 pub papo_core::Event::RequestUnsupported::unsupported: papo_core::Unsupported
-pub papo_core::Event::RequestUntracked
+#[non_exhaustive] pub papo_core::Event::RequestUntracked
 pub papo_core::Event::RequestUntracked::id: papo_core::RequestId
 pub papo_core::Event::Response(papo_core::Response)
 pub papo_core::Event::StandardReply(papo_core::StandardReply)
@@ -645,7 +645,7 @@ pub papo_core::Event::TopicChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
 pub papo_core::Event::TypingChanged(papo_core::TypingChanged)
 pub papo_core::Event::Unsupported(papo_core::Unsupported)
-pub papo_core::Event::VerificationRequired
+#[non_exhaustive] pub papo_core::Event::VerificationRequired
 pub papo_core::Event::VerificationRequired::account: papo::AccountName
 pub papo_core::Event::VerificationRequired::message: alloc::string::String
 impl core::clone::Clone for papo_core::Event
