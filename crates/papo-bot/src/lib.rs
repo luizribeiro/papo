@@ -377,6 +377,7 @@ mod tests {
     use std::{
         io,
         pin::Pin,
+        sync::{Arc, Mutex},
         task::{Context, Poll},
         time::Duration,
     };
@@ -396,6 +397,7 @@ mod tests {
     struct TranscriptStream {
         input: Vec<u8>,
         offset: usize,
+        output: Arc<Mutex<Vec<u8>>>,
     }
 
     impl TranscriptStream {
@@ -403,7 +405,12 @@ mod tests {
             Self {
                 input: input.as_bytes().to_vec(),
                 offset: 0,
+                output: Arc::default(),
             }
+        }
+
+        fn output(&self) -> Arc<Mutex<Vec<u8>>> {
+            Arc::clone(&self.output)
         }
     }
 
@@ -457,6 +464,7 @@ mod tests {
             _context: &mut Context<'_>,
             buffer: &[u8],
         ) -> Poll<io::Result<usize>> {
+            self.output.lock().unwrap().extend_from_slice(buffer);
             Poll::Ready(Ok(buffer.len()))
         }
 
@@ -773,5 +781,47 @@ mod tests {
             server.private_notice("pong").await.unwrap(),
             ReplyStatus::NoRecipient
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn private_notices_target_the_actor_and_keep_conversation_context() {
+        let transcript = concat!(
+            ":ergo.test CAP * LS :message-tags\r\n",
+            ":ergo.test CAP papo{bot} ACK :message-tags\r\n",
+            ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
+            ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# :are supported\r\n",
+            ":emily!~emily@localhost PRIVMSG #papo :!ping\r\n",
+            "@+channel-context=#rust :emily!~emily@localhost PRIVMSG papo{bot} :!status\r\n",
+        );
+        let stream = TranscriptStream::new(transcript);
+        let output = stream.output();
+        let (client, mut events, driver) = Client::builder("irc.example")
+            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .stream(stream)
+            .build();
+        let driver = tokio::spawn(driver);
+        let mut messages = Vec::new();
+        while messages.len() < 2 {
+            if let Some(papo::Event::Message(message)) = events.next().await {
+                messages.push(message);
+            }
+        }
+
+        let config = BotConfig::new("!");
+        let channel = config.command(&client, &messages[0]).unwrap();
+        assert_eq!(
+            channel.private_notice("channel pong").await.unwrap(),
+            ReplyStatus::Sent
+        );
+        let private = config.command(&client, &messages[1]).unwrap();
+        assert_eq!(
+            private.private_notice("private pong").await.unwrap(),
+            ReplyStatus::Sent
+        );
+
+        let output = String::from_utf8(output.lock().unwrap().clone()).unwrap();
+        assert!(output.contains("@+channel-context=#papo NOTICE emily :channel pong\r\n"));
+        assert!(output.contains("@+channel-context=#rust NOTICE emily :private pong\r\n"));
+        driver.abort();
     }
 }
