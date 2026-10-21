@@ -44,8 +44,12 @@ pub enum Refusal {
     NotOnChannel,
     /// The named user is already on the channel (`443`).
     UserOnChannel,
+    /// A connection-only detail was sent after connecting (`462`).
+    AlreadyConnected,
     /// The supplied server or operator password is incorrect (`464`).
     PasswordIncorrect,
+    /// The client is banned from the server (`465`).
+    BannedFromServer,
     /// The channel has reached its user limit (`471`).
     ChannelIsFull,
     /// The requested channel mode is unknown (`472`).
@@ -62,6 +66,8 @@ pub enum Refusal {
     NoPrivileges,
     /// The action requires channel operator privileges (`482`).
     ChannelOperatorPrivilegesNeeded,
+    /// A server cannot be disconnected with `KILL` (`483`).
+    CannotKillServer,
     /// The channel accepts only secure connections (`489`).
     SecureOnlyChannel,
     /// The host is not authorized for operator access (`491`).
@@ -70,8 +76,16 @@ pub enum Refusal {
     UnknownUserMode,
     /// The session tried to change another user's modes (`502`).
     UsersDontMatch,
+    /// The server has no help for the requested topic (`524`).
+    NoHelpAvailable,
+    /// A channel key is malformed (`525`).
+    InvalidKey,
+    /// The server could not upgrade the connection to TLS (`691`).
+    TlsUpgradeFailed,
     /// A channel mode parameter is invalid (`696`).
     InvalidModeParameter,
+    /// The IRC operator lacks a required server privilege (`723`).
+    InsufficientPrivileges,
     /// The server is temporarily too busy (`263`).
     TryAgain,
     /// The requested account name is already registered.
@@ -242,7 +256,10 @@ impl Refusal {
             442 => Self::NotOnChannel,
             443 => Self::UserOnChannel,
             451 => Self::NotConnectedYet,
+            461 => Self::MissingParameters,
+            462 => Self::AlreadyConnected,
             464 => Self::PasswordIncorrect,
+            465 => Self::BannedFromServer,
             471 => Self::ChannelIsFull,
             472 => Self::UnknownMode,
             473 => Self::InviteOnlyChannel,
@@ -252,11 +269,16 @@ impl Refusal {
             477 => Self::AccountRequired,
             481 => Self::NoPrivileges,
             482 => Self::ChannelOperatorPrivilegesNeeded,
+            483 => Self::CannotKillServer,
             489 => Self::SecureOnlyChannel,
             491 => Self::NoOperHost,
             501 => Self::UnknownUserMode,
             502 => Self::UsersDontMatch,
+            524 => Self::NoHelpAvailable,
+            525 => Self::InvalidKey,
+            691 => Self::TlsUpgradeFailed,
             696 => Self::InvalidModeParameter,
+            723 => Self::InsufficientPrivileges,
             263 => Self::TryAgain,
             _ => Self::Other,
         }
@@ -377,13 +399,16 @@ mod tests {
             431 => NicknameRequired, 432 => ErroneousNickname, 433 => NicknameInUse,
             436 => NickCollision, 437 => TemporarilyUnavailable, 441 => UserNotInChannel,
             442 => NotOnChannel,
-            443 => UserOnChannel, 451 => NotConnectedYet, 464 => PasswordIncorrect,
+            443 => UserOnChannel, 451 => NotConnectedYet, 461 => MissingParameters,
+            462 => AlreadyConnected, 464 => PasswordIncorrect, 465 => BannedFromServer,
             471 => ChannelIsFull,
             472 => UnknownMode, 473 => InviteOnlyChannel, 474 => BannedFromChannel,
             475 => BadChannelKey, 476 => BadChannelMask, 477 => AccountRequired,
-            481 => NoPrivileges, 482 => ChannelOperatorPrivilegesNeeded, 489 => SecureOnlyChannel,
-            491 => NoOperHost, 501 => UnknownUserMode, 502 => UsersDontMatch,
-            696 => InvalidModeParameter, 263 => TryAgain, 999 => Other,
+            481 => NoPrivileges, 482 => ChannelOperatorPrivilegesNeeded, 483 => CannotKillServer,
+            489 => SecureOnlyChannel, 491 => NoOperHost, 501 => UnknownUserMode,
+            502 => UsersDontMatch, 524 => NoHelpAvailable, 525 => InvalidKey,
+            691 => TlsUpgradeFailed, 696 => InvalidModeParameter,
+            723 => InsufficientPrivileges, 263 => TryAgain, 999 => Other,
         );
     }
 

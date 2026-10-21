@@ -790,11 +790,14 @@ pub papo_core::Refusal::AccountExists
 pub papo_core::Refusal::AccountNameMustMatchNick
 pub papo_core::Refusal::AccountRequired
 pub papo_core::Refusal::AlreadyAuthenticated
+pub papo_core::Refusal::AlreadyConnected
 pub papo_core::Refusal::BadAccountName
 pub papo_core::Refusal::BadChannelKey
 pub papo_core::Refusal::BadChannelMask
 pub papo_core::Refusal::BannedFromChannel
+pub papo_core::Refusal::BannedFromServer
 pub papo_core::Refusal::BatchTimedOut
+pub papo_core::Refusal::CannotKillServer
 pub papo_core::Refusal::CannotSendToChannel
 pub papo_core::Refusal::ChannelIsFull
 pub papo_core::Refusal::ChannelNameInUse
@@ -803,9 +806,11 @@ pub papo_core::Refusal::ChannelRenameForbidden
 pub papo_core::Refusal::ChannelRenamed
 pub papo_core::Refusal::ErroneousNickname
 pub papo_core::Refusal::InputTooLong
+pub papo_core::Refusal::InsufficientPrivileges
 pub papo_core::Refusal::InternalError
 pub papo_core::Refusal::InvalidBatchReference
 pub papo_core::Refusal::InvalidEmail
+pub papo_core::Refusal::InvalidKey
 pub papo_core::Refusal::InvalidMessageReferenceType
 pub papo_core::Refusal::InvalidMetadataKey
 pub papo_core::Refusal::InvalidMetadataValue
@@ -832,6 +837,7 @@ pub papo_core::Refusal::MultilineTooManyLines
 pub papo_core::Refusal::NickCollision
 pub papo_core::Refusal::NicknameInUse
 pub papo_core::Refusal::NicknameRequired
+pub papo_core::Refusal::NoHelpAvailable
 pub papo_core::Refusal::NoNicknameHistory
 pub papo_core::Refusal::NoOperHost
 pub papo_core::Refusal::NoPrivileges
@@ -849,6 +855,7 @@ pub papo_core::Refusal::RedactionForbidden
 pub papo_core::Refusal::RedactionWindowExpired
 pub papo_core::Refusal::SecureOnlyChannel
 pub papo_core::Refusal::TemporarilyUnavailable
+pub papo_core::Refusal::TlsUpgradeFailed
 pub papo_core::Refusal::TooManyChannels
 pub papo_core::Refusal::TooManyMetadataSubscriptions
 pub papo_core::Refusal::TryAgain

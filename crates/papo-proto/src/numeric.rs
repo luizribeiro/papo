@@ -194,6 +194,7 @@ impl Numeric {
     #[must_use]
     pub const fn is_error(self) -> bool {
         (self.0 >= 400 && self.0 <= 599)
+            || self.0 == 691
             || matches!(
                 self,
                 Self::ERR_INVALIDMODEPARAM
@@ -254,7 +255,7 @@ mod tests {
 
     #[test]
     fn classifies_documented_errors_outside_the_error_ranges() {
-        let errors = [696, 723, 734, 902, 904, 905, 906, 907];
+        let errors = [691, 696, 723, 734, 902, 904, 905, 906, 907];
         for value in errors {
             assert!(numeric(value).is_error(), "{value}");
         }

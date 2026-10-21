@@ -1512,6 +1512,10 @@ fn labelled_fail_and_numeric_responses_expose_errors() {
     assert_eq!(numeric.error().unwrap().refusal(), Refusal::NoSuchNick);
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one readable transcript case is kept for every numeric"
+)]
 #[test]
 fn classifies_numeric_refusals() {
     let now = Instant::now();
@@ -1534,6 +1538,38 @@ fn classifies_numeric_refusals() {
         (
             "441 papo alice #papo :They aren't on that channel",
             Refusal::UserNotInChannel,
+        ),
+        (
+            "461 papo WHOIS :Not enough parameters",
+            Refusal::MissingParameters,
+        ),
+        (
+            "462 papo :You may not reregister",
+            Refusal::AlreadyConnected,
+        ),
+        (
+            "465 papo :You are banned from this server",
+            Refusal::BannedFromServer,
+        ),
+        (
+            "483 papo :You cant kill a server!",
+            Refusal::CannotKillServer,
+        ),
+        (
+            "524 papo MASKMATCH :No help available on this topic",
+            Refusal::NoHelpAvailable,
+        ),
+        (
+            "525 papo #papo :Key is not well-formed",
+            Refusal::InvalidKey,
+        ),
+        (
+            "691 papo :STARTTLS failed (Wrong moon phase)",
+            Refusal::TlsUpgradeFailed,
+        ),
+        (
+            "723 papo kill:remote :Insufficient oper privileges.",
+            Refusal::InsufficientPrivileges,
         ),
         (
             "404 papo #rust :Cannot send to channel",
@@ -1594,6 +1630,12 @@ fn classifies_numeric_refusals() {
 
     for (line, expected) in cases {
         let mut session = labelled_session(now);
+        session.handle_line(
+            now,
+            b":ergo.test 001 papo :Welcome to the ErgoTest IRC Network",
+        );
+        session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
+        while session.poll_event().is_some() {}
         request(&mut session, now, Line::new("RAW", ["probe"]));
         session.handle_line(now, format!("@label=0 :ergo.test {line}").as_bytes());
         let Some(Event::Response(response)) = session.poll_event() else {
