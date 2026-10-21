@@ -306,6 +306,7 @@ impl State {
 }
 
 const FEATURES: &[Feature] = &[
+    Feature::MessageTags,
     Feature::Replies,
     Feature::Reactions,
     Feature::Typing,

@@ -246,8 +246,13 @@ fn reports_capability_and_isupport_feature_changes_after_connect() {
         .event(|event| matches!(event, Event::CapsChanged { .. }))
         .event(|event| {
             matches!(event, Event::FeaturesChanged { added, removed }
-                if added.is_empty()
-                    && removed == &[Feature::Replies, Feature::Reactions, Feature::Typing])
+            if added.is_empty()
+                && removed == &[
+                    Feature::MessageTags,
+                    Feature::Replies,
+                    Feature::Reactions,
+                    Feature::Typing,
+                ])
         })
         .server("CAP papo NEW :message-tags")
         .client("CAP REQ :message-tags")
@@ -255,7 +260,12 @@ fn reports_capability_and_isupport_feature_changes_after_connect() {
         .event(|event| matches!(event, Event::CapsChanged { .. }))
         .event(|event| {
             matches!(event, Event::FeaturesChanged { added, removed }
-                if added == &[Feature::Replies, Feature::Reactions, Feature::Typing]
+                if added == &[
+                    Feature::MessageTags,
+                    Feature::Replies,
+                    Feature::Reactions,
+                    Feature::Typing,
+                ]
                     && removed.is_empty())
         })
         .server(":irc.solanum.example 005 papo CLIENTTAGDENY=draft/react :are supported")

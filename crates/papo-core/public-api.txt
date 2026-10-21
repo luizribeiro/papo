@@ -586,6 +586,7 @@ pub papo_core::Feature::ChannelRename
 pub papo_core::Feature::History
 pub papo_core::Feature::HostTracking
 pub papo_core::Feature::LabeledResponse
+pub papo_core::Feature::MessageTags
 pub papo_core::Feature::Metadata
 pub papo_core::Feature::Monitor
 pub papo_core::Feature::Multiline

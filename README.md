@@ -16,7 +16,7 @@ The project is early in development; the API is not yet stable.
 | Capability | Aliases | Requested | Features | Code |
 |---|---|---|---|---|
 | `cap-notify` | — | default | — | `caps` |
-| `message-tags` | — | default | replies, reactions, typing notifications | `features`, `replies` |
+| `message-tags` | — | default | client-only message tags, replies, reactions, typing notifications | `features`, `replies` |
 | `server-time` | — | default | — | `state::read_marker` |
 | `batch` | — | default | — | `batch` |
 | `draft/event-playback` | — | default | — | `batch` |

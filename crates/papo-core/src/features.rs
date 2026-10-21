@@ -6,6 +6,8 @@ use crate::{RequestError, Session, cap};
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
 pub enum Feature {
+    /// Client-only `IRCv3` message tags, requiring `message-tags`.
+    MessageTags,
     /// `IRCv3` draft replies, requiring `message-tags` and an allowed `+reply` or
     /// `+draft/reply` client tag.
     Replies,
@@ -67,6 +69,7 @@ pub enum Feature {
 
 impl Feature {
     pub(crate) const ALL: &'static [Self] = &[
+        Self::MessageTags,
         Self::Replies,
         Self::Reactions,
         Self::Typing,
@@ -98,6 +101,7 @@ impl Feature {
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
+            Self::MessageTags => "client-only message tags",
             Self::Replies => "replies",
             Self::Reactions => "reactions",
             Self::Typing => "typing notifications",
@@ -128,7 +132,9 @@ impl Feature {
 
     const fn caps(self) -> &'static [&'static str] {
         match self {
-            Self::Replies | Self::Reactions | Self::Typing => &[cap::MESSAGE_TAGS],
+            Self::MessageTags | Self::Replies | Self::Reactions | Self::Typing => {
+                &[cap::MESSAGE_TAGS]
+            }
             Self::Redaction => &[cap::MESSAGE_REDACTION],
             Self::Multiline => &[cap::MULTILINE],
             Self::History => &[cap::CHATHISTORY],

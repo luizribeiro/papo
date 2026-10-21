@@ -48,7 +48,7 @@ macro_rules! capabilities {
 
 capabilities! {
     CAP_NOTIFY = "cap-notify"; "Capability change notifications."; name: "cap-notify"; aliases: []; request: Request::Default("cap-notify"); features: []; code: [crate::caps];
-    MESSAGE_TAGS = "message-tags"; "`IRCv3` message tags."; name: "message-tags"; aliases: []; request: Request::Default("message-tags"); features: [Feature::Replies, Feature::Reactions, Feature::Typing]; code: [crate::features, crate::replies];
+    MESSAGE_TAGS = "message-tags"; "`IRCv3` message tags."; name: "message-tags"; aliases: []; request: Request::Default("message-tags"); features: [Feature::MessageTags, Feature::Replies, Feature::Reactions, Feature::Typing]; code: [crate::features, crate::replies];
     SERVER_TIME = "server-time"; "Server-assigned message timestamps."; name: "server-time"; aliases: []; request: Request::Default("server-time"); features: []; code: [crate::state::read_marker];
     BATCH = "batch"; "Batched messages."; name: "batch"; aliases: []; request: Request::Default("batch"); features: []; code: [crate::batch];
     EVENT_PLAYBACK = "draft/event-playback"; "Replay of missed events."; name: "draft/event-playback"; aliases: []; request: Request::Default("draft/event-playback"); features: []; code: [crate::batch];
