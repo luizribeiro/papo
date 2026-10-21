@@ -192,11 +192,11 @@ impl State {
         }
     }
 
-    pub(super) fn warn_limit(&mut self, limit: StateLimit, outbox: &mut Outbox) {
+    pub(crate) fn warn_limit(&mut self, limit: StateLimit, outbox: &mut Outbox) {
         let first = match limit {
             StateLimit::Channels => !std::mem::replace(&mut self.channel_limit_warned, true),
             StateLimit::Members => !std::mem::replace(&mut self.member_limit_warned, true),
-            StateLimit::MetadataTargets | StateLimit::MetadataKeys => {
+            StateLimit::ListEntries | StateLimit::MetadataTargets | StateLimit::MetadataKeys => {
                 self.limits_warned.insert(limit)
             }
             #[cfg(feature = "unstable")]

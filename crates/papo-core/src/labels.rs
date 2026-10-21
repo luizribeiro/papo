@@ -114,6 +114,34 @@ impl Session {
         if join_started {
             request.started = Some(now);
         }
+        let overflow = request.matcher.is_list_row(message, mapping)
+            && request
+                .lines
+                .iter()
+                .filter(|line| request.matcher.is_list_row(&line.as_ref(), mapping))
+                .count()
+                >= 1000;
+        if overflow {
+            let request = self.unlabelled_requests.remove(index).unwrap();
+            self.requests
+                .retain(|_, (pending, _, _, _, _)| *pending != request.id);
+            if let ResponseMatcher::ListMode { channel, mode } = request.matcher {
+                self.state.invalidate_mode_list(&channel, mode);
+            }
+            self.state
+                .warn_limit(crate::StateLimit::ListEntries, &mut self.outbox);
+            self.outbox.event(Event::Response(Response {
+                id: request.id,
+                sent: None,
+                lines: request.lines,
+                history: None,
+                history_targets: None,
+                whois_channels: Vec::new(),
+                mode_list: None,
+                state_limit: Some(crate::StateLimit::ListEntries),
+            }));
+            return true;
+        }
         request.lines.push(message.to_owned());
         if complete {
             let request = self.unlabelled_requests.remove(index).unwrap();

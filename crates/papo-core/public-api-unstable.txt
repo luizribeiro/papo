@@ -1202,6 +1202,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::Source
 #[non_exhaustive] pub enum papo_core::StateLimit
 pub papo_core::StateLimit::BouncerNetworks
 pub papo_core::StateLimit::Channels
+pub papo_core::StateLimit::ListEntries
 pub papo_core::StateLimit::Members
 pub papo_core::StateLimit::MetadataKeys
 pub papo_core::StateLimit::MetadataTargets

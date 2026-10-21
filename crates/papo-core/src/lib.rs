@@ -831,6 +831,17 @@ pub enum ListMode {
     Quiet,
 }
 
+impl ListMode {
+    const fn numerics(self) -> (u16, u16) {
+        match self {
+            Self::Ban => (367, 368),
+            Self::Except => (348, 349),
+            Self::Invex => (346, 347),
+            Self::Quiet => (728, 729),
+        }
+    }
+}
+
 /// One entry reported for a channel list mode.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -913,6 +924,18 @@ pub enum ResponseMatcher {
 }
 
 impl ResponseMatcher {
+    pub(crate) fn is_list_row(&self, message: &LineRef<'_>, mapping: Casemapping) -> bool {
+        let Self::ListMode { channel, mode } = self else {
+            return false;
+        };
+        let Command::Numeric(numeric) = message.command() else {
+            return false;
+        };
+        numeric.code() == mode.numerics().0
+            && Self::target_is(message, 1, channel, mapping)
+            && (*mode != ListMode::Quiet || message.param(2) == Some("q"))
+    }
+
     fn standard_failure(message: &LineRef<'_>, command: &str) -> bool {
         StandardReplyView::parse(message).is_some_and(|reply| {
             reply.kind == StandardReplyKind::Fail && reply.command.eq_ignore_ascii_case(command)
@@ -1151,12 +1174,7 @@ impl ResponseMatcher {
                     return None;
                 };
                 let named = Self::target_is(message, 1, channel, mapping);
-                let (row, end) = match mode {
-                    ListMode::Ban => (367, 368),
-                    ListMode::Except => (348, 349),
-                    ListMode::Invex => (346, 347),
-                    ListMode::Quiet => (728, 729),
-                };
+                let (row, end) = mode.numerics();
                 let list_reply = named
                     && matches!(numeric.code(), code if code == row || code == end)
                     && (*mode != ListMode::Quiet || message.param(2) == Some("q"));
@@ -2203,6 +2221,8 @@ pub enum StateLimit {
     Channels,
     /// Members retained for one channel.
     Members,
+    /// Entries retained for one channel list mode.
+    ListEntries,
     /// Targets retained in the metadata cache.
     MetadataTargets,
     /// Metadata keys retained for one user or channel.
@@ -3992,12 +4012,7 @@ impl Session {
             return;
         };
         let mapping = self.isupport.value().casemapping();
-        let row = match mode {
-            ListMode::Ban => 367,
-            ListMode::Except => 348,
-            ListMode::Invex => 346,
-            ListMode::Quiet => 728,
-        };
+        let row = mode.numerics().0;
         let entries: Vec<_> = response
             .lines
             .iter()

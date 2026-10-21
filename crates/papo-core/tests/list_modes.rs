@@ -98,3 +98,43 @@ fn an_empty_ban_list_completes_at_368() {
         Some([].as_slice())
     );
 }
+
+#[test]
+fn one_thousand_and_one_rows_fail_without_retaining_the_last_row() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut session, ListMode::Ban);
+    let rows: Vec<_> = (0..1001)
+        .map(|index| format!(":ergo.test 367 papo #papo *!*@host{index}.example oper 1761048000"))
+        .collect();
+    for row in &rows[..1000] {
+        session.handle_line(now, row.as_bytes());
+    }
+    assert!(
+        !std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(_)))
+    );
+
+    session.handle_line(now, rows[1000].as_bytes());
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::StateLimitReached {
+            limit: papo_core::StateLimit::ListEntries
+        })
+    ));
+    let response = response(&mut session, id);
+    assert_eq!(response.lines.len(), 1000);
+    assert_eq!(
+        response.state_limit,
+        Some(papo_core::StateLimit::ListEntries)
+    );
+    assert_eq!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban),
+        None
+    );
+}
