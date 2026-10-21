@@ -108,6 +108,8 @@ impl BanTarget {
 ///
 /// Each method adds one independent change to the channel. Chaining methods sends their changes
 /// together, split across commands at the server's advertised `MODES` limit.
+/// Awaiting returns an error only when no change was confirmed; after a partial success, the
+/// result contains the facts confirmed before a later request or connection failure.
 pub struct SetModes {
     client: Client,
     target: String,
@@ -306,10 +308,15 @@ impl IntoFuture for SetModes {
             };
             let mut first_refusal = None;
             for (message, requested) in messages.into_iter().zip(requested.chunks(maximum)) {
-                let response = self
+                let response = match self
                     .client
                     .correlated(message, Some(ResponseMatcher::Mode(self.target.clone())))
-                    .await?;
+                    .await
+                {
+                    Ok(response) => response,
+                    Err(error) if result.applied.is_empty() => return Err(error),
+                    Err(_) => return Ok(result),
+                };
                 let applied = confirmed(&response, &state, &self.target, requested);
                 if let Some(error) = response.error() {
                     let refusal = error.refusal();
