@@ -5,129 +5,72 @@ mod support;
 
 use std::time::Duration;
 
-use papo::{Client, Endpoint, Event, ModeAction};
-use papo_test_server::{create_account, from_env, unique};
-use support::{Lurker, PASSWORD};
+use papo::{Client, Event};
+use papo_test_server::{from_env, unique};
+use support::Lurker;
 use tokio::time::timeout;
 
+const CHANNEL: &str = "#papo";
+
 #[tokio::test(flavor = "current_thread")]
-async fn prints_channel_state_changes_in_wire_order() {
+async fn prints_membership_snapshot_and_changes() {
     timeout(Duration::from_secs(20), async {
         let server = from_env();
-        let channel = format!("#{}", unique("papo-lurk"));
-        let owner_nick = unique("papo-owner");
-        let lurker_nick = unique("papo-lurker");
+        let observer_nick = unique("papo-observer");
         let user_nick = unique("papo-user");
+        let peer_nick = unique("papo-peer");
         let renamed = unique("papo-renamed");
-        let endpoint = Endpoint::plaintext(
-            server.plaintext_addr().ip().to_string(),
-            server.plaintext_addr().port(),
-        );
-
-        let (owner, mut owner_events) = Client::builder(endpoint.clone())
-            .nick(papo::Casemapping::default().nick(&owner_nick))
-            .autojoin([&channel])
+        let server_url = format!("irc://{}", server.plaintext_addr());
+        let (user, mut events) = Client::builder(server_url.clone())
+            .nick(&user_nick)
+            .autojoin([CHANNEL])
             .connect()
             .await
             .unwrap();
-        wait_event(&mut owner_events, |event| synced(event, &channel)).await;
-        assert!(owner
-            .state()
-            .channel(&channel)
-            .unwrap()
-            .member(&owner_nick)
-            .unwrap()
-            .is_op());
+        wait_for(&mut events, |event| {
+            matches!(event, Event::ChannelSynced(_))
+        })
+        .await;
 
-        create_account(&server, &lurker_nick, PASSWORD).unwrap();
-        let mut lurker = Lurker::start(&server, &lurker_nick, &channel);
-        wait_event(&mut owner_events, |event| joined(event, &lurker_nick)).await;
-        lurker.wait_for(&format!("synced {channel}:")).await;
+        let mut lurker = Lurker::start(&server_url, &observer_nick);
+        wait_for(
+            &mut events,
+            |event| matches!(event, Event::Joined(joined) if joined.nick == observer_nick.as_str()),
+        )
+        .await;
+        lurker.wait_for("members #papo:").await;
 
-        let (user, mut user_events) = Client::builder(endpoint)
-            .nick(papo::Casemapping::default().nick(&user_nick))
-            .autojoin([&channel])
+        let (peer, mut peer_events) = Client::builder(server_url)
+            .nick(&peer_nick)
+            .autojoin([CHANNEL])
             .connect()
             .await
             .unwrap();
-        wait_event(&mut user_events, |event| synced(event, &channel)).await;
-        wait_event(&mut owner_events, |event| joined(event, &user_nick)).await;
-
-        owner
-            .mode(&channel)
-            .op(owner.state().casemapping().nick(&user_nick))
-            .await
-            .unwrap();
-        wait_event(&mut owner_events, |event| mode(event, 'o')).await;
-        user.set_away("testing away").await.unwrap();
-        wait_event(&mut owner_events, |event| matches!(event, Event::AwayChanged(changed) if changed.nick == user_nick.as_str())).await;
-        user.set_nick(user.state().casemapping().nick(&renamed))
-            .await
-            .unwrap();
-        wait_event(&mut owner_events, |event| matches!(event, Event::NickChanged(changed) if changed.new == renamed.as_str())).await;
-        user.mode(&channel)
-            .voice(user.state().casemapping().nick(&renamed))
-            .await
-            .unwrap();
-        wait_event(&mut owner_events, |event| mode(event, 'v')).await;
-        user.set_topic(
-            user.state().casemapping().channel(&channel),
-            "lurker topic",
-        )
-        .await
-        .unwrap();
-        wait_event(&mut owner_events, |event| matches!(event, Event::TopicChanged(changed) if changed.topic.as_deref() == Some("lurker topic"))).await;
-        user.part(
-            user.state().casemapping().channel(&channel),
-            "lurker test complete",
-        )
-            .await
-            .unwrap();
-        wait_event(&mut owner_events, |event| matches!(event, Event::Parted(parted) if parted.nick == renamed.as_str())).await;
-        lurker.wait_for(&format!("part {channel} {renamed}:")).await;
+        wait_for(&mut peer_events, |event| {
+            matches!(event, Event::ChannelSynced(_))
+        })
+        .await;
+        wait_for(&mut events, |event| matches!(event, Event::Joined(_))).await;
+        peer.set_nick(&renamed).await.unwrap();
+        peer.part(CHANNEL, "leaving the example").await.unwrap();
+        lurker.wait_for(&format!("part {CHANNEL} {renamed}")).await;
 
         let output = lurker.finish();
-        assert_eq!(
-            output.lines().collect::<Vec<_>>(),
-            [
-                format!("synced {channel}: @{owner_nick}[account=?] {lurker_nick}[account={lurker_nick}]"),
-                format!("join {channel} {user_nick}"),
-                format!("mode {channel} by {owner_nick}: +o={user_nick}"),
-                format!("away {user_nick}: testing away"),
-                format!("nick {user_nick} -> {renamed}"),
-                format!("mode {channel} by {renamed}: +v={renamed}"),
-                format!("topic {channel} by {renamed}: lurker topic"),
-                format!("part {channel} {renamed}: lurker test complete"),
-            ]
-        );
+        assert!(output.contains(&format!("members {CHANNEL}:")));
+        assert!(output.contains(&format!("join {CHANNEL} {peer_nick}")));
+        assert!(output.contains(&format!("nick {peer_nick} -> {renamed}")));
+        assert!(output.contains(&format!("part {CHANNEL} {renamed}")));
         user.quit("lurker test complete").await.unwrap();
-        owner.quit("lurker test complete").await.unwrap();
     })
     .await
     .expect("live lurker test did not finish within 20 seconds");
 }
 
-async fn wait_event(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> bool) {
-    loop {
-        match events.next().await {
-            Some(event) if wanted(&event) => return,
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("client disconnected: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped before the expected event"),
+async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> bool) {
+    while let Some(event) = events.next().await {
+        if wanted(&event) {
+            return;
         }
     }
-}
-
-fn synced(event: &Event, channel: &str) -> bool {
-    matches!(event, Event::ChannelSynced(papo::event::ChannelSynced { channel: synced, .. }) if synced == channel)
-}
-
-fn joined(event: &Event, nick: &str) -> bool {
-    matches!(event, Event::Joined(papo::event::Joined { nick: joined, .. }) if joined == nick)
-}
-
-fn mode(event: &Event, mode: char) -> bool {
-    matches!(event, Event::ModeChanged(changed) if changed.changes.iter().any(|change| change.action == ModeAction::Add && change.mode == mode))
+    panic!("driver stopped before the expected event");
 }

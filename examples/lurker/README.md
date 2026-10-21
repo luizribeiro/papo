@@ -1,16 +1,20 @@
 # Lurker
 
-This authenticated client prints synchronized member lists with prefixes and known accounts.
-It then logs joins, parts, quits, nickname, mode, topic, account, and away changes in a stable,
-line-oriented format.
+This client demonstrates channel membership events and state snapshots. After joining `#papo`,
+it prints the synchronized member list, then logs joins, parts, quits, and nickname changes.
 
-Set the hostname in `IRC_SERVER`, plus `IRC_NICK`, `IRC_PASSWORD_FILE`, comma-separated
-`IRC_CHANNELS`, and optional `IRC_CA_FILE`. `IRC_PORT` defaults to `6697`. Set
-`IRC_PLAINTEXT` to start without TLS while still honoring STS.
+Pass an `irc://` or `ircs://` server URL as the first argument. The nickname comes from
+`IRC_NICK` and defaults to `papo-lurker`.
 
 ```sh
-IRC_SERVER=irc.example.test IRC_NICK=lurker \
-IRC_PASSWORD_FILE=/run/credentials/password IRC_CA_FILE=/run/credentials/irc-ca.pem \
-IRC_CHANNELS='#bots,#operators' \
-cargo run -p papo-lurker
+IRC_NICK=papo-lurker cargo run -p papo-lurker -- ircs://irc.example.net
+```
+
+Sample output:
+
+```text
+members #papo: alice papo-lurker
+join #papo bob
+nick bob -> robert
+part #papo robert
 ```
