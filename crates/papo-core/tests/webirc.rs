@@ -32,7 +32,7 @@ fn rejects_a_byte_webirc_password() {
     gateway.password = Secret::from_bytes([0xff]);
     Transcript::new(Config::default().webirc(gateway))
         .connect()
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason } if reason.contains("WEBIRC password")))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason, .. } if reason.contains("WEBIRC password")))
         .no_client();
 }
 
@@ -42,7 +42,7 @@ fn closes_on_an_invalid_webirc_message() {
     gateway.gateway = "papo\rgateway".into();
     Transcript::new(Config::default().webirc(gateway))
         .connect()
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason } if reason.contains("invalid WEBIRC")))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason, .. } if reason.contains("invalid WEBIRC")))
         .no_client();
 }
 
@@ -97,7 +97,7 @@ fn closes_without_more_protocol_work_when_webirc_is_rejected() {
         .client("USER papo 0 * papo")
         .server("ERROR :WEBIRC command is not usable from your address or incorrect password given")
         .event(|event| {
-            matches!(event, Event::Close { kind: CloseKind::WebIrcRejected, reason }
+            matches!(event, Event::Close { kind: CloseKind::WebIrcRejected, reason, .. }
                 if reason == "WEBIRC command is not usable from your address or incorrect password given")
         })
         .server("PING :ergo.test")
@@ -114,7 +114,7 @@ fn unrelated_first_error_is_a_plain_server_refusal() {
         .client("USER papo 0 * papo")
         .server("ERROR :Too many clients from your network")
         .event(|event| {
-            matches!(event, Event::Close { kind: CloseKind::ServerError, reason }
+            matches!(event, Event::Close { kind: CloseKind::ServerError, reason, .. }
                 if reason == "Too many clients from your network")
         });
 }

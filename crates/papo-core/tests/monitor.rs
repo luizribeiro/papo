@@ -124,7 +124,7 @@ fn removing_a_monitored_nick_fills_the_advertised_slot() {
         .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| session.monitor_add(["alice", "bob", "carol"]))
         .client("MONITOR + alice,bob")
-        .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks } if nicks == &["carol"]))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks, .. } if nicks == &["carol"]))
         .update(|session| session.monitor_remove(["alice"]))
         .client("MONITOR - alice")
         .client("MONITOR + carol")
@@ -142,7 +142,7 @@ fn removal_distinguishes_unknown_active_and_unsent_nicks() {
         .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| session.monitor_add(["alice", "bob"]))
         .client("MONITOR + alice")
-        .event(|event| matches!(event, Event::MonitorListFull { limit: 1, nicks } if nicks == &["bob"]))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 1, nicks, .. } if nicks == &["bob"]))
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
         .update(|session| session.monitor_remove(["zoe"]))
@@ -210,7 +210,7 @@ fn honors_the_advertised_monitor_limit_before_chunking() {
         .client(&lines[0])
         .client(&lines[1])
         .no_client()
-        .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks } if nicks == &unavailable));
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks, .. } if nicks == &unavailable));
 }
 
 #[test]
@@ -245,9 +245,9 @@ fn tracks_online_offline_and_list_full_replies() {
         .update(|session| session.monitor_add(["alice", "bob", "carol"]))
         .client("MONITOR + alice,bob,carol")
         .server(":ergo.test 730 papo :alice!~alice@cloak.example,bob,carol!carol@staff.example")
-        .event(|event| matches!(event, Event::MonitorOnline { nick, username, host } if nick == "alice" && nick.casemapping() == Casemapping::Ascii && username.as_deref() == Some("~alice") && host.as_deref() == Some("cloak.example")))
-        .event(|event| matches!(event, Event::MonitorOnline { nick, username, host } if nick == "bob" && username.is_none() && host.is_none()))
-        .event(|event| matches!(event, Event::MonitorOnline { nick, username, host } if nick == "carol" && username.as_deref() == Some("carol") && host.as_deref() == Some("staff.example")))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, username, host, .. } if nick == "alice" && nick.casemapping() == Casemapping::Ascii && username.as_deref() == Some("~alice") && host.as_deref() == Some("cloak.example")))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, username, host, .. } if nick == "bob" && username.is_none() && host.is_none()))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, username, host, .. } if nick == "carol" && username.as_deref() == Some("carol") && host.as_deref() == Some("staff.example")))
         .inspect(|session| {
             let mut online: Vec<_> = session
                 .state()
@@ -271,13 +271,13 @@ fn tracks_online_offline_and_list_full_replies() {
         .server(":ergo.test 730 papo :ALICE!~alice@cloak.example")
         .no_event()
         .server(":ergo.test 731 papo :alice")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice" && nick.casemapping() == Casemapping::Ascii))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice" && nick.casemapping() == Casemapping::Ascii))
         .server(":ergo.test 731 papo :alice")
         .no_event()
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
         .server(":ergo.test 734 papo 100 carol :Monitor list is full")
-        .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks } if nicks == &["carol"] && nicks[0].casemapping() == Casemapping::Ascii))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks, .. } if nicks == &["carol"] && nicks[0].casemapping() == Casemapping::Ascii))
         .no_event();
 }
 
@@ -331,7 +331,7 @@ fn restores_the_desired_list_and_resets_presence_after_reconnect() {
         .update(|session| session.monitor_add(["alice", "bob", "carol"]))
         .client("MONITOR + alice,bob,carol")
         .server(":ergo.test 731 papo :alice")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
         .disconnect()
         .connect_default()
         .welcome(":ergo.test 001 papo :Welcome back to Ergo")
@@ -340,7 +340,7 @@ fn restores_the_desired_list_and_resets_presence_after_reconnect() {
         .event(|event| matches!(event, Event::Connected(_)))
         .client("MONITOR + alice,bob,carol")
         .server(":ergo.test 731 papo :alice")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
         .no_event();
 }
 
@@ -388,7 +388,7 @@ fn restore_distinguishes_the_literal_monitor_limit_boundary() {
 
     register(vec!["alice", "bob", "carol"])
         .client("MONITOR + alice,bob")
-        .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks } if nicks == &["carol"]))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks, .. } if nicks == &["carol"]))
         .disconnect()
         .connect_default()
         .welcome(":ergo.test 001 papo :Welcome back")
@@ -396,7 +396,7 @@ fn restore_distinguishes_the_literal_monitor_limit_boundary() {
         .server(":ergo.test 376 papo :End of MOTD")
         .event(|event| matches!(event, Event::Connected(_)))
         .client("MONITOR + alice,bob")
-        .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks } if nicks == &["carol"]))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 2, nicks, .. } if nicks == &["carol"]))
         .no_event();
 }
 
@@ -408,7 +408,7 @@ fn extended_monitor_updates_an_unshared_users_record() {
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
         .server(":alice!~alice@cloak.example AWAY :Gone to lunch")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) }, .. } if nick == "alice" && message == "Gone to lunch"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, .. } if nick == "alice" && message == "Gone to lunch"))
         .server(":alice!~alice@cloak.example ACCOUNT alice")
         .event(|event| matches!(event, Event::AccountChanged { nick, account, .. } if nick == "alice" && account == &Account::LoggedIn(Casemapping::default().account("alice"))))
         .server(":alice!~alice@cloak.example CHGHOST alice account/alice")
@@ -420,9 +420,7 @@ fn extended_monitor_updates_an_unshared_users_record() {
             assert_eq!(alice.channels().count(), 0);
             assert_eq!(
                 alice.away(),
-                &Away::Away {
-                    message: Some("Gone to lunch".into())
-                }
+                &Away::__away_value(Some("Gone to lunch".into()))
             );
             assert_eq!(
                 alice.account(),
@@ -432,7 +430,7 @@ fn extended_monitor_updates_an_unshared_users_record() {
             assert_eq!(alice.realname(), Some("Alice Smith"));
         })
         .server(":ergo.test 731 papo :alice")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
         .inspect(|session| assert!(session.state().user("alice").is_none()))
         .no_event();
 }
@@ -548,7 +546,7 @@ fn plain_monitor_presence_is_removed_after_offline() {
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
         .inspect(|session| assert_eq!(session.state().monitor_online().count(), 1))
         .server(":ergo.test 731 papo :alice")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "alice"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
         .inspect(|session| {
             assert_eq!(session.state().monitor_online().count(), 0);
             assert!(session.state().user("alice").is_none());
@@ -608,7 +606,7 @@ fn caps_the_desired_monitor_list_at_ten_thousand() {
         .server(":ergo.test 376 papo :End of MOTD")
         .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| session.monitor_add(nicks))
-        .event(|event| matches!(event, Event::MonitorListFull { limit: 10_000, nicks } if nicks == &["user10000"]))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 10_000, nicks, .. } if nicks == &["user10000"]))
         .ignore_rest();
 }
 

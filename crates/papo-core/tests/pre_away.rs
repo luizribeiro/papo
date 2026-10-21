@@ -47,13 +47,13 @@ fn hidden_pre_away_records_away_without_a_message() {
             matches!(
                 event,
                 Event::AwayChanged {
-                    away: Away::Away { message: None },
+                    away: Away::Away { message: None, .. },
                     ..
                 }
             )
         })
         .inspect(|session| {
-            assert_eq!(session.state().away(), &Away::Away { message: None });
+            assert_eq!(session.state().away(), &Away::__away_value(None));
         });
 }
 

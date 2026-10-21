@@ -29,7 +29,7 @@ fn rejects_a_byte_server_password() {
     Transcript::new(Config::default().password(Secret::from_bytes([0xff])))
         .connect()
         .client("CAP LS 302")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason } if reason.contains("server password")))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason, .. } if reason.contains("server password")))
         .no_client();
 }
 
@@ -38,7 +38,7 @@ fn closes_on_an_invalid_registration_message() {
     Transcript::new(Config::default().nick("papo\rOPER root password"))
         .connect()
         .client("CAP LS 302")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason } if reason.contains("invalid outbound message")))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason, .. } if reason.contains("invalid outbound message")))
         .no_client();
 }
 
@@ -65,7 +65,7 @@ fn welcome_timeout_is_the_first_deadline_and_closes_once() {
         .no_event()
         .deadline(Some(Duration::from_nanos(1)))
         .advance(Duration::from_nanos(1))
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::WelcomeTimeout, reason } if reason.contains("before 001")))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::WelcomeTimeout, reason, .. } if reason.contains("before 001")))
         .deadline(None)
         .advance(Duration::ZERO)
         .no_event();
@@ -96,7 +96,7 @@ fn tries_each_nick_candidate_then_reports_exhaustion() {
     .client("NICK _")
     .server(":ergo.test 400 * NICK :Nickname is already in use")
     .event(|event| {
-        matches!(event, Event::Close { kind: CloseKind::NickCandidatesExhausted, reason }
+        matches!(event, Event::Close { kind: CloseKind::NickCandidatesExhausted, reason, .. }
             if reason == "nick candidates exhausted")
     })
     .no_client();
@@ -128,7 +128,7 @@ fn terminal_registration_numerics_close_with_their_wire_diagnostic() {
             .connect_default()
             .server(&format!(":ergo.test {numeric} papo :{text}"))
             .event(|event| {
-                matches!(event, Event::Close { kind, reason } if *kind == expected && reason == text)
+                matches!(event, Event::Close { kind, reason, .. } if *kind == expected && reason == text)
             })
             .no_client();
     }
@@ -143,7 +143,7 @@ fn live_server_ban_closes_an_established_connection() {
         .event(|event| matches!(event, Event::Connected(_)))
         .server(":solanum.example 465 papo :You are banned from this server")
         .event(|event| {
-            matches!(event, Event::Close { kind: CloseKind::Banned, reason }
+            matches!(event, Event::Close { kind: CloseKind::Banned, reason, .. }
                 if reason == "You are banned from this server")
         })
         .no_client();
@@ -309,7 +309,7 @@ fn emits_the_welcome_burst_in_wire_order_before_registration() {
         .no_event()
         .server(":ergo.test 376 emily :End of MOTD")
         .event(|event| {
-            matches!(event, Event::Motd { lines }
+            matches!(event, Event::Motd { lines, .. }
                 if lines == &["- Be kind to one another."])
         })
         .event(|event| {
@@ -331,7 +331,7 @@ fn caps_an_unfinished_motd_stream() {
     transcript
         .no_event()
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Motd { lines } if lines.len() == 1_000))
+        .event(|event| matches!(event, Event::Motd { lines, .. } if lines.len() == 1_000))
         .event(|event| matches!(event, Event::Connected(_)))
         .no_event();
 }
@@ -342,7 +342,7 @@ fn emits_an_empty_completed_motd() {
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 375 papo :- ergo.test Message of the Day -")
         .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Motd { lines } if lines.is_empty()))
+        .event(|event| matches!(event, Event::Motd { lines, .. } if lines.is_empty()))
         .event(|event| matches!(event, Event::Connected(_)))
         .no_event();
 }

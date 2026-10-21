@@ -198,7 +198,7 @@ fn closing_aborts_queued_and_later_user_transmissions() {
 
     let mut aborted = std::iter::from_fn(|| session.poll_event())
         .filter_map(|event| match event {
-            Event::TransmitAborted { token } => Some(token),
+            Event::TransmitAborted { token, .. } => Some(token),
             _ => None,
         })
         .collect::<Vec<_>>();

@@ -67,7 +67,7 @@ fn byte_sasl_secrets_fail_without_panicking() {
             .server("AUTHENTICATE +")
             .client("AUTHENTICATE *")
             .server(":ergo.test 906 alice :SASL authentication aborted")
-            .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("not text")))
+            .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. } if reason.contains("not text")))
             .no_client();
     }
 
@@ -82,7 +82,7 @@ fn byte_sasl_secrets_fail_without_panicking() {
     .server("CAP * LS :sasl=SCRAM-SHA-256")
     .client("CAP REQ :sasl")
     .server("CAP * ACK :sasl")
-    .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("not text")))
+    .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. } if reason.contains("not text")))
     .no_client();
 }
 
@@ -327,7 +327,7 @@ fn reports_every_failed_mechanism_and_continues_when_optional() {
         .client("AUTHENTICATE PLAIN")
         .server(":ergo.test 905 alice :SASL message too long")
         .event(|event| {
-            matches!(event, Event::AuthenticationFailed { reason }
+            matches!(event, Event::AuthenticationFailed { reason, .. }
                 if reason.contains("SCRAM-SHA-256 skipped because no entropy")
                     && reason.contains("PLAIN"))
         })
@@ -395,7 +395,7 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
             if removed.contains_key("sasl"))
         })
         .event(|event| {
-            matches!(event, Event::AuthenticationFailed { reason }
+            matches!(event, Event::AuthenticationFailed { reason, .. }
             if reason.contains("disappeared"))
         })
         .deadline(Some(std::time::Duration::from_secs(60)))
@@ -422,7 +422,7 @@ fn required_sasl_distinguishes_unavailable_from_failed_login() {
         )
         .connect_default()
         .server("CAP * LS :")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason } if reason.contains("did not advertise"))),
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason, .. } if reason.contains("did not advertise"))),
         Transcript::new(
             Config::default()
                 .sasl(Sasl::plain("alice", "hunter2")),
@@ -431,7 +431,7 @@ fn required_sasl_distinguishes_unavailable_from_failed_login() {
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
         .server("CAP * NAK :sasl")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason } if reason.contains("rejected"))),
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason, .. } if reason.contains("rejected"))),
     ] {
         transcript.no_client();
     }
@@ -444,7 +444,7 @@ fn required_sasl_distinguishes_unavailable_from_failed_login() {
         .client("AUTHENTICATE PLAIN")
         .server(":ergo.test 904 alice :SASL authentication failed")
         .event(|event| {
-            matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason }
+            matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
                 if reason.contains("PLAIN"))
         })
         .no_client();
@@ -466,7 +466,7 @@ fn required_sasl_timeout_is_unavailable_after_the_abort_deadline() {
     .client("AUTHENTICATE *")
     .advance(std::time::Duration::from_secs(30))
     .event(|event| {
-        matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason }
+        matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason, .. }
                 if reason.contains("timed out") && reason.contains("did not acknowledge"))
     })
     .no_client();
@@ -503,7 +503,7 @@ fn account_required_closes_and_verification_note_surfaces() {
     .server(":ergo.test NOTE AUTHENTICATE VERIFICATION_REQUIRED alice :Verify your account")
     .event(|event| matches!(event, Event::StandardReply(reply) if reply.code == "VERIFICATION_REQUIRED"))
     .server(":ergo.test FAIL * ACCOUNT_REQUIRED :Authentication required")
-    .event(|event| matches!(event, Event::Close { kind: CloseKind::AccountRequired, reason } if reason.contains("Authentication required")))
+    .event(|event| matches!(event, Event::Close { kind: CloseKind::AccountRequired, reason, .. } if reason.contains("Authentication required")))
     .event(|event| matches!(event, Event::StandardReply(reply) if reply.code == "ACCOUNT_REQUIRED"))
     .no_client();
 }
@@ -514,7 +514,7 @@ fn informational_account_required_cap_closes_without_credentials() {
         .connect_default()
         .server("CAP * LS :soju.im/account-required sasl=PLAIN standard-replies")
         .event(|event| {
-            matches!(event, Event::Close { kind: CloseKind::AccountRequired, reason }
+            matches!(event, Event::Close { kind: CloseKind::AccountRequired, reason, .. }
             if reason.contains("requires an authenticated account"))
         })
         .no_client();
@@ -721,7 +721,7 @@ fn rejects_a_non_empty_initial_scram_challenge() {
         .client("AUTHENTICATE *")
         .server(":ergo.test 906 user :SASL authentication aborted")
         .event(|event| {
-            matches!(event, Event::AuthenticationFailed { reason }
+            matches!(event, Event::AuthenticationFailed { reason, .. }
                 if reason.contains("unexpected SCRAM challenge"))
         })
         .client("CAP END");
@@ -738,7 +738,7 @@ fn rejects_scram_success_without_a_verified_server_proof() {
             .server(":ergo.test 903 user :SASL authentication successful")
             .client("AUTHENTICATE *")
             .event(|event| {
-                matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason }
+                matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
                     if reason.contains("without a verified server proof"))
             })
             .no_client();
@@ -763,7 +763,7 @@ fn rejects_a_tampered_scram_server_signature() {
     .client("AUTHENTICATE *")
     .server(":ergo.test 906 user :SASL authentication aborted")
     .event(|event| {
-        matches!(event, Event::AuthenticationFailed { reason }
+        matches!(event, Event::AuthenticationFailed { reason, .. }
             if reason.contains("ServerSignatureMismatch"))
     })
     .client("CAP END");
@@ -895,7 +895,7 @@ fn fails_when_the_server_does_not_acknowledge_an_abort() {
         .deadline(Some(std::time::Duration::from_secs(30)))
         .advance(std::time::Duration::from_secs(30))
         .event(|event| {
-            matches!(event, Event::AuthenticationFailed { reason }
+            matches!(event, Event::AuthenticationFailed { reason, .. }
                 if reason.contains("did not acknowledge"))
         })
         .client("CAP END");

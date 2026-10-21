@@ -39,7 +39,7 @@ fn reclaims_the_primary_nick_when_ergo_reports_it_offline() {
         .client("MONITOR + papo")
         .server(":ergo.test 731 papo_ :papo")
         .client("NICK papo")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "papo"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "papo"))
         .server(":ergo.test 731 papo_ :papo")
         .no_client()
         .server(":papo_!~papo@user/papo NICK :papo")
@@ -67,7 +67,7 @@ fn an_existing_primary_monitor_is_not_added_or_removed_by_regain() {
         .no_client()
         .server(":ergo.test 731 papo_ :papo")
         .client("NICK papo")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "papo"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "papo"))
         .server(":papo_!~papo@user/papo NICK :papo")
         .event(|event| matches!(event, Event::NickChanged { new, .. } if new == "papo"))
         .no_client();
@@ -83,7 +83,7 @@ fn unrelated_nick_changes_do_not_stop_monitor_regain() {
         .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "alice" && new == "alice_"))
         .server(":ergo.test 731 papo_ :papo")
         .client("NICK papo")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "papo"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "papo"))
         .ignore_rest();
 }
 
@@ -97,7 +97,7 @@ fn a_user_added_primary_monitor_survives_successful_regain() {
         .client("MONITOR + papo")
         .server(":ergo.test 731 papo_ :papo")
         .client("NICK papo")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "papo"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "papo"))
         .server(":papo_!~papo@user/papo NICK :papo")
         .event(|event| matches!(event, Event::NickChanged { new, .. } if new == "papo"))
         .no_client();
@@ -111,11 +111,11 @@ fn monitor_regain_retries_only_after_a_matching_collision() {
         .client("MONITOR + papo")
         .server(":ergo.test 731 papo_ :papo")
         .client("NICK papo")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "papo"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "papo"))
         .server(":ergo.test 730 papo_ :papo")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "papo"))
         .server(":ergo.test 731 papo_ :papo")
-        .event(|event| matches!(event, Event::MonitorOffline { nick } if nick == "papo"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "papo"))
         .no_client()
         .server(":ergo.test 433 papo_ alice :Nickname is already in use")
         .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("433")))
