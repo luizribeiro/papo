@@ -4322,13 +4322,13 @@ async fn reactions_obey_clienttagdeny() {
     assert_reaction_wire(
         "",
         false,
-        Some(b"@+reply=RfcBTzyxY120004;+draft/react=\xF0\x9F\x91\x8D TAGMSG #papo\r\n"),
+        Some(b"@+reply=RfcBTzyxY120004;+draft/react=\xF0\x9F\x91\x8D TAGMSG @#ops\r\n"),
     )
     .await;
     assert_reaction_wire(
         "",
         true,
-        Some(b"@+reply=RfcBTzyxY120004;+draft/unreact=\xF0\x9F\x91\x8D TAGMSG #papo\r\n"),
+        Some(b"@+reply=RfcBTzyxY120004;+draft/unreact=\xF0\x9F\x91\x8D TAGMSG @#ops\r\n"),
     )
     .await;
     assert_reaction_wire(
@@ -4367,6 +4367,81 @@ async fn reactions_reject_empty_and_oversized_text() {
     ));
 
     task.abort();
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn reactions_accept_own_sent_messages() {
+    let caps = ["echo-message", "labeled-response", "message-tags"];
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
+    let task = tokio::spawn(driver);
+    complete_connect_caps(
+        &mut server,
+        &mut events,
+        "echo-message labeled-response message-tags",
+        "echo-message labeled-response message-tags",
+    )
+    .await;
+
+    let sender = client.clone();
+    let sent = tokio::spawn(async move { sender.privmsg("#papo", "deploy complete").await });
+    client_line(&mut server, b"@label=0 PRIVMSG #papo :deploy complete\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0;msgid=RfcBTzyxY120004 :papo-driver!papo@localhost PRIVMSG #papo :deploy complete\r\n",
+    )
+    .await;
+    let sent = within(sent).await.unwrap().unwrap();
+
+    let reactor = client.clone();
+    let reacted = tokio::spawn(async move { reactor.react(&sent, "👍").await });
+    client_line(
+        &mut server,
+        b"@+reply=RfcBTzyxY120004;+draft/react=\xF0\x9F\x91\x8D;label=1 TAGMSG #papo\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=1;+reply=RfcBTzyxY120004;+draft/react=\xF0\x9F\x91\x8D :papo-driver!papo@localhost TAGMSG #papo\r\n",
+    )
+    .await;
+    within(reacted).await.unwrap().unwrap();
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn reactions_reject_messages_without_identifiers_before_writing() {
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(["message-tags"]));
+    let task = tokio::spawn(driver);
+    complete_connect_caps(&mut server, &mut events, "message-tags", "message-tags").await;
+    server_line(
+        &mut server,
+        b":emily!~emily@localhost PRIVMSG #papo :ship it\r\n",
+    )
+    .await;
+    let message = next_message(&mut events).await;
+
+    assert!(matches!(
+        within(client.react(&message, "👍")).await,
+        Err(Error::InvalidInput(
+            crate::InvalidInput::UnusableMessageReference
+        ))
+    ));
+    assert!(matches!(
+        within(client.redact(&message, "superseded")).await,
+        Err(Error::InvalidInput(
+            crate::InvalidInput::UnusableMessageReference
+        ))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]

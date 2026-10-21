@@ -529,7 +529,15 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
     server_line(
         &mut server,
-        b"@msgid=RfcBTzyxY120004 :emily!e@localhost PRIVMSG #papo :ship it\r\n",
+        b":ergo.test 005 papo-driver STATUSMSG=@+ :are supported by this server\r\n",
+    )
+    .await;
+    while client.state().isupport().statusmsg() != Some("@+") {
+        tokio::task::yield_now().await;
+    }
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120004 :emily!e@localhost PRIVMSG @#ops :ship it\r\n",
     )
     .await;
     let message = next_message(&mut events).await;
