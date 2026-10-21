@@ -86,27 +86,27 @@ pub const papo_core::cap::ACCOUNT_TAG: papo_core::cap::Cap
 pub const papo_core::cap::AWAY_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::BATCH: papo_core::cap::Cap
 pub const papo_core::cap::CAP_NOTIFY: papo_core::cap::Cap
-pub const papo_core::cap::CHANNEL_RENAME: &str
+pub const papo_core::cap::CHANNEL_RENAME: papo_core::cap::Cap
 pub const papo_core::cap::CHATHISTORY: papo_core::cap::Cap
 pub const papo_core::cap::CHGHOST: papo_core::cap::Cap
 pub const papo_core::cap::DEFAULTS: &[&str]
 pub const papo_core::cap::ECHO_MESSAGE: papo_core::cap::Cap
 pub const papo_core::cap::EVENT_PLAYBACK: papo_core::cap::Cap
-pub const papo_core::cap::EXTENDED_ISUPPORT: &str
+pub const papo_core::cap::EXTENDED_ISUPPORT: papo_core::cap::Cap
 pub const papo_core::cap::EXTENDED_JOIN: papo_core::cap::Cap
 pub const papo_core::cap::EXTENDED_MONITOR: papo_core::cap::Cap
 pub const papo_core::cap::INVITE_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::LABELED_RESPONSE: papo_core::cap::Cap
-pub const papo_core::cap::MESSAGE_REDACTION: &str
+pub const papo_core::cap::MESSAGE_REDACTION: papo_core::cap::Cap
 pub const papo_core::cap::MESSAGE_TAGS: papo_core::cap::Cap
 pub const papo_core::cap::METADATA: papo_core::cap::Cap
 pub const papo_core::cap::METADATA_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::MULTILINE: papo_core::cap::Cap
 pub const papo_core::cap::MULTI_PREFIX: papo_core::cap::Cap
 pub const papo_core::cap::NOPE: papo_core::cap::Cap
-pub const papo_core::cap::NO_IMPLICIT_NAMES: &str
+pub const papo_core::cap::NO_IMPLICIT_NAMES: papo_core::cap::Cap
 pub const papo_core::cap::OPER_TAG: papo_core::cap::Cap
-pub const papo_core::cap::PRE_AWAY: &str
+pub const papo_core::cap::PRE_AWAY: papo_core::cap::Cap
 pub const papo_core::cap::READ_MARKER: papo_core::cap::Cap
 pub const papo_core::cap::SASL: papo_core::cap::Cap
 pub const papo_core::cap::SERVER_TIME: papo_core::cap::Cap
@@ -114,7 +114,7 @@ pub const papo_core::cap::SETNAME: papo_core::cap::Cap
 pub const papo_core::cap::STANDARD_REPLIES: papo_core::cap::Cap
 pub const papo_core::cap::STS: papo_core::cap::Cap
 pub const papo_core::cap::USERHOST_IN_NAMES: papo_core::cap::Cap
-pub const papo_core::cap::WHOAMI: &str
+pub const papo_core::cap::WHOAMI: papo_core::cap::Cap
 pub static papo_core::cap::ALL: &[papo_core::cap::CapInfo]
 pub fn papo_core::cap::advertised_spelling<'a>(&str, &'a papo::Capabilities) -> core::option::Option<&'a str>
 pub const fn papo_core::cap::canonical(&str) -> &str

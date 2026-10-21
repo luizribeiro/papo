@@ -65,8 +65,9 @@ impl Caps {
                     && let Some(requested) = self.pending.pop_front()
                 {
                     let sasl_acked = requested.iter().any(|name| name == cap::SASL.as_str());
-                    let isupport_acked =
-                        requested.iter().any(|name| name == cap::EXTENDED_ISUPPORT);
+                    let isupport_acked = requested
+                        .iter()
+                        .any(|name| name == cap::EXTENDED_ISUPPORT.as_str());
                     let mut added = Capabilities::new();
                     for name in requested {
                         let name = Cap::from(name);

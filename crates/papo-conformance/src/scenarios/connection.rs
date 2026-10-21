@@ -169,7 +169,7 @@ async fn extended_isupport(s: Scenario) -> papo_testing::Result<()> {
         alice
             .state()
             .caps()
-            .contains_key(&papo::Cap::from(papo::cap::EXTENDED_ISUPPORT))
+            .contains_key(&papo::cap::EXTENDED_ISUPPORT)
     );
     assert!(!alice.state().isupport().chantypes().is_empty());
     assert!(!alice.state().isupport().prefix().is_empty());
@@ -183,11 +183,7 @@ async fn whoami(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     alice.join(s.channel_name()).await?;
     let state = alice.state();
-    assert!(
-        state
-            .caps()
-            .contains_key(&papo::Cap::from(papo::cap::WHOAMI))
-    );
+    assert!(state.caps().contains_key(&papo::cap::WHOAMI));
     let identity = state
         .user(state.nick())
         .expect("WHOAMI supplies self state");

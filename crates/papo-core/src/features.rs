@@ -105,7 +105,7 @@ impl Feature {
             Self::Replies => "replies",
             Self::Reactions => "reactions",
             Self::Typing => "typing notifications",
-            Self::Redaction => cap::MESSAGE_REDACTION,
+            Self::Redaction => cap::MESSAGE_REDACTION.constant_str(),
             Self::Multiline => "multiline messages",
             Self::History => cap::canonical(cap::CHATHISTORY.constant_str()),
             Self::ReadMarkers => cap::alias(cap::READ_MARKER.constant_str(), 0),
@@ -135,7 +135,7 @@ impl Feature {
             Self::MessageTags | Self::Replies | Self::Reactions | Self::Typing => {
                 [Some(cap::MESSAGE_TAGS), None]
             }
-            Self::Redaction => [Some(cap::Cap::from(cap::MESSAGE_REDACTION)), None],
+            Self::Redaction => [Some(cap::MESSAGE_REDACTION), None],
             Self::Multiline => [Some(cap::MULTILINE), None],
             Self::History => [Some(cap::CHATHISTORY), None],
             Self::ReadMarkers => [Some(cap::READ_MARKER), None],
@@ -148,7 +148,7 @@ impl Feature {
             Self::Persistence => [Some(cap::Cap::from(cap::PERSISTENCE)), None],
             #[cfg(feature = "unstable")]
             Self::WebPush => [Some(cap::Cap::from(cap::WEBPUSH)), None],
-            Self::ChannelRename => [Some(cap::Cap::from(cap::CHANNEL_RENAME)), None],
+            Self::ChannelRename => [Some(cap::CHANNEL_RENAME), None],
             #[cfg(feature = "unstable")]
             Self::Relay => [Some(cap::Cap::from(cap::RELAYMSG)), None],
             Self::LabeledResponse => [Some(cap::LABELED_RESPONSE), None],

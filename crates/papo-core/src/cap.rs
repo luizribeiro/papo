@@ -192,14 +192,14 @@ capabilities! {
     [cap] CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "chathistory"; aliases: ["draft/chathistory"]; request: Request::Default("draft/chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
     [cap] READ_MARKER = "draft/read-marker"; "Channel read markers."; name: "draft/read-marker"; aliases: ["read-marker"]; request: Request::Default("draft/read-marker"); features: [Feature::ReadMarkers]; code: [crate::history, crate::state::read_marker];
     #[cfg(feature = "unstable")] PERSISTENCE = "draft/persistence"; "Account persistence preferences."; name: "draft/persistence"; aliases: []; request: Request::Default("draft/persistence"); features: [Feature::Persistence]; code: [crate::persistence, crate::state::persistence];
-    CHANNEL_RENAME = "draft/channel-rename"; "Channel renaming."; name: "draft/channel-rename"; aliases: []; request: Request::Default("draft/channel-rename"); features: [Feature::ChannelRename]; code: [crate::channel_rename, crate::state::rename];
+    [cap] CHANNEL_RENAME = "draft/channel-rename"; "Channel renaming."; name: "draft/channel-rename"; aliases: []; request: Request::Default("draft/channel-rename"); features: [Feature::ChannelRename]; code: [crate::channel_rename, crate::state::rename];
     #[cfg(feature = "unstable")] RELAYMSG = "draft/relaymsg"; "Relayed messages."; name: "draft/relaymsg"; aliases: []; request: Request::Default("draft/relaymsg"); features: [Feature::Relay]; code: [crate::relaymsg];
-    MESSAGE_REDACTION = "draft/message-redaction"; "Message redaction."; name: "draft/message-redaction"; aliases: []; request: Request::Default("draft/message-redaction"); features: [Feature::Redaction]; code: [crate::outgoing, crate::replies];
+    [cap] MESSAGE_REDACTION = "draft/message-redaction"; "Message redaction."; name: "draft/message-redaction"; aliases: []; request: Request::Default("draft/message-redaction"); features: [Feature::Redaction]; code: [crate::outgoing, crate::replies];
     #[cfg(feature = "unstable")] WEBPUSH = "draft/webpush"; "Web Push subscriptions."; name: "draft/webpush"; aliases: ["soju.im/webpush"]; request: Request::Default("draft/webpush"); features: [Feature::WebPush]; code: [crate::webpush];
-    PRE_AWAY = "draft/pre-away"; "Away state during registration."; name: "draft/pre-away"; aliases: []; request: Request::Default("draft/pre-away"); features: []; code: [crate::state];
-    NO_IMPLICIT_NAMES = "no-implicit-names"; "Suppression of implicit names replies."; name: "no-implicit-names"; aliases: ["draft/no-implicit-names"]; request: Request::Default("no-implicit-names"); features: []; code: [crate::state::membership];
-    WHOAMI = "draft/whoami"; "Current connection identity discovery."; name: "draft/whoami"; aliases: []; request: Request::Default("draft/whoami"); features: []; code: [crate::state];
-    EXTENDED_ISUPPORT = "draft/extended-isupport"; "Extended ISUPPORT discovery."; name: "draft/extended-isupport"; aliases: []; request: Request::Default("draft/extended-isupport"); features: []; code: [crate::isupport];
+    [cap] PRE_AWAY = "draft/pre-away"; "Away state during registration."; name: "draft/pre-away"; aliases: []; request: Request::Default("draft/pre-away"); features: []; code: [crate::state];
+    [cap] NO_IMPLICIT_NAMES = "no-implicit-names"; "Suppression of implicit names replies."; name: "no-implicit-names"; aliases: ["draft/no-implicit-names"]; request: Request::Default("no-implicit-names"); features: []; code: [crate::state::membership];
+    [cap] WHOAMI = "draft/whoami"; "Current connection identity discovery."; name: "draft/whoami"; aliases: []; request: Request::Default("draft/whoami"); features: []; code: [crate::state];
+    [cap] EXTENDED_ISUPPORT = "draft/extended-isupport"; "Extended ISUPPORT discovery."; name: "draft/extended-isupport"; aliases: []; request: Request::Default("draft/extended-isupport"); features: []; code: [crate::isupport];
 }
 
 const fn defaults_len() -> usize {

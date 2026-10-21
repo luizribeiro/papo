@@ -54,19 +54,24 @@ pub use papo::cap::ACCOUNT_TAG
 pub use papo::cap::AWAY_NOTIFY
 pub use papo::cap::BATCH
 pub use papo::cap::CAP_NOTIFY
+pub use papo::cap::CHANNEL_RENAME
 pub use papo::cap::CHATHISTORY
 pub use papo::cap::CHGHOST
 pub use papo::cap::ECHO_MESSAGE
 pub use papo::cap::EVENT_PLAYBACK
+pub use papo::cap::EXTENDED_ISUPPORT
 pub use papo::cap::EXTENDED_JOIN
 pub use papo::cap::EXTENDED_MONITOR
 pub use papo::cap::INVITE_NOTIFY
 pub use papo::cap::LABELED_RESPONSE
+pub use papo::cap::MESSAGE_REDACTION
 pub use papo::cap::MESSAGE_TAGS
 pub use papo::cap::METADATA
 pub use papo::cap::MULTILINE
 pub use papo::cap::MULTI_PREFIX
+pub use papo::cap::NO_IMPLICIT_NAMES
 pub use papo::cap::OPER_TAG
+pub use papo::cap::PRE_AWAY
 pub use papo::cap::READ_MARKER
 pub use papo::cap::SASL
 pub use papo::cap::SERVER_TIME
@@ -74,15 +79,10 @@ pub use papo::cap::SETNAME
 pub use papo::cap::STANDARD_REPLIES
 pub use papo::cap::STS
 pub use papo::cap::USERHOST_IN_NAMES
-pub const papo::cap::CHANNEL_RENAME: &str
-pub const papo::cap::EXTENDED_ISUPPORT: &str
-pub const papo::cap::MESSAGE_REDACTION: &str
-pub const papo::cap::NO_IMPLICIT_NAMES: &str
+pub use papo::cap::WHOAMI
 pub const papo::cap::PERSISTENCE: &str
-pub const papo::cap::PRE_AWAY: &str
 pub const papo::cap::RELAYMSG: &str
 pub const papo::cap::WEBPUSH: &str
-pub const papo::cap::WHOAMI: &str
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::ModeAction

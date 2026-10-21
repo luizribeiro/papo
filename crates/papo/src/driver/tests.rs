@@ -4966,7 +4966,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     while client
         .state()
         .caps()
-        .contains_key(&crate::Cap::from(crate::cap::MESSAGE_REDACTION))
+        .contains_key(&crate::cap::MESSAGE_REDACTION)
     {
         tokio::task::yield_now().await;
     }
@@ -5963,11 +5963,7 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
 
     let state = client.state();
-    assert!(
-        state
-            .caps()
-            .contains_key(&crate::Cap::from(crate::cap::NO_IMPLICIT_NAMES))
-    );
+    assert!(state.caps().contains_key(&crate::cap::NO_IMPLICIT_NAMES));
     assert!(
         state
             .caps()

@@ -3367,7 +3367,7 @@ impl Session {
         if self.away_on_connect_sent {
             return;
         }
-        let pre_away = self.caps.enabled().contains_key(cap::PRE_AWAY);
+        let pre_away = self.caps.enabled().contains_key(&cap::PRE_AWAY);
         if !pre_away && !self.welcome_state.is_connected() {
             return;
         }
@@ -3656,7 +3656,7 @@ impl Session {
     }
 
     fn handle_whoami(&mut self, message: &LineRef<'_>) -> bool {
-        if !self.caps.enabled().contains_key(cap::WHOAMI)
+        if !self.caps.enabled().contains_key(&cap::WHOAMI)
             || !self.welcome_state.is_in_welcome_burst()
             || !self.state.handle_whoami(
                 message,
@@ -3999,10 +3999,9 @@ impl Session {
     }
 
     fn no_implicit_names(&self) -> bool {
-        self.caps
-            .enabled()
-            .keys()
-            .any(|name| cap::canonical(name.as_str()) == cap::canonical(cap::NO_IMPLICIT_NAMES))
+        self.caps.enabled().keys().any(|name| {
+            cap::canonical(name.as_str()) == cap::canonical(cap::NO_IMPLICIT_NAMES.as_str())
+        })
     }
 
     fn maybe_subscribe_metadata(&mut self, now: Instant) {

@@ -14,23 +14,14 @@ pub use papo_core::cap::{CAP_NOTIFY, ECHO_MESSAGE, EVENT_PLAYBACK, SERVER_TIME};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub const PERSISTENCE: &str = papo_core::cap::PERSISTENCE;
-/// Channel renaming.
-pub const CHANNEL_RENAME: &str = papo_core::cap::CHANNEL_RENAME;
+pub use papo_core::cap::{
+    CHANNEL_RENAME, EXTENDED_ISUPPORT, MESSAGE_REDACTION, NO_IMPLICIT_NAMES, PRE_AWAY, WHOAMI,
+};
 /// Relayed messages.
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub const RELAYMSG: &str = papo_core::cap::RELAYMSG;
-/// Message redaction.
-pub const MESSAGE_REDACTION: &str = papo_core::cap::MESSAGE_REDACTION;
 /// Web Push subscriptions.
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub const WEBPUSH: &str = papo_core::cap::WEBPUSH;
-/// Away state while connecting.
-pub const PRE_AWAY: &str = papo_core::cap::PRE_AWAY;
-/// Suppression of implicit names replies.
-pub const NO_IMPLICIT_NAMES: &str = papo_core::cap::NO_IMPLICIT_NAMES;
-/// Current connection identity discovery.
-pub const WHOAMI: &str = papo_core::cap::WHOAMI;
-/// Extended ISUPPORT discovery.
-pub const EXTENDED_ISUPPORT: &str = papo_core::cap::EXTENDED_ISUPPORT;
