@@ -34,4 +34,6 @@ unsafe_code = "forbid"
 missing_docs = "warn"
 
 [workspace.lints.clippy]
+must_use_candidate = "warn"
 pedantic = "warn"
+return_self_not_must_use = "warn"
