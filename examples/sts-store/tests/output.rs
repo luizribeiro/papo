@@ -8,6 +8,7 @@ fn persists_a_policy_across_reopening() {
     let path = std::env::temp_dir().join(format!("papo-sts-store-{}.txt", std::process::id()));
     let _ = fs::remove_file(&path);
     let output = Command::new(env!("CARGO_BIN_EXE_papo-sts-store"))
+        .arg("ircs://irc.example.net")
         .arg(&path)
         .output()
         .unwrap();
@@ -29,6 +30,7 @@ fn rejects_a_partial_policy_file() {
     let path = std::env::temp_dir().join(format!("papo-sts-store-bad-{}.txt", std::process::id()));
     fs::write(&path, "irc.example.net\t6697\n").unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_papo-sts-store"))
+        .arg("ircs://irc.example.net")
         .arg(&path)
         .output()
         .unwrap();

@@ -5,8 +5,10 @@ with an application-owned text file. A real application can use its existing dat
 platform storage instead.
 
 ```sh
-cargo run -p papo-sts-store -- /tmp/papo-sts.txt
+cargo run -p papo-sts-store -- ircs://irc.example.net /tmp/papo-sts.txt
 ```
+
+Pass the opened store to the client with `Client::builder(url).sts_store(store)`.
 
 Sample output:
 
