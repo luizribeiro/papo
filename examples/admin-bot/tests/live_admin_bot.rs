@@ -83,6 +83,7 @@ async fn keeps_running_after_action_refusals() {
         admin.privmsg(&channels[0], "!ping").await.unwrap();
         wait_message(&mut events, "pong").await;
 
+        // Reset the default limit of two replies per five-second window.
         sleep(Duration::from_millis(5_100)).await;
         admin.mode(&channels[0]).add('m').await.unwrap();
         admin.privmsg(&channels[0], "!ping").await.unwrap();
