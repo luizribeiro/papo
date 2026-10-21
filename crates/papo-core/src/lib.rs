@@ -1887,6 +1887,24 @@ impl From<BuildError> for RequestError {
 }
 
 impl RequestError {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __invalid_metadata_key(key: String, reason: papo_proto::InvalidIdentifier) -> Self {
+        Self::InvalidMetadataKey { key, reason }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __metadata_value_too_long(maximum: usize, actual: usize) -> Self {
+        Self::MetadataValueTooLong { maximum, actual }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __too_many_metadata_subscriptions(maximum: usize, actual: usize) -> Self {
+        Self::TooManyMetadataSubscriptions { maximum, actual }
+    }
+
     fn unsupported(feature: Feature) -> Self {
         Self::Unsupported(Unsupported::new(feature, UnsupportedReason::NotOffered))
     }
@@ -2308,6 +2326,62 @@ pub enum Event {
         /// Whether the actor is this session's user.
         authorship: Authorship,
     },
+}
+
+macro_rules! hidden_event_constructors {
+    ($($name:ident($($field:ident: $ty:ty),*) => $variant:ident;)*) => {
+        impl Event {
+            $(
+                #[doc(hidden)]
+                #[must_use]
+                pub fn $name($($field: $ty),*) -> Self {
+                    Self::$variant { $($field),* }
+                }
+            )*
+        }
+    };
+}
+
+hidden_event_constructors! {
+    __malformed(line: Vec<u8>) => Malformed;
+    __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
+    __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
+    __invited(channel: ChannelName, nick: Nick, actor: String, authorship: Authorship, subject_authorship: Authorship) => Invited;
+    __joined(envelope: LineEnvelope, actor: String, account: Account, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship) => Joined;
+    __account_created(account: AccountName, logged_in: bool) => AccountCreated;
+    __verification_required(account: AccountName, message: String) => VerificationRequired;
+    __channel_renamed(old: ChannelName, new: ChannelName, actor: String, authorship: Authorship, reason: Option<String>) => ChannelRenamed;
+    __metadata_changed(subject: Subject, key: String, value: Option<String>, visibility: Visibility) => MetadataChanged;
+    __metadata_sync_later(target: String, retry_after: Option<Duration>) => MetadataSyncLater;
+    __channel_synced(channel: ChannelName) => ChannelSynced;
+    __members_refreshed(channel: ChannelName) => MembersRefreshed;
+    __parted(envelope: LineEnvelope, channel: ChannelName, nick: Nick, reason: Option<String>, authorship: Authorship) => Parted;
+    __kicked(envelope: LineEnvelope, channel: ChannelName, nick: Nick, actor: String, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
+    __quit(envelope: LineEnvelope, nick: Nick, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship) => Quit;
+    __nick_changed(envelope: LineEnvelope, old: Nick, new: Nick, authorship: Authorship) => NickChanged;
+    __account_changed(nick: Nick, account: Account) => AccountChanged;
+    __away_changed(nick: Nick, away: Away) => AwayChanged;
+    __host_changed(nick: Nick, username: String, host: String) => HostChanged;
+    __realname_changed(nick: Nick, realname: String) => RealnameChanged;
+    __mode_changed(envelope: LineEnvelope, subject: Subject, actor: String, authorship: Authorship, subject_authorship: Authorship, changes: Vec<ModeChange>) => ModeChanged;
+    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: String, authorship: Authorship) => TopicChanged;
+    __state_limit_reached(limit: StateLimit) => StateLimitReached;
+    __monitor_online(nick: Nick, username: Option<String>, host: Option<String>) => MonitorOnline;
+    __monitor_offline(nick: Nick) => MonitorOffline;
+    __monitor_list_full(limit: usize, nicks: Vec<Nick>) => MonitorListFull;
+    __history(conversation: Conversation, items: Vec<HistoryItem>, end: bool) => History;
+    __netsplit(servers: [String; 2], quits: Vec<Line>, authorship: Vec<Authorship>, channels: Vec<Vec<ChannelName>>) => Netsplit;
+    __netjoin(servers: [String; 2], joins: Vec<Line>, authorship: Vec<Authorship>) => Netjoin;
+    __batch_abandoned(reference: String, batch_type: String, reason: BatchAbandonReason) => BatchAbandoned;
+}
+
+#[cfg(feature = "unstable")]
+impl Event {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __bouncer_network_changed(id: NetworkId, network: Option<BouncerNetwork>) -> Self {
+        Self::BouncerNetworkChanged { id, network }
+    }
 }
 
 /// Why an incomplete server batch was released as individual messages.
