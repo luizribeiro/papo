@@ -2909,6 +2909,15 @@ impl Session {
         message: Line,
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
+        let who_sweep = match &matcher {
+            ResponseMatcher::Who(channel)
+                if message.as_ref().command() == Command::Who
+                    && self.state.channel(channel).is_some() =>
+            {
+                Some(channel.clone())
+            }
+            _ => None,
+        };
         let away_message = matches!(matcher, ResponseMatcher::Away(true))
             .then(|| message.as_ref().param(0).map(str::to_owned))
             .flatten();
@@ -2929,6 +2938,9 @@ impl Session {
                     fence: None,
                     lines: Vec::new(),
                 });
+            }
+            if let Some(channel) = who_sweep {
+                self.state.track_who(&channel);
             }
             return Ok(id);
         }
@@ -2957,6 +2969,9 @@ impl Session {
                 .transmit_tracked(format!("PING :{fence}\r\n").into_bytes(), None, Some(id));
         } else {
             self.outbox.transmit_tracked(line.into(), None, Some(id));
+        }
+        if let Some(channel) = who_sweep {
+            self.state.track_who(&channel);
         }
         Ok(id)
     }

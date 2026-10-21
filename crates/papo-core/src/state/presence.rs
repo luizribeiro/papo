@@ -239,11 +239,13 @@ impl State {
     ) -> Option<Handled> {
         if message.command() == Command::Numeric(Numeric::RPL_ENDOFWHO) {
             let channel = self.casemapping.channel(message.param(1)?);
-            if self.who_sweeps.remove(&channel) {
-                outbox.event(Event::MembersRefreshed { channel });
-                return Some(Handled::Yes);
+            let count = self.who_sweeps.get_mut(&channel)?;
+            *count -= 1;
+            if *count == 0 {
+                self.who_sweeps.remove(&channel);
             }
-            return None;
+            outbox.event(Event::MembersRefreshed { channel });
+            return Some(Handled::Yes);
         }
         if let Some(reply) = WhoxReply::parse(message, WHOX_FIELDS) {
             return self.handle_whox_reply(&reply, isupport, outbox);
@@ -261,7 +263,9 @@ impl State {
             return Some(Handled::No);
         };
         if reply.token != Some(WHOX_TOKEN)
-            || !self.who_sweeps.contains(&self.casemapping.channel(channel))
+            || !self
+                .who_sweeps
+                .contains_key(&self.casemapping.channel(channel))
         {
             return None;
         }
@@ -325,7 +329,10 @@ impl State {
             message.param(6)?,
             message.param(7)?,
         );
-        if !self.who_sweeps.contains(&self.casemapping.channel(channel)) {
+        if !self
+            .who_sweeps
+            .contains_key(&self.casemapping.channel(channel))
+        {
             return None;
         }
         let realname = hopcount_realname.split_once(' ')?.1;
@@ -362,13 +369,21 @@ impl State {
 
     pub(super) fn start_who(&mut self, channel: &str, isupport: &Isupport, outbox: &mut Outbox) {
         let key = self.casemapping.channel(channel);
-        if !self.who_sweeps.insert(key) {
+        if self.who_sweeps.contains_key(&key) {
             return;
         }
+        self.who_sweeps.insert(key, 1);
         if isupport.whox() {
             outbox.transmit("WHO", [channel, WHOX_FIELDS]);
         } else {
             outbox.transmit("WHO", [channel]);
+        }
+    }
+
+    pub(crate) fn track_who(&mut self, channel: &str) {
+        let key = self.casemapping.channel(channel);
+        if self.channels.contains_key(&key) {
+            *self.who_sweeps.entry(key).or_default() += 1;
         }
     }
 }

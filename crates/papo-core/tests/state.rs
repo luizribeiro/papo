@@ -1307,6 +1307,45 @@ fn never_skips_the_join_sweep_and_leaves_member_facts_unknown() {
 }
 
 #[test]
+fn manual_sweep_refreshes_member_facts_and_completes_at_end_of_who() {
+    Transcript::new(
+        Config::default()
+            .nick("emily")
+            .who_on_join(WhoOnJoin::Never),
+    )
+    .server(":ergo.test 005 emily WHOX PREFIX=(ov)@+ :are supported")
+    .server(":emily!em@127.0.0.1 JOIN #papo")
+    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+    .server(":ergo.test 353 emily = #papo :@emily +dan")
+    .server(":ergo.test 366 emily #papo :End of NAMES list")
+    .client("MODE #papo")
+    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+    .update(|session| {
+        session
+            .request_with_matcher(
+                Instant::now(),
+                Line::new("WHO", ["#papo", "%tcuhnfar,152"]),
+                ResponseMatcher::Who("#papo".into()),
+            )
+            .unwrap();
+    })
+    .client("WHO #papo %tcuhnfar,152")
+    .server(":ergo.test 354 emily 152 #papo ~dan account/dan dan G+ dan :Daniel Garcia")
+    .server(":ergo.test 315 emily #papo :End of WHO list")
+    .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#papo"))
+    .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 2))
+    .inspect(|session| {
+        let dan = session.state().user("dan").unwrap();
+        assert_eq!(
+            dan.account(),
+            &Account::LoggedIn(Casemapping::default().account("dan"))
+        );
+        assert_eq!(dan.away(), &Away::Away { message: None });
+    })
+    .no_event();
+}
+
+#[test]
 fn below_members_sweeps_only_below_the_literal_boundary() {
     Transcript::new(
         Config::default()

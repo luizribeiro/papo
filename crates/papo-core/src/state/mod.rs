@@ -55,7 +55,7 @@ pub struct State {
     channels: HashMap<ChannelName, Channel>,
     users: HashMap<Nick, User>,
     monitored: Vec<Nick>,
-    who_sweeps: HashSet<ChannelName>,
+    who_sweeps: HashMap<ChannelName, usize>,
     who_on_join: WhoOnJoin,
     read_markers: HashMap<NameKey<String>, ReadMarker>,
     last_seen: HashMap<NameKey<String>, LastSeen>,
@@ -278,7 +278,7 @@ impl State {
             channels: HashMap::new(),
             users: HashMap::new(),
             monitored: Vec::new(),
-            who_sweeps: HashSet::new(),
+            who_sweeps: HashMap::new(),
             who_on_join: config.who_on_join.clone(),
             read_markers: HashMap::new(),
             last_seen: HashMap::new(),
@@ -779,7 +779,7 @@ impl State {
             .collect();
         self.who_sweeps = std::mem::take(&mut self.who_sweeps)
             .into_iter()
-            .map(|channel| mapping.channel(channel.as_ref()))
+            .map(|(channel, count)| (mapping.channel(channel.as_ref()), count))
             .collect();
         self.read_markers = std::mem::take(&mut self.read_markers)
             .into_values()

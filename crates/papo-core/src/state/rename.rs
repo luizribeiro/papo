@@ -29,8 +29,8 @@ impl State {
                 user.channels.insert(new_key.clone());
             }
         }
-        if self.who_sweeps.remove(&old_key) {
-            self.who_sweeps.insert(new_key.clone());
+        if let Some(count) = self.who_sweeps.remove(&old_key) {
+            self.who_sweeps.insert(new_key.clone(), count);
         }
         let old_target = self.casemapping.fold(old);
         if let Some(values) = self.metadata.remove(old_target.as_ref()) {
