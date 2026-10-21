@@ -10,7 +10,7 @@ use papo_core::{
 use papo_proto::Line;
 use support::{Transcript, unsupported_because};
 
-const CAPS: &str = "message-tags draft/message-redaction draft/multiline draft/chathistory draft/read-marker draft/metadata-2 setname draft/account-registration soju.im/bouncer-networks draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response away-notify account-notify account-tag chghost";
+const CAPS: &str = "message-tags draft/message-redaction draft/multiline draft/chathistory draft/read-marker draft/metadata-2 setname draft/account-registration soju.im/bouncer-networks draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response away-notify account-notify account-tag chghost invite-notify";
 
 fn session(caps: &str) -> Session {
     session_with(
@@ -55,6 +55,7 @@ fn recognizes_every_capability_backed_feature() {
         Feature::AwayTracking,
         Feature::AccountTracking,
         Feature::HostTracking,
+        Feature::InviteTracking,
     ] {
         assert_eq!(session.supports(feature), Ok(()), "{feature:?}");
     }
@@ -128,6 +129,7 @@ fn distinguishes_client_disabled_and_server_absent_features() {
         Feature::AwayTracking,
         Feature::AccountTracking,
         Feature::HostTracking,
+        Feature::InviteTracking,
     ];
     let disabled = session_with(
         Config::default()
@@ -155,6 +157,19 @@ fn distinguishes_client_disabled_and_server_absent_features() {
             Err(papo_core::UnsupportedReason::NotOffered)
         );
     }
+}
+
+#[test]
+fn feature_names_support_display_and_hashing() {
+    let mut features = std::collections::HashSet::new();
+
+    assert!(features.insert(Feature::InviteTracking));
+    assert!(!features.insert(Feature::InviteTracking));
+    assert_eq!(Feature::InviteTracking.to_string(), "invite tracking");
+    assert_eq!(
+        Feature::InviteTracking.to_string(),
+        Feature::InviteTracking.name()
+    );
 }
 
 #[test]

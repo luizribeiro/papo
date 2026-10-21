@@ -175,7 +175,7 @@ capabilities! {
     [cap] AWAY_NOTIFY = "away-notify"; "Away-state notifications."; name: "away-notify"; aliases: []; request: Request::Default("away-notify"); features: [Feature::AwayTracking]; code: [crate::state::presence];
     [cap] ACCOUNT_NOTIFY = "account-notify"; "Account-change notifications."; name: "account-notify"; aliases: []; request: Request::Default("account-notify"); features: [Feature::AccountTracking]; code: [crate::state::presence];
     [cap] EXTENDED_MONITOR = "extended-monitor"; "Extended monitor replies."; name: "extended-monitor"; aliases: []; request: Request::Default("extended-monitor"); features: []; code: [crate::monitor];
-    [cap] INVITE_NOTIFY = "invite-notify"; "Invitation notifications."; name: "invite-notify"; aliases: []; request: Request::Default("invite-notify"); features: []; code: [crate::replies];
+    [cap] INVITE_NOTIFY = "invite-notify"; "Invitation notifications."; name: "invite-notify"; aliases: []; request: Request::Default("invite-notify"); features: [Feature::InviteTracking]; code: [crate::replies];
     [cap] STANDARD_REPLIES = "standard-replies"; "Structured standard replies."; name: "standard-replies"; aliases: []; request: Request::Default("standard-replies"); features: []; code: [crate::refusal, crate::replies];
     [cap] LABELED_RESPONSE = "labeled-response"; "Labelled request correlation."; name: "labeled-response"; aliases: []; request: Request::Default("labeled-response"); features: [Feature::LabeledResponse]; code: [crate::outgoing, crate::labels];
     [cap] MULTILINE = "draft/multiline"; "Multiline messages."; name: "draft/multiline"; aliases: []; request: Request::Default("draft/multiline"); features: [Feature::Multiline]; code: [crate::outgoing, crate::batch];

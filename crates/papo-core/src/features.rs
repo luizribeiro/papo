@@ -3,37 +3,42 @@ use papo_proto::Advertised;
 use crate::{RequestError, Session, cap};
 
 /// Optional IRC behavior understood by the session.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+///
+/// A Feature is something your app can use or rely on that the server may not offer.
+/// Caps that only change wire details get no Feature.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
 pub enum Feature {
-    /// Client-only `IRCv3` message tags, requiring `message-tags`.
+    /// Published `IRCv3` client-only message tags, requiring `message-tags`.
     MessageTags,
-    /// `IRCv3` draft replies, requiring `message-tags` and an allowed `+reply` or
+    /// Published `IRCv3` replies, requiring `message-tags` and an allowed `+reply` or
     /// `+draft/reply` client tag.
     Replies,
     /// `IRCv3` draft message reactions, requiring `message-tags`, an allowed
     /// `+draft/react` tag, and an allowed reply tag.
     Reactions,
-    /// `IRCv3` draft typing notifications, requiring `message-tags` and an allowed
+    /// Published `IRCv3` typing notifications, requiring `message-tags` and an allowed
     /// `+typing` client tag.
     Typing,
     /// `IRCv3` draft message redaction, requiring `draft/message-redaction`.
     Redaction,
     /// `IRCv3` draft multiline messages, requiring `draft/multiline`.
     Multiline,
-    /// Ratified `IRCv3` chat history, requiring `chathistory` or its
-    /// `draft/chathistory` predecessor.
+    /// `IRCv3` draft chat history, requiring `draft/chathistory`.
     History,
-    /// `IRCv3` draft read markers, requiring `draft/read-marker` or `read-marker`.
+    /// `IRCv3` draft read markers, requiring `draft/read-marker`.
     ReadMarkers,
-    /// `IRCv3` draft metadata, requiring `draft/metadata-3` or `draft/metadata-2`.
+    /// `IRCv3` draft metadata, requiring `draft/metadata-2`.
+    ///
+    /// Papo speaks Ergo's `draft/metadata-3` semantics; the published specification
+    /// currently uses `draft/metadata-2`.
     Metadata,
-    /// The ratified IRC `MONITOR` extension, advertised through the `MONITOR`
+    /// The published IRC `MONITOR` extension, advertised through the `MONITOR`
     /// ISUPPORT token rather than a capability.
     Monitor,
-    /// Ratified `IRCv3` real-name changes, requiring `setname`.
+    /// Published `IRCv3` real-name changes, requiring `setname`.
     SetName,
-    /// Ratified `IRCv3` bot mode, advertised through the `BOT` ISUPPORT token.
+    /// Published `IRCv3` bot mode, advertised through the `BOT` ISUPPORT token.
     BotMode,
     /// `IRCv3` draft account registration, requiring `draft/account-registration`.
     AccountCreation,
@@ -56,15 +61,17 @@ pub enum Feature {
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     Relay,
-    /// Ratified `IRCv3` labelled responses, requiring `labeled-response`.
+    /// Published `IRCv3` labelled responses, requiring `labeled-response`.
     LabeledResponse,
-    /// Ratified `IRCv3` live away information, requiring `away-notify`.
+    /// Published `IRCv3` live away information, requiring `away-notify`.
     AwayTracking,
-    /// Ratified `IRCv3` live account information, requiring both `account-notify`
+    /// Published `IRCv3` live account information, requiring both `account-notify`
     /// and `account-tag`.
     AccountTracking,
-    /// Ratified `IRCv3` live username and hostname information, requiring `chghost`.
+    /// Published `IRCv3` live username and hostname information, requiring `chghost`.
     HostTracking,
+    /// Published `IRCv3` invitation notifications, requiring `invite-notify`.
+    InviteTracking,
 }
 
 impl Feature {
@@ -95,6 +102,7 @@ impl Feature {
         Self::AwayTracking,
         Self::AccountTracking,
         Self::HostTracking,
+        Self::InviteTracking,
     ];
 
     /// Returns a stable human-readable feature name.
@@ -127,6 +135,7 @@ impl Feature {
             Self::AwayTracking => "away tracking",
             Self::AccountTracking => "account tracking",
             Self::HostTracking => "host tracking",
+            Self::InviteTracking => "invite tracking",
         }
     }
 
@@ -155,6 +164,7 @@ impl Feature {
             Self::AwayTracking => [Some(cap::AWAY_NOTIFY), None],
             Self::AccountTracking => [Some(cap::ACCOUNT_NOTIFY), Some(cap::ACCOUNT_TAG)],
             Self::HostTracking => [Some(cap::CHGHOST), None],
+            Self::InviteTracking => [Some(cap::INVITE_NOTIFY), None],
             Self::Monitor | Self::BotMode => [None, None],
         }
     }
@@ -166,6 +176,12 @@ impl Feature {
             Self::Typing => &["+typing"],
             _ => &[],
         }
+    }
+}
+
+impl std::fmt::Display for Feature {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.name())
     }
 }
 

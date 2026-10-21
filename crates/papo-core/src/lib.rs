@@ -21,7 +21,7 @@
 //! | `away-notify` | — | default | away tracking | `state::presence` |
 //! | `account-notify` | — | default | account tracking | `state::presence` |
 //! | `extended-monitor` | — | default | — | `monitor` |
-//! | `invite-notify` | — | default | — | `replies` |
+//! | `invite-notify` | — | default | invite tracking | `replies` |
 //! | `standard-replies` | — | default | — | `refusal`, `replies` |
 //! | `labeled-response` | — | default | labeled-response | `outgoing`, `labels` |
 //! | `draft/multiline` | — | default | multiline messages | `outgoing`, `batch` |

@@ -623,6 +623,7 @@ pub papo_core::Feature::BotMode
 pub papo_core::Feature::ChannelRename
 pub papo_core::Feature::History
 pub papo_core::Feature::HostTracking
+pub papo_core::Feature::InviteTracking
 pub papo_core::Feature::LabeledResponse
 pub papo_core::Feature::MessageTags
 pub papo_core::Feature::Metadata
@@ -647,6 +648,10 @@ impl core::cmp::PartialOrd for papo_core::Feature
 pub fn papo_core::Feature::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::fmt::Debug for papo_core::Feature
 pub fn papo_core::Feature::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_core::Feature
+pub fn papo_core::Feature::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::Feature
+pub fn papo_core::Feature::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::Feature
 impl core::marker::StructuralPartialEq for papo_core::Feature
 impl core::marker::Freeze for papo_core::Feature

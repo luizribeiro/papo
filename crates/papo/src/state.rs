@@ -334,6 +334,7 @@ const FEATURES: &[Feature] = &[
     Feature::AwayTracking,
     Feature::AccountTracking,
     Feature::HostTracking,
+    Feature::InviteTracking,
 ];
 
 #[cfg(test)]
