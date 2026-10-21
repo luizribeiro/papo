@@ -257,6 +257,33 @@ fn parses_ergo_limits_and_lengths() {
 }
 
 #[test]
+fn distinguishes_unlimited_absent_and_numeric_target_limits() {
+    let mut support = Isupport::default();
+    support.apply(&LineRef::parse(
+        ":ergo.test 005 papo TARGMAX=NAMES:1,LIST:1,KICK:,WHOIS:1,USERHOST:10,PRIVMSG:4,TAGMSG:4,NOTICE:4,MONITOR:100 :are supported by this server",
+    ).unwrap());
+
+    let limits = support.targmax();
+    assert_eq!(
+        limits
+            .iter()
+            .find(|limit| limit.name == "KICK")
+            .unwrap()
+            .limit,
+        Some(LimitValue::Unlimited)
+    );
+    assert!(limits.iter().all(|limit| limit.name != "AWAY"));
+    assert_eq!(
+        limits
+            .iter()
+            .find(|limit| limit.name == "PRIVMSG")
+            .unwrap()
+            .limit,
+        Some(LimitValue::Limited(4))
+    );
+}
+
+#[test]
 fn limits_apply_defaults_and_reject_malformed_values() {
     let mut support = Isupport::default();
     assert_eq!(support.modes(), Some(3));
@@ -391,5 +418,8 @@ fn prefix(mode: char, symbol: char, rank: usize) -> Prefix {
 }
 
 fn limit(name: &str, limit: Option<usize>) -> Limit<'_> {
-    Limit { name, limit }
+    Limit {
+        name,
+        limit: Some(limit.map_or(LimitValue::Unlimited, LimitValue::Limited)),
+    }
 }

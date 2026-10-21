@@ -288,26 +288,23 @@ mod tests {
     }
 
     fn assert_limits_and_lengths(support: &super::Isupport) {
-        assert!(
-            support
-                .targmax()
-                .iter()
-                .any(|limit| limit.name == "MONITOR" && limit.limit == Some(100))
-        );
+        assert!(support.targmax().iter().any(|limit| {
+            limit.name == "MONITOR" && limit.limit == Some(super::LimitValue::Limited(100))
+        }));
         assert_eq!(support.maxtargets(), Some(super::LimitValue::Limited(4)));
         assert_eq!(support.modes(), Some(4));
         assert_eq!(
             support.chanlimit(),
             [super::Limit {
                 name: "#",
-                limit: Some(100)
+                limit: Some(super::LimitValue::Limited(100))
             }]
         );
         assert_eq!(
             support.maxlist(),
             [super::Limit {
                 name: "beI",
-                limit: Some(100)
+                limit: Some(super::LimitValue::Limited(100))
             }]
         );
         assert_eq!(support.channellen(), Some(64));

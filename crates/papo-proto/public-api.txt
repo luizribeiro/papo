@@ -813,7 +813,7 @@ impl<'a> core::marker::UnsafeUnpin for papo_proto::Join<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Join<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Join<'a>
 pub struct papo_proto::Limit<'a>
-pub papo_proto::Limit::limit: core::option::Option<usize>
+pub papo_proto::Limit::limit: core::option::Option<papo_proto::LimitValue>
 pub papo_proto::Limit::name: &'a str
 impl<'a> core::clone::Clone for papo_proto::Limit<'a>
 pub fn papo_proto::Limit<'a>::clone(&self) -> Self

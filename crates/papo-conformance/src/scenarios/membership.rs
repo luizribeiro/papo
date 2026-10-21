@@ -1,4 +1,7 @@
-use papo::{Account, DisconnectCause, Error, Event, ModeAction, ModeArg, Rank, Refusal, Source};
+use papo::{
+    Account, DisconnectCause, Error, Event, ModeAction, ModeArg, Rank, Refusal, Source,
+    isupport::LimitValue,
+};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
@@ -360,7 +363,7 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
 #[scenario(covers = ["base.join.err-too-many-channels"])]
 async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let Some(limit) = alice
+    let Some(LimitValue::Limited(limit)) = alice
         .state()
         .isupport()
         .chanlimit()

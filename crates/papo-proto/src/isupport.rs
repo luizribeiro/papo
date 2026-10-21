@@ -37,15 +37,15 @@ pub struct ChanModes<'a> {
     pub never: &'a str,
 }
 
-/// A named limit, where `None` means unlimited.
+/// A named server limit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Limit<'a> {
     /// The command, channel prefixes, or mode letters governed by the limit.
     ///
     /// Command names returned by [`Isupport::targmax`] compare case-insensitively.
     pub name: &'a str,
-    /// The advertised maximum, or `None` when no maximum applies.
-    pub limit: Option<usize>,
+    /// The advertised maximum, or `None` when the limit is not advertised.
+    pub limit: Option<LimitValue>,
 }
 
 /// A numeric server limit that may explicitly be unlimited.
@@ -458,9 +458,9 @@ fn parse_limits(value: &str, empty_is_unlimited: bool) -> Option<Vec<Limit<'_>>>
                 return None;
             }
             let limit = if value.is_empty() && empty_is_unlimited {
-                None
+                Some(LimitValue::Unlimited)
             } else {
-                Some(positive(value)?)
+                Some(LimitValue::Limited(positive(value)?))
             };
             Some(Limit { name, limit })
         })
@@ -471,11 +471,11 @@ fn default_targmax<'a>() -> Vec<Limit<'a>> {
     vec![
         Limit {
             name: "JOIN",
-            limit: None,
+            limit: Some(LimitValue::Unlimited),
         },
         Limit {
             name: "PART",
-            limit: None,
+            limit: Some(LimitValue::Unlimited),
         },
     ]
 }

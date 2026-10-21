@@ -1,4 +1,7 @@
-use papo::{Nick, isupport::Advertised};
+use papo::{
+    Nick,
+    isupport::{Advertised, LimitValue},
+};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::message_text;
@@ -16,13 +19,13 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     let alice_nick = alice.nick();
     let state = alice.state();
     let support = state.isupport();
-    let Some(limit) = support
+    let Some(LimitValue::Limited(limit)) = support
         .targmax()
         .into_iter()
         .find(|entry| entry.name.eq_ignore_ascii_case("PRIVMSG"))
         .and_then(|entry| entry.limit)
     else {
-        return s.skip("TARGMAX advertises no PRIVMSG limit");
+        return s.skip("TARGMAX advertises no finite PRIVMSG limit");
     };
 
     // papo's parsed limit is cross-checked against a hand split of the raw wire value.
