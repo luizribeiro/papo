@@ -1137,14 +1137,14 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::ConnectErrorKind
 impl core::panic::unwind_safe::UnwindSafe for papo::ConnectErrorKind
 #[non_exhaustive] pub enum papo::DisconnectCause
 pub papo::DisconnectCause::Connect(papo::ConnectError)
-pub papo::DisconnectCause::ConnectionLost
+#[non_exhaustive] pub papo::DisconnectCause::ConnectionLost
 pub papo::DisconnectCause::ConnectionLost::message: alloc::string::String
 pub papo::DisconnectCause::PingTimeout
-pub papo::DisconnectCause::Protocol
+#[non_exhaustive] pub papo::DisconnectCause::Protocol
 pub papo::DisconnectCause::Protocol::message: alloc::string::String
-pub papo::DisconnectCause::Requested
+#[non_exhaustive] pub papo::DisconnectCause::Requested
 pub papo::DisconnectCause::Requested::quit_unacknowledged: bool
-pub papo::DisconnectCause::Server
+#[non_exhaustive] pub papo::DisconnectCause::Server
 pub papo::DisconnectCause::Server::message: alloc::string::String
 pub papo::DisconnectCause::SlowConsumer
 impl core::clone::Clone for papo::DisconnectCause
@@ -1200,7 +1200,7 @@ pub papo::Error::TargetGone
 pub papo::Error::Timeout
 pub papo::Error::TooManyPendingRequests
 pub papo::Error::Unconfirmed
-pub papo::Error::UnexpectedReply
+#[non_exhaustive] pub papo::Error::UnexpectedReply
 pub papo::Error::UnexpectedReply::command: alloc::string::String
 pub papo::Error::Unsupported(papo::Unsupported)
 impl core::clone::Clone for papo::Error
@@ -1471,25 +1471,25 @@ pub papo::InvalidInput::EmptyText
 pub papo::InvalidInput::InvalidExtbanAccount(alloc::string::String)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)
 pub papo::InvalidInput::InvalidMessage(alloc::string::String)
-pub papo::InvalidInput::InvalidName
+#[non_exhaustive] pub papo::InvalidInput::InvalidName
 pub papo::InvalidInput::InvalidName::name: alloc::string::String
 pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
 pub papo::InvalidInput::InvalidRelayNickname
 pub papo::InvalidInput::InvalidWebPushEndpoint
 pub papo::InvalidInput::InvalidWebPushKey
-pub papo::InvalidInput::KickReasonTooLong
+#[non_exhaustive] pub papo::InvalidInput::KickReasonTooLong
 pub papo::InvalidInput::KickReasonTooLong::actual: usize
 pub papo::InvalidInput::KickReasonTooLong::maximum: usize
-pub papo::InvalidInput::MetadataValueTooLong
+#[non_exhaustive] pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
 pub papo::InvalidInput::RateLimit(papo::InvalidRateLimit)
-pub papo::InvalidInput::Reaction
+#[non_exhaustive] pub papo::InvalidInput::Reaction
 pub papo::InvalidInput::Reaction::actual: usize
 pub papo::InvalidInput::Reaction::maximum: usize
 pub papo::InvalidInput::TlsConfig(alloc::string::String)
-pub papo::InvalidInput::TooManyMetadataSubscriptions
+#[non_exhaustive] pub papo::InvalidInput::TooManyMetadataSubscriptions
 pub papo::InvalidInput::TooManyMetadataSubscriptions::actual: usize
 pub papo::InvalidInput::TooManyMetadataSubscriptions::maximum: usize
 pub papo::InvalidInput::UnexpectedPath(alloc::string::String)

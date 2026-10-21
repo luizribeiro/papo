@@ -734,12 +734,13 @@ async fn quit(s: Scenario) -> papo_testing::Result<()> {
     let disconnected = alice.wait_for(Event::as_disconnected).await?;
     let observed = bob.wait_for(Event::as_quit).await?;
 
-    assert_eq!(
+    assert!(matches!(
         disconnected.cause,
         DisconnectCause::Requested {
             quit_unacknowledged: false,
+            ..
         }
-    );
+    ));
     assert_eq!(disconnected.reconnect_in, None);
     assert_eq!(observed.nick, alice_nick);
     let observed_reason = observed.reason.as_deref().unwrap();

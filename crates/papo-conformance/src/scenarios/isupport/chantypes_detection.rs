@@ -72,6 +72,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
             Error::InvalidInput(InvalidInput::InvalidName {
                 name: rejected,
                 reason,
+                ..
             }) => {
                 assert_eq!(rejected, name);
                 assert_eq!(reason, InvalidIdentifier::InvalidPrefix(c));

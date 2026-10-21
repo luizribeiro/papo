@@ -49,7 +49,7 @@ async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let over = format!("{at_limit}w");
-    let Error::InvalidInput(InvalidInput::InvalidName { name, reason }) =
+    let Error::InvalidInput(InvalidInput::InvalidName { name, reason, .. }) =
         alice.join(&over).await.unwrap_err()
     else {
         panic!("over-limit channel name did not return an invalid-input error");

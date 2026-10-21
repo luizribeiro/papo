@@ -611,7 +611,7 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
             .is_some_and(|reason| !reason.is_empty())
     );
     let disconnected = charlie.wait_for(Event::as_disconnected).await?;
-    let papo::DisconnectCause::Server { message } = disconnected.cause else {
+    let papo::DisconnectCause::Server { message, .. } = disconnected.cause else {
         panic!("KILL did not produce a server ERROR disconnect");
     };
     assert!(message.contains("Killed"));

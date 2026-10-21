@@ -328,6 +328,7 @@ impl std::error::Error for ServerError {}
 #[non_exhaustive]
 pub enum DisconnectCause {
     /// The transport reached EOF or otherwise vanished.
+    #[non_exhaustive]
     ConnectionLost {
         /// A bounded transport diagnostic.
         message: String,
@@ -335,6 +336,7 @@ pub enum DisconnectCause {
     /// Opening a replacement connection or completing its login failed.
     Connect(ConnectError),
     /// The server sent `ERROR` with bounded explanatory text.
+    #[non_exhaustive]
     Server {
         /// The server's bounded explanation.
         message: String,
@@ -342,6 +344,7 @@ pub enum DisconnectCause {
     /// The server did not answer a keepalive probe.
     PingTimeout,
     /// Incoming data violated a protocol or resource bound.
+    #[non_exhaustive]
     Protocol {
         /// A bounded diagnostic suitable for display.
         message: String,
@@ -353,6 +356,7 @@ pub enum DisconnectCause {
     /// to avoid it.
     SlowConsumer,
     /// The client deliberately ended the connection.
+    #[non_exhaustive]
     Requested {
         /// Whether the peer failed to acknowledge `QUIT` within ten seconds.
         quit_unacknowledged: bool,
@@ -479,6 +483,7 @@ pub enum Error {
     TargetGone,
     /// The server's reply did not have the shape required by its command.
     #[error("the server sent an unexpected reply to {command}")]
+    #[non_exhaustive]
     UnexpectedReply {
         /// The command whose reply was malformed or incomplete.
         command: String,

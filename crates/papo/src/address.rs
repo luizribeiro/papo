@@ -43,6 +43,7 @@ pub enum InvalidInput {
     InvalidMessage(String),
     /// An IRC name is invalid in its protocol context.
     #[error("invalid IRC name {name:?}")]
+    #[non_exhaustive]
     InvalidName {
         /// The rejected name.
         name: String,
@@ -55,6 +56,7 @@ pub enum InvalidInput {
     EmptyText,
     /// Reaction text exceeds the IRC client-tag data limit.
     #[error("reaction length {actual} exceeds client-tag limit {maximum}")]
+    #[non_exhaustive]
     Reaction {
         /// The `IRCv3` client-tag data limit.
         maximum: usize,
@@ -75,6 +77,7 @@ pub enum InvalidInput {
     InvalidExtbanAccount(String),
     /// A kick reason exceeds the server's advertised byte limit.
     #[error("kick reason length {actual} exceeds limit {maximum}")]
+    #[non_exhaustive]
     KickReasonTooLong {
         /// The server-advertised maximum length.
         maximum: usize,
@@ -83,6 +86,7 @@ pub enum InvalidInput {
     },
     /// A metadata value exceeds the server's advertised byte limit.
     #[error("metadata value length {actual} exceeds limit {maximum}")]
+    #[non_exhaustive]
     MetadataValueTooLong {
         /// The advertised maximum length.
         maximum: usize,
@@ -91,6 +95,7 @@ pub enum InvalidInput {
     },
     /// A metadata subscription exceeds the server's advertised limit.
     #[error("metadata subscription count {actual} exceeds limit {maximum}")]
+    #[non_exhaustive]
     TooManyMetadataSubscriptions {
         /// The advertised maximum count.
         maximum: usize,

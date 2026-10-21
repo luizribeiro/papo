@@ -48,6 +48,22 @@ fn duplicate_type_paths(snapshot: &str) -> Vec<Vec<&str>> {
         .collect()
 }
 
+fn unsealed_struct_variants(snapshot: &str) -> Vec<&str> {
+    let lines: Vec<_> = snapshot.lines().collect();
+    lines
+        .windows(2)
+        .filter_map(|pair| {
+            let variant = pair[0].strip_prefix("pub ")?;
+            let field = pair[1].strip_prefix("pub ")?.strip_prefix(variant)?;
+            let field = field.strip_prefix("::")?.split_once(':')?.0;
+            (variant.matches("::").count() >= 2
+                && variant.rsplit("::").next()?.starts_with(char::is_uppercase)
+                && field.starts_with(char::is_lowercase))
+            .then_some(variant)
+        })
+        .collect()
+}
+
 #[test]
 fn public_types_have_one_path() {
     for (name, snapshot) in [
@@ -69,5 +85,39 @@ fn path_check_finds_root_and_module_reexports() {
     assert_eq!(
         duplicate_type_paths(snapshot),
         vec![vec!["example::Thing", "example::event::Thing"]]
+    );
+}
+
+#[test]
+fn error_struct_like_variants_are_non_exhaustive() {
+    for (name, snapshot) in [
+        ("papo", STABLE),
+        ("papo unstable", UNSTABLE),
+        ("papo-bot", BOT),
+    ] {
+        let unsealed = unsealed_struct_variants(snapshot);
+        for enum_path in [
+            "papo::DisconnectCause::",
+            "papo::Error::",
+            "papo::InvalidInput::",
+        ] {
+            assert!(
+                unsealed
+                    .iter()
+                    .all(|variant| !variant.starts_with(enum_path)),
+                "{name} has struct-like variants without #[non_exhaustive]: {unsealed:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn variant_check_distinguishes_struct_and_tuple_variants() {
+    let snapshot = "pub example::Event::Changed\npub example::Event::Changed::value: u8\n\
+                    #[non_exhaustive] pub example::Event::Ready\npub example::Event::Ready::value: u8\n\
+                    pub example::Event::Message(alloc::string::String)\n";
+    assert_eq!(
+        unsealed_struct_variants(snapshot),
+        ["example::Event::Changed"]
     );
 }
