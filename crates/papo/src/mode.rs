@@ -1,9 +1,34 @@
 use std::future::IntoFuture;
 
 use papo_core::ResponseMatcher;
-use papo_proto::{Isupport, Line, Mask, ModeKind, Nick};
+use papo_proto::{AccountName, Casemapping, Isupport, Line, Mask, ModeKind, Nick};
 
 use crate::{Client, Error, InvalidInput, RequestFuture};
+
+/// A validated extended-ban value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Extban {
+    /// A ban matching an authenticated account name.
+    Account(AccountName),
+}
+
+impl Extban {
+    /// Builds an account extended ban.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an empty name, `0`, logout marker `*`, wildcard
+    /// characters, or text that cannot be sent as one IRC parameter.
+    pub fn account(name: impl AsRef<str>) -> Result<Self, InvalidInput> {
+        let name = name.as_ref();
+        let account = Casemapping::Rfc1459.account(name);
+        if name == "0" || name.contains(['*', '?']) || account.check().is_err() {
+            return Err(InvalidInput::InvalidExtbanAccount(name.to_owned()));
+        }
+        Ok(Self::Account(account))
+    }
+}
 
 /// Builds one or more validated mode-change commands.
 pub struct SetModes {
@@ -261,7 +286,7 @@ fn invalid(message: impl Into<String>) -> Error {
 mod tests {
     use papo_proto::{Isupport, LineRef};
 
-    use super::{Argument, Change, Selector, encode};
+    use super::{Argument, Change, Extban, Selector, encode};
 
     fn isupport() -> Isupport {
         let mut support = Isupport::default();
@@ -340,6 +365,19 @@ mod tests {
             },
         ] {
             assert!(encode(&support, target, &[change]).is_err());
+        }
+    }
+
+    #[test]
+    fn validates_account_extban_names() {
+        assert!(
+            matches!(Extban::account("alice"), Ok(Extban::Account(account)) if account == "ALICE")
+        );
+        for invalid in ["", "0", "*", "bo?", "bob smith"] {
+            assert_eq!(
+                Extban::account(invalid),
+                Err(crate::InvalidInput::InvalidExtbanAccount(invalid.into()))
+            );
         }
     }
 }

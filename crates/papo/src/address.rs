@@ -70,6 +70,9 @@ pub enum InvalidInput {
     /// The server requires an account name to match the current nickname.
     #[error("the server does not support a custom account name")]
     AccountNameMustMatchNick,
+    /// An account extended-ban name is empty, a logout marker, a glob, or invalid on the wire.
+    #[error("invalid account extended-ban name {0:?}")]
+    InvalidExtbanAccount(String),
     /// A metadata value exceeds the server's advertised byte limit.
     #[error("metadata value length {actual} exceeds limit {maximum}")]
     MetadataValueTooLong {
