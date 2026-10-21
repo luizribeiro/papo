@@ -201,6 +201,42 @@ fn unlabelled_mode_keeps_applied_changes_and_partial_refusals() {
     );
 }
 
+#[test]
+fn ban_confirmation_reaches_the_mode_fence_after_echo_or_duplicate() {
+    for confirmation in [
+        ":papo!~papo@localhost MODE #papo +b alice!*@*",
+        ":irc.inspircd.test 697 papo #papo alice!*@* b :Entry is already in the list",
+    ] {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        let id = session
+            .request_with_matcher(
+                now,
+                Line::new("MODE", ["#papo", "+b", "alice"]),
+                ResponseMatcher::Mode("#papo".into()),
+            )
+            .unwrap();
+        assert_eq!(session.poll_transmit().unwrap(), b"MODE #papo +b alice\r\n");
+        assert_eq!(session.poll_transmit().unwrap(), b"PING :papo-mode-0\r\n");
+
+        session.handle_line(now, confirmation.as_bytes());
+        assert!(
+            !std::iter::from_fn(|| session.poll_event())
+                .any(|event| matches!(event, Event::Response(_)))
+        );
+        session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-0");
+
+        let response = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Response(response) if response.id == id => Some(response),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(response.lines[0].as_ref().param(2), Some("alice!*@*"));
+        assert_eq!(response.lines.len(), 2);
+    }
+}
+
 fn assert_unlabelled(
     session: &mut Session,
     message: Line,
