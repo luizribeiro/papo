@@ -22,8 +22,9 @@ use papo_proto::{
 };
 
 use crate::{
-    Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, MetadataValue,
-    ModeArg, ModeChange, NameKey, Outbox, ReadMarker, Source, StateLimit, Subject, WhoOnJoin,
+    Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
+    MetadataValue, ModeArg, ModeChange, ModeListEntry, NameKey, Outbox, ReadMarker, Source,
+    StateLimit, Subject, WhoOnJoin,
     conversation::classify_target,
     monitor::{Monitor, presence_nicks},
     typing::{Typer, TypingTable},
@@ -81,6 +82,7 @@ pub struct Channel {
     casemapping: Casemapping,
     members: HashMap<Nick, Member>,
     modes: HashMap<char, Option<String>>,
+    lists: HashMap<ListMode, Vec<ModeListEntry>>,
     created_at: Option<SystemTime>,
     topic: Option<String>,
     topic_set_by: Option<Source>,
@@ -1017,6 +1019,7 @@ impl Channel {
             casemapping,
             members: HashMap::new(),
             modes: HashMap::new(),
+            lists: HashMap::new(),
             created_at: None,
             topic: None,
             topic_set_by: None,
@@ -1113,6 +1116,12 @@ impl Channel {
         self.modes
             .iter()
             .map(|(mode, argument)| (*mode, argument.as_deref()))
+    }
+
+    /// Returns a fetched list mode, or `None` while its contents are unknown.
+    #[must_use]
+    pub fn list(&self, mode: ListMode) -> Option<&[ModeListEntry]> {
+        self.lists.get(&mode).map(Vec::as_slice)
     }
 
     /// Returns the channel creation time.
@@ -1277,10 +1286,57 @@ fn parse_unix_seconds(value: &str) -> Option<SystemTime> {
 
 #[cfg(test)]
 mod metadata_tests {
-    use papo_proto::LineRef;
+    use papo_proto::{Isupport, LineRef};
 
-    use super::State;
-    use crate::{Config, Event, Outbox, StateLimit};
+    use super::{Channel, State};
+    use crate::{Config, Event, ListMode, Outbox, StateLimit};
+
+    #[test]
+    fn distinguishes_unknown_and_fetched_empty_mode_lists() {
+        let mut state = State::new(&Config::default());
+        let channel = Channel::new("#Papo[dev]", state.casemapping, &Isupport::default(), true);
+        state
+            .channels
+            .insert(state.casemapping.channel("#Papo[dev]"), channel);
+
+        assert_eq!(
+            state.channel("#papo{dev}").unwrap().list(ListMode::Ban),
+            None
+        );
+        state
+            .channels
+            .get_mut(&state.casemapping.channel("#papo{dev}"))
+            .unwrap()
+            .lists
+            .insert(ListMode::Ban, Vec::new());
+        assert_eq!(
+            state.channel("#Papo[dev]").unwrap().list(ListMode::Ban),
+            Some([].as_slice())
+        );
+        state
+            .channels
+            .get_mut(&state.casemapping.channel("#Papo[dev]"))
+            .unwrap()
+            .lists
+            .remove(&ListMode::Ban);
+        assert_eq!(
+            state.channel("#papo{dev}").unwrap().list(ListMode::Ban),
+            None
+        );
+        state
+            .channels
+            .get_mut(&state.casemapping.channel("#papo{dev}"))
+            .unwrap()
+            .lists
+            .insert(ListMode::Ban, Vec::new());
+        for channel in state.channels.values_mut() {
+            channel.lists.clear();
+        }
+        assert_eq!(
+            state.channel("#Papo[dev]").unwrap().list(ListMode::Ban),
+            None
+        );
+    }
 
     #[test]
     fn retains_at_most_ten_thousand_metadata_targets() {

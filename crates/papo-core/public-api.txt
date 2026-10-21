@@ -1313,6 +1313,7 @@ pub struct papo_core::Channel
 impl papo_core::Channel
 pub const fn papo_core::Channel::created_at(&self) -> core::option::Option<std::time::SystemTime>
 pub const fn papo_core::Channel::is_synced(&self) -> bool
+pub fn papo_core::Channel::list(&self, papo_core::ListMode) -> core::option::Option<&[papo_core::ModeListEntry]>
 pub fn papo_core::Channel::member(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::Member>
 pub fn papo_core::Channel::members(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Member>
 pub fn papo_core::Channel::mode(&self, char) -> core::option::Option<core::option::Option<&str>>
