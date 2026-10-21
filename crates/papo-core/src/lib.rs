@@ -4340,7 +4340,109 @@ fn text_label(prefix: Option<&str>, index: usize) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{CloseKind, Event, Outbox};
+    use papo_proto::{Casemapping, LineRef};
+
+    use super::{
+        CloseKind, Config, Event, ListMode, Outbox, RequestId, ResponseMatcher, Session, State,
+        UnlabelledRequest,
+    };
+
+    #[test]
+    fn invalidating_a_list_request_uses_the_requested_id() {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(Config::default());
+        session.handle_line(now, b":papo!~papo@localhost JOIN #one");
+        session.handle_line(now, b":papo!~papo@localhost JOIN #two");
+        session.unlabelled_requests.clear();
+        session
+            .state
+            .set_mode_list("#one", ListMode::Ban, Vec::new());
+        session
+            .state
+            .set_mode_list("#two", ListMode::Quiet, Vec::new());
+        let requested = RequestId(41);
+        session.unlabelled_requests.extend([
+            UnlabelledRequest {
+                id: requested,
+                started: None,
+                matcher: ResponseMatcher::ListMode {
+                    channel: "#one".into(),
+                    mode: ListMode::Ban,
+                },
+                fence: None,
+                lines: Vec::new(),
+            },
+            UnlabelledRequest {
+                id: RequestId(42),
+                started: None,
+                matcher: ResponseMatcher::ListMode {
+                    channel: "#two".into(),
+                    mode: ListMode::Quiet,
+                },
+                fence: None,
+                lines: Vec::new(),
+            },
+        ]);
+
+        session.invalidate_list_request(requested);
+
+        assert_eq!(
+            session.state().channel("#one").unwrap().list(ListMode::Ban),
+            None
+        );
+        assert_eq!(
+            session
+                .state()
+                .channel("#two")
+                .unwrap()
+                .list(ListMode::Quiet),
+            Some([].as_slice())
+        );
+    }
+
+    #[test]
+    fn list_mode_matchers_reject_wrong_numeric_target_and_quiet_marker() {
+        let mapping = Casemapping::Rfc1459;
+        let state = State::new(&Config::default());
+        let ban = ResponseMatcher::ListMode {
+            channel: "#Papo[".into(),
+            mode: ListMode::Ban,
+        };
+        let quiet = ResponseMatcher::ListMode {
+            channel: "#Papo[".into(),
+            mode: ListMode::Quiet,
+        };
+        let line = |wire| LineRef::parse(wire).unwrap();
+
+        let ban_row = line(":ergo.test 367 papo #papo{ *!*@gateway.example oper 1761048000");
+        assert!(ban.is_list_row(&ban_row, mapping));
+        assert_eq!(ban.matches(&ban_row, mapping, "papo", &state), Some(false));
+        for wire in [
+            ":ergo.test 348 papo #papo{ *!*@staff.example oper 1761048000",
+            ":ergo.test 367 papo #other *!*@gateway.example oper 1761048000",
+            ":ergo.test 482 papo #other :You're not a channel operator",
+        ] {
+            let message = line(wire);
+            assert!(!ban.is_list_row(&message, mapping), "accepted {wire}");
+            assert_eq!(
+                ban.matches(&message, mapping, "papo", &state),
+                None,
+                "accepted {wire}"
+            );
+        }
+
+        let wrong_quiet =
+            line(":solanum.example 728 papo #papo{ b *!*@noisy.example oper 1761048000");
+        assert!(!quiet.is_list_row(&wrong_quiet, mapping));
+        assert_eq!(quiet.matches(&wrong_quiet, mapping, "papo", &state), None);
+        let quiet_end = line(":solanum.example 729 papo #papo{ q :End of channel quiet list");
+        assert!(!quiet.is_list_row(&quiet_end, mapping));
+        assert_eq!(
+            quiet.matches(&quiet_end, mapping, "papo", &state),
+            Some(true)
+        );
+        assert!(!ResponseMatcher::Ping("token".into()).is_list_row(&ban_row, mapping));
+    }
 
     #[test]
     fn batch_queue_rejects_empty_and_closed_transmissions() {
