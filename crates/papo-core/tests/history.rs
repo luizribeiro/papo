@@ -201,7 +201,7 @@ fn allows_both_reference_types_when_msgreftypes_is_absent() {
 }
 
 #[test]
-fn clamps_server_and_local_limits() {
+fn honors_the_server_advertised_history_limit() {
     let (mut limited, now) = history_session("CHATHISTORY=100 MSGREFTYPES=msgid,timestamp");
     limited
         .chathistory(
@@ -209,12 +209,18 @@ fn clamps_server_and_local_limits() {
             HistoryQuery::Latest {
                 target: "#papo".into(),
                 after: None,
-                limit: 500,
+                limit: 101,
             },
         )
         .unwrap();
-    assert!(transmitted(&mut limited).ends_with(" #papo * 100"));
+    assert_eq!(
+        transmitted(&mut limited),
+        "@label=0 CHATHISTORY LATEST #papo * 100"
+    );
+}
 
+#[test]
+fn caps_history_when_the_server_advertises_no_limit() {
     let (mut unlimited, now) = history_session("CHATHISTORY=0 MSGREFTYPES=msgid,timestamp");
     unlimited
         .chathistory(
@@ -226,7 +232,10 @@ fn clamps_server_and_local_limits() {
             },
         )
         .unwrap();
-    assert!(transmitted(&mut unlimited).ends_with(" #papo * 1000"));
+    assert_eq!(
+        transmitted(&mut unlimited),
+        "@label=0 CHATHISTORY LATEST #papo * 1000"
+    );
 }
 
 #[test]
