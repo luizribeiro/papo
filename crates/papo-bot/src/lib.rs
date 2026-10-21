@@ -19,11 +19,19 @@ const MAX_RATE_TARGETS: usize = 1024;
 /// The budget counts calls, not the number of lines produced by a call or the number of senders
 /// in a conversation. Conversation names use the server's casemapping, so differently cased
 /// spellings of the same channel share one budget.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ReplyRateLimiter {
     burst: usize,
     refill: Duration,
     targets: Arc<Mutex<HashMap<Conversation, VecDeque<Instant>>>>,
+}
+
+impl std::fmt::Debug for ReplyRateLimiter {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ReplyRateLimiter")
+            .finish_non_exhaustive()
+    }
 }
 
 impl ReplyRateLimiter {
@@ -391,6 +399,12 @@ mod tests {
     use web_time::Instant;
 
     use super::{BotConfig, Command, ReplyRateLimiter, ReplyStatus};
+
+    #[test]
+    fn reply_limiter_debug_is_opaque() {
+        let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
+        assert_eq!(format!("{limiter:?}"), "ReplyRateLimiter { .. }");
+    }
 
     struct IdleStream;
 
