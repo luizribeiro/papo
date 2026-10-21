@@ -17,12 +17,18 @@ use super::{
 use crate::address::Protocol;
 use crate::{Error, Event, InvalidInput, Reconnect, transport};
 
-pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::Stream, Error> {
+pub(super) async fn open_connection(
+    plan: ConnectionPlan,
+    progress: mpsc::UnboundedSender<crate::ConnectPhase>,
+) -> Result<transport::Stream, Error> {
     #[cfg(sockets)]
     {
         if let Some(url) = plan.address.websocket_url() {
             #[cfg(feature = "websocket")]
             {
+                if plan.address.is_secure() {
+                    _ = progress.send(crate::ConnectPhase::Tls);
+                }
                 return transport::connect_websocket(
                     &url,
                     plan.address.is_secure().then_some(&plan.tls),
@@ -38,7 +44,10 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
         }
         let security = match plan.address.protocol {
             Protocol::Irc => transport::Security::Plaintext,
-            Protocol::Ircs => transport::Security::Tls(plan.tls),
+            Protocol::Ircs => {
+                _ = progress.send(crate::ConnectPhase::Tls);
+                transport::Security::Tls(plan.tls)
+            }
             Protocol::Ws | Protocol::Wss => return Err(Error::connect_unavailable("websocket")),
         };
         transport::connect(&plan.address.host, plan.address.port, &security)
@@ -50,13 +59,16 @@ pub(super) async fn open_connection(plan: ConnectionPlan) -> Result<transport::S
         let Some(url) = plan.address.websocket_url() else {
             return Err(Error::connect_unavailable("TCP in browsers"));
         };
+        if plan.address.is_secure() {
+            _ = progress.send(crate::ConnectPhase::Tls);
+        }
         transport::connect_websocket(&url, None)
             .await
             .map_err(|error| Error::Connect(error.into()))
     }
     #[cfg(all(not(browser), not(sockets)))]
     {
-        _ = plan;
+        _ = (plan, progress);
         Err(Error::connect_unavailable("outbound sockets"))
     }
 }
@@ -88,8 +100,20 @@ pub(super) async fn run_plan(
         attempts = attempts.saturating_add(1);
         let plan = plan_with_stored_sts(&base_plan, sts_store.as_mut());
         sts_required |= !base_plan.address.is_secure() && plan.address.is_secure();
+        if !enqueue_event(
+            &events,
+            &mut pending_events,
+            Event::Connecting(crate::event::Connecting {
+                attempt: attempts,
+                phase: crate::ConnectPhase::Transport,
+            }),
+        ) {
+            return finish_slow_consumer(events, &mut registration, pending_events);
+        }
+        let (progress, progress_events) = mpsc::unbounded_channel();
         let stream = match connect_or_wait(
-            connector(plan.clone()),
+            connector(plan.clone(), progress),
+            progress_events,
             &mut commands,
             &events,
             &mut pending_events,
@@ -338,6 +362,7 @@ enum ConnectionAttempt {
 #[allow(clippy::too_many_arguments)]
 async fn connect_or_wait(
     connection: ConnectFuture,
+    progress: mpsc::UnboundedReceiver<crate::ConnectPhase>,
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
     pending_events: &mut VecDeque<Event>,
@@ -350,18 +375,22 @@ async fn connect_or_wait(
     entropy: &mut (dyn FnMut() -> u64 + Send),
     last_disconnect: &mut Option<crate::DisconnectCause>,
 ) -> ConnectionAttempt {
-    let Some(result) = connect_while_disconnected(
+    let result = match connect_while_disconnected(
         connection,
+        progress,
         commands,
-        &events.regular,
+        events,
         pending_events,
         defaults,
         last_disconnect.as_ref(),
         connect_timeout,
+        attempts,
     )
     .await
-    else {
-        return ConnectionAttempt::Stop;
+    {
+        DisconnectedWait::Complete(result) => result,
+        DisconnectedWait::Stop => return ConnectionAttempt::Stop,
+        DisconnectedWait::SlowConsumer => return ConnectionAttempt::SlowConsumer,
     };
     let error = match result {
         Ok(stream) => return ConnectionAttempt::Connected(stream),
@@ -536,15 +565,24 @@ pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::Clos
     false
 }
 
+enum DisconnectedWait {
+    Complete(Result<BoxConnection, Error>),
+    Stop,
+    SlowConsumer,
+}
+
+#[allow(clippy::too_many_arguments)]
 async fn connect_while_disconnected(
     mut connection: ConnectFuture,
+    mut progress: mpsc::UnboundedReceiver<crate::ConnectPhase>,
     commands: &mut mpsc::Receiver<Command>,
-    events: &mpsc::Sender<Event>,
+    events: &EventSink,
     pending_events: &mut VecDeque<Event>,
     defaults: &mut PostConnect,
     last_cause: Option<&crate::DisconnectCause>,
     timeout: Duration,
-) -> Option<Result<BoxConnection, Error>> {
+    attempt: usize,
+) -> DisconnectedWait {
     let disconnected = crate::Disconnected::new(
         last_cause.cloned().unwrap_or_else(|| {
             crate::DisconnectCause::connection_lost("transport ended unexpectedly")
@@ -555,20 +593,28 @@ async fn connect_while_disconnected(
     tokio::pin!(timeout);
     loop {
         tokio::select! {
-            result = &mut connection => return Some(result),
+            biased;
+            Some(phase) = progress.recv() => {
+                if !enqueue_event(events, pending_events, Event::Connecting(
+                    crate::event::Connecting { attempt, phase },
+                )) {
+                    return DisconnectedWait::SlowConsumer;
+                }
+            }
+            result = &mut connection => return DisconnectedWait::Complete(result),
             () = &mut timeout => {
-                return Some(Err(Error::Connect(crate::ConnectError::login(
+                return DisconnectedWait::Complete(Err(Error::Connect(crate::ConnectError::login(
                     crate::ConnectErrorKind::TimedOut,
                     "connection attempt timed out",
                 ))));
             }
-            permit = events.reserve(), if !pending_events.is_empty() => match permit {
+            permit = events.regular.reserve(), if !pending_events.is_empty() => match permit {
                 Ok(permit) => permit.send(pending_events.pop_front().expect("pending event is present")),
                 Err(_) => pending_events.clear(),
             },
             command = commands.recv() => {
                 if !handle_disconnected_command(command, &disconnected, defaults) {
-                    return None;
+                    return DisconnectedWait::Stop;
                 }
             }
         }

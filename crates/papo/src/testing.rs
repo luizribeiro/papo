@@ -21,7 +21,7 @@ pub fn wire_client(
     tokio::sync::mpsc::UnboundedReceiver<tokio::io::DuplexStream>,
 ) {
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
-    let connector: crate::driver::Connector = Arc::new(move |_| {
+    let connector: crate::driver::Connector = Arc::new(move |_, _| {
         let (client, server) = tokio::io::duplex(8192);
         let sent = sender.send(server);
         Box::pin(async move {

@@ -544,7 +544,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     let calls = Arc::new(AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
         let calls = Arc::clone(&calls);
-        move |_| {
+        move |_, _| {
             calls.fetch_add(1, Ordering::Relaxed);
             Box::pin(async { Err(transport_failure("scripted connection failure")) })
         }
@@ -624,7 +624,7 @@ async fn configuration_failures_are_terminal() {
         let calls = Arc::new(AtomicUsize::new(0));
         let connector: super::Connector = Arc::new({
             let calls = Arc::clone(&calls);
-            move |_| {
+            move |_, _| {
                 calls.fetch_add(1, Ordering::Relaxed);
                 let failure = failure.clone();
                 Box::pin(async move { Err(failure) })
@@ -662,7 +662,7 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
     let calls = Arc::new(AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
         let calls = Arc::clone(&calls);
-        move |_| {
+        move |_, _| {
             calls.fetch_add(1, Ordering::Relaxed);
             Box::pin(async { Err(transport_failure("scripted connection failure")) })
         }
@@ -702,7 +702,7 @@ async fn registration_connection_loss_is_a_connect_error() {
     let calls = Arc::new(AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
         let calls = Arc::clone(&calls);
-        move |_| {
+        move |_, _| {
             calls.fetch_add(1, Ordering::Relaxed);
             let stream = stream.lock().unwrap().take().unwrap();
             Box::pin(async move { Ok(stream) })
@@ -754,7 +754,7 @@ async fn eof_reconnects_and_emits_reconnected() {
         Box::new(second_stream) as super::BoxConnection,
         Box::new(third_stream) as super::BoxConnection,
     ])));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let stream = streams.lock().unwrap().pop_front().unwrap();
         Box::pin(async move { Ok(stream) })
     });
@@ -1134,7 +1134,7 @@ async fn explicit_reconnect_redials_without_backoff() {
     let connection_times = Arc::new(Mutex::new(Vec::new()));
     let connector: super::Connector = Arc::new({
         let connection_times = Arc::clone(&connection_times);
-        move |_| {
+        move |_, _| {
             connection_times
                 .lock()
                 .unwrap()
@@ -1204,7 +1204,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
         Box::new(first_stream) as super::BoxConnection,
         Box::new(second_stream) as super::BoxConnection,
     ])));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let stream = streams.lock().unwrap().pop_front().unwrap();
         Box::pin(async move { Ok(stream) })
     });
@@ -1362,7 +1362,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
         Box::new(second_stream) as super::BoxConnection,
         Box::new(third_stream) as super::BoxConnection,
     ])));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let stream = streams.lock().unwrap().pop_front().unwrap();
         Box::pin(async move { Ok(stream) })
     });
@@ -1494,7 +1494,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
         Err(transport_failure("scripted connection failure")),
         Ok(Box::new(client_stream) as super::BoxConnection),
     ])));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let result = results.lock().unwrap().pop_front().unwrap();
         Box::pin(async move { result })
     });
@@ -1576,7 +1576,7 @@ async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
         Ok(Box::new(first_stream) as super::BoxConnection),
         Ok(Box::new(second_stream) as super::BoxConnection),
     ])));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let result = results.lock().unwrap().pop_front().unwrap();
         Box::pin(async move { result })
     });
@@ -1646,7 +1646,7 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
         let calls = Arc::clone(&calls);
-        move |_| {
+        move |_, _| {
             calls.fetch_add(1, Ordering::Relaxed);
             Box::pin(async { Err(transport_failure("scripted connection failure")) })
         }
@@ -1695,7 +1695,7 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
 async fn stalled_consumer_does_not_block_quit_after_connection_loss() {
     let (stream, mut server) = tokio::io::duplex(4096);
     let stream = Arc::new(Mutex::new(Some(Box::new(stream) as super::BoxConnection)));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let stream = stream.lock().unwrap().take().unwrap();
         Box::pin(async move { Ok(stream) })
     });
@@ -1736,7 +1736,7 @@ fn failing_driver_with_one_event_slot() -> (super::Client, super::Events, Driver
     let calls = Arc::new(AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
         let calls = Arc::clone(&calls);
-        move |_| {
+        move |_, _| {
             calls.fetch_add(1, Ordering::Relaxed);
             Box::pin(async { Err(transport_failure("scripted connection failure")) })
         }
@@ -1807,7 +1807,7 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
     let attempts = Arc::new(Mutex::new(Vec::new()));
     let connector: super::Connector = Arc::new({
         let attempts = Arc::clone(&attempts);
-        move |_| {
+        move |_, _| {
             attempts.lock().unwrap().push(tokio::time::Instant::now());
             Box::pin(async { Err(transport_failure("scripted connection failure")) })
         }
@@ -1858,7 +1858,7 @@ async fn stable_registration_resets_the_backoff() {
     let connector: super::Connector = Arc::new({
         let attempts = Arc::clone(&attempts);
         let results = Arc::clone(&results);
-        move |_| {
+        move |_, _| {
             attempts.lock().unwrap().push(tokio::time::Instant::now());
             let result = results.lock().unwrap().pop_front().unwrap();
             Box::pin(async move { result })
@@ -1916,7 +1916,7 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
     let stream = Arc::new(Mutex::new(Some(
         Box::new(client_stream) as super::BoxConnection
     )));
-    let connector: super::Connector = Arc::new(move |plan| {
+    let connector: super::Connector = Arc::new(move |plan, _| {
         assert!(plan.address.is_secure());
         assert_eq!(plan.address.port, 7443);
         let stream = stream.lock().unwrap().take().unwrap();
@@ -1959,7 +1959,7 @@ async fn transport_failure_under_stored_sts_retries() {
     let calls = Arc::new(AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
         let calls = Arc::clone(&calls);
-        move |_| {
+        move |_, _| {
             calls.fetch_add(1, Ordering::Relaxed);
             Box::pin(async {
                 Err(Error::Connect(crate::ConnectError::new(
@@ -2438,7 +2438,7 @@ async fn required_sasl_failure_does_not_reconnect() {
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
         let calls = Arc::clone(&calls);
-        move |_| {
+        move |_, _| {
             calls.fetch_add(1, Ordering::Relaxed);
             let stream = stream.lock().unwrap().take().unwrap();
             Box::pin(async move { Ok(stream) })
@@ -2776,7 +2776,7 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
     let requested = Arc::new(Mutex::new(Vec::new()));
     let connector: super::Connector = Arc::new({
         let requested = Arc::clone(&requested);
-        move |plan| {
+        move |plan, _| {
             requested
                 .lock()
                 .unwrap()
@@ -2835,7 +2835,7 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
 async fn sts_upgrade_obeys_the_attempt_limit() {
     let (stream, mut server) = tokio::io::duplex(4096);
     let stream = Arc::new(Mutex::new(Some(Box::new(stream) as super::BoxConnection)));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let stream = stream.lock().unwrap().take().unwrap();
         Box::pin(async move { Ok(stream) })
     });
@@ -2906,7 +2906,7 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
     let stream = Arc::new(Mutex::new(Some(
         Box::new(client_stream) as super::BoxConnection
     )));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let stream = stream.lock().unwrap().take().unwrap();
         Box::pin(async move { Ok(stream) })
     });
@@ -2974,7 +2974,7 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
     let stream = Arc::new(Mutex::new(Some(
         Box::new(client_stream) as super::BoxConnection
     )));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let stream = stream.lock().unwrap().take().unwrap();
         Box::pin(async move { Ok(stream) })
     });
@@ -3031,7 +3031,7 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
     let stream = Arc::new(Mutex::new(Some(
         Box::new(client_stream) as super::BoxConnection
     )));
-    let connector: super::Connector = Arc::new(move |_| {
+    let connector: super::Connector = Arc::new(move |_, _| {
         let stream = stream.lock().unwrap().take().unwrap();
         Box::pin(async move { Ok(stream) })
     });
@@ -6292,7 +6292,7 @@ async fn slow_consumer_reconnects_after_its_reported_delay() {
     let connector: super::Connector = Arc::new({
         let streams = Arc::clone(&streams);
         let calls = Arc::clone(&calls);
-        move |_| {
+        move |_, _| {
             calls.fetch_add(1, Ordering::Relaxed);
             let stream = streams.lock().unwrap().pop_front().unwrap();
             Box::pin(async move { Ok(stream) })

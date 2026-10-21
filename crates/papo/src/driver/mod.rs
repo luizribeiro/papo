@@ -65,7 +65,11 @@ type BoxConnection = Box<dyn ConnectionIo>;
 type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>> + Send>>;
 #[cfg(browser)]
 type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>>>>;
-pub(crate) type Connector = Arc<dyn Fn(ConnectionPlan) -> ConnectFuture + Send + Sync>;
+pub(crate) type Connector = Arc<
+    dyn Fn(ConnectionPlan, mpsc::UnboundedSender<crate::ConnectPhase>) -> ConnectFuture
+        + Send
+        + Sync,
+>;
 type BackoffEntropy = Box<dyn FnMut() -> u64 + Send>;
 
 pub(crate) enum CoreRequest {
@@ -578,9 +582,9 @@ impl Driver {
         connector: Option<Connector>,
     ) -> (Client, Events, Self) {
         let connector = connector.unwrap_or_else(|| {
-            Arc::new(|plan| {
+            Arc::new(|plan, progress| {
                 Box::pin(async move {
-                    open_connection(plan)
+                    open_connection(plan, progress)
                         .await
                         .map(|stream| Box::new(stream) as BoxConnection)
                 })

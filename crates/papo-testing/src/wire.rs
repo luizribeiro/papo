@@ -230,10 +230,7 @@ mod tests {
         assert_eq!(wire.next_sent().await, "CAP END");
         wire.server(":offline.test 001 papo-wire :Welcome to ErgoTest")
             .await;
-        assert!(matches!(
-            events.next().await,
-            Some(papo::Event::Connected(_))
-        ));
+        _ = next_connected(&mut events).await;
         wire.server("PING :ergo.example/12345").await;
         assert_eq!(wire.next_sent().await, "PONG :ergo.example/12345");
     }
@@ -252,10 +249,7 @@ mod tests {
         assert_eq!(wire.next_sent().await, "CAP END");
         wire.server(":offline.test 001 papo-wire :Welcome to ErgoTest")
             .await;
-        assert!(matches!(
-            events.next().await,
-            Some(papo::Event::Connected(_))
-        ));
+        _ = next_connected(&mut events).await;
 
         drop(wire);
         assert!(events.next().await.is_none());
