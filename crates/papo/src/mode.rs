@@ -226,6 +226,9 @@ impl IntoFuture for SetModes {
                 .map(|change| change.resolve(&state))
                 .collect::<Result<Vec<_>, _>>()?;
             let messages = encode(state.isupport().inner(), &self.target, &changes)?;
+            for message in &messages {
+                message.to_line().map_err(Error::build)?;
+            }
             let maximum = state.isupport().modes().unwrap_or(changes.len()).max(1);
             let requested = changes
                 .iter()

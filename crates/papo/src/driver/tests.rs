@@ -3837,6 +3837,40 @@ async fn mode_changes_report_an_applied_change_and_a_partial_refusal() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn mode_changes_validate_every_chunk_before_sending() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst MODES=1 :are supported\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        client
+            .mode("#papo")
+            .add('m')
+            .add_with('k', "bad\r\nOPER")
+            .await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+    ));
+    let mut byte = [0];
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read(&mut byte))
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 #[allow(clippy::too_many_lines)]
 async fn typed_requests_match_unlabelled_responses() {
     let (mut server, client, mut events, driver) =
