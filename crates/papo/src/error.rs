@@ -195,7 +195,7 @@ impl ServerError {
     #[must_use]
     pub fn from_numeric(code: u16, params: Vec<String>) -> Self {
         if let Some(numeric) = papo_proto::Numeric::new(code) {
-            return Self::from_core(papo_core::ServerError::Numeric { numeric, params });
+            return Self::from_core(papo_core::ServerError::__numeric(numeric, params));
         }
         Self {
             refusal: Refusal::Other,
@@ -216,12 +216,12 @@ impl ServerError {
     ) -> Self {
         let command = command.into();
         let code = code.into();
-        Self::from_core(papo_core::ServerError::Standard {
+        Self::from_core(papo_core::ServerError::__standard(
             command,
             code,
-            context: Vec::new(),
-            description: description.into(),
-        })
+            Vec::new(),
+            description.into(),
+        ))
     }
 
     /// Supplies the standard reply's diagnostic parameters in wire order.
@@ -275,6 +275,7 @@ impl ServerError {
                 code,
                 context,
                 description,
+                ..
             } => Self {
                 refusal: kind,
                 numeric: None,
@@ -283,7 +284,9 @@ impl ServerError {
                 description,
                 params: context,
             },
-            papo_core::ServerError::Numeric { numeric, params } => Self {
+            papo_core::ServerError::Numeric {
+                numeric, params, ..
+            } => Self {
                 refusal: kind,
                 numeric: Some(numeric.code()),
                 command: String::new(),
@@ -594,15 +597,15 @@ impl Error {
             Request::CustomAccountNameUnsupported => {
                 Self::InvalidInput(InvalidInput::AccountNameMustMatchNick)
             }
-            Request::InvalidMetadataKey { key, reason } => {
+            Request::InvalidMetadataKey { key, reason, .. } => {
                 Self::InvalidInput(InvalidInput::invalid_name(key, reason))
             }
-            Request::MetadataValueTooLong { maximum, actual } => {
-                Self::InvalidInput(InvalidInput::MetadataValueTooLong { maximum, actual })
-            }
-            Request::TooManyMetadataSubscriptions { maximum, actual } => {
-                Self::InvalidInput(InvalidInput::TooManyMetadataSubscriptions { maximum, actual })
-            }
+            Request::MetadataValueTooLong {
+                maximum, actual, ..
+            } => Self::InvalidInput(InvalidInput::MetadataValueTooLong { maximum, actual }),
+            Request::TooManyMetadataSubscriptions {
+                maximum, actual, ..
+            } => Self::InvalidInput(InvalidInput::TooManyMetadataSubscriptions { maximum, actual }),
             #[cfg(feature = "unstable")]
             Request::InvalidRelayNickname => Self::InvalidInput(InvalidInput::InvalidRelayNickname),
             #[cfg(feature = "unstable")]

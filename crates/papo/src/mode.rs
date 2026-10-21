@@ -390,10 +390,7 @@ impl Client {
             let response = client
                 .correlated(
                     Line::new("MODE", [name.to_string(), letter.to_owned()]),
-                    Some(ResponseMatcher::ListMode {
-                        channel: name.to_string(),
-                        mode,
-                    }),
+                    Some(ResponseMatcher::__list_mode(name.to_string(), mode)),
                 )
                 .await?;
             if let Some(limit) = response.state_limit {

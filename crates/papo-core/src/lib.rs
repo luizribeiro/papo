@@ -994,6 +994,24 @@ pub enum ResponseMatcher {
 }
 
 impl ResponseMatcher {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __kick(channel: String, nick: String) -> Self {
+        Self::Kick { channel, nick }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __invite(channel: String, nick: String) -> Self {
+        Self::Invite { channel, nick }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __list_mode(channel: String, mode: ListMode) -> Self {
+        Self::ListMode { channel, mode }
+    }
+
     pub(crate) fn is_list_row(&self, message: &LineRef<'_>, mapping: Casemapping) -> bool {
         let Self::ListMode { channel, mode } = self else {
             return false;
@@ -1372,6 +1390,28 @@ pub enum ServerError {
 }
 
 impl ServerError {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __standard(
+        command: String,
+        code: String,
+        context: Vec<String>,
+        description: String,
+    ) -> Self {
+        Self::Standard {
+            command,
+            code,
+            context,
+            description,
+        }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __numeric(numeric: Numeric, params: Vec<String>) -> Self {
+        Self::Numeric { numeric, params }
+    }
+
     /// Classifies this refusal independently of its wire representation.
     #[must_use]
     pub fn refusal(&self) -> Refusal {

@@ -911,10 +911,10 @@ impl Client {
             let response = client
                 .correlated(
                     Line::new("KICK", params),
-                    Some(ResponseMatcher::Kick {
-                        channel: channel.to_string(),
-                        nick: nick.to_string(),
-                    }),
+                    Some(ResponseMatcher::__kick(
+                        channel.to_string(),
+                        nick.to_string(),
+                    )),
                 )
                 .await?;
             crate::requests::empty(&response)
@@ -1035,10 +1035,10 @@ impl Client {
             let response = client
                 .correlated(
                     Line::new("INVITE", [nick.to_string(), channel.to_string()]),
-                    Some(ResponseMatcher::Invite {
-                        channel: channel.to_string(),
-                        nick: nick.to_string(),
-                    }),
+                    Some(ResponseMatcher::__invite(
+                        channel.to_string(),
+                        nick.to_string(),
+                    )),
                 )
                 .await?;
             crate::requests::empty(&response)
