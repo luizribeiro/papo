@@ -669,6 +669,103 @@ fn invite_refusals_resolve_only_the_named_concurrent_request() {
 }
 
 #[test]
+fn part_refusals_resolve_only_the_named_concurrent_request() {
+    let now = Instant::now();
+    for (unrelated, refusal) in [
+        (
+            ":irc.solanum.test 403 papo #rust :No such channel",
+            ":irc.solanum.test 403 papo #papo :No such channel",
+        ),
+        (
+            ":irc.unreal.test 442 papo #rust :You're not on that channel",
+            ":irc.unreal.test 442 papo #papo :You're not on that channel",
+        ),
+    ] {
+        let mut session = Session::new(Config::default().nick("papo"));
+        let part = session
+            .request_with_matcher(
+                now,
+                Line::new("PART", ["#papo"]),
+                ResponseMatcher::Part("#papo".into()),
+            )
+            .unwrap();
+        let mode = session
+            .request_with_matcher(
+                now,
+                Line::new("MODE", ["#review", "+m"]),
+                ResponseMatcher::Mode("#review".into()),
+            )
+            .unwrap();
+
+        session.handle_line(now, unrelated.as_bytes());
+        assert_no_response(&mut session);
+        session.handle_line(now, refusal.as_bytes());
+        assert_eq!(response_id(&mut session), part);
+
+        session.handle_line(now, b":papo!papo@localhost MODE #review +m");
+        assert_no_response(&mut session);
+        session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-1");
+        assert_eq!(response_id(&mut session), mode);
+    }
+}
+
+#[test]
+fn non_error_numeric_named_like_a_command_does_not_claim_its_request() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let ping = session
+        .request_with_matcher(
+            now,
+            Line::new("PING", ["routing-token"]),
+            ResponseMatcher::Ping("routing-token".into()),
+        )
+        .unwrap();
+    let invite = session
+        .request_with_matcher(
+            now,
+            Line::new("INVITE", ["PING", "#papo"]),
+            ResponseMatcher::Invite {
+                channel: "#papo".into(),
+                nick: "PING".into(),
+            },
+        )
+        .unwrap();
+
+    session.handle_line(now, b":ergo.test 341 papo PING #papo");
+    assert_eq!(response_id(&mut session), invite);
+    session.handle_line(now, b":ergo.test PONG ergo.test :routing-token");
+    assert_eq!(response_id(&mut session), ping);
+}
+
+#[test]
+fn no_origin_refusal_resolves_ping_and_leaves_invite_pending() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let ping = session
+        .request_with_matcher(
+            now,
+            Line::new("PING", Vec::<String>::new()),
+            ResponseMatcher::Ping("missing-token".into()),
+        )
+        .unwrap();
+    let invite = session
+        .request_with_matcher(
+            now,
+            Line::new("INVITE", ["carol", "#papo"]),
+            ResponseMatcher::Invite {
+                channel: "#papo".into(),
+                nick: "carol".into(),
+            },
+        )
+        .unwrap();
+
+    session.handle_line(now, b":irc.solanum.test 409 papo :No origin specified");
+    assert_eq!(response_id(&mut session), ping);
+    session.handle_line(now, b":ergo.test 341 papo carol #papo");
+    assert_eq!(response_id(&mut session), invite);
+}
+
+#[test]
 fn concurrent_unlabelled_whois_uses_targets_then_fifo_order() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
