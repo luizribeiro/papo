@@ -13,10 +13,9 @@ async fn read_builder_line(server: &mut DuplexStream) -> Option<Vec<u8>> {
 
 async fn check_builder(configure: impl FnOnce(crate::Builder) -> crate::Builder) {
     let (stream, mut server) = tokio::io::duplex(4096);
-    let (client, events, driver) = configure(crate::Client::builder(crate::Endpoint::plaintext(
-        "127.0.0.1",
-        6667,
-    )))
+    let (client, events, driver) = configure(crate::Client::builder(
+        crate::Endpoint::plaintext("127.0.0.1", 6667).unwrap(),
+    ))
     .stream(crate::io_compat::TokioIo(stream))
     .build();
     tokio::pin!(driver);

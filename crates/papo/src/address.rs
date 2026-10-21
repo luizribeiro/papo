@@ -114,14 +114,6 @@ pub enum InvalidInput {
     InvalidWebPushKey,
 }
 
-#[doc(hidden)]
-impl Endpoint {
-    #[must_use]
-    pub const fn unwrap(self) -> Self {
-        self
-    }
-}
-
 impl InvalidInput {
     pub(crate) fn invalid_name(name: impl Into<String>, reason: crate::InvalidIdentifier) -> Self {
         Self::InvalidName {
@@ -133,7 +125,7 @@ impl InvalidInput {
 
 /// The network endpoint used by an IRC client.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Endpoint(Result<ServerAddress, InvalidInput>);
+pub struct Endpoint(ServerAddress);
 
 /// The transport and security used by an [`Endpoint`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -152,6 +144,10 @@ pub enum EndpointKind {
 impl Endpoint {
     /// Creates a TLS-protected TCP endpoint.
     ///
+    /// # Errors
+    ///
+    /// Returns an error when `host` is empty or malformed, or `port` is zero.
+    ///
     /// ```
     /// let endpoint = papo::Endpoint::tls("irc.example.net", 6697);
     /// # _ = endpoint;
@@ -161,11 +157,15 @@ impl Endpoint {
         not(target_family = "wasm"),
         all(target_os = "wasi", not(target_env = "p1"))
     ))]
-    pub fn tls(host: impl Into<String>, port: u16) -> Self {
+    pub fn tls(host: impl Into<String>, port: u16) -> Result<Self, InvalidInput> {
         Self::tcp(host, port, Protocol::Ircs)
     }
 
     /// Creates an unencrypted TCP endpoint that remains eligible for STS upgrades.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `host` is empty or malformed, or `port` is zero.
     ///
     /// ```
     /// let endpoint = papo::Endpoint::plaintext("irc.example.net", 6667);
@@ -176,44 +176,48 @@ impl Endpoint {
         not(target_family = "wasm"),
         all(target_os = "wasi", not(target_env = "p1"))
     ))]
-    pub fn plaintext(host: impl Into<String>, port: u16) -> Self {
+    pub fn plaintext(host: impl Into<String>, port: u16) -> Result<Self, InvalidInput> {
         Self::tcp(host, port, Protocol::Irc)
     }
 
     /// Creates a WebSocket endpoint from a `ws://` or `wss://` URL.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the URL has the wrong scheme or a malformed host or port.
     ///
     /// ```
     /// let endpoint = papo::Endpoint::websocket("wss://irc.example.net/webirc");
     /// # _ = endpoint;
     /// ```
     ///
-    pub fn websocket(url: impl AsRef<str>) -> Self {
+    pub fn websocket(url: impl AsRef<str>) -> Result<Self, InvalidInput> {
         let url = url.as_ref();
         let Some((scheme, _)) = url.split_once("://") else {
-            return Self(Err(InvalidInput::UnsupportedScheme(String::new())));
+            return Err(InvalidInput::UnsupportedScheme(String::new()));
         };
         if !scheme.eq_ignore_ascii_case("ws") && !scheme.eq_ignore_ascii_case("wss") {
-            return Self(Err(InvalidInput::UnsupportedScheme(scheme.to_owned())));
+            return Err(InvalidInput::UnsupportedScheme(scheme.to_owned()));
         }
-        Self(url.parse())
+        url.parse().map(Self)
     }
 
     /// Returns the endpoint's hostname, or `None` when construction recorded invalid input.
     #[must_use]
     pub fn host(&self) -> Option<&str> {
-        self.0.as_ref().ok().map(|address| address.host.as_str())
+        Some(&self.0.host)
     }
 
     /// Returns the endpoint's service port, or `None` when construction recorded invalid input.
     #[must_use]
     pub fn port(&self) -> Option<u16> {
-        self.0.as_ref().ok().map(|address| address.port)
+        Some(self.0.port)
     }
 
     /// Returns the endpoint's transport kind, or `None` when construction recorded invalid input.
     #[must_use]
     pub fn kind(&self) -> Option<EndpointKind> {
-        self.0.as_ref().ok().map(|address| match address.protocol {
+        Some(match self.0.protocol {
             Protocol::Irc => EndpointKind::Plaintext,
             Protocol::Ircs => EndpointKind::Tls,
             Protocol::Ws => EndpointKind::WebSocket,
@@ -225,40 +229,36 @@ impl Endpoint {
         not(target_family = "wasm"),
         all(target_os = "wasi", not(target_env = "p1"))
     ))]
-    fn tcp(host: impl Into<String>, port: u16, protocol: Protocol) -> Self {
-        let address = ServerAddress {
+    fn tcp(host: impl Into<String>, port: u16, protocol: Protocol) -> Result<Self, InvalidInput> {
+        let host = validate_host(host.into())?;
+        if port == 0 {
+            return Err(InvalidInput::InvalidPort(port.to_string()));
+        }
+        Ok(Self(ServerAddress {
             protocol,
-            host: host.into(),
+            host,
             port,
             explicit_port: true,
             websocket_path: None,
-        };
-        if port == 0 {
-            Self(Err(InvalidInput::InvalidPort(port.to_string())))
-        } else {
-            Self(Ok(address))
-        }
+        }))
     }
 
-    pub(crate) fn into_address(self) -> Result<ServerAddress, InvalidInput> {
+    pub(crate) fn into_address(self) -> ServerAddress {
         self.0
     }
 }
 
 impl fmt::Display for Endpoint {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            Ok(address) => address.fmt(formatter),
-            Err(error) => error.fmt(formatter),
-        }
+        self.0.fmt(formatter)
     }
 }
 
 mod private {
-    use super::Endpoint;
+    use super::{Endpoint, InvalidInput};
 
     pub trait Sealed {
-        fn into_endpoint(self) -> Endpoint;
+        fn into_endpoint(self) -> Result<Endpoint, InvalidInput>;
     }
 }
 
@@ -272,25 +272,25 @@ impl IntoEndpoint for &str {}
 impl IntoEndpoint for String {}
 
 impl private::Sealed for Endpoint {
-    fn into_endpoint(self) -> Endpoint {
-        self
+    fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
+        Ok(self)
     }
 }
 
 impl private::Sealed for &str {
-    fn into_endpoint(self) -> Endpoint {
-        Endpoint(self.parse())
+    fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
+        self.parse().map(Endpoint)
     }
 }
 
 impl private::Sealed for String {
-    fn into_endpoint(self) -> Endpoint {
-        Endpoint(self.parse())
+    fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
+        self.parse().map(Endpoint)
     }
 }
 
-pub(crate) fn convert(value: impl IntoEndpoint) -> Endpoint {
-    private::Sealed::into_endpoint(value)
+pub(crate) fn convert(value: impl IntoEndpoint) -> Result<ServerAddress, InvalidInput> {
+    private::Sealed::into_endpoint(value).map(Endpoint::into_address)
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -455,6 +455,13 @@ fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), 
     Ok((host.to_owned(), port))
 }
 
+fn validate_host(host: String) -> Result<String, InvalidInput> {
+    if host.is_empty() || host.contains(REJECTED_ADDRESS_CHARACTERS) || host.contains(['[', ']']) {
+        return Err(InvalidInput::InvalidHost(host));
+    }
+    Ok(host)
+}
+
 #[cfg(all(test, not(browser)))]
 mod tests {
     use super::{Endpoint, EndpointKind, InvalidInput, Protocol, ServerAddress};
@@ -471,21 +478,21 @@ mod tests {
 
     #[test]
     fn typed_constructors_preserve_transport_details() {
-        let tls = Endpoint::tls("irc.example.net", 7443).0.unwrap();
+        let tls = Endpoint::tls("irc.example.net", 7443).unwrap().0;
         assert_eq!(
             (tls.protocol, tls.host.as_str(), tls.port),
             (Protocol::Ircs, "irc.example.net", 7443)
         );
 
-        let plain = Endpoint::plaintext("irc.example.net", 7000).0.unwrap();
+        let plain = Endpoint::plaintext("irc.example.net", 7000).unwrap().0;
         assert_eq!(
             (plain.protocol, plain.host.as_str(), plain.port),
             (Protocol::Irc, "irc.example.net", 7000)
         );
 
         let websocket = Endpoint::websocket("wss://irc.example.net:8443/webirc")
-            .0
-            .unwrap();
+            .unwrap()
+            .0;
         assert_eq!(
             (websocket.protocol, websocket.host.as_str(), websocket.port),
             (Protocol::Wss, "irc.example.net", 8443)
@@ -495,23 +502,17 @@ mod tests {
 
     #[test]
     fn endpoint_accessors_and_display_preserve_configuration() {
-        let tls = Endpoint::tls("2001:db8::7", 6697);
+        let tls = Endpoint::tls("2001:db8::7", 6697).unwrap();
         assert_eq!(tls.host(), Some("2001:db8::7"));
         assert_eq!(tls.port(), Some(6697));
         assert_eq!(tls.kind(), Some(EndpointKind::Tls));
         assert_eq!(tls.to_string(), "ircs://[2001:db8::7]:6697");
 
-        let socket = Endpoint::websocket("ws://irc.example.net/webirc");
+        let socket = Endpoint::websocket("ws://irc.example.net/webirc").unwrap();
         assert_eq!(socket.host(), Some("irc.example.net"));
         assert_eq!(socket.port(), Some(80));
         assert_eq!(socket.kind(), Some(EndpointKind::WebSocket));
         assert_eq!(socket.to_string(), "ws://irc.example.net/webirc");
-
-        let invalid = Endpoint::websocket("https://irc.example.net");
-        assert_eq!(invalid.host(), None);
-        assert_eq!(invalid.port(), None);
-        assert_eq!(invalid.kind(), None);
-        assert_eq!(invalid.to_string(), "unsupported scheme \"https\"");
     }
 
     #[test]
@@ -522,19 +523,22 @@ mod tests {
             "https://irc.example.net/webirc",
             "wss://alice@irc.example.net/webirc",
         ] {
-            assert!(Endpoint::websocket(url).0.is_err(), "accepted {url:?}");
+            assert!(Endpoint::websocket(url).is_err(), "accepted {url:?}");
         }
     }
 
     #[test]
-    fn typed_zero_ports_are_deferred_as_explicit_input_errors() {
+    fn typed_endpoints_reject_invalid_input_at_construction() {
         for endpoint in [
             Endpoint::tls("irc.example.net", 0),
             Endpoint::plaintext("irc.example.net", 0),
         ] {
+            assert_eq!(endpoint, Err(InvalidInput::InvalidPort("0".into())));
+        }
+        for host in ["", "irc example.net"] {
             assert_eq!(
-                endpoint.into_address(),
-                Err(InvalidInput::InvalidPort("0".into()))
+                Endpoint::tls(host, 6697),
+                Err(InvalidInput::InvalidHost(host.into()))
             );
         }
     }

@@ -84,7 +84,7 @@ impl Builder {
 
     pub(crate) fn from_endpoint(endpoint: impl crate::IntoEndpoint) -> Self {
         let mut builder = Self::new("irc.example.net");
-        builder.address = crate::address::convert(endpoint).into_address();
+        builder.address = crate::address::convert(endpoint);
         builder
     }
 
