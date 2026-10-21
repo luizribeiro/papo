@@ -64,12 +64,9 @@ impl ErrorBuilder {
         context: Vec<String>,
         description: impl Into<String>,
     ) -> Self {
-        Self(Error::Server(ServerError::standard(
-            command,
-            code,
-            context,
-            description,
-        )))
+        Self(Error::Server(
+            ServerError::standard(command, code, description).context(context),
+        ))
     }
 
     /// Finishes the error.

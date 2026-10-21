@@ -63,8 +63,7 @@ impl PartialEq for ConnectError {
 impl Eq for ConnectError {}
 
 impl ConnectError {
-    /// Creates a connection error with a stable category and underlying cause.
-    pub fn new(
+    pub(crate) fn new(
         kind: ConnectErrorKind,
         source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
     ) -> Self {
@@ -134,10 +133,7 @@ impl ConnectError {
     }
 
     pub(crate) fn login(kind: ConnectErrorKind, message: impl Into<String>) -> Self {
-        Self {
-            kind,
-            source: Arc::new(ConnectFailure(message.into())),
-        }
+        Self::new(kind, ConnectFailure(message.into()))
     }
 }
 
@@ -148,10 +144,7 @@ struct ConnectFailure(String);
 impl From<crate::transport::ConnectError> for ConnectError {
     fn from(error: crate::transport::ConnectError) -> Self {
         let kind = Self::classify(&error);
-        Self {
-            kind,
-            source: Arc::new(error),
-        }
+        Self::new(kind, error)
     }
 }
 
@@ -219,7 +212,6 @@ impl ServerError {
     pub fn standard(
         command: impl Into<String>,
         code: impl Into<String>,
-        context: Vec<String>,
         description: impl Into<String>,
     ) -> Self {
         let command = command.into();
@@ -227,9 +219,16 @@ impl ServerError {
         Self::from_core(papo_core::ServerError::Standard {
             command,
             code,
-            context,
+            context: Vec::new(),
             description: description.into(),
         })
+    }
+
+    /// Supplies the standard reply's diagnostic parameters in wire order.
+    #[must_use]
+    pub fn context(mut self, context: Vec<String>) -> Self {
+        self.params = context;
+        self
     }
 
     /// Returns the stable refusal category.
@@ -654,12 +653,8 @@ mod tests {
         assert_eq!(error.params()[1], "#rust");
         assert_eq!(error.to_string(), "server refusal 404: Cannot send");
 
-        let standard = ServerError::standard(
-            "CHATHISTORY",
-            "INVALID_PARAMS",
-            vec!["LATEST".into()],
-            "Invalid parameters",
-        );
+        let standard = ServerError::standard("CHATHISTORY", "INVALID_PARAMS", "Invalid parameters")
+            .context(vec!["LATEST".into()]);
         assert_eq!(standard.command(), "CHATHISTORY");
         assert_eq!(standard.refusal(), Refusal::InvalidParameters);
         assert_eq!(standard.numeric(), None);
@@ -697,13 +692,6 @@ mod tests {
         assert_eq!(error.to_string(), "the server refused the connection");
         assert!(std::error::Error::source(&error).is_some());
         assert_eq!(error.clone().kind(), ConnectErrorKind::Refused);
-
-        let external = ConnectError::new(
-            ConnectErrorKind::HostNotFound,
-            io::Error::new(io::ErrorKind::NotFound, "missing.example"),
-        );
-        assert_eq!(external.kind(), ConnectErrorKind::HostNotFound);
-        assert_eq!(external.to_string(), "the server host could not be found");
 
         let unreachable = ConnectError::from(crate::transport::ConnectError::Tcp(io::Error::new(
             io::ErrorKind::ConnectionReset,
