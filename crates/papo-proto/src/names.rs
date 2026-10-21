@@ -1,7 +1,7 @@
 use crate::{Command, Isupport, LineRef, Numeric, source::split_user};
 
 /// The namespace containing a protocol name.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum NameKind {
     /// An `IRCv3` capability name.
     Capability,

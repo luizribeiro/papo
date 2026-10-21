@@ -3,7 +3,7 @@ use crate::{Command, Isupport, LineRef, Numeric};
 const FIELDS: &str = "tcuihsnfdlaor";
 
 /// The here or gone marker from WHO flags.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum WhoxPresence {
     /// The user is present.
     Here,

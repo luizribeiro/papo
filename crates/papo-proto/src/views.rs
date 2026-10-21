@@ -1,7 +1,7 @@
 use crate::{Command, LineRef, Params};
 
 /// Severity of an `IRCv3` standard reply.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum StandardReplyKind {
     /// The requested operation failed.

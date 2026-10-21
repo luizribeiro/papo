@@ -69,6 +69,8 @@ impl core::default::Default for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::default() -> Self
 impl core::fmt::Debug for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Casemapping
+pub fn papo_proto::Casemapping::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::Casemapping
 impl core::marker::StructuralPartialEq for papo_proto::Casemapping
 impl core::marker::Freeze for papo_proto::Casemapping
@@ -239,6 +241,8 @@ impl core::cmp::PartialEq for papo_proto::ModeAction
 pub fn papo_proto::ModeAction::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_proto::ModeAction
 pub fn papo_proto::ModeAction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::ModeAction
+pub fn papo_proto::ModeAction::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::ModeAction
 impl core::marker::StructuralPartialEq for papo_proto::ModeAction
 impl core::marker::Freeze for papo_proto::ModeAction
@@ -282,6 +286,8 @@ impl core::cmp::PartialEq for papo_proto::NameKind
 pub fn papo_proto::NameKind::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_proto::NameKind
 pub fn papo_proto::NameKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::NameKind
+pub fn papo_proto::NameKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::NameKind
 impl core::marker::StructuralPartialEq for papo_proto::NameKind
 impl core::marker::Freeze for papo_proto::NameKind
@@ -309,6 +315,8 @@ impl core::fmt::Debug for papo_proto::ParseError
 pub fn papo_proto::ParseError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_proto::ParseError
 pub fn papo_proto::ParseError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::ParseError
+pub fn papo_proto::ParseError::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::ParseError
 impl core::marker::StructuralPartialEq for papo_proto::ParseError
 impl core::marker::Freeze for papo_proto::ParseError
@@ -351,6 +359,8 @@ impl core::cmp::PartialEq for papo_proto::StandardReplyKind
 pub fn papo_proto::StandardReplyKind::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_proto::StandardReplyKind
 pub fn papo_proto::StandardReplyKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::StandardReplyKind
+pub fn papo_proto::StandardReplyKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::StandardReplyKind
 impl core::marker::StructuralPartialEq for papo_proto::StandardReplyKind
 impl core::marker::Freeze for papo_proto::StandardReplyKind
@@ -371,6 +381,8 @@ impl core::cmp::PartialEq for papo_proto::Typing
 pub fn papo_proto::Typing::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_proto::Typing
 pub fn papo_proto::Typing::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Typing
+pub fn papo_proto::Typing::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::Typing
 impl core::marker::StructuralPartialEq for papo_proto::Typing
 impl core::marker::Freeze for papo_proto::Typing
@@ -390,6 +402,8 @@ impl core::cmp::PartialEq for papo_proto::WhoxPresence
 pub fn papo_proto::WhoxPresence::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_proto::WhoxPresence
 pub fn papo_proto::WhoxPresence::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::WhoxPresence
+pub fn papo_proto::WhoxPresence::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::WhoxPresence
 impl core::marker::StructuralPartialEq for papo_proto::WhoxPresence
 impl core::marker::Freeze for papo_proto::WhoxPresence

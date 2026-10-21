@@ -15,7 +15,7 @@ use crate::{AccountName, ChannelName, Mask, Nick};
 /// Applications using `papo` normally build names from text with the current or last-known rules
 /// through its `State` name factories. The methods on this type are useful with saved rules,
 /// offline data, and tests.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Casemapping {
     /// Only ASCII letters are case-insensitive.

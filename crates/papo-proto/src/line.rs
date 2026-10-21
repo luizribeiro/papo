@@ -44,7 +44,7 @@ pub const MAX_CLIENT_TAG_DATA_LEN: usize = 4094;
 ///     ParseError::TooLong => {}
 /// }
 /// ```
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum ParseError {
     /// The line has no content before its line ending.
