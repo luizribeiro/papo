@@ -2130,6 +2130,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
 impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
 #[non_exhaustive] pub struct papo::ModesApplied
 pub papo::ModesApplied::applied: alloc::vec::Vec<papo::ModeChange>
+pub papo::ModesApplied::refused: alloc::vec::Vec<(papo::ModeChange, papo::Refusal)>
 impl core::clone::Clone for papo::ModesApplied
 pub fn papo::ModesApplied::clone(&self) -> Self
 impl core::cmp::Eq for papo::ModesApplied

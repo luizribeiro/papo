@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use papo_core::{Response, ResponseMatcher};
+use papo_core::{Refusal, Response, ResponseMatcher};
 use papo_proto::{
     AccountName, Casemapping, Command, Isupport, Line, Mask, ModeChanges, ModeKind, Nick, Source,
 };
@@ -117,6 +117,8 @@ pub struct SetModes {
 pub struct ModesApplied {
     /// Changes confirmed by a matching server echo.
     pub applied: Vec<ModeChange>,
+    /// Changes the server explicitly refused.
+    pub refused: Vec<(ModeChange, Refusal)>,
 }
 
 impl SetModes {
@@ -229,16 +231,36 @@ impl IntoFuture for SetModes {
                 .iter()
                 .map(|change| change.typed(&state))
                 .collect::<Result<Vec<_>, _>>()?;
-            let mut applied = Vec::new();
+            let mut result = ModesApplied {
+                applied: Vec::new(),
+                refused: Vec::new(),
+            };
+            let mut first_refusal = None;
             for (message, requested) in messages.into_iter().zip(requested.chunks(maximum)) {
                 let response = self
                     .client
                     .correlated(message, Some(ResponseMatcher::Mode(self.target.clone())))
                     .await?;
-                crate::requests::empty(&response)?;
-                applied.extend(confirmed(&response, &state, &self.target, requested));
+                let applied = confirmed(&response, &state, &self.target, requested);
+                if let Some(error) = response.error() {
+                    let refusal = error.refusal();
+                    result.refused.extend(
+                        requested
+                            .iter()
+                            .filter(|change| !applied.contains(change))
+                            .cloned()
+                            .map(|change| (change, refusal)),
+                    );
+                    first_refusal.get_or_insert(error);
+                }
+                result.applied.extend(applied);
             }
-            Ok(ModesApplied { applied })
+            if result.applied.is_empty()
+                && let Some(error) = first_refusal
+            {
+                return Err(Error::server(error));
+            }
+            Ok(result)
         })
     }
 }

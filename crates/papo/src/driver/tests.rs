@@ -3789,6 +3789,54 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn mode_changes_report_an_applied_change_and_a_partial_refusal() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst MODES=2 :are supported\r\n",
+    )
+    .await;
+
+    let modes = tokio::spawn({
+        let client = client.clone();
+        async move {
+            client
+                .mode("#papo")
+                .ban("alice!*@*")
+                .ban("spambot!*@gateway.example")
+                .await
+        }
+    });
+    client_line(
+        &mut server,
+        b"MODE #papo +bb alice!*@* spambot!*@gateway.example\r\nPING :papo-mode-0\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":papo-driver!~papo@localhost MODE #papo +b alice!*@*\r\n:ergo.test 478 papo-driver #papo b :Channel ban list is full\r\n:ergo.test PONG ergo.test :papo-mode-0\r\n",
+    )
+    .await;
+
+    let result = within(modes).await.unwrap().unwrap();
+    assert!(
+        matches!(result.applied.as_slice(), [change] if matches!(change.arg, Some(crate::ModeArg::Mask(ref mask)) if mask == "alice!*@*"))
+    );
+    assert!(
+        matches!(result.refused.as_slice(), [(change, crate::Refusal::BanListFull)] if matches!(change.arg, Some(crate::ModeArg::Mask(ref mask)) if mask == "spambot!*@gateway.example"))
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 #[allow(clippy::too_many_lines)]
 async fn typed_requests_match_unlabelled_responses() {
     let (mut server, client, mut events, driver) =
