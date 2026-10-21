@@ -71,6 +71,37 @@ impl From<Extban> for BanTarget {
     }
 }
 
+impl BanTarget {
+    fn resolve(self, state: &crate::State) -> Result<Mask, Error> {
+        match self.0 {
+            Target::Text(value) => Ok(state.mask(value)),
+            Target::Mask(value) => Ok(value),
+            Target::Extban(Extban::Account(account)) => {
+                if !state.supports(crate::Feature::AccountExtban) {
+                    return Err(Error::Unsupported(crate::Unsupported::new(
+                        crate::Feature::AccountExtban,
+                        crate::UnsupportedReason::NotOffered,
+                    )));
+                }
+                let syntax = state
+                    .isupport()
+                    .extban()
+                    .expect("supported account extbans have EXTBAN syntax");
+                let kind = state
+                    .isupport()
+                    .accountextban()
+                    .into_iter()
+                    .next()
+                    .expect("supported account extbans have a name");
+                let prefix = syntax
+                    .prefix
+                    .map_or(String::new(), |value| value.to_string());
+                Ok(state.mask(format!("{prefix}{kind}:{account}")))
+            }
+        }
+    }
+}
+
 /// Builds one or more validated mode-change commands.
 pub struct SetModes {
     client: Client,
@@ -112,18 +143,24 @@ impl SetModes {
         )
     }
 
-    /// Adds `mask` to the channel ban list.
+    /// Adds `target` to the channel ban list.
     #[must_use]
-    pub fn ban(self, mask: impl AsRef<str>) -> Self {
-        let mask = self.client.state().mask(mask.as_ref());
-        self.change(true, Selector::Letter('b'), Some(Argument::Mask(mask)))
+    pub fn ban(self, target: impl Into<BanTarget>) -> Self {
+        self.change(
+            true,
+            Selector::Letter('b'),
+            Some(Argument::Ban(target.into())),
+        )
     }
 
-    /// Removes `mask` from the channel ban list.
+    /// Removes `target` from the channel ban list.
     #[must_use]
-    pub fn unban(self, mask: impl AsRef<str>) -> Self {
-        let mask = self.client.state().mask(mask.as_ref());
-        self.change(false, Selector::Letter('b'), Some(Argument::Mask(mask)))
+    pub fn unban(self, target: impl Into<BanTarget>) -> Self {
+        self.change(
+            false,
+            Selector::Letter('b'),
+            Some(Argument::Ban(target.into())),
+        )
     }
 
     /// Grants channel-operator privileges to `nick`.
@@ -167,15 +204,16 @@ impl IntoFuture for SetModes {
 
     fn into_future(self) -> Self::IntoFuture {
         RequestFuture::new(async move {
-            self.client
-                .state()
+            let state = self.client.state();
+            state
                 .parse_target(&self.target)
                 .map_err(|error| invalid(error.to_string()))?;
-            let messages = encode(
-                self.client.state().isupport().inner(),
-                &self.target,
-                &self.changes,
-            )?;
+            let changes = self
+                .changes
+                .into_iter()
+                .map(|change| change.resolve(&state))
+                .collect::<Result<Vec<_>, _>>()?;
+            let messages = encode(state.isupport().inner(), &self.target, &changes)?;
             for message in messages {
                 let response = self
                     .client
@@ -206,6 +244,16 @@ pub(crate) struct Change {
     arg: Option<Argument>,
 }
 
+impl Change {
+    fn resolve(self, state: &crate::State) -> Result<Self, Error> {
+        let arg = match self.arg {
+            Some(Argument::Ban(target)) => Some(Argument::Mask(target.resolve(state)?)),
+            other => other,
+        };
+        Ok(Self { arg, ..self })
+    }
+}
+
 enum Selector {
     Letter(char),
     Prefix(char),
@@ -215,6 +263,7 @@ enum Argument {
     Raw(String),
     Nick(Nick),
     Mask(Mask),
+    Ban(BanTarget),
 }
 
 impl Argument {
@@ -223,6 +272,7 @@ impl Argument {
             Self::Raw(value) => value,
             Self::Nick(value) => value,
             Self::Mask(value) => value,
+            Self::Ban(_) => unreachable!("ban targets are resolved before encoding"),
         }
     }
 
@@ -233,6 +283,7 @@ impl Argument {
                 .check(isupport)
                 .map_err(|error| invalid(error.to_string())),
             Self::Mask(value) => value.check().map_err(|error| invalid(error.to_string())),
+            Self::Ban(_) => unreachable!("ban targets are resolved before validation"),
         }
     }
 }
@@ -325,6 +376,7 @@ fn invalid(message: impl Into<String>) -> Error {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
+    use papo_core::{Config, Feature, Session, UnsupportedReason};
     use papo_proto::{Isupport, LineRef};
 
     use super::{Argument, BanTarget, Change, Extban, Selector, Target, encode};
@@ -336,6 +388,12 @@ mod tests {
                 .unwrap(),
         );
         support
+    }
+
+    fn state(line: &str) -> crate::State {
+        let mut session = Session::new(Config::default());
+        session.handle_line(crate::rt::now_mono(), line.as_bytes());
+        crate::State::from_session(&session, false)
     }
 
     #[test]
@@ -432,6 +490,45 @@ mod tests {
         assert!(matches!(
             BanTarget::from(Extban::account("alice").unwrap()),
             BanTarget(Target::Extban(Extban::Account(account))) if account == "alice"
+        ));
+    }
+
+    #[test]
+    fn resolves_each_server_account_extban_syntax() {
+        let cases = [
+            (
+                ":solanum.example 005 papo ACCOUNTEXTBAN=a CHANMODES=eIbq,k,flj,CFLPQcgimnprstz EXTBAN=$,a :are supported",
+                "$a:Alice",
+            ),
+            (
+                ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXTBAN=~,acfijmnpqrtACFGOST :are supported",
+                "~account:Alice",
+            ),
+            (
+                ":irc.inspircd.example 005 papo ACCOUNTEXTBAN=account,R CHANMODES=b,k,l,MRimnprst EXTBAN=,RU :are supported",
+                "account:Alice",
+            ),
+        ];
+        for (line, expected) in cases {
+            let target = BanTarget::from(Extban::account("Alice").unwrap());
+            assert_eq!(target.resolve(&state(line)).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn rejects_account_extbans_when_the_server_does_not_offer_them() {
+        let ergo =
+            state(":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu EXTBAN=,m :are supported");
+        let error = BanTarget::from(Extban::account("alice").unwrap())
+            .resolve(&ergo)
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            crate::Error::Unsupported(crate::Unsupported {
+                feature: Feature::AccountExtban,
+                reason: UnsupportedReason::NotOffered,
+                ..
+            })
         ));
     }
 }
