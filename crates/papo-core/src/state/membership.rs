@@ -25,7 +25,10 @@ impl State {
             envelope: crate::LineEnvelope::from_line(message),
             actor: message.raw_source().unwrap_or(nick).to_owned(),
             nick: self.casemapping.nick(nick),
-            reason: message.param(0).map(str::to_owned),
+            reason: message
+                .param(0)
+                .filter(|reason| !reason.is_empty())
+                .map(str::to_owned),
             channels,
             authorship,
         });

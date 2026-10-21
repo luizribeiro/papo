@@ -1058,7 +1058,10 @@ pub(crate) fn from_core(
                         actor: source::from_proto(message.source()?, casemapping),
                         nick: casemapping.nick(nick),
                         authorship: Authorship::from_core(authorship),
-                        reason: message.param(0).map(str::to_owned),
+                        reason: message
+                            .param(0)
+                            .filter(|reason| !reason.is_empty())
+                            .map(str::to_owned),
                         channels,
                     })
                 })
@@ -2579,23 +2582,25 @@ mod tests {
     fn maps_netsplit() {
         let quit =
             Line::new("QUIT", ["irc.example irc.remote"]).with_source("alice!~a@remote.example");
+        let empty_reason = ":bob!~b@remote.example QUIT :".parse().unwrap();
         let Event::Netsplit(netsplit) = forwarded(papo_core::Event::Netsplit {
             servers: ["irc.example".into(), "irc.remote".into()],
-            quits: vec![quit],
-            authorship: vec![papo_core::Authorship::Other],
-            channels: vec![vec![Casemapping::default().channel("#papo")]],
+            quits: vec![quit, empty_reason],
+            authorship: vec![papo_core::Authorship::Other; 2],
+            channels: vec![vec![Casemapping::default().channel("#papo")]; 2],
         }) else {
             panic!("netsplit was not forwarded")
         };
         assert_eq!(netsplit.servers.first, "irc.example");
         assert_eq!(netsplit.servers.second, "irc.remote");
-        assert_eq!(netsplit.quits.len(), 1);
+        assert_eq!(netsplit.quits.len(), 2);
         assert_eq!(netsplit.quits[0].nick, "alice");
         assert_eq!(netsplit.quits[0].channels, ["#papo"]);
         assert_eq!(
             netsplit.quits[0].reason.as_deref(),
             Some("irc.example irc.remote")
         );
+        assert_eq!(netsplit.quits[1].reason, None);
     }
 
     #[test]

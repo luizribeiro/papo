@@ -332,7 +332,10 @@ fn parted(
         channel: mapping.channel(message.param(0)?),
         authorship,
         nick: mapping.nick(nick),
-        reason: message.param(1).map(str::to_owned),
+        reason: message
+            .param(1)
+            .filter(|reason| !reason.is_empty())
+            .map(str::to_owned),
     }))
 }
 
@@ -350,7 +353,10 @@ fn quit(
         account: envelope.account,
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         nick: mapping.nick(source_nick(message)?),
-        reason: message.param(0).map(str::to_owned),
+        reason: message
+            .param(0)
+            .filter(|reason| !reason.is_empty())
+            .map(str::to_owned),
         channels: match history_conversation {
             Some(crate::Conversation::Channel(channel)) => vec![channel.clone()],
             _ => Vec::new(),
@@ -378,7 +384,10 @@ fn kicked(
         subject_authorship,
         subject: mapping.nick(nick),
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
-        reason: message.param(2).map(str::to_owned),
+        reason: message
+            .param(2)
+            .filter(|reason| !reason.is_empty())
+            .map(str::to_owned),
     }))
 }
 
@@ -1311,6 +1320,26 @@ mod tests {
                 if event.old == "emily" && event.new == "emily_"
                     && event.authorship == crate::Authorship::Unknown
         ));
+    }
+
+    #[test]
+    fn empty_replayed_departure_reasons_are_absent() {
+        let client = crate::Client::disconnected_for_test();
+        let map = |item| history_item(item, None, &client, UNIX_EPOCH, crate::Origin::Replay);
+
+        let items = [
+            papo_core::HistoryItem::Parted(core_item(":emily!~e@localhost PART #papo :")),
+            papo_core::HistoryItem::Quit(core_item(":emily!~e@localhost QUIT :")),
+            papo_core::HistoryItem::Kicked(core_item(":alice!~a@localhost KICK #papo emily :")),
+        ];
+        for item in items {
+            match map(item) {
+                HistoryItem::Parted(event) => assert_eq!(event.reason, None),
+                HistoryItem::Quit(event) => assert_eq!(event.reason, None),
+                HistoryItem::Kicked(event) => assert_eq!(event.reason, None),
+                _ => panic!("expected a departure event"),
+            }
+        }
     }
 
     #[test]

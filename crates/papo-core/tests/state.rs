@@ -1652,6 +1652,26 @@ fn reports_parts_and_kicks_for_other_users_and_ourselves() {
 }
 
 #[test]
+fn empty_departure_reasons_are_absent() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":papo!papo@localhost JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":alice!~alice@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":alice!~alice@cloak.example PART #papo :")
+        .event(|event| matches!(event, Event::Parted { reason: None, .. }))
+        .server(":alice!~alice@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":chanop!op@staff.example KICK #papo alice :")
+        .event(|event| matches!(event, Event::Kicked { reason: None, .. }))
+        .server(":alice!~alice@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":alice!~alice@cloak.example QUIT :")
+        .event(|event| matches!(event, Event::Quit { reason: None, .. }))
+        .no_event();
+}
+
+#[test]
 fn reports_nick_changes_and_quit_channels_before_removal() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CASEMAPPING=ascii :are supported")

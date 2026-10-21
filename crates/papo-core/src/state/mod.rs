@@ -448,7 +448,10 @@ impl State {
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     channel: mapping.channel(channel),
                     nick: mapping.nick(nick),
-                    reason: message.param(1).map(str::to_owned),
+                    reason: message
+                        .param(1)
+                        .filter(|reason| !reason.is_empty())
+                        .map(str::to_owned),
                     authorship,
                 });
                 if crate::names_equal(mapping, nick, &self.nick) {
@@ -478,7 +481,10 @@ impl State {
                 actor: actor.to_owned(),
                 authorship,
                 subject_authorship,
-                reason: message.param(2).map(str::to_owned),
+                reason: message
+                    .param(2)
+                    .filter(|reason| !reason.is_empty())
+                    .map(str::to_owned),
             });
             if crate::names_equal(mapping, nick, &self.nick) {
                 self.remove_channel(channel);
