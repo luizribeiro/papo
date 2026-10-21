@@ -57,7 +57,7 @@ pub struct Sent {
 }
 
 /// A compatibility fallback applied to an outgoing chat message.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Fallback {
     /// The reply tag was unavailable or denied by the server.

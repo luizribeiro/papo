@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::{InvalidInput, Refusal, Unsupported};
 
 /// Broad classification of a connection or login failure.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum ConnectErrorKind {
     /// The server name could not be resolved.

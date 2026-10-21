@@ -10,6 +10,8 @@ impl core::cmp::PartialEq for papo_bot::ReplyStatus
 pub fn papo_bot::ReplyStatus::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_bot::ReplyStatus
 pub fn papo_bot::ReplyStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_bot::ReplyStatus
+pub fn papo_bot::ReplyStatus::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_bot::ReplyStatus
 impl core::marker::StructuralPartialEq for papo_bot::ReplyStatus
 impl core::marker::Freeze for papo_bot::ReplyStatus

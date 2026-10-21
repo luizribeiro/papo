@@ -54,7 +54,7 @@ pub use user::{
 };
 
 /// The semantic kind of an incoming chat message.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum MessageKind {
     /// A regular `PRIVMSG`.
@@ -120,7 +120,7 @@ impl Authorship {
 /// How an incoming message relates to the current session.
 ///
 /// Replay detection is refined when typed batches and labeled requests are available.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Origin {
     /// A newly received message.

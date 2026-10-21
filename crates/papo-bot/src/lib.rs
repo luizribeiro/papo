@@ -128,7 +128,7 @@ impl BotConfig {
 }
 
 /// The outcome of attempting a bot response.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[must_use = "the response may not have been sent"]
 #[non_exhaustive]
 pub enum ReplyStatus {

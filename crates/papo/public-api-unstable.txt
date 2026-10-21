@@ -111,6 +111,8 @@ impl core::cmp::PartialEq for papo::ConnectPhase
 pub fn papo::ConnectPhase::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::ConnectPhase
 pub fn papo::ConnectPhase::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::ConnectPhase
+pub fn papo::ConnectPhase::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo::ConnectPhase
 impl core::marker::StructuralPartialEq for papo::ConnectPhase
 impl core::marker::Freeze for papo::ConnectPhase
@@ -131,6 +133,8 @@ impl core::cmp::PartialEq for papo::event::StandardReplyKind
 pub fn papo::event::StandardReplyKind::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::StandardReplyKind
 pub fn papo::event::StandardReplyKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::event::StandardReplyKind
+pub fn papo::event::StandardReplyKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo::event::StandardReplyKind
 impl core::marker::StructuralPartialEq for papo::event::StandardReplyKind
 impl core::marker::Freeze for papo::event::StandardReplyKind
@@ -1233,6 +1237,8 @@ impl core::cmp::PartialEq for papo::ConnectErrorKind
 pub fn papo::ConnectErrorKind::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::ConnectErrorKind
 pub fn papo::ConnectErrorKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::ConnectErrorKind
+pub fn papo::ConnectErrorKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo::ConnectErrorKind
 impl core::marker::StructuralPartialEq for papo::ConnectErrorKind
 impl core::marker::Freeze for papo::ConnectErrorKind
@@ -1255,6 +1261,8 @@ impl core::cmp::PartialEq for papo::ConnectPhase
 pub fn papo::ConnectPhase::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::ConnectPhase
 pub fn papo::ConnectPhase::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::ConnectPhase
+pub fn papo::ConnectPhase::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo::ConnectPhase
 impl core::marker::StructuralPartialEq for papo::ConnectPhase
 impl core::marker::Freeze for papo::ConnectPhase
@@ -1524,6 +1532,8 @@ impl core::cmp::PartialEq for papo::Fallback
 pub fn papo::Fallback::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::Fallback
 pub fn papo::Fallback::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::Fallback
+pub fn papo::Fallback::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo::Fallback
 impl core::marker::StructuralPartialEq for papo::Fallback
 impl core::marker::Freeze for papo::Fallback
@@ -1660,6 +1670,8 @@ impl core::cmp::PartialEq for papo::MessageKind
 pub fn papo::MessageKind::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::MessageKind
 pub fn papo::MessageKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::MessageKind
+pub fn papo::MessageKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo::MessageKind
 impl core::marker::StructuralPartialEq for papo::MessageKind
 impl core::marker::Freeze for papo::MessageKind
@@ -1680,6 +1692,8 @@ impl core::cmp::PartialEq for papo::Origin
 pub fn papo::Origin::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::Origin
 pub fn papo::Origin::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::Origin
+pub fn papo::Origin::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo::Origin
 impl core::marker::StructuralPartialEq for papo::Origin
 impl core::marker::Freeze for papo::Origin
