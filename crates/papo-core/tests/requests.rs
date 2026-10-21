@@ -1521,7 +1521,7 @@ fn classifies_numeric_refusals() {
     let now = Instant::now();
     let cases = [
         (
-            "400 papo PACK BOX :Could not find box to pack",
+            "400 papo NICK :Nickname is already in use",
             Refusal::UnknownError,
         ),
         ("401 papo alice :No such nick", Refusal::NoSuchNick),
@@ -1595,7 +1595,7 @@ fn classifies_numeric_refusals() {
             Refusal::BadChannelKey,
         ),
         (
-            "478 papo #papo b :Channel ban list is full",
+            "478 papo #papo b :Channel list is full",
             Refusal::BanListFull,
         ),
         (
@@ -1622,16 +1622,13 @@ fn classifies_numeric_refusals() {
             "525 papo #papo :Key is not well-formed",
             Refusal::InvalidKey,
         ),
+        ("691 papo :TLS is not configured", Refusal::TlsUpgradeFailed),
         (
-            "691 papo :STARTTLS failed (Wrong moon phase)",
-            Refusal::TlsUpgradeFailed,
-        ),
-        (
-            "697 papo #papo b alice!*@* :List mode already set",
+            "697 papo #papo alice!*@* b :Channel #papo list already contains alice!*@*",
             Refusal::ListModeAlreadySet,
         ),
         (
-            "698 papo #papo b alice!*@* :List mode is not set",
+            "698 papo #papo alice!*@* b :Channel #papo list does not contain alice!*@*",
             Refusal::ListModeNotSet,
         ),
         (
@@ -1721,10 +1718,10 @@ fn classifies_numeric_refusals() {
         session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
         while session.poll_event().is_some() {}
         request(&mut session, now, Line::new("RAW", ["probe"]));
-        let server = if line.starts_with("484 ") {
-            "irc.unreal.test"
-        } else {
-            "ergo.test"
+        let server = match line.get(..3) {
+            Some("484") => "irc.unreal.test",
+            Some("409" | "411" | "483" | "691" | "723") => "irc.solanum.test",
+            _ => "ergo.test",
         };
         session.handle_line(now, format!("@label=0 :{server} {line}").as_bytes());
         let response = loop {
