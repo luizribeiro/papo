@@ -165,7 +165,12 @@ async fn extended_isupport(s: Scenario) -> papo_testing::Result<()> {
                 .request_caps(["draft/extended-isupport"]),
         )
         .await?;
-    assert!(alice.state().has_cap("draft/extended-isupport"));
+    assert!(
+        alice
+            .state()
+            .caps()
+            .contains_key(&papo::Cap::from(papo::cap::EXTENDED_ISUPPORT))
+    );
     assert!(!alice.state().isupport().chantypes().is_empty());
     assert!(!alice.state().isupport().prefix().is_empty());
     alice.expect_none(Event::as_disconnected).await?;
@@ -178,7 +183,11 @@ async fn whoami(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     alice.join(s.channel_name()).await?;
     let state = alice.state();
-    assert!(state.has_cap("draft/whoami"));
+    assert!(
+        state
+            .caps()
+            .contains_key(&papo::Cap::from(papo::cap::WHOAMI))
+    );
     let identity = state
         .user(state.nick())
         .expect("WHOAMI supplies self state");

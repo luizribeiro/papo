@@ -87,7 +87,7 @@ pub use papo_core::Refusal;
 pub use papo_core::Secret;
 #[doc(inline)]
 pub use papo_core::{
-    Account, Away, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
+    Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
     ModeChange, Rank, Typer, User,
 };
 #[cfg(feature = "unstable")]

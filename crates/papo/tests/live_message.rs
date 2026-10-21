@@ -164,8 +164,18 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
         let (client_a, mut events_a) =
             client(address.clone(), &unique("papo-multi-id-a"), &channel).await;
         let (client_b, mut events_b) = client(address, &unique("papo-multi-id-b"), &channel).await;
-        assert!(client_a.state().has_cap("batch"));
-        assert!(client_a.state().has_cap("draft/multiline"));
+        assert!(
+            client_a
+                .state()
+                .caps()
+                .contains_key(&papo::Cap::from(papo::cap::BATCH))
+        );
+        assert!(
+            client_a
+                .state()
+                .caps()
+                .contains_key(&papo::Cap::from(papo::cap::MULTILINE))
+        );
 
         let plain = client_a
             .privmsg(&channel, "plain message with multiline enabled")

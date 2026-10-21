@@ -273,14 +273,6 @@ impl State {
         &self.caps
     }
 
-    /// Reports whether a capability or its ratified alias is enabled.
-    #[must_use]
-    pub fn has_cap(&self, name: &str) -> bool {
-        self.caps.keys().any(|enabled| {
-            papo_core::cap::canonical(enabled.as_str()) == papo_core::cap::canonical(name)
-        })
-    }
-
     /// Returns the accumulated server feature advertisement.
     #[must_use]
     pub fn isupport(&self) -> &Isupport {

@@ -4963,7 +4963,11 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
         b":ergo.test CAP * DEL :draft/message-redaction\r\n",
     )
     .await;
-    while client.state().has_cap("draft/message-redaction") {
+    while client
+        .state()
+        .caps()
+        .contains_key(&crate::Cap::from(crate::cap::MESSAGE_REDACTION))
+    {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
@@ -5959,9 +5963,21 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
 
     let state = client.state();
-    assert!(state.has_cap("no-implicit-names"));
-    assert!(state.has_cap("draft/no-implicit-names"));
-    assert!(!state.has_cap("message-tags"));
+    assert!(
+        state
+            .caps()
+            .contains_key(&crate::Cap::from(crate::cap::NO_IMPLICIT_NAMES))
+    );
+    assert!(
+        state
+            .caps()
+            .contains_key(&crate::Cap::from("no-implicit-names"))
+    );
+    assert!(
+        !state
+            .caps()
+            .contains_key(&crate::Cap::from(crate::cap::MESSAGE_TAGS))
+    );
     assert_eq!(state.isupport().nicklen(), Some(27));
     assert!(state.is_connected());
     assert_eq!(state.nick(), "PAPO-DRIVER");

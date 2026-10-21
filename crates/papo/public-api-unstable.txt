@@ -3,6 +3,7 @@ pub use papo::Account
 pub use papo::AccountName
 pub use papo::Away
 pub use papo::BouncerNetwork
+pub use papo::Cap
 pub use papo::Capabilities
 pub use papo::Casemapping
 pub use papo::Channel
@@ -2370,7 +2371,6 @@ pub fn papo::State::channel_name(&self, impl core::convert::AsRef<str>) -> papo:
 pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Channel>
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Feature> + '_
 pub fn papo::State::filehost(&self) -> core::option::Option<&str>
-pub fn papo::State::has_cap(&self, &str) -> bool
 pub fn papo::State::host(&self) -> core::option::Option<&str>
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::is_valid_channel(&self, &str) -> bool

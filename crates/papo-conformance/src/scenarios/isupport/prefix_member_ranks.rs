@@ -142,7 +142,12 @@ async fn assert_carol_view(
                 .without_caps([papo::cap::MULTI_PREFIX]),
         )
         .await?;
-    assert!(!carol.state().has_cap("multi-prefix"));
+    assert!(
+        !carol
+            .state()
+            .caps()
+            .contains_key(&papo::Cap::from(papo::cap::MULTI_PREFIX))
+    );
     carol.join(channel).await?;
     let carol_nick = carol.nick();
     assert_eq!(member_prefixes(&carol.state(), channel, bob_nick), ['@']);
@@ -159,7 +164,11 @@ async fn assert_dave_view(
     has_halfop: bool,
 ) -> papo_testing::Result<()> {
     let dave = s.connect("dave").await?;
-    assert!(dave.state().has_cap("multi-prefix"));
+    assert!(
+        dave.state()
+            .caps()
+            .contains_key(&papo::Cap::from(papo::cap::MULTI_PREFIX))
+    );
     dave.join(channel).await?;
     let state = dave.state();
     let member = state.channel(channel).unwrap().member(bob_nick).unwrap();
