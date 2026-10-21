@@ -271,12 +271,12 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
             .wait_for(|event| {
                 event.as_message().filter(|message| {
                     message
-                        .text()
+                        .text
                         .starts_with("Warning: /JOIN 0 will remove you from all channels")
                 })
             })
             .await?;
-        let confirmation = warning.text().split_ascii_whitespace().last().unwrap();
+        let confirmation = warning.text.split_ascii_whitespace().last().unwrap();
         bob.send_raw(papo::Line::new("JOIN", ["0", confirmation]))
             .await?;
     }

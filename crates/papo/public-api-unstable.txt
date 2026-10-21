@@ -2102,24 +2102,10 @@ pub papo::Message::tags: papo::Tags
 pub papo::Message::text: alloc::string::String
 pub papo::Message::time: std::time::SystemTime
 impl papo::Message
-pub fn papo::Message::account(&self) -> core::option::Option<&str>
-pub fn papo::Message::id(&self) -> core::option::Option<&papo::MessageId>
-pub fn papo::Message::is_bot(&self) -> bool
 pub fn papo::Message::is_live(&self) -> bool
-pub fn papo::Message::is_oper(&self) -> bool
 pub fn papo::Message::is_own(&self) -> bool
-pub fn papo::Message::is_private(&self) -> bool
-pub const fn papo::Message::kind(&self) -> papo::MessageKind
-pub fn papo::Message::msgid(&self) -> core::option::Option<&str>
-pub fn papo::Message::oper(&self) -> core::option::Option<&str>
-pub fn papo::Message::origin(&self) -> papo::Origin
-pub fn papo::Message::raw_text(&self) -> &str
-pub fn papo::Message::relayed_by(&self) -> core::option::Option<&str>
 pub fn papo::Message::reply_to(&self) -> core::option::Option<&str>
 pub fn papo::Message::return_address(&self) -> alloc::string::String
-pub fn papo::Message::source(&self) -> core::option::Option<papo::Source>
-pub const fn papo::Message::tags(&self) -> &papo::Tags
-pub fn papo::Message::text(&self) -> &str
 pub fn papo::Message::time(&self) -> std::time::SystemTime
 impl core::clone::Clone for papo::Message
 pub fn papo::Message::clone(&self) -> Self

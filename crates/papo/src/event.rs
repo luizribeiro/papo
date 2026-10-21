@@ -511,6 +511,7 @@ impl Message {
         })
     }
 
+    #[cfg(feature = "bot")]
     pub(crate) fn sender_nick(&self) -> Option<&str> {
         match &self.actor {
             Source::User { nick, .. } => Some(nick.as_ref()),
@@ -520,42 +521,6 @@ impl Message {
 
     pub(crate) fn channel_context(&self) -> Option<&str> {
         self.channel_context.as_deref()
-    }
-
-    /// Returns the semantic kind of this message.
-    #[must_use]
-    pub const fn kind(&self) -> MessageKind {
-        self.kind
-    }
-
-    /// Returns the display text with IRC formatting removed.
-    #[must_use]
-    pub fn text(&self) -> &str {
-        &self.text
-    }
-
-    /// Returns text with formatting retained and the CTCP wrapper removed from an `ACTION`.
-    #[must_use]
-    pub fn raw_text(&self) -> &str {
-        &self.raw_text
-    }
-
-    /// Returns all message tags in wire order.
-    #[must_use]
-    pub const fn tags(&self) -> &Tags {
-        &self.tags
-    }
-
-    /// Returns the parsed source.
-    #[must_use]
-    pub fn source(&self) -> Option<Source> {
-        Some(self.actor.clone())
-    }
-
-    /// Reports whether this message belongs to a private conversation.
-    #[must_use]
-    pub fn is_private(&self) -> bool {
-        matches!(self.conversation, Conversation::Private(_))
     }
 
     /// Returns the plain-text IRC address that reaches the same recipients.
@@ -576,68 +541,16 @@ impl Message {
         }
     }
 
-    /// Returns the server-assigned message identifier, when present.
-    #[must_use]
-    pub fn msgid(&self) -> Option<&str> {
-        self.msgid.as_deref()
-    }
-
-    /// Returns the targeted message identifier, when the server supplied one.
-    ///
-    /// `None` means the message had no `msgid` tag.
-    #[must_use]
-    pub fn id(&self) -> Option<&MessageId> {
-        self.msgid.as_ref()
-    }
-
     /// Returns server time when valid, or the local receipt time.
     #[must_use]
     pub fn time(&self) -> SystemTime {
         self.time
     }
 
-    /// Returns the actor's authenticated account, when tagged.
-    #[must_use]
-    pub fn account(&self) -> Option<&str> {
-        self.account.as_deref()
-    }
-
-    /// Reports whether the message carried the `bot` tag.
-    #[must_use]
-    pub fn is_bot(&self) -> bool {
-        self.is_bot
-    }
-
     /// Returns the message identifier referenced by a reply tag.
     #[must_use]
     pub fn reply_to(&self) -> Option<&str> {
         self.reply_to.as_deref()
-    }
-
-    /// Returns the nickname of the client that submitted a relayed message.
-    #[must_use]
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    pub fn relayed_by(&self) -> Option<&str> {
-        self.relayed_by.as_deref()
-    }
-
-    /// Reports whether the message carried the IRC operator tag.
-    #[must_use]
-    pub fn is_oper(&self) -> bool {
-        self.is_oper
-    }
-
-    /// Returns the actor's IRC operator name when supplied.
-    #[must_use]
-    pub fn oper(&self) -> Option<&str> {
-        self.oper.as_deref()
-    }
-
-    /// Returns how this message relates to the current session.
-    #[must_use]
-    pub fn origin(&self) -> Origin {
-        self.origin
     }
 
     /// Reports whether a bot may treat this as a newly received message.

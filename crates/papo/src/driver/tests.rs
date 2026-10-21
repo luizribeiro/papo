@@ -1110,11 +1110,17 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     );
     assert_eq!(history.messages().count(), 1_000);
     assert_eq!(
-        history.messages().next().map(ChatMessage::text),
+        history
+            .messages()
+            .next()
+            .map(|message| message.text.as_str()),
         Some("missed 1")
     );
     assert_eq!(
-        history.messages().last().map(ChatMessage::text),
+        history
+            .messages()
+            .last()
+            .map(|message| message.text.as_str()),
         Some("missed 1000")
     );
     assert!(
@@ -1189,7 +1195,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     assert_eq!(
         history
             .messages()
-            .map(ChatMessage::text)
+            .map(|message| message.text.as_str())
             .collect::<Vec<_>>(),
         ["missed once"]
     );
