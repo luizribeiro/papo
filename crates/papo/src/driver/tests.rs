@@ -2447,6 +2447,50 @@ async fn live_ban_after_welcome_does_not_reconnect() {
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
 
+async fn assert_established_line_retries(
+    bytes: &[u8],
+    expected: impl Fn(&crate::DisconnectCause) -> bool,
+) {
+    let (mut server, _client, mut events, driver, calls) =
+        reconnectable_stream(config(), Reconnect::exponential());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(&mut server, bytes).await;
+    let disconnected = loop {
+        let event = events.next().await.unwrap();
+        if let Event::Disconnected(disconnected) = event {
+            break disconnected;
+        }
+    };
+    assert!(expected(&disconnected.cause));
+    assert_eq!(disconnected.reconnect_in, Some(Duration::from_millis(800)));
+    tokio::time::advance(Duration::from_millis(799)).await;
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn kill_and_bare_error_after_welcome_retry_normally() {
+    for lines in [
+        b"ERROR :Closing Link: papo-driver (Server maintenance)\r\n".as_slice(),
+        b":oper!admin@staff.example KILL papo-driver :Open proxy detected\r\nERROR :Closing Link: papo-driver (Killed (oper (Open proxy detected)))\r\n".as_slice(),
+    ] {
+        assert_established_line_retries(lines, |cause| {
+            matches!(cause, crate::DisconnectCause::Server { message } if message.starts_with("Closing Link:"))
+        })
+        .await;
+    }
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn protocol_failure_after_welcome_retries_normally() {
+    assert_established_line_retries(&vec![b'x'; 8704], |cause| {
+        matches!(cause, crate::DisconnectCause::Protocol { message }
+            if message == "incoming IRC line exceeds 8703 bytes")
+    })
+    .await;
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn server_error_before_welcome_is_a_connection_failure() {
     let settings = config().webirc(papo_core::WebIrc {
