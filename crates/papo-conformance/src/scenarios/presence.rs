@@ -185,7 +185,12 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
 
     let whois = bob.whois(alice.nick()).await?;
     assert_eq!(whois.nick, alice.nick());
-    assert_eq!(whois.away.as_deref(), Some(away));
+    assert_eq!(
+        whois.away,
+        Away::Away {
+            message: Some(away.to_owned())
+        }
+    );
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
 }
@@ -431,7 +436,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert!(!alice_who.username.is_empty());
     assert!(!alice_who.host.is_empty());
     assert_eq!(alice_who.realname, "papo test peer");
-    assert!(alice_who.away);
+    assert_eq!(alice_who.away, Away::Away { message: None });
     assert!(!alice_who.is_oper);
     assert!(!alice_who.is_bot);
     assert_eq!(alice_who.prefixes, ['@']);
@@ -479,7 +484,12 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert!(whois.host.as_ref().is_some_and(|host| !host.is_empty()));
     assert_eq!(whois.realname.as_deref(), Some("papo test peer"));
     assert!(whois.idle.is_some());
-    assert_eq!(whois.away.as_deref(), Some(away));
+    assert_eq!(
+        whois.away,
+        Away::Away {
+            message: Some(away.to_owned())
+        }
+    );
     assert!(
         whois
             .channels

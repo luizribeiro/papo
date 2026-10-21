@@ -2385,8 +2385,8 @@ impl core::marker::UnsafeUnpin for papo::WebIrc
 impl core::panic::unwind_safe::RefUnwindSafe for papo::WebIrc
 impl core::panic::unwind_safe::UnwindSafe for papo::WebIrc
 #[non_exhaustive] pub struct papo::WhoEntry
-pub papo::WhoEntry::account: core::option::Option<papo::AccountName>
-pub papo::WhoEntry::away: bool
+pub papo::WhoEntry::account: papo::Account
+pub papo::WhoEntry::away: papo::Away
 pub papo::WhoEntry::channel: core::option::Option<papo::ChannelName>
 pub papo::WhoEntry::host: alloc::string::String
 pub papo::WhoEntry::is_bot: bool
@@ -2412,7 +2412,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::WhoEntry
 impl core::panic::unwind_safe::UnwindSafe for papo::WhoEntry
 #[non_exhaustive] pub struct papo::Whois
 pub papo::Whois::account: core::option::Option<papo::AccountName>
-pub papo::Whois::away: core::option::Option<alloc::string::String>
+pub papo::Whois::away: papo::Away
 pub papo::Whois::channels: alloc::vec::Vec<papo::WhoisChannel>
 pub papo::Whois::host: core::option::Option<alloc::string::String>
 pub papo::Whois::idle: core::option::Option<core::time::Duration>

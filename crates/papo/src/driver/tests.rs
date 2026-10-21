@@ -3117,6 +3117,35 @@ async fn raw_request_returns_no_lines_for_an_ack() {
     ));
 }
 
+fn assert_structured_who(who: &[crate::WhoEntry]) {
+    assert_eq!(who.len(), 2);
+    assert_eq!(
+        (&who[0].nick, &who[0].account),
+        (
+            &test_nick("alice"),
+            &crate::Account::LoggedIn(test_account("alice"))
+        )
+    );
+    assert_eq!(
+        (&who[0].away, who[0].is_bot, who[0].prefixes.as_slice()),
+        (&crate::Away::Present, true, ['@'].as_slice())
+    );
+    assert_eq!(
+        (
+            &who[1].account,
+            &who[1].away,
+            who[1].is_oper,
+            who[1].prefixes.as_slice()
+        ),
+        (
+            &crate::Account::LoggedOut,
+            &crate::Away::Away { message: None },
+            true,
+            ['+'].as_slice()
+        )
+    );
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn structured_requests_resolve_fail_and_abort() {
     let (mut server, client, mut events, driver) = scripted(
@@ -3150,7 +3179,12 @@ async fn structured_requests_resolve_fail_and_abort() {
     assert_eq!(whois.channels[0].prefixes, ['@']);
     assert_eq!(whois.channels[1].name, "#rust");
     assert_eq!(whois.channels[1].prefixes, ['+']);
-    assert_eq!(whois.away.as_deref(), Some("away from keyboard"));
+    assert_eq!(
+        whois.away,
+        crate::Away::Away {
+            message: Some("away from keyboard".into())
+        }
+    );
     assert!(whois.is_bot && whois.secure);
     assert_eq!(whois.idle, Some(Duration::from_secs(42)));
 
@@ -3166,19 +3200,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     client_line(&mut server, b"@label=1 WHO #papo %tcuhnfar\r\n").await;
     server_line(&mut server, b"@label=1 :ergo.test BATCH +who-42 labeled-response\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~alice client.example alice H@B alice :Alice Example\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~dan user.example dan G+* 0 :Dan Away\r\n@batch=who-42 :ergo.test 315 papo-driver #papo :End of WHO list\r\n:ergo.test BATCH -who-42\r\n").await;
     let who = within(who).await.unwrap().unwrap();
-    assert_eq!(who.len(), 2);
-    assert_eq!(
-        (who[0].nick.as_ref(), who[0].account.as_deref()),
-        ("alice", Some("alice"))
-    );
-    assert_eq!(
-        (who[0].away, who[0].is_bot, who[0].prefixes.as_slice()),
-        (false, true, ['@'].as_slice())
-    );
-    assert_eq!(
-        (who[1].away, who[1].is_oper, who[1].prefixes.as_slice()),
-        (true, true, ['+'].as_slice())
-    );
+    assert_structured_who(&who);
 
     assert_join_waits_for_sync(&mut server, &client).await;
     assert_channel_requests(&mut server, &client).await;

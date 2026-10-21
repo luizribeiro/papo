@@ -410,7 +410,7 @@ async fn whox(s: Scenario) -> papo_testing::Result<()> {
     assert!(!entry.username.is_empty());
     assert!(!entry.host.is_empty());
     assert_eq!(entry.realname, "Alice Example");
-    assert!(!entry.away);
+    assert_eq!(entry.away, papo::Away::Present);
     assert!(!entry.is_oper);
     Ok(())
 }

@@ -58,7 +58,7 @@ pub struct AwayChanged {
 pub struct AccountChanged {
     /// The affected user's nickname.
     pub nick: Nick,
-    /// The authenticated account, or `None` when logged out or unknown.
+    /// The authenticated account, or `None` when logged out.
     pub account: Option<AccountName>,
 }
 

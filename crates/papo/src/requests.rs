@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use papo_core::Response;
+use papo_core::{Account, Away, Response};
 use papo_proto::{
     AccountName, ChannelName, Command, Isupport, Line, Nick, Numeric, ServerName, WhoxPresence,
     WhoxReply,
@@ -20,14 +20,14 @@ pub struct Whois {
     pub host: Option<String>,
     /// Real name reported by `RPL_WHOISUSER`.
     pub realname: Option<String>,
-    /// Logged-in account name.
+    /// Logged-in account name, or `None` when the user is logged out.
     pub account: Option<AccountName>,
     /// Server to which the user is connected.
     pub server: Option<ServerName>,
     /// Visible channels, retaining membership prefixes.
     pub channels: Vec<WhoisChannel>,
-    /// Away message, when the user is away.
-    pub away: Option<String>,
+    /// The user's presence reported by WHOIS.
+    pub away: Away,
     /// Whether the server identifies the user as a bot.
     pub is_bot: bool,
     /// Whether the server identifies the connection as secure.
@@ -58,12 +58,12 @@ pub struct WhoEntry {
     pub username: String,
     /// Visible hostname of the user.
     pub host: String,
-    /// Logged-in account name.
-    pub account: Option<AccountName>,
+    /// The user's account state.
+    pub account: Account,
     /// Real name of the user.
     pub realname: String,
-    /// Whether the user is away.
-    pub away: bool,
+    /// The user's presence reported by WHO.
+    pub away: Away,
     /// Whether the user is an IRC operator.
     pub is_oper: bool,
     /// Whether the server identifies the user as a bot.
@@ -137,7 +137,7 @@ pub(crate) fn whois(
         account: None,
         server: None,
         channels: Vec::new(),
-        away: None,
+        away: Away::Present,
         is_bot: false,
         secure: false,
         idle: None,
@@ -171,7 +171,11 @@ pub(crate) fn whois(
             Numeric::RPL_WHOISACCOUNT => {
                 result.account = message.param(2).map(|account| mapping.account(account));
             }
-            Numeric::RPL_AWAY => result.away = message.param(2).map(str::to_owned),
+            Numeric::RPL_AWAY => {
+                result.away = Away::Away {
+                    message: message.param(2).map(str::to_owned),
+                };
+            }
             Numeric::RPL_WHOISBOT => result.is_bot = true,
             Numeric::RPL_WHOISSECURE => result.secure = true,
             _ => {}
@@ -219,9 +223,15 @@ pub(crate) fn who(
                     nick: mapping.nick(reply.nick?),
                     username: reply.user?.to_owned(),
                     host: reply.host?.to_owned(),
-                    account: reply.account.map(|account| mapping.account(account)),
+                    account: reply.account.map_or(Account::LoggedOut, |account| {
+                        Account::LoggedIn(mapping.account(account))
+                    }),
                     realname: reply.realname?.to_owned(),
-                    away: flags.presence == Some(WhoxPresence::Gone),
+                    away: match flags.presence {
+                        Some(WhoxPresence::Here) => Away::Present,
+                        Some(WhoxPresence::Gone) => Away::Away { message: None },
+                        None => Away::Unknown,
+                    },
                     is_oper: flags.oper,
                     is_bot: flags.bot,
                     prefixes: flags.prefixes,
@@ -245,9 +255,15 @@ fn plain_who(message: &papo_proto::LineRef<'_>, isupport: &Isupport) -> Option<W
         username: message.param(2)?.to_owned(),
         host: message.param(3)?.to_owned(),
         nick: isupport.casemapping().nick(message.param(5)?),
-        account: None,
+        account: Account::Unknown,
         realname: message.param(7)?.split_once(' ')?.1.to_owned(),
-        away: flags.contains('G'),
+        away: if flags.contains('G') {
+            Away::Away { message: None }
+        } else if flags.contains('H') {
+            Away::Present
+        } else {
+            Away::Unknown
+        },
         is_oper: flags.contains('*'),
         is_bot: flags.contains('B'),
         prefixes: flags
@@ -292,7 +308,7 @@ fn list_entries(lines: impl IntoIterator<Item = Line>, isupport: &Isupport) -> V
 mod tests {
     use std::time::Instant;
 
-    use papo_core::{Config, Event, ResponseMatcher, Session};
+    use papo_core::{Account, Away, Config, Event, ResponseMatcher, Session};
     use papo_proto::{Casemapping, Isupport, Line};
 
     use super::{ListFilter, empty, list_entries, plain_who, whois_channel};
@@ -350,6 +366,14 @@ mod tests {
 
         let hidden = plain_who(&hidden.as_ref(), &isupport).unwrap();
         let visible = plain_who(&visible.as_ref(), &isupport).unwrap();
+        assert_eq!(
+            (hidden.account, hidden.away),
+            (Account::Unknown, Away::Present)
+        );
+        assert_eq!(
+            (visible.account, visible.away),
+            (Account::Unknown, Away::Away { message: None })
+        );
         assert_eq!((hidden.channel, hidden.prefixes), (None, vec!['@']));
         assert_eq!(
             (visible.channel.as_deref(), visible.prefixes),
