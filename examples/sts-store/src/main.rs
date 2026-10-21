@@ -1,14 +1,8 @@
 //! Persist `IRCv3` STS policies in an application-owned file.
 
 use std::{
-    collections::HashMap,
-    env,
-    error::Error,
-    fmt::Write as _,
-    fs,
-    io::{self, ErrorKind},
-    path::{Path, PathBuf},
-    time::{Duration, UNIX_EPOCH},
+    collections::HashMap, env, error::Error, fmt::Write as _, fs, io, path::PathBuf,
+    time::UNIX_EPOCH,
 };
 
 use papo::sts::{StsPolicy, StsStore};
@@ -21,22 +15,19 @@ struct FileStore {
 impl FileStore {
     fn open(path: impl Into<PathBuf>) -> io::Result<Self> {
         let path = path.into();
-        let text = match fs::read_to_string(&path) {
-            Ok(text) => text,
-            Err(error) if error.kind() == ErrorKind::NotFound => String::new(),
-            Err(error) => return Err(error),
-        };
+        let text = fs::read_to_string(&path).or_else(|error| {
+            (error.kind() == io::ErrorKind::NotFound)
+                .then(String::new)
+                .ok_or(error)
+        })?;
         let policies = text.lines().map(parse_policy).collect::<io::Result<_>>()?;
         Ok(Self { path, policies })
     }
 
-    fn save(&self) -> io::Result<()> {
+    fn save(&self) {
         let mut text = String::new();
         for policy in self.policies.values() {
-            let expiry = policy
-                .expires_at
-                .duration_since(UNIX_EPOCH)
-                .map_err(io::Error::other)?;
+            let expiry = policy.expires_at.duration_since(UNIX_EPOCH).unwrap();
             writeln!(
                 text,
                 "{}\t{}\t{}\t{}",
@@ -45,9 +36,9 @@ impl FileStore {
                 expiry.as_secs(),
                 policy.duration.as_secs()
             )
-            .map_err(io::Error::other)?;
+            .unwrap();
         }
-        fs::write(&self.path, text)
+        fs::write(&self.path, text).expect("persist STS policies");
     }
 }
 
@@ -58,60 +49,41 @@ impl StsStore for FileStore {
 
     fn put(&mut self, policy: StsPolicy) {
         self.policies.insert(policy.host.clone(), policy);
-        self.save().expect("persist STS policies");
+        self.save();
     }
 
     fn remove(&mut self, host: &str) {
         self.policies.remove(host);
-        self.save().expect("persist STS policies");
+        self.save();
     }
 }
 
 fn parse_policy(line: &str) -> io::Result<(String, StsPolicy)> {
-    let mut fields = line.split('\t');
-    let (Some(host), Some(port), Some(expiry), Some(duration), None) = (
-        fields.next(),
-        fields.next(),
-        fields.next(),
-        fields.next(),
-        fields.next(),
-    ) else {
-        return Err(io::Error::new(ErrorKind::InvalidData, "invalid STS policy"));
+    let fields = line.split('\t').collect::<Vec<_>>();
+    let [host, port, expiry, duration] = fields.as_slice() else {
+        return Err(io::Error::other("invalid STS policy"));
     };
-    let number = |text: &str| text.parse::<u64>().map_err(io::Error::other);
     let policy = StsPolicy::new(
-        host,
-        u16::try_from(number(port)?).map_err(io::Error::other)?,
-        UNIX_EPOCH + Duration::from_secs(number(expiry)?),
-        Duration::from_secs(number(duration)?),
+        *host,
+        port.parse().map_err(io::Error::other)?,
+        UNIX_EPOCH + std::time::Duration::from_secs(expiry.parse().map_err(io::Error::other)?),
+        std::time::Duration::from_secs(duration.parse().map_err(io::Error::other)?),
     );
-    Ok((host.to_owned(), policy))
+    Ok((host.to_string(), policy))
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let path = env::args_os().nth(1).ok_or("usage: sts-store PATH")?;
-    let mut store = FileStore::open(Path::new(&path))?;
+    let mut store = FileStore::open(&path)?;
     store.put(StsPolicy::new(
         "irc.example.net",
         6697,
-        UNIX_EPOCH + Duration::from_secs(4_000_000_000),
-        Duration::from_hours(4_320),
+        UNIX_EPOCH + std::time::Duration::from_secs(4_000_000_000),
+        std::time::Duration::from_hours(4_320),
     ));
-    store.put(StsPolicy::new(
-        "irc.libera.chat",
-        6697,
-        UNIX_EPOCH + Duration::from_secs(4_100_000_000),
-        Duration::from_hours(4_320),
-    ));
-    store.remove("irc.libera.chat");
-    let reopened = FileStore::open(path)?;
-    let policy = reopened
+    let policy = FileStore::open(path)?
         .get("irc.example.net")
         .ok_or("policy was not saved")?;
     println!("{} requires TLS on port {}", policy.host, policy.port);
-    if reopened.get("irc.libera.chat").is_some() {
-        return Err("policy was not removed".into());
-    }
-    println!("irc.libera.chat policy removed");
     Ok(())
 }
