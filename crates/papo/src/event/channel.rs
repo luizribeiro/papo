@@ -175,11 +175,11 @@ pub struct ModeChange {
     /// The mode's advertised parameter behavior.
     pub kind: ModeKind,
     /// The raw mode argument, when supplied by the server.
-    pub arg: Option<String>,
+    pub raw_arg: Option<String>,
     /// Whether the mode was added or removed.
     pub action: LegacyModeAction,
     /// The argument classified using the server's advertised rules.
-    pub typed_arg: Option<LegacyModeArg>,
+    pub arg: Option<LegacyModeArg>,
     /// The mode letter.
     pub mode: char,
 }

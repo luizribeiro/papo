@@ -126,7 +126,7 @@ async fn grant_rank(
     let change = &changed.changes[0];
     assert_eq!(change.action, ModeAction::Add);
     assert_eq!(change.mode, prefix.mode);
-    assert!(matches!(&change.typed_arg, Some(ModeArg::Nick(nick)) if nick == bob_nick));
+    assert!(matches!(&change.arg, Some(ModeArg::Nick(nick)) if nick == bob_nick));
     Ok(())
 }
 

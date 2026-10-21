@@ -1313,10 +1313,10 @@ pub(crate) fn typed_mode_change(
     ModeChange {
         mode,
         action,
-        typed_arg,
+        arg: typed_arg,
         set: action == LegacyModeAction::Add,
         kind: ModeKind::from_proto(kind),
-        arg: arg.map(str::to_owned),
+        raw_arg: arg.map(str::to_owned),
     }
 }
 
@@ -2322,7 +2322,7 @@ mod tests {
                     && mode.changes.len() == 1
                     && mode.changes[0].action == ModeAction::Add
                     && mode.changes[0].mode == 'o'
-                    && matches!(&mode.changes[0].typed_arg, Some(ModeArg::Nick(nick)) if nick == "emily")
+                    && matches!(&mode.changes[0].arg, Some(ModeArg::Nick(nick)) if nick == "emily")
         ));
     }
 

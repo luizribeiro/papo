@@ -121,7 +121,7 @@ pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
                     && changed.changes.iter().any(|change| {
                         change.action == ModeAction::Add
                             && change.mode == 'o'
-                            && matches!(&change.typed_arg, Some(ModeArg::Nick(value)) if value == nick)
+                            && matches!(&change.arg, Some(ModeArg::Nick(value)) if value == nick)
                     }) =>
             {
                 return;

@@ -48,13 +48,13 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     // input of +bklm-n into +m-n+bkl), so changes are matched by letter, never index.
     let ban = find_change(&changed, 'b');
     assert_eq!(ban.action, ModeAction::Add);
-    assert!(matches!(&ban.typed_arg, Some(ModeArg::Mask(mask)) if mask == MASK));
+    assert!(matches!(&ban.arg, Some(ModeArg::Mask(mask)) if mask == MASK));
     let key = find_change(&changed, 'k');
     assert_eq!(key.action, ModeAction::Add);
-    assert!(matches!(&key.typed_arg, Some(ModeArg::Value(value)) if value == KEY));
+    assert!(matches!(&key.arg, Some(ModeArg::Value(value)) if value == KEY));
     let limit = find_change(&changed, 'l');
     assert_eq!(limit.action, ModeAction::Add);
-    assert!(matches!(&limit.typed_arg, Some(ModeArg::Value(value)) if value == LIMIT));
+    assert!(matches!(&limit.arg, Some(ModeArg::Value(value)) if value == LIMIT));
     let no_external = find_change(&changed, 'n');
     assert_eq!(no_external.action, ModeAction::Remove);
     assert_eq!(no_external.arg, None);
@@ -79,12 +79,12 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
 
     let ban = find_change(&removed, 'b');
     assert_eq!(ban.action, ModeAction::Remove);
-    assert!(matches!(&ban.typed_arg, Some(ModeArg::Mask(mask)) if mask == MASK));
+    assert!(matches!(&ban.arg, Some(ModeArg::Mask(mask)) if mask == MASK));
     let key = find_change(&removed, 'k');
     assert_eq!(key.action, ModeAction::Remove);
     // The echoed key varies by server: Ergo, soju, and Solanum send "*" rather than
     // the real key, so only its presence is checked here, never its value.
-    assert!(matches!(&key.typed_arg, Some(ModeArg::Value(value)) if !value.is_empty()));
+    assert!(matches!(&key.arg, Some(ModeArg::Value(value)) if !value.is_empty()));
     let limit = find_change(&removed, 'l');
     assert_eq!(limit.action, ModeAction::Remove);
     assert_eq!(limit.arg, None);

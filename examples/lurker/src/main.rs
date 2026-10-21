@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         } else {
                             '-'
                         };
-                        let arg = match change.typed_arg {
+                        let arg = match change.arg {
                             Some(ModeArg::Nick(value)) => value.into_string(),
                             Some(ModeArg::Mask(value)) => value.into_string(),
                             Some(ModeArg::Value(value)) => value,

@@ -446,7 +446,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
         .find(|change| change.mode == 'v')
         .unwrap();
     assert_eq!(voice.action, ModeAction::Add);
-    assert!(matches!(&voice.typed_arg, Some(ModeArg::Nick(nick)) if nick == &alice_nick));
+    assert!(matches!(&voice.arg, Some(ModeArg::Nick(nick)) if nick == &alice_nick));
     bob.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.as_ref(), channel);
@@ -506,7 +506,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
         .find(|change| change.mode == 'o')
         .unwrap();
     assert_eq!(operator.action, ModeAction::Add);
-    assert!(matches!(&operator.typed_arg, Some(ModeArg::Nick(nick)) if nick == &bob_nick));
+    assert!(matches!(&operator.arg, Some(ModeArg::Nick(nick)) if nick == &bob_nick));
     assert!(
         bob.state()
             .channel(&channel)
@@ -1380,7 +1380,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         .find(|change| change.mode == 'k')
         .unwrap();
     assert_eq!(key_change.action, ModeAction::Add);
-    assert!(matches!(&key_change.typed_arg, Some(ModeArg::Value(value)) if value == key));
+    assert!(matches!(&key_change.arg, Some(ModeArg::Value(value)) if value == key));
     let secret_change = modes
         .changes
         .iter()
