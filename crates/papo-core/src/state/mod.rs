@@ -1,6 +1,3 @@
-#[cfg(feature = "unstable")]
-use std::collections::BTreeMap;
-
 pub(crate) mod membership;
 pub(crate) mod metadata;
 #[cfg(feature = "unstable")]
@@ -9,7 +6,7 @@ pub(crate) mod presence;
 pub(crate) mod read_marker;
 pub(crate) mod rename;
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -53,13 +50,13 @@ pub struct State {
     user_modes: HashSet<char>,
     casemapping: Casemapping,
     isupport: Isupport,
-    channels: HashMap<ChannelName, Channel>,
-    users: HashMap<Nick, User>,
+    channels: BTreeMap<ChannelName, Channel>,
+    users: BTreeMap<Nick, User>,
     monitored: Vec<Nick>,
-    who_sweeps: HashMap<ChannelName, usize>,
+    who_sweeps: BTreeMap<ChannelName, usize>,
     who_on_join: WhoOnJoin,
-    read_markers: HashMap<NameKey<String>, ReadMarker>,
-    last_seen: HashMap<NameKey<String>, LastSeen>,
+    read_markers: BTreeMap<NameKey<String>, ReadMarker>,
+    last_seen: BTreeMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
     max_channels: usize,
     max_members_per_channel: usize,
@@ -69,7 +66,7 @@ pub struct State {
     persistence: Option<PersistenceStatus>,
     #[cfg(feature = "unstable")]
     bouncer_networks: BTreeMap<NetworkId, BouncerNetwork>,
-    metadata: HashMap<NameKey<String>, HashMap<MetadataKey, MetadataValue>>,
+    metadata: BTreeMap<NameKey<String>, HashMap<MetadataKey, MetadataValue>>,
     metadata_subscriptions: Vec<MetadataKey>,
     limits_warned: HashSet<StateLimit>,
     pub(crate) typing: Arc<TypingTable>,
@@ -80,7 +77,7 @@ pub struct State {
 pub struct Channel {
     name: ChannelName,
     casemapping: Casemapping,
-    members: HashMap<Nick, Member>,
+    members: BTreeMap<Nick, Member>,
     modes: HashMap<char, Option<String>>,
     lists: HashMap<ListMode, Vec<ModeListEntry>>,
     created_at: Option<SystemTime>,
@@ -127,7 +124,7 @@ pub struct User {
     realname: Option<String>,
     is_bot: bool,
     monitored: bool,
-    channels: HashSet<ChannelName>,
+    channels: BTreeSet<ChannelName>,
 }
 
 /// A user's known account state.
@@ -293,13 +290,13 @@ impl State {
             user_modes: HashSet::new(),
             casemapping,
             isupport: Isupport::default(),
-            channels: HashMap::new(),
-            users: HashMap::new(),
+            channels: BTreeMap::new(),
+            users: BTreeMap::new(),
             monitored: Vec::new(),
-            who_sweeps: HashMap::new(),
+            who_sweeps: BTreeMap::new(),
             who_on_join: config.who_on_join,
-            read_markers: HashMap::new(),
-            last_seen: HashMap::new(),
+            read_markers: BTreeMap::new(),
+            last_seen: BTreeMap::new(),
             last_seen_order: VecDeque::new(),
             max_channels: config.max_channels,
             max_members_per_channel: config.max_members_per_channel,
@@ -309,7 +306,7 @@ impl State {
             persistence: None,
             #[cfg(feature = "unstable")]
             bouncer_networks: BTreeMap::new(),
-            metadata: HashMap::new(),
+            metadata: BTreeMap::new(),
             metadata_subscriptions: Vec::new(),
             limits_warned: HashSet::new(),
             typing: TypingTable::new(),
@@ -1041,7 +1038,7 @@ impl Channel {
         Self {
             name: casemapping.channel(name),
             casemapping,
-            members: HashMap::new(),
+            members: BTreeMap::new(),
             modes: HashMap::new(),
             lists: HashMap::new(),
             created_at: None,
@@ -1268,7 +1265,7 @@ impl User {
             realname: None,
             is_bot: false,
             monitored: false,
-            channels: HashSet::new(),
+            channels: BTreeSet::new(),
         }
     }
 

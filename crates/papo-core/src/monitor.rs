@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use papo_proto::{Advertised, Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
@@ -11,7 +11,7 @@ type NickKey = Nick;
 #[derive(Debug, Default)]
 pub(super) struct Monitor {
     desired: Vec<String>,
-    presence: HashMap<NickKey, Presence>,
+    presence: BTreeMap<NickKey, Presence>,
     casemapping: Casemapping,
     unsupported_warned: bool,
 }

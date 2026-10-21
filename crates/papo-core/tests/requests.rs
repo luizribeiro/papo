@@ -2325,6 +2325,32 @@ fn split_send_timeout_and_disconnect_are_each_reported_once() {
 }
 
 #[test]
+fn one_timeout_expires_every_ready_request() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let ids: Vec<_> = ["alice", "bob", "carol"]
+        .into_iter()
+        .map(|nick| request(&mut session, now, Line::new("WHOIS", [nick])))
+        .collect();
+    while session.poll_transmit().is_some() {}
+
+    session.handle_timeout(now + std::time::Duration::from_secs(30));
+
+    let timed_out: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::RequestTimedOut { id } => Some(id),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(timed_out, ids);
+    session.handle_timeout(now + std::time::Duration::from_secs(30));
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .all(|event| !matches!(event, Event::RequestTimedOut { .. }))
+    );
+}
+
+#[test]
 fn bounds_pending_requests_at_the_literal_limit() {
     let now = Instant::now();
     let mut session = labelled_session(now);

@@ -1,5 +1,6 @@
 use std::{
     borrow::Borrow,
+    cmp::Ordering,
     hash::{Hash, Hasher},
 };
 
@@ -34,6 +35,18 @@ impl<T> PartialEq for NameKey<T> {
 }
 
 impl<T> Eq for NameKey<T> {}
+
+impl<T> PartialOrd for NameKey<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for NameKey<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.folded.cmp(&other.folded)
+    }
+}
 
 impl<T> Hash for NameKey<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {

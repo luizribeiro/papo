@@ -5,10 +5,10 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 use papo_core::{Config, Event, ListMode, RequestId, ResponseMatcher, Session};
 use papo_proto::Line;
 
-fn request(session: &mut Session, mode: ListMode) -> RequestId {
+fn request(session: &mut Session, now: Instant, mode: ListMode) -> RequestId {
     session
         .request_with_matcher(
-            Instant::now(),
+            now,
             Line::new("MODE", ["#papo", mode_letter(mode)]),
             ResponseMatcher::ListMode {
                 channel: "#papo".into(),
@@ -49,7 +49,7 @@ fn each_list_mode_waits_for_its_end_numeric() {
         let now = Instant::now();
         let mut session = Session::new(Config::default());
         session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
-        let id = request(&mut session, mode);
+        let id = request(&mut session, now, mode);
         let extra = if mode == ListMode::Quiet { " q" } else { "" };
         session.handle_line(
             now,
@@ -83,7 +83,7 @@ fn each_list_mode_waits_for_its_end_numeric() {
 fn list_requests_ignore_other_dialects_targets_and_quiet_markers() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     for line in [
         ":ergo.test 348 papo #papo *!*@staff.example oper 1761048000",
         ":ergo.test 367 papo #other *!*@gateway.example oper 1761048000",
@@ -96,7 +96,7 @@ fn list_requests_ignore_other_dialects_targets_and_quiet_markers() {
     assert_eq!(ban_response.lines.len(), 1);
     assert_eq!(ban_response.lines[0].as_ref().command().as_str(), "368");
 
-    let id = request(&mut session, ListMode::Quiet);
+    let id = request(&mut session, now, ListMode::Quiet);
     session.handle_line(
         now,
         b":solanum.example 728 papo #papo b *!*@noisy.example oper 1761048000",
@@ -123,7 +123,7 @@ fn an_empty_ban_list_completes_at_368() {
         b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
     );
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
     let response = response(&mut session, id);
     assert_eq!(response.lines.len(), 1);
@@ -143,7 +143,7 @@ fn one_thousand_and_one_rows_fail_without_retaining_the_last_row() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     let rows: Vec<_> = (0..1001)
         .map(|index| format!(":ergo.test 367 papo #papo *!*@host{index}.example oper 1761048000"))
         .collect();
@@ -187,7 +187,7 @@ fn live_mode_changes_update_only_a_completed_list() {
         b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
     );
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     session.handle_line(now, b":ergo.test 367 papo #papo bob!*@* oper 1761048000");
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
     _ = response(&mut session, id);
@@ -236,7 +236,7 @@ fn solanum_live_changes_update_except_invex_and_quiet_lists() {
         (ListMode::Invex, 347, ""),
         (ListMode::Quiet, 729, " q"),
     ] {
-        let id = request(&mut session, mode);
+        let id = request(&mut session, now, mode);
         session.handle_line(
             now,
             format!(":solanum.example {end} papo #papo{extra} :End of mode list").as_bytes(),
@@ -296,7 +296,7 @@ fn solanum_label_on_a_row_does_not_replace_the_unlabelled_end_numeric() {
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
     while session.poll_event().is_some() {}
 
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     assert_eq!(
         session.poll_transmit().unwrap(),
         b"@label=0 MODE #papo b\r\n"
@@ -325,7 +325,7 @@ fn bouncer_and_nonmember_fetches_are_returned_without_tracking() {
         b":soju.example 005 papo BOUNCER_NETID=network-42 :are supported",
     );
     bouncer.handle_line(now, b":papo!~papo@localhost JOIN #papo");
-    let id = request(&mut bouncer, ListMode::Ban);
+    let id = request(&mut bouncer, now, ListMode::Ban);
     bouncer.handle_line(
         now,
         b":ergo.test 367 papo #papo *!*@gateway.example oper 1761048000",
@@ -342,7 +342,7 @@ fn bouncer_and_nonmember_fetches_are_returned_without_tracking() {
     );
 
     let mut nonmember = Session::new(Config::default());
-    let id = request(&mut nonmember, ListMode::Ban);
+    let id = request(&mut nonmember, now, ListMode::Ban);
     nonmember.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
     assert_eq!(response(&mut nonmember, id).mode_list, Some(Vec::new()));
     assert!(nonmember.state().channel("#papo").is_none());
@@ -353,7 +353,7 @@ fn a_refusal_invalidates_a_previously_fetched_list() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
     _ = response(&mut session, id);
     assert!(
@@ -365,7 +365,7 @@ fn a_refusal_invalidates_a_previously_fetched_list() {
             .is_some()
     );
 
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     session.handle_line(
         now,
         b":ergo.test 482 papo #papo :You're not a channel operator",
@@ -390,7 +390,7 @@ fn live_changes_during_a_fetch_do_not_duplicate_the_snapshot() {
         b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
     );
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     session.handle_line(now, b":ergo.test 367 papo #papo bob!*@* oper 1761048000");
     session.handle_line(now, b":alice!~alice@staff.example MODE #papo +b bob");
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
@@ -412,11 +412,11 @@ fn timeout_and_disconnect_invalidate_tracked_lists() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
     _ = response(&mut session, id);
 
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     while session.poll_transmit().is_some() {}
     session.handle_line(
         now,
@@ -439,7 +439,7 @@ fn timeout_and_disconnect_invalidate_tracked_lists() {
 
     let mut session = Session::new(Config::default());
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
     _ = response(&mut session, id);
     session.handle_disconnected(now);
@@ -464,7 +464,7 @@ fn labelled_timeout_and_overflow_forget_the_list_and_its_label() {
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
     while session.poll_event().is_some() {}
 
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     assert_eq!(
         session.poll_transmit().unwrap(),
         b"@label=0 MODE #papo b\r\n"
@@ -480,7 +480,7 @@ fn labelled_timeout_and_overflow_forget_the_list_and_its_label() {
             .is_some()
     );
 
-    let overflowed = request(&mut session, ListMode::Ban);
+    let overflowed = request(&mut session, now, ListMode::Ban);
     assert_eq!(
         session.poll_transmit().unwrap(),
         b"@label=1 MODE #papo b\r\n"
@@ -500,14 +500,14 @@ fn labelled_timeout_and_overflow_forget_the_list_and_its_label() {
             .any(|event| matches!(event, Event::Response(response) if response.id == overflowed))
     );
 
-    let id = request(&mut session, ListMode::Ban);
+    let id = request(&mut session, now, ListMode::Ban);
     assert_eq!(
         session.poll_transmit().unwrap(),
         b"@label=2 MODE #papo b\r\n"
     );
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
     _ = response(&mut session, id);
-    let timed_out = request(&mut session, ListMode::Ban);
+    let timed_out = request(&mut session, now, ListMode::Ban);
     assert_eq!(
         session.poll_transmit().unwrap(),
         b"@label=3 MODE #papo b\r\n"

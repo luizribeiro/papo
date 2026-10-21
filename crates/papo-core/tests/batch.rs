@@ -763,6 +763,35 @@ fn abandons_an_unclosed_batch_at_its_deadline() {
 }
 
 #[test]
+fn simultaneous_batch_timeouts_have_stable_order() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().batch_timeout(Duration::from_secs(2)));
+    for reference in [
+        "zulu", "echo", "hotel", "alpha", "golf", "bravo", "foxtrot", "charlie",
+    ] {
+        session.handle_line(
+            now,
+            format!("BATCH +{reference} vendor/{reference}").as_bytes(),
+        );
+    }
+
+    session.handle_timeout(now + Duration::from_secs(2));
+
+    let abandoned: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::BatchAbandoned { reference, .. } => Some(reference),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        abandoned,
+        [
+            "alpha", "bravo", "charlie", "echo", "foxtrot", "golf", "hotel", "zulu"
+        ]
+    );
+}
+
+#[test]
 fn nested_batches_expiring_together_abandon_only_the_outer_batch() {
     let now = Instant::now();
     let mut session = Session::new(

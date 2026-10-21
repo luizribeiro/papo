@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashSet},
     time::Duration,
 };
 use web_time::Instant;
@@ -10,7 +10,7 @@ use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, cap};
 
 #[derive(Debug)]
 pub(crate) struct Batches {
-    open: HashMap<String, OpenBatch>,
+    open: BTreeMap<String, OpenBatch>,
     max_open: usize,
     max_lines: usize,
     timeout: Duration,
@@ -101,7 +101,7 @@ pub(crate) enum BatchEvent {
 impl Batches {
     pub(crate) fn new(config: &Config) -> Self {
         Self {
-            open: HashMap::new(),
+            open: BTreeMap::new(),
             max_open: config.max_open_batches,
             max_lines: config.max_batch_lines,
             timeout: config.batch_timeout,
@@ -355,7 +355,7 @@ impl Batches {
             })
             .cloned()
             .collect();
-        let types: HashMap<_, _> = references
+        let types: BTreeMap<_, _> = references
             .iter()
             .map(|candidate| (candidate.clone(), self.open[candidate].kind.clone()))
             .collect();
