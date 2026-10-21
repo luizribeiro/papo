@@ -107,23 +107,14 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     let changed = bob.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(changed.nick, alice_nick);
-    assert_eq!(
-        changed.away,
-        Away::Away {
-            message: Some(away.to_owned())
-        }
-    );
+    assert_eq!(changed.away, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
         alice.state().away(),
-        &Away::Away {
-            message: Some(away.to_owned())
-        }
+        &Away::__away_value(Some(away.to_owned()))
     );
     assert_eq!(
         bob.state().user(&alice_nick).unwrap().away(),
-        &Away::Away {
-            message: Some(away.to_owned())
-        }
+        &Away::__away_value(Some(away.to_owned()))
     );
 
     alice.clear_away().await?;
@@ -167,9 +158,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.origin, Origin::Live);
     assert_eq!(
         alice.state().away(),
-        &Away::Away {
-            message: Some(away.to_owned())
-        }
+        &Away::__away_value(Some(away.to_owned()))
     );
     assert!(sent.fallbacks.is_empty());
     alice
@@ -190,16 +179,11 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
     let connected = alice.wait_for(Event::as_connected).await?;
     assert_eq!(connected.nick, alice.nick());
     assert!(connected.caps.contains_key("draft/pre-away"));
-    assert_eq!(alice.state().away(), &Away::Away { message: None });
+    assert_eq!(alice.state().away(), &Away::__away_value(None));
 
     let whois = bob.whois(alice.nick()).await?;
     assert_eq!(whois.nick, alice.nick());
-    assert_eq!(
-        whois.away,
-        Away::Away {
-            message: Some(away.to_owned())
-        }
-    );
+    assert_eq!(whois.away, Away::__away_value(Some(away.to_owned())));
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
 }
@@ -316,17 +300,10 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let changed = alice.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(changed.nick, bob_nick);
-    assert_eq!(
-        changed.away,
-        Away::Away {
-            message: Some(away.to_owned())
-        }
-    );
+    assert_eq!(changed.away, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
         alice.state().user(&bob_nick).unwrap().away(),
-        &Away::Away {
-            message: Some(away.to_owned())
-        }
+        &Away::__away_value(Some(away.to_owned()))
     );
 
     let new_nick = format!("r{bob_nick}");
@@ -445,7 +422,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert!(!alice_who.username.is_empty());
     assert!(!alice_who.host.is_empty());
     assert_eq!(alice_who.realname, "papo test peer");
-    assert_eq!(alice_who.away, Away::Away { message: None });
+    assert_eq!(alice_who.away, Away::__away_value(None));
     assert!(!alice_who.is_oper);
     assert!(!alice_who.is_bot);
     assert_eq!(alice_who.prefixes, ['@']);
@@ -493,12 +470,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert!(whois.host.as_ref().is_some_and(|host| !host.is_empty()));
     assert_eq!(whois.realname.as_deref(), Some("papo test peer"));
     assert!(whois.idle.is_some());
-    assert_eq!(
-        whois.away,
-        Away::Away {
-            message: Some(away.to_owned())
-        }
-    );
+    assert_eq!(whois.away, Away::__away_value(Some(away.to_owned())));
     assert!(
         whois
             .channels

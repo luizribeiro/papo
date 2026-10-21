@@ -154,6 +154,14 @@ pub enum Away {
     },
 }
 
+impl Away {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __away_value(message: Option<String>) -> Self {
+        Self::Away { message }
+    }
+}
+
 #[derive(Clone, Copy)]
 struct WhoUser<'a> {
     channel: &'a str,

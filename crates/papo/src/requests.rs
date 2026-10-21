@@ -174,9 +174,7 @@ pub(crate) fn whois(
                 result.account = message.param(2).map(|account| mapping.account(account));
             }
             Numeric::RPL_AWAY => {
-                result.away = Away::Away {
-                    message: message.param(2).map(str::to_owned),
-                };
+                result.away = Away::__away_value(message.param(2).map(str::to_owned));
             }
             Numeric::RPL_WHOISBOT => result.is_bot = true,
             Numeric::RPL_WHOISSECURE => result.secure = true,
@@ -231,7 +229,7 @@ pub(crate) fn who(
                     realname: reply.realname?.to_owned(),
                     away: match flags.presence {
                         Some(WhoxPresence::Here) => Away::Present,
-                        Some(WhoxPresence::Gone) => Away::Away { message: None },
+                        Some(WhoxPresence::Gone) => Away::__away_value(None),
                         None => Away::Unknown,
                     },
                     is_oper: flags.oper,
@@ -260,7 +258,7 @@ fn plain_who(message: &papo_proto::LineRef<'_>, isupport: &Isupport) -> Option<W
         account: Account::Unknown,
         realname: message.param(7)?.split_once(' ')?.1.to_owned(),
         away: if flags.contains('G') {
-            Away::Away { message: None }
+            Away::__away_value(None)
         } else if flags.contains('H') {
             Away::Present
         } else {
