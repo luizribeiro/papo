@@ -44,6 +44,7 @@ impl Source {
                 nick,
                 username,
                 host,
+                ..
             } => Self::User {
                 nick: casemapping.nick(nick),
                 username: username.map(str::to_owned),
@@ -93,11 +94,7 @@ mod tests {
     fn returns_only_user_nicknames() {
         let nick = Casemapping::Rfc1459.nick("Alice[bot]");
         let user = Source::from_proto(
-            papo_proto::Source::User {
-                nick: "Alice[bot]",
-                username: Some("~alice"),
-                host: Some("staff.example"),
-            },
+            papo_proto::Source::__user("Alice[bot]", Some("~alice"), Some("staff.example")),
             Casemapping::Rfc1459,
         );
         let server = Source::from_proto(

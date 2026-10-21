@@ -234,11 +234,7 @@ mod tests {
             time: SystemTime::UNIX_EPOCH,
             account: Some(mapping.account("emily")),
             actor: crate::Source::from_proto(
-                papo_proto::Source::User {
-                    nick: "emily",
-                    username: Some("~e"),
-                    host: Some("cloak.example"),
-                },
+                papo_proto::Source::__user("emily", Some("~e"), Some("cloak.example")),
                 mapping,
             ),
             authorship: crate::Authorship::Other,

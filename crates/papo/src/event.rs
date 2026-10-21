@@ -1507,11 +1507,7 @@ mod tests {
         assert_eq!(
             channel.actor,
             Source::from_proto(
-                papo_proto::Source::User {
-                    nick: "emily",
-                    username: Some("~emily"),
-                    host: Some("localhost")
-                },
+                papo_proto::Source::__user("emily", Some("~emily"), Some("localhost")),
                 Casemapping::default(),
             )
         );
@@ -2630,14 +2626,8 @@ mod tests {
     fn identifies_self_membership_and_nick_events_with_server_casemapping() {
         let mapping = Casemapping::Rfc1459;
         let actor = Source::from_proto(papo_proto::Source::Server("ergo.test"), mapping);
-        let own_actor = Source::from_proto(
-            papo_proto::Source::User {
-                nick: "Papo[Bot]",
-                username: None,
-                host: None,
-            },
-            mapping,
-        );
+        let own_actor =
+            Source::from_proto(papo_proto::Source::__user("Papo[Bot]", None, None), mapping);
         let events = [
             Event::Joined(super::Joined {
                 msgid: None,

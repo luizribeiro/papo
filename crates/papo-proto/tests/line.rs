@@ -95,11 +95,11 @@ fn passes_ircdocs_userhost_split_corpus() {
 
         assert_eq!(
             line.source(),
-            Some(Source::User {
-                nick: expected["nick"].as_str().unwrap(),
-                username: expected["user"].as_str(),
-                host: expected["host"].as_str(),
-            }),
+            Some(Source::__user(
+                expected["nick"].as_str().unwrap(),
+                expected["user"].as_str(),
+                expected["host"].as_str(),
+            )),
             "{raw:?}"
         );
     }
@@ -110,27 +110,15 @@ fn parses_ergo_user_sources_and_server_names() {
     let cases = [
         (
             "nick!~u@abc123.irc",
-            Source::User {
-                nick: "nick",
-                username: Some("~u"),
-                host: Some("abc123.irc"),
-            },
+            Source::__user("nick", Some("~u"), Some("abc123.irc")),
         ),
         (
             "*name*!realnick@npc.fakeuser.invalid",
-            Source::User {
-                nick: "*name*",
-                username: Some("realnick"),
-                host: Some("npc.fakeuser.invalid"),
-            },
+            Source::__user("*name*", Some("realnick"), Some("npc.fakeuser.invalid")),
         ),
         (
             "nick/x!~u@cloak",
-            Source::User {
-                nick: "nick/x",
-                username: Some("~u"),
-                host: Some("cloak"),
-            },
+            Source::__user("nick/x", Some("~u"), Some("cloak")),
         ),
         ("irc.example.net", Source::Server("irc.example.net")),
     ];
@@ -146,30 +134,9 @@ fn parses_ergo_user_sources_and_server_names() {
 #[test]
 fn normalizes_empty_user_source_parts() {
     let cases = [
-        (
-            "nick!",
-            Source::User {
-                nick: "nick",
-                username: None,
-                host: None,
-            },
-        ),
-        (
-            "nick!@host",
-            Source::User {
-                nick: "nick",
-                username: None,
-                host: Some("host"),
-            },
-        ),
-        (
-            "nick@",
-            Source::User {
-                nick: "nick",
-                username: None,
-                host: None,
-            },
-        ),
+        ("nick!", Source::__user("nick", None, None)),
+        ("nick!@host", Source::__user("nick", None, Some("host"))),
+        ("nick@", Source::__user("nick", None, None)),
     ];
 
     for (raw, expected) in cases {
@@ -267,7 +234,8 @@ fn owned_lines_parse_real_ergo_messages() {
         Some(Source::User {
             nick: "alice",
             username: Some("~a"),
-            host: Some("cloak.example")
+            host: Some("cloak.example"),
+            ..
         })
     ));
 

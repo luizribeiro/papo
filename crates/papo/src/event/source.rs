@@ -19,13 +19,6 @@ pub(crate) fn from_name(name: &str, casemapping: Casemapping) -> Source {
     if name.contains('.') {
         from_proto(papo_proto::Source::Server(name), casemapping)
     } else {
-        from_proto(
-            papo_proto::Source::User {
-                nick: name,
-                username: None,
-                host: None,
-            },
-            casemapping,
-        )
+        from_proto(papo_proto::Source::__user(name, None, None), casemapping)
     }
 }

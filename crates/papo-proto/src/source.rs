@@ -4,6 +4,7 @@ pub enum Source<'a> {
     /// A server name.
     Server(&'a str),
     /// A user, split into nickname, username, and hostname components.
+    #[non_exhaustive]
     User {
         /// The user's nickname.
         nick: &'a str,
@@ -15,6 +16,16 @@ pub enum Source<'a> {
 }
 
 impl<'a> Source<'a> {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __user(nick: &'a str, username: Option<&'a str>, host: Option<&'a str>) -> Self {
+        Self::User {
+            nick,
+            username,
+            host,
+        }
+    }
+
     pub(crate) fn parse(source: &'a str) -> Self {
         if !source.contains(['!', '@']) && source.contains('.') {
             return Self::Server(source);

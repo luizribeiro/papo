@@ -54,6 +54,7 @@ impl State {
             nick,
             username,
             host,
+            ..
         }) = message.source()
         else {
             return Handled::No;

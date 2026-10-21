@@ -62,11 +62,7 @@ pub fn user_source(
 ) -> Source {
     let nick = nick.into();
     let source = Source::from_proto(
-        papo_proto::Source::User {
-            nick: &nick,
-            username: username.as_deref(),
-            host: host.as_deref(),
-        },
+        papo_proto::Source::__user(&nick, username.as_deref(), host.as_deref()),
         nick.casemapping(),
     );
     drop((username, host));

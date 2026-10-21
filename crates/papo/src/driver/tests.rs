@@ -1017,11 +1017,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel("#staff"),
             subject: test_nick("alice"),
             actor: crate::Source::from_proto(
-                papo_proto::Source::User {
-                    nick: "chanserv",
-                    username: None,
-                    host: None,
-                },
+                papo_proto::Source::__user("chanserv", None, None),
                 papo_proto::Casemapping::default(),
             ),
             authorship: crate::Authorship::Other,
@@ -1056,11 +1052,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel("#staff"),
             subject: test_nick("papo-driver"),
             actor: crate::Source::from_proto(
-                papo_proto::Source::User {
-                    nick: "chanserv",
-                    username: None,
-                    host: None,
-                },
+                papo_proto::Source::__user("chanserv", None, None),
                 papo_proto::Casemapping::default(),
             ),
             authorship: crate::Authorship::Other,

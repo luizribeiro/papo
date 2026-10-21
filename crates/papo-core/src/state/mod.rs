@@ -574,6 +574,7 @@ impl State {
             nick,
             username: Some(user),
             host: Some(host),
+            ..
         }) = message.source()
         else {
             return false;

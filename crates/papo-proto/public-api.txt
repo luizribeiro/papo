@@ -327,7 +327,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ParseError
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::ParseError
 pub enum papo_proto::Source<'a>
 pub papo_proto::Source::Server(&'a str)
-pub papo_proto::Source::User
+#[non_exhaustive] pub papo_proto::Source::User
 pub papo_proto::Source::User::host: core::option::Option<&'a str>
 pub papo_proto::Source::User::nick: &'a str
 pub papo_proto::Source::User::username: core::option::Option<&'a str>
