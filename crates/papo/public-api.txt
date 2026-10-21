@@ -2055,32 +2055,20 @@ impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&alloc::strin
 pub fn papo::MessageRef::from((&alloc::string::String, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::Conversation, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&papo::Conversation, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::AccountName, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((&papo::AccountName, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::ChannelName, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&papo::ChannelName, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::Mask, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((&papo::Mask, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::Nick, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&papo::Nick, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::ServerName, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((&papo::ServerName, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&str, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&str, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(alloc::string::String, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((alloc::string::String, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::Conversation, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((papo::Conversation, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::AccountName, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((papo::AccountName, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::ChannelName, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((papo::ChannelName, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::Mask, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((papo::Mask, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::Nick, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((papo::Nick, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::ServerName, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((papo::ServerName, I)) -> Self
 impl core::marker::Freeze for papo::MessageRef
 impl core::marker::Send for papo::MessageRef
 impl core::marker::Sync for papo::MessageRef

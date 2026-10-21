@@ -59,16 +59,10 @@ address_pairs!(
     &str,
     String,
     &String,
-    crate::AccountName,
-    &crate::AccountName,
     crate::ChannelName,
     &crate::ChannelName,
     crate::Nick,
     &crate::Nick,
-    crate::Mask,
-    &crate::Mask,
-    crate::ServerName,
-    &crate::ServerName,
 );
 
 impl<I: Into<MessageId>> From<(Conversation, I)> for MessageRef {
@@ -146,10 +140,14 @@ mod tests {
         let references = [
             MessageRef::from(("#papo", &id)),
             MessageRef::from((mapping.channel("#papo"), &id)),
+            MessageRef::from((mapping.nick("emily"), &id)),
             MessageRef::from((Conversation::Channel(mapping.channel("#papo")), &id)),
         ];
-        for reference in references {
-            assert_eq!(reference.address, "#papo");
+        for (reference, expected) in references
+            .into_iter()
+            .zip(["#papo", "#papo", "emily", "#papo"])
+        {
+            assert_eq!(reference.address, expected);
             assert_eq!(reference.msgid, Some(id.clone()));
         }
 
