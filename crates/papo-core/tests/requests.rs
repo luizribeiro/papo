@@ -17,6 +17,15 @@ fn labelled_session(now: Instant) -> Session {
     session
 }
 
+fn echo_session(now: Instant) -> Session {
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :echo-message labeled-response");
+    session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
+    while session.poll_transmit().is_some() {}
+    session
+}
+
 fn request(session: &mut Session, now: Instant, message: Line) -> RequestId {
     session.request(now, message).unwrap()
 }
@@ -1659,6 +1668,44 @@ fn abort_reports_when_a_labelled_privmsg_reached_the_transport() {
             transmitted: true,
         }) if aborted == id
     ));
+}
+
+#[test]
+fn split_send_timeout_and_disconnect_are_each_reported_once() {
+    let now = Instant::now();
+    let text = "Production deployment remains healthy across all regions. ".repeat(12);
+
+    let mut timed_out = echo_session(now);
+    let send = timed_out
+        .send_text_detailed(now, TextKind::Privmsg, "#papo", &text, &[])
+        .unwrap();
+    assert_eq!(send.confirmations, 2);
+    let id = send.request.unwrap();
+    while timed_out.poll_transmit().is_some() {}
+    timed_out.handle_timeout(now + std::time::Duration::from_secs(30));
+    let timeouts = std::iter::from_fn(|| timed_out.poll_event())
+        .filter_map(|event| match event {
+            Event::RequestTimedOut { id } => Some(id),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(timeouts, [id]);
+
+    let mut disconnected = echo_session(now);
+    let send = disconnected
+        .send_text_detailed(now, TextKind::Privmsg, "#papo", &text, &[])
+        .unwrap();
+    assert_eq!(send.confirmations, 2);
+    let id = send.request.unwrap();
+    while disconnected.poll_transmit().is_some() {}
+    disconnected.handle_disconnected(now);
+    let aborted = std::iter::from_fn(|| disconnected.poll_event())
+        .filter_map(|event| match event {
+            Event::RequestAborted { id, transmitted } => Some((id, transmitted)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(aborted, [(id, true)]);
 }
 
 #[test]

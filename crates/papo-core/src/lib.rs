@@ -91,7 +91,7 @@ pub use secret::Secret;
 pub use source::Source;
 
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     time::Duration,
 };
 use web_time::Instant;
@@ -2475,7 +2475,7 @@ impl Session {
             self.dispatch_batch_event(now, event);
         }
         self.handle_typing_timeout(now);
-        let expired: Vec<_> = self
+        let expired: BTreeSet<_> = self
             .requests
             .iter()
             .filter(|(_, (_, started, _, _, _))| {
@@ -2483,14 +2483,14 @@ impl Session {
                     .and_then(|started| started.checked_add(self.config.request_timeout))
                     .is_some_and(|deadline| now >= deadline)
             })
-            .map(|(label, _)| label.clone())
+            .map(|(_, (id, _, _, _, _))| *id)
             .collect();
-        for label in expired {
-            if let Some((id, _, _, _, _)) = self.requests.remove(&label) {
-                self.unlabelled_requests.retain(|request| request.id != id);
-                self.away_messages.remove(&id);
-                self.outbox.event(Event::RequestTimedOut { id });
-            }
+        for id in expired {
+            self.requests
+                .retain(|_, (pending, _, _, _, _)| *pending != id);
+            self.unlabelled_requests.retain(|request| request.id != id);
+            self.away_messages.remove(&id);
+            self.outbox.event(Event::RequestTimedOut { id });
         }
         let pending = std::mem::take(&mut self.unlabelled_requests);
         for request in pending {
@@ -2549,12 +2549,16 @@ impl Session {
         self.framer.close();
         self.outbox.reset_connection();
         self.batches.reset();
+        let mut labelled = BTreeMap::new();
         for (_, (id, started, _, _, _)) in std::mem::take(&mut self.requests) {
             self.unlabelled_requests.retain(|request| request.id != id);
-            self.outbox.event(Event::RequestAborted {
-                id,
-                transmitted: started.is_some(),
-            });
+            labelled
+                .entry(id)
+                .and_modify(|transmitted| *transmitted |= started.is_some())
+                .or_insert_with(|| started.is_some());
+        }
+        for (id, transmitted) in labelled {
+            self.outbox.event(Event::RequestAborted { id, transmitted });
         }
         for request in self.unlabelled_requests.drain(..) {
             self.outbox.event(Event::RequestAborted {
