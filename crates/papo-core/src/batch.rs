@@ -459,10 +459,6 @@ impl OpenBatch {
 
 fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
     #[cfg(feature = "unstable")]
-    if batch.kind == "soju.im/search" {
-        return Vec::new();
-    }
-    #[cfg(feature = "unstable")]
     if batch.kind == cap::BOUNCER_NETWORKS.as_str() {
         return vec![BatchEvent::Bouncer(std::mem::take(&mut batch.messages))];
     }
