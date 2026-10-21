@@ -462,6 +462,8 @@ impl std::fmt::Debug for Events {
 
 impl Events {
     /// Waits for the next event, or returns `None` after the driver stops.
+    ///
+    /// This method is cancel-safe: cancelling the future does not consume an event.
     pub async fn next(&mut self) -> Option<Event> {
         let next = std::future::poll_fn(|context| Pin::new(&mut *self).poll_next(context));
         #[cfg(all(test, not(browser)))]
@@ -506,6 +508,9 @@ impl Stream for Events {
 }
 
 /// A future that owns and drives an IRC session and its transport.
+///
+/// Dropping the driver ends the associated [`Events`] stream without emitting a final
+/// [`Event::Disconnected`](crate::Event::Disconnected).
 #[must_use = "a Driver does nothing unless awaited or spawned"]
 pub struct Driver {
     #[cfg(not(browser))]

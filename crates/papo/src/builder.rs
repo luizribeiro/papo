@@ -521,7 +521,8 @@ impl Builder {
 
     /// Builds handles and a lazy driver without opening a connection.
     ///
-    /// The returned [`crate::Driver`] connects when it is first polled.
+    /// The returned [`crate::Driver`] connects when it is first polled. Spawn or otherwise poll
+    /// the driver before awaiting client actions, which wait for the driver to process them.
     pub fn build(self) -> (crate::Client, crate::Events, crate::Driver) {
         self.build_with_connect(None, None)
     }
@@ -538,6 +539,11 @@ impl Builder {
     /// because the server holds the connection open until verification.
     /// The first connection attempt fails fast; the configured reconnect policy applies only
     /// after the first successful connection.
+    ///
+    /// # Panics
+    ///
+    /// On native targets, panics when called outside a Tokio runtime because the driver is
+    /// spawned before this future waits for registration.
     ///
     /// # Errors
     ///
