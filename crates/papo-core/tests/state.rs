@@ -495,6 +495,12 @@ fn away_notify_immediately_after_join_records_initial_state() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":alice!alice@staff.example JOIN #papo alice :Alice Smith")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("alice").unwrap().away(),
+                &Away::Unknown
+            );
+        })
         .server(":alice!alice@staff.example AWAY :Working")
         .inspect(|session| {
             assert_eq!(

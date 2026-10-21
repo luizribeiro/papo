@@ -280,6 +280,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::Authorship
 pub papo_core::Away::Away
 pub papo_core::Away::Away::message: core::option::Option<alloc::string::String>
 pub papo_core::Away::Present
+pub papo_core::Away::Unknown
 impl core::clone::Clone for papo_core::Away
 pub fn papo_core::Away::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Away

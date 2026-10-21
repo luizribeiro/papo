@@ -127,6 +127,8 @@ pub enum Account {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Away {
+    /// The user's away state has not been reported.
+    Unknown,
     /// The user is known to be present.
     Present,
     /// The user is away, with a message when the server supplied one.
@@ -1176,7 +1178,7 @@ impl User {
             username: user.map(str::to_owned),
             host: host.map(str::to_owned),
             account: Account::Unknown,
-            away: Away::Present,
+            away: Away::Unknown,
             realname: None,
             is_bot: false,
             monitored: false,

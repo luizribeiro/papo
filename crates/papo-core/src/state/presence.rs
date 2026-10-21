@@ -279,10 +279,15 @@ impl State {
         );
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(reply.nick)) {
             user.realname = reply.realname.map(str::to_owned);
-            user.away = match (&user.away, flags.presence) {
-                (Away::Present, Some(WhoxPresence::Gone)) => Away::Away { message: None },
-                (_, Some(WhoxPresence::Here)) => Away::Present,
-                (_, Some(WhoxPresence::Gone) | None) => user.away.clone(),
+            user.away = match flags.presence {
+                Some(WhoxPresence::Gone) => match &user.away {
+                    Away::Away { message: Some(_) } => user.away.clone(),
+                    Away::Unknown | Away::Present | Away::Away { message: None } => {
+                        Away::Away { message: None }
+                    }
+                },
+                Some(WhoxPresence::Here) => Away::Present,
+                None => user.away.clone(),
             };
             user.is_bot = flags.bot;
         }
