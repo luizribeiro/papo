@@ -15,7 +15,7 @@ class ServerNotesTests(unittest.TestCase):
             for profile in MODULE["PROFILES"]:
                 (directory / f"{profile}.toml").write_text("")
             (directory / "ergo-default.toml").write_text(
-                "[registration]\n"
+                "[connect]\n"
                 "reason = 'wrong numeric'\n"
                 "kind = 'implementation-bug'\n"
                 "spec = 'https://example.invalid/spec'\n"
@@ -55,7 +55,7 @@ class ServerNotesTests(unittest.TestCase):
             "server_version": "1.0",
         }
         output = MODULE["render"](
-            {"ergo-default": {"registration": entry}},
+            {"ergo-default": {"connect": entry}},
             {"wire.patch": patch},
             {
                 "ergo-default": {
@@ -69,7 +69,7 @@ class ServerNotesTests(unittest.TestCase):
             },
         )
         self.assertIn("### Server bugs", output)
-        self.assertIn("`registration` (`1.0`)", output)
+        self.assertIn("`connect` (`1.0`)", output)
         self.assertIn("### Unimplemented features (none recorded)", output)
         self.assertIn("`nix/wire.patch`", output)
         self.assertIn("Server bug: **yes**", output)

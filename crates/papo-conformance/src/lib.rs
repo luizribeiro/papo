@@ -571,12 +571,12 @@ async fn wait_connected(client: &Client, events: &mut Events) -> Result<Welcome,
                     return Err(disconnected.to_string());
                 }
                 Some(_) => {}
-                None => return Err("driver stopped during registration".into()),
+                None => return Err("driver stopped while connecting".into()),
             }
         }
     })
     .await
-    .map_err(|_| "registration timed out".to_owned())?
+    .map_err(|_| "connect timed out".to_owned())?
 }
 
 fn runtime() -> tokio::runtime::Runtime {
@@ -762,7 +762,7 @@ mod tests {
     #[test]
     fn known_failure_loader_reads_and_validates_real_files() {
         let directory = TestDirectory::create();
-        let scenarios = ["registration", "ping"];
+        let scenarios = ["connect", "ping"];
 
         let missing = load_known_failures_from(&directory.0, "ergo", scenarios).unwrap();
         assert!(missing.is_empty());
@@ -770,32 +770,32 @@ mod tests {
         assert!(load_known_failures_from(&directory.0, "../ergo", scenarios).is_err());
 
         directory.write(
-            "[registration]\nreason = 'server bug 417'\nkind = 'server-bug'\nspec = 'RFC 2812 section 4.1'\nevidence = '417'\nserver_version = '1.0'\n\
+            "[connect]\nreason = 'server bug 417'\nkind = 'server-bug'\nspec = 'RFC 2812 section 4.1'\nevidence = '417'\nserver_version = '1.0'\n\
              [ping]\nreason = 'missing PONG'\nkind = 'not-implemented'\nspec = 'RFC 2812 section 3.7.2'\nevidence = 'PING received, no PONG'\nserver_version = '1.0'\n",
         );
         let parsed = load_known_failures_from(&directory.0, "ergo", scenarios).unwrap();
         assert_eq!(parsed.len(), 2);
-        assert_eq!(parsed["registration"], "server bug 417");
+        assert_eq!(parsed["connect"], "server bug 417");
         assert_eq!(parsed["ping"], "missing PONG");
 
         for (input, expected) in [
-            ("[registration]\nnote = 'missing'\n", "missing \"reason\""),
-            ("[registration]\nreason = ''\n", "missing \"reason\""),
+            ("[connect]\nnote = 'missing'\n", "missing \"reason\""),
+            ("[connect]\nreason = ''\n", "missing \"reason\""),
             (
-                "[registration]\nreason = 'broken'\nkind = 'implementation-bug'\nspec = 'RFC 2812'\nevidence = '417'\nserver_version = '1.0'\n",
+                "[connect]\nreason = 'broken'\nkind = 'implementation-bug'\nspec = 'RFC 2812'\nevidence = '417'\nserver_version = '1.0'\n",
                 "unknown kind",
             ),
             (
-                "[registration]\nreason = 'broken'\nkind = 'server-bug'\nspec = ''\n",
+                "[connect]\nreason = 'broken'\nkind = 'server-bug'\nspec = ''\n",
                 "missing \"spec\"",
             ),
             (
-                "[registration]\nreason = 'broken'\nkind = 'server-bug'\nspec = 'RFC 2812'\nevidence = '417'\n",
+                "[connect]\nreason = 'broken'\nkind = 'server-bug'\nspec = 'RFC 2812'\nevidence = '417'\n",
                 "missing \"server_version\"",
             ),
             ("[ghost]\nreason = 'stale'\n", "unknown scenario"),
             (
-                "[registration\nreason = 'broken'\n",
+                "[connect\nreason = 'broken'\n",
                 "invalid known-failures TOML",
             ),
         ] {
@@ -883,14 +883,14 @@ mod tests {
     fn scenario_unique_names_keep_the_prefix_and_differ() {
         let scenario = Scenario {
             server: (),
-            name: "registration",
+            name: "connect",
             fixture: None,
             json: false,
         };
         let first = scenario.unique();
         let second = scenario.unique();
-        assert!(first.starts_with("registration-"), "{first:?}");
-        assert!(second.starts_with("registration-"), "{second:?}");
+        assert!(first.starts_with("connect-"), "{first:?}");
+        assert!(second.starts_with("connect-"), "{second:?}");
         assert_ne!(first, second);
     }
 }

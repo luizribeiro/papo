@@ -56,7 +56,7 @@ async fn connect(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// applies a capability added after registration
+/// applies a capability added after connecting
 #[scenario(
     requires(caps = ["soju.im/bouncer-networks"]),
     covers = ["core.cap-notify.new"]
@@ -153,7 +153,7 @@ async fn isupport(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// negotiates extended ISUPPORT before registration completes
+/// negotiates extended ISUPPORT before the connection completes
 #[scenario(
     requires(caps = ["draft/extended-isupport"]),
     covers = ["draft.extended-isupport"]
