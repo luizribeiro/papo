@@ -335,6 +335,11 @@ const FEATURES: &[Feature] = &[
     Feature::AccountTracking,
     Feature::HostTracking,
     Feature::InviteTracking,
+    Feature::Halfop,
+    Feature::Excepts,
+    Feature::Invex,
+    Feature::Quiet,
+    Feature::AccountExtban,
 ];
 
 #[cfg(test)]

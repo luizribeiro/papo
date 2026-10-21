@@ -72,6 +72,17 @@ pub enum Feature {
     HostTracking,
     /// Published `IRCv3` invitation notifications, requiring `invite-notify`.
     InviteTracking,
+    /// Published IRC half-operator channel membership, advertised through `PREFIX`.
+    Halfop,
+    /// Published IRC channel ban exceptions, advertised through `EXCEPTS`.
+    Excepts,
+    /// Published IRC channel invite exceptions, advertised through `INVEX`.
+    Invex,
+    /// A published IRC dedicated quiet list in the first `CHANMODES` group.
+    Quiet,
+    /// Published `IRCv3` account extended bans, advertised through `EXTBAN` and
+    /// `ACCOUNTEXTBAN`.
+    AccountExtban,
 }
 
 impl Feature {
@@ -103,6 +114,11 @@ impl Feature {
         Self::AccountTracking,
         Self::HostTracking,
         Self::InviteTracking,
+        Self::Halfop,
+        Self::Excepts,
+        Self::Invex,
+        Self::Quiet,
+        Self::AccountExtban,
     ];
 
     /// Returns a stable human-readable feature name.
@@ -136,6 +152,11 @@ impl Feature {
             Self::AccountTracking => "account tracking",
             Self::HostTracking => "host tracking",
             Self::InviteTracking => "invite tracking",
+            Self::Halfop => "half-operator privileges",
+            Self::Excepts => "ban exceptions",
+            Self::Invex => "invite exceptions",
+            Self::Quiet => "quiet list",
+            Self::AccountExtban => "account extended bans",
         }
     }
 
@@ -165,7 +186,13 @@ impl Feature {
             Self::AccountTracking => [Some(cap::ACCOUNT_NOTIFY), Some(cap::ACCOUNT_TAG)],
             Self::HostTracking => [Some(cap::CHGHOST), None],
             Self::InviteTracking => [Some(cap::INVITE_NOTIFY), None],
-            Self::Monitor | Self::BotMode => [None, None],
+            Self::Monitor
+            | Self::BotMode
+            | Self::Halfop
+            | Self::Excepts
+            | Self::Invex
+            | Self::Quiet
+            | Self::AccountExtban => [None, None],
         }
     }
 
@@ -274,6 +301,38 @@ impl Session {
                 return support
                     .bot_mode()
                     .map(|_| ())
+                    .ok_or(UnsupportedReason::NotOffered);
+            }
+            Feature::Halfop => {
+                return support
+                    .prefix()
+                    .iter()
+                    .any(|prefix| prefix.mode == 'h')
+                    .then_some(())
+                    .ok_or(UnsupportedReason::NotOffered);
+            }
+            Feature::Excepts => {
+                return support
+                    .excepts()
+                    .map(|_| ())
+                    .ok_or(UnsupportedReason::NotOffered);
+            }
+            Feature::Invex => {
+                return support
+                    .invex()
+                    .map(|_| ())
+                    .ok_or(UnsupportedReason::NotOffered);
+            }
+            Feature::Quiet => {
+                return support
+                    .chanmodes()
+                    .filter(|groups| groups.list.contains('q'))
+                    .map(|_| ())
+                    .ok_or(UnsupportedReason::NotOffered);
+            }
+            Feature::AccountExtban => {
+                return (support.extban().is_some() && !support.accountextban().is_empty())
+                    .then_some(())
                     .ok_or(UnsupportedReason::NotOffered);
             }
             _ => {}

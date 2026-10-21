@@ -82,6 +82,42 @@ fn combines_isupport_tokens_with_negotiated_caps() {
 }
 
 #[test]
+fn recognizes_moderation_features_from_server_advertisements() {
+    let cases = [
+        (
+            ":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu EXCEPTS EXTBAN=,m INVEX PREFIX=(qaohv)~&@%+ :are supported",
+            [true, true, true, false, false],
+        ),
+        (
+            ":solanum.example 005 papo ACCOUNTEXTBAN=a CHANMODES=eIbq,k,flj,CFLPQcgimnprstz EXCEPTS EXTBAN=$,a INVEX PREFIX=(ov)@+ :are supported",
+            [false, true, true, true, true],
+        ),
+        (
+            ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXCEPTS EXTBAN=~,acfijmnpqrtACFGOST INVEX PREFIX=(qaohv)~&@%+ :are supported",
+            [true, true, true, false, true],
+        ),
+        (
+            ":irc.inspircd.example 005 papo ACCOUNTEXTBAN=account,R CHANMODES=b,k,l,MRimnprst EXTBAN=,RU PREFIX=(ov)@+ :are supported",
+            [false, false, false, false, true],
+        ),
+    ];
+    let features = [
+        Feature::Halfop,
+        Feature::Excepts,
+        Feature::Invex,
+        Feature::Quiet,
+        Feature::AccountExtban,
+    ];
+
+    for (line, expected) in cases {
+        let session = session_with(Config::default(), "", line);
+        for (feature, supported) in features.into_iter().zip(expected) {
+            assert_eq!(session.supports(feature).is_ok(), supported, "{feature:?}");
+        }
+    }
+}
+
+#[test]
 fn account_tracking_requires_both_ratified_capabilities() {
     let only_notify = session_with(
         Config::default().wanted_caps(["account-notify"]),

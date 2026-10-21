@@ -617,18 +617,23 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Event
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Event
 #[non_exhaustive] pub enum papo_core::Feature
 pub papo_core::Feature::AccountCreation
+pub papo_core::Feature::AccountExtban
 pub papo_core::Feature::AccountTracking
 pub papo_core::Feature::AwayTracking
 pub papo_core::Feature::BotMode
 pub papo_core::Feature::ChannelRename
+pub papo_core::Feature::Excepts
+pub papo_core::Feature::Halfop
 pub papo_core::Feature::History
 pub papo_core::Feature::HostTracking
+pub papo_core::Feature::Invex
 pub papo_core::Feature::InviteTracking
 pub papo_core::Feature::LabeledResponse
 pub papo_core::Feature::MessageTags
 pub papo_core::Feature::Metadata
 pub papo_core::Feature::Monitor
 pub papo_core::Feature::Multiline
+pub papo_core::Feature::Quiet
 pub papo_core::Feature::Reactions
 pub papo_core::Feature::ReadMarkers
 pub papo_core::Feature::Redaction
