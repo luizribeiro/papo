@@ -341,7 +341,6 @@ fn split_args(input: &str) -> Option<Vec<String>> {
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
-    use papo_core::Capabilities;
     use papo_proto::{Isupport, Line};
 
     use super::{BotConfig, ChatMessage, Command, ReplyRateLimiter};
@@ -351,7 +350,6 @@ mod tests {
             Line::new(command, ["#papo", text]).with_source(source),
             &Isupport::default(),
             nick,
-            &Capabilities::new(),
             UNIX_EPOCH,
         )
         .unwrap()
@@ -370,7 +368,6 @@ mod tests {
             Line::privmsg(target, text).with_source("emily!~emily@localhost"),
             isupport,
             "papo{bot}",
-            &Capabilities::new(),
             UNIX_EPOCH,
         )
         .unwrap()
@@ -392,7 +389,6 @@ mod tests {
                 .with_tag("account", "Emily"),
             &Isupport::default(),
             "papo",
-            &Capabilities::new(),
             UNIX_EPOCH,
         )
         .unwrap();
@@ -413,7 +409,6 @@ mod tests {
                 .with_tag("account", "admin{"),
             &Isupport::default(),
             "papo",
-            &Capabilities::new(),
             UNIX_EPOCH,
         )
         .unwrap();
@@ -442,7 +437,6 @@ mod tests {
             Line::privmsg("#papo", "!op alice").with_source("emily!~emily@localhost"),
             &Isupport::default(),
             "papo",
-            &Capabilities::new(),
             UNIX_EPOCH,
         )
         .unwrap();

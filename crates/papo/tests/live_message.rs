@@ -62,7 +62,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn same_account_sessions_distinguish_echoes() {
+async fn same_account_sessions_receive_own_live_messages() {
     within(async {
         let server = from_env();
         let address = Endpoint::plaintext(
@@ -73,7 +73,7 @@ async fn same_account_sessions_distinguish_echoes() {
         let channel = format!("#{}", unique("papo-multiclient"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
         create_account(&server, &account, password).unwrap();
-        let (client_a, mut events_a) =
+        let (client_a, _events_a) =
             account_client(address.clone(), &account, password, &channel).await;
         let (client_b, mut events_b) = account_client(address, &account, password, &channel).await;
 
@@ -81,15 +81,10 @@ async fn same_account_sessions_distinguish_echoes() {
             .privmsg(&channel, "from this device")
             .await
             .unwrap();
-        let echo = wait_message(&mut events_a, |message| {
-            message.text == "from this device" && message.origin == Origin::Echo
-        })
-        .await;
         let other = wait_message(&mut events_b, |message| {
             message.text == "from this device" && message.origin == Origin::Live
         })
         .await;
-        assert_eq!(echo.origin, Origin::Echo);
         assert_eq!(other.origin, Origin::Live);
         assert!(other.is_live());
         assert_eq!(other.authorship, papo::Authorship::Own);

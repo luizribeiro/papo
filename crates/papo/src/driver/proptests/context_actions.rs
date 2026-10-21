@@ -1,6 +1,5 @@
 use std::time::UNIX_EPOCH;
 
-use papo_core::Capabilities;
 use papo_proto::Isupport;
 
 use super::*;
@@ -12,7 +11,6 @@ fn referenced_message() -> ChatMessage {
             .with_tag("msgid", "RfcBTzyxY120003"),
         &Isupport::default(),
         "papo-driver",
-        &Capabilities::new(),
         UNIX_EPOCH,
     )
     .unwrap()

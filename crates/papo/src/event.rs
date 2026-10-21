@@ -1,6 +1,4 @@
-use papo_core::{
-    Account, Capabilities, Conversation, RequestId, Response, Welcome, sts::StsAction,
-};
+use papo_core::{Account, Conversation, RequestId, Response, Welcome, sts::StsAction};
 use std::time::SystemTime;
 
 #[cfg(feature = "unstable")]
@@ -123,12 +121,12 @@ impl Authorship {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Origin {
-    /// A newly received message from another user.
+    /// A newly received message.
     Live,
-    /// An echo of a message sent by this client.
+    /// A server copy of a message sent by this client.
     ///
-    /// Without labelled responses, messages from our nickname use this origin because the
-    /// originating session cannot be identified.
+    /// Typed sends consume their correlated server copy, so this value is retained only for
+    /// compatibility and is not produced for incoming messages.
     Echo,
     /// A message associated with a server batch.
     Replay,
@@ -204,7 +202,6 @@ impl Ctcp {
         raw: ProtoLine,
         isupport: &Isupport,
         nick: &str,
-        caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let own_source = raw.as_ref().source().is_some_and(|source| {
@@ -219,7 +216,6 @@ impl Ctcp {
         Self::from_line(
             raw,
             None,
-            own_source && !caps.contains_key(crate::cap::LABELED_RESPONSE),
             if own_source {
                 Authorship::Own
             } else {
@@ -236,7 +232,6 @@ impl Ctcp {
     fn from_line(
         raw: ProtoLine,
         batch_type: Option<&str>,
-        echo: bool,
         authorship: Authorship,
         conversation: Conversation,
         status: Option<Vec<char>>,
@@ -250,7 +245,6 @@ impl Ctcp {
         let Some(metadata) = message_metadata(
             &message,
             batch_type,
-            echo,
             authorship,
             conversation,
             status,
@@ -311,7 +305,6 @@ pub(crate) fn incoming_from_core(
         Ctcp::from_line(
             raw,
             batch_type.as_deref(),
-            false,
             authorship,
             conversation,
             status,
@@ -326,12 +319,11 @@ pub(crate) fn incoming(
     line: ProtoLine,
     isupport: &Isupport,
     nick: &str,
-    caps: &Capabilities,
     received_at: SystemTime,
 ) -> Event {
-    match Ctcp::new(line, isupport, nick, caps, received_at) {
+    match Ctcp::new(line, isupport, nick, received_at) {
         Ok(ctcp) => Event::Ctcp(ctcp),
-        Err(line) => Message::new(line, isupport, nick, caps, received_at)
+        Err(line) => Message::new(line, isupport, nick, received_at)
             .map_or_else(Event::Other, |message| Event::Message(Box::new(message))),
     }
 }
@@ -341,7 +333,6 @@ impl Message {
         raw: ProtoLine,
         isupport: &Isupport,
         nick: &str,
-        caps: &Capabilities,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let own_source = raw.as_ref().source().is_some_and(|source| {
@@ -350,7 +341,6 @@ impl Message {
             };
             isupport.casemapping().nick(source) == nick
         });
-        let confirmed_echo = own_source && !caps.contains_key(crate::cap::LABELED_RESPONSE);
         let authorship = if own_source {
             Authorship::Own
         } else {
@@ -364,7 +354,6 @@ impl Message {
         Self::new_with_context(
             raw,
             None,
-            confirmed_echo,
             authorship,
             conversation,
             status,
@@ -387,7 +376,6 @@ impl Message {
         Self::new_with_context(
             raw,
             batch_type.as_deref(),
-            false,
             authorship,
             conversation,
             status,
@@ -432,7 +420,6 @@ impl Message {
         let mut event = Self::new_with_context(
             message,
             None,
-            false,
             authorship,
             conversation,
             status,
@@ -447,7 +434,6 @@ impl Message {
     fn new_with_context(
         raw: ProtoLine,
         batch_type: Option<&str>,
-        echo: bool,
         authorship: Authorship,
         conversation: Conversation,
         status: Option<Vec<char>>,
@@ -480,7 +466,6 @@ impl Message {
         let Some(metadata) = message_metadata(
             &message,
             batch_type,
-            echo,
             authorship,
             conversation,
             status,
@@ -559,14 +544,12 @@ impl Message {
     }
 
     /// Reports whether a bot may treat this as a newly received message.
-    ///
-    /// Messages from another session of our account are not live, so bots do not answer them.
     #[must_use]
     pub fn is_live(&self) -> bool {
         self.origin == Origin::Live
     }
 
-    /// Reports whether this is an echo of a message sent by this client.
+    /// Reports whether this message's actor is this client's user.
     #[must_use]
     pub fn is_own(&self) -> bool {
         self.authorship == Authorship::Own
@@ -577,7 +560,6 @@ impl Message {
 fn message_metadata(
     message: &LineRef<'_>,
     batch_type: Option<&str>,
-    _echo: bool,
     authorship: Authorship,
     conversation: Conversation,
     status: Option<Vec<char>>,
@@ -1396,8 +1378,8 @@ mod tests {
         Warning, ctcp_parts, from_core as from_core_with_mapping, incoming,
     };
     use papo_core::{
-        Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
-        StandardReply as CoreStandardReply, StateLimit,
+        Account, BatchAbandonReason, Config, Feature, Session, StandardReply as CoreStandardReply,
+        StateLimit,
     };
     use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
 
@@ -1411,7 +1393,7 @@ mod tests {
         nick: &str,
         received_at: std::time::SystemTime,
     ) -> ChatMessage {
-        ChatMessage::new(message, isupport, nick, &Capabilities::new(), received_at).unwrap()
+        ChatMessage::new(message, isupport, nick, received_at).unwrap()
     }
 
     fn chat(command: &str, text: &str) -> ChatMessage {
@@ -1440,7 +1422,6 @@ mod tests {
                 Line::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
                 &Isupport::default(),
                 "papo",
-                &Capabilities::new(),
                 UNIX_EPOCH,
             )
         };
@@ -1458,7 +1439,6 @@ mod tests {
                 Line::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]),
                 &Isupport::default(),
                 "papo",
-                &Capabilities::new(),
                 UNIX_EPOCH,
             )
             .is_err()
@@ -1468,7 +1448,6 @@ mod tests {
                 Line::privmsg("#papo", "actorless message"),
                 &Isupport::default(),
                 "papo",
-                &Capabilities::new(),
                 UNIX_EPOCH,
             )
             .is_err()

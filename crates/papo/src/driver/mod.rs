@@ -1385,7 +1385,6 @@ where
                     message,
                     session.isupport(),
                     session.nick(),
-                    session.caps(),
                     crate::rt::now_wall(),
                 );
                 if !enqueue_event(events, pending_events, event) {
