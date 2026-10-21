@@ -174,38 +174,44 @@ async fn message_accessors_use_captured_session_facts() {
 
     server_line(&mut server, b"@time=2026-02-03T04:05:06.789Z;msgid=RfcBTzyxY120004;account=emily;bot;+draft/reply=RfcBTzyxY120003 :emily!~e@localhost PRIVMSG #papo :hello \x02from Ergo\x02\r\n").await;
     let message = next_message(&mut events).await;
-    assert_eq!(message.kind(), MessageKind::Privmsg);
-    assert_eq!(message.text(), "hello from Ergo");
-    assert_eq!(message.raw_text(), "hello \x02from Ergo\x02");
+    assert_eq!(message.kind, MessageKind::Privmsg);
+    assert_eq!(message.text, "hello from Ergo");
+    assert_eq!(message.raw_text, "hello \x02from Ergo\x02");
     assert!(
         matches!(&message.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
     );
-    assert!(!message.is_private());
+    assert!(!matches!(
+        message.conversation,
+        crate::Conversation::Private(_)
+    ));
     assert_eq!(message.return_address(), "#papo");
-    assert_eq!(message.msgid(), Some("RfcBTzyxY120004"));
-    assert_eq!(message.account(), Some("emily"));
-    assert!(message.is_bot());
+    assert_eq!(message.msgid.as_deref(), Some("RfcBTzyxY120004"));
+    assert_eq!(message.account.as_deref(), Some("emily"));
+    assert!(message.is_bot);
     assert_eq!(message.reply_to(), Some("RfcBTzyxY120003"));
     assert_eq!(
         message.time(),
         UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
     );
-    assert_eq!(message.origin(), Origin::Live);
+    assert_eq!(message.origin, Origin::Live);
     assert!(message.is_live());
 
     server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION waves\x01\r\n:dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n:dan!~d@cloak PRIVMSG papo-driver :\x01PING 1731513600\x01\r\n:soju.example NOTICE papo-driver :\x01VERSION soju 0.8.2\x01\r\n").await;
     let notice = next_message(&mut events).await;
-    assert_eq!(notice.kind(), MessageKind::Notice);
-    assert!(notice.is_private());
+    assert_eq!(notice.kind, MessageKind::Notice);
+    assert!(matches!(
+        notice.conversation,
+        crate::Conversation::Private(_)
+    ));
     assert_eq!(notice.return_address(), "emily");
     let action = next_message(&mut events).await;
-    assert_eq!(action.kind(), MessageKind::Action);
-    assert_eq!(action.text(), "waves");
-    assert_eq!(action.raw_text(), "waves");
+    assert_eq!(action.kind, MessageKind::Action);
+    assert_eq!(action.text, "waves");
+    assert_eq!(action.raw_text, "waves");
     let action = next_message(&mut events).await;
-    assert_eq!(action.kind(), MessageKind::Action);
-    assert_eq!(action.text(), "tests a split message");
-    assert_eq!(action.raw_text(), "tests a split message");
+    assert_eq!(action.kind, MessageKind::Action);
+    assert_eq!(action.text, "tests a split message");
+    assert_eq!(action.raw_text, "tests a split message");
     let version = events.next().await.unwrap();
     let version = version.as_ctcp().unwrap();
     assert_eq!(version.command, "VERSION");
@@ -222,8 +228,8 @@ async fn message_accessors_use_captured_session_facts() {
     assert!(reply.reply);
 
     server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
-    assert_eq!(next_message(&mut events).await.origin(), Origin::Echo);
-    assert_eq!(next_message(&mut events).await.origin(), Origin::Replay);
+    assert_eq!(next_message(&mut events).await.origin, Origin::Echo);
+    assert_eq!(next_message(&mut events).await.origin, Origin::Replay);
     assert!(matches!(
         events.next().await,
         Some(Event::Warning(Warning::BatchAbandoned { .. }))
@@ -253,9 +259,9 @@ async fn wallops_is_a_server_notice() {
     )
     .await;
     let message = next_message(&mut events).await;
-    assert_eq!(message.kind(), MessageKind::Notice);
+    assert_eq!(message.kind, MessageKind::Notice);
     assert_eq!(message.conversation, crate::Conversation::Server);
-    assert_eq!(message.text(), "Network maintenance begins soon");
+    assert_eq!(message.text, "Network maintenance begins soon");
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -1114,7 +1120,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     assert!(
         history
             .messages()
-            .all(|message| message.origin() == Origin::History && !message.is_live())
+            .all(|message| message.origin == Origin::History && !message.is_live())
     );
     assert!(!history.end);
     abort_task(driver).await;
@@ -2302,7 +2308,7 @@ async fn successful_registration_preserves_earlier_events() {
     assert!(within(waiter).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
-        Some(Event::Message(message)) if message.kind() == MessageKind::Notice
+        Some(Event::Message(message)) if message.kind == MessageKind::Notice
     ));
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
     within(server.shutdown()).await.unwrap();
@@ -2418,7 +2424,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     )
     .await;
     assert_eq!(
-        next_message(&mut events).await.text(),
+        next_message(&mut events).await.text,
         "Autojoin refusal recorded"
     );
     within(server.shutdown()).await.unwrap();
@@ -4521,7 +4527,7 @@ async fn labels_distinguish_a_confirmed_echo_from_an_own_live_line() {
     .await;
     assert!(within(sent).await.unwrap().is_ok());
     let echo = next_message(&mut events).await;
-    assert_eq!(echo.origin(), Origin::Echo);
+    assert_eq!(echo.origin, Origin::Echo);
     assert!(!echo.is_live());
 
     server_line(
@@ -4530,7 +4536,7 @@ async fn labels_distinguish_a_confirmed_echo_from_an_own_live_line() {
     )
     .await;
     let other = next_message(&mut events).await;
-    assert_eq!(other.origin(), Origin::Live);
+    assert_eq!(other.origin, Origin::Live);
     assert!(other.is_live());
     assert_eq!(other.authorship, crate::Authorship::Own);
 
@@ -5012,11 +5018,8 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
         within(driver).await.unwrap(),
         Err(disconnected!())
     ));
-    assert_eq!(next_message(&mut events).await.text(), "maintenance soon");
-    assert_eq!(
-        next_message(&mut events).await.text(),
-        "maintenance extended"
-    );
+    assert_eq!(next_message(&mut events).await.text, "maintenance soon");
+    assert_eq!(next_message(&mut events).await.text, "maintenance extended");
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {

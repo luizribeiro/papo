@@ -533,7 +533,7 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
     )
     .await;
     let message = next_message(&mut events).await;
-    let id = message.id().unwrap();
+    let id = message.msgid.as_ref().unwrap();
     let target = message.return_address();
     let result = if remove {
         within(client.unreact(&target, id, "👍")).await

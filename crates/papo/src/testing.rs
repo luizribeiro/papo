@@ -143,7 +143,7 @@ mod tests {
         );
         let message = message(Some(source), "bob", "hello from alice", true);
         assert_eq!(message.return_address(), "alice");
-        assert_eq!(message.raw_text(), "hello from alice");
+        assert_eq!(message.raw_text, "hello from alice");
 
         let joined = joined(
             crate::Casemapping::default().channel("#papo"),

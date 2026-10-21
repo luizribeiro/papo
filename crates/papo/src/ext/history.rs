@@ -1487,8 +1487,8 @@ mod tests {
         ));
         assert_eq!(page.items[5].as_other().unwrap().command(), "TAGMSG");
         let message = page.messages().next().unwrap();
-        assert_eq!(message.text(), "earlier");
-        assert_eq!(message.origin(), Origin::History);
+        assert_eq!(message.text, "earlier");
+        assert_eq!(message.origin, Origin::History);
         assert!(!message.is_live());
         let Some(Event::History(history)) = events.next().await else {
             panic!("expected replay batch event")
@@ -1498,7 +1498,7 @@ mod tests {
         assert!(matches!(history.items[3], HistoryItem::ModeChanged(_)));
         assert!(matches!(history.items[4], HistoryItem::ModeChanged(_)));
         assert_eq!(history.items[5].as_other().unwrap().command(), "TAGMSG");
-        assert_eq!(history.messages().next().unwrap().origin(), Origin::Replay);
+        assert_eq!(history.messages().next().unwrap().origin, Origin::Replay);
         abort_task(task).await;
     }
 
