@@ -1,6 +1,6 @@
 //! Internal construction hooks for the separately published testing crate.
 
-use std::time::SystemTime;
+use std::{sync::Arc, time::SystemTime};
 
 use papo_core::{Config, Session};
 
@@ -9,6 +9,28 @@ use crate::{
     Source, State, Tags,
     event::{AwayChanged, Connected, Joined},
 };
+
+/// Builds a client whose connection attempts use in-memory byte streams.
+pub fn wire_client(
+    builder: crate::Builder,
+) -> (
+    crate::Client,
+    crate::Events,
+    crate::Driver,
+    tokio::sync::mpsc::UnboundedReceiver<tokio::io::DuplexStream>,
+) {
+    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+    let connector: crate::driver::Connector = Arc::new(move |_| {
+        let (client, server) = tokio::io::duplex(8192);
+        let sent = sender.send(server);
+        Box::pin(async move {
+            sent.map_err(|_| crate::Error::connection_lost())?;
+            Ok(Box::new(client) as Box<dyn crate::driver::ConnectionIo>)
+        })
+    });
+    let (client, events, driver) = builder.build_with_connector(connector);
+    (client, events, driver, receiver)
+}
 
 /// Constructs a user event source.
 #[must_use]
@@ -127,6 +149,24 @@ pub fn away_changed(nick: impl Into<Nick>, away: crate::Away) -> AwayChanged {
 pub fn state(nick: impl Into<String>, connected: bool) -> State {
     let session = Session::new(Config::default().nick(nick));
     State::from_session(&session, connected)
+}
+
+#[cfg(all(test, not(browser)))]
+mod wire_tests {
+    use tokio::io::AsyncReadExt;
+
+    #[tokio::test]
+    async fn wire_client_connects_through_memory() {
+        let builder = crate::Client::builder("irc://offline.test").nick("papo-wire");
+        let (_client, _events, driver, mut connections) = super::wire_client(builder);
+        let task = tokio::spawn(driver);
+        let mut server = connections.recv().await.unwrap();
+        let expected = b"CAP LS 302\r\nNICK papo-wire\r\nUSER papo-wire 0 * papo-wire\r\n";
+        let mut actual = vec![0; expected.len()];
+        server.read_exact(&mut actual).await.unwrap();
+        assert_eq!(actual, expected);
+        task.abort();
+    }
 }
 
 #[cfg(all(test, not(browser)))]

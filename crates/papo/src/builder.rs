@@ -541,7 +541,7 @@ impl Builder {
     ///
     /// The returned [`crate::Driver`] connects when it is first polled.
     pub fn build(self) -> (crate::Client, crate::Events, crate::Driver) {
-        self.build_with_connect(None)
+        self.build_with_connect(None, None)
     }
 
     /// Connects in a spawned driver and waits until the connection is ready.
@@ -560,7 +560,7 @@ impl Builder {
     /// account-verification challenge.
     pub async fn connect(self) -> Result<(crate::Client, crate::Events), Error> {
         let (sender, receiver) = oneshot::channel();
-        let (client, events, driver) = self.build_with_connect(Some(sender));
+        let (client, events, driver) = self.build_with_connect(Some(sender), None);
         crate::rt::spawn(driver);
         receiver.await.map_err(|_| Error::connection_lost())??;
         Ok((client, events))
@@ -606,9 +606,17 @@ impl Builder {
         )
     }
 
+    pub(crate) fn build_with_connector(
+        self,
+        connector: crate::driver::Connector,
+    ) -> (crate::Client, crate::Events, crate::Driver) {
+        self.build_with_connect(None, Some(connector))
+    }
+
     fn build_with_connect(
         mut self,
         registration: Option<crate::driver::ConnectSender>,
+        connector: Option<crate::driver::Connector>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
         #[cfg(not(browser))]
         if let Some(stream) = self.stream.take() {
@@ -650,6 +658,7 @@ impl Builder {
             self.reconnect,
             self.connect_timeout,
             self.sts_store,
+            connector,
         )
     }
 }

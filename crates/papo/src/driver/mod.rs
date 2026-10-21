@@ -571,7 +571,17 @@ impl Driver {
         reconnect: Reconnect,
         connect_timeout: Duration,
         sts_store: Box<dyn StsStore + Send>,
+        connector: Option<Connector>,
     ) -> (Client, Events, Self) {
+        let connector = connector.unwrap_or_else(|| {
+            Arc::new(|plan| {
+                Box::pin(async move {
+                    open_connection(plan)
+                        .await
+                        .map(|stream| Box::new(stream) as BoxConnection)
+                })
+            })
+        });
         Self::with_connector_and_timeout(
             plan,
             session,
@@ -581,13 +591,7 @@ impl Driver {
             reconnect,
             connect_timeout,
             sts_store,
-            Arc::new(|plan| {
-                Box::pin(async move {
-                    open_connection(plan)
-                        .await
-                        .map(|stream| Box::new(stream) as BoxConnection)
-                })
-            }),
+            connector,
             Box::new(crate::entropy::OsEntropy::next_u64),
         )
     }
