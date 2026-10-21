@@ -1260,7 +1260,7 @@ async fn explicit_reconnect_redials_without_backoff() {
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
         super::PostConnect::default(),
-        Reconnect::exponential(),
+        Reconnect::never(),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
         Box::new(|| 0),
@@ -1911,12 +1911,12 @@ async fn failed_connect_events_obey_the_overflow_bound() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn failed_connects_back_off_until_the_attempt_limit() {
-    let attempts = Arc::new(Mutex::new(Vec::new()));
+async fn failed_connects_report_a_doubling_backoff_until_the_cap() {
+    let attempts = Arc::new(AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
         let attempts = Arc::clone(&attempts);
         move |_, _| {
-            attempts.lock().unwrap().push(tokio::time::Instant::now());
+            attempts.fetch_add(1, Ordering::Relaxed);
             Box::pin(async { Err(transport_failure("scripted connection failure")) })
         }
     });
@@ -1929,27 +1929,44 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
         super::PostConnect::default(),
-        Reconnect::exponential().max_attempts(3),
+        Reconnect::exponential()
+            .initial_delay(Duration::from_secs(2))
+            .max_delay(Duration::from_secs(5))
+            .max_attempts(4),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
         Box::new(|| 0),
     );
     let driver = tokio::spawn(driver);
 
-    for expected in [true, true, false] {
+    for (completed, delay) in [
+        Duration::from_millis(1600),
+        Duration::from_millis(3200),
+        Duration::from_secs(4),
+    ]
+    .into_iter()
+    .enumerate()
+    {
         assert!(matches!(
             events.next().await,
-            Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting() == expected
+            Some(Event::Disconnected(crate::Disconnected {
+                reconnect_in: Some(actual),
+                ..
+            })) if actual == delay
         ));
+        tokio::time::advance(delay.checked_sub(Duration::from_nanos(1)).unwrap()).await;
+        assert_eq!(attempts.load(Ordering::Relaxed), completed + 1);
+        tokio::time::advance(Duration::from_nanos(1)).await;
     }
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
+    ));
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Connect(_))
     ));
-    let attempts = attempts.lock().unwrap();
-    assert_eq!(attempts.len(), 3);
-    assert_eq!(attempts[1] - attempts[0], Duration::from_millis(800));
-    assert_eq!(attempts[2] - attempts[1], Duration::from_millis(1600));
+    assert_eq!(attempts.load(Ordering::Relaxed), 4);
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]

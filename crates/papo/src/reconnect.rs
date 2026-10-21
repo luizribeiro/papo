@@ -9,6 +9,7 @@ use std::time::Duration;
 /// has outside evidence that another attempt is appropriate.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Reconnect {
+    initial_delay: Duration,
     max_delay: Duration,
     max_attempts: Option<usize>,
     refused_delay: Duration,
@@ -19,6 +20,7 @@ impl Reconnect {
     #[must_use]
     pub const fn exponential() -> Self {
         Self {
+            initial_delay: Duration::from_secs(1),
             max_delay: Duration::from_mins(5),
             max_attempts: None,
             refused_delay: Duration::from_secs(60),
@@ -29,10 +31,29 @@ impl Reconnect {
     #[must_use]
     pub const fn never() -> Self {
         Self {
+            initial_delay: Duration::ZERO,
             max_delay: Duration::ZERO,
             max_attempts: Some(1),
             refused_delay: Duration::from_secs(60),
         }
+    }
+
+    /// Sets the unjittered delay before the first retry.
+    ///
+    /// The default is one second. Set this and [`Self::max_delay`] to the same
+    /// value for a constant delay before jitter:
+    ///
+    /// ```
+    /// use std::time::Duration;
+    ///
+    /// let policy = papo::Reconnect::exponential()
+    ///     .initial_delay(Duration::from_secs(10))
+    ///     .max_delay(Duration::from_secs(10));
+    /// ```
+    #[must_use]
+    pub const fn initial_delay(mut self, delay: Duration) -> Self {
+        self.initial_delay = delay;
+        self
     }
 
     /// Caps the unjittered exponential delay.
@@ -66,7 +87,7 @@ impl Reconnect {
     }
 
     pub(crate) fn delay(self, retry: u32, entropy: u64) -> Duration {
-        Self::jitter(Duration::from_secs(1), retry, self.max_delay, entropy)
+        Self::jitter(self.initial_delay, retry, self.max_delay, entropy)
     }
 
     pub(crate) fn refused(self, retry: u32, entropy: u64) -> Duration {
@@ -102,17 +123,20 @@ mod tests {
     use super::Reconnect;
 
     #[test]
-    fn exponential_schedule_doubles_and_caps_before_jitter() {
+    fn default_schedule_stays_within_literal_jitter_bounds() {
         let policy = Reconnect::exponential();
         assert_eq!(policy.delay(0, 0), Duration::from_millis(800));
+        assert_eq!(policy.delay(0, u64::MAX), Duration::from_millis(1200));
+        assert_eq!(policy.delay(1, 0), Duration::from_millis(1600));
         assert_eq!(policy.delay(1, u64::MAX), Duration::from_millis(2400));
-        assert_eq!(policy.delay(2, 0), Duration::from_millis(3200));
+        assert_eq!(policy.delay(20, 0), Duration::from_secs(240));
         assert_eq!(policy.delay(20, u64::MAX), Duration::from_secs(360));
     }
 
     #[test]
-    fn custom_limits_control_delay_and_attempts() {
+    fn custom_delays_and_attempt_limit_are_applied() {
         let policy = Reconnect::exponential()
+            .initial_delay(Duration::from_secs(5))
             .max_delay(Duration::from_secs(10))
             .max_attempts(3);
         assert!(policy.permits(2));
