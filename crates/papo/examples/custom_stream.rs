@@ -9,9 +9,8 @@ use std::{
 use futures_io::{AsyncRead, AsyncWrite};
 use papo::Client;
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() {
-    let _ = Client::builder("custom-transport.invalid")
+fn main() {
+    let _ = Client::builder("irc://custom-transport.invalid")
         .nick("papo-custom")
         .stream(HostStream)
         .build();
