@@ -89,6 +89,22 @@ fn rejects_invalid_targets_and_unadvertised_status_prefixes() {
 }
 
 #[test]
+fn conversations_preserve_spelling_and_use_server_comparison_rules() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":ergo.test 005 papo CASEMAPPING=rfc1459 NICKLEN=32 STATUSMSG=@ CHANTYPES=# :are supported")
+        .inspect(|session| {
+            let conversation = session.state().conversation("Alice[bot]").unwrap();
+            assert_eq!(conversation, "alice{bot}");
+            assert_eq!(conversation.to_string(), "Alice[bot]");
+            assert_eq!(
+                session.state().conversation("@#papo"),
+                Err(InvalidIdentifier::InvalidPrefix('@'))
+            );
+        })
+        .no_event();
+}
+
+#[test]
 fn seeded_rules_apply_offline_then_the_connection_uses_the_protocol_default() {
     Transcript::new(
         Config::default()

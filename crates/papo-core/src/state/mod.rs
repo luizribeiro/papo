@@ -882,6 +882,24 @@ impl State {
         )
     }
 
+    /// Builds a conversation using the server's advertised name rules.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `text` is not a valid conversation name or includes a
+    /// `STATUSMSG` prefix.
+    pub fn conversation(
+        &self,
+        text: impl AsRef<str>,
+    ) -> Result<Conversation, papo_proto::InvalidIdentifier> {
+        let text = text.as_ref();
+        let (status, conversation) = self.parse_target(text)?;
+        match status.and_then(|status| status.first().copied()) {
+            Some(prefix) => Err(papo_proto::InvalidIdentifier::InvalidPrefix(prefix)),
+            None => Ok(conversation),
+        }
+    }
+
     /// Returns the rules attached to names in this state.
     #[must_use]
     pub const fn casemapping(&self) -> Casemapping {

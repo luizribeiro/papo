@@ -444,9 +444,15 @@ impl core::cmp::Ord for papo::Conversation
 pub fn papo::Conversation::cmp(&self, &Self) -> core::cmp::Ordering
 impl core::cmp::PartialEq for papo::Conversation
 pub fn papo::Conversation::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::Conversation
+pub fn papo::Conversation::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::Conversation
+pub fn papo::Conversation::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo::Conversation
 pub fn papo::Conversation::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::fmt::Debug for papo::Conversation
+pub fn papo::Conversation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::Conversation
 pub fn papo::Conversation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::Conversation
 pub fn papo::Conversation::hash<__H: core::hash::Hasher>(&self, &mut __H)
@@ -2250,6 +2256,7 @@ pub fn papo_core::State::bouncer_networks(&self) -> impl core::iter::traits::ite
 pub const fn papo_core::State::casemapping(&self) -> papo::Casemapping
 pub fn papo_core::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::Channel>
 pub fn papo_core::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Channel>
+pub fn papo_core::State::conversation(&self, impl core::convert::AsRef<str>) -> core::result::Result<papo::Conversation, papo::InvalidIdentifier>
 pub fn papo_core::State::host(&self) -> core::option::Option<&str>
 pub fn papo_core::State::last_seen(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::LastSeen>
 pub fn papo_core::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo_core::MetadataValue>>

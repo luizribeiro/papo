@@ -209,6 +209,40 @@ pub enum Conversation {
     Broadcast(Mask),
 }
 
+impl Conversation {
+    fn as_str(&self) -> &str {
+        match self {
+            Self::Channel(channel) => channel,
+            Self::Private(nick) => nick,
+            Self::Server => "*",
+            Self::Broadcast(mask) => mask,
+        }
+    }
+}
+
+impl std::fmt::Display for Conversation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for Conversation {
+    fn eq(&self, other: &str) -> bool {
+        match self {
+            Self::Channel(channel) => channel == other,
+            Self::Private(nick) => nick == other,
+            Self::Server => other == "*",
+            Self::Broadcast(mask) => mask == other,
+        }
+    }
+}
+
+impl PartialEq<&str> for Conversation {
+    fn eq(&self, other: &&str) -> bool {
+        self == *other
+    }
+}
+
 /// A user or channel acted on by an IRC event.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
