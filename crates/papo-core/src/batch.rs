@@ -736,6 +736,9 @@ mod tests {
             panic!("expected history")
         };
         assert_eq!(target, "#papo");
-        assert_eq!(items[0].message().unwrap().as_ref().param(1), Some("hello"));
+        assert_eq!(
+            items[0].as_message().unwrap().as_ref().param(1),
+            Some("hello")
+        );
     }
 }

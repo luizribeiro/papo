@@ -1503,6 +1503,22 @@ pub enum HistoryItem {
     Other(HistoryLine),
 }
 
+macro_rules! history_item_accessors {
+    ($(($variant:ident, $method:ident)),+ $(,)?) => {
+        $(
+            #[doc = concat!("Returns the line when this item is [`HistoryItem::", stringify!($variant), "`].")]
+            #[must_use]
+            pub const fn $method(&self) -> Option<&HistoryLine> {
+                if let Self::$variant(line) = self {
+                    Some(line)
+                } else {
+                    None
+                }
+            }
+        )+
+    };
+}
+
 impl HistoryItem {
     fn line_mut(&mut self) -> &mut HistoryLine {
         match self {
@@ -1521,13 +1537,19 @@ impl HistoryItem {
         }
     }
 
-    /// Returns this item as a chat message.
-    #[must_use]
-    pub const fn message(&self) -> Option<&HistoryLine> {
-        match self {
-            Self::Message(message) => Some(message),
-            _ => None,
-        }
+    history_item_accessors! {
+        (Message, as_message),
+        (Reacted, as_reacted),
+        (Redacted, as_redacted),
+        (TagMsg, as_tag_msg),
+        (Joined, as_joined),
+        (Parted, as_parted),
+        (Quit, as_quit),
+        (Kicked, as_kicked),
+        (NickChanged, as_nick_changed),
+        (TopicChanged, as_topic_changed),
+        (ModeChanged, as_mode_changed),
+        (Other, as_other),
     }
 
     /// Returns the chat message, or `None` for a replayed activity item.
@@ -1575,7 +1597,7 @@ pub struct HistoryPage {
 impl HistoryPage {
     /// Iterates over chat messages, excluding replayed activity items.
     pub fn messages(&self) -> impl Iterator<Item = &HistoryLine> {
-        self.items.iter().filter_map(HistoryItem::message)
+        self.items.iter().filter_map(HistoryItem::as_message)
     }
 }
 

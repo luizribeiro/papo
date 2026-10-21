@@ -346,15 +346,25 @@ fn recorded_ergo_latest_batch_becomes_history() {
     assert!(end);
     assert_eq!(items.len(), 3);
     assert_eq!(
-        items[0].message().unwrap().as_ref().tag("msgid").as_deref(),
+        items[0]
+            .as_message()
+            .unwrap()
+            .as_ref()
+            .tag("msgid")
+            .as_deref(),
         Some("RKi9Cw")
     );
     assert_eq!(
-        items[1].message().unwrap().as_ref().param(1),
+        items[1].as_message().unwrap().as_ref().param(1),
         Some("second")
     );
     assert_eq!(
-        items[2].message().unwrap().as_ref().tag("time").as_deref(),
+        items[2]
+            .as_message()
+            .unwrap()
+            .as_ref()
+            .tag("time")
+            .as_deref(),
         Some("2026-10-15T12:00:03.000Z")
     );
 }
@@ -404,8 +414,21 @@ fn classifies_event_playback_items_in_wire_order() {
             HistoryItem::Other(_)
         ]
     ));
+    assert!(items[0].as_message().is_some());
+    assert!(items[1].as_reacted().is_some());
+    assert!(items[2].as_redacted().is_some());
+    assert!(items[3].as_tag_msg().is_some());
+    assert!(items[4].as_joined().is_some());
+    assert!(items[5].as_parted().is_some());
+    assert!(items[6].as_quit().is_some());
+    assert!(items[7].as_kicked().is_some());
+    assert!(items[8].as_nick_changed().is_some());
+    assert!(items[9].as_topic_changed().is_some());
+    assert!(items[10].as_mode_changed().is_some());
+    assert!(items[12].as_other().is_some());
+    assert!(items[0].as_other().is_none());
     assert!(items[1].clone().into_line().context);
-    assert_eq!(items.iter().filter_map(HistoryItem::message).count(), 2);
+    assert_eq!(items.iter().filter_map(HistoryItem::as_message).count(), 2);
     let message = items[0].clone().into_message().unwrap();
     assert_eq!(message.as_ref().param(1), Some("hello"));
     assert!(items[4].clone().into_message().is_none());

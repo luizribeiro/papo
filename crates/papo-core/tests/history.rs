@@ -297,10 +297,10 @@ fn assembles_deduplicated_context_aware_pages() {
     assert!(matches!(&page.conversation, Conversation::Channel(channel) if channel == "#papo"));
     assert!(page.end);
     assert_eq!(
-        page.items[0].message().unwrap().as_ref().param(1),
+        page.items[0].as_message().unwrap().as_ref().param(1),
         Some("earlier")
     );
-    assert!(!page.items[0].message().unwrap().context);
+    assert!(!page.items[0].as_message().unwrap().context);
     assert!(matches!(page.items[1], HistoryItem::TagMsg(_)));
     assert!(page.items[1].clone().into_line().context);
     assert_eq!(page.messages().count(), 1);

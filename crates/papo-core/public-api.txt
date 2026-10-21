@@ -681,9 +681,20 @@ pub papo_core::HistoryItem::Redacted(papo_core::HistoryLine)
 pub papo_core::HistoryItem::TagMsg(papo_core::HistoryLine)
 pub papo_core::HistoryItem::TopicChanged(papo_core::HistoryLine)
 impl papo_core::HistoryItem
+pub const fn papo_core::HistoryItem::as_joined(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_kicked(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_message(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_mode_changed(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_nick_changed(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_other(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_parted(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_quit(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_reacted(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_redacted(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_tag_msg(&self) -> core::option::Option<&papo_core::HistoryLine>
+pub const fn papo_core::HistoryItem::as_topic_changed(&self) -> core::option::Option<&papo_core::HistoryLine>
 pub fn papo_core::HistoryItem::into_line(self) -> papo_core::HistoryLine
 pub fn papo_core::HistoryItem::into_message(self) -> core::option::Option<papo_core::HistoryLine>
-pub const fn papo_core::HistoryItem::message(&self) -> core::option::Option<&papo_core::HistoryLine>
 impl core::clone::Clone for papo_core::HistoryItem
 pub fn papo_core::HistoryItem::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::HistoryItem
