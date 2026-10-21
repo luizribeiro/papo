@@ -817,6 +817,32 @@ pub struct ModeChange {
     pub arg: Option<ModeArg>,
 }
 
+/// A channel mode whose entries are reported as a list.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum ListMode {
+    /// Channel bans (`+b`).
+    Ban,
+    /// Ban exceptions (`+e`).
+    Except,
+    /// Invite exceptions (`+I`).
+    Invex,
+    /// Quiet masks (`+q`).
+    Quiet,
+}
+
+/// One entry reported for a channel list mode.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct ModeListEntry {
+    /// Mask stored by the server.
+    pub mask: Mask,
+    /// Actor that set the entry, when reported.
+    pub actor: Option<Source>,
+    /// Time at which the entry was set, when reported and valid.
+    pub time: Option<std::time::SystemTime>,
+}
+
 /// A mode argument classified using the server's advertised rules.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

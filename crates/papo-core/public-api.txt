@@ -763,6 +763,29 @@ impl core::marker::Unpin for papo_core::InvalidRateLimit
 impl core::marker::UnsafeUnpin for papo_core::InvalidRateLimit
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::InvalidRateLimit
 impl core::panic::unwind_safe::UnwindSafe for papo_core::InvalidRateLimit
+#[non_exhaustive] pub enum papo_core::ListMode
+pub papo_core::ListMode::Ban
+pub papo_core::ListMode::Except
+pub papo_core::ListMode::Invex
+pub papo_core::ListMode::Quiet
+impl core::clone::Clone for papo_core::ListMode
+pub fn papo_core::ListMode::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::ListMode
+impl core::cmp::PartialEq for papo_core::ListMode
+pub fn papo_core::ListMode::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::ListMode
+pub fn papo_core::ListMode::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::ListMode
+pub fn papo_core::ListMode::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_core::ListMode
+impl core::marker::StructuralPartialEq for papo_core::ListMode
+impl core::marker::Freeze for papo_core::ListMode
+impl core::marker::Send for papo_core::ListMode
+impl core::marker::Sync for papo_core::ListMode
+impl core::marker::Unpin for papo_core::ListMode
+impl core::marker::UnsafeUnpin for papo_core::ListMode
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ListMode
+impl core::panic::unwind_safe::UnwindSafe for papo_core::ListMode
 #[non_exhaustive] pub enum papo_core::MetadataCommand
 pub papo_core::MetadataCommand::Clear
 pub papo_core::MetadataCommand::Clear::target: alloc::string::String
@@ -1599,6 +1622,25 @@ impl core::marker::Unpin for papo_core::ModeChange
 impl core::marker::UnsafeUnpin for papo_core::ModeChange
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ModeChange
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ModeChange
+#[non_exhaustive] pub struct papo_core::ModeListEntry
+pub papo_core::ModeListEntry::actor: core::option::Option<papo_core::Source>
+pub papo_core::ModeListEntry::mask: papo::Mask
+pub papo_core::ModeListEntry::time: core::option::Option<std::time::SystemTime>
+impl core::clone::Clone for papo_core::ModeListEntry
+pub fn papo_core::ModeListEntry::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::ModeListEntry
+impl core::cmp::PartialEq for papo_core::ModeListEntry
+pub fn papo_core::ModeListEntry::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::ModeListEntry
+pub fn papo_core::ModeListEntry::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::ModeListEntry
+impl core::marker::Freeze for papo_core::ModeListEntry
+impl core::marker::Send for papo_core::ModeListEntry
+impl core::marker::Sync for papo_core::ModeListEntry
+impl core::marker::Unpin for papo_core::ModeListEntry
+impl core::marker::UnsafeUnpin for papo_core::ModeListEntry
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ModeListEntry
+impl core::panic::unwind_safe::UnwindSafe for papo_core::ModeListEntry
 pub struct papo_core::MultilineMessage
 pub papo_core::MultilineMessage::message: papo::Line
 impl core::clone::Clone for papo_core::MultilineMessage
