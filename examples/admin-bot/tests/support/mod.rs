@@ -1,5 +1,12 @@
 #![allow(dead_code)]
 
+use std::{
+    io::{BufRead as _, BufReader},
+    process::Stdio,
+    sync::mpsc,
+    time::Duration,
+};
+
 use papo::{Client, Endpoint, Event, Events, Message, ModeAction, ModeArg, Sasl};
 use papo_test_server::ServerInfo;
 
@@ -7,18 +14,35 @@ pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
 pub(super) struct AdminBot {
     child: std::process::Child,
+    errors: mpsc::Receiver<String>,
 }
 
 impl AdminBot {
     pub(super) fn start(server: &ServerInfo, nick: &str, admin: &str, channel: &str) -> Self {
-        let child = std::process::Command::new(env!("CARGO_BIN_EXE_admin-bot"))
+        let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_admin-bot"))
             .arg(format!("irc://{}", server.plaintext_addr()))
             .env("IRC_NICK", nick)
             .env("IRC_ADMIN", admin)
             .env("IRC_CHANNEL", channel)
+            .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        Self { child }
+        let stderr = child.stderr.take().unwrap();
+        let (send, errors) = mpsc::channel();
+        std::thread::spawn(move || {
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                if send.send(line).is_err() {
+                    break;
+                }
+            }
+        });
+        Self { child, errors }
+    }
+
+    pub(super) fn next_error(&self) -> String {
+        self.errors
+            .recv_timeout(Duration::from_secs(5))
+            .expect("admin bot did not log an action error")
     }
 }
 
@@ -71,6 +95,19 @@ pub(super) async fn wait_message(events: &mut Events, text: &str) -> Message {
     loop {
         match events.next().await {
             Some(Event::Message(message)) if message.text == text => return *message,
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("message failed: {disconnected}")
+            }
+            Some(_) => {}
+            None => panic!("driver stopped while waiting for {text}"),
+        }
+    }
+}
+
+pub(super) async fn wait_message_starting_with(events: &mut Events, text: &str) -> Message {
+    loop {
+        match events.next().await {
+            Some(Event::Message(message)) if message.text.starts_with(text) => return *message,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("message failed: {disconnected}")
             }
