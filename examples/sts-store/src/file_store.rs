@@ -21,10 +21,14 @@ impl FileStore {
 
     fn save(&self) {
         let mut text = String::new();
-        for p in self.policies.values() {
-            let expiry = p.expires_at.duration_since(UNIX_EPOCH).unwrap();
-            let (host, port, expiry, duration) =
-                (&p.host, p.port, expiry.as_secs(), p.duration.as_secs());
+        for policy in self.policies.values() {
+            let expiry = policy.expires_at.duration_since(UNIX_EPOCH).unwrap();
+            let (host, port, expiry, duration) = (
+                &policy.host,
+                policy.port,
+                expiry.as_secs(),
+                policy.duration.as_secs(),
+            );
             writeln!(text, "{host}\t{port}\t{expiry}\t{duration}").unwrap();
         }
         fs::write(&self.path, text).expect("persist STS policies");
