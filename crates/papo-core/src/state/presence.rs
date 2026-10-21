@@ -91,13 +91,10 @@ impl State {
                     },
                 };
                 if user.away != next {
-                    user.away = next;
+                    user.away = next.clone();
                     outbox.event(Event::AwayChanged {
                         nick: self.casemapping.nick(nick),
-                        message: away
-                            .message
-                            .filter(|message| *message != "*")
-                            .map(str::to_owned),
+                        away: next,
                     });
                 }
             }
@@ -114,10 +111,10 @@ impl State {
                         message: Some(message.clone()),
                     };
                     if user.away != next {
-                        user.away = next;
+                        user.away = next.clone();
                         outbox.event(Event::AwayChanged {
                             nick: self.casemapping.nick(nick),
-                            message: Some(message),
+                            away: next,
                         });
                     }
                 }
@@ -127,18 +124,20 @@ impl State {
                 self.away_message = None;
                 outbox.event(Event::AwayChanged {
                     nick: self.nick.clone(),
-                    message: None,
+                    away: Away::Present,
                 });
             }
             Command::Numeric(Numeric::RPL_NOWAWAY) if !self.away => {
                 self.away = true;
                 if let Some(message) = own_away_message {
                     self.away_message = Some(message.to_owned());
-                    outbox.event(Event::AwayChanged {
-                        nick: self.nick.clone(),
-                        message: self.away_message.clone(),
-                    });
                 }
+                outbox.event(Event::AwayChanged {
+                    nick: self.nick.clone(),
+                    away: Away::Away {
+                        message: self.away_message.clone(),
+                    },
+                });
             }
             Command::Numeric(Numeric::RPL_UNAWAY | Numeric::RPL_NOWAWAY) => {}
             _ => return None,

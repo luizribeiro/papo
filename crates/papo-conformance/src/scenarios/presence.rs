@@ -104,7 +104,12 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     let changed = bob.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(changed.nick, alice_nick);
-    assert_eq!(changed.message.as_deref(), Some(away));
+    assert_eq!(
+        changed.away,
+        Away::Away {
+            message: Some(away.to_owned())
+        }
+    );
     assert!(alice.state().away());
     assert_eq!(alice.state().away_message(), Some(away));
     assert_eq!(
@@ -118,7 +123,7 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     let returned = bob.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(returned.nick, alice_nick);
-    assert_eq!(returned.message, None);
+    assert_eq!(returned.away, Away::Present);
     assert!(!alice.state().away());
     assert_eq!(alice.state().away_message(), None);
     assert_eq!(
@@ -297,7 +302,12 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let changed = alice.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(changed.nick, bob_nick);
-    assert_eq!(changed.message.as_deref(), Some(away));
+    assert_eq!(
+        changed.away,
+        Away::Away {
+            message: Some(away.to_owned())
+        }
+    );
     assert_eq!(
         alice.state().user(&bob_nick).unwrap().away(),
         &Away::Away {

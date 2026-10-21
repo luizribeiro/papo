@@ -408,7 +408,7 @@ fn extended_monitor_updates_an_unshared_users_record() {
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
         .server(":alice!~alice@cloak.example AWAY :Gone to lunch")
-        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "alice" && message.as_deref() == Some("Gone to lunch")))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "alice" && message == "Gone to lunch"))
         .server(":alice!~alice@cloak.example ACCOUNT alice")
         .event(|event| matches!(event, Event::AccountChanged { nick, account } if nick == "alice" && account == &Account::LoggedIn(Casemapping::default().account("alice"))))
         .server(":alice!~alice@cloak.example CHGHOST alice account/alice")

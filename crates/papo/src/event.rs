@@ -1269,8 +1269,8 @@ pub(crate) fn from_core(
                 },
             })
         }
-        papo_core::Event::AwayChanged { nick, message } => {
-            Event::AwayChanged(AwayChanged { nick, message })
+        papo_core::Event::AwayChanged { nick, away } => {
+            Event::AwayChanged(AwayChanged { nick, away })
         }
         papo_core::Event::HostChanged {
             nick,
@@ -1376,8 +1376,8 @@ mod tests {
         Warning, ctcp_parts, from_core as from_core_with_mapping, incoming,
     };
     use papo_core::{
-        Account, BatchAbandonReason, Config, Feature, Session, StandardReply as CoreStandardReply,
-        StateLimit,
+        Account, Away, BatchAbandonReason, Config, Feature, Session,
+        StandardReply as CoreStandardReply, StateLimit,
     };
     use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
 
@@ -2316,10 +2316,15 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::AwayChanged {
                 nick: Casemapping::default().nick("emily"),
-                message: Some("Gone to lunch".into()),
+                away: Away::Away {
+                    message: Some("Gone to lunch".into()),
+                },
             }),
             Event::AwayChanged(changed)
-                if changed.nick == "emily" && changed.message.as_deref() == Some("Gone to lunch")
+                if changed.nick == "emily"
+                    && changed.away == Away::Away {
+                        message: Some("Gone to lunch".into())
+                    }
         ));
     }
 

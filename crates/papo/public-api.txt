@@ -226,7 +226,7 @@ impl core::marker::UnsafeUnpin for papo::event::AccountChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountChanged
 #[non_exhaustive] pub struct papo::event::AwayChanged
-pub papo::event::AwayChanged::message: core::option::Option<alloc::string::String>
+pub papo::event::AwayChanged::away: papo::Away
 pub papo::event::AwayChanged::nick: papo::Nick
 impl core::clone::Clone for papo::event::AwayChanged
 pub fn papo::event::AwayChanged::clone(&self) -> Self

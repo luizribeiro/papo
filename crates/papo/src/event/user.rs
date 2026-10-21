@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{AccountName, Authorship, ChannelName, MessageId, Nick};
+use crate::{AccountName, Authorship, Away, ChannelName, MessageId, Nick};
 
 use super::Joined;
 
@@ -48,8 +48,8 @@ pub struct NickChanged {
 pub struct AwayChanged {
     /// The affected user's nickname.
     pub nick: Nick,
-    /// The away message, or `None` when the user returned.
-    pub message: Option<String>,
+    /// The user's new presence state.
+    pub away: Away,
 }
 
 /// A user's account state changed.

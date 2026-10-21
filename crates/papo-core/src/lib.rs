@@ -1948,8 +1948,8 @@ pub enum Event {
     AwayChanged {
         /// The affected user's nickname.
         nick: Nick,
-        /// The away message, or `None` when the user returned.
-        message: Option<String>,
+        /// The user's new presence state.
+        away: Away,
     },
     /// A user's username or hostname changed.
     HostChanged {

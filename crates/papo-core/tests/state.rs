@@ -459,7 +459,7 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
         .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "dan" && message.as_deref() == Some("Gone to lunch")))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
@@ -469,7 +469,7 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
             );
         })
         .server(":dan!~dan@cloak.example AWAY")
-        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "dan" && message.is_none()))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present } if nick == "dan"))
         .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), &Away::Present))
         .ignore_rest();
 }
@@ -480,7 +480,7 @@ fn away_notify_star_records_an_unspecified_away_state() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
         .server(":dan!~dan@cloak.example AWAY *")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "dan" && message.is_none()))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None } } if nick == "dan"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
@@ -519,7 +519,7 @@ fn whois_away_reply_records_the_message() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":ergo.test 301 emily dan :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "dan" && message.as_deref() == Some("Gone to lunch")))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(
                 session.state().user("dan").unwrap().away(),
@@ -532,17 +532,17 @@ fn whois_away_reply_records_the_message() {
 }
 
 #[test]
-fn uncorrelated_away_numerics_do_not_invent_a_message() {
+fn uncorrelated_away_numerics_report_an_unspecified_message() {
     Transcript::new(Config::default().nick("emily"))
         .inspect(|session| assert!(!session.state().away()))
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .no_event()
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None } } if nick == "emily"))
         .inspect(|session| {
             assert!(session.state().away());
             assert_eq!(session.state().away_message(), None);
         })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "emily" && message.is_none()))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present } if nick == "emily"))
         .inspect(|session| assert!(!session.state().away()))
         .no_event();
 }
@@ -561,7 +561,7 @@ fn own_away_confirmation_carries_the_requested_message() {
         })
         .client("AWAY :Reviewing the release notes")
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, message } if nick == "emily" && message.as_deref() == Some("Reviewing the release notes")))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "emily" && message == "Reviewing the release notes"))
         .inspect(|session| {
             assert_eq!(
                 session.state().away_message(),
@@ -575,12 +575,28 @@ fn own_away_confirmation_carries_the_requested_message() {
 fn away_numerics_do_not_repeat_our_own_state_changes() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .no_event()
+        .event(|event| {
+            matches!(
+                event,
+                Event::AwayChanged {
+                    away: Away::Away { message: None },
+                    ..
+                }
+            )
+        })
         .server(":ergo.test 306 emily :You have been marked as being away")
         .no_event()
         .inspect(|session| assert!(session.state().away()))
         .server(":ergo.test 305 emily :You are no longer marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { message: None, .. }))
+        .event(|event| {
+            matches!(
+                event,
+                Event::AwayChanged {
+                    away: Away::Present,
+                    ..
+                }
+            )
+        })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
         .no_event()
         .inspect(|session| assert!(!session.state().away()))
@@ -1284,7 +1300,7 @@ fn who_here_flags_clear_a_previous_away_state() {
             matches!(
                 event,
                 Event::AwayChanged {
-                    message: Some(_),
+                    away: Away::Away { message: Some(_) },
                     ..
                 }
             )
@@ -1310,7 +1326,7 @@ fn who_gone_flags_preserve_a_known_away_message() {
             matches!(
                 event,
                 Event::AwayChanged {
-                    message: Some(_),
+                    away: Away::Away { message: Some(_) },
                     ..
                 }
             )

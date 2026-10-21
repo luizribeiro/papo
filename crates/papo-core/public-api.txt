@@ -416,7 +416,7 @@ pub papo_core::Event::AccountCreated::logged_in: bool
 pub papo_core::Event::AuthenticationFailed
 pub papo_core::Event::AuthenticationFailed::reason: alloc::string::String
 pub papo_core::Event::AwayChanged
-pub papo_core::Event::AwayChanged::message: core::option::Option<alloc::string::String>
+pub papo_core::Event::AwayChanged::away: papo_core::Away
 pub papo_core::Event::AwayChanged::nick: papo::Nick
 pub papo_core::Event::BatchAbandoned
 pub papo_core::Event::BatchAbandoned::batch_type: alloc::string::String

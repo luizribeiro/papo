@@ -79,13 +79,13 @@ impl AwayChangedBuilder {
     /// Starts an away-state payload for `nick`.
     #[must_use]
     pub fn new(nick: impl Into<papo::Nick>) -> Self {
-        Self(papo::__testing::away_changed(nick, None))
+        Self(papo::__testing::away_changed(nick, papo::Away::Present))
     }
 
-    /// Sets the away message, or clears it for a return notification.
+    /// Sets the user's new presence state.
     #[must_use]
-    pub fn message(mut self, message: Option<impl Into<String>>) -> Self {
-        self.0.message = message.map(Into::into);
+    pub fn away(mut self, away: papo::Away) -> Self {
+        self.0.away = away;
         self
     }
 
@@ -117,8 +117,15 @@ mod tests {
         assert_eq!(joined.authorship, papo::Authorship::Own);
 
         let away = AwayChangedBuilder::new(mapping.nick("alice"))
-            .message(Some("reviewing IRCv3"))
+            .away(papo::Away::Away {
+                message: Some("reviewing IRCv3".into()),
+            })
             .build();
-        assert_eq!(away.message.as_deref(), Some("reviewing IRCv3"));
+        assert_eq!(
+            away.away,
+            papo::Away::Away {
+                message: Some("reviewing IRCv3".into())
+            }
+        );
     }
 }
