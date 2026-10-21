@@ -2203,8 +2203,8 @@ async fn server_error_before_welcome_is_a_connection_failure() {
     let settings = config().webirc(papo_core::WebIrc {
         password: papo_core::Secret::from("gateway-password"),
         gateway: "papo-gateway".into(),
-        hostname: None,
-        ip: "192.0.2.42".into(),
+        client_ip: "192.0.2.42".parse().unwrap(),
+        client_hostname: None,
         options: Vec::new(),
     });
     let (client_stream, mut server) = tokio::io::duplex(4096);
@@ -2255,8 +2255,8 @@ async fn webirc_rejection_is_a_specific_connection_failure() {
     let settings = config().webirc(papo_core::WebIrc {
         password: papo_core::Secret::from("gateway-password"),
         gateway: "papo-gateway".into(),
-        hostname: None,
-        ip: "192.0.2.42".into(),
+        client_ip: "192.0.2.42".parse().unwrap(),
+        client_hostname: None,
         options: Vec::new(),
     });
     let (client_stream, mut server) = tokio::io::duplex(4096);

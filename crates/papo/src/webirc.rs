@@ -20,8 +20,8 @@ impl WebIrc {
         papo_core::WebIrc {
             password: self.password,
             gateway: self.gateway,
-            hostname: self.client_hostname,
-            ip: self.client_ip.to_string(),
+            client_ip: self.client_ip,
+            client_hostname: self.client_hostname,
             options: self.options,
         }
     }

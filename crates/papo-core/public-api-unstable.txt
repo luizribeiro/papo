@@ -2286,9 +2286,9 @@ impl core::marker::UnsafeUnpin for papo_core::User
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::User
 impl core::panic::unwind_safe::UnwindSafe for papo_core::User
 pub struct papo_core::WebIrc
+pub papo_core::WebIrc::client_hostname: core::option::Option<alloc::string::String>
+pub papo_core::WebIrc::client_ip: core::net::ip_addr::IpAddr
 pub papo_core::WebIrc::gateway: alloc::string::String
-pub papo_core::WebIrc::hostname: core::option::Option<alloc::string::String>
-pub papo_core::WebIrc::ip: alloc::string::String
 pub papo_core::WebIrc::options: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
 pub papo_core::WebIrc::password: papo_core::Secret
 impl core::clone::Clone for papo_core::WebIrc

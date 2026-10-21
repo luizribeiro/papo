@@ -52,12 +52,13 @@ impl WelcomeState {
                 );
                 return;
             };
-            let ip = if webirc.ip.starts_with(':') {
-                format!("0{}", webirc.ip)
+            let client_ip = webirc.client_ip.to_string();
+            let ip = if client_ip.starts_with(':') {
+                format!("0{client_ip}")
             } else {
-                webirc.ip.clone()
+                client_ip
             };
-            let hostname = webirc.hostname.as_deref().unwrap_or(&ip);
+            let hostname = webirc.client_hostname.as_deref().unwrap_or(&ip);
             let mut params = vec![password, webirc.gateway.as_str(), hostname, ip.as_str()];
             let options = webirc
                 .options

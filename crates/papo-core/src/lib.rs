@@ -366,10 +366,10 @@ pub struct WebIrc {
     pub password: Secret,
     /// Gateway name configured on the IRC server.
     pub gateway: String,
-    /// Client hostname, or `None` when only its IP address is known.
-    pub hostname: Option<String>,
     /// Client IP address.
-    pub ip: String,
+    pub client_ip: std::net::IpAddr,
+    /// Client hostname, or `None` to send the client's IP address as its hostname.
+    pub client_hostname: Option<String>,
     /// Ordered `name[=value]` options appended to the command.
     pub options: Vec<(String, Option<String>)>,
 }

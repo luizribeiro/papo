@@ -5,12 +5,12 @@ mod support;
 use papo_core::{CloseKind, Config, Event, Secret, Session, WebIrc};
 use support::Transcript;
 
-fn webirc(hostname: Option<&str>, ip: &str) -> WebIrc {
+fn webirc(client_hostname: Option<&str>, client_ip: &str) -> WebIrc {
     WebIrc {
         password: Secret::new("gateway-password"),
         gateway: "papo-gateway".into(),
-        hostname: hostname.map(str::to_owned),
-        ip: ip.into(),
+        client_ip: client_ip.parse().unwrap(),
+        client_hostname: client_hostname.map(str::to_owned),
         options: Vec::new(),
     }
 }
