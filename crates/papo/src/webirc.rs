@@ -16,43 +16,6 @@ pub struct WebIrc {
 }
 
 impl WebIrc {
-    #[doc(hidden)]
-    #[must_use]
-    pub fn new(
-        password: impl Into<crate::Secret>,
-        gateway: impl Into<String>,
-        client_ip: impl AsRef<str>,
-    ) -> Self {
-        Self {
-            password: password.into(),
-            gateway: gateway.into(),
-            client_ip: client_ip.as_ref().parse().expect("valid WEBIRC client IP"),
-            client_hostname: None,
-            options: Vec::new(),
-        }
-    }
-
-    #[doc(hidden)]
-    #[must_use]
-    pub fn hostname(mut self, hostname: impl Into<String>) -> Self {
-        self.client_hostname = Some(hostname.into());
-        self
-    }
-
-    #[doc(hidden)]
-    #[must_use]
-    pub fn option(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
-        self.options.push((name.into(), Some(value.into())));
-        self
-    }
-
-    #[doc(hidden)]
-    #[must_use]
-    pub fn flag(mut self, name: impl Into<String>) -> Self {
-        self.options.push((name.into(), None));
-        self
-    }
-
     pub(crate) fn into_core(self) -> papo_core::WebIrc {
         papo_core::WebIrc {
             password: self.password,

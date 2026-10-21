@@ -1093,6 +1093,13 @@ mod tests {
     fn debug_redacts_every_builder_secret() {
         let builder = Builder::new("irc.example.net")
             .password("unique-network-password-9134")
+            .webirc(crate::WebIrc {
+                password: "unique-webirc-password-3186".into(),
+                gateway: "papo-gateway".into(),
+                client_ip: "192.0.2.42".parse().unwrap(),
+                client_hostname: None,
+                options: Vec::new(),
+            })
             .sasl(Sasl::plain("alice", "unique-sasl-password-8527"))
             .create_account(NewAccount::new("unique-account-password-7416"))
             .tls_client_cert(Vec::new(), "unique-tls-key-6305")
@@ -1101,6 +1108,7 @@ mod tests {
         assert!(output.contains("[REDACTED]"));
         for secret in [
             "unique-network-password-9134",
+            "unique-webirc-password-3186",
             "unique-sasl-password-8527",
             "unique-account-password-7416",
             "unique-tls-key-6305",
@@ -1130,11 +1138,13 @@ mod tests {
         let byte_secret = || Secret::from_bytes([0xff]);
         let cases = [
             Builder::new("irc.example.net").password(byte_secret()),
-            Builder::new("irc.example.net").webirc(crate::WebIrc::new(
-                byte_secret(),
-                "papo-gateway",
-                "192.0.2.42",
-            )),
+            Builder::new("irc.example.net").webirc(crate::WebIrc {
+                password: byte_secret(),
+                gateway: "papo-gateway".into(),
+                client_ip: "192.0.2.42".parse().unwrap(),
+                client_hostname: None,
+                options: Vec::new(),
+            }),
             Builder::new("irc.example.net").sasl(Sasl::plain("alice", byte_secret())),
             Builder::new("irc.example.net").create_account(
                 NewAccount::new(byte_secret())
@@ -1168,11 +1178,13 @@ mod tests {
             Builder::new("irc.example.net").username("papo\0admin"),
             Builder::new("irc.example.net").realname("Papo\rClient"),
             Builder::new("irc.example.net").password("network\npassword"),
-            Builder::new("irc.example.net").webirc(crate::WebIrc::new(
-                "gateway-password",
-                "papo\rgateway",
-                "192.0.2.42",
-            )),
+            Builder::new("irc.example.net").webirc(crate::WebIrc {
+                password: "gateway-password".into(),
+                gateway: "papo\rgateway".into(),
+                client_ip: "192.0.2.42".parse().unwrap(),
+                client_hostname: None,
+                options: Vec::new(),
+            }),
             Builder::new("irc.example.net").away_on_connect("gone\nAWAY"),
             Builder::new("irc.example.net")
                 .username("u".repeat(250))
@@ -1190,11 +1202,13 @@ mod tests {
     #[test]
     fn accepts_webirc_without_options() {
         let config = Builder::new("irc.example.net")
-            .webirc(crate::WebIrc::new(
-                "gateway-password",
-                "papo-gateway",
-                "192.0.2.42",
-            ))
+            .webirc(crate::WebIrc {
+                password: "gateway-password".into(),
+                gateway: "papo-gateway".into(),
+                client_ip: "192.0.2.42".parse().unwrap(),
+                client_hostname: None,
+                options: Vec::new(),
+            })
             .config;
         assert_eq!(connect_input_error(&config), None);
     }
