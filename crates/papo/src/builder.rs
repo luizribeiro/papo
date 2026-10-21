@@ -528,6 +528,7 @@ impl Builder {
     }
 
     /// Connects in a spawned driver and waits until the connection is ready.
+    /// IRC calls this login handshake connection registration.
     ///
     /// To observe [`crate::Event::Connecting`] during the first attempt, use
     /// [`Builder::build`] and poll its event stream while running the returned driver. This method

@@ -8,7 +8,7 @@ use crate::Error;
 /// first polled. Dropping it after polling abandons the wait but does not
 /// cancel a command already sent to the server.
 ///
-/// `Ok` means all request lines were written and the expected reply arrived.
+/// `Ok` means all request lines were written and the expected reply arrived where one exists.
 /// [`Error::Timeout`] means the lines were written but no reply arrived before
 /// the deadline. [`Error::Disconnected`] means they were not written, while
 /// [`Error::Interrupted`] means transmission began but the reply was still

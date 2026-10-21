@@ -11,7 +11,7 @@ pub enum Source {
     User {
         /// The user's nickname.
         nick: Nick,
-        /// The username from `nick!user@host`, when supplied by the server.
+        /// The username from `nick!user@host`, when supplied by the server; it may start with `~`.
         username: Option<String>,
         /// The hostname, when supplied by the server.
         host: Option<String>,

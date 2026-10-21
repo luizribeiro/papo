@@ -8,7 +8,7 @@ pub enum Source<'a> {
     User {
         /// The user's nickname.
         nick: &'a str,
-        /// The username from `nick!user@host`, when supplied by the server.
+        /// The username from `nick!user@host`, when supplied by the server; it may start with `~`.
         username: Option<&'a str>,
         /// The hostname, when supplied by the server.
         host: Option<&'a str>,

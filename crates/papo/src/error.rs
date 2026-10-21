@@ -392,13 +392,16 @@ impl fmt::Display for DisconnectCause {
     }
 }
 
-/// A disconnected operation and the driver's next retry delay.
+/// Details of a connection that ended.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Disconnected {
     /// Why the connection ended.
     pub cause: DisconnectCause,
-    /// Delay before the next connection attempt, when one is scheduled.
+    /// Delay before the next connection attempt.
+    ///
+    /// `None` means papo stopped because the cause was fatal, reconnecting was disabled or
+    /// exhausted, or the client requested a quit.
     pub reconnect_in: Option<Duration>,
 }
 

@@ -78,7 +78,7 @@ pub struct HostChanged {
     pub actor: Source,
     /// The affected user's nickname.
     pub nick: Nick,
-    /// The new username from `nick!user@host`.
+    /// The new username from `nick!user@host`; it may start with `~`.
     pub username: String,
     /// The user's new hostname.
     pub host: String,
@@ -102,7 +102,7 @@ pub struct RealnameChanged {
 pub struct MonitorOnline {
     /// The monitored nickname.
     pub nick: Nick,
-    /// The username from `nick!user@host`, when supplied by the server.
+    /// The username from `nick!user@host`, when supplied by the server; it may start with `~`.
     pub username: Option<String>,
     /// The user's current hostname, when supplied by the server.
     pub host: Option<String>,

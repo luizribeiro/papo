@@ -704,7 +704,10 @@ pub enum Event {
     BouncerNetworkChanged(BouncerNetworkChanged),
     /// A user or channel's cached metadata changed.
     MetadataChanged(MetadataChanged),
-    /// A completed history or playback batch.
+    /// A completed server-initiated playback or automatic reconnect catch-up batch.
+    ///
+    /// Pages returned by [`crate::Client::history`] resolve their request futures and are not
+    /// emitted as events.
     History(Box<crate::HistoryPage>),
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarkerChanged),
