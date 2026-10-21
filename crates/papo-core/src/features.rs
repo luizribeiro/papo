@@ -153,10 +153,7 @@ impl Feature {
             Self::Relay => [Some(cap::Cap::from(cap::RELAYMSG)), None],
             Self::LabeledResponse => [Some(cap::Cap::from(cap::LABELED_RESPONSE)), None],
             Self::AwayTracking => [Some(cap::AWAY_NOTIFY), None],
-            Self::AccountTracking => [
-                Some(cap::Cap::from(cap::ACCOUNT_NOTIFY)),
-                Some(cap::ACCOUNT_TAG),
-            ],
+            Self::AccountTracking => [Some(cap::ACCOUNT_NOTIFY), Some(cap::ACCOUNT_TAG)],
             Self::HostTracking => [Some(cap::CHGHOST), None],
             Self::Monitor | Self::BotMode => [None, None],
         }

@@ -7,26 +7,17 @@ pub use papo_core::cap::{
 pub use papo_core::cap::{CAP_NOTIFY, ECHO_MESSAGE, EVENT_PLAYBACK, SERVER_TIME};
 /// Batched messages.
 pub const BATCH: &str = papo_core::cap::BATCH;
-/// Account-change notifications.
-pub const ACCOUNT_NOTIFY: &str = papo_core::cap::ACCOUNT_NOTIFY;
-/// Extended monitor replies.
-pub const EXTENDED_MONITOR: &str = papo_core::cap::EXTENDED_MONITOR;
-/// Invitation notifications.
-pub const INVITE_NOTIFY: &str = papo_core::cap::INVITE_NOTIFY;
-/// Structured standard replies.
-pub const STANDARD_REPLIES: &str = papo_core::cap::STANDARD_REPLIES;
+pub use papo_core::cap::{
+    ACCOUNT_NOTIFY, EXTENDED_MONITOR, INVITE_NOTIFY, OPER_TAG, STANDARD_REPLIES, STS,
+};
 /// Labelled request correlation.
 pub const LABELED_RESPONSE: &str = papo_core::cap::LABELED_RESPONSE;
 /// Multiline messages.
 pub const MULTILINE: &str = papo_core::cap::MULTILINE;
-/// Operator tags on messages.
-pub const OPER_TAG: &str = papo_core::cap::OPER_TAG;
 /// Client metadata.
 pub const METADATA: &str = papo_core::cap::METADATA;
 /// SASL authentication.
 pub const SASL: &str = papo_core::cap::SASL;
-/// Strict Transport Security upgrades.
-pub const STS: &str = papo_core::cap::STS;
 /// Account registration.
 pub const ACCOUNT_REGISTRATION: &str = papo_core::cap::ACCOUNT_REGISTRATION;
 /// Message history queries.

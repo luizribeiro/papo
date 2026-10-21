@@ -105,7 +105,7 @@ impl Caps {
         let mut removed = Capabilities::new();
         let mut sasl_removed = false;
         for name in message.param(2).unwrap_or("").split_whitespace() {
-            if name == cap::STS {
+            if name == cap::STS.as_str() {
                 continue;
             }
             let name = Cap::from(name);
@@ -153,7 +153,7 @@ impl Caps {
                 updated.insert(name, value);
             }
         }
-        if announced.contains(cap::STS) && self.handle_sts(connection, outbox) {
+        if announced.contains(cap::STS.as_str()) && self.handle_sts(connection, outbox) {
             return;
         }
         if announced.contains(cap::LABELED_RESPONSE)
@@ -212,7 +212,7 @@ impl Caps {
         }
         if config.sasl.is_none()
             && config.password.is_none()
-            && self.advertised.contains_key(cap::ACCOUNT_REQUIRED)
+            && self.advertised.contains_key(&cap::ACCOUNT_REQUIRED)
         {
             outbox.close(
                 CloseKind::AccountRequired,
@@ -296,7 +296,7 @@ impl Caps {
     }
 
     fn handle_sts(&self, connection: &Connection, outbox: &mut Outbox) -> bool {
-        let Some(value) = self.advertised.get(cap::STS).and_then(Option::as_deref) else {
+        let Some(value) = self.advertised.get(&cap::STS).and_then(Option::as_deref) else {
             return false;
         };
         let Ok(directive) = StsDirective::parse(value) else {

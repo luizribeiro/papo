@@ -79,9 +79,9 @@ impl core::marker::Unpin for papo_core::cap::CapInfo
 impl core::marker::UnsafeUnpin for papo_core::cap::CapInfo
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::cap::CapInfo
 impl core::panic::unwind_safe::UnwindSafe for papo_core::cap::CapInfo
-pub const papo_core::cap::ACCOUNT_NOTIFY: &str
+pub const papo_core::cap::ACCOUNT_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::ACCOUNT_REGISTRATION: &str
-pub const papo_core::cap::ACCOUNT_REQUIRED: &str
+pub const papo_core::cap::ACCOUNT_REQUIRED: papo_core::cap::Cap
 pub const papo_core::cap::ACCOUNT_TAG: papo_core::cap::Cap
 pub const papo_core::cap::AWAY_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::BATCH: &str
@@ -96,8 +96,8 @@ pub const papo_core::cap::ECHO_MESSAGE: papo_core::cap::Cap
 pub const papo_core::cap::EVENT_PLAYBACK: papo_core::cap::Cap
 pub const papo_core::cap::EXTENDED_ISUPPORT: &str
 pub const papo_core::cap::EXTENDED_JOIN: papo_core::cap::Cap
-pub const papo_core::cap::EXTENDED_MONITOR: &str
-pub const papo_core::cap::INVITE_NOTIFY: &str
+pub const papo_core::cap::EXTENDED_MONITOR: papo_core::cap::Cap
+pub const papo_core::cap::INVITE_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::LABELED_RESPONSE: &str
 pub const papo_core::cap::MESSAGE_REDACTION: &str
 pub const papo_core::cap::MESSAGE_TAGS: papo_core::cap::Cap
@@ -105,9 +105,9 @@ pub const papo_core::cap::METADATA: &str
 pub const papo_core::cap::METADATA_NOTIFY: &str
 pub const papo_core::cap::MULTILINE: &str
 pub const papo_core::cap::MULTI_PREFIX: papo_core::cap::Cap
-pub const papo_core::cap::NOPE: &str
+pub const papo_core::cap::NOPE: papo_core::cap::Cap
 pub const papo_core::cap::NO_IMPLICIT_NAMES: &str
-pub const papo_core::cap::OPER_TAG: &str
+pub const papo_core::cap::OPER_TAG: papo_core::cap::Cap
 pub const papo_core::cap::PERSISTENCE: &str
 pub const papo_core::cap::PRE_AWAY: &str
 pub const papo_core::cap::READ_MARKER: &str
@@ -115,8 +115,8 @@ pub const papo_core::cap::RELAYMSG: &str
 pub const papo_core::cap::SASL: &str
 pub const papo_core::cap::SERVER_TIME: papo_core::cap::Cap
 pub const papo_core::cap::SETNAME: papo_core::cap::Cap
-pub const papo_core::cap::STANDARD_REPLIES: &str
-pub const papo_core::cap::STS: &str
+pub const papo_core::cap::STANDARD_REPLIES: papo_core::cap::Cap
+pub const papo_core::cap::STS: papo_core::cap::Cap
 pub const papo_core::cap::USERHOST_IN_NAMES: papo_core::cap::Cap
 pub const papo_core::cap::WEBPUSH: &str
 pub const papo_core::cap::WHOAMI: &str
