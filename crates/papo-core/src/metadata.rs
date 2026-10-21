@@ -83,6 +83,50 @@ pub enum MetadataCommand {
     },
 }
 
+impl MetadataCommand {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __get(target: String, keys: Vec<String>) -> Self {
+        Self::Get { target, keys }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __list(target: String) -> Self {
+        Self::List { target }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __set(target: String, key: String, value: Option<String>) -> Self {
+        Self::Set { target, key, value }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __clear(target: String) -> Self {
+        Self::Clear { target }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __sub(keys: Vec<String>) -> Self {
+        Self::Sub { keys }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __unsub(keys: Vec<String>) -> Self {
+        Self::Unsub { keys }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __sync(target: String) -> Self {
+        Self::Sync { target }
+    }
+}
+
 /// Server-advertised limits for `draft/metadata-2` or `draft/metadata-3`.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct MetadataLimits {

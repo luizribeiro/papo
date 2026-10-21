@@ -80,13 +80,12 @@ impl Metadata {
                     .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             }
             metadata
-                .request(MetadataCommand::Get {
-                    target: target.clone(),
-                    keys: keys
-                        .into_iter()
+                .request(MetadataCommand::__get(
+                    target.clone(),
+                    keys.into_iter()
                         .map(crate::MetadataKey::into_string)
                         .collect(),
-                })
+                ))
                 .await?;
             Ok(metadata
                 .client
@@ -121,9 +120,7 @@ impl Metadata {
                 .parse_target_inner(&target)
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             metadata
-                .request(MetadataCommand::List {
-                    target: target.clone(),
-                })
+                .request(MetadataCommand::__list(target.clone()))
                 .await?;
             Ok(metadata
                 .client
@@ -190,11 +187,7 @@ impl Metadata {
                 return Err(crate::InvalidInput::EmptyText.into());
             }
             metadata
-                .request(MetadataCommand::Set {
-                    target,
-                    key,
-                    value: Some(value),
-                })
+                .request(MetadataCommand::__set(target, key, Some(value)))
                 .await
         })
     }
@@ -205,11 +198,11 @@ impl Metadata {
         target: impl AsRef<str>,
         key: impl Into<crate::MetadataKey>,
     ) -> crate::RequestFuture<()> {
-        self.action(MetadataCommand::Set {
-            target: target.as_ref().to_owned(),
-            key: key.into().into_string(),
-            value: None,
-        })
+        self.action(MetadataCommand::__set(
+            target.as_ref().to_owned(),
+            key.into().into_string(),
+            None,
+        ))
     }
 
     /// Clears all metadata for the current nickname.
@@ -227,9 +220,7 @@ impl Metadata {
 
     /// Clears all metadata on a user or channel.
     pub fn clear_on(&self, target: impl AsRef<str>) -> crate::RequestFuture<()> {
-        self.action(MetadataCommand::Clear {
-            target: target.as_ref().to_owned(),
-        })
+        self.action(MetadataCommand::__clear(target.as_ref().to_owned()))
     }
 
     /// Subscribes to metadata keys.
@@ -247,13 +238,12 @@ impl Metadata {
         I: IntoIterator<Item = S>,
         S: Into<crate::MetadataKey>,
     {
-        self.action(MetadataCommand::Sub {
-            keys: keys
-                .into_iter()
+        self.action(MetadataCommand::__sub(
+            keys.into_iter()
                 .map(Into::into)
                 .map(crate::MetadataKey::into_string)
                 .collect(),
-        })
+        ))
     }
 
     /// Unsubscribes from metadata keys.
@@ -271,13 +261,12 @@ impl Metadata {
         I: IntoIterator<Item = S>,
         S: Into<crate::MetadataKey>,
     {
-        self.action(MetadataCommand::Unsub {
-            keys: keys
-                .into_iter()
+        self.action(MetadataCommand::__unsub(
+            keys.into_iter()
                 .map(Into::into)
                 .map(crate::MetadataKey::into_string)
                 .collect(),
-        })
+        ))
     }
 
     /// Synchronizes cached metadata for a user or channel.
@@ -300,7 +289,7 @@ impl Metadata {
                 .state()
                 .parse_target_inner(&target)
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
-            metadata.request(MetadataCommand::Sync { target }).await
+            metadata.request(MetadataCommand::__sync(target)).await
         })
     }
 }
