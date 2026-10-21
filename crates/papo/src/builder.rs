@@ -1,7 +1,7 @@
 use std::{fmt, time::Duration};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
-use papo_core::{AwayOnConnect, Config, DEFAULT_WANTED_CAPS, RateLimit, Sasl, cap};
+use papo_core::{AwayOnConnect, Config, CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, cap};
 use papo_proto::{Line, escape_tag_value};
 use tokio::sync::oneshot;
 
@@ -323,17 +323,17 @@ impl Builder {
         self
     }
 
-    /// Sets the automatic reply to CTCP VERSION queries.
+    /// Sets the automatic CTCP reply policy.
     ///
     /// Channel queries get a private reply.
     ///
-    /// Passing `None` disables the automatic reply.
-    ///
     /// ```
-    /// # _ = papo::Client::builder("irc.example.net").ctcp_version(Some("papo bot"));
+    /// # use papo::CtcpReplies;
+    /// # _ = papo::Client::builder("irc.example.net")
+    /// #     .ctcp_replies(CtcpReplies::default().version(Some("papo bot")));
     /// ```
-    pub fn ctcp_version(mut self, text: Option<&str>) -> Self {
-        self.config.ctcp.version = text.map(str::to_owned);
+    pub fn ctcp_replies(mut self, replies: CtcpReplies) -> Self {
+        self.config.ctcp = replies;
         self
     }
 
@@ -712,7 +712,9 @@ mod tests {
         time::Duration,
     };
 
-    use papo_core::{DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, sts::ConnectionSecurity};
+    use papo_core::{
+        CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, sts::ConnectionSecurity,
+    };
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
@@ -987,6 +989,7 @@ mod tests {
 
     #[test]
     fn configures_away_and_ctcp_replies() {
+        let rate = RateLimit::new(4, Duration::from_secs(3)).unwrap();
         assert_eq!(
             Builder::new("irc.example.net")
                 .config
@@ -997,7 +1000,7 @@ mod tests {
         );
         let builder = Builder::new("irc.example.net")
             .away_on_connect("Reviewing patches")
-            .ctcp_version(None)
+            .ctcp_replies(CtcpReplies::default().version(None).ping(false).rate(rate))
             .ctcp_source("https://example.org/papo");
         assert_eq!(
             builder.config.away_on_connect,
@@ -1006,6 +1009,8 @@ mod tests {
             ))
         );
         assert_eq!(builder.config.ctcp.version, None);
+        assert!(!builder.config.ctcp.ping);
+        assert_eq!(builder.config.ctcp.rate, rate);
         assert_eq!(
             builder.config.ctcp.source.as_deref(),
             Some("https://example.org/papo")

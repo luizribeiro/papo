@@ -94,7 +94,7 @@ pub use papo_core::{
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 #[doc(inline)]
-pub use papo_core::{InvalidRateLimit, RateLimit, Sasl};
+pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{PersistenceSetting, PersistenceStatus};

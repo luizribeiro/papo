@@ -87,7 +87,9 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, a, _b, _c => builder.ping_timeout(Duration::from_secs(a.len() as u64)));
         probe!(builder, a, _b, _c => builder.request_timeout(Duration::from_secs(a.len() as u64)));
         probe!(builder, a, _b, _c => builder.away_on_connect(a));
-        probe!(builder, a, _b, _c => builder.ctcp_version(Some(&a)));
+        probe!(builder, a, _b, _c => builder.ctcp_replies(
+            crate::CtcpReplies::default().version(Some(&a))
+        ));
         probe!(builder, a, _b, _c => builder.ctcp_source(a));
         probe!(builder, a, _b, _c => builder.event_capacity(a.len()));
         probe!(builder, _a, _b, _c => builder.reconnect(crate::Reconnect::never()));
