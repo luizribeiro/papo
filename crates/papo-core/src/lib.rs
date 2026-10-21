@@ -957,6 +957,7 @@ pub enum ResponseMatcher {
     /// A topic request ending at its echo or topic numeric.
     Topic(String),
     /// A channel removal ending at its `KICK` echo.
+    #[non_exhaustive]
     Kick {
         /// Channel being changed.
         channel: String,
@@ -964,6 +965,7 @@ pub enum ResponseMatcher {
         nick: String,
     },
     /// A channel invitation ending at `RPL_INVITING`.
+    #[non_exhaustive]
     Invite {
         /// Channel named by the invitation.
         channel: String,
@@ -983,6 +985,7 @@ pub enum ResponseMatcher {
     /// A channel list ending at `323`.
     List,
     /// A channel mode list ending at its mode-specific numeric.
+    #[non_exhaustive]
     ListMode {
         /// Channel whose list was requested.
         channel: String,
@@ -1370,6 +1373,7 @@ pub struct SentInfo {
 #[non_exhaustive]
 pub enum ServerError {
     /// An `IRCv3` `FAIL` standard reply.
+    #[non_exhaustive]
     Standard {
         /// Command associated with the failure.
         command: String,
@@ -1381,6 +1385,7 @@ pub enum ServerError {
         description: String,
     },
     /// A classic error numeric.
+    #[non_exhaustive]
     Numeric {
         /// Numeric error code.
         numeric: Numeric,
@@ -1758,6 +1763,7 @@ pub enum RequestError {
     /// The server requires the account name to match the current nickname.
     CustomAccountNameUnsupported,
     /// A metadata key is invalid.
+    #[non_exhaustive]
     InvalidMetadataKey {
         /// The rejected key.
         key: String,
@@ -1765,6 +1771,7 @@ pub enum RequestError {
         reason: papo_proto::InvalidIdentifier,
     },
     /// A metadata value exceeds the server's advertised byte limit.
+    #[non_exhaustive]
     MetadataValueTooLong {
         /// Advertised maximum.
         maximum: usize,
@@ -1772,6 +1779,7 @@ pub enum RequestError {
         actual: usize,
     },
     /// A metadata subscription request exceeds the server's advertised limit.
+    #[non_exhaustive]
     TooManyMetadataSubscriptions {
         /// Advertised maximum.
         maximum: usize,

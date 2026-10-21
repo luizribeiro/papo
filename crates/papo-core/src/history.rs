@@ -44,6 +44,7 @@ pub struct LastSeen {
 #[non_exhaustive]
 pub enum HistoryQuery {
     /// The newest messages, optionally following a reference.
+    #[non_exhaustive]
     Latest {
         /// Channel or nickname whose history is requested.
         target: String,
@@ -53,6 +54,7 @@ pub enum HistoryQuery {
         limit: usize,
     },
     /// Messages immediately before a reference.
+    #[non_exhaustive]
     Before {
         /// Channel or nickname whose history is requested.
         target: String,
@@ -62,6 +64,7 @@ pub enum HistoryQuery {
         limit: usize,
     },
     /// Messages immediately after a reference.
+    #[non_exhaustive]
     After {
         /// Channel or nickname whose history is requested.
         target: String,
@@ -71,6 +74,7 @@ pub enum HistoryQuery {
         limit: usize,
     },
     /// Messages surrounding a reference.
+    #[non_exhaustive]
     Around {
         /// Channel or nickname whose history is requested.
         target: String,
@@ -80,6 +84,7 @@ pub enum HistoryQuery {
         limit: usize,
     },
     /// Messages between two exclusive references.
+    #[non_exhaustive]
     Between {
         /// Channel or nickname whose history is requested.
         target: String,
@@ -91,6 +96,7 @@ pub enum HistoryQuery {
         limit: usize,
     },
     /// Targets that received messages during a time range.
+    #[non_exhaustive]
     Targets {
         /// Inclusive beginning of the search range.
         from: SystemTime,

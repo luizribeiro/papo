@@ -148,6 +148,7 @@ pub enum Away {
     /// The user is known to be present.
     Present,
     /// The user is away, with a message when the server supplied one.
+    #[non_exhaustive]
     Away {
         /// The away message, or `None` when a WHO reply reported only the away flag.
         message: Option<String>,

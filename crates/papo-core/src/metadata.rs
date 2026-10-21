@@ -39,6 +39,7 @@ impl Visibility {
 #[non_exhaustive]
 pub enum MetadataCommand {
     /// Gets selected keys for a user or channel.
+    #[non_exhaustive]
     Get {
         /// Nickname or channel to query.
         target: String,
@@ -46,11 +47,13 @@ pub enum MetadataCommand {
         keys: Vec<String>,
     },
     /// Lists all visible keys for a user or channel.
+    #[non_exhaustive]
     List {
         /// Nickname or channel to query.
         target: String,
     },
     /// Sets or removes one key for a user or channel.
+    #[non_exhaustive]
     Set {
         /// Nickname or channel to change.
         target: String,
@@ -60,16 +63,19 @@ pub enum MetadataCommand {
         value: Option<String>,
     },
     /// Removes every metadata key from a user or channel.
+    #[non_exhaustive]
     Clear {
         /// Nickname or channel to clear.
         target: String,
     },
     /// Subscribes to metadata keys.
+    #[non_exhaustive]
     Sub {
         /// Keys to add to the subscription list.
         keys: Vec<String>,
     },
     /// Unsubscribes from metadata keys.
+    #[non_exhaustive]
     Unsub {
         /// Keys to remove from the subscription list.
         keys: Vec<String>,
@@ -77,6 +83,7 @@ pub enum MetadataCommand {
     /// Lists current metadata subscriptions.
     Subs,
     /// Synchronizes metadata for a user or channel.
+    #[non_exhaustive]
     Sync {
         /// Nickname or channel to synchronize.
         target: String,

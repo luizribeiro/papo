@@ -150,12 +150,12 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::sts::ConnectionSecurity
 impl core::panic::unwind_safe::UnwindSafe for papo::sts::ConnectionSecurity
 #[non_exhaustive] pub enum papo::sts::StsAction
 pub papo::sts::StsAction::Ignore
-pub papo::sts::StsAction::Persist
+#[non_exhaustive] pub papo::sts::StsAction::Persist
 pub papo::sts::StsAction::Persist::duration: core::time::Duration
 pub papo::sts::StsAction::Persist::host: alloc::string::String
-pub papo::sts::StsAction::Remove
+#[non_exhaustive] pub papo::sts::StsAction::Remove
 pub papo::sts::StsAction::Remove::host: alloc::string::String
-pub papo::sts::StsAction::UpgradeTo
+#[non_exhaustive] pub papo::sts::StsAction::UpgradeTo
 pub papo::sts::StsAction::UpgradeTo::port: u16
 impl core::clone::Clone for papo::sts::StsAction
 pub fn papo::sts::StsAction::clone(&self) -> Self
@@ -315,7 +315,7 @@ impl core::marker::UnsafeUnpin for papo_core::Authorship
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Authorship
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Authorship
 #[non_exhaustive] pub enum papo_core::Away
-pub papo_core::Away::Away
+#[non_exhaustive] pub papo_core::Away::Away
 pub papo_core::Away::Away::message: core::option::Option<alloc::string::String>
 pub papo_core::Away::Present
 pub papo_core::Away::Unknown
@@ -772,28 +772,28 @@ impl core::marker::UnsafeUnpin for papo_core::HistoryItem
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::HistoryItem
 impl core::panic::unwind_safe::UnwindSafe for papo_core::HistoryItem
 #[non_exhaustive] pub enum papo_core::HistoryQuery
-pub papo_core::HistoryQuery::After
+#[non_exhaustive] pub papo_core::HistoryQuery::After
 pub papo_core::HistoryQuery::After::after: papo_core::MsgRef
 pub papo_core::HistoryQuery::After::limit: usize
 pub papo_core::HistoryQuery::After::target: alloc::string::String
-pub papo_core::HistoryQuery::Around
+#[non_exhaustive] pub papo_core::HistoryQuery::Around
 pub papo_core::HistoryQuery::Around::around: papo_core::MsgRef
 pub papo_core::HistoryQuery::Around::limit: usize
 pub papo_core::HistoryQuery::Around::target: alloc::string::String
-pub papo_core::HistoryQuery::Before
+#[non_exhaustive] pub papo_core::HistoryQuery::Before
 pub papo_core::HistoryQuery::Before::before: papo_core::MsgRef
 pub papo_core::HistoryQuery::Before::limit: usize
 pub papo_core::HistoryQuery::Before::target: alloc::string::String
-pub papo_core::HistoryQuery::Between
+#[non_exhaustive] pub papo_core::HistoryQuery::Between
 pub papo_core::HistoryQuery::Between::end: papo_core::MsgRef
 pub papo_core::HistoryQuery::Between::limit: usize
 pub papo_core::HistoryQuery::Between::start: papo_core::MsgRef
 pub papo_core::HistoryQuery::Between::target: alloc::string::String
-pub papo_core::HistoryQuery::Latest
+#[non_exhaustive] pub papo_core::HistoryQuery::Latest
 pub papo_core::HistoryQuery::Latest::after: core::option::Option<papo_core::MsgRef>
 pub papo_core::HistoryQuery::Latest::limit: usize
 pub papo_core::HistoryQuery::Latest::target: alloc::string::String
-pub papo_core::HistoryQuery::Targets
+#[non_exhaustive] pub papo_core::HistoryQuery::Targets
 pub papo_core::HistoryQuery::Targets::from: std::time::SystemTime
 pub papo_core::HistoryQuery::Targets::limit: usize
 pub papo_core::HistoryQuery::Targets::to: std::time::SystemTime
@@ -860,23 +860,23 @@ impl core::marker::UnsafeUnpin for papo_core::ListMode
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ListMode
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ListMode
 #[non_exhaustive] pub enum papo_core::MetadataCommand
-pub papo_core::MetadataCommand::Clear
+#[non_exhaustive] pub papo_core::MetadataCommand::Clear
 pub papo_core::MetadataCommand::Clear::target: alloc::string::String
-pub papo_core::MetadataCommand::Get
+#[non_exhaustive] pub papo_core::MetadataCommand::Get
 pub papo_core::MetadataCommand::Get::keys: alloc::vec::Vec<alloc::string::String>
 pub papo_core::MetadataCommand::Get::target: alloc::string::String
-pub papo_core::MetadataCommand::List
+#[non_exhaustive] pub papo_core::MetadataCommand::List
 pub papo_core::MetadataCommand::List::target: alloc::string::String
-pub papo_core::MetadataCommand::Set
+#[non_exhaustive] pub papo_core::MetadataCommand::Set
 pub papo_core::MetadataCommand::Set::key: alloc::string::String
 pub papo_core::MetadataCommand::Set::target: alloc::string::String
 pub papo_core::MetadataCommand::Set::value: core::option::Option<alloc::string::String>
-pub papo_core::MetadataCommand::Sub
+#[non_exhaustive] pub papo_core::MetadataCommand::Sub
 pub papo_core::MetadataCommand::Sub::keys: alloc::vec::Vec<alloc::string::String>
 pub papo_core::MetadataCommand::Subs
-pub papo_core::MetadataCommand::Sync
+#[non_exhaustive] pub papo_core::MetadataCommand::Sync
 pub papo_core::MetadataCommand::Sync::target: alloc::string::String
-pub papo_core::MetadataCommand::Unsub
+#[non_exhaustive] pub papo_core::MetadataCommand::Unsub
 pub papo_core::MetadataCommand::Unsub::keys: alloc::vec::Vec<alloc::string::String>
 impl core::clone::Clone for papo_core::MetadataCommand
 pub fn papo_core::MetadataCommand::clone(&self) -> Self
@@ -1159,18 +1159,18 @@ pub papo_core::RequestError::CustomAccountNameUnsupported
 pub papo_core::RequestError::EmailRequired
 pub papo_core::RequestError::EmptyText
 pub papo_core::RequestError::InvalidMessageReference
-pub papo_core::RequestError::InvalidMetadataKey
+#[non_exhaustive] pub papo_core::RequestError::InvalidMetadataKey
 pub papo_core::RequestError::InvalidMetadataKey::key: alloc::string::String
 pub papo_core::RequestError::InvalidMetadataKey::reason: papo::InvalidIdentifier
 pub papo_core::RequestError::InvalidRelayNickname
 pub papo_core::RequestError::InvalidSecret
 pub papo_core::RequestError::InvalidWebPushEndpoint
 pub papo_core::RequestError::InvalidWebPushKey
-pub papo_core::RequestError::MetadataValueTooLong
+#[non_exhaustive] pub papo_core::RequestError::MetadataValueTooLong
 pub papo_core::RequestError::MetadataValueTooLong::actual: usize
 pub papo_core::RequestError::MetadataValueTooLong::maximum: usize
 pub papo_core::RequestError::PendingLimit
-pub papo_core::RequestError::TooManyMetadataSubscriptions
+#[non_exhaustive] pub papo_core::RequestError::TooManyMetadataSubscriptions
 pub papo_core::RequestError::TooManyMetadataSubscriptions::actual: usize
 pub papo_core::RequestError::TooManyMetadataSubscriptions::maximum: usize
 pub papo_core::RequestError::Unsupported(papo_core::Unsupported)
@@ -1197,15 +1197,15 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::RequestError
 impl core::panic::unwind_safe::UnwindSafe for papo_core::RequestError
 #[non_exhaustive] pub enum papo_core::ResponseMatcher
 pub papo_core::ResponseMatcher::Away(bool)
-pub papo_core::ResponseMatcher::Invite
+#[non_exhaustive] pub papo_core::ResponseMatcher::Invite
 pub papo_core::ResponseMatcher::Invite::channel: alloc::string::String
 pub papo_core::ResponseMatcher::Invite::nick: alloc::string::String
 pub papo_core::ResponseMatcher::Join(alloc::string::String)
-pub papo_core::ResponseMatcher::Kick
+#[non_exhaustive] pub papo_core::ResponseMatcher::Kick
 pub papo_core::ResponseMatcher::Kick::channel: alloc::string::String
 pub papo_core::ResponseMatcher::Kick::nick: alloc::string::String
 pub papo_core::ResponseMatcher::List
-pub papo_core::ResponseMatcher::ListMode
+#[non_exhaustive] pub papo_core::ResponseMatcher::ListMode
 pub papo_core::ResponseMatcher::ListMode::channel: alloc::string::String
 pub papo_core::ResponseMatcher::ListMode::mode: papo_core::ListMode
 pub papo_core::ResponseMatcher::Mode(alloc::string::String)
@@ -1234,10 +1234,10 @@ impl core::marker::UnsafeUnpin for papo_core::ResponseMatcher
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ResponseMatcher
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ResponseMatcher
 #[non_exhaustive] pub enum papo_core::ServerError
-pub papo_core::ServerError::Numeric
+#[non_exhaustive] pub papo_core::ServerError::Numeric
 pub papo_core::ServerError::Numeric::numeric: papo_proto::numeric::Numeric
 pub papo_core::ServerError::Numeric::params: alloc::vec::Vec<alloc::string::String>
-pub papo_core::ServerError::Standard
+#[non_exhaustive] pub papo_core::ServerError::Standard
 pub papo_core::ServerError::Standard::code: alloc::string::String
 pub papo_core::ServerError::Standard::command: alloc::string::String
 pub papo_core::ServerError::Standard::context: alloc::vec::Vec<alloc::string::String>

@@ -72,11 +72,13 @@ pub enum ConnectionSecurity {
 #[non_exhaustive]
 pub enum StsAction {
     /// Reconnect to the same hostname using TLS on this port.
+    #[non_exhaustive]
     UpgradeTo {
         /// The advertised TLS port.
         port: u16,
     },
     /// Persist a secure-only policy for a hostname.
+    #[non_exhaustive]
     Persist {
         /// The hostname used to establish the connection.
         host: String,
@@ -84,6 +86,7 @@ pub enum StsAction {
         duration: Duration,
     },
     /// Remove the stored policy for a hostname.
+    #[non_exhaustive]
     Remove {
         /// The hostname used to establish the connection.
         host: String,
