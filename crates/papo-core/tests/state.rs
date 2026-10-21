@@ -488,6 +488,47 @@ fn away_notify_sets_and_clears_a_joined_users_message() {
 }
 
 #[test]
+fn away_notify_separates_our_state_and_suppresses_repeated_messages() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":dan!~dan@cloak.example JOIN #papo")
+        .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "dan" && message == "Gone to lunch"))
+        .inspect(|session| {
+            assert_eq!(session.state().away(), &Away::Present);
+            assert_eq!(
+                session.state().user("dan").unwrap().away(),
+                &Away::Away {
+                    message: Some("Gone to lunch".into())
+                }
+            );
+        })
+        .server(":emily!em@127.0.0.1 AWAY :On call")
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "emily" && message == "On call"))
+        .inspect(|session| {
+            assert_eq!(
+                session.state().away(),
+                &Away::Away {
+                    message: Some("On call".into())
+                }
+            );
+        })
+        .server(":emily!em@127.0.0.1 AWAY :On call")
+        .no_event()
+        .server(":emily!em@127.0.0.1 AWAY :Reviewing alerts")
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "emily" && message == "Reviewing alerts"))
+        .inspect(|session| {
+            assert_eq!(
+                session.state().away(),
+                &Away::Away {
+                    message: Some("Reviewing alerts".into())
+                }
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn away_notify_star_records_an_unspecified_away_state() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
