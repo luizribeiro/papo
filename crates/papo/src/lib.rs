@@ -64,7 +64,7 @@ pub use error::{
 };
 pub use event_impl::{
     Authorship, Ctcp, Event, LegacyModeAction, LegacyModeArg, Message, MessageKind, ModeKind,
-    Origin, Source, Tags, mode_action, mode_arg,
+    Origin, Source, Tags,
 };
 pub use ext::accounts::{AccountCreation, NewAccount};
 #[cfg(feature = "unstable")]
@@ -136,7 +136,7 @@ pub mod event {
         MonitorOffline, MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
         ReadMarker, RealnameChanged, Redacted, Source, SplitServers, StandardReply,
         StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, TypingReason,
-        Visibility, Warning, mode_action, mode_arg,
+        Visibility, Warning,
     };
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]

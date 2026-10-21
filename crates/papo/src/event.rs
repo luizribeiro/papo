@@ -1284,43 +1284,12 @@ pub(crate) fn typed_mode_change(
     kind: papo_proto::ModeKind,
     casemapping: Casemapping,
 ) -> ModeChange {
-    typed_core_mode_change(action, mode, arg, kind, casemapping)
-}
-
-#[doc(hidden)]
-#[must_use]
-pub fn mode_action(change: &ModeChange) -> LegacyModeAction {
-    match change.action {
-        ModeAction::Add => LegacyModeAction::Add,
-        ModeAction::Remove => LegacyModeAction::Remove,
-    }
-}
-
-#[doc(hidden)]
-#[must_use]
-pub fn mode_arg(change: &ModeChange) -> Option<LegacyModeArg> {
-    match change.arg.as_ref() {
-        Some(ModeArg::Nick(nick)) => Some(LegacyModeArg::Nick(nick.clone())),
-        Some(ModeArg::Mask(mask)) => Some(LegacyModeArg::Mask(mask.clone())),
-        Some(ModeArg::Value(value)) => Some(LegacyModeArg::Value(value.clone())),
-        Some(_) | None => None,
-    }
-}
-
-#[allow(dead_code)]
-pub(crate) fn typed_core_mode_change(
-    action: papo_core::ModeAction,
-    mode: char,
-    arg: Option<&str>,
-    kind: papo_proto::ModeKind,
-    casemapping: Casemapping,
-) -> papo_core::ModeChange {
     let arg = arg.map(|arg| match kind {
-        papo_proto::ModeKind::Prefix(_) => papo_core::ModeArg::Nick(casemapping.nick(arg)),
-        papo_proto::ModeKind::List => papo_core::ModeArg::Mask(casemapping.mask(arg)),
-        _ => papo_core::ModeArg::Value(arg.to_owned()),
+        papo_proto::ModeKind::Prefix(_) => ModeArg::Nick(casemapping.nick(arg)),
+        papo_proto::ModeKind::List => ModeArg::Mask(casemapping.mask(arg)),
+        _ => ModeArg::Value(arg.to_owned()),
     });
-    papo_core::ModeChange { mode, action, arg }
+    ModeChange { mode, action, arg }
 }
 
 #[cfg(all(test, not(browser)))]

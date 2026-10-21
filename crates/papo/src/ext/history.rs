@@ -1314,7 +1314,7 @@ mod tests {
                     && event
                         .changes
                         .iter()
-                        .all(|change| crate::mode_action(change) == crate::LegacyModeAction::Add)
+                        .all(|change| change.action == crate::ModeAction::Add)
                     && event.changes[0].mode == 'i' && event.changes[1].mode == 'm'
         ));
 

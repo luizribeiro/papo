@@ -4,9 +4,6 @@ use crate::{Account, AccountName, Authorship, ChannelName, MessageId, Nick, Subj
 
 use super::Source;
 
-#[doc(hidden)]
-pub type EventModeChange = papo_core::ModeChange;
-
 /// The operation applied to an IRC mode.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LegacyModeAction {
@@ -189,7 +186,7 @@ pub struct ModeChanged {
     /// Whether the distinct subject is this client's user.
     pub subject_authorship: Authorship,
     /// Parsed mode operations in wire order.
-    pub changes: Vec<EventModeChange>,
+    pub changes: Vec<crate::ModeChange>,
 }
 
 /// A joined channel was renamed.
