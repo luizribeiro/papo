@@ -326,6 +326,39 @@ impl AccountName {
 }
 
 impl Mask {
+    /// Builds the complete visible `nick!user@host` mask for a user source.
+    ///
+    /// Returns `None` for server sources or when the username or hostname is unknown.
+    #[must_use]
+    pub fn exact(source: &impl MaskSource) -> Option<Self> {
+        let (nick, username, host) = source.mask_parts()?;
+        Some(nick.casemapping().mask(format!("{nick}!{username}@{host}")))
+    }
+
+    /// Builds a `*!*@host` mask for a user source.
+    ///
+    /// Returns `None` for server sources or when the username or hostname is unknown.
+    #[must_use]
+    pub fn for_host(source: &impl MaskSource) -> Option<Self> {
+        let (nick, _, host) = source.mask_parts()?;
+        Some(nick.casemapping().mask(format!("*!*@{host}")))
+    }
+
+    /// Builds a `*!user@host` mask for a user source.
+    ///
+    /// Returns `None` for server sources or when the username or hostname is unknown.
+    #[must_use]
+    pub fn for_user_host(source: &impl MaskSource) -> Option<Self> {
+        let (nick, username, host) = source.mask_parts()?;
+        Some(nick.casemapping().mask(format!("*!{username}@{host}")))
+    }
+
+    /// Builds a `nick!*@*` mask for a nickname.
+    #[must_use]
+    pub fn for_nick(nick: &Nick) -> Self {
+        nick.casemapping().mask(format!("{nick}!*@*"))
+    }
+
     /// Validates this mask for use as an IRC parameter.
     ///
     /// # Errors
@@ -334,6 +367,13 @@ impl Mask {
     pub fn check(&self) -> Result<(), InvalidIdentifier> {
         check_parameter(self)
     }
+}
+
+/// Supplies the complete visible identity used by [`Mask`] constructors.
+#[doc(hidden)]
+pub trait MaskSource {
+    /// Returns the nickname, username, and hostname for a complete user source.
+    fn mask_parts(&self) -> Option<(&Nick, &str, &str)>;
 }
 
 impl MetadataKey {

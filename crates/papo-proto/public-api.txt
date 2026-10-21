@@ -908,6 +908,10 @@ impl papo_proto::Mask
 pub const fn papo_proto::Mask::casemapping(&self) -> papo_proto::Casemapping
 impl papo_proto::Mask
 pub fn papo_proto::Mask::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+pub fn papo_proto::Mask::exact(&impl MaskSource) -> core::option::Option<Self>
+pub fn papo_proto::Mask::for_host(&impl MaskSource) -> core::option::Option<Self>
+pub fn papo_proto::Mask::for_nick(&papo_proto::Nick) -> Self
+pub fn papo_proto::Mask::for_user_host(&impl MaskSource) -> core::option::Option<Self>
 impl papo_proto::Mask
 pub fn papo_proto::Mask::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo_proto::Mask

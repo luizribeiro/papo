@@ -26,6 +26,15 @@ fn moderate_message(client: &papo::Client, event: papo::Event) {
     let _: papo::RequestFuture<()> = client.redact(&message, "superseded");
 }
 
+fn inspect_source(source: &papo::Source) {
+    let _: Option<papo::Mask> = papo::Mask::exact(source);
+    let _: Option<papo::Mask> = papo::Mask::for_host(source);
+    let _: Option<papo::Mask> = papo::Mask::for_user_host(source);
+    if let Some(nick) = source.nick() {
+        let _: papo::Mask = papo::Mask::for_nick(nick);
+    }
+}
+
 #[test]
 fn everyday_api_is_nameable_from_the_facade() {
     assert_eq!(
@@ -59,5 +68,6 @@ fn everyday_api_is_nameable_from_the_facade() {
     drop(connect);
     let _: fn(papo::Event) = inspect_event;
     let _: fn(&papo::Client, papo::Event) = moderate_message;
+    let _: fn(&papo::Source) = inspect_source;
     drop(driver);
 }

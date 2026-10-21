@@ -1,6 +1,6 @@
 use std::fmt;
 
-use papo_proto::{Casemapping, Nick, ServerName};
+use papo_proto::{Casemapping, MaskSource, Nick, ServerName};
 
 /// The source of an IRC event.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -70,6 +70,19 @@ impl fmt::Display for Source {
     }
 }
 
+impl MaskSource for Source {
+    fn mask_parts(&self) -> Option<(&Nick, &str, &str)> {
+        match self {
+            Self::User {
+                nick,
+                username: Some(username),
+                host: Some(host),
+            } => Some((nick, username, host)),
+            Self::User { .. } | Self::Server { .. } => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use papo_proto::Casemapping;
@@ -107,5 +120,40 @@ mod tests {
         assert_eq!(full_user.to_string(), "alice");
         assert_eq!(bare_user.to_string(), "Alice[bot]");
         assert_eq!(server.to_string(), "Irc.Libera.Chat");
+    }
+
+    #[test]
+    fn builds_masks_from_complete_user_sources() {
+        let mapping = Casemapping::Rfc1459;
+        let source = Source::from_prefix("Alice[bot]!~alice@staff.example", mapping);
+        let nick = source.nick().unwrap();
+
+        assert_eq!(
+            papo_proto::Mask::exact(&source).unwrap(),
+            "alice{bot}!~alice@staff.example"
+        );
+        assert_eq!(
+            papo_proto::Mask::for_host(&source).unwrap(),
+            "*!*@staff.example"
+        );
+        assert_eq!(
+            papo_proto::Mask::for_user_host(&source).unwrap(),
+            "*!~alice@staff.example"
+        );
+        assert_eq!(papo_proto::Mask::for_nick(nick), "alice{bot}!*@*");
+    }
+
+    #[test]
+    fn source_mask_builders_require_a_complete_user_prefix() {
+        let mapping = Casemapping::Ascii;
+        for source in [
+            Source::from_prefix("Alice!~alice", mapping),
+            Source::from_prefix("Alice@staff.example", mapping),
+            Source::from_prefix("irc.example.net", mapping),
+        ] {
+            assert_eq!(papo_proto::Mask::exact(&source), None);
+            assert_eq!(papo_proto::Mask::for_host(&source), None);
+            assert_eq!(papo_proto::Mask::for_user_host(&source), None);
+        }
     }
 }
